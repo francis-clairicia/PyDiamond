@@ -153,22 +153,25 @@ class Animation:
     def register_position(
         self, speed: float = 1, milliseconds: float = 10, **position: Union[float, Tuple[float, float]]
     ) -> Animation:
+        self.stop()
         self.__animations["move"] = AnimationSetPosition(self.__drawable, milliseconds, speed, **position)
         return self
 
     def register_translation(
         self, translation: Union[Vector2, Tuple[float, float]], speed: float = 1, milliseconds: float = 10
     ) -> Animation:
+        self.stop()
         self.__animations["move"] = AnimationMove(self.__drawable, translation, milliseconds, speed)
         return self
 
-    def register_rotate(
+    def register_rotation(
         self,
         angle: float,
         offset: float = 1,
         point: Optional[Union[Vector2, Tuple[float, float], str]] = None,
         milliseconds: float = 10,
     ) -> Animation:
+        self.stop()
         animation = "rotate" if point is None else "rotate_point"
         self.__animations[animation] = AnimationRotation(self.__drawable, milliseconds, angle, offset, point)
         return self
@@ -241,7 +244,7 @@ class Animation:
             window = master
             scene = None
         self.__animate(at_every_frame)
-        if any(animation.started() for animation in self.__iter_animations()):
+        if self.started():
             self.__window_callback = window.after(
                 0,
                 self.__start_window_callback,
@@ -256,6 +259,9 @@ class Animation:
             self.__save_animations = self.__save_window_callback = None
             if callable(after_animation):
                 after_animation()
+
+    def started(self) -> bool:
+        return any(animation.started() for animation in self.__iter_animations())
 
     def stop(self) -> None:
         if self.__window_callback is not None:

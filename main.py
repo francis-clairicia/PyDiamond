@@ -89,15 +89,15 @@ class AnimationScene(Scene):
         self.rectangle = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
         self.rectangle.midleft = window.midleft
         self.rectangle.animation.register_position(center=window.center, speed=5.2)
-        self.rectangle.animation.register_rotate(360, offset=2, point=window.center)
-        self.rectangle.animation.register_rotate(-360, offset=2)
-        self.rectangle.animation.start_in_background(self, after_animation=self.move_to_right)
+        self.rectangle.animation.register_rotation(360, offset=2, point=window.center)
+        self.rectangle.animation.register_rotation(-360, offset=2)
+        self.rectangle.animation.start_in_background(self, after_animation=self.move_to_left)
 
     def draw(self) -> None:
         self.window.clear()
         self.window.draw(self.rectangle)
 
-    def move_to_right(self) -> None:
+    def move_to_left(self) -> None:
         self.rectangle.animation.register_translation((-self.window.centerx / 2, -50), speed=5)
         self.rectangle.animation.start_in_background(self)
 
