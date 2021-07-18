@@ -253,6 +253,10 @@ class CircleShape(Shape):
     def get_local_size(self) -> Tuple[float, float]:
         return (self.radius * 2, self.radius * 2)
 
+    def get_size(self) -> Tuple[float, float]:
+        w, h = self.get_local_size()
+        return w * self.scale, h * self.scale
+
     @property
     def radius(self) -> float:
         return self.__radius

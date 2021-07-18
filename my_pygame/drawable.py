@@ -183,6 +183,19 @@ class Drawable(metaclass=MetaDrawable):
     def get_local_size(self) -> Tuple[float, float]:
         pass
 
+    def get_size(self) -> Tuple[float, float]:
+        w, h = self.get_local_size()
+        w *= self.scale
+        h *= self.scale
+        center: Vector2 = Vector2(w / 2, h / 2)
+        corners: List[Vector2] = [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
+        all_points: List[Vector2] = [center + (point - center).rotate(-self.angle) for point in corners]
+        left: float = min((point.x for point in all_points), default=0)
+        right: float = max((point.x for point in all_points), default=0)
+        top: float = min((point.y for point in all_points), default=0)
+        bottom: float = max((point.y for point in all_points), default=0)
+        return (right - left, bottom - top)
+
     def get_local_rect(self) -> Rect:
         return Rect((0, 0), self.get_local_size())
 
@@ -234,17 +247,7 @@ class Drawable(metaclass=MetaDrawable):
 
     @property
     def size(self) -> Tuple[float, float]:
-        w, h = self.get_local_size()
-        w *= self.scale
-        h *= self.scale
-        center: Vector2 = Vector2(w / 2, h / 2)
-        corners: List[Vector2] = [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
-        all_points: List[Vector2] = [center + (point - center).rotate(-self.angle) for point in corners]
-        left: float = min((point.x for point in all_points), default=0)
-        right: float = max((point.x for point in all_points), default=0)
-        top: float = min((point.y for point in all_points), default=0)
-        bottom: float = max((point.y for point in all_points), default=0)
-        return (right - left, bottom - top)
+        return self.get_size()
 
     @size.setter
     def size(self, size: Tuple[float, float]) -> None:

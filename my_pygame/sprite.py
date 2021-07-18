@@ -53,6 +53,9 @@ class Sprite(Drawable, PygameSprite):
         self.__image = pygame.transform.rotate(self.__image, self.angle)
         self.__mask = pygame.mask.from_surface(self.__image)
 
+    def get_size(self) -> Tuple[float, float]:
+        return self.image.get_size()
+
     @property
     def image(self) -> Surface:  # type: ignore
         return self.__image
@@ -64,11 +67,3 @@ class Sprite(Drawable, PygameSprite):
     @property
     def mask(self) -> Mask:
         return self.__mask
-
-    @property
-    def size(self) -> Tuple[float, float]:
-        return self.image.get_size()
-
-    @size.setter
-    def size(self, size: Tuple[float, float]) -> None:
-        self.scale_to_size(size)
