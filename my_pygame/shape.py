@@ -1,6 +1,7 @@
 # -*- coding: Utf-8 -*
 
-from typing import Dict, List, Optional, Tuple
+from abc import abstractmethod
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import pygame.draw
 from pygame.math import Vector2
@@ -21,6 +22,10 @@ class Shape(ThemedDrawable, use_parent_theme=False):
         self.color = color
         self.outline = outline
         self.outline_color = outline_color
+
+    @abstractmethod
+    def get_vertices(self) -> List[Vector2]:
+        pass
 
     @property
     def color(self) -> Color:
@@ -50,15 +55,21 @@ class Shape(ThemedDrawable, use_parent_theme=False):
 class PolygonShape(Shape):
     def __init__(self, color: Color, *, outline: int = 0, outline_color: Color = BLACK, points: List[Vector2] = []) -> None:
         super().__init__(color, outline, outline_color)
+        self.__points: List[Vector2] = []
         self.points = points
 
     def draw_onto(self, surface: Surface) -> None:
         all_points: List[Vector2] = self.get_vertices()
-        if len(all_points) <= 2:
+        if len(all_points) < 2:
             return
 
-        pygame.draw.polygon(surface, self.color, all_points)
         outline: int = max(round(self.outline * self.scale), 1) if self.outline > 0 else 0
+
+        if len(all_points) == 2 and outline > 0:
+            start, end = all_points
+            pygame.draw.line(surface, self.outline_color, start, end, width=outline)
+
+        pygame.draw.polygon(surface, self.color, all_points)
         if outline > 0:
             pygame.draw.polygon(surface, self.outline_color, all_points, width=outline)
 
@@ -94,7 +105,17 @@ class PolygonShape(Shape):
 
     @points.setter
     def points(self, points: List[Vector2]) -> None:
+        self.set_points(points)
+
+    def set_points(self, points: Sequence[Union[Vector2, Tuple[float, float]]]) -> None:
+        center: Tuple[float, float] = self.center
         self.__points = [Vector2(p) for p in points]
+        left: float = min((point.x for point in self.__points), default=0)
+        top: float = min((point.y for point in self.__points), default=0)
+        for p in self.__points:
+            p.x -= left
+            p.y -= top
+        self.center = center
 
 
 class RectangleShape(Shape):
@@ -139,6 +160,15 @@ class RectangleShape(Shape):
 
     def get_local_size(self) -> Tuple[float, float]:
         return self.local_size
+
+    def get_vertices(self) -> List[Vector2]:
+        w, h = self.get_local_size()
+        w *= self.scale
+        h *= self.scale
+        local_center: Vector2 = Vector2(w / 2, h / 2)
+        corners: List[Vector2] = [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
+        center: Vector2 = Vector2(self.center)
+        return [center + (point - local_center).rotate(-self.angle) for point in corners]
 
     @property
     def local_size(self) -> Tuple[float, float]:
@@ -257,6 +287,11 @@ class CircleShape(Shape):
         w, h = self.get_local_size()
         return w * self.scale, h * self.scale
 
+    def get_vertices(self) -> List[Vector2]:
+        center: Vector2 = Vector2(self.center)
+        radius: Vector2 = Vector2(self.radius, 0)
+        return [center + radius.rotate(-i) for i in range(360)]
+
     @property
     def radius(self) -> float:
         return self.__radius
@@ -326,6 +361,15 @@ class CrossShape(Shape):
 
     def get_local_size(self) -> Tuple[float, float]:
         return self.local_size
+
+    def get_vertices(self) -> List[Vector2]:
+        w, h = self.get_local_size()
+        w *= self.scale
+        h *= self.scale
+        local_center: Vector2 = Vector2(w / 2, h / 2)
+        corners: List[Vector2] = [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
+        center: Vector2 = Vector2(self.center)
+        return [center + (point - local_center).rotate(-self.angle) for point in corners]
 
     @property
     def color(self) -> Color:

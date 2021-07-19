@@ -40,6 +40,7 @@ class ShapeScene(Scene):
             Vector2(0, 20),
             Vector2(20, 20),
         ]
+        self.__shape_copy: PolygonShape = PolygonShape(WHITE)
         # self.__r.center = window.center
         self.__r.set_position(center=window.center)
         self.__p.center = self.__r.centerx - window.centery / 4, window.centery
@@ -49,6 +50,7 @@ class ShapeScene(Scene):
         self.__scale: float = 1
         self.__scale_growth: int = 1
         self.__s.center = window.width * 3 / 4, 100
+        self.__shape_copy.center = window.width / 4, window.height * 3 / 4
         # self.__r.hide()
         # self.window.after(3000, self.window.close)
 
@@ -71,8 +73,8 @@ class ShapeScene(Scene):
             self.__x.scale = self.__scale
             self.__c.scale = self.__scale
             self.__s.scale = self.__scale
-
-            self.__s.default_image = self.__r.to_surface()
+        self.__s.default_image = self.__r.to_surface()
+        self.__shape_copy.points = self.__c.get_vertices()
 
     def draw(self) -> None:
         self.window.clear()
@@ -81,6 +83,7 @@ class ShapeScene(Scene):
         self.window.draw(self.__x)
         self.window.draw(self.__c)
         self.window.draw(self.__s)
+        self.window.draw(self.__shape_copy)
 
 
 class AnimationScene(Scene):
@@ -104,8 +107,8 @@ class AnimationScene(Scene):
 
 def main() -> None:
     w: Window = Window("my window")
-    # w.scenes.push_on_top(ShapeScene(w))
-    w.scenes.push_on_top(AnimationScene(w))
+    w.scenes.push_on_top(ShapeScene(w))
+    # w.scenes.push_on_top(AnimationScene(w))
     w.mainloop()
 
 

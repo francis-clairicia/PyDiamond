@@ -153,14 +153,14 @@ class Animation:
     def register_position(
         self, speed: float = 1, milliseconds: float = 10, **position: Union[float, Tuple[float, float]]
     ) -> Animation:
-        self.stop()
+        self.stop_background()
         self.__animations["move"] = AnimationSetPosition(self.__drawable, milliseconds, speed, **position)
         return self
 
     def register_translation(
         self, translation: Union[Vector2, Tuple[float, float]], speed: float = 1, milliseconds: float = 10
     ) -> Animation:
-        self.stop()
+        self.stop_background()
         self.__animations["move"] = AnimationMove(self.__drawable, translation, milliseconds, speed)
         return self
 
@@ -171,7 +171,7 @@ class Animation:
         point: Optional[Union[Vector2, Tuple[float, float], str]] = None,
         milliseconds: float = 10,
     ) -> Animation:
-        self.stop()
+        self.stop_background()
         animation = "rotate" if point is None else "rotate_point"
         self.__animations[animation] = AnimationRotation(self.__drawable, milliseconds, angle, offset, point)
         return self
@@ -213,7 +213,7 @@ class Animation:
             if master.window.scenes.top() is not master:
                 return
             master = master.window
-        while any(animation.started() for animation in self.__iter_animations()):
+        while self.started():
             self.__animate(at_every_frame)
             master.handle_events(only_close_event=True)
             master.draw_and_refresh()
@@ -263,7 +263,7 @@ class Animation:
     def started(self) -> bool:
         return any(animation.started() for animation in self.__iter_animations())
 
-    def stop(self) -> None:
+    def stop_background(self) -> None:
         if self.__window_callback is not None:
             self.__window_callback.kill()
             self.__save_window_callback = self.__window_callback
@@ -271,7 +271,7 @@ class Animation:
             self.__save_animations = self.__animations.copy()
             self.__clear()
 
-    def restart(self) -> None:
+    def restart_background(self) -> None:
         if self.__window_callback is None and self.__save_window_callback is not None:
             if self.__save_animations is not None:
                 self.__animations = self.__save_animations.copy()
