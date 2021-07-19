@@ -23,7 +23,7 @@ class ShapeScene(Scene):
         self.__r: RectangleShape = RectangleShape(50, 50, WHITE)
         self.__p: PolygonShape = PolygonShape(WHITE)
         self.__c: CircleShape = CircleShape(30, WHITE)
-        self.__x: CrossShape = CrossShape(100, 100, outline_color=RED, outline=20)
+        self.__x: CrossShape = CrossShape(300, 300, outline_color=RED, outline=20)
         self.__s: Sprite = Sprite()
         self.__p.set_points(
             [
@@ -46,7 +46,7 @@ class ShapeScene(Scene):
         self.__r.set_position(center=window.center)
         self.__p.center = self.__r.centerx - window.centery / 4, window.centery
         # self.__x.center = self.__r.centerx - window.centery / 2, window.centery
-        self.__x.center = (120, 120)
+        self.__x.topleft = (50, 50)
         self.__c.center = self.__r.centerx - window.centery * 3 / 4, window.centery
 
         # self.__x_trajectory: CircleShape = CircleShape(

@@ -90,6 +90,26 @@ class Shape(ThemedDrawable, use_parent_theme=False):
             self.__outline_color = value
             self._need_update()
 
+    @property
+    def x(self) -> float:
+        self.__update_shape()
+        return ThemedDrawable.x.fget(self)  # type: ignore
+
+    @x.setter
+    def x(self, x: float) -> None:
+        self.__update_shape()
+        ThemedDrawable.x.fset(self, x)  # type: ignore
+
+    @property
+    def y(self) -> float:
+        self.__update_shape()
+        return ThemedDrawable.y.fget(self)  # type: ignore
+
+    @y.setter
+    def y(self, x: float) -> None:
+        self.__update_shape()
+        ThemedDrawable.y.fset(self, x)  # type: ignore
+
 
 class PolygonShape(Shape):
     def __init__(self, color: Color, *, outline: int = 0, outline_color: Color = BLACK, points: List[Vector2] = []) -> None:
