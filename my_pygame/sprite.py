@@ -33,9 +33,6 @@ class Sprite(Drawable, PygameSprite):
         self._apply_rotation_scale()
         self.center = center
 
-    def draw_onto(self, surface: Surface) -> None:
-        surface.blit(self.image, self.topleft)
-
     def get_local_size(self) -> Tuple[float, float]:
         return self.default_image.get_size()
 
@@ -62,7 +59,7 @@ class Sprite(Drawable, PygameSprite):
 
     @property
     def rect(self) -> Rect:  # type: ignore
-        return self.image.get_rect(topleft=self.topleft)
+        return self.image.get_rect(center=self.center)
 
     @property
     def mask(self) -> Mask:

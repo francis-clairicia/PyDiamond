@@ -154,9 +154,9 @@ class Window:
         if screen is None:
             if size[0] <= 0 or size[1] <= 0:
                 size = (0, 0)
-            flags: int = pygame.DOUBLEBUF | pygame.HWSURFACE
+            flags: int = 0
             if fullscreen:
-                flags |= pygame.FULLSCREEN
+                flags |= pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF
             screen = pygame.display.set_mode(size, flags=flags, depth=32)
         self.__surface: Surface = create_surface(screen.get_size())
         self.clear_all_events()

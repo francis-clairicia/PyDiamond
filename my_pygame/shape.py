@@ -1,7 +1,7 @@
 # -*- coding: Utf-8 -*
 
 from abc import abstractmethod
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import pygame.draw
 from pygame.math import Vector2
@@ -19,9 +19,41 @@ from .surface import create_surface
 class Shape(ThemedDrawable, use_parent_theme=False):
     def __init__(self, color: Color, outline: int, outline_color: Color) -> None:
         super().__init__()
+        self.__update: bool = True
+        self.__image: Surface = create_surface((0, 0))
+        self.__shape_image: Surface = self.__image.copy()
+        self.__color: Color = BLACK
+        self.__outline: int = 0
+        self.__outline_color: Color = BLACK
         self.color = color
         self.outline = outline
         self.outline_color = outline_color
+
+    def _need_update(self) -> None:
+        self.__update = True
+
+    def __update_shape(self) -> None:
+        if self.__update:
+            self.__update = False
+            center: Tuple[float, float] = self.center
+            self.__shape_image = self.make()
+            self._apply_rotation_scale()
+            self.center = center
+
+    def to_surface(self) -> Surface:
+        self.__update_shape()
+        return self.__image
+
+    def get_size(self) -> Tuple[float, float]:
+        self.__update_shape()
+        return self.__image.get_size()
+
+    def _apply_rotation_scale(self) -> None:
+        self.__image = pygame.transform.rotozoom(self.__shape_image, self.angle, self.scale)
+
+    @abstractmethod
+    def make(self) -> Surface:
+        pass
 
     @abstractmethod
     def get_vertices(self) -> List[Vector2]:
@@ -33,7 +65,9 @@ class Shape(ThemedDrawable, use_parent_theme=False):
 
     @color.setter
     def color(self, value: Color) -> None:
-        self.__color = Color(value)
+        if self.__color != value:
+            self.__color = value
+            self._need_update()
 
     @property
     def outline(self) -> int:
@@ -41,7 +75,10 @@ class Shape(ThemedDrawable, use_parent_theme=False):
 
     @outline.setter
     def outline(self, value: int) -> None:
-        self.__outline = max(value, 0)
+        value = max(int(value), 0)
+        if self.__outline != value:
+            self.__outline = value
+            self._need_update()
 
     @property
     def outline_color(self) -> Color:
@@ -49,73 +86,74 @@ class Shape(ThemedDrawable, use_parent_theme=False):
 
     @outline_color.setter
     def outline_color(self, value: Color) -> None:
-        self.__outline_color = Color(value)
+        if self.__outline_color != value:
+            self.__outline_color = value
+            self._need_update()
 
 
 class PolygonShape(Shape):
     def __init__(self, color: Color, *, outline: int = 0, outline_color: Color = BLACK, points: List[Vector2] = []) -> None:
         super().__init__(color, outline, outline_color)
         self.__points: List[Vector2] = []
-        self.points = points
+        self.set_points(points)
 
-    def draw_onto(self, surface: Surface) -> None:
-        all_points: List[Vector2] = self.get_vertices()
+    def make(self) -> Surface:
+        all_points: List[Vector2] = self.__points
         if len(all_points) < 2:
-            return
+            return create_surface((0, 0))
 
-        outline: int = max(round(self.outline * self.scale), 1) if self.outline > 0 else 0
+        offset: float = self.outline / 2 + (self.outline % 2)
+        w, h = self.get_local_size()
+        image: Surface = create_surface((w + offset * 2, h + offset * 2))
 
-        if len(all_points) == 2 and outline > 0:
+        if len(all_points) == 2 and self.outline > 0:
             start, end = all_points
-            pygame.draw.line(surface, self.outline_color, start, end, width=outline)
+            pygame.draw.line(image, self.outline_color, start, end, width=self.outline)
 
-        pygame.draw.polygon(surface, self.color, all_points)
-        if outline > 0:
-            pygame.draw.polygon(surface, self.outline_color, all_points, width=outline)
+        pygame.draw.polygon(image, self.color, all_points)
+        if self.outline > 0:
+            pygame.draw.polygon(image, self.outline_color, all_points, width=self.outline)
+        return image
 
     def get_local_size(self) -> Tuple[float, float]:
-        left: float = min((point.x for point in self.points), default=0)
-        right: float = max((point.x for point in self.points), default=0)
-        top: float = min((point.y for point in self.points), default=0)
-        bottom: float = max((point.y for point in self.points), default=0)
+        left: float = min((point.x for point in self.__points), default=0)
+        right: float = max((point.x for point in self.__points), default=0)
+        top: float = min((point.y for point in self.__points), default=0)
+        bottom: float = max((point.y for point in self.__points), default=0)
         width: float = right - left
         height: float = bottom - top
         return width, height
 
     def get_vertices(self) -> List[Vector2]:
-        left: float = min((point.x for point in self.points), default=0)
-        right: float = max((point.x for point in self.points), default=0)
-        top: float = min((point.y for point in self.points), default=0)
-        bottom: float = max((point.y for point in self.points), default=0)
+        left: float = min((point.x for point in self.__points), default=0)
+        right: float = max((point.x for point in self.__points), default=0)
+        top: float = min((point.y for point in self.__points), default=0)
+        bottom: float = max((point.y for point in self.__points), default=0)
         w: float = right - left
         h: float = bottom - top
         local_center = Vector2(left + w / 2, top + h / 2)
 
         center: Vector2 = Vector2(self.center)
         all_points: List[Vector2] = []
-        for point in self.points:
+        for point in self.__points:
             offset: Vector2 = (point - local_center).rotate(-self.angle)
             offset.scale_to_length(offset.length() * self.scale)
             all_points.append(center + offset)
         return all_points
 
-    @property
-    def points(self) -> List[Vector2]:
-        return self.__points
-
-    @points.setter
-    def points(self, points: List[Vector2]) -> None:
-        self.set_points(points)
-
-    def set_points(self, points: Sequence[Union[Vector2, Tuple[float, float]]]) -> None:
-        center: Tuple[float, float] = self.center
-        self.__points = [Vector2(p) for p in points]
-        left: float = min((point.x for point in self.__points), default=0)
-        top: float = min((point.y for point in self.__points), default=0)
-        for p in self.__points:
+    def set_points(self, points: Union[List[Vector2], List[Tuple[float, float]], List[Tuple[int, int]]]) -> None:
+        points = [Vector2(p) for p in points]
+        left: float = min((point.x for point in points), default=0)
+        top: float = min((point.y for point in points), default=0)
+        for p in points:
             p.x -= left
             p.y -= top
-        self.center = center
+
+        if len(points) == len(self.__points) and all(p1 == p2 for p1, p2 in zip(points, self.__points)):
+            return
+
+        self.__points = points
+        self._need_update()
 
 
 class RectangleShape(Shape):
@@ -135,6 +173,8 @@ class RectangleShape(Shape):
         theme: Optional[Theme] = None,
     ):
         super().__init__(color, outline, outline_color)
+        self.__w: float = 0
+        self.__h: float = 0
         self.local_size = width, height
         self.__draw_params: Dict[str, int] = {
             "border_radius": -1,
@@ -149,21 +189,17 @@ class RectangleShape(Shape):
         self.border_bottom_left_radius = border_bottom_left_radius
         self.border_bottom_right_radius = border_bottom_right_radius
 
-    def draw_onto(self, surface: Surface) -> None:
-        outline: int = max(round(self.outline * self.scale), 1) if self.outline > 0 else 0
-
-        if all(v <= 0 for v in self.__draw_params.values()):
-            all_points: List[Vector2] = self.get_vertices()
-            pygame.draw.polygon(surface, self.color, all_points)
-            if outline > 0:
-                pygame.draw.polygon(surface, self.outline_color, all_points, width=outline)
-        else:
-            image: Surface = create_surface((self.local_width * self.scale, self.local_height * self.scale))
-            pygame.draw.rect(image, self.color, image.get_rect(), **self.__draw_params)
-            if outline > 0:
-                pygame.draw.rect(image, self.outline_color, image.get_rect(), width=outline, **self.__draw_params)
-            image = pygame.transform.rotate(image, self.angle)
-            surface.blit(image, self.topleft)
+    def make(self) -> Surface:
+        offset: float = self.outline / 2 + (self.outline % 2)
+        w, h = self.get_local_size()
+        image: Surface = create_surface((w + offset * 2, h + offset * 2))
+        default_rect: Rect = image.get_rect()
+        rect: Rect = Rect(0, 0, w, h)
+        rect.center = default_rect.center
+        pygame.draw.rect(image, self.color, rect, **self.__draw_params)
+        if self.outline > 0:
+            pygame.draw.rect(image, self.outline_color, rect, width=self.outline, **self.__draw_params)
+        return image
 
     def get_local_size(self) -> Tuple[float, float]:
         return self.local_size
@@ -191,7 +227,10 @@ class RectangleShape(Shape):
 
     @local_width.setter
     def local_width(self, width: float) -> None:
-        self.__w = max(width, 0)
+        width = max(width, 0)
+        if width != self.__w:
+            self.__w = width
+            self._need_update()
 
     @property
     def local_height(self) -> float:
@@ -199,7 +238,10 @@ class RectangleShape(Shape):
 
     @local_height.setter
     def local_height(self, height: float) -> None:
-        self.__h = max(height, 0)
+        height = max(height, 0)
+        if height != self.__h:
+            self.__h = height
+            self._need_update()
 
     @property
     def border_radius(self) -> int:
@@ -207,7 +249,7 @@ class RectangleShape(Shape):
 
     @border_radius.setter
     def border_radius(self, radius: int) -> None:
-        self.__draw_params["border_radius"] = max(radius, -1)
+        self.__set_border_radius("border_radius", radius)
 
     @property
     def border_top_left_radius(self) -> int:
@@ -215,7 +257,7 @@ class RectangleShape(Shape):
 
     @border_top_left_radius.setter
     def border_top_left_radius(self, radius: int) -> None:
-        self.__draw_params["border_top_left_radius"] = max(radius, -1)
+        self.__set_border_radius("border_top_left_radius", radius)
 
     @property
     def border_top_right_radius(self) -> int:
@@ -223,7 +265,7 @@ class RectangleShape(Shape):
 
     @border_top_right_radius.setter
     def border_top_right_radius(self, radius: int) -> None:
-        self.__draw_params["border_top_right_radius"] = max(radius, -1)
+        self.__set_border_radius("border_top_right_radius", radius)
 
     @property
     def border_bottom_left_radius(self) -> int:
@@ -231,7 +273,7 @@ class RectangleShape(Shape):
 
     @border_bottom_left_radius.setter
     def border_bottom_left_radius(self, radius: int) -> None:
-        self.__draw_params["border_bottom_left_radius"] = max(radius, -1)
+        self.__set_border_radius("border_bottom_left_radius", radius)
 
     @property
     def border_bottom_right_radius(self) -> int:
@@ -239,7 +281,13 @@ class RectangleShape(Shape):
 
     @border_bottom_right_radius.setter
     def border_bottom_right_radius(self, radius: int) -> None:
-        self.__draw_params["border_bottom_right_radius"] = max(radius, -1)
+        self.__set_border_radius("border_bottom_right_radius", radius)
+
+    def __set_border_radius(self, border: str, radius: int) -> None:
+        radius = max(int(radius), -1)
+        if self.__draw_params[border] != radius:
+            self.__draw_params[border] = radius
+            self._need_update()
 
 
 class CircleShape(Shape):
@@ -257,46 +305,35 @@ class CircleShape(Shape):
         theme: Optional[Theme] = None,
     ) -> None:
         super().__init__(color, outline, outline_color)
-        self.radius = radius
+        self.__radius: float = 0
         self.__draw_params: Dict[str, bool] = {
             "draw_top_left": True,
             "draw_top_right": True,
             "draw_bottom_left": True,
             "draw_bottom_right": True,
         }
+        self.radius = radius
         self.draw_top_left = draw_top_left
         self.draw_top_right = draw_top_right
         self.draw_bottom_left = draw_bottom_left
         self.draw_bottom_right = draw_bottom_right
 
-    def draw_onto(self, surface: Surface) -> None:
-        radius: float = self.radius * self.scale
-        outline = max(round(self.outline * self.scale), 1) if self.outline > 0 else 0
-
-        if all(self.__draw_params.values()):
-            center: Tuple[float, float] = self.center
-            pygame.draw.circle(surface, self.color, center, radius)
-            if outline > 0:
-                pygame.draw.circle(surface, self.outline_color, center, radius, width=outline)
-        elif any(self.__draw_params.values()):
-            image: Surface = create_surface((radius * 2, radius * 2))
-            center = radius, radius
-            pygame.draw.circle(image, self.color, center, radius, **self.__draw_params)
-            if outline > 0:
-                pygame.draw.circle(image, self.outline_color, center, radius, width=outline, **self.__draw_params)
-            image = pygame.transform.rotate(image, self.angle)
-            surface.blit(image, self.topleft)
+    def make(self) -> Surface:
+        width, height = self.get_local_size()
+        image: Surface = create_surface((width, height))
+        center: Tuple[float, float] = (width / 2, height / 2)
+        radius: float = self.radius
+        pygame.draw.circle(image, self.color, center, radius, **self.__draw_params)
+        if self.outline > 0:
+            pygame.draw.circle(image, self.outline_color, center, radius, width=self.outline, **self.__draw_params)
+        return image
 
     def get_local_size(self) -> Tuple[float, float]:
         return (self.radius * 2, self.radius * 2)
 
-    def get_size(self) -> Tuple[float, float]:
-        w, h = self.get_local_size()
-        return w * self.scale, h * self.scale
-
     def get_vertices(self) -> List[Vector2]:
         center: Vector2 = Vector2(self.center)
-        radius: Vector2 = Vector2(self.radius, 0)
+        radius: Vector2 = Vector2(self.radius * self.scale, 0)
         return [center + radius.rotate(-i) for i in range(360)]
 
     @property
@@ -305,7 +342,10 @@ class CircleShape(Shape):
 
     @radius.setter
     def radius(self, radius: float) -> None:
-        self.__radius = max(radius, 0)
+        radius = max(radius, 0)
+        if radius != self.__radius:
+            self.__radius = radius
+            self._need_update()
 
     @property
     def draw_top_left(self) -> int:
@@ -313,7 +353,7 @@ class CircleShape(Shape):
 
     @draw_top_left.setter
     def draw_top_left(self, status: bool) -> None:
-        self.__draw_params["draw_top_left"] = bool(status)
+        self.__draw_arc("draw_top_left", status)
 
     @property
     def draw_top_right(self) -> int:
@@ -321,7 +361,7 @@ class CircleShape(Shape):
 
     @draw_top_right.setter
     def draw_top_right(self, status: bool) -> None:
-        self.__draw_params["draw_top_right"] = bool(status)
+        self.__draw_arc("draw_top_right", status)
 
     @property
     def draw_bottom_left(self) -> int:
@@ -329,7 +369,7 @@ class CircleShape(Shape):
 
     @draw_bottom_left.setter
     def draw_bottom_left(self, status: bool) -> None:
-        self.__draw_params["draw_bottom_left"] = bool(status)
+        self.__draw_arc("draw_bottom_left", status)
 
     @property
     def draw_bottom_right(self) -> int:
@@ -337,7 +377,13 @@ class CircleShape(Shape):
 
     @draw_bottom_right.setter
     def draw_bottom_right(self, status: bool) -> None:
-        self.__draw_params["draw_bottom_right"] = bool(status)
+        self.__draw_arc("draw_bottom_right", status)
+
+    def __draw_arc(self, side: str, status: bool) -> None:
+        status = bool(status)
+        if status is not self.__draw_params[side]:
+            self.__draw_params[side] = status
+            self._need_update()
 
 
 class CrossShape(Shape):
@@ -352,19 +398,19 @@ class CrossShape(Shape):
         color: None = None,
     ) -> None:
         super().__init__(TRANSPARENT, outline, outline_color)
+        self.__w: float = 0
+        self.__h: float = 0
         self.local_size = width, height
 
-    def draw_onto(self, surface: Surface) -> None:
-        outline: int = max(round(self.outline * self.scale), 1) if self.outline > 0 else 0
-        if outline == 0:
-            return
+    def make(self) -> Surface:
+        if self.outline == 0:
+            return create_surface((0, 0))
 
-        image: Surface = create_surface((self.local_width * self.scale, self.local_height * self.scale))
+        image: Surface = create_surface(self.get_local_size())
         local_rect: Rect = image.get_rect()
-        pygame.draw.line(image, self.outline_color, local_rect.topleft, local_rect.bottomright, width=outline)
-        pygame.draw.line(image, self.outline_color, local_rect.topright, local_rect.bottomleft, width=outline)
-        image = pygame.transform.rotate(image, self.angle)
-        surface.blit(image, self.topleft)
+        pygame.draw.line(image, self.outline_color, local_rect.topleft, local_rect.bottomright, width=self.outline)
+        pygame.draw.line(image, self.outline_color, local_rect.topright, local_rect.bottomleft, width=self.outline)
+        return image
 
     def get_local_size(self) -> Tuple[float, float]:
         return self.local_size
@@ -400,7 +446,10 @@ class CrossShape(Shape):
 
     @local_width.setter
     def local_width(self, width: float) -> None:
-        self.__w = max(width, 0)
+        width = max(width, 0)
+        if width != self.__w:
+            self.__w = width
+            self._need_update()
 
     @property
     def local_height(self) -> float:
@@ -408,4 +457,7 @@ class CrossShape(Shape):
 
     @local_height.setter
     def local_height(self, height: float) -> None:
-        self.__h = max(height, 0)
+        height = max(height, 0)
+        if height != self.__h:
+            self.__h = height
+            self._need_update()

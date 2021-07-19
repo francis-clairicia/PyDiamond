@@ -10,7 +10,6 @@ from pygame.surface import Surface
 from pygame.rect import Rect
 from pygame.math import Vector2
 
-from .surface import create_surface
 from .theme import MetaThemedObject, ThemedObject
 from .animation import Animation
 
@@ -41,9 +40,9 @@ class Drawable(metaclass=MetaDrawable):
         self.__draw: bool = True
         self.__animation: Animation = Animation(self)
 
-    @abstractmethod
     def draw_onto(self, surface: Surface) -> None:
-        pass
+        image: Surface = self.to_surface()
+        surface.blit(image, self.topleft)
 
     def show(self) -> None:
         self.set_visibility(True)
@@ -57,16 +56,9 @@ class Drawable(metaclass=MetaDrawable):
     def is_shown(self) -> bool:
         return self.__draw
 
+    @abstractmethod
     def to_surface(self) -> Surface:
-        save_topleft: Tuple[float, float] = self.topleft
-        self.topleft = (0, 0)
-        surface: Surface = create_surface(self.size)
-        shown: bool = self.is_shown()
-        self.show()
-        self.draw_onto(surface)
-        self.set_visibility(shown)
-        self.topleft = save_topleft
-        return surface
+        pass
 
     def set_position(self, **position: Union[float, Tuple[float, float]]) -> None:
         all_valid_positions: Tuple[str, ...] = (
@@ -183,6 +175,12 @@ class Drawable(metaclass=MetaDrawable):
     def get_local_size(self) -> Tuple[float, float]:
         pass
 
+    def get_local_width(self) -> float:
+        return self.get_local_size()[0]
+
+    def get_local_height(self) -> float:
+        return self.get_local_size()[1]
+
     def get_size(self) -> Tuple[float, float]:
         w, h = self.get_local_size()
         w *= self.scale
@@ -196,12 +194,19 @@ class Drawable(metaclass=MetaDrawable):
         bottom: float = max((point.y for point in all_points), default=0)
         return (right - left, bottom - top)
 
-    def get_local_rect(self) -> Rect:
-        return Rect((0, 0), self.get_local_size())
+    def get_local_rect(self, **kwargs: Union[float, Tuple[float, float]]) -> Rect:
+        r: Rect = Rect((0, 0), self.get_local_size())
+        for name, value in kwargs.items():
+            if not hasattr(r, name):
+                raise AttributeError(f"{type(r).__name__} does not have {repr(name)} attribute")
+            setattr(r, name, value)
+        return r
 
     def get_rect(self, **kwargs: Union[float, Tuple[float, float]]) -> Rect:
         r: Rect = Rect((0, 0), self.size)
         for name, value in kwargs.items():
+            if not hasattr(r, name):
+                raise AttributeError(f"{type(r).__name__} does not have {repr(name)} attribute")
             setattr(r, name, value)
         return r
 
