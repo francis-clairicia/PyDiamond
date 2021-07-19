@@ -2,6 +2,7 @@
 
 from abc import abstractmethod
 from typing import Dict, List, Optional, Tuple, Union
+from math import sin, tan, radians
 
 import pygame.draw
 from pygame.math import Vector2
@@ -12,7 +13,7 @@ from pygame.surface import Surface
 
 from .drawable import ThemedDrawable
 from .theme import Theme
-from .colors import BLACK, TRANSPARENT
+from .colors import BLACK
 from .surface import create_surface
 
 
@@ -115,24 +116,34 @@ class PolygonShape(Shape):
     def __init__(self, color: Color, *, outline: int = 0, outline_color: Color = BLACK, points: List[Vector2] = []) -> None:
         super().__init__(color, outline, outline_color)
         self.__points: List[Vector2] = []
+        self.__center: Vector2 = Vector2(0, 0)
         self.set_points(points)
 
     def make(self) -> Surface:
-        all_points: List[Vector2] = self.__points
-        if len(all_points) < 2:
+        if len(self.__points) < 2:
             return create_surface((0, 0))
 
-        offset: float = self.outline / 2 + (self.outline % 2)
+        all_points: List[Vector2] = [Vector2(p) for p in self.__points]
+
+        offset: float = self.outline + (self.outline % 2)
         w, h = self.get_local_size()
-        image: Surface = create_surface((w + offset * 2, h + offset * 2))
+        w, h = (w + offset * 2, h + offset * 2)
+        image: Surface = create_surface((w, h))
 
-        if len(all_points) == 2 and self.outline > 0:
-            start, end = all_points
-            pygame.draw.line(image, self.outline_color, start, end, width=self.outline)
+        center_diff: Vector2 = Vector2(w / 2, h / 2) - self.__center
+        for p in all_points:
+            p.x += center_diff.x
+            p.y += center_diff.y
 
-        pygame.draw.polygon(image, self.color, all_points)
-        if self.outline > 0:
-            pygame.draw.polygon(image, self.outline_color, all_points, width=self.outline)
+        if len(all_points) == 2:
+            if self.outline > 0:
+                start, end = all_points
+                pygame.draw.line(image, self.outline_color, start, end, width=self.outline)
+        else:
+            pygame.draw.polygon(image, self.color, all_points)
+            if self.outline > 0:
+                pygame.draw.polygon(image, self.outline_color, all_points, width=self.outline)
+
         return image
 
     def get_local_size(self) -> Tuple[float, float]:
@@ -145,13 +156,7 @@ class PolygonShape(Shape):
         return width, height
 
     def get_vertices(self) -> List[Vector2]:
-        left: float = min((point.x for point in self.__points), default=0)
-        right: float = max((point.x for point in self.__points), default=0)
-        top: float = min((point.y for point in self.__points), default=0)
-        bottom: float = max((point.y for point in self.__points), default=0)
-        w: float = right - left
-        h: float = bottom - top
-        local_center = Vector2(left + w / 2, top + h / 2)
+        local_center = self.__center
 
         center: Vector2 = Vector2(self.center)
         all_points: List[Vector2] = []
@@ -172,7 +177,15 @@ class PolygonShape(Shape):
         if len(points) == len(self.__points) and all(p1 == p2 for p1, p2 in zip(points, self.__points)):
             return
 
+        left = 0
+        top = 0
+        right: float = max((point.x for point in points), default=0)
+        bottom: float = max((point.y for point in points), default=0)
+        w: float = right - left
+        h: float = bottom - top
+
         self.__points = points
+        self.__center = Vector2(left + w / 2, top + h / 2)
         self._need_update()
 
 
@@ -411,79 +424,92 @@ class CrossShape(Shape):
         self,
         width: float,
         height: float,
-        outline_color: Color,
+        color: Color,
         *,
-        outline: int = 2,
+        line_width: float = 0.3,
+        outline_color: Color = BLACK,
+        outline: int = 0,
         theme: Optional[Theme] = None,
-        color: None = None,
     ) -> None:
-        super().__init__(TRANSPARENT, outline, outline_color)
+        super().__init__(color, outline, outline_color)
         self.__w: float = 0
         self.__h: float = 0
+        self.__line_width: float = 2
         self.local_size = width, height
+        self.line_width = line_width
 
     def make(self) -> Surface:
-        if self.outline == 0:
+        all_points: List[Vector2] = self.__get_points()
+        if len(all_points) < 3:
             return create_surface((0, 0))
-
-        image: Surface = create_surface(self.get_local_size())
-        local_rect: Rect = image.get_rect()
-        pygame.draw.line(image, self.outline_color, local_rect.topleft, local_rect.bottomright, width=self.outline)
-        pygame.draw.line(image, self.outline_color, local_rect.topright, local_rect.bottomleft, width=self.outline)
-
-        all_points: List[Vector2] = self.__get_points(local_rect, 2)
-        if len(all_points) > 2:
-            # pygame.draw.lines(image, "white", False, all_points, width=2)
-            pygame.draw.polygon(image, "white", all_points, width=2)
-        return image
+        return PolygonShape(self.color, outline=self.outline, outline_color=self.outline_color, points=all_points).to_surface()
 
     def get_local_size(self) -> Tuple[float, float]:
         return self.local_size
 
     def get_vertices(self) -> List[Vector2]:
-        w, h = self.get_local_size()
-        w *= self.scale
-        h *= self.scale
-        local_center: Vector2 = Vector2(w / 2, h / 2)
-        corners: List[Vector2] = [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
-        center: Vector2 = Vector2(self.center)
-        return [center + (point - local_center).rotate(-self.angle) for point in corners]
+        local_center = Vector2(self.get_local_rect().center)
 
-    def __get_points(self, rect: Rect, outline_size: int) -> List[Vector2]:
-        rect = rect.copy()
-        outline_size = max(outline_size, 0)
-        rect.width -= outline_size if rect.right > outline_size - 1 else 0
-        rect.height -= outline_size if rect.bottom > outline_size - 1 else 0
-        line_width: float = self.outline
-        w_offset: float = line_width
-        h_offset: float = line_width
-        center_offset: float = line_width
+        center: Vector2 = Vector2(self.center)
+        all_points: List[Vector2] = []
+        for point in self.__get_points():
+            offset: Vector2 = (point - local_center).rotate(-self.angle)
+            offset.scale_to_length(offset.length() * self.scale)
+            all_points.append(center + offset)
+        return all_points
+
+    def __get_points(self) -> List[Vector2]:
+        rect: Rect = self.get_local_rect()
+        line_width: float = self.line_width
+        if line_width == 0:
+            return []
+
+        if line_width < 1:
+            line_width = min(self.local_width * line_width, self.local_height * line_width)
+
+        def compute_width_offset() -> float:
+            diagonal: Vector2 = Vector2(rect.bottomleft) - Vector2(rect.topright)
+            angle: float = abs(diagonal.rotate(90).angle_to(Vector2(-1, 0)))
+            alpha: float = radians(angle)
+            return tan(alpha) * (line_width / 2) / sin(alpha)
+
+        def compute_height_offset() -> float:
+            diagonal: Vector2 = Vector2(rect.bottomleft) - Vector2(rect.topright)
+            angle: float = abs(diagonal.rotate(-90).angle_to(Vector2(0, 1)))
+            alpha: float = radians(angle)
+            return tan(alpha) * (line_width / 2) / sin(alpha)
+
+        w_offset: float = compute_width_offset()
+        h_offset: float = compute_height_offset()
         return [
             Vector2(rect.left, rect.top),
             Vector2(rect.left + w_offset, rect.top),
-            Vector2(rect.centerx, rect.centery - center_offset),
+            Vector2(rect.centerx, rect.centery - h_offset),
             Vector2(rect.right - w_offset, rect.top),
             Vector2(rect.right, rect.top),
             Vector2(rect.right, rect.top + h_offset),
-            Vector2(rect.centerx + center_offset, rect.centery),
+            Vector2(rect.centerx + w_offset, rect.centery),
             Vector2(rect.right, rect.bottom - h_offset),
             Vector2(rect.right, rect.bottom),
             Vector2(rect.right - w_offset, rect.bottom),
-            Vector2(rect.centerx, rect.centery + center_offset),
+            Vector2(rect.centerx, rect.centery + h_offset),
             Vector2(rect.left + w_offset, rect.bottom),
             Vector2(rect.left, rect.bottom),
             Vector2(rect.left, rect.bottom - h_offset),
-            Vector2(rect.centerx - center_offset, rect.centery),
+            Vector2(rect.centerx - w_offset, rect.centery),
             Vector2(rect.left, rect.top + h_offset),
         ]
 
     @property
-    def color(self) -> Color:
-        return TRANSPARENT
+    def line_width(self) -> float:
+        return self.__line_width
 
-    @color.setter
-    def color(self, color: Color) -> None:
-        pass
+    @line_width.setter
+    def line_width(self, width: float) -> None:
+        width = max(width, 0)
+        if self.__line_width != width:
+            self.__line_width = width
+            self._need_update()
 
     @property
     def local_size(self) -> Tuple[float, float]:

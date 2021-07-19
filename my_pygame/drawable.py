@@ -42,7 +42,7 @@ class Drawable(metaclass=MetaDrawable):
 
     def draw_onto(self, surface: Surface) -> None:
         image: Surface = self.to_surface()
-        surface.blit(image, self.topleft)
+        surface.blit(image, image.get_rect(center=self.center))
 
     def show(self) -> None:
         self.set_visibility(True)

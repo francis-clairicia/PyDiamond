@@ -23,7 +23,12 @@ class ShapeScene(Scene):
         self.__r: RectangleShape = RectangleShape(50, 50, WHITE)
         self.__p: PolygonShape = PolygonShape(WHITE)
         self.__c: CircleShape = CircleShape(30, WHITE)
-        self.__x: CrossShape = CrossShape(300, 300, outline_color=RED, outline=20)
+        self.__x: CrossShape = CrossShape(
+            50,
+            50,
+            color=RED,
+            outline_color=WHITE,
+        )
         self.__s: Sprite = Sprite()
         self.__p.set_points(
             [
@@ -45,8 +50,8 @@ class ShapeScene(Scene):
         self.__r.center = window.center
         self.__r.set_position(center=window.center)
         self.__p.center = self.__r.centerx - window.centery / 4, window.centery
-        # self.__x.center = self.__r.centerx - window.centery / 2, window.centery
-        self.__x.topleft = (50, 50)
+        self.__x.center = self.__r.centerx - window.centery / 2, window.centery
+        # self.__x.topleft = (50, 50)
         self.__c.center = self.__r.centerx - window.centery * 3 / 4, window.centery
 
         # self.__x_trajectory: CircleShape = CircleShape(
@@ -75,8 +80,8 @@ class ShapeScene(Scene):
             self.__r.rotate(degrees)
             self.__p.rotate(-degrees, point=self.__r.center)
             self.__p.rotate(degrees * 3)
-            # self.__x.rotate(degrees, point=self.__r.center)
-            # self.__x.rotate(-degrees * 3)
+            self.__x.rotate(degrees, point=self.__r.center)
+            self.__x.rotate(-degrees * 3)
             self.__c.rotate(-degrees, point=self.__r.center)
             self.__scale += 0.02 * self.__scale_growth
             if self.__scale >= 2:
@@ -85,13 +90,13 @@ class ShapeScene(Scene):
                 self.__scale_growth = 1
             self.__r.scale = self.__scale
             self.__p.scale = self.__scale
-            # self.__x.scale = self.__scale
+            self.__x.scale = self.__scale
             self.__c.scale = self.__scale
             # self.__s.scale = self.__scale
         # self.__x_center.center = self.__x.center
         self.__c_center.center = self.__c.center
         self.__s.default_image = self.__r.to_surface()
-        self.__shape_copy.set_points(self.__c.get_vertices())
+        self.__shape_copy.set_points(self.__x.get_vertices())
 
     def draw(self) -> None:
         self.window.clear(BLUE_DARK)
