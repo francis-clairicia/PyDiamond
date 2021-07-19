@@ -125,7 +125,7 @@ class PolygonShape(Shape):
 
         all_points: List[Vector2] = [Vector2(p) for p in self.__points]
 
-        offset: float = self.outline + (self.outline % 2)
+        offset: float = self.outline / 2 + (self.outline % 2)
         w, h = self.get_local_size()
         w, h = (w + offset * 2, h + offset * 2)
         image: Surface = create_surface((w, h))
