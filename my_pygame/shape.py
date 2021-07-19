@@ -410,6 +410,11 @@ class CrossShape(Shape):
         local_rect: Rect = image.get_rect()
         pygame.draw.line(image, self.outline_color, local_rect.topleft, local_rect.bottomright, width=self.outline)
         pygame.draw.line(image, self.outline_color, local_rect.topright, local_rect.bottomleft, width=self.outline)
+
+        all_points: List[Vector2] = self.__get_points(local_rect, 2)
+        if len(all_points) > 2:
+            # pygame.draw.lines(image, "white", False, all_points, width=2)
+            pygame.draw.polygon(image, "white", all_points, width=2)
         return image
 
     def get_local_size(self) -> Tuple[float, float]:
@@ -423,6 +428,34 @@ class CrossShape(Shape):
         corners: List[Vector2] = [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
         center: Vector2 = Vector2(self.center)
         return [center + (point - local_center).rotate(-self.angle) for point in corners]
+
+    def __get_points(self, rect: Rect, outline_size: int) -> List[Vector2]:
+        rect = rect.copy()
+        outline_size = max(outline_size, 0)
+        rect.width -= outline_size if rect.right > outline_size - 1 else 0
+        rect.height -= outline_size if rect.bottom > outline_size - 1 else 0
+        line_width: float = self.outline
+        w_offset: float = line_width
+        h_offset: float = line_width
+        center_offset: float = line_width
+        return [
+            Vector2(rect.left, rect.top),
+            Vector2(rect.left + w_offset, rect.top),
+            Vector2(rect.centerx, rect.centery - center_offset),
+            Vector2(rect.right - w_offset, rect.top),
+            Vector2(rect.right, rect.top),
+            Vector2(rect.right, rect.top + h_offset),
+            Vector2(rect.centerx + center_offset, rect.centery),
+            Vector2(rect.right, rect.bottom - h_offset),
+            Vector2(rect.right, rect.bottom),
+            Vector2(rect.right - w_offset, rect.bottom),
+            Vector2(rect.centerx, rect.centery + center_offset),
+            Vector2(rect.left + w_offset, rect.bottom),
+            Vector2(rect.left, rect.bottom),
+            Vector2(rect.left, rect.bottom - h_offset),
+            Vector2(rect.centerx - center_offset, rect.centery),
+            Vector2(rect.left, rect.top + h_offset),
+        ]
 
     @property
     def color(self) -> Color:
