@@ -59,7 +59,7 @@ class Sprite(Drawable, PygameSprite):
 
     @property
     def rect(self) -> Rect:  # type: ignore
-        return self.image.get_rect(center=self.center)
+        return super().rect
 
     @property
     def mask(self) -> Mask:
