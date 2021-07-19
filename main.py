@@ -8,7 +8,7 @@ from my_pygame.scene import Scene
 # from my_pygame.shape import RectangleShape, PolygonShape, CircleShape, CrossShape
 from my_pygame.shape import RectangleShape, PolygonShape, CircleShape, CrossShape, Shape
 from my_pygame.sprite import Sprite
-from my_pygame.colors import WHITE, RED
+from my_pygame.colors import BLUE_DARK, TRANSPARENT, WHITE, RED
 from my_pygame.clock import Clock
 
 
@@ -40,7 +40,7 @@ class ShapeScene(Scene):
             Vector2(0, 20),
             Vector2(20, 20),
         ]
-        self.__shape_copy: PolygonShape = PolygonShape(WHITE)
+        self.__shape_copy: PolygonShape = PolygonShape(TRANSPARENT, outline_color=WHITE)
         # self.__r.center = window.center
         self.__r.set_position(center=window.center)
         self.__p.center = self.__r.centerx - window.centery / 4, window.centery
@@ -74,16 +74,17 @@ class ShapeScene(Scene):
             self.__c.scale = self.__scale
             self.__s.scale = self.__scale
         self.__s.default_image = self.__r.to_surface()
-        self.__shape_copy.points = self.__c.get_vertices()
+        self.__shape_copy.points = self.__x.get_vertices()
+        self.__shape_copy.center = self.__x.center
 
     def draw(self) -> None:
-        self.window.clear()
+        self.window.clear(BLUE_DARK)
         self.window.draw(self.__r)
         self.window.draw(self.__p)
-        self.window.draw(self.__x)
         self.window.draw(self.__c)
         self.window.draw(self.__s)
         self.window.draw(self.__shape_copy)
+        self.window.draw(self.__x)
 
 
 class AnimationScene(Scene):

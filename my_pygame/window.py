@@ -17,6 +17,7 @@ from .drawable import Drawable
 from .colors import BLACK
 from .scene import Scene
 from .clock import Clock
+from .surface import create_surface
 
 EventTypes = Union[SupportsInt, Tuple[SupportsInt, ...], List[SupportsInt]]
 ColorInput = Union[Color, str, List[int], Tuple[int, int, int], Tuple[int, int, int, int]]
@@ -132,7 +133,7 @@ class Window:
 
     __main_window: bool = True
 
-    def __init__(self, title: Optional[str] = None, size: Tuple[int, int] = (0, 0), flags: int = 0) -> None:
+    def __init__(self, title: Optional[str] = None, size: Tuple[int, int] = (0, 0), fullscreen: bool = False) -> None:
         if not Window.__main_window:
             raise WindowError("Cannot have multiple open windows")
         Window.__main_window = False
@@ -149,11 +150,15 @@ class Window:
 
         self.set_title(title)
 
-        self.__surface: Surface = pygame.display.get_surface()
-        if self.__surface is None:
+        screen: Optional[Surface] = pygame.display.get_surface()
+        if screen is None:
             if size[0] <= 0 or size[1] <= 0:
                 size = (0, 0)
-            self.__surface = pygame.display.set_mode(size, (flags & (~pygame.RESIZABLE)))
+            flags: int = pygame.DOUBLEBUF | pygame.HWSURFACE
+            if fullscreen:
+                flags |= pygame.FULLSCREEN
+            screen = pygame.display.set_mode(size, flags=flags, depth=32)
+        self.__surface: Surface = create_surface(screen.get_size())
         self.clear_all_events()
 
         self.__rect: Rect = self.__surface.get_rect()
@@ -199,6 +204,9 @@ class Window:
         self.__surface.fill(color)
 
     def refresh(self) -> None:
+        screen: Surface = pygame.display.get_surface()
+        screen.fill(BLACK)
+        screen.blit(self.__surface, (0, 0))
         pygame.display.flip()
 
         self.__framerate = Window.DEFAULT_FRAMERATE

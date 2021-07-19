@@ -150,13 +150,20 @@ class RectangleShape(Shape):
         self.border_bottom_right_radius = border_bottom_right_radius
 
     def draw_onto(self, surface: Surface) -> None:
-        image: Surface = create_surface((self.local_width * self.scale, self.local_height * self.scale))
-        pygame.draw.rect(image, self.color, image.get_rect(), **self.__draw_params)
         outline: int = max(round(self.outline * self.scale), 1) if self.outline > 0 else 0
-        if outline > 0:
-            pygame.draw.rect(image, self.outline_color, image.get_rect(), width=outline, **self.__draw_params)
-        image = pygame.transform.rotate(image, self.angle)
-        surface.blit(image, self.topleft)
+
+        if all(v <= 0 for v in self.__draw_params.values()):
+            all_points: List[Vector2] = self.get_vertices()
+            pygame.draw.polygon(surface, self.color, all_points)
+            if outline > 0:
+                pygame.draw.polygon(surface, self.outline_color, all_points, width=outline)
+        else:
+            image: Surface = create_surface((self.local_width * self.scale, self.local_height * self.scale))
+            pygame.draw.rect(image, self.color, image.get_rect(), **self.__draw_params)
+            if outline > 0:
+                pygame.draw.rect(image, self.outline_color, image.get_rect(), width=outline, **self.__draw_params)
+            image = pygame.transform.rotate(image, self.angle)
+            surface.blit(image, self.topleft)
 
     def get_local_size(self) -> Tuple[float, float]:
         return self.local_size
