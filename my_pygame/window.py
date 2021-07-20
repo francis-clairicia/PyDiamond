@@ -183,7 +183,6 @@ class Window:
         try:
             self.__loop = True
             while self.__loop:
-                self.__callback_after.process()
                 self.handle_events()
                 self.update()
                 self.draw_and_refresh()
@@ -238,6 +237,7 @@ class Window:
             pass
 
     def handle_events(self, only_close_event: bool = False) -> None:
+        self.__callback_after.process()
         if only_close_event:
             self.__handle_only_close_event()
         else:
