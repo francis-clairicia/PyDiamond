@@ -118,8 +118,8 @@ class AnimationRotation(AbstractAnimationClass):
     ):
         super().__init__(drawable, milliseconds)
         self.__angle: float = abs(angle)
-        self.__sign: int = int(angle // abs(angle))
-        self.__offset: float = offset * self.__sign if angle != 0 and offset > 0 else 0
+        self.__sign: int = int(angle // abs(angle)) if angle != 0 and offset > 0 else 0
+        self.__offset: float = offset * self.__sign if offset > 0 else 0
         self.__actual_angle: float = 0
         self.__pivot: Union[Vector2, Tuple[float, float], str, None] = point
 
@@ -139,6 +139,53 @@ class AnimationRotation(AbstractAnimationClass):
         if self.__actual_angle != self.__angle:
             self.drawable.rotate(abs(self.__angle - self.__actual_angle) * self.__sign, self.__pivot)
             self.__actual_angle = self.__angle
+
+
+class AnimationScaleSize(AbstractAnimationClass):
+    def __init__(self, drawable: Drawable, milliseconds: float, field: str, size: float, offset: float):
+        super().__init__(drawable, milliseconds)
+        self.__size: float = max(size, 0)
+        self.__field: str = field
+        self.__offset: float
+        self.__sign: int
+        self.__actual_size = self.get_drawable_size()
+        size_offset = self.__size - self.__actual_size
+        if offset == 0 or size_offset == 0:
+            self.__offset = self.__sign = 0
+        else:
+            self.__sign = int(size_offset // abs(size_offset))
+            self.__offset = abs(offset) * self.__sign
+
+    def started(self) -> bool:
+        return super().started() and self.__offset != 0
+
+    def __call__(self) -> None:
+        if not self.ready():
+            return
+        self.__actual_size += self.__offset
+        if (self.__offset < 0 and self.__actual_size > self.__size) or (self.__offset > 0 and self.__actual_size < self.__size):
+            self.set_drawable_size(self.__actual_size)
+        else:
+            self.stop()
+
+    def get_drawable_size(self) -> float:
+        return float(getattr(self.drawable, self.__field))
+
+    def set_drawable_size(self, value: float) -> None:
+        setattr(self.drawable, self.__field, value)
+
+    def default(self) -> None:
+        self.set_drawable_size(self.__size)
+
+
+class AnimationScaleWidth(AnimationScaleSize):
+    def __init__(self, drawable: Drawable, milliseconds: float, width: float, offset: float) -> None:
+        super().__init__(drawable, milliseconds, "width", width, offset)
+
+
+class AnimationScaleHeight(AnimationScaleSize):
+    def __init__(self, drawable: Drawable, milliseconds: float, height: float, offset: float) -> None:
+        super().__init__(drawable, milliseconds, "height", height, offset)
 
 
 class Animation:
@@ -176,37 +223,45 @@ class Animation:
         self.__animations[animation] = AnimationRotation(self.__drawable, milliseconds, angle, offset, point)
         return self
 
-    # def scale_width(self, width: int, offset=1, milliseconds=10):
-    #     self.stop()
-    #     self.__animations["scale_width"] = AnimationScaleWidth(self.__drawable, milliseconds, width, offset=offset)
-    #     return self
-
-    # def scale_height(self, height: int, offset=1, milliseconds=10):
-    #     self.stop()
-    #     self.__animations["scale_height"] = AnimationScaleHeight(self.__drawable, milliseconds, height, offset=offset)
-    #     return self
-
-    def __iter_animations(self) -> Iterator[AbstractAnimationClass]:
-        for animation_name in self.__animations_order:
-            animation: Optional[AbstractAnimationClass] = self.__animations.get(animation_name)
-            if animation is not None:
-                yield animation
-
-    def is_set(self, animation: str) -> bool:
-        return self.__animations.get(animation) is not None
-
-    def __clear(self) -> None:
-        for key in self.__animations:
-            self.__animations[key] = None
-
-    def __animate(self, at_every_frame: Optional[Callable[..., None]]) -> None:
-        for animation in self.__iter_animations():
-            if animation.started():
-                animation()
+    def register_rotation_set(
+        self,
+        angle: float,
+        offset: float = 1,
+        point: Optional[Union[Vector2, Tuple[float, float], str]] = None,
+        milliseconds: float = 10,
+    ) -> Animation:
+        angle %= 360
+        if angle < 0:
+            angle += 360
+        if offset != 0:
+            if self.__drawable.angle > angle:
+                if offset > 0:
+                    angle += 360
             else:
-                animation.default()
-        if callable(at_every_frame):
-            at_every_frame()
+                if offset < 0:
+                    angle -= 360
+            angle -= self.__drawable.angle
+        return self.register_rotation(angle, abs(offset), point, milliseconds)
+
+    def register_width_offset(self, width_offset: float, step: float = 1, milliseconds: float = 10) -> Animation:
+        width: float = self.__drawable.width + width_offset
+        return self.register_width_set(width, max(step, 0), milliseconds)
+
+    def register_width_set(self, width: float, offset: float = 1, milliseconds: float = 10) -> Animation:
+        self.stop_background()
+        self.__animations.pop("scale_height", None)
+        self.__animations["scale_width"] = AnimationScaleWidth(self.__drawable, milliseconds, width, offset)
+        return self
+
+    def register_height_offset(self, height_offset: float, step: float = 1, milliseconds: float = 10) -> Animation:
+        height: float = self.__drawable.height + height_offset
+        return self.register_height_set(height, max(step, 0), milliseconds)
+
+    def register_height_set(self, height: float, offset: float = 1, milliseconds: float = 10) -> Animation:
+        self.stop_background()
+        self.__animations.pop("scale_width", None)
+        self.__animations["scale_height"] = AnimationScaleHeight(self.__drawable, milliseconds, height, offset)
+        return self
 
     def start(self, master: Union[Window, Scene], at_every_frame: Optional[Callable[..., None]] = None) -> None:
         if isinstance(master, Scene):
@@ -228,6 +283,46 @@ class Animation:
         after_animation: Optional[Callable[..., None]] = None,
     ) -> None:
         self.__start_window_callback(master, at_every_frame, after_animation)
+
+    def started(self) -> bool:
+        return any(animation.started() for animation in self.__iter_animations())
+
+    def stop_background(self) -> None:
+        if self.__window_callback is not None:
+            self.__window_callback.kill()
+            self.__save_window_callback = self.__window_callback
+            self.__window_callback = None
+            self.__save_animations = self.__animations.copy()
+            self.__clear()
+
+    def restart_background(self) -> None:
+        if self.__window_callback is None and self.__save_window_callback is not None:
+            if self.__save_animations is not None:
+                self.__animations = self.__save_animations.copy()
+            self.__save_window_callback()
+            self.__save_window_callback = None
+
+    def is_set(self, animation: str) -> bool:
+        return self.__animations.get(animation) is not None
+
+    def __iter_animations(self) -> Iterator[AbstractAnimationClass]:
+        for animation_name in self.__animations_order:
+            animation: Optional[AbstractAnimationClass] = self.__animations.get(animation_name)
+            if animation is not None:
+                yield animation
+
+    def __clear(self) -> None:
+        for key in self.__animations:
+            self.__animations[key] = None
+
+    def __animate(self, at_every_frame: Optional[Callable[..., None]]) -> None:
+        for animation in self.__iter_animations():
+            if animation.started():
+                animation()
+            else:
+                animation.default()
+        if callable(at_every_frame):
+            at_every_frame()
 
     def __start_window_callback(
         self,
@@ -259,21 +354,3 @@ class Animation:
             self.__save_animations = self.__save_window_callback = None
             if callable(after_animation):
                 after_animation()
-
-    def started(self) -> bool:
-        return any(animation.started() for animation in self.__iter_animations())
-
-    def stop_background(self) -> None:
-        if self.__window_callback is not None:
-            self.__window_callback.kill()
-            self.__save_window_callback = self.__window_callback
-            self.__window_callback = None
-            self.__save_animations = self.__animations.copy()
-            self.__clear()
-
-    def restart_background(self) -> None:
-        if self.__window_callback is None and self.__save_window_callback is not None:
-            if self.__save_animations is not None:
-                self.__animations = self.__save_animations.copy()
-            self.__save_window_callback()
-            self.__save_window_callback = None

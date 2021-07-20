@@ -120,7 +120,7 @@ class AnimationScene(Scene):
         self.rectangle.midleft = window.midleft
         self.rectangle.animation.register_position(center=window.center, speed=3.7)
         self.rectangle.animation.register_rotation(360, offset=2, point=window.center)
-        self.rectangle.animation.register_rotation(-360, offset=2)
+        self.rectangle.animation.register_rotation(360, offset=2)
         self.rectangle.animation.start_in_background(self, after_animation=self.move_to_left)
 
     def draw(self) -> None:
@@ -128,8 +128,10 @@ class AnimationScene(Scene):
         self.window.draw(self.rectangle)
 
     def move_to_left(self) -> None:
+        self.rectangle.animation.register_rotation_set(270, offset=5)
         self.rectangle.animation.register_translation((-self.window.centerx / 2, -50), speed=5)
-        self.rectangle.animation.start_in_background(self)
+        self.rectangle.animation.register_width_set(100)
+        self.rectangle.animation.start(self)
 
 
 class GradientScene(Scene):
@@ -154,8 +156,8 @@ class GradientScene(Scene):
 
 def main() -> None:
     w: Window = Window("my window", (1366, 768))
-    w.scenes.push_on_top(ShapeScene(w))
-    # w.scenes.push_on_top(AnimationScene(w))
+    # w.scenes.push_on_top(ShapeScene(w))
+    w.scenes.push_on_top(AnimationScene(w))
     # w.scenes.push_on_top(GradientScene(w))
     w.mainloop()
 
