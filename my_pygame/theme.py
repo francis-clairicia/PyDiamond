@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 from typing import Any, Dict, Iterator, List, Tuple, Union
-from abc import ABCMeta
 
 
 class ThemeNamespace:
@@ -46,7 +45,7 @@ _HIDDEN_THEME_PREFIX: str = "__"
 Theme = Union[str, List[str], None]
 
 
-class MetaThemedObject(ABCMeta):
+class MetaThemedObject(type):
     def __init__(cls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwds: Any) -> None:
         super().__init__(name, bases, namespace, **kwds)
         if all(not isinstance(b, MetaThemedObject) for b in bases):
@@ -57,9 +56,8 @@ class MetaThemedObject(ABCMeta):
 
     def __call__(cls, *args: Any, **kwargs: Any) -> Any:
         default_theme: List[str] = list()
-        if cls not in _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES:
-            for parent in cls.__get_all_parent_class(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_DEFAULT_THEMES):
-                default_theme += _HIDDEN_DEFAULT_THEME.get(parent, list()) + _DEFAULT_THEME.get(parent, list())
+        for parent in cls.__get_all_parent_class(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_DEFAULT_THEMES):
+            default_theme += _HIDDEN_DEFAULT_THEME.get(parent, list()) + _DEFAULT_THEME.get(parent, list())
         default_theme += _HIDDEN_DEFAULT_THEME.get(cls, list()) + _DEFAULT_THEME.get(cls, list())
         theme: Theme = kwargs.pop("theme", None)
         if theme is None:
@@ -102,9 +100,8 @@ class MetaThemedObject(ABCMeta):
     def get_theme_options(cls, *themes: str) -> Dict[str, Any]:
         theme_kwargs: Dict[str, Any] = dict()
         for t in themes:
-            if cls not in _CLASSES_NOT_USING_PARENT_THEMES:
-                for parent in reversed(list(cls.__get_all_parent_class(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_THEMES))):
-                    theme_kwargs |= cls.__get_theme_options(parent, t)
+            for parent in reversed(list(cls.__get_all_parent_class(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_THEMES))):
+                theme_kwargs |= cls.__get_theme_options(parent, t)
             theme_kwargs |= cls.__get_theme_options(cls, t)
         return theme_kwargs
 
@@ -116,12 +113,13 @@ class MetaThemedObject(ABCMeta):
 
     @staticmethod
     def __get_all_parent_class(cls: type, do_not_search_for: List[type] = []) -> Iterator[type]:
+        if not isinstance(cls, MetaThemedObject) or cls in do_not_search_for:
+            return
         for base in cls.__bases__:
             if not isinstance(base, MetaThemedObject):
                 continue
             yield base
-            if base not in do_not_search_for:
-                yield from MetaThemedObject.__get_all_parent_class(base)
+            yield from MetaThemedObject.__get_all_parent_class(base)
 
 
 class ThemedObject(metaclass=MetaThemedObject):
