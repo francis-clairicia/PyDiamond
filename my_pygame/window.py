@@ -99,6 +99,8 @@ class WindowCallback:
         self.__clock = Clock(start=True)
 
     def __call__(self) -> None:
+        if self.scene is not None and self.__master.scenes.top() is not self.scene:
+            return
         if self.__clock.elapsed_time(self.__wait_time, restart=False):
             self.__callback(*self.__args, **self.__kwargs)
             self.kill()
