@@ -40,9 +40,13 @@ class Drawable(metaclass=MetaDrawable):
         self.__draw: bool = True
         self.__animation: Animation = Animation(self)
 
+    @abstractmethod
     def draw_onto(self, surface: Surface) -> None:
-        image: Surface = self.to_surface()
-        surface.blit(image, image.get_rect(center=self.center))
+        pass
+
+    @abstractmethod
+    def to_surface(self) -> Surface:
+        pass
 
     def show(self) -> None:
         self.set_visibility(True)
@@ -55,10 +59,6 @@ class Drawable(metaclass=MetaDrawable):
 
     def is_shown(self) -> bool:
         return self.__draw
-
-    @abstractmethod
-    def to_surface(self) -> Surface:
-        pass
 
     def set_position(self, **position: Union[float, Tuple[float, float]]) -> None:
         all_valid_positions: Tuple[str, ...] = (

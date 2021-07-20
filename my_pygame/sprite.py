@@ -22,9 +22,32 @@ class Sprite(Drawable, PygameSprite):
         self.__image: Surface = self.__default_image.copy()
         self.__mask: Mask = pygame.mask.from_surface(self.__image)
 
+    def draw_onto(self, surface: Surface) -> None:
+        surface.blit(self.__image, self.rect)
+
+    def get_local_size(self) -> Tuple[float, float]:
+        return self.__default_image.get_size()
+
+    def to_surface(self) -> Surface:
+        return self.image
+
+    def _apply_rotation_scale(self) -> None:
+        w, h = self.get_local_size()
+        if self.scale != 1:
+            w *= self.scale
+            h *= self.scale
+            self.__image = pygame.transform.smoothscale(self.default_image, (round(w), round(h)))
+        else:
+            self.__image = self.__default_image
+        self.__image = pygame.transform.rotate(self.__image, self.angle)
+        self.__mask = pygame.mask.from_surface(self.__image)
+
+    def get_size(self) -> Tuple[float, float]:
+        return self.__image.get_size()
+
     @property
     def default_image(self) -> Surface:
-        return self.__default_image
+        return self.__default_image.copy()
 
     @default_image.setter
     def default_image(self, new_image: Surface) -> None:
@@ -33,29 +56,9 @@ class Sprite(Drawable, PygameSprite):
         self._apply_rotation_scale()
         self.center = center
 
-    def get_local_size(self) -> Tuple[float, float]:
-        return self.default_image.get_size()
-
-    def to_surface(self) -> Surface:
-        return self.image.copy()
-
-    def _apply_rotation_scale(self) -> None:
-        w, h = self.get_local_size()
-        if self.scale != 1:
-            w *= self.scale
-            h *= self.scale
-            self.__image = pygame.transform.smoothscale(self.default_image, (int(w), int(h)))
-        else:
-            self.__image = self.__default_image
-        self.__image = pygame.transform.rotate(self.__image, self.angle)
-        self.__mask = pygame.mask.from_surface(self.__image)
-
-    def get_size(self) -> Tuple[float, float]:
-        return self.image.get_size()
-
     @property
     def image(self) -> Surface:  # type: ignore
-        return self.__image
+        return self.__image.copy()
 
     @property
     def rect(self) -> Rect:  # type: ignore

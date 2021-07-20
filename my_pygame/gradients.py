@@ -48,14 +48,9 @@ class AbstractRectangleGradientShape(AbstractGradientShape):
     def get_local_size(self) -> Tuple[float, float]:
         return self.local_size
 
-    def get_vertices(self) -> List[Vector2]:
+    def get_local_vertices(self) -> List[Vector2]:
         w, h = self.get_local_size()
-        w *= self.scale
-        h *= self.scale
-        local_center: Vector2 = Vector2(w / 2, h / 2)
-        corners: List[Vector2] = [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
-        center: Vector2 = Vector2(self.center)
-        return [center + (point - local_center).rotate(-self.angle) for point in corners]
+        return [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
 
     @property
     def local_size(self) -> Tuple[float, float]:
@@ -108,14 +103,38 @@ class VerticalGradientShape(AbstractRectangleGradientShape):
         return gradient_vertical(size, start_color, end_color)  # type: ignore
 
 
-class SquaredGradientShape(AbstractRectangleGradientShape):
+class SquaredGradientShape(AbstractGradientShape):
+    def __init__(self, width: float, color: Color, second_color: Color) -> None:
+        super().__init__(color, second_color)
+        self.__w: float = 0
+        self.local_width = width
+        self._need_update()
+
+    def get_local_size(self) -> Tuple[float, float]:
+        return (self.local_width, self.local_width)
+
     def make(self) -> Surface:
-        size: int = int(min(self.get_local_size()))
+        size: int = int(self.local_width)
         if size < 1:
             return create_surface((0, 0))
         start_color = (self.color.r, self.color.g, self.color.b, self.color.a)
         end_color = (self.second_color.r, self.second_color.g, self.second_color.b, self.second_color.a)
         return gradient_squared(size, start_color, end_color)  # type: ignore
+
+    def get_local_vertices(self) -> List[Vector2]:
+        w = h = self.local_width
+        return [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
+
+    @property
+    def local_width(self) -> float:
+        return self.__w
+
+    @local_width.setter
+    def local_width(self, width: float) -> None:
+        width = max(width, 0)
+        if width != self.__w:
+            self.__w = width
+            self._need_update()
 
 
 class RadialGradientShape(AbstractGradientShape):
@@ -135,9 +154,9 @@ class RadialGradientShape(AbstractGradientShape):
     def get_local_size(self) -> Tuple[float, float]:
         return (self.radius * 2, self.radius * 2)
 
-    def get_vertices(self) -> List[Vector2]:
-        center: Vector2 = Vector2(self.center)
-        radius: Vector2 = Vector2(self.radius * self.scale, 0)
+    def get_local_vertices(self) -> List[Vector2]:
+        center: Vector2 = Vector2(self.radius, self.radius)
+        radius: Vector2 = Vector2(self.radius, 0)
         return [center + radius.rotate(-i) for i in range(360)]
 
     @property

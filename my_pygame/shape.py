@@ -24,6 +24,7 @@ class AbstractShape(Drawable):
         self.__image: Surface = create_surface((0, 0))
         self.__shape_image: Surface = self.__image.copy()
         self.__color: Color = BLACK
+        self.__vertices: List[Vector2] = []
         self.color = color
         self._need_update()
 
@@ -40,7 +41,11 @@ class AbstractShape(Drawable):
 
     def to_surface(self) -> Surface:
         self.__update_shape()
-        return self.__image
+        return self.__image.copy()
+
+    def draw_onto(self, surface: Surface) -> None:
+        self.__update_shape()
+        surface.blit(self.__image, self.__image.get_rect(center=self.center))
 
     def get_size(self) -> Tuple[float, float]:
         self.__update_shape()
@@ -49,13 +54,38 @@ class AbstractShape(Drawable):
     def _apply_rotation_scale(self) -> None:
         self.__image = pygame.transform.rotozoom(self.__shape_image, self.angle, self.scale)
 
+        all_points: List[Vector2] = self.get_local_vertices()
+        left: float = min((point.x for point in all_points), default=0)
+        top: float = min((point.y for point in all_points), default=0)
+        right: float = max((point.x for point in all_points), default=0)
+        bottom: float = max((point.y for point in all_points), default=0)
+        w: float = right - left
+        h: float = bottom - top
+
+        local_center: Vector2 = Vector2(left + w / 2, top + h / 2)
+
+        center: Vector2 = Vector2(self.center)
+
+        self.__vertices.clear()
+        for point in all_points:
+            offset: Vector2 = (point - local_center).rotate(-self.angle)
+            length: float = offset.length()
+            try:
+                offset.scale_to_length(length * self.scale)
+            except ValueError:
+                offset = Vector2(0, 0)
+            self.__vertices.append(center + offset)
+
     @abstractmethod
     def make(self) -> Surface:
         pass
 
     @abstractmethod
-    def get_vertices(self) -> List[Vector2]:
+    def get_local_vertices(self) -> List[Vector2]:
         pass
+
+    def get_vertices(self) -> List[Vector2]:
+        return [Vector2(p) for p in self.__vertices]
 
     @property
     def color(self) -> Color:
@@ -135,7 +165,7 @@ class PolygonShape(OutlinedShape, ThemedShape):
         if len(self.__points) < 2:
             return create_surface((0, 0))
 
-        all_points: List[Vector2] = [Vector2(p) for p in self.__points]
+        all_points: List[Vector2] = self.get_points()
 
         offset: float = self.outline / 2 + (self.outline % 2)
         w, h = self.get_local_size()
@@ -167,16 +197,11 @@ class PolygonShape(OutlinedShape, ThemedShape):
         height: float = bottom - top
         return width, height
 
-    def get_vertices(self) -> List[Vector2]:
-        local_center = self.__center
+    def get_local_vertices(self) -> List[Vector2]:
+        return self.get_points()
 
-        center: Vector2 = Vector2(self.center)
-        all_points: List[Vector2] = []
-        for point in self.__points:
-            offset: Vector2 = (point - local_center).rotate(-self.angle)
-            offset.scale_to_length(offset.length() * self.scale)
-            all_points.append(center + offset)
-        return all_points
+    def get_points(self) -> List[Vector2]:
+        return [Vector2(p) for p in self.__points]
 
     def set_points(self, points: Union[List[Vector2], List[Tuple[float, float]], List[Tuple[int, int]]]) -> None:
         points = [Vector2(p) for p in points]
@@ -250,14 +275,9 @@ class RectangleShape(OutlinedShape, ThemedShape):
     def get_local_size(self) -> Tuple[float, float]:
         return self.local_size
 
-    def get_vertices(self) -> List[Vector2]:
+    def get_local_vertices(self) -> List[Vector2]:
         w, h = self.get_local_size()
-        w *= self.scale
-        h *= self.scale
-        local_center: Vector2 = Vector2(w / 2, h / 2)
-        corners: List[Vector2] = [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
-        center: Vector2 = Vector2(self.center)
-        return [center + (point - local_center).rotate(-self.angle) for point in corners]
+        return [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
 
     @property
     def local_size(self) -> Tuple[float, float]:
@@ -378,10 +398,29 @@ class CircleShape(OutlinedShape, ThemedShape):
     def get_local_size(self) -> Tuple[float, float]:
         return (self.radius * 2, self.radius * 2)
 
-    def get_vertices(self) -> List[Vector2]:
-        center: Vector2 = Vector2(self.center)
-        radius: Vector2 = Vector2(self.radius * self.scale, 0)
-        return [center + radius.rotate(-i) for i in range(360)]
+    def get_local_vertices(self) -> List[Vector2]:
+        if all(not drawn for drawn in self.__draw_params.values()):
+            return []
+
+        center: Vector2 = Vector2(self.radius, self.radius)
+        radius: Vector2 = Vector2(self.radius, 0)
+
+        angle_ranges: Dict[str, range] = {
+            "draw_top_right": range(0, 90),
+            "draw_top_left": range(90, 180),
+            "draw_bottom_left": range(180, 270),
+            "draw_bottom_right": range(270, 360),
+        }
+
+        all_points: List[Vector2] = []
+
+        for draw_side, angle_range in angle_ranges.items():
+            if self.__draw_params[draw_side] is True:
+                all_points.extend(center + radius.rotate(-i) for i in angle_range)
+            elif not all_points or all_points[-1] != center:
+                all_points.append(Vector2(center))
+
+        return all_points
 
     @property
     def radius(self) -> float:
@@ -462,16 +501,8 @@ class CrossShape(OutlinedShape, ThemedShape):
     def get_local_size(self) -> Tuple[float, float]:
         return self.local_size
 
-    def get_vertices(self) -> List[Vector2]:
-        local_center = Vector2(self.get_local_rect().center)
-
-        center: Vector2 = Vector2(self.center)
-        all_points: List[Vector2] = []
-        for point in self.__get_points():
-            offset: Vector2 = (point - local_center).rotate(-self.angle)
-            offset.scale_to_length(offset.length() * self.scale)
-            all_points.append(center + offset)
-        return all_points
+    def get_local_vertices(self) -> List[Vector2]:
+        return self.__get_points()
 
     def __get_points(self) -> List[Vector2]:
         rect: Rect = self.get_local_rect()

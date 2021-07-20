@@ -23,7 +23,7 @@ class ShapeScene(Scene):
         ThemedShape.set_theme("default", {"outline_color": RED, "outline": 3})
         self.__r: RectangleShape = RectangleShape(50, 50, WHITE)
         self.__p: PolygonShape = PolygonShape(WHITE)
-        self.__c: CircleShape = CircleShape(30, WHITE)
+        self.__c: CircleShape = CircleShape(30, WHITE, draw_bottom_left=False, draw_top_right=False)
         self.__x: CrossShape = CrossShape(
             50,
             50,
@@ -97,7 +97,7 @@ class ShapeScene(Scene):
         # self.__x_center.center = self.__x.center
         self.__c_center.center = self.__c.center
         self.__s.default_image = self.__r.to_surface()
-        self.__shape_copy.set_points(self.__x.get_vertices())
+        self.__shape_copy.set_points(self.__c.get_vertices())
 
     def draw(self) -> None:
         self.window.clear(BLUE_DARK)
@@ -137,7 +137,7 @@ class GradientScene(Scene):
         super().__init__(window, framerate=120)
         self.horizontal: HorizontalGradientShape = HorizontalGradientShape(100, 100, RED, YELLOW)
         self.vertical: VerticalGradientShape = VerticalGradientShape(100, 100, RED, YELLOW)
-        self.squared: SquaredGradientShape = SquaredGradientShape(100, 100, RED, YELLOW)
+        self.squared: SquaredGradientShape = SquaredGradientShape(100, RED, YELLOW)
         self.radial: RadialGradientShape = RadialGradientShape(50, RED, YELLOW)
 
     def update(self) -> None:
@@ -154,9 +154,9 @@ class GradientScene(Scene):
 
 def main() -> None:
     w: Window = Window("my window", (1366, 768))
-    # w.scenes.push_on_top(ShapeScene(w))
+    w.scenes.push_on_top(ShapeScene(w))
     # w.scenes.push_on_top(AnimationScene(w))
-    w.scenes.push_on_top(GradientScene(w))
+    # w.scenes.push_on_top(GradientScene(w))
     w.mainloop()
 
 
