@@ -19,7 +19,6 @@ from .scene import Scene
 from .clock import Clock
 from .surface import create_surface
 
-EventTypes = Union[SupportsInt, Tuple[SupportsInt, ...], List[SupportsInt]]
 ColorInput = Union[Color, str, List[int], Tuple[int, int, int], Tuple[int, int, int, int]]
 
 
@@ -253,8 +252,8 @@ class Window:
             if event.type == pygame.QUIT:
                 self.close()
 
-    def allow_only_event(self, event_type: EventTypes) -> None:
-        pygame.event.set_allowed(event_type)
+    def allow_only_event(self, *event_types: SupportsInt) -> None:
+        pygame.event.set_allowed(event_types)
 
     def allow_all_events(self) -> None:
         pygame.event.set_allowed(None)
@@ -262,8 +261,8 @@ class Window:
     def clear_all_events(self) -> None:
         pygame.event.clear()
 
-    def block_only_event(self, event_type: EventTypes) -> None:
-        pygame.event.set_blocked(event_type)
+    def block_only_event(self, *event_types: SupportsInt) -> None:
+        pygame.event.set_blocked(event_types)
 
     def after(
         self, milliseconds: float, callback: Callable[..., None], scene: Optional[Scene] = None, *args: Any, **kwargs: Any
