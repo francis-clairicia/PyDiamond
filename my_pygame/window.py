@@ -134,10 +134,13 @@ class Window:
 
     __main_window: bool = True
 
-    def __init__(self, title: Optional[str] = None, size: Tuple[int, int] = (0, 0), fullscreen: bool = False) -> None:
+    def __new__(cls, *args: Any, **kwargs: Any) -> Any:
         if not Window.__main_window:
             raise WindowError("Cannot have multiple open windows")
         Window.__main_window = False
+        return super().__new__(cls)
+
+    def __init__(self, title: Optional[str] = None, size: Tuple[int, int] = (0, 0), fullscreen: bool = False) -> None:
         if not pygame.get_init():
             pygame.mixer.pre_init(Window.MIXER_FREQUENCY, Window.MIXER_SIZE, Window.MIXER_CHANNELS, Window.MIXER_BUFFER)
             status: Tuple[int, int] = pygame.init()
@@ -165,7 +168,7 @@ class Window:
         self.__rect: Rect = self.__surface.get_rect()
         self.__main_clock: PygameClock = PygameClock()
         self.__framerate: int = 0
-        self.__loop: bool = False
+        self.__loop: bool = True
         self.__scenes: SceneManager = SceneManager(self)
         self.__callback_after: WindowCallbackList = WindowCallbackList()
 
@@ -193,8 +196,11 @@ class Window:
             self.__loop = False
             self.__callback_after.clear()
 
-    def close(self) -> NoReturn:
+    def stop(self) -> None:
         self.__loop = False
+
+    def close(self) -> NoReturn:
+        self.stop()
         raise Window.Exit
 
     def is_open(self) -> bool:
