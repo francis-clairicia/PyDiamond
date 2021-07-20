@@ -14,7 +14,7 @@ from pygame.color import Color
 from pygame.surface import Surface
 
 from .drawable import Drawable, ThemedDrawable
-from .theme import Theme
+from .theme import Theme, abstract_theme_class
 from .colors import BLACK
 from .surface import create_surface
 
@@ -120,7 +120,8 @@ class AbstractShape(Drawable):
         ThemedDrawable.y.fset(self, x)  # type: ignore
 
 
-class ThemedShape(AbstractShape, ThemedDrawable, use_parent_theme=False):
+@abstract_theme_class
+class ThemedShape(AbstractShape, ThemedDrawable):
     pass
 
 

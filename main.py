@@ -4,8 +4,7 @@
 from my_pygame.window import Window
 from my_pygame.scene import Scene
 
-# from my_pygame.shape import RectangleShape, PolygonShape, CircleShape, CrossShape
-from my_pygame.shape import RectangleShape, PolygonShape, CircleShape, CrossShape, ThemedShape
+from my_pygame.shape import RectangleShape, PolygonShape, CircleShape, CrossShape
 from my_pygame.gradients import HorizontalGradientShape, RadialGradientShape, SquaredGradientShape, VerticalGradientShape
 from my_pygame.sprite import Sprite
 from my_pygame.colors import BLUE_DARK, TRANSPARENT, WHITE, RED, YELLOW
@@ -19,8 +18,9 @@ class ShapeScene(Scene):
         # self.__p: PolygonShape = PolygonShape(WHITE, outline=3, outline_color=RED)
         # self.__c: CircleShape = CircleShape(30, WHITE, outline=3, outline_color=RED)
         # self.__x: CrossShape = CrossShape(*self.__r.get_local_size(), outline_color=RED, outline=20)
-        ThemedShape.set_default_theme("default")
-        ThemedShape.set_theme("default", {"outline_color": RED, "outline": 3})
+        for cls in [RectangleShape, PolygonShape, CircleShape, CrossShape]:
+            cls.set_default_theme("default")
+            cls.set_theme("default", {"outline_color": RED, "outline": 3})
         self.__r: RectangleShape = RectangleShape(50, 50, WHITE)
         self.__p: PolygonShape = PolygonShape(WHITE)
         self.__c: CircleShape = CircleShape(30, WHITE, draw_bottom_left=False, draw_top_right=False)

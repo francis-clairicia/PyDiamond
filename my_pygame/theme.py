@@ -1,7 +1,8 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
-from typing import Any, Dict, Iterator, List, Tuple, Union
+from typing import Any, Dict, Iterator, List, Tuple, TypeVar, Union
+from operator import truth
 
 
 class ThemeNamespace:
@@ -48,13 +49,17 @@ Theme = Union[str, List[str], None]
 class MetaThemedObject(type):
     def __init__(cls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwds: Any) -> None:
         super().__init__(name, bases, namespace, **kwds)
-        if all(not isinstance(b, MetaThemedObject) for b in bases):
+        setattr(cls, "__is_abstract_theme_class__", False)
+        if all(not isinstance(b, MetaThemedObject) or b.is_abstract_theme_class() for b in bases):
             if cls not in _CLASSES_NOT_USING_PARENT_THEMES:
                 _CLASSES_NOT_USING_PARENT_THEMES.append(cls)
             if cls not in _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES:
                 _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.append(cls)
 
     def __call__(cls, *args: Any, **kwargs: Any) -> Any:
+        if cls.is_abstract_theme_class():
+            return super().__call__(*args, **kwargs)
+
         default_theme: List[str] = list()
         for parent in cls.__get_all_parent_class(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_DEFAULT_THEMES):
             default_theme += _HIDDEN_DEFAULT_THEME.get(parent, list()) + _DEFAULT_THEME.get(parent, list())
@@ -68,6 +73,9 @@ class MetaThemedObject(type):
         return super().__call__(*args, **(theme_kwargs | kwargs))
 
     def set_theme(cls, name: str, options: Dict[str, Any]) -> None:
+        if cls.is_abstract_theme_class():
+            raise TypeError("Abstract theme classes cannot set themes.")
+
         theme_dict: Dict[str, Dict[str, Any]]
 
         if not name.startswith(_HIDDEN_THEME_PREFIX):
@@ -84,6 +92,9 @@ class MetaThemedObject(type):
             theme_dict[name] |= options
 
     def set_default_theme(cls, name: Theme) -> None:
+        if cls.is_abstract_theme_class():
+            raise TypeError("Abstract theme classes cannot set themes.")
+
         if name is None:
             _DEFAULT_THEME.pop(cls, None)
             return
@@ -98,12 +109,18 @@ class MetaThemedObject(type):
             default_theme[cls].append(theme)
 
     def get_theme_options(cls, *themes: str) -> Dict[str, Any]:
+        if cls.is_abstract_theme_class():
+            raise TypeError("Abstract theme classes does not have themes.")
+
         theme_kwargs: Dict[str, Any] = dict()
         for t in themes:
             for parent in reversed(list(cls.__get_all_parent_class(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_THEMES))):
                 theme_kwargs |= cls.__get_theme_options(parent, t)
             theme_kwargs |= cls.__get_theme_options(cls, t)
         return theme_kwargs
+
+    def is_abstract_theme_class(cls) -> bool:
+        return truth(getattr(cls, "__is_abstract_theme_class__", False))
 
     @staticmethod
     def __get_theme_options(cls: type, theme: str) -> Dict[str, Any]:
@@ -122,8 +139,21 @@ class MetaThemedObject(type):
             yield from MetaThemedObject.__get_all_parent_class(base)
 
 
+_ThemedObjectVar = TypeVar("_ThemedObjectVar", bound=MetaThemedObject)
+
+
+def abstract_theme_class(cls: _ThemedObjectVar) -> _ThemedObjectVar:
+    setattr(cls, "__is_abstract_theme_class__", True)
+    if cls not in _CLASSES_NOT_USING_PARENT_THEMES:
+        _CLASSES_NOT_USING_PARENT_THEMES.append(cls)
+    if cls not in _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES:
+        _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.append(cls)
+    return cls
+
+
+@abstract_theme_class
 class ThemedObject(metaclass=MetaThemedObject):
-    def __init_subclass__(cls, use_parent_theme: bool = True, use_parent_default_theme: bool = True) -> None:
+    def __init_subclass__(cls, /, *, use_parent_theme: bool = True, use_parent_default_theme: bool = True) -> None:
         super().__init_subclass__()
         if not use_parent_theme:
             _CLASSES_NOT_USING_PARENT_THEMES.append(cls)

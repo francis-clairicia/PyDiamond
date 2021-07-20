@@ -10,7 +10,7 @@ from pygame.surface import Surface
 from pygame.rect import Rect
 from pygame.math import Vector2
 
-from .theme import MetaThemedObject, ThemedObject
+from .theme import MetaThemedObject, ThemedObject, abstract_theme_class
 from .animation import Animation
 
 
@@ -400,5 +400,6 @@ class MetaThemedDrawable(MetaDrawable, MetaThemedObject):
     pass
 
 
-class ThemedDrawable(Drawable, ThemedObject, metaclass=MetaThemedDrawable, use_parent_theme=False):
+@abstract_theme_class
+class ThemedDrawable(Drawable, ThemedObject, metaclass=MetaThemedDrawable):
     pass

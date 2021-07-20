@@ -24,9 +24,13 @@ class MetaScene(ABCMeta):
         return super().__setattr__(name, cls.__apply_theme_namespace_decorator(value))
 
     def set_theme_namespace(cls, namespace: Any) -> None:
+        if cls.__abstractmethods__:  # type: ignore
+            raise TypeError(f"{cls.__name__} is an abstract class")
         MetaScene.__namespaces[cls] = namespace
 
     def remove_theme_namespace(cls) -> None:
+        if cls.__abstractmethods__:  # type: ignore
+            raise TypeError(f"{cls.__name__} is an abstract class")
         MetaScene.__namespaces.pop(cls, None)
 
     @staticmethod
@@ -35,7 +39,7 @@ class MetaScene(ABCMeta):
         def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
             cls: type = type(self)
             output: Any
-            if cls in MetaScene.__namespaces:
+            if cls in MetaScene.__namespaces and ThemeNamespace.get() != MetaScene.__namespaces[cls]:
                 with ThemeNamespace(MetaScene.__namespaces[cls]):
                     output = func(self, *args, **kwargs)
             else:
