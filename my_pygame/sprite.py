@@ -1,29 +1,35 @@
 # -*- coding: Utf-8 -*
 
-from typing import Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import pygame.mask
 import pygame.transform
 
 from pygame.surface import Surface
 from pygame.rect import Rect
-from pygame.sprite import Sprite as PygameSprite, AbstractGroup
+from pygame.sprite import Sprite as PygameSprite
 from pygame.mask import Mask
 
 from .drawable import Drawable
 from .surface import create_surface
+from .clock import Clock
 
 
 class Sprite(Drawable, PygameSprite):
-    def __init__(self, *groups: AbstractGroup, image: Optional[Surface] = None) -> None:
+    def __init__(self, image: Optional[Surface] = None, mask_threshold: int = 127) -> None:
         Drawable.__init__(self)
-        PygameSprite.__init__(self, *groups)
+        PygameSprite.__init__(self)
         self.__default_image: Surface = image.copy() if image is not None else create_surface((0, 0))
         self.__image: Surface = self.__default_image.copy()
-        self.__mask: Mask = pygame.mask.from_surface(self.__image)
+        self.__mask_threshold: int
+        self.__mask: Mask
+        self.set_mask_threshold(mask_threshold)
+
+    def update(self, *args: Any, **kwargs: Any) -> None:
+        pass
 
     def draw_onto(self, surface: Surface) -> None:
-        surface.blit(self.__image, self.rect)
+        surface.blit(self.__image, self.topleft)
 
     def get_local_size(self) -> Tuple[float, float]:
         return self.__default_image.get_size()
@@ -38,12 +44,22 @@ class Sprite(Drawable, PygameSprite):
             h *= self.scale
             self.__image = pygame.transform.smoothscale(self.default_image, (round(w), round(h)))
         else:
-            self.__image = self.__default_image
+            self.__image = self.default_image
         self.__image = pygame.transform.rotate(self.__image, self.angle)
-        self.__mask = pygame.mask.from_surface(self.__image)
+        self._update_mask()
+
+    def _update_mask(self) -> None:
+        self.__mask = pygame.mask.from_surface(self.__image, self.get_mask_threshold())
 
     def get_size(self) -> Tuple[float, float]:
         return self.__image.get_size()
+
+    def get_mask_threshold(self) -> int:
+        return self.__mask_threshold
+
+    def set_mask_threshold(self, threshold: int) -> None:
+        self.__mask_threshold = max(int(threshold), 0)
+        self._update_mask()
 
     @property
     def default_image(self) -> Surface:
@@ -67,3 +83,53 @@ class Sprite(Drawable, PygameSprite):
     @property
     def mask(self) -> Mask:
         return self.__mask
+
+
+class AnimatedSprite(Sprite):
+    def __init__(self, image: Surface, *images: Surface, mask_threshold: int = 127) -> None:
+        super().__init__(image=image, mask_threshold=mask_threshold)
+        self.__list: List[Surface] = [self.default_image, *(i.copy() for i in images)]
+        self.__sprite_idx: int = 0
+        self.__clock: Clock = Clock()
+        self.__wait_time: float = 0
+        self.__animation: bool = False
+        self.__loop: bool = False
+
+    def update(self, *args: Any, **kwargs: Any) -> None:
+        if self.is_sprite_animating() and self.__clock.elapsed_time(self.__wait_time):
+            self.__sprite_idx = (self.__sprite_idx + 1) % len(self.__list)
+            Sprite.default_image.fset(self, self.__list[self.__sprite_idx])  # type: ignore
+            if self.__sprite_idx == 0 and not self.__loop:
+                self.stop_animation()
+
+    def is_sprite_animating(self) -> bool:
+        return self.__animation
+
+    def start_animation(self, loop: bool = False) -> None:
+        if len(self.__list) <= 1:
+            return
+        self.__loop = bool(loop)
+        self.__sprite_idx = 0
+        self.__animation = True
+        self.__clock.restart()
+
+    def restart_animation(self) -> None:
+        if len(self.__list) <= 1:
+            return
+        self.__animation = True
+        self.__clock.restart(reset=False)
+
+    def stop_animation(self) -> None:
+        self.__animation = False
+
+    @property  # type: ignore
+    def default_image(self) -> Surface:
+        return super().default_image
+
+    @property
+    def ratio(self) -> float:
+        return self.__wait_time
+
+    @ratio.setter
+    def ratio(self, value: float) -> None:
+        self.__wait_time = float(value)

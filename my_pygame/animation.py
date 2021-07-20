@@ -35,11 +35,11 @@ class AbstractAnimationClass(metaclass=ABCMeta):
 
     @abstractmethod
     def __call__(self) -> None:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def default(self) -> None:
-        pass
+        raise NotImplementedError
 
     @property
     def drawable(self) -> Drawable:

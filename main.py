@@ -27,6 +27,7 @@ class ShapeScene(Scene):
         self.__x: CrossShape = CrossShape(
             50,
             50,
+            type=CrossShape.Type.DIAGONAL,
             color=RED,
             outline_color=WHITE,
         )
@@ -55,11 +56,13 @@ class ShapeScene(Scene):
         # self.__x.topleft = (50, 50)
         self.__c.center = self.__r.centerx - window.centery * 3 / 4, window.centery
 
-        # self.__x_trajectory: CircleShape = CircleShape(
-        #     abs(self.__x.centerx - self.__r.centerx), TRANSPARENT, outline_color=YELLOW,
-        # )
-        # self.__x_trajectory.center = self.__r.center
-        # self.__x_center: CircleShape = CircleShape(5, YELLOW, outline=0)
+        self.__x_trajectory: CircleShape = CircleShape(
+            abs(self.__x.centerx - self.__r.centerx),
+            TRANSPARENT,
+            outline_color=YELLOW,
+        )
+        self.__x_trajectory.center = self.__r.center
+        self.__x_center: CircleShape = CircleShape(5, YELLOW, outline=0)
 
         self.__c_trajectory: CircleShape = CircleShape(
             abs(self.__c.centerx - self.__r.centerx), TRANSPARENT, outline_color=YELLOW
@@ -94,7 +97,7 @@ class ShapeScene(Scene):
             self.__x.scale = self.__scale
             self.__c.scale = self.__scale
             # self.__s.scale = self.__scale
-        # self.__x_center.center = self.__x.center
+        self.__x_center.center = self.__x.center
         self.__c_center.center = self.__c.center
         self.__s.default_image = self.__r.to_surface()
         self.__shape_copy.set_points(self.__c.get_vertices())
@@ -109,8 +112,8 @@ class ShapeScene(Scene):
         self.window.draw(self.__s)
         self.window.draw(self.__x)
         self.window.draw(self.__shape_copy)
-        # self.window.draw(self.__x_center)
-        # self.window.draw(self.__x_trajectory)
+        self.window.draw(self.__x_center)
+        self.window.draw(self.__x_trajectory)
 
 
 class AnimationScene(Scene):
@@ -156,8 +159,8 @@ class GradientScene(Scene):
 
 def main() -> None:
     w: Window = Window("my window", (1366, 768))
-    # w.scenes.push_on_top(ShapeScene(w))
-    w.scenes.push_on_top(AnimationScene(w))
+    w.scenes.push_on_top(ShapeScene(w))
+    # w.scenes.push_on_top(AnimationScene(w))
     # w.scenes.push_on_top(GradientScene(w))
     w.mainloop()
 

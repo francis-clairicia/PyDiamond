@@ -42,11 +42,11 @@ class Drawable(metaclass=MetaDrawable):
 
     @abstractmethod
     def draw_onto(self, surface: Surface) -> None:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def to_surface(self) -> Surface:
-        pass
+        raise NotImplementedError
 
     def show(self) -> None:
         self.set_visibility(True)

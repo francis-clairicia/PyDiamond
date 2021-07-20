@@ -1,8 +1,10 @@
 # -*- coding: Utf-8 -*
 
+from __future__ import annotations
 from abc import abstractmethod
 from typing import Dict, List, Optional, Tuple, Union
 from math import sin, tan, radians
+from enum import IntEnum, auto, unique
 
 import pygame.draw
 from pygame.math import Vector2
@@ -78,11 +80,11 @@ class AbstractShape(Drawable):
 
     @abstractmethod
     def make(self) -> Surface:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_local_vertices(self) -> List[Vector2]:
-        pass
+        raise NotImplementedError
 
     def get_vertices(self) -> List[Vector2]:
         return [Vector2(p) for p in self.__vertices]
@@ -473,11 +475,17 @@ class CircleShape(OutlinedShape, ThemedShape):
 
 
 class CrossShape(OutlinedShape, ThemedShape):
+    @unique
+    class Type(IntEnum):
+        DIAGONAL = auto()
+        PLUS = auto()
+
     def __init__(
         self,
         width: float,
         height: float,
         color: Color,
+        type: CrossShape.Type,
         *,
         line_width: float = 0.3,
         outline_color: Color = BLACK,
@@ -487,24 +495,27 @@ class CrossShape(OutlinedShape, ThemedShape):
         super().__init__(color, outline, outline_color)
         self.__w: float = 0
         self.__h: float = 0
-        self.__line_width: float = 2
+        self.__line_width: float = 0
+        self.__type: CrossShape.Type = CrossShape.Type(type)
         self.local_size = width, height
         self.line_width = line_width
         self._need_update()
 
     def make(self) -> Surface:
-        all_points: List[Vector2] = self.__get_points()
-        if len(all_points) < 3:
-            return create_surface((0, 0))
+        all_points: List[Vector2] = self.get_local_vertices()
         return PolygonShape(self.color, outline=self.outline, outline_color=self.outline_color, points=all_points).to_surface()
 
     def get_local_size(self) -> Tuple[float, float]:
         return self.local_size
 
     def get_local_vertices(self) -> List[Vector2]:
-        return self.__get_points()
+        compute_vertices = {
+            CrossShape.Type.DIAGONAL: self.__get_diagonal_cross_points,
+            CrossShape.Type.PLUS: self.__get_plus_cross_points,
+        }
+        return compute_vertices[self.type]()
 
-    def __get_points(self) -> List[Vector2]:
+    def __get_diagonal_cross_points(self) -> List[Vector2]:
         rect: Rect = self.get_local_rect()
         line_width: float = self.line_width
         if line_width == 0:
@@ -546,6 +557,32 @@ class CrossShape(OutlinedShape, ThemedShape):
             Vector2(rect.left, rect.top + h_offset),
         ]
 
+    def __get_plus_cross_points(self) -> List[Vector2]:
+        rect: Rect = self.get_local_rect()
+        line_width: float = self.line_width
+        if line_width == 0:
+            return []
+
+        if line_width < 1:
+            line_width = min(self.local_width * line_width, self.local_height * line_width)
+
+        line_width /= 2
+
+        return [
+            Vector2(rect.centerx - line_width, rect.top),
+            Vector2(rect.centerx + line_width, rect.top),
+            Vector2(rect.centerx + line_width, rect.centery - line_width),
+            Vector2(rect.right, rect.centery - line_width),
+            Vector2(rect.right, rect.centery + line_width),
+            Vector2(rect.centerx + line_width, rect.centery + line_width),
+            Vector2(rect.centerx + line_width, rect.bottom),
+            Vector2(rect.centerx - line_width, rect.bottom),
+            Vector2(rect.centerx - line_width, rect.centery + line_width),
+            Vector2(rect.left, rect.centery + line_width),
+            Vector2(rect.left, rect.centery - line_width),
+            Vector2(rect.centerx - line_width, rect.centery - line_width),
+        ]
+
     @property
     def line_width(self) -> float:
         return self.__line_width
@@ -556,6 +593,10 @@ class CrossShape(OutlinedShape, ThemedShape):
         if self.__line_width != width:
             self.__line_width = width
             self._need_update()
+
+    @property
+    def type(self) -> CrossShape.Type:
+        return self.__type
 
     @property
     def local_size(self) -> Tuple[float, float]:
@@ -586,3 +627,51 @@ class CrossShape(OutlinedShape, ThemedShape):
         if height != self.__h:
             self.__h = height
             self._need_update()
+
+
+class DiagonalCrossShape(CrossShape):
+    def __init__(
+        self,
+        width: float,
+        height: float,
+        color: Color,
+        *,
+        line_width: float = 0.3,
+        outline_color: Color = BLACK,
+        outline: int = 0,
+        theme: Optional[Theme] = None,
+    ) -> None:
+        super().__init__(
+            width,
+            height,
+            color,
+            CrossShape.Type.DIAGONAL,
+            line_width=line_width,
+            outline_color=outline_color,
+            outline=outline,
+            theme=theme,
+        )
+
+
+class PlusCrossShape(CrossShape):
+    def __init__(
+        self,
+        width: float,
+        height: float,
+        color: Color,
+        *,
+        line_width: float = 0.3,
+        outline_color: Color = BLACK,
+        outline: int = 0,
+        theme: Optional[Theme] = None,
+    ) -> None:
+        super().__init__(
+            width,
+            height,
+            color,
+            CrossShape.Type.PLUS,
+            line_width=line_width,
+            outline_color=outline_color,
+            outline=outline,
+            theme=theme,
+        )

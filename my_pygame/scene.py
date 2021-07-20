@@ -68,7 +68,7 @@ class Scene(metaclass=MetaScene):
 
     @abstractmethod
     def draw(self) -> None:
-        pass
+        raise NotImplementedError
 
     def get_required_framerate(self) -> int:
         return self.__f
