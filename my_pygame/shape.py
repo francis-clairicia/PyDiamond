@@ -4,7 +4,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import Dict, List, Optional, Tuple, Union
 from math import sin, tan, radians
-from enum import IntEnum, auto, unique
+from enum import Enum, unique
 
 import pygame.draw
 from pygame.math import Vector2
@@ -37,7 +37,7 @@ class AbstractShape(Drawable):
         if self.__update:
             self.__update = False
             center: Tuple[float, float] = self.center
-            self.__shape_image = self.make()
+            self.__shape_image = self._make()
             self._apply_rotation_scale()
             self.center = center
 
@@ -79,7 +79,7 @@ class AbstractShape(Drawable):
             self.__vertices.append(center + offset)
 
     @abstractmethod
-    def make(self) -> Surface:
+    def _make(self) -> Surface:
         raise NotImplementedError
 
     @abstractmethod
@@ -102,22 +102,22 @@ class AbstractShape(Drawable):
     @property
     def x(self) -> float:
         self.__update_shape()
-        return ThemedDrawable.x.fget(self)  # type: ignore
+        return Drawable.x.fget(self)  # type: ignore
 
     @x.setter
     def x(self, x: float) -> None:
         self.__update_shape()
-        ThemedDrawable.x.fset(self, x)  # type: ignore
+        Drawable.x.fset(self, x)  # type: ignore
 
     @property
     def y(self) -> float:
         self.__update_shape()
-        return ThemedDrawable.y.fget(self)  # type: ignore
+        return Drawable.y.fget(self)  # type: ignore
 
     @y.setter
     def y(self, x: float) -> None:
         self.__update_shape()
-        ThemedDrawable.y.fset(self, x)  # type: ignore
+        Drawable.y.fset(self, x)  # type: ignore
 
 
 @abstract_theme_class
@@ -164,7 +164,7 @@ class PolygonShape(OutlinedShape, ThemedShape):
         self.set_points(points)
         self._need_update()
 
-    def make(self) -> Surface:
+    def _make(self) -> Surface:
         if len(self.__points) < 2:
             return create_surface((0, 0))
 
@@ -263,7 +263,7 @@ class RectangleShape(OutlinedShape, ThemedShape):
         self.border_bottom_right_radius = border_bottom_right_radius
         self._need_update()
 
-    def make(self) -> Surface:
+    def _make(self) -> Surface:
         offset: float = self.outline / 2 + (self.outline % 2)
         w, h = self.get_local_size()
         image: Surface = create_surface((w + offset * 2, h + offset * 2))
@@ -388,7 +388,7 @@ class CircleShape(OutlinedShape, ThemedShape):
         self.draw_bottom_right = draw_bottom_right
         self._need_update()
 
-    def make(self) -> Surface:
+    def _make(self) -> Surface:
         width, height = self.get_local_size()
         image: Surface = create_surface((width, height))
         center: Tuple[float, float] = (width / 2, height / 2)
@@ -477,16 +477,16 @@ class CircleShape(OutlinedShape, ThemedShape):
 
 class CrossShape(OutlinedShape, ThemedShape):
     @unique
-    class Type(IntEnum):
-        DIAGONAL = auto()
-        PLUS = auto()
+    class Type(str, Enum):
+        DIAGONAL = "diagonal"
+        PLUS = "plus"
 
     def __init__(
         self,
         width: float,
         height: float,
         color: Color,
-        type: CrossShape.Type,
+        type: Union[str, CrossShape.Type],
         *,
         line_width: float = 0.3,
         outline_color: Color = BLACK,
@@ -502,7 +502,7 @@ class CrossShape(OutlinedShape, ThemedShape):
         self.line_width = line_width
         self._need_update()
 
-    def make(self) -> Surface:
+    def _make(self) -> Surface:
         all_points: List[Vector2] = self.get_local_vertices()
         return PolygonShape(self.color, outline=self.outline, outline_color=self.outline_color, points=all_points).to_surface()
 

@@ -27,7 +27,7 @@ class ShapeScene(Scene):
         self.__x: CrossShape = CrossShape(
             50,
             50,
-            type=CrossShape.Type.DIAGONAL,
+            type="diagonal",
             color=RED,
             outline_color=WHITE,
         )
