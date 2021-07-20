@@ -115,7 +115,8 @@ class Drawable(metaclass=MetaDrawable):
             if not isinstance(point, tuple) or len(point) != 2:
                 raise AttributeError(f"Bad point attribute: {point}")
         point = Vector2(point)
-        center = point + (center - point).rotate(-self.__angle + former_angle)
+        if point != center:
+            center = point + (center - point).rotate(-self.__angle + former_angle)
         self.center = center.x, center.y
 
     def set_scale(self, scale: float) -> None:
