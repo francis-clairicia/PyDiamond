@@ -5,7 +5,8 @@ from my_pygame.window import Window
 from my_pygame.scene import Scene
 
 # from my_pygame.shape import RectangleShape, PolygonShape, CircleShape, CrossShape
-from my_pygame.shape import RectangleShape, PolygonShape, CircleShape, CrossShape, Shape
+from my_pygame.shape import RectangleShape, PolygonShape, CircleShape, CrossShape, ThemedShape
+from my_pygame.gradients import HorizontalGradientShape, RadialGradientShape, SquaredGradientShape, VerticalGradientShape
 from my_pygame.sprite import Sprite
 from my_pygame.colors import BLUE_DARK, TRANSPARENT, WHITE, RED, YELLOW
 from my_pygame.clock import Clock
@@ -18,8 +19,8 @@ class ShapeScene(Scene):
         # self.__p: PolygonShape = PolygonShape(WHITE, outline=3, outline_color=RED)
         # self.__c: CircleShape = CircleShape(30, WHITE, outline=3, outline_color=RED)
         # self.__x: CrossShape = CrossShape(*self.__r.get_local_size(), outline_color=RED, outline=20)
-        Shape.set_default_theme("default")
-        Shape.set_theme("default", {"outline_color": RED, "outline": 3})
+        ThemedShape.set_default_theme("default")
+        ThemedShape.set_theme("default", {"outline_color": RED, "outline": 3})
         self.__r: RectangleShape = RectangleShape(50, 50, WHITE)
         self.__p: PolygonShape = PolygonShape(WHITE)
         self.__c: CircleShape = CircleShape(30, WHITE)
@@ -131,10 +132,31 @@ class AnimationScene(Scene):
         self.rectangle.animation.start_in_background(self)
 
 
+class GradientScene(Scene):
+    def __init__(self, window: Window) -> None:
+        super().__init__(window, framerate=120)
+        self.horizontal: HorizontalGradientShape = HorizontalGradientShape(100, 100, RED, YELLOW)
+        self.vertical: VerticalGradientShape = VerticalGradientShape(100, 100, RED, YELLOW)
+        self.squared: SquaredGradientShape = SquaredGradientShape(100, 100, RED, YELLOW)
+        self.radial: RadialGradientShape = RadialGradientShape(50, RED, YELLOW)
+
+    def update(self) -> None:
+        self.horizontal.midleft = self.window.midleft
+        self.vertical.midright = self.window.midright
+        self.radial.center = self.window.center
+        self.squared.midbottom = self.window.midbottom
+
+    def draw(self) -> None:
+        self.window.clear(BLUE_DARK)
+        for obj in [self.horizontal, self.vertical, self.squared, self.radial]:
+            self.window.draw(obj)
+
+
 def main() -> None:
     w: Window = Window("my window", (1366, 768))
-    w.scenes.push_on_top(ShapeScene(w))
+    # w.scenes.push_on_top(ShapeScene(w))
     # w.scenes.push_on_top(AnimationScene(w))
+    w.scenes.push_on_top(GradientScene(w))
     w.mainloop()
 
 

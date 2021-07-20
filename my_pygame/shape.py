@@ -11,24 +11,21 @@ import pygame.transform
 from pygame.color import Color
 from pygame.surface import Surface
 
-from .drawable import ThemedDrawable
+from .drawable import Drawable, ThemedDrawable
 from .theme import Theme
 from .colors import BLACK
 from .surface import create_surface
 
 
-class Shape(ThemedDrawable, use_parent_theme=False):
-    def __init__(self, color: Color, outline: int, outline_color: Color) -> None:
+class AbstractShape(Drawable):
+    def __init__(self, color: Color) -> None:
         super().__init__()
         self.__update: bool = True
         self.__image: Surface = create_surface((0, 0))
         self.__shape_image: Surface = self.__image.copy()
         self.__color: Color = BLACK
-        self.__outline: int = 0
-        self.__outline_color: Color = BLACK
         self.color = color
-        self.outline = outline
-        self.outline_color = outline_color
+        self._need_update()
 
     def _need_update(self) -> None:
         self.__update = True
@@ -71,27 +68,6 @@ class Shape(ThemedDrawable, use_parent_theme=False):
             self._need_update()
 
     @property
-    def outline(self) -> int:
-        return self.__outline
-
-    @outline.setter
-    def outline(self, value: int) -> None:
-        value = max(int(value), 0)
-        if self.__outline != value:
-            self.__outline = value
-            self._need_update()
-
-    @property
-    def outline_color(self) -> Color:
-        return self.__outline_color
-
-    @outline_color.setter
-    def outline_color(self, value: Color) -> None:
-        if self.__outline_color != value:
-            self.__outline_color = value
-            self._need_update()
-
-    @property
     def x(self) -> float:
         self.__update_shape()
         return ThemedDrawable.x.fget(self)  # type: ignore
@@ -112,12 +88,48 @@ class Shape(ThemedDrawable, use_parent_theme=False):
         ThemedDrawable.y.fset(self, x)  # type: ignore
 
 
-class PolygonShape(Shape):
+class ThemedShape(AbstractShape, ThemedDrawable, use_parent_theme=False):
+    pass
+
+
+class OutlinedShape(AbstractShape):
+    def __init__(self, color: Color, outline: int, outline_color: Color) -> None:
+        super().__init__(color)
+        self.__outline: int = 0
+        self.__outline_color: Color = BLACK
+        self.outline = outline
+        self.outline_color = outline_color
+        self._need_update()
+
+    @property
+    def outline(self) -> int:
+        return self.__outline
+
+    @outline.setter
+    def outline(self, value: int) -> None:
+        value = max(int(value), 0)
+        if self.__outline != value:
+            self.__outline = value
+            self._need_update()
+
+    @property
+    def outline_color(self) -> Color:
+        return self.__outline_color
+
+    @outline_color.setter
+    def outline_color(self, value: Color) -> None:
+        if self.__outline_color != value:
+            self.__outline_color = value
+            self._need_update()
+
+
+class PolygonShape(OutlinedShape, ThemedShape):
     def __init__(self, color: Color, *, outline: int = 0, outline_color: Color = BLACK, points: List[Vector2] = []) -> None:
         super().__init__(color, outline, outline_color)
         self.__points: List[Vector2] = []
         self.__center: Vector2 = Vector2(0, 0)
         self.set_points(points)
+        self._need_update()
 
     def make(self) -> Surface:
         if len(self.__points) < 2:
@@ -189,7 +201,7 @@ class PolygonShape(Shape):
         self._need_update()
 
 
-class RectangleShape(Shape):
+class RectangleShape(OutlinedShape, ThemedShape):
     def __init__(
         self,
         width: float,
@@ -221,6 +233,7 @@ class RectangleShape(Shape):
         self.border_top_right_radius = border_top_right_radius
         self.border_bottom_left_radius = border_bottom_left_radius
         self.border_bottom_right_radius = border_bottom_right_radius
+        self._need_update()
 
     def make(self) -> Surface:
         offset: float = self.outline / 2 + (self.outline % 2)
@@ -323,7 +336,7 @@ class RectangleShape(Shape):
             self._need_update()
 
 
-class CircleShape(Shape):
+class CircleShape(OutlinedShape, ThemedShape):
     def __init__(
         self,
         radius: float,
@@ -350,6 +363,7 @@ class CircleShape(Shape):
         self.draw_top_right = draw_top_right
         self.draw_bottom_left = draw_bottom_left
         self.draw_bottom_right = draw_bottom_right
+        self._need_update()
 
     def make(self) -> Surface:
         width, height = self.get_local_size()
@@ -419,7 +433,7 @@ class CircleShape(Shape):
             self._need_update()
 
 
-class CrossShape(Shape):
+class CrossShape(OutlinedShape, ThemedShape):
     def __init__(
         self,
         width: float,
@@ -437,6 +451,7 @@ class CrossShape(Shape):
         self.__line_width: float = 2
         self.local_size = width, height
         self.line_width = line_width
+        self._need_update()
 
     def make(self) -> Surface:
         all_points: List[Vector2] = self.__get_points()
