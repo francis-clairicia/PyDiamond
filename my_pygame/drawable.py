@@ -174,7 +174,7 @@ class Drawable(metaclass=MetaDrawable):
 
     @abstractmethod
     def get_local_size(self) -> Tuple[float, float]:
-        pass
+        raise NotImplementedError
 
     def get_local_width(self) -> float:
         return self.get_local_size()[0]
