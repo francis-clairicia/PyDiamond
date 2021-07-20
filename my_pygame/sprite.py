@@ -23,6 +23,7 @@ class Sprite(Drawable, PygameSprite):
         self.__image: Surface = self.__default_image.copy()
         self.__mask_threshold: int
         self.__mask: Mask
+        self.__smooth_scale: bool = False
         self.set_mask_threshold(mask_threshold)
 
     def update(self, *args: Any, **kwargs: Any) -> None:
@@ -38,14 +39,17 @@ class Sprite(Drawable, PygameSprite):
         return self.image
 
     def _apply_rotation_scale(self) -> None:
-        w, h = self.get_local_size()
-        if self.scale != 1:
-            w *= self.scale
-            h *= self.scale
-            self.__image = pygame.transform.smoothscale(self.default_image, (round(w), round(h)))
+        if not self.__smooth_scale:
+            self.__image = pygame.transform.rotozoom(self.__default_image, self.angle, self.scale)
         else:
-            self.__image = self.default_image
-        self.__image = pygame.transform.rotate(self.__image, self.angle)
+            if self.scale != 1:
+                w, h = self.get_local_size()
+                w = round(w * self.scale)
+                h = round(h * self.scale)
+                self.__image = pygame.transform.smoothscale(self.__default_image, (w, h))
+            else:
+                self.__image = self.__default_image
+            self.__image = pygame.transform.rotate(self.__image, self.angle)
         self._update_mask()
 
     def _update_mask(self) -> None:
@@ -60,6 +64,9 @@ class Sprite(Drawable, PygameSprite):
     def set_mask_threshold(self, threshold: int) -> None:
         self.__mask_threshold = max(int(threshold), 0)
         self._update_mask()
+
+    def use_smooth_scale(self, status: bool) -> None:
+        self.__smooth_scale = bool(status)
 
     @property
     def default_image(self) -> Surface:

@@ -92,11 +92,11 @@ class ShapeScene(Scene):
                 self.__scale_growth = -1
             elif self.__scale <= 0.2:
                 self.__scale_growth = 1
-            self.__r.scale = self.__scale
+            # self.__r.scale = self.__scale
             self.__p.scale = self.__scale
             self.__x.scale = self.__scale
             self.__c.scale = self.__scale
-            # self.__s.scale = self.__scale
+            self.__s.scale = self.__scale
         self.__x_center.center = self.__x.center
         self.__c_center.center = self.__c.center
         self.__s.default_image = self.__r.to_surface()
