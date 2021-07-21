@@ -71,9 +71,8 @@ class AbstractShape(Drawable):
         self.__vertices.clear()
         for point in all_points:
             offset: Vector2 = (point - local_center).rotate(-self.angle)
-            length: float = offset.length()
             try:
-                offset.scale_to_length(length * self.scale)
+                offset.scale_to_length(offset.length() * self.scale)
             except ValueError:
                 offset = Vector2(0, 0)
             self.__vertices.append(center + offset)

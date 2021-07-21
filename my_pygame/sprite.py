@@ -63,6 +63,7 @@ class Sprite(Drawable, PygameSprite):
 
     def set_mask_threshold(self, threshold: int) -> None:
         self.__mask_threshold = max(int(threshold), 0)
+        self.__mask_threshold = min(self.__mask_threshold, 255)
         self._update_mask()
 
     def use_smooth_scale(self, status: bool) -> None:
