@@ -178,7 +178,7 @@ class Text(ThemedDrawable):
             return text
         shadow_text: Surface = Text(
             message=self.message, font=self.font, color=self.shadow_color, justify=self.justify, theme=NoTheme
-        ).__render_text()
+        ).__default_image
         render_width += abs(shadow_x)
         render_height += abs(shadow_y)
         render = create_surface((render_width, render_height))
