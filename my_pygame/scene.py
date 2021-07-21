@@ -64,9 +64,10 @@ class MetaScene(ABCMeta):
 
 
 class Scene(metaclass=MetaScene):
-    def __init__(self, window: Window, framerate: int = 0) -> None:
+    def __init__(self, window: Window, framerate: int = 0, busy_loop: bool = False) -> None:
         self.__w: Window = window
         self.__f: int = max(framerate, 0)
+        self.__b: bool = busy_loop
 
     def update(self) -> None:
         pass
@@ -77,6 +78,9 @@ class Scene(metaclass=MetaScene):
 
     def get_required_framerate(self) -> int:
         return self.__f
+
+    def require_busy_loop(self) -> bool:
+        return self.__b
 
     @property
     def window(self) -> Window:

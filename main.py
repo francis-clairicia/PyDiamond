@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: Utf-8 -*
 
+from pygame.surface import Surface
 from my_pygame.text import Text
 from my_pygame.window import Window
 from my_pygame.scene import Scene
+
+from my_pygame.resource import FontLoader, ImageLoader, ResourceManager
 
 from my_pygame.shape import RectangleShape, PolygonShape, CircleShape, CrossShape
 from my_pygame.gradients import HorizontalGradientShape, RadialGradientShape, SquaredGradientShape, VerticalGradientShape
@@ -14,7 +17,7 @@ from my_pygame.clock import Clock
 
 class ShapeScene(Scene):
     def __init__(self, window: Window) -> None:
-        super().__init__(window, framerate=120)
+        super().__init__(window, framerate=120, busy_loop=True)
         # self.__r: RectangleShape = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
         # self.__p: PolygonShape = PolygonShape(WHITE, outline=3, outline_color=RED)
         # self.__c: CircleShape = CircleShape(30, WHITE, outline=3, outline_color=RED)
@@ -88,16 +91,16 @@ class ShapeScene(Scene):
             self.__x.rotate(degrees, point=self.__r.center)
             self.__x.rotate(-degrees * 3)
             self.__c.rotate(-degrees, point=self.__r.center)
-            self.__scale += 0.02 * self.__scale_growth
-            if self.__scale >= 2:
-                self.__scale_growth = -1
-            elif self.__scale <= 0.2:
-                self.__scale_growth = 1
-            # self.__r.scale = self.__scale
-            self.__p.scale = self.__scale
-            self.__x.scale = self.__scale
-            self.__c.scale = self.__scale
-            self.__s.scale = self.__scale
+            # self.__scale += 0.02 * self.__scale_growth
+            # if self.__scale >= 2:
+            #     self.__scale_growth = -1
+            # elif self.__scale <= 0.2:
+            #     self.__scale_growth = 1
+            # # self.__r.scale = self.__scale
+            # self.__p.scale = self.__scale
+            # self.__x.scale = self.__scale
+            # self.__c.scale = self.__scale
+            # self.__s.scale = self.__scale
         self.__x_center.center = self.__x.center
         self.__c_center.center = self.__c.center
         self.__s.default_image = self.__r.to_surface()
@@ -161,7 +164,6 @@ class GradientScene(Scene):
 class TextScene(Scene):
     def __init__(self, window: Window) -> None:
         super().__init__(window, framerate=120)
-        window.text_framerate.show()
         self.text = Text(
             "I'm a text", font=(None, 300), italic=True, color=WHITE, shadow_x=-25, shadow_y=-25, wrap=5, justify="center"
         )
@@ -173,12 +175,39 @@ class TextScene(Scene):
         self.window.draw(self.text)
 
 
+class MyResources(ResourceManager):
+    cactus: Surface
+    cooperblack: str
+    __resources_files__ = {
+        "cactus": {"path": "files/img/cactus.png", "loader": ImageLoader},
+        "cooperblack": {"path": "files/fonts/COOPBL.ttf", "loader": FontLoader},
+    }
+
+
+class ResourceScene(Scene):
+    def __init__(self, window: Window) -> None:
+        super().__init__(window, framerate=120)
+        self.cactus = Sprite(image=MyResources.cactus)
+        self.cactus.size = 100, 100
+        self.cactus.topleft = 20, 20
+        self.text = Text("I'm a text", font=(MyResources.cooperblack, 300), italic=True, color=WHITE, wrap=5, justify="center")
+        self.text.center = window.center
+
+    def draw(self) -> None:
+        self.window.clear()
+        self.window.draw(self.cactus)
+        self.window.draw(self.text)
+
+
 def main() -> None:
+    # w: Window = Window("my window", (0, 0))
     w: Window = Window("my window", (1366, 768))
+    w.text_framerate.show()
     # w.scenes.push_on_top(ShapeScene(w))
     # w.scenes.push_on_top(AnimationScene(w))
     # w.scenes.push_on_top(GradientScene(w))
-    w.scenes.push_on_top(TextScene(w))
+    # w.scenes.push_on_top(TextScene(w))
+    w.scenes.push_on_top(ResourceScene(w))
     w.mainloop()
 
 

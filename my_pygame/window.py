@@ -20,6 +20,7 @@ from .scene import Scene
 from .clock import Clock
 from .surface import create_surface
 
+EventType = SupportsInt
 ColorInput = Union[Color, str, List[int], Tuple[int, int, int], Tuple[int, int, int, int]]
 
 
@@ -33,7 +34,7 @@ class SceneManager:
         self.__window: Window = window
 
     def __iter__(self) -> Iterator[Scene]:
-        return iter(self.__stack)
+        return iter(reversed(self.__stack))
 
     def __len__(self) -> int:
         return len(self.__stack)
@@ -168,6 +169,7 @@ class Window:
 
         self.__rect: Rect = self.__surface.get_rect()
         self.__main_clock: PygameClock = PygameClock()
+        self.__framerate_update_clock: Clock = Clock(start=True)
         self.__framerate: int = 0
         self.__loop: bool = True
         self.__scenes: SceneManager = SceneManager(self)
@@ -221,13 +223,19 @@ class Window:
         pygame.display.flip()
 
         self.__framerate = Window.DEFAULT_FRAMERATE
+        actual_scene: Optional[Scene] = self.scenes.top()
         for scene in self.scenes:
             f: int = scene.get_required_framerate()
             if f > 0:
                 self.__framerate = f
                 break
-        self.__main_clock.tick(self.__framerate)
-        if self.text_framerate.is_shown():
+        if actual_scene is not None and actual_scene.require_busy_loop():
+            self.__main_clock.tick_busy_loop(self.__framerate)
+        else:
+            self.__main_clock.tick(self.__framerate)
+        if self.text_framerate.is_shown() and (
+            not self.text_framerate.message or self.__framerate_update_clock.elapsed_time(200)
+        ):
             self.text_framerate.message = f"{round(self.framerate)} FPS"
 
     def draw_screen(self) -> None:
@@ -267,7 +275,7 @@ class Window:
             if event.type == pygame.QUIT:
                 self.close()
 
-    def allow_only_event(self, *event_types: SupportsInt) -> None:
+    def allow_only_event(self, *event_types: EventType) -> None:
         pygame.event.set_allowed(event_types)
 
     def allow_all_events(self) -> None:
@@ -276,7 +284,7 @@ class Window:
     def clear_all_events(self) -> None:
         pygame.event.clear()
 
-    def block_only_event(self, *event_types: SupportsInt) -> None:
+    def block_only_event(self, *event_types: EventType) -> None:
         pygame.event.set_blocked(event_types)
 
     def after(

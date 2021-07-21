@@ -17,7 +17,7 @@ from pygame.surface import Surface
 
 from .drawable import ThemedDrawable
 from .colors import BLACK
-from .theme import NoTheme, Theme
+from .theme import Theme
 from .surface import create_surface
 
 _TextFont = Union[Font, Tuple[Optional[str], int]]
@@ -145,20 +145,20 @@ class Text(ThemedDrawable):
     def _apply_rotation_scale(self) -> None:
         self.__image = pygame.transform.rotozoom(self.__default_image, self.angle, self.scale)
 
-    def __render_text(self) -> Surface:
+    def __render_text(self, *, drawing_shadow: bool = False) -> Surface:
         render_lines: List[Surface] = list()
         render_width: float = 0
         render_height: float = 0
         text: Surface
         for index, line in enumerate(self.message.splitlines()):
             font = self.__custom_font.get(index, self.font)
-            render = font.render(line, True, self.color)
+            render = font.render(line, True, self.color if not drawing_shadow else self.shadow_color)
             render_width = max(render_width, render.get_width())
             render_height += render.get_height()
             render_lines.append(render)
         if not render_lines:
-            text = create_surface((0, 0))
-        elif len(render_lines) == 1:
+            return create_surface((0, 0))
+        if len(render_lines) == 1:
             text = render_lines[0]
         else:
             text = create_surface((render_width, render_height))
@@ -173,12 +173,12 @@ class Text(ThemedDrawable):
             for render in render_lines:
                 text.blit(render, render.get_rect(**params, y=y))
                 y += render.get_height()
+        if drawing_shadow:
+            return text
         shadow_x, shadow_y = self.shadow
         if shadow_x == 0 and shadow_y == 0:
             return text
-        shadow_text: Surface = Text(
-            message=self.message, font=self.font, color=self.shadow_color, justify=self.justify, theme=NoTheme
-        ).__default_image
+        shadow_text: Surface = self.__render_text(drawing_shadow=True)
         render_width += abs(shadow_x)
         render_height += abs(shadow_y)
         render = create_surface((render_width, render_height))

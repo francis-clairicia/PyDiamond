@@ -504,17 +504,16 @@ class CrossShape(OutlinedShape, ThemedShape):
         if line_width < 1:
             line_width = min(self.local_width * line_width, self.local_height * line_width)
 
+        line_width /= 2
+        diagonal: Vector2 = Vector2(rect.bottomleft) - Vector2(rect.topright)
+
         def compute_width_offset() -> float:
-            diagonal: Vector2 = Vector2(rect.bottomleft) - Vector2(rect.topright)
-            angle: float = abs(diagonal.rotate(90).angle_to(Vector2(-1, 0)))
-            alpha: float = radians(angle)
-            return tan(alpha) * (line_width / 2) / sin(alpha)
+            alpha: float = radians(diagonal.rotate(90).angle_to(Vector2(-1, 0)))
+            return tan(alpha) * (line_width) / sin(alpha)
 
         def compute_height_offset() -> float:
-            diagonal: Vector2 = Vector2(rect.bottomleft) - Vector2(rect.topright)
-            angle: float = abs(diagonal.rotate(-90).angle_to(Vector2(0, 1)))
-            alpha: float = radians(angle)
-            return tan(alpha) * (line_width / 2) / sin(alpha)
+            alpha: float = radians(diagonal.rotate(-90).angle_to(Vector2(0, 1)))
+            return tan(alpha) * (line_width) / sin(alpha)
 
         w_offset: float = compute_width_offset()
         h_offset: float = compute_height_offset()
