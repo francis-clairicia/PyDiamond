@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: Utf-8 -*
 
+from my_pygame.text import Text
 from my_pygame.window import Window
 from my_pygame.scene import Scene
 
@@ -157,11 +158,27 @@ class GradientScene(Scene):
             self.window.draw(obj)
 
 
+class TextScene(Scene):
+    def __init__(self, window: Window) -> None:
+        super().__init__(window, framerate=120)
+        window.text_framerate.show()
+        self.text = Text(
+            "I'm a text", font=(None, 300), italic=True, color=WHITE, shadow_x=-25, shadow_y=-25, wrap=5, justify="center"
+        )
+        self.text.center = window.center
+        self.text.animation.register_rotation(360).start_in_background(self)
+
+    def draw(self) -> None:
+        self.window.clear(BLUE_DARK)
+        self.window.draw(self.text)
+
+
 def main() -> None:
     w: Window = Window("my window", (1366, 768))
-    w.scenes.push_on_top(ShapeScene(w))
+    # w.scenes.push_on_top(ShapeScene(w))
     # w.scenes.push_on_top(AnimationScene(w))
     # w.scenes.push_on_top(GradientScene(w))
+    w.scenes.push_on_top(TextScene(w))
     w.mainloop()
 
 

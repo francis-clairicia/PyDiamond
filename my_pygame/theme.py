@@ -1,7 +1,8 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
-from typing import Any, Dict, Iterator, List, Tuple, TypeVar, Union
+from abc import ABCMeta
+from typing import Any, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 from operator import truth
 
 
@@ -43,10 +44,17 @@ _CLASSES_NOT_USING_PARENT_THEMES: List[type] = list()
 _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES: List[type] = list()
 _HIDDEN_THEME_PREFIX: str = "__"
 
-Theme = Union[str, List[str], None]
+
+class _NoThemeType(str):
+    pass
 
 
-class MetaThemedObject(type):
+NoTheme: _NoThemeType = _NoThemeType()
+
+Theme = Union[str, List[str]]
+
+
+class MetaThemedObject(ABCMeta):
     def __init__(cls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwds: Any) -> None:
         super().__init__(name, bases, namespace, **kwds)
         setattr(cls, "__is_abstract_theme_class__", False)
@@ -60,11 +68,14 @@ class MetaThemedObject(type):
         if cls.is_abstract_theme_class():
             return super().__call__(*args, **kwargs)
 
+        theme: Optional[Theme] = kwargs.pop("theme", None)
+        if theme == NoTheme:
+            return super().__call__(*args, **kwargs)
+
         default_theme: List[str] = list()
         for parent in cls.__get_all_parent_class(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_DEFAULT_THEMES):
             default_theme += _HIDDEN_DEFAULT_THEME.get(parent, list()) + _DEFAULT_THEME.get(parent, list())
         default_theme += _HIDDEN_DEFAULT_THEME.get(cls, list()) + _DEFAULT_THEME.get(cls, list())
-        theme: Theme = kwargs.pop("theme", None)
         if theme is None:
             theme = list()
         elif isinstance(theme, str):
@@ -91,7 +102,7 @@ class MetaThemedObject(type):
         else:
             theme_dict[name] |= options
 
-    def set_default_theme(cls, name: Theme) -> None:
+    def set_default_theme(cls, name: Union[Theme, None]) -> None:
         if cls.is_abstract_theme_class():
             raise TypeError("Abstract theme classes cannot set themes.")
 

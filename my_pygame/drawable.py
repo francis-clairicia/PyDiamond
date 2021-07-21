@@ -30,6 +30,12 @@ class MetaDrawable(ABCMeta):
 
         return super().__new__(metacls, name, bases, attrs, **kwargs)
 
+    def __call__(cls, *args: Any, **kwds: Any) -> Any:
+        instance: Drawable = super().__call__(*args, **kwds)
+        w, h = instance.get_size()
+        instance.center = (w / 2, h / 2)
+        return instance
+
 
 class Drawable(metaclass=MetaDrawable):
     def __init__(self) -> None:
@@ -397,7 +403,11 @@ class Drawable(metaclass=MetaDrawable):
 
 
 class MetaThemedDrawable(MetaDrawable, MetaThemedObject):
-    pass
+    def __call__(cls, *args: Any, **kwds: Any) -> Any:
+        instance: ThemedDrawable = MetaThemedObject.__call__(cls, *args, **kwds)
+        w, h = instance.get_size()
+        instance.center = (w / 2, h / 2)
+        return instance
 
 
 @abstract_theme_class

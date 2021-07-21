@@ -14,7 +14,8 @@ from pygame.time import Clock as PygameClock
 from pygame.color import Color
 
 from .drawable import Drawable
-from .colors import BLACK
+from .text import Text
+from .colors import BLACK, WHITE
 from .scene import Scene
 from .clock import Clock
 from .surface import create_surface
@@ -171,6 +172,9 @@ class Window:
         self.__loop: bool = True
         self.__scenes: SceneManager = SceneManager(self)
         self.__callback_after: WindowCallbackList = WindowCallbackList()
+        self.__text_framerate: Text = Text(color=WHITE)
+        self.__text_framerate.hide()
+        self.__text_framerate.midtop = (self.centerx, self.top + 10)
 
     def __del__(self) -> None:
         Window.__main_window = True
@@ -212,6 +216,7 @@ class Window:
     def refresh(self) -> None:
         screen: Surface = pygame.display.get_surface()
         screen.fill(BLACK)
+        self.text_framerate.draw_onto(self.__surface)
         screen.blit(self.__surface, (0, 0))
         pygame.display.flip()
 
@@ -222,6 +227,8 @@ class Window:
                 self.__framerate = f
                 break
         self.__main_clock.tick(self.__framerate)
+        if self.text_framerate.is_shown():
+            self.text_framerate.message = f"{round(self.framerate)} FPS"
 
     def draw_screen(self) -> None:
         scene: Optional[Scene] = self.scenes.top()
@@ -295,6 +302,10 @@ class Window:
     @property
     def framerate(self) -> float:
         return self.__main_clock.get_fps()
+
+    @property
+    def text_framerate(self) -> Text:
+        return self.__text_framerate
 
     @property
     def scenes(self) -> SceneManager:

@@ -98,26 +98,6 @@ class AbstractShape(Drawable):
             self.__color = value
             self._need_update()
 
-    @property
-    def x(self) -> float:
-        self.__update_shape()
-        return Drawable.x.fget(self)  # type: ignore
-
-    @x.setter
-    def x(self, x: float) -> None:
-        self.__update_shape()
-        Drawable.x.fset(self, x)  # type: ignore
-
-    @property
-    def y(self) -> float:
-        self.__update_shape()
-        return Drawable.y.fget(self)  # type: ignore
-
-    @y.setter
-    def y(self, x: float) -> None:
-        self.__update_shape()
-        Drawable.y.fset(self, x)  # type: ignore
-
 
 @abstract_theme_class
 class ThemedShape(AbstractShape, ThemedDrawable):
