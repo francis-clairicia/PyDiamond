@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 class MetaScene(ABCMeta):
 
+    __abstractmethods__: frozenset[str]
     __namespaces: Dict[type, Any] = dict()
 
     def __new__(metacls, name: str, bases: Tuple[type, ...], attrs: Dict[str, Any], **extra: Any) -> MetaScene:
@@ -24,12 +25,12 @@ class MetaScene(ABCMeta):
         return super().__setattr__(name, cls.__apply_theme_namespace_decorator(value))
 
     def set_theme_namespace(cls, namespace: Any) -> None:
-        if cls.__abstractmethods__:  # type: ignore
+        if cls.__abstractmethods__:
             raise TypeError(f"{cls.__name__} is an abstract class")
         MetaScene.__namespaces[cls] = namespace
 
     def remove_theme_namespace(cls) -> None:
-        if cls.__abstractmethods__:  # type: ignore
+        if cls.__abstractmethods__:
             raise TypeError(f"{cls.__name__} is an abstract class")
         MetaScene.__namespaces.pop(cls, None)
 
