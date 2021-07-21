@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: Utf-8 -*
 
+from typing import Tuple
 from pygame.surface import Surface
 from my_pygame.text import Text
 from my_pygame.window import Window
@@ -10,7 +11,7 @@ from my_pygame.resource import FontLoader, ImageLoader, ResourceManager
 
 from my_pygame.shape import RectangleShape, PolygonShape, CircleShape, CrossShape
 from my_pygame.gradients import HorizontalGradientShape, RadialGradientShape, SquaredGradientShape, VerticalGradientShape
-from my_pygame.sprite import Sprite
+from my_pygame.sprite import AnimatedSprite, Sprite
 from my_pygame.colors import BLUE_DARK, TRANSPARENT, WHITE, RED, YELLOW
 from my_pygame.clock import Clock
 
@@ -178,9 +179,14 @@ class TextScene(Scene):
 class MyResources(ResourceManager):
     cactus: Surface
     cooperblack: str
+    car: Tuple[Surface, ...]
     __resources_files__ = {
         "cactus": {"path": "files/img/cactus.png", "loader": ImageLoader},
         "cooperblack": {"path": "files/fonts/COOPBL.ttf", "loader": FontLoader},
+        "car": {
+            "path": [f"files/img/gameplay/voiture_7/{i + 1}.png" for i in range(10)],
+            "loader": ImageLoader,
+        },
     }
 
 
@@ -199,6 +205,22 @@ class ResourceScene(Scene):
         self.window.draw(self.text)
 
 
+class AnimatedSpriteScene(Scene):
+    def __init__(self, window: Window) -> None:
+        super().__init__(window, framerate=120)
+        self.sprite: AnimatedSprite = AnimatedSprite(*MyResources.car)
+        self.sprite.start_animation(loop=True)
+        self.sprite.ratio = 20
+        self.sprite.center = window.center
+
+    def update(self) -> None:
+        self.sprite.update()
+
+    def draw(self) -> None:
+        self.window.clear(BLUE_DARK)
+        self.window.draw(self.sprite)
+
+
 def main() -> None:
     # w: Window = Window("my window", (0, 0))
     w: Window = Window("my window", (1366, 768))
@@ -207,7 +229,8 @@ def main() -> None:
     # w.scenes.push_on_top(AnimationScene(w))
     # w.scenes.push_on_top(GradientScene(w))
     # w.scenes.push_on_top(TextScene(w))
-    w.scenes.push_on_top(ResourceScene(w))
+    # w.scenes.push_on_top(ResourceScene(w))
+    w.scenes.push_on_top(AnimatedSpriteScene(w))
     w.mainloop()
 
 

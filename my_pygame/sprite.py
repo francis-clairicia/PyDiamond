@@ -99,7 +99,7 @@ class AnimatedSprite(Sprite):
         self.__list: List[Surface] = [self.default_image, *(i.copy() for i in images)]
         self.__sprite_idx: int = 0
         self.__clock: Clock = Clock()
-        self.__wait_time: float = 0
+        self.__wait_time: float = 10
         self.__animation: bool = False
         self.__loop: bool = False
 
