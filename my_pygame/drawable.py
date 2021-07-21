@@ -12,6 +12,7 @@ from pygame.math import Vector2
 
 from .theme import MetaThemedObject, ThemedObject, abstract_theme_class
 from .animation import Animation
+from .surface import create_surface
 
 
 class MetaDrawable(ABCMeta):
@@ -50,9 +51,13 @@ class Drawable(metaclass=MetaDrawable):
     def draw_onto(self, surface: Surface) -> None:
         raise NotImplementedError
 
-    @abstractmethod
     def to_surface(self) -> Surface:
-        raise NotImplementedError
+        topleft: Tuple[float, float] = self.topleft
+        image: Surface = create_surface(self.get_size())
+        self.topleft = (0, 0)
+        self.draw_onto(image)
+        self.topleft = topleft
+        return image
 
     def show(self) -> None:
         self.set_visibility(True)

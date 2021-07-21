@@ -136,6 +136,8 @@ class OutlinedShape(AbstractShape):
 
 
 class PolygonShape(OutlinedShape, ThemedShape):
+    PointList = Union[List[Vector2], List[Tuple[float, float]], List[Tuple[int, int]]]
+
     def __init__(self, color: Color, *, outline: int = 0, outline_color: Color = BLACK, points: List[Vector2] = []) -> None:
         super().__init__(color, outline, outline_color)
         self.__points: List[Vector2] = []
@@ -185,7 +187,7 @@ class PolygonShape(OutlinedShape, ThemedShape):
     def get_points(self) -> List[Vector2]:
         return [Vector2(p) for p in self.__points]
 
-    def set_points(self, points: Union[List[Vector2], List[Tuple[float, float]], List[Tuple[int, int]]]) -> None:
+    def set_points(self, points: PointList) -> None:
         points = [Vector2(p) for p in points]
         left: float = min((point.x for point in points), default=0)
         top: float = min((point.y for point in points), default=0)
