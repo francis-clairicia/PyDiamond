@@ -34,10 +34,16 @@ class SceneManager:
         self.__window: Window = window
 
     def __iter__(self) -> Iterator[Scene]:
-        return iter(reversed(self.__stack))
+        return self.from_top_to_bottom()
 
     def __len__(self) -> int:
         return len(self.__stack)
+
+    def from_top_to_bottom(self) -> Iterator[Scene]:
+        return iter(self.__stack)
+
+    def from_bottom_to_top(self) -> Iterator[Scene]:
+        return iter(reversed(self.__stack))
 
     def empty(self) -> bool:
         return not self.__stack
@@ -224,7 +230,7 @@ class Window:
 
         self.__framerate = Window.DEFAULT_FRAMERATE
         actual_scene: Optional[Scene] = self.scenes.top()
-        for scene in self.scenes:
+        for scene in self.scenes.from_bottom_to_top():
             f: int = scene.get_required_framerate()
             if f > 0:
                 self.__framerate = f

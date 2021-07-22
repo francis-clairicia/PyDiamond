@@ -14,8 +14,7 @@ class Clock:
             self.restart()
 
     def get_elapsed_time(self) -> float:
-        self.__clock.tick()
-        self.__time += self.__clock.get_time()
+        self.__time += self.__clock.tick()
         return self.__time
 
     def elapsed_time(self, milliseconds: float, restart: bool = True) -> bool:
