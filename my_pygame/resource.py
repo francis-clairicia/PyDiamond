@@ -119,8 +119,12 @@ class MetaResourceManager(type):
     def get_total_nb_resources(cls) -> int:
         return cls.__total_nb_resources
 
-    def get_nb_loader_resources(cls) -> int:
+    def get_nb_loaded_resources(cls) -> int:
         return cls.__nb_loaded_resources
+
+    def load_all_resources(cls) -> None:
+        for resource in cls.__resources_files__:
+            cls.__get_resource(resource)
 
     def __get_resource(cls, resource_name: str) -> Any:
         def load_all_resources(resource_loader: _ResourceLoader) -> Any:
@@ -151,4 +155,4 @@ class ResourceManager(metaclass=MetaResourceManager):
 
     @property
     def nb_loaded_resources(self) -> int:
-        return type(self).get_nb_loader_resources()
+        return type(self).get_nb_loaded_resources()

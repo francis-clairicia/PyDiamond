@@ -209,9 +209,10 @@ class AnimatedSpriteScene(Scene):
     def __init__(self, window: Window) -> None:
         super().__init__(window, framerate=120)
         self.sprite: AnimatedSprite = AnimatedSprite(*MyResources.car)
-        self.sprite.start_animation(loop=True)
+        self.sprite.start_sprite_animation(loop=True)
         self.sprite.ratio = 20
         self.sprite.center = window.center
+        self.sprite.animation.register_rotation(360, offset=2).start_in_background(self)
 
     def update(self) -> None:
         self.sprite.update()
@@ -224,6 +225,7 @@ class AnimatedSpriteScene(Scene):
 def main() -> None:
     # w: Window = Window("my window", (0, 0))
     w: Window = Window("my window", (1366, 768))
+    MyResources.load_all_resources()
     w.text_framerate.show()
     # w.scenes.push_on_top(ShapeScene(w))
     # w.scenes.push_on_top(AnimationScene(w))

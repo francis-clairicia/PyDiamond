@@ -108,12 +108,12 @@ class AnimatedSprite(Sprite):
             self.__sprite_idx = (self.__sprite_idx + 1) % len(self.__list)
             Sprite.default_image.fset(self, self.__list[self.__sprite_idx])  # type: ignore
             if self.__sprite_idx == 0 and not self.__loop:
-                self.stop_animation()
+                self.stop_sprite_animation()
 
     def is_sprite_animating(self) -> bool:
         return self.__animation
 
-    def start_animation(self, loop: bool = False) -> None:
+    def start_sprite_animation(self, loop: bool = False) -> None:
         if len(self.__list) <= 1:
             return
         self.__loop = bool(loop)
@@ -121,18 +121,14 @@ class AnimatedSprite(Sprite):
         self.__animation = True
         self.__clock.restart()
 
-    def restart_animation(self) -> None:
+    def restart_sprite_animation(self) -> None:
         if len(self.__list) <= 1:
             return
         self.__animation = True
         self.__clock.restart(reset=False)
 
-    def stop_animation(self) -> None:
+    def stop_sprite_animation(self) -> None:
         self.__animation = False
-
-    @property  # type: ignore
-    def default_image(self) -> Surface:
-        return super().default_image
 
     @property
     def ratio(self) -> float:

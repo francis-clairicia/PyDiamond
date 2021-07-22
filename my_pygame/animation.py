@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from .window import Window, WindowCallback
 
 
-class AbstractAnimationClass(metaclass=ABCMeta):
+class _AbstractAnimationClass(metaclass=ABCMeta):
     def __init__(self, drawable: Drawable, milliseconds: float):
         self.__drawable: Drawable = drawable
         self.__clock: Clock = Clock()
@@ -50,7 +50,7 @@ class AbstractAnimationClass(metaclass=ABCMeta):
         return self.__milliseconds
 
 
-class AnimationSetPosition(AbstractAnimationClass):
+class _AnimationSetPosition(_AbstractAnimationClass):
     def __init__(
         self, drawable: Drawable, milliseconds: float, speed: float, **position: Union[float, Tuple[float, float]]
     ) -> None:
@@ -77,7 +77,7 @@ class AnimationSetPosition(AbstractAnimationClass):
         self.drawable.set_position(**self.__position)
 
 
-class AnimationMove(AbstractAnimationClass):
+class _AnimationMove(_AbstractAnimationClass):
     def __init__(
         self, drawable: Drawable, translation: Union[Vector2, Tuple[float, float]], milliseconds: float, speed: float
     ) -> None:
@@ -107,7 +107,7 @@ class AnimationMove(AbstractAnimationClass):
             self.__vector = Vector2(0, 0)
 
 
-class AnimationRotation(AbstractAnimationClass):
+class _AnimationRotation(_AbstractAnimationClass):
     def __init__(
         self,
         drawable: Drawable,
@@ -141,7 +141,7 @@ class AnimationRotation(AbstractAnimationClass):
             self.__actual_angle = self.__angle
 
 
-class AnimationScaleSize(AbstractAnimationClass):
+class _AnimationScaleSize(_AbstractAnimationClass):
     def __init__(self, drawable: Drawable, milliseconds: float, field: str, size: float, offset: float):
         super().__init__(drawable, milliseconds)
         self.__size: float = max(size, 0)
@@ -178,12 +178,12 @@ class AnimationScaleSize(AbstractAnimationClass):
         self.set_drawable_size(self.__size)
 
 
-class AnimationScaleWidth(AnimationScaleSize):
+class _AnimationScaleWidth(_AnimationScaleSize):
     def __init__(self, drawable: Drawable, milliseconds: float, width: float, offset: float) -> None:
         super().__init__(drawable, milliseconds, "width", width, offset)
 
 
-class AnimationScaleHeight(AnimationScaleSize):
+class _AnimationScaleHeight(_AnimationScaleSize):
     def __init__(self, drawable: Drawable, milliseconds: float, height: float, offset: float) -> None:
         super().__init__(drawable, milliseconds, "height", height, offset)
 
@@ -192,23 +192,23 @@ class Animation:
     def __init__(self, drawable: Drawable):
         self.__drawable: Drawable = drawable
         self.__animations_order: List[str] = ["scale_width", "scale_height", "rotate", "rotate_point", "move"]
-        self.__animations: Dict[str, Optional[AbstractAnimationClass]] = dict.fromkeys(self.__animations_order)
+        self.__animations: Dict[str, Optional[_AbstractAnimationClass]] = dict.fromkeys(self.__animations_order)
         self.__window_callback: Optional[WindowCallback] = None
         self.__save_window_callback: Optional[WindowCallback] = None
-        self.__save_animations: Optional[Dict[str, Optional[AbstractAnimationClass]]] = None
+        self.__save_animations: Optional[Dict[str, Optional[_AbstractAnimationClass]]] = None
 
     def register_position(
         self, speed: float = 1, milliseconds: float = 10, **position: Union[float, Tuple[float, float]]
     ) -> Animation:
         self.stop_background()
-        self.__animations["move"] = AnimationSetPosition(self.__drawable, milliseconds, speed, **position)
+        self.__animations["move"] = _AnimationSetPosition(self.__drawable, milliseconds, speed, **position)
         return self
 
     def register_translation(
         self, translation: Union[Vector2, Tuple[float, float]], speed: float = 1, milliseconds: float = 10
     ) -> Animation:
         self.stop_background()
-        self.__animations["move"] = AnimationMove(self.__drawable, translation, milliseconds, speed)
+        self.__animations["move"] = _AnimationMove(self.__drawable, translation, milliseconds, speed)
         return self
 
     def register_rotation(
@@ -220,7 +220,7 @@ class Animation:
     ) -> Animation:
         self.stop_background()
         animation = "rotate" if point is None else "rotate_point"
-        self.__animations[animation] = AnimationRotation(self.__drawable, milliseconds, angle, offset, point)
+        self.__animations[animation] = _AnimationRotation(self.__drawable, milliseconds, angle, offset, point)
         return self
 
     def register_rotation_set(
@@ -250,7 +250,7 @@ class Animation:
     def register_width_set(self, width: float, offset: float = 1, milliseconds: float = 10) -> Animation:
         self.stop_background()
         self.__animations.pop("scale_height", None)
-        self.__animations["scale_width"] = AnimationScaleWidth(self.__drawable, milliseconds, width, offset)
+        self.__animations["scale_width"] = _AnimationScaleWidth(self.__drawable, milliseconds, width, offset)
         return self
 
     def register_height_offset(self, height_offset: float, step: float = 1, milliseconds: float = 10) -> Animation:
@@ -260,7 +260,7 @@ class Animation:
     def register_height_set(self, height: float, offset: float = 1, milliseconds: float = 10) -> Animation:
         self.stop_background()
         self.__animations.pop("scale_width", None)
-        self.__animations["scale_height"] = AnimationScaleHeight(self.__drawable, milliseconds, height, offset)
+        self.__animations["scale_height"] = _AnimationScaleHeight(self.__drawable, milliseconds, height, offset)
         return self
 
     def start(self, master: Union[Window, Scene], at_every_frame: Optional[Callable[..., None]] = None) -> None:
@@ -305,9 +305,9 @@ class Animation:
     def is_set(self, animation: str) -> bool:
         return self.__animations.get(animation) is not None
 
-    def __iter_animations(self) -> Iterator[AbstractAnimationClass]:
+    def __iter_animations(self) -> Iterator[_AbstractAnimationClass]:
         for animation_name in self.__animations_order:
-            animation: Optional[AbstractAnimationClass] = self.__animations.get(animation_name)
+            animation: Optional[_AbstractAnimationClass] = self.__animations.get(animation_name)
             if animation is not None:
                 yield animation
 
