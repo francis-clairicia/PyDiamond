@@ -241,13 +241,12 @@ class Text(ThemedDrawable):
 
     @property
     def color(self) -> Color:
-        return self.__color
+        return Color(self.__color)
 
     @color.setter
     def color(self, color: Color) -> None:
-        color = Color(color)
         if color != self.__color:
-            self.__color = color
+            self.__color = Color(color)
             self.__need_update()
 
     @property
@@ -278,11 +277,10 @@ class Text(ThemedDrawable):
 
     @property
     def shadow_color(self) -> Color:
-        return self.__shadow_color
+        return Color(self.__shadow_color)
 
     @shadow_color.setter
     def shadow_color(self, color: Color) -> None:
-        self.__shadow_color = Color(color)
         if self.__shadow_color != color:
-            self.__shadow_color = color
+            self.__shadow_color = Color(color)
             self.__need_update()

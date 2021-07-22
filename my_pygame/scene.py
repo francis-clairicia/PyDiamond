@@ -3,7 +3,10 @@
 from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from functools import wraps
-from typing import Any, Callable, Dict, TYPE_CHECKING, Tuple
+from typing import Any, Callable, Dict, Optional, TYPE_CHECKING, Tuple, Union
+
+from pygame.color import Color
+
 from .theme import ThemeNamespace
 
 if TYPE_CHECKING:
@@ -64,10 +67,18 @@ class MetaScene(ABCMeta):
 
 
 class Scene(metaclass=MetaScene):
-    def __init__(self, window: Window, framerate: int = 0, busy_loop: bool = False) -> None:
-        self.__w: Window = window
-        self.__f: int = max(framerate, 0)
-        self.__b: bool = busy_loop
+    def __init__(self, master: Union[Window, Scene], framerate: int = 0, busy_loop: bool = False) -> None:
+        self.__master: Optional[Scene]
+        self.__window: Window
+        if isinstance(master, Scene):
+            self.__master = master
+            self.__window = master.window
+        else:
+            self.__master = None
+            self.__window = master
+        self.__framerate: int = max(framerate, 0)
+        self.__busy_loop: bool = busy_loop
+        self.__bg_color: Color = Color(0, 0, 0)
 
     def update(self) -> None:
         pass
@@ -77,11 +88,23 @@ class Scene(metaclass=MetaScene):
         raise NotImplementedError
 
     def get_required_framerate(self) -> int:
-        return self.__f
+        return self.__framerate
 
     def require_busy_loop(self) -> bool:
-        return self.__b
+        return self.__busy_loop
+
+    @property
+    def master(self) -> Optional[Scene]:
+        return self.__master
 
     @property
     def window(self) -> Window:
-        return self.__w
+        return self.__window
+
+    @property
+    def background_color(self) -> Color:
+        return self.__bg_color
+
+    @background_color.setter
+    def background_color(self, color: Color) -> None:
+        self.__bg_color = Color(color)

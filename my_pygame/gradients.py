@@ -31,9 +31,8 @@ class AbstractGradientShape(AbstractShape):
 
     @second_color.setter
     def second_color(self, color: Color) -> None:
-        color = Color(color)
         if self.__second_color != color:
-            self.__second_color = color
+            self.__second_color = Color(color)
             self._need_update()
 
 

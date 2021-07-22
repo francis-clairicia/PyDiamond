@@ -138,13 +138,13 @@ class MetaResourceManager(type):
                 return {key: load_all_resources(value) for key, value in resource_loader.items()}
             raise TypeError(f"Unexpected resource loader type: {repr(type(resource_loader).__name__)} ({repr(resource_loader)})")
 
-        resource_attribute: str = f"_{cls.__name__}__{resource_name}"
+        resource_attribute: str = f"__resource_{resource_name}"
         resource: Any
-        if not hasattr(cls, resource_attribute):
+        try:
+            resource = getattr(cls, resource_attribute)
+        except AttributeError:
             resource = load_all_resources(cls.__resources_loader[resource_name])
             setattr(cls, resource_attribute, resource)
-        else:
-            resource = getattr(cls, resource_attribute)
         return resource
 
 

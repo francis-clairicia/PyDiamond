@@ -19,6 +19,7 @@ from my_pygame.clock import Clock
 class ShapeScene(Scene):
     def __init__(self, window: Window) -> None:
         super().__init__(window, framerate=120, busy_loop=True)
+        self.background_color = BLUE_DARK
         # self.__r: RectangleShape = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
         # self.__p: PolygonShape = PolygonShape(WHITE, outline=3, outline_color=RED)
         # self.__c: CircleShape = CircleShape(30, WHITE, outline=3, outline_color=RED)
@@ -108,7 +109,6 @@ class ShapeScene(Scene):
         self.__shape_copy.set_points(self.__c.get_vertices())
 
     def draw(self) -> None:
-        self.window.clear(BLUE_DARK)
         self.window.draw(self.__r)
         self.window.draw(self.__p)
         self.window.draw(self.__c)
@@ -132,7 +132,6 @@ class AnimationScene(Scene):
         self.rectangle.animation.start_in_background(self, after_animation=self.move_to_left)
 
     def draw(self) -> None:
-        self.window.clear()
         self.window.draw(self.rectangle)
 
     def move_to_left(self) -> None:
@@ -145,6 +144,7 @@ class AnimationScene(Scene):
 class GradientScene(Scene):
     def __init__(self, window: Window) -> None:
         super().__init__(window, framerate=120)
+        self.background_color = BLUE_DARK
         self.horizontal: HorizontalGradientShape = HorizontalGradientShape(100, 100, RED, YELLOW)
         self.vertical: VerticalGradientShape = VerticalGradientShape(100, 100, RED, YELLOW)
         self.squared: SquaredGradientShape = SquaredGradientShape(100, RED, YELLOW)
@@ -157,7 +157,6 @@ class GradientScene(Scene):
         self.squared.midbottom = self.window.midbottom
 
     def draw(self) -> None:
-        self.window.clear(BLUE_DARK)
         for obj in [self.horizontal, self.vertical, self.squared, self.radial]:
             self.window.draw(obj)
 
@@ -165,6 +164,7 @@ class GradientScene(Scene):
 class TextScene(Scene):
     def __init__(self, window: Window) -> None:
         super().__init__(window, framerate=120)
+        self.background_color = BLUE_DARK
         self.text = Text(
             "I'm a text", font=(None, 300), italic=True, color=WHITE, shadow_x=-25, shadow_y=-25, wrap=5, justify="center"
         )
@@ -172,7 +172,6 @@ class TextScene(Scene):
         self.text.animation.register_rotation(360).start_in_background(self)
 
     def draw(self) -> None:
-        self.window.clear(BLUE_DARK)
         self.window.draw(self.text)
 
 
@@ -200,7 +199,6 @@ class ResourceScene(Scene):
         self.text.center = window.center
 
     def draw(self) -> None:
-        self.window.clear()
         self.window.draw(self.cactus)
         self.window.draw(self.text)
 
@@ -208,6 +206,7 @@ class ResourceScene(Scene):
 class AnimatedSpriteScene(Scene):
     def __init__(self, window: Window) -> None:
         super().__init__(window, framerate=120)
+        self.background_color = BLUE_DARK
         self.sprite: AnimatedSprite = AnimatedSprite(*MyResources.car)
         self.sprite.start_sprite_animation(loop=True)
         self.sprite.ratio = 20
@@ -218,7 +217,6 @@ class AnimatedSpriteScene(Scene):
         self.sprite.update()
 
     def draw(self) -> None:
-        self.window.clear(BLUE_DARK)
         self.window.draw(self.sprite)
 
 

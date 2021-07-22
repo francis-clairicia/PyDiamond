@@ -59,6 +59,8 @@ class SceneManager:
             self.__stack.pop(0)
 
     def remove(self, scene: Scene) -> None:
+        if scene.window is not self.__window:
+            raise WindowError("Trying to remove a scene bound to an another window")
         try:
             self.__stack.remove(scene)
         except ValueError:
@@ -66,20 +68,20 @@ class SceneManager:
 
     def push_on_top(self, scene: Scene) -> None:
         if scene.window is not self.__window:
-            return
+            raise WindowError("Trying to push a scene bound to an another window")
         self.remove(scene)
         self.__stack.insert(0, scene)
 
     def push_before(self, scene: Scene, pivot: Scene) -> None:
         if scene.window is not self.__window:
-            return
+            raise WindowError("Trying to push a scene bound to an another window")
         pivot_index: int = self.__stack.index(pivot)
         self.remove(scene)
         self.__stack.insert(pivot_index, scene)
 
     def push_after(self, scene: Scene, pivot: Scene) -> None:
         if scene.window is not self.__window:
-            return
+            raise WindowError("Trying to push a scene bound to an another window")
         pivot_index: int = self.__stack.index(pivot)
         self.remove(scene)
         self.__stack.insert(pivot_index + 1, scene)
@@ -230,7 +232,10 @@ class Window:
     def refresh(self) -> None:
         screen: Surface = pygame.display.get_surface()
         screen.fill(BLACK)
-        self.text_framerate.draw_onto(self.__surface)
+        if self.text_framerate.is_shown():
+            if not self.text_framerate.message or self.__framerate_update_clock.elapsed_time(200):
+                self.text_framerate.message = f"{round(self.framerate)} FPS"
+            self.text_framerate.draw_onto(self.__surface)
         screen.blit(self.__surface, (0, 0))
         pygame.display.flip()
 
@@ -245,14 +250,14 @@ class Window:
             self.__main_clock.tick_busy_loop(self.__framerate)
         else:
             self.__main_clock.tick(self.__framerate)
-        if self.text_framerate.is_shown() and (
-            not self.text_framerate.message or self.__framerate_update_clock.elapsed_time(200)
-        ):
-            self.text_framerate.message = f"{round(self.framerate)} FPS"
 
     def draw_screen(self) -> None:
         scene: Optional[Scene] = self.scenes.top()
         if scene:
+            if scene.master:
+                scene.master.draw()
+            else:
+                self.clear(scene.background_color)
             scene.draw()
 
     def update(self) -> None:
@@ -271,14 +276,6 @@ class Window:
             pass
 
     def handle_events(self, only_close_event: bool = False) -> None:
-        self.__callback_after.process()
-        scene: Optional[Scene] = self.scenes.top()
-        if scene and scene in self.__callback_after_scenes:
-            self.__callback_after_scenes[scene].process()
-        for scene in self.__callback_after_scenes:
-            if scene not in self.scenes:
-                self.__callback_after_scenes.pop(scene)
-
         if only_close_event:
             self.__handle_only_close_event()
         else:
@@ -290,6 +287,14 @@ class Window:
                 self.close()
 
     def __handle_all_events(self) -> None:
+        self.__callback_after.process()
+        scene: Optional[Scene] = self.scenes.top()
+        if scene and scene in self.__callback_after_scenes:
+            self.__callback_after_scenes[scene].process()
+        for scene in self.__callback_after_scenes:
+            if scene not in self.scenes:
+                self.__callback_after_scenes.pop(scene)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.close()

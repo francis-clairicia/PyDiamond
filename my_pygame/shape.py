@@ -90,12 +90,12 @@ class AbstractShape(Drawable):
 
     @property
     def color(self) -> Color:
-        return self.__color
+        return Color(self.__color)
 
     @color.setter
     def color(self, value: Color) -> None:
         if self.__color != value:
-            self.__color = value
+            self.__color = Color(value)
             self._need_update()
 
 
@@ -126,12 +126,12 @@ class OutlinedShape(AbstractShape):
 
     @property
     def outline_color(self) -> Color:
-        return self.__outline_color
+        return Color(self.__outline_color)
 
     @outline_color.setter
     def outline_color(self, value: Color) -> None:
         if self.__outline_color != value:
-            self.__outline_color = value
+            self.__outline_color = Color(value)
             self._need_update()
 
 
