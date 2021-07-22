@@ -86,6 +86,8 @@ class MetaThemedObject(ABCMeta):
     def set_theme(cls, name: str, options: Dict[str, Any]) -> None:
         if cls.is_abstract_theme_class():
             raise TypeError("Abstract theme classes cannot set themes.")
+        if name is NoTheme:
+            raise ValueError("Couldn't set 'NoTheme' as theme")
 
         theme_dict: Dict[str, Dict[str, Any]]
 
@@ -105,6 +107,8 @@ class MetaThemedObject(ABCMeta):
     def set_default_theme(cls, name: Union[Theme, None]) -> None:
         if cls.is_abstract_theme_class():
             raise TypeError("Abstract theme classes cannot set themes.")
+        if name is NoTheme:
+            raise ValueError("Couldn't set 'NoTheme' as default theme")
 
         if name is None:
             _DEFAULT_THEME.pop(cls, None)

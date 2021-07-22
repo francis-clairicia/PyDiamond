@@ -39,6 +39,9 @@ class SceneManager:
     def __len__(self) -> int:
         return len(self.__stack)
 
+    def __contains__(self, scene: Scene) -> bool:
+        return scene in self.__stack
+
     def from_top_to_bottom(self) -> Iterator[Scene]:
         return iter(self.__stack)
 
@@ -123,7 +126,9 @@ class WindowCallback:
 
 class WindowCallbackList(List[WindowCallback]):
     def process(self) -> None:
-        for callback in self.copy():
+        if not self:
+            return
+        for callback in tuple(self):
             callback()
 
 
@@ -180,6 +185,7 @@ class Window:
         self.__loop: bool = True
         self.__scenes: SceneManager = SceneManager(self)
         self.__callback_after: WindowCallbackList = WindowCallbackList()
+        self.__callback_after_scenes: Dict[Scene, WindowCallbackList] = dict()
         self.__text_framerate: Text = Text(color=WHITE)
         self.__text_framerate.hide()
         self.__text_framerate.midtop = (self.centerx, self.top + 10)
@@ -266,6 +272,13 @@ class Window:
 
     def handle_events(self, only_close_event: bool = False) -> None:
         self.__callback_after.process()
+        scene: Optional[Scene] = self.scenes.top()
+        if scene and scene in self.__callback_after_scenes:
+            self.__callback_after_scenes[scene].process()
+        for scene in self.__callback_after_scenes:
+            if scene not in self.scenes:
+                self.__callback_after_scenes.pop(scene)
+
         if only_close_event:
             self.__handle_only_close_event()
         else:
@@ -296,22 +309,35 @@ class Window:
     def after(
         self, milliseconds: float, callback: Callable[..., None], scene: Optional[Scene] = None, *args: Any, **kwargs: Any
     ) -> WindowCallback:
-        master: Union[Window, Scene]
+        window_callback: WindowCallback
         if scene is not None:
             if scene.window is not self:
                 raise WindowError("Assigning a task for a scene from an another window.")
-            master = scene
+            window_callback = WindowCallback(scene, milliseconds, callback, args, kwargs)
+            if scene not in self.__callback_after_scenes:
+                self.__callback_after_scenes[scene] = WindowCallbackList()
+            self.__callback_after_scenes[scene].append(window_callback)
         else:
-            master = self
-        window_callback = WindowCallback(master, milliseconds, callback, args, kwargs)
-        self.__callback_after.append(window_callback)
+            window_callback = WindowCallback(self, milliseconds, callback, args, kwargs)
+            self.__callback_after.append(window_callback)
         return window_callback
 
     def remove_window_callback(self, window_callback: WindowCallback) -> None:
-        try:
-            self.__callback_after.remove(window_callback)
-        except ValueError:
-            pass
+        if window_callback.scene is not None:
+            scene_callback_after: Optional[WindowCallbackList] = self.__callback_after_scenes.get(window_callback.scene)
+            if scene_callback_after is None:
+                return
+            try:
+                scene_callback_after.remove(window_callback)
+            except ValueError:
+                pass
+            if not scene_callback_after:
+                self.__callback_after_scenes.pop(window_callback.scene)
+        else:
+            try:
+                self.__callback_after.remove(window_callback)
+            except ValueError:
+                pass
 
     @property
     def framerate(self) -> float:
