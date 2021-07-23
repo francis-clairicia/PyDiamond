@@ -3,7 +3,8 @@
 from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from functools import wraps
-from typing import Any, Callable, Dict, Optional, TYPE_CHECKING, Tuple, Union
+from enum import Enum, EnumMeta, auto, unique
+from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Tuple, Union
 
 from pygame.color import Color
 
@@ -11,6 +12,32 @@ from .theme import ThemeNamespace
 
 if TYPE_CHECKING:
     from .window import Window
+
+
+class MetaSceneEnum(EnumMeta):
+    def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any]) -> MetaSceneEnum:
+        annotations: Dict[str, Union[type, str]] = namespace.get("__annotations__", dict())
+        for enum_name, enum_type in annotations.items():
+            if enum_name not in namespace:
+                if isinstance(enum_type, str) and enum_type != "str":
+                    raise TypeError(f"Enum type annotation must be a str, not {repr(enum_type)}")
+                if isinstance(enum_type, type) and not issubclass(enum_type, str):
+                    raise TypeError(f"Enum type annotation must be a str, not {repr(enum_type.__name__)}")
+                namespace[enum_name] = auto()
+
+        return super().__new__(metacls, name, bases, namespace)
+
+    def __init__(cls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any]) -> None:
+        super().__init__(name, bases, namespace)
+        unique(cls)  # type: ignore
+
+
+class SceneEnum(str, Enum, metaclass=MetaSceneEnum):
+    def _generate_next_value_(name: str, start: int, count: int, last_values: List[str]) -> str:  # type: ignore[override]
+        return name.upper()
+
+
+SceneAlias = Union[str, SceneEnum]
 
 
 class MetaScene(ABCMeta):
@@ -43,7 +70,7 @@ class MetaScene(ABCMeta):
         def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
             cls: type = type(self)
             output: Any
-            if cls in MetaScene.__namespaces and ThemeNamespace.get() != MetaScene.__namespaces[cls]:
+            if cls in MetaScene.__namespaces and ThemeNamespace.get() is not MetaScene.__namespaces[cls]:
                 with ThemeNamespace(MetaScene.__namespaces[cls]):
                     output = func(self, *args, **kwargs)
             else:
@@ -86,6 +113,18 @@ class Scene(metaclass=MetaScene):
     @abstractmethod
     def draw(self) -> None:
         raise NotImplementedError
+
+    def push_on_top(self, alias: Optional[SceneAlias] = None) -> None:
+        self.window.scenes.push_on_top(self, alias)
+
+    def push_before(self, pivot: Union[Scene, SceneAlias], alias: Optional[SceneAlias] = None) -> None:
+        self.window.scenes.push_before(self, pivot, alias)
+
+    def push_after(self, pivot: Union[Scene, SceneAlias], alias: Optional[SceneAlias] = None) -> None:
+        self.window.scenes.push_after(self, pivot, alias)
+
+    def kill(self) -> None:
+        self.window.scenes.remove(self)
 
     def get_required_framerate(self) -> int:
         return self.__framerate

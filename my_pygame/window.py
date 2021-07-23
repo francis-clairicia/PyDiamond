@@ -16,7 +16,7 @@ from pygame.color import Color
 from .drawable import Drawable
 from .text import Text
 from .colors import BLACK, WHITE
-from .scene import Scene
+from .scene import Scene, SceneAlias
 from .clock import Clock
 from .surface import create_surface
 
@@ -28,9 +28,10 @@ class WindowError(pygame.error):
     pass
 
 
-class SceneManager:
+class _SceneManager:
     def __init__(self, window: Window) -> None:
         self.__stack: List[Scene] = []
+        self.__aliases: Dict[SceneAlias, Scene] = {}
         self.__window: Window = window
 
     def __iter__(self) -> Iterator[Scene]:
@@ -51,12 +52,23 @@ class SceneManager:
     def empty(self) -> bool:
         return not self.__stack
 
+    def get(self, alias: SceneAlias) -> Scene:
+        return self.__aliases[alias]
+
     def top(self) -> Optional[Scene]:
         return self.__stack[0] if self.__stack else None
 
-    def pop(self) -> None:
-        if self.__stack:
-            self.__stack.pop(0)
+    def clear(self, until: Optional[Union[Scene, SceneAlias]] = None) -> None:
+        if until is None:
+            self.__stack.clear()
+            self.__aliases.clear()
+            return
+        if not isinstance(until, Scene):
+            until = self.get(until)
+        if until not in self:
+            raise WindowError(f"{type(until).__name__} not stacked")
+        while self.__stack[0] is not until:
+            self.remove(self.__stack[0])
 
     def remove(self, scene: Scene) -> None:
         if scene.window is not self.__window:
@@ -65,26 +77,76 @@ class SceneManager:
             self.__stack.remove(scene)
         except ValueError:
             pass
+        finally:
+            alias: Optional[SceneAlias] = self.__get_alias(scene)
+            if alias is not None:
+                self.__aliases.pop(alias)
 
-    def push_on_top(self, scene: Scene) -> None:
+    def push_on_top(self, scene: Union[Scene, SceneAlias], alias: Optional[SceneAlias] = None) -> None:
+        if not isinstance(scene, Scene):
+            alias = scene
+            scene = self.get(scene)
         if scene.window is not self.__window:
             raise WindowError("Trying to push a scene bound to an another window")
+        if alias is None:
+            alias = self.__get_alias(scene)
         self.remove(scene)
+        if any(type(stacked_scene) is type(scene) for stacked_scene in self):
+            raise TypeError("A scene with the same type is stacked")
         self.__stack.insert(0, scene)
+        if alias is not None:
+            self.__set_alias(scene, alias)
 
-    def push_before(self, scene: Scene, pivot: Scene) -> None:
+    def push_before(
+        self, scene: Union[Scene, SceneAlias], pivot: Union[Scene, SceneAlias], alias: Optional[SceneAlias] = None
+    ) -> None:
+        if not isinstance(scene, Scene):
+            alias = scene
+            scene = self.get(scene)
         if scene.window is not self.__window:
             raise WindowError("Trying to push a scene bound to an another window")
+        if not isinstance(pivot, Scene):
+            pivot = self.get(pivot)
         pivot_index: int = self.__stack.index(pivot)
+        if alias is None:
+            alias = self.__get_alias(scene)
         self.remove(scene)
+        if any(type(stacked_scene) is type(scene) for stacked_scene in self):
+            raise TypeError("A scene with the same type is stacked")
         self.__stack.insert(pivot_index, scene)
+        if alias is not None:
+            self.__set_alias(scene, alias)
 
-    def push_after(self, scene: Scene, pivot: Scene) -> None:
+    def push_after(
+        self, scene: Union[Scene, SceneAlias], pivot: Union[Scene, SceneAlias], alias: Optional[SceneAlias] = None
+    ) -> None:
+        if not isinstance(scene, Scene):
+            alias = scene
+            scene = self.get(scene)
         if scene.window is not self.__window:
             raise WindowError("Trying to push a scene bound to an another window")
+        if not isinstance(pivot, Scene):
+            pivot = self.get(pivot)
         pivot_index: int = self.__stack.index(pivot)
+        if alias is None:
+            alias = self.__get_alias(scene)
         self.remove(scene)
+        if any(type(stacked_scene) is type(scene) for stacked_scene in self):
+            raise TypeError("A scene with the same type is stacked")
         self.__stack.insert(pivot_index + 1, scene)
+        if alias is not None:
+            self.__set_alias(scene, alias)
+
+    def __get_alias(self, scene: Scene) -> Optional[SceneAlias]:
+        for alias, in_scene in self.__aliases.items():
+            if in_scene is scene:
+                return alias
+        return None
+
+    def __set_alias(self, scene: Scene, alias: SceneAlias) -> None:
+        if alias in self.__aliases:
+            raise ValueError(f"A scene uses this alias: {repr(alias)}")
+        self.__aliases[alias] = scene
 
 
 class WindowCallback:
@@ -185,7 +247,7 @@ class Window:
         self.__framerate_update_clock: Clock = Clock(start=True)
         self.__framerate: int = 0
         self.__loop: bool = True
-        self.__scenes: SceneManager = SceneManager(self)
+        self.__scenes: _SceneManager = _SceneManager(self)
         self.__callback_after: WindowCallbackList = WindowCallbackList()
         self.__callback_after_scenes: Dict[Scene, WindowCallbackList] = dict()
         self.__text_framerate: Text = Text(color=WHITE)
@@ -215,6 +277,7 @@ class Window:
         finally:
             self.__loop = False
             self.__callback_after.clear()
+            self.__callback_after_scenes.clear()
 
     def stop(self) -> None:
         self.__loop = False
@@ -353,7 +416,7 @@ class Window:
         return self.__text_framerate
 
     @property
-    def scenes(self) -> SceneManager:
+    def scenes(self) -> _SceneManager:
         return self.__scenes
 
     @property
