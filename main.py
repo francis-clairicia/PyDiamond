@@ -5,7 +5,7 @@ from typing import List
 from pygame.surface import Surface
 from my_pygame.text import Text
 from my_pygame.window import Window
-from my_pygame.scene import Scene
+from my_pygame.scene import Scene, SceneEnum
 
 from my_pygame.resource import FontLoader, ImageLoader, ResourceManager
 
@@ -14,6 +14,10 @@ from my_pygame.gradients import HorizontalGradientShape, RadialGradientShape, Sq
 from my_pygame.sprite import AnimatedSprite, Sprite
 from my_pygame.colors import BLUE_DARK, TRANSPARENT, WHITE, RED, YELLOW
 from my_pygame.clock import Clock
+
+
+class MyScenes(SceneEnum):
+    Shape: str
 
 
 class ShapeScene(Scene):

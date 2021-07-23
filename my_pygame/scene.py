@@ -18,11 +18,13 @@ class MetaSceneEnum(EnumMeta):
     def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any]) -> MetaSceneEnum:
         annotations: Dict[str, Union[type, str]] = namespace.get("__annotations__", dict())
         for enum_name, enum_type in annotations.items():
+            if not isinstance(enum_type, (type, str)):
+                raise TypeError(f"Enum type annotation must be str, not {repr(enum_type)}")
+            if isinstance(enum_type, str) and enum_type != "str":
+                raise TypeError(f"Enum type annotation must be str, not {repr(enum_type)}")
+            if isinstance(enum_type, type) and enum_type is not str:
+                raise TypeError(f"Enum type annotation must be str, not {repr(enum_type.__name__)}")
             if enum_name not in namespace:
-                if isinstance(enum_type, str) and enum_type != "str":
-                    raise TypeError(f"Enum type annotation must be a str, not {repr(enum_type)}")
-                if isinstance(enum_type, type) and not issubclass(enum_type, str):
-                    raise TypeError(f"Enum type annotation must be a str, not {repr(enum_type.__name__)}")
                 namespace[enum_name] = auto()
 
         return super().__new__(metacls, name, bases, namespace)
