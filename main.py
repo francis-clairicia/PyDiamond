@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: Utf-8 -*
 
-from typing import Tuple
+from typing import List
 from pygame.surface import Surface
 from my_pygame.text import Text
 from my_pygame.window import Window
@@ -178,12 +178,12 @@ class TextScene(Scene):
 class MyResources(ResourceManager):
     cactus: Surface
     cooperblack: str
-    car: Tuple[Surface, ...]
+    car: List[Surface]
     __resources_files__ = {
-        "cactus": {"path": "files/img/cactus.png", "loader": ImageLoader},
-        "cooperblack": {"path": "files/fonts/COOPBL.ttf", "loader": FontLoader},
+        "cactus": {"path": "./files/img/cactus.png", "loader": ImageLoader},
+        "cooperblack": {"path": "./files/fonts/COOPBL.ttf", "loader": FontLoader},
         "car": {
-            "path": [f"files/img/gameplay/voiture_7/{i + 1}.png" for i in range(10)],
+            "path": [f"./files/img/gameplay/voiture_7/{i + 1}.png" for i in range(10)],
             "loader": ImageLoader,
         },
     }
@@ -223,7 +223,7 @@ class AnimatedSpriteScene(Scene):
 def main() -> None:
     # w: Window = Window("my window", (0, 0))
     w: Window = Window("my window", (1366, 768))
-    MyResources.load_all_resources()
+    # MyResources.load_all_resources()
     w.text_framerate.show()
     # w.scenes.push_on_top(ShapeScene(w))
     # w.scenes.push_on_top(AnimationScene(w))

@@ -11,6 +11,7 @@ def __set_constant_path(
     all_path = os.path.join(path, *paths)
     if not os.path.isabs(all_path):
         all_path = os.path.join(os.path.abspath(os.path.dirname(argv[0])), all_path)
+    all_path = os.path.realpath(all_path)
     if not path_exists(all_path) and raise_error:
         if special_msg:
             raise FileNotFoundError(f"{repr(all_path)}: {special_msg}")
