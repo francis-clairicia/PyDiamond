@@ -1,5 +1,6 @@
 # -*- coding: Utf-8 -*
 
+from __future__ import annotations
 from typing import Tuple, Union, overload
 
 import pygame.transform
@@ -31,6 +32,9 @@ class Image(Drawable):
             self.__default_image = Surface((0, 0))
             self.__image = self.__default_image.copy()
             self.load(image)
+
+    def copy(self) -> Image:
+        return Image(self.__default_image)
 
     def to_surface(self) -> Surface:
         return self.__image.copy()

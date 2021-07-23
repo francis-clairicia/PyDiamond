@@ -83,6 +83,9 @@ class AbstractRectangleGradientShape(AbstractGradientShape):
 
 
 class HorizontalGradientShape(AbstractRectangleGradientShape):
+    def copy(self) -> HorizontalGradientShape:
+        return HorizontalGradientShape(self.local_width, self.local_height, self.color, self.second_color)
+
     def _make(self) -> Surface:
         size = self.get_local_size()
         if size[0] < 1 or size[1] < 1:
@@ -93,6 +96,9 @@ class HorizontalGradientShape(AbstractRectangleGradientShape):
 
 
 class VerticalGradientShape(AbstractRectangleGradientShape):
+    def copy(self) -> VerticalGradientShape:
+        return VerticalGradientShape(self.local_width, self.local_height, self.color, self.second_color)
+
     def _make(self) -> Surface:
         size = self.get_local_size()
         if size[0] < 1 or size[1] < 1:
@@ -108,6 +114,9 @@ class SquaredGradientShape(AbstractGradientShape):
         self.__w: float = 0
         self.local_width = width
         self._need_update()
+
+    def copy(self) -> SquaredGradientShape:
+        return SquaredGradientShape(self.local_width, self.color, self.second_color)
 
     def get_local_size(self) -> Tuple[float, float]:
         return (self.local_width, self.local_width)
@@ -142,6 +151,9 @@ class RadialGradientShape(AbstractGradientShape):
         self.__radius: float = 0
         self.radius = radius
         self._need_update()
+
+    def copy(self) -> RadialGradientShape:
+        return RadialGradientShape(self.radius, self.color, self.second_color)
 
     def _make(self) -> Surface:
         if self.radius == 0:

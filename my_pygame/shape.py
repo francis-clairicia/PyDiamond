@@ -145,6 +145,9 @@ class PolygonShape(OutlinedShape, ThemedShape):
         self.set_points(points)
         self._need_update()
 
+    def copy(self) -> PolygonShape:
+        return PolygonShape(self.color, outline=self.outline, outline_color=self.outline_color, points=self.__points)
+
     def _make(self) -> Surface:
         if len(self.__points) < 2:
             return create_surface((0, 0))
@@ -243,6 +246,17 @@ class RectangleShape(OutlinedShape, ThemedShape):
         self.border_bottom_left_radius = border_bottom_left_radius
         self.border_bottom_right_radius = border_bottom_right_radius
         self._need_update()
+
+    def copy(self) -> RectangleShape:
+        return RectangleShape(
+            self.__w,
+            self.__h,
+            self.color,
+            outline=self.outline,
+            outline_color=self.outline_color,
+            **self.__draw_params,
+            theme=None,
+        )
 
     def _make(self) -> Surface:
         offset: float = self.outline / 2 + (self.outline % 2)
@@ -369,6 +383,11 @@ class CircleShape(OutlinedShape, ThemedShape):
         self.draw_bottom_right = draw_bottom_right
         self._need_update()
 
+    def copy(self) -> CircleShape:
+        return CircleShape(
+            self.radius, self.color, outline=self.outline, outline_color=self.outline_color, **self.__draw_params, theme=None
+        )
+
     def _make(self) -> Surface:
         width, height = self.get_local_size()
         image: Surface = create_surface((width, height))
@@ -482,6 +501,17 @@ class CrossShape(OutlinedShape, ThemedShape):
         self.local_size = width, height
         self.line_width = line_width
         self._need_update()
+
+    def copy(self) -> CrossShape:
+        return CrossShape(
+            self.__w,
+            self.__h,
+            self.color,
+            self.type,
+            line_width=self.line_width,
+            outline=self.outline,
+            outline_color=self.outline_color,
+        )
 
     def _make(self) -> Surface:
         all_points: List[Vector2] = self.get_local_vertices()
@@ -633,6 +663,16 @@ class DiagonalCrossShape(CrossShape):
             theme=theme,
         )
 
+    def copy(self) -> DiagonalCrossShape:
+        return DiagonalCrossShape(
+            self.local_width,
+            self.local_height,
+            self.color,
+            line_width=self.line_width,
+            outline=self.outline,
+            outline_color=self.outline_color,
+        )
+
 
 class PlusCrossShape(CrossShape):
     def __init__(
@@ -655,4 +695,14 @@ class PlusCrossShape(CrossShape):
             outline_color=outline_color,
             outline=outline,
             theme=theme,
+        )
+
+    def copy(self) -> PlusCrossShape:
+        return PlusCrossShape(
+            self.local_width,
+            self.local_height,
+            self.color,
+            line_width=self.line_width,
+            outline=self.outline,
+            outline_color=self.outline_color,
         )

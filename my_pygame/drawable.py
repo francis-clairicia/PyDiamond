@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from abc import ABCMeta, abstractmethod
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, Union
 from functools import wraps
 
 import pygame
@@ -25,9 +25,24 @@ class MetaDrawable(ABCMeta):
 
             return wrapper
 
+        def copy_decorator(func: Callable[[Drawable], Drawable]) -> Callable[[Drawable], Drawable]:
+            @wraps(func)
+            def wrapper(self: Drawable) -> Drawable:
+                copy_self: Drawable = func(self)
+                copy_self.scale = self.scale
+                copy_self.angle = self.angle
+                copy_self.center = self.center
+                return copy_self
+
+            return wrapper
+
         draw_method: Optional[Callable[[Drawable, Surface], None]] = attrs.get("draw_onto")
         if callable(draw_method):
             attrs["draw_onto"] = draw_decorator(draw_method)
+
+        copy_method: Optional[Callable[[Drawable], Drawable]] = attrs.get("copy")
+        if callable(copy_method):
+            attrs["copy"] = copy_decorator(copy_method)
 
         return super().__new__(metacls, name, bases, attrs, **kwargs)
 
@@ -39,6 +54,8 @@ class MetaDrawable(ABCMeta):
 
 
 class Drawable(metaclass=MetaDrawable):
+    __DrawableType = TypeVar("__DrawableType", bound="Drawable")
+
     def __init__(self) -> None:
         self.__x: float = 0
         self.__y: float = 0
@@ -49,6 +66,10 @@ class Drawable(metaclass=MetaDrawable):
 
     @abstractmethod
     def draw_onto(self, surface: Surface) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def copy(self: __DrawableType) -> __DrawableType:
         raise NotImplementedError
 
     def to_surface(self) -> Surface:

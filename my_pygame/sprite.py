@@ -1,5 +1,6 @@
 # -*- coding: Utf-8 -*
 
+from __future__ import annotations
 from typing import Any, List, Optional, Tuple
 
 import pygame.mask
@@ -25,6 +26,9 @@ class Sprite(Drawable, PygameSprite):
         self.__mask: Mask
         self.__smooth_scale: bool = False
         self.set_mask_threshold(mask_threshold)
+
+    def copy(self) -> Sprite:
+        return Sprite(self.__default_image, mask_threshold=self.get_mask_threshold())
 
     def update(self, *args: Any, **kwargs: Any) -> None:
         pass
@@ -102,6 +106,9 @@ class AnimatedSprite(Sprite):
         self.__wait_time: float = 10
         self.__animation: bool = False
         self.__loop: bool = False
+
+    def copy(self) -> AnimatedSprite:
+        return AnimatedSprite(*self.__list, mask_threshold=self.get_mask_threshold())
 
     def update(self, *args: Any, **kwargs: Any) -> None:
         if self.is_sprite_animating() and self.__clock.elapsed_time(self.__wait_time):

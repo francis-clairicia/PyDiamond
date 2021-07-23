@@ -66,6 +66,18 @@ class Text(ThemedDrawable):
         self.shadow = (shadow_x, shadow_y)
         self.shadow_color = shadow_color
 
+    def copy(self) -> Text:
+        return Text(
+            message=self.message,
+            font=self.font,
+            color=self.color,
+            wrap=self.wrap,
+            justify=self.justify,
+            shadow_x=self.shadow_x,
+            shadow_y=self.shadow_y,
+            shadow_color=self.shadow_color,
+        )
+
     def draw_onto(self, surface: Surface) -> None:
         self.__update_surface()
         surface.blit(self.__image, self.topleft)
