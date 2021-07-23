@@ -106,7 +106,7 @@ class AnimatedSprite(Sprite):
     def update(self, *args: Any, **kwargs: Any) -> None:
         if self.is_sprite_animating() and self.__clock.elapsed_time(self.__wait_time):
             self.__sprite_idx = (self.__sprite_idx + 1) % len(self.__list)
-            Sprite.default_image.fset(self, self.__list[self.__sprite_idx])  # type: ignore
+            self.default_image = self.__list[self.__sprite_idx]
             if self.__sprite_idx == 0 and not self.__loop:
                 self.stop_sprite_animation()
 
@@ -136,4 +136,4 @@ class AnimatedSprite(Sprite):
 
     @ratio.setter
     def ratio(self, value: float) -> None:
-        self.__wait_time = float(value)
+        self.__wait_time = max(float(value), 0)
