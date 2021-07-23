@@ -58,6 +58,11 @@ class _SceneManager:
     def top(self) -> Optional[Scene]:
         return self.__stack[0] if self.__stack else None
 
+    def index(self, scene: Union[Scene, SceneAlias]) -> int:
+        if isinstance(scene, Scene):
+            return self.__stack.index(scene)
+        return self.__stack.index(self.get(scene))
+
     def clear(self, until: Optional[Union[Scene, SceneAlias]] = None) -> None:
         if until is None:
             self.__stack.clear()
@@ -70,7 +75,11 @@ class _SceneManager:
         while self.__stack[0] is not until:
             self.remove(self.__stack[0])
 
-    def remove(self, scene: Scene) -> None:
+    def remove(self, scene: Union[Scene, SceneAlias]) -> None:
+        alias: Optional[SceneAlias] = None
+        if not isinstance(scene, Scene):
+            alias = scene
+            scene = self.get(alias)
         if scene.window is not self.__window:
             raise WindowError("Trying to remove a scene bound to an another window")
         try:
@@ -78,7 +87,8 @@ class _SceneManager:
         except ValueError:
             pass
         finally:
-            alias: Optional[SceneAlias] = self.__get_alias(scene)
+            if alias is None:
+                alias = self.__get_alias(scene)
             if alias is not None:
                 self.__aliases.pop(alias)
 
@@ -105,9 +115,7 @@ class _SceneManager:
             scene = self.get(scene)
         if scene.window is not self.__window:
             raise WindowError("Trying to push a scene bound to an another window")
-        if not isinstance(pivot, Scene):
-            pivot = self.get(pivot)
-        pivot_index: int = self.__stack.index(pivot)
+        pivot_index: int = self.index(pivot)
         if alias is None:
             alias = self.__get_alias(scene)
         self.remove(scene)
@@ -125,9 +133,7 @@ class _SceneManager:
             scene = self.get(scene)
         if scene.window is not self.__window:
             raise WindowError("Trying to push a scene bound to an another window")
-        if not isinstance(pivot, Scene):
-            pivot = self.get(pivot)
-        pivot_index: int = self.__stack.index(pivot)
+        pivot_index: int = self.index(pivot)
         if alias is None:
             alias = self.__get_alias(scene)
         self.remove(scene)
@@ -253,6 +259,7 @@ class Window:
         self.__text_framerate: Text = Text(color=WHITE)
         self.__text_framerate.hide()
         self.__text_framerate.midtop = (self.centerx, self.top + 10)
+        self.__actual_scene: Optional[Scene] = None
 
     def __del__(self) -> None:
         Window.__main_window = True
@@ -315,7 +322,7 @@ class Window:
             self.__main_clock.tick(self.__framerate)
 
     def draw_screen(self) -> None:
-        scene: Optional[Scene] = self.scenes.top()
+        scene: Optional[Scene] = self.__get_actual_scene()
         if scene:
             if scene.master:
                 scene.master.draw()
@@ -324,7 +331,7 @@ class Window:
             scene.draw()
 
     def update(self) -> None:
-        scene: Optional[Scene] = self.scenes.top()
+        scene: Optional[Scene] = self.__get_actual_scene()
         if scene:
             scene.update()
 
@@ -351,9 +358,9 @@ class Window:
 
     def __handle_all_events(self) -> None:
         self.__callback_after.process()
-        scene: Optional[Scene] = self.scenes.top()
-        if scene and scene in self.__callback_after_scenes:
-            self.__callback_after_scenes[scene].process()
+        actual_scene: Optional[Scene] = self.__get_actual_scene()
+        if actual_scene and actual_scene in self.__callback_after_scenes:
+            self.__callback_after_scenes[actual_scene].process()
         for scene in self.__callback_after_scenes:
             if scene not in self.scenes:
                 self.__callback_after_scenes.pop(scene)
@@ -406,6 +413,12 @@ class Window:
                 self.__callback_after.remove(window_callback)
             except ValueError:
                 pass
+
+    def __get_actual_scene(self) -> Optional[Scene]:
+        actual_scene: Optional[Scene] = self.scenes.top()
+        if actual_scene is not self.__actual_scene:
+            self.__actual_scene = actual_scene
+        return actual_scene
 
     @property
     def framerate(self) -> float:

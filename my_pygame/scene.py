@@ -92,6 +92,16 @@ class MetaScene(ABCMeta):
         return obj
 
 
+class SceneTransition(metaclass=ABCMeta):
+    @abstractmethod
+    def show_new_scene(self, previous_scene: Optional[Scene], scene: Scene) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def show_previous_scene_end_loop(self, scene: Scene, next_scene: Optional[Scene]) -> None:
+        raise NotImplementedError
+
+
 class Scene(metaclass=MetaScene):
     def __init__(self, master: Union[Window, Scene], framerate: int = 0, busy_loop: bool = False) -> None:
         self.__master: Optional[Scene]
@@ -105,8 +115,15 @@ class Scene(metaclass=MetaScene):
         self.__framerate: int = max(framerate, 0)
         self.__busy_loop: bool = busy_loop
         self.__bg_color: Color = Color(0, 0, 0)
+        self.__transition: Optional[SceneTransition] = None
+
+    def on_start_loop(self) -> None:
+        pass
 
     def update(self) -> None:
+        pass
+
+    def on_quit(self) -> None:
         pass
 
     @abstractmethod
@@ -146,3 +163,7 @@ class Scene(metaclass=MetaScene):
     @background_color.setter
     def background_color(self, color: Color) -> None:
         self.__bg_color = Color(color)
+
+    @property
+    def transition(self) -> Optional[SceneTransition]:
+        return self.__transition
