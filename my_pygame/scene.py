@@ -51,9 +51,6 @@ class MetaScene(ABCMeta):
 
         return super().__new__(metacls, name, bases, attrs, **extra)
 
-    def __setattr__(cls, name: str, value: Any) -> None:
-        return super().__setattr__(name, cls.__apply_theme_namespace_decorator(value))
-
     def set_theme_namespace(cls, namespace: Any) -> None:
         if cls.__abstractmethods__:
             raise TypeError(f"{cls.__name__} is an abstract class")
