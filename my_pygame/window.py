@@ -1,7 +1,7 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
-from typing import Any, Callable, Dict, Iterator, List, NoReturn, Optional, SupportsInt, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, NoReturn, Optional, SupportsInt, Tuple, Union, overload
 
 import pygame
 import pygame.display
@@ -40,8 +40,12 @@ class _SceneManager:
     def __len__(self) -> int:
         return len(self.__stack)
 
-    def __contains__(self, scene: Scene) -> bool:
-        return scene in self.__stack
+    def __contains__(self, scene: Union[Scene, SceneAlias]) -> bool:
+        if isinstance(scene, Scene):
+            if scene.window is not self.__window:
+                return False
+            return scene in self.__stack
+        return scene in self.__aliases
 
     def from_top_to_bottom(self) -> Iterator[Scene]:
         return iter(self.__stack)
@@ -180,7 +184,7 @@ class WindowCallback:
         self.__clock = Clock(start=True)
 
     def __call__(self) -> None:
-        if self.scene is not None and self.__master.scenes.top() is not self.scene:
+        if self.scene is not None and not self.scene.looping():
             return
         if self.__clock.elapsed_time(self.__wait_time, restart=False):
             self.__callback(*self.__args, **self.__kwargs)
@@ -266,6 +270,9 @@ class Window:
         print("Quit pygame")
         pygame.quit()
 
+    def __contains__(self, scene: Union[Scene, SceneAlias]) -> bool:
+        return scene in self.__scenes
+
     def set_title(self, title: Optional[str]) -> None:
         pygame.display.set_caption(title or Window.DEFAULT_TITLE)
 
@@ -286,11 +293,8 @@ class Window:
             self.__callback_after.clear()
             self.__callback_after_scenes.clear()
 
-    def stop(self) -> None:
-        self.__loop = False
-
     def close(self) -> NoReturn:
-        self.stop()
+        self.__loop = False
         raise Window.Exit
 
     def is_open(self) -> bool:
@@ -310,8 +314,8 @@ class Window:
         pygame.display.flip()
 
         self.__framerate = Window.DEFAULT_FRAMERATE
-        actual_scene: Optional[Scene] = self.scenes.top()
-        for scene in self.scenes.from_bottom_to_top():
+        actual_scene: Optional[Scene] = self.__scenes.top()
+        for scene in self.__scenes.from_bottom_to_top():
             f: int = scene.get_required_framerate()
             if f > 0:
                 self.__framerate = f
@@ -322,7 +326,7 @@ class Window:
             self.__main_clock.tick(self.__framerate)
 
     def draw_screen(self) -> None:
-        scene: Optional[Scene] = self.__get_actual_scene()
+        scene: Optional[Scene] = self.__update_actual_scene()
         if scene:
             if scene.master:
                 scene.master.draw()
@@ -331,7 +335,7 @@ class Window:
             scene.draw()
 
     def update(self) -> None:
-        scene: Optional[Scene] = self.__get_actual_scene()
+        scene: Optional[Scene] = self.__update_actual_scene()
         if scene:
             scene.update()
 
@@ -346,6 +350,14 @@ class Window:
             pass
 
     def handle_events(self, only_close_event: bool = False) -> None:
+        self.__callback_after.process()
+        actual_scene: Optional[Scene] = self.__update_actual_scene()
+        if actual_scene and actual_scene in self.__callback_after_scenes:
+            self.__callback_after_scenes[actual_scene].process()
+        for scene in self.__callback_after_scenes:
+            if scene not in self.__scenes:
+                self.__callback_after_scenes.pop(scene)
+
         if only_close_event:
             self.__handle_only_close_event()
         else:
@@ -357,14 +369,6 @@ class Window:
                 self.close()
 
     def __handle_all_events(self) -> None:
-        self.__callback_after.process()
-        actual_scene: Optional[Scene] = self.__get_actual_scene()
-        if actual_scene and actual_scene in self.__callback_after_scenes:
-            self.__callback_after_scenes[actual_scene].process()
-        for scene in self.__callback_after_scenes:
-            if scene not in self.scenes:
-                self.__callback_after_scenes.pop(scene)
-
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.close()
@@ -414,8 +418,63 @@ class Window:
             except ValueError:
                 pass
 
-    def __get_actual_scene(self) -> Optional[Scene]:
-        actual_scene: Optional[Scene] = self.scenes.top()
+    def get_actual_scene(self) -> Optional[Scene]:
+        return self.__scenes.top()
+
+    @overload
+    def start_scene(self, scene: Scene) -> None:
+        ...
+
+    @overload
+    def start_scene(self, scene: Scene, new_alias: SceneAlias) -> None:
+        ...
+
+    @overload
+    def start_scene(self, scene: SceneAlias) -> None:
+        ...
+
+    def start_scene(self, scene: Union[Scene, SceneAlias], new_alias: Optional[SceneAlias] = None) -> None:
+        self.__scenes.push_on_top(scene, new_alias)
+
+    @overload
+    def start_scene_before(self, scene: Scene, pivot: Union[Scene, SceneAlias]) -> None:
+        ...
+
+    @overload
+    def start_scene_before(self, scene: Scene, pivot: Union[Scene, SceneAlias], new_alias: SceneAlias) -> None:
+        ...
+
+    @overload
+    def start_scene_before(self, scene: SceneAlias, pivot: Union[Scene, SceneAlias]) -> None:
+        ...
+
+    def start_scene_before(
+        self, scene: Union[Scene, SceneAlias], pivot: Union[Scene, SceneAlias], new_alias: Optional[SceneAlias] = None
+    ) -> None:
+        self.__scenes.push_before(scene, pivot, new_alias)
+
+    @overload
+    def start_scene_after(self, scene: Scene, pivot: Union[Scene, SceneAlias]) -> None:
+        ...
+
+    @overload
+    def start_scene_after(self, scene: Scene, pivot: Union[Scene, SceneAlias], new_alias: SceneAlias) -> None:
+        ...
+
+    @overload
+    def start_scene_after(self, scene: SceneAlias, pivot: Union[Scene, SceneAlias]) -> None:
+        ...
+
+    def start_scene_after(
+        self, scene: Union[Scene, SceneAlias], pivot: Union[Scene, SceneAlias], new_alias: Optional[SceneAlias] = None
+    ) -> None:
+        self.__scenes.push_after(scene, pivot, new_alias)
+
+    def stop_scene(self, scene: Union[Scene, SceneAlias]) -> None:
+        self.__scenes.remove(scene)
+
+    def __update_actual_scene(self) -> Optional[Scene]:
+        actual_scene: Optional[Scene] = self.__scenes.top()
         if actual_scene is not self.__actual_scene:
             self.__actual_scene = actual_scene
         return actual_scene
@@ -427,10 +486,6 @@ class Window:
     @property
     def text_framerate(self) -> Text:
         return self.__text_framerate
-
-    @property
-    def scenes(self) -> _SceneManager:
-        return self.__scenes
 
     @property
     def rect(self) -> Rect:

@@ -85,6 +85,7 @@ class _AnimationMove(_AbstractAnimationClass):
         self.__vector: Vector2 = Vector2(translation)
         self.__speed: float = speed
         self.__traveled: float = 0
+        self.__end: bool = False
 
     def started(self) -> bool:
         return super().started() and self.__speed > 0 and self.__vector != Vector2(0, 0)
@@ -101,10 +102,11 @@ class _AnimationMove(_AbstractAnimationClass):
             self.stop()
 
     def default(self) -> None:
-        if self.__vector != Vector2(0, 0):
+        if not self.__end:
             self.__vector.scale_to_length(abs(self.__vector.length() - self.__traveled))
             self.drawable.translate(self.__vector)
             self.__vector = Vector2(0, 0)
+            self.__end = True
 
 
 class _AnimationRotation(_AbstractAnimationClass):
@@ -200,14 +202,12 @@ class Animation:
     def register_position(
         self, speed: float = 1, milliseconds: float = 10, **position: Union[float, Tuple[float, float]]
     ) -> Animation:
-        self.stop_background()
         self.__animations["move"] = _AnimationSetPosition(self.__drawable, milliseconds, speed, **position)
         return self
 
     def register_translation(
         self, translation: Union[Vector2, Tuple[float, float]], speed: float = 1, milliseconds: float = 10
     ) -> Animation:
-        self.stop_background()
         self.__animations["move"] = _AnimationMove(self.__drawable, translation, milliseconds, speed)
         return self
 
@@ -218,7 +218,6 @@ class Animation:
         point: Optional[Union[Vector2, Tuple[float, float], str]] = None,
         milliseconds: float = 10,
     ) -> Animation:
-        self.stop_background()
         animation = "rotate" if point is None else "rotate_point"
         self.__animations[animation] = _AnimationRotation(self.__drawable, milliseconds, angle, offset, point)
         return self
@@ -248,7 +247,6 @@ class Animation:
         return self.register_width_set(width, max(step, 0), milliseconds)
 
     def register_width_set(self, width: float, offset: float = 1, milliseconds: float = 10) -> Animation:
-        self.stop_background()
         self.__animations.pop("scale_height", None)
         self.__animations["scale_width"] = _AnimationScaleWidth(self.__drawable, milliseconds, width, offset)
         return self
@@ -258,18 +256,21 @@ class Animation:
         return self.register_height_set(height, max(step, 0), milliseconds)
 
     def register_height_set(self, height: float, offset: float = 1, milliseconds: float = 10) -> Animation:
-        self.stop_background()
         self.__animations.pop("scale_width", None)
         self.__animations["scale_height"] = _AnimationScaleHeight(self.__drawable, milliseconds, height, offset)
         return self
 
-    def start(self, master: Union[Window, Scene], at_every_frame: Optional[Callable[..., None]] = None) -> None:
+    def start(self, master: Union[Window, Scene], at_every_frame: Optional[Callable[[], None]] = None) -> None:
+        scene: Optional[Scene] = None
         if isinstance(master, Scene):
-            if master.window.scenes.top() is not master:
+            scene = master
+            if not scene.looping():
                 return
             master = master.window
         while self.started():
             self.__animate(at_every_frame)
+            if scene is not None and not scene.looping():
+                break
             master.handle_events(only_close_event=True)
             master.draw_and_refresh()
         self.__animate(at_every_frame)
@@ -279,9 +280,12 @@ class Animation:
     def start_in_background(
         self,
         master: Union[Window, Scene],
-        at_every_frame: Optional[Callable[..., None]] = None,
-        after_animation: Optional[Callable[..., None]] = None,
+        at_every_frame: Optional[Callable[[], None]] = None,
+        after_animation: Optional[Callable[[], None]] = None,
     ) -> None:
+        if self.__window_callback is not None:
+            self.__window_callback.kill()
+            self.__window_callback = None
         self.__start_window_callback(master, at_every_frame, after_animation)
 
     def started(self) -> bool:
@@ -315,7 +319,7 @@ class Animation:
         for key in self.__animations:
             self.__animations[key] = None
 
-    def __animate(self, at_every_frame: Optional[Callable[..., None]]) -> None:
+    def __animate(self, at_every_frame: Optional[Callable[[], None]]) -> None:
         for animation in self.__iter_animations():
             if animation.started():
                 animation()
@@ -327,8 +331,8 @@ class Animation:
     def __start_window_callback(
         self,
         master: Union[Window, Scene],
-        at_every_frame: Optional[Callable[..., None]],
-        after_animation: Optional[Callable[..., None]],
+        at_every_frame: Optional[Callable[[], None]],
+        after_animation: Optional[Callable[[], None]],
     ) -> None:
         window: Window
         scene: Optional[Scene]
@@ -351,6 +355,9 @@ class Animation:
         else:
             self.__animate(at_every_frame)
             self.__clear()
+            if self.__window_callback is not None:
+                self.__window_callback.kill()
+                self.__window_callback = None
             self.__save_animations = self.__save_window_callback = None
             if callable(after_animation):
                 after_animation()

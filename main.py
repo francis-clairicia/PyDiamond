@@ -229,12 +229,12 @@ def main() -> None:
     w: Window = Window("my window", (1366, 768))
     # MyResources.load_all_resources()
     w.text_framerate.show()
-    # w.scenes.push_on_top(ShapeScene(w))
-    # w.scenes.push_on_top(AnimationScene(w))
-    # w.scenes.push_on_top(GradientScene(w))
-    # w.scenes.push_on_top(TextScene(w))
-    # w.scenes.push_on_top(ResourceScene(w))
-    w.scenes.push_on_top(AnimatedSpriteScene(w))
+    # w.start_scene(ShapeScene(w))
+    # w.start_scene(AnimationScene(w))
+    # w.start_scene(GradientScene(w))
+    # w.start_scene(TextScene(w))
+    # w.start_scene(ResourceScene(w))
+    w.start_scene(AnimatedSpriteScene(w))
     w.mainloop()
 
 

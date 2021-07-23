@@ -4,7 +4,7 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from functools import wraps
 from enum import Enum, EnumMeta, auto, unique
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Tuple, Union, overload
 
 from pygame.color import Color
 
@@ -130,17 +130,56 @@ class Scene(metaclass=MetaScene):
     def draw(self) -> None:
         raise NotImplementedError
 
-    def push_on_top(self, alias: Optional[SceneAlias] = None) -> None:
-        self.window.scenes.push_on_top(self, alias)
+    def looping(self) -> bool:
+        return self.window.get_actual_scene() is self
 
-    def push_before(self, pivot: Union[Scene, SceneAlias], alias: Optional[SceneAlias] = None) -> None:
-        self.window.scenes.push_before(self, pivot, alias)
+    def started(self) -> bool:
+        return self in self.window
 
-    def push_after(self, pivot: Union[Scene, SceneAlias], alias: Optional[SceneAlias] = None) -> None:
-        self.window.scenes.push_after(self, pivot, alias)
+    @overload
+    def start(self) -> None:
+        ...
 
-    def kill(self) -> None:
-        self.window.scenes.remove(self)
+    @overload
+    def start(self, new_alias: SceneAlias) -> None:
+        ...
+
+    def start(self, new_alias: Optional[SceneAlias] = None) -> None:
+        if new_alias is not None:
+            self.window.start_scene(self, new_alias)
+        else:
+            self.window.start_scene(self)
+
+    @overload
+    def start_before(self, pivot: Union[Scene, SceneAlias]) -> None:
+        ...
+
+    @overload
+    def start_before(self, pivot: Union[Scene, SceneAlias], new_alias: SceneAlias) -> None:
+        ...
+
+    def start_before(self, pivot: Union[Scene, SceneAlias], new_alias: Optional[SceneAlias] = None) -> None:
+        if new_alias is not None:
+            self.window.start_scene_before(self, pivot, new_alias)
+        else:
+            self.window.start_scene_before(self, pivot)
+
+    @overload
+    def start_after(self, pivot: Union[Scene, SceneAlias]) -> None:
+        ...
+
+    @overload
+    def start_after(self, pivot: Union[Scene, SceneAlias], new_alias: SceneAlias) -> None:
+        ...
+
+    def start_after(self, pivot: Union[Scene, SceneAlias], new_alias: Optional[SceneAlias] = None) -> None:
+        if new_alias is not None:
+            self.window.start_scene_after(self, pivot, new_alias)
+        else:
+            self.window.start_scene_after(self, pivot)
+
+    def stop(self) -> None:
+        self.window.stop_scene(self)
 
     def get_required_framerate(self) -> int:
         return self.__framerate
