@@ -467,7 +467,7 @@ class CrossShape(OutlinedShape, ThemedShape):
         width: float,
         height: float,
         color: Color,
-        type: Union[str, CrossShape.Type],
+        type: str,
         *,
         line_width: float = 0.3,
         outline_color: Color = BLACK,
@@ -495,7 +495,7 @@ class CrossShape(OutlinedShape, ThemedShape):
             CrossShape.Type.DIAGONAL: self.__get_diagonal_cross_points,
             CrossShape.Type.PLUS: self.__get_plus_cross_points,
         }
-        return compute_vertices[self.type]()
+        return compute_vertices[self.__type]()
 
     def __get_diagonal_cross_points(self) -> List[Vector2]:
         rect: Rect = self.get_local_rect()
@@ -576,8 +576,8 @@ class CrossShape(OutlinedShape, ThemedShape):
             self._need_update()
 
     @property
-    def type(self) -> CrossShape.Type:
-        return self.__type
+    def type(self) -> str:
+        return str(self.__type.value)
 
     @property
     def local_size(self) -> Tuple[float, float]:

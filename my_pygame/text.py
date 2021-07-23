@@ -40,7 +40,7 @@ class Text(ThemedDrawable):
         underline: Optional[bool] = None,
         color: Color = BLACK,
         wrap: int = 0,
-        justify: Union[str, Justify] = "left",
+        justify: str = "left",
         shadow_x: float = 0,
         shadow_y: float = 0,
         shadow_color: Color = BLACK,
@@ -169,7 +169,7 @@ class Text(ThemedDrawable):
                 Text.Justify.RIGHT: {"right": text_rect.right},
                 Text.Justify.CENTER: {"centerx": text_rect.centerx},
             }
-            params = justify_parameters[self.justify]
+            params = justify_parameters[self.__justify]
             for render in render_lines:
                 text.blit(render, render.get_rect(**params, y=y))
                 y += render.get_height()
@@ -229,11 +229,11 @@ class Text(ThemedDrawable):
             self.__need_update()
 
     @property
-    def justify(self) -> Justify:
-        return self.__justify
+    def justify(self) -> str:
+        return str(self.__justify.value)
 
     @justify.setter
-    def justify(self, justify: Justify) -> None:
+    def justify(self, justify: str) -> None:
         justify = Text.Justify(justify)
         if justify != self.__justify:
             self.__justify = justify
