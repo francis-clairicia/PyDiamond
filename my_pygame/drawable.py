@@ -48,9 +48,15 @@ class MetaDrawable(ABCMeta):
 
     def __call__(cls, *args: Any, **kwds: Any) -> Any:
         instance: Drawable = super().__call__(*args, **kwds)
+        cls._set_default_position(instance)
+        return instance
+
+    @staticmethod
+    def _set_default_position(instance: Drawable) -> None:
+        position: Dict[str, Union[float, Tuple[float, float]]] = instance.get_last_move()
         w, h = instance.get_size()
         instance.center = (w / 2, h / 2)
-        return instance
+        instance.set_position(**position)
 
 
 class Drawable(metaclass=MetaDrawable):
@@ -62,6 +68,7 @@ class Drawable(metaclass=MetaDrawable):
         self.__angle: float = 0
         self.__scale: float = 1
         self.__draw: bool = True
+        self.__last_move: Dict[str, Union[float, Tuple[float, float]]] = {"x": 0, "y": 0}
         self.__animation: Animation = Animation(self)
 
     @abstractmethod
@@ -116,6 +123,18 @@ class Drawable(metaclass=MetaDrawable):
             if name not in all_valid_positions:
                 raise AttributeError(f"Unknown position attribute {repr(name)}")
             setattr(self, name, value)
+
+    def __update_last_move(self, move: str, value: Union[float, Tuple[float, float]]) -> None:
+        horizontal_positions: Tuple[str, ...] = ("x", "left", "right", "centerx")
+        vertical_positions: Tuple[str, ...] = ("y", "top", "bottom", "centery")
+        for positions in [horizontal_positions, vertical_positions]:
+            if move in positions:
+                for pos in positions:
+                    self.__last_move.pop(pos, None)
+        self.__last_move[move] = value
+
+    def get_last_move(self) -> Dict[str, Union[float, Tuple[float, float]]]:
+        return self.__last_move.copy()
 
     def move(self, dx: float, dy: float) -> None:
         self.x += dx
@@ -274,6 +293,7 @@ class Drawable(metaclass=MetaDrawable):
     @x.setter
     def x(self, x: float) -> None:
         self.__x = x
+        self.__update_last_move("x", x)
 
     @property
     def y(self) -> float:
@@ -282,6 +302,7 @@ class Drawable(metaclass=MetaDrawable):
     @y.setter
     def y(self, y: float) -> None:
         self.__y = y
+        self.__update_last_move("y", y)
 
     @property
     def size(self) -> Tuple[float, float]:
@@ -322,6 +343,7 @@ class Drawable(metaclass=MetaDrawable):
     @right.setter
     def right(self, right: float) -> None:
         self.x = right - self.width
+        self.__update_last_move("right", right)
 
     @property
     def top(self) -> float:
@@ -338,6 +360,7 @@ class Drawable(metaclass=MetaDrawable):
     @bottom.setter
     def bottom(self, bottom: float) -> None:
         self.y = bottom - self.height
+        self.__update_last_move("bottom", bottom)
 
     @property
     def center(self) -> Tuple[float, float]:
@@ -354,6 +377,7 @@ class Drawable(metaclass=MetaDrawable):
     @centerx.setter
     def centerx(self, centerx: float) -> None:
         self.x = centerx - (self.width / 2)
+        self.__update_last_move("centerx", centerx)
 
     @property
     def centery(self) -> float:
@@ -362,6 +386,7 @@ class Drawable(metaclass=MetaDrawable):
     @centery.setter
     def centery(self, centery: float) -> None:
         self.y = centery - (self.height / 2)
+        self.__update_last_move("centery", centery)
 
     @property
     def topleft(self) -> Tuple[float, float]:
@@ -431,8 +456,7 @@ class Drawable(metaclass=MetaDrawable):
 class MetaThemedDrawable(MetaDrawable, MetaThemedObject):
     def __call__(cls, *args: Any, **kwds: Any) -> Any:
         instance: ThemedDrawable = MetaThemedObject.__call__(cls, *args, **kwds)
-        w, h = instance.get_size()
-        instance.center = (w / 2, h / 2)
+        cls._set_default_position(instance)
         return instance
 
 
