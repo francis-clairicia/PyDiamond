@@ -5,13 +5,12 @@ from re import split as re_split
 from typing import Any, Dict, Generic, Iterator, List, Mapping, Tuple, Type, TypeVar, TypedDict, Union
 from abc import ABCMeta, abstractmethod
 
-import pygame.image
-
 from pygame.surface import Surface
 from pygame.mixer import Sound
 from pygame.font import Font
 
 from .path import set_constant_file
+from .surface import load_image
 
 T = TypeVar("T")
 
@@ -35,7 +34,7 @@ class ResourceLoader(Generic[T], metaclass=ABCMeta):
 
 class ImageLoader(ResourceLoader[Surface]):
     def load(self) -> Surface:
-        return pygame.image.load(self.filepath).convert_alpha()
+        return load_image(self.filepath)
 
 
 class SoundLoader(ResourceLoader[Sound]):
