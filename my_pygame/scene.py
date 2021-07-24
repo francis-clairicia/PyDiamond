@@ -94,11 +94,11 @@ class MetaScene(ABCMeta):
 
 class SceneTransition(metaclass=ABCMeta):
     @abstractmethod
-    def show_new_scene(self, previous_scene: Optional[Scene], scene: Scene) -> None:
+    def show_new_scene(self, actual_scene: Scene, next_scene: Scene) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def show_previous_scene_end_loop(self, scene: Scene, next_scene: Optional[Scene]) -> None:
+    def hide_actual_scene(self, scene_to_hide: Scene, scene_to_show: Scene) -> None:
         raise NotImplementedError
 
 
@@ -149,34 +149,6 @@ class Scene(metaclass=MetaScene):
             self.window.start_scene(self, new_alias)
         else:
             self.window.start_scene(self)
-
-    @overload
-    def start_before(self, pivot: Union[Scene, SceneAlias]) -> None:
-        ...
-
-    @overload
-    def start_before(self, pivot: Union[Scene, SceneAlias], new_alias: SceneAlias) -> None:
-        ...
-
-    def start_before(self, pivot: Union[Scene, SceneAlias], new_alias: Optional[SceneAlias] = None) -> None:
-        if new_alias is not None:
-            self.window.start_scene_before(self, pivot, new_alias)
-        else:
-            self.window.start_scene_before(self, pivot)
-
-    @overload
-    def start_after(self, pivot: Union[Scene, SceneAlias]) -> None:
-        ...
-
-    @overload
-    def start_after(self, pivot: Union[Scene, SceneAlias], new_alias: SceneAlias) -> None:
-        ...
-
-    def start_after(self, pivot: Union[Scene, SceneAlias], new_alias: Optional[SceneAlias] = None) -> None:
-        if new_alias is not None:
-            self.window.start_scene_after(self, pivot, new_alias)
-        else:
-            self.window.start_scene_after(self, pivot)
 
     def stop(self) -> None:
         self.window.stop_scene(self)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from typing import Any, Callable, Dict, Iterator, List, NoReturn, Optional, SupportsInt, Tuple, Union, overload
+from enum import IntEnum
 
 import pygame
 import pygame.display
@@ -96,7 +97,7 @@ class _SceneManager:
             if alias is not None:
                 self.__aliases.pop(alias)
 
-    def push_on_top(self, scene: Union[Scene, SceneAlias], alias: Optional[SceneAlias] = None) -> None:
+    def push(self, scene: Union[Scene, SceneAlias], alias: Optional[SceneAlias] = None) -> None:
         if not isinstance(scene, Scene):
             alias = scene
             scene = self.get(scene)
@@ -108,42 +109,6 @@ class _SceneManager:
         if any(type(stacked_scene) is type(scene) for stacked_scene in self):
             raise TypeError("A scene with the same type is stacked")
         self.__stack.insert(0, scene)
-        if alias is not None:
-            self.__set_alias(scene, alias)
-
-    def push_before(
-        self, scene: Union[Scene, SceneAlias], pivot: Union[Scene, SceneAlias], alias: Optional[SceneAlias] = None
-    ) -> None:
-        if not isinstance(scene, Scene):
-            alias = scene
-            scene = self.get(scene)
-        if scene.window is not self.__window:
-            raise WindowError("Trying to push a scene bound to an another window")
-        pivot_index: int = self.index(pivot)
-        if alias is None:
-            alias = self.__get_alias(scene)
-        self.remove(scene)
-        if any(type(stacked_scene) is type(scene) for stacked_scene in self):
-            raise TypeError("A scene with the same type is stacked")
-        self.__stack.insert(pivot_index, scene)
-        if alias is not None:
-            self.__set_alias(scene, alias)
-
-    def push_after(
-        self, scene: Union[Scene, SceneAlias], pivot: Union[Scene, SceneAlias], alias: Optional[SceneAlias] = None
-    ) -> None:
-        if not isinstance(scene, Scene):
-            alias = scene
-            scene = self.get(scene)
-        if scene.window is not self.__window:
-            raise WindowError("Trying to push a scene bound to an another window")
-        pivot_index: int = self.index(pivot)
-        if alias is None:
-            alias = self.__get_alias(scene)
-        self.remove(scene)
-        if any(type(stacked_scene) is type(scene) for stacked_scene in self):
-            raise TypeError("A scene with the same type is stacked")
-        self.__stack.insert(pivot_index + 1, scene)
         if alias is not None:
             self.__set_alias(scene, alias)
 
@@ -206,6 +171,11 @@ class WindowCallbackList(List[WindowCallback]):
             callback()
 
 
+class _WindowTransition(IntEnum):
+    SHOW = 1
+    HIDE = 2
+
+
 class Window:
     class Exit(BaseException):
         pass
@@ -264,6 +234,7 @@ class Window:
         self.__text_framerate.hide()
         self.__text_framerate.midtop = (self.centerx, self.top + 10)
         self.__actual_scene: Optional[Scene] = None
+        self.__transition: _WindowTransition = _WindowTransition.SHOW
 
     def __del__(self) -> None:
         Window.__main_window = True
@@ -421,6 +392,13 @@ class Window:
     def get_actual_scene(self) -> Optional[Scene]:
         return self.__scenes.top()
 
+    def get_scene(self, scene: Union[Scene, SceneAlias]) -> Scene:
+        if not isinstance(scene, Scene):
+            return self.__scenes.get(scene)
+        if scene.window is not self:
+            raise WindowError(f"{type(scene).__name__}: Trying to get a scene bound to an another window")
+        return scene
+
     @overload
     def start_scene(self, scene: Scene) -> None:
         ...
@@ -434,48 +412,41 @@ class Window:
         ...
 
     def start_scene(self, scene: Union[Scene, SceneAlias], new_alias: Optional[SceneAlias] = None) -> None:
-        self.__scenes.push_on_top(scene, new_alias)
-
-    @overload
-    def start_scene_before(self, scene: Scene, pivot: Union[Scene, SceneAlias]) -> None:
-        ...
-
-    @overload
-    def start_scene_before(self, scene: Scene, pivot: Union[Scene, SceneAlias], new_alias: SceneAlias) -> None:
-        ...
-
-    @overload
-    def start_scene_before(self, scene: SceneAlias, pivot: Union[Scene, SceneAlias]) -> None:
-        ...
-
-    def start_scene_before(
-        self, scene: Union[Scene, SceneAlias], pivot: Union[Scene, SceneAlias], new_alias: Optional[SceneAlias] = None
-    ) -> None:
-        self.__scenes.push_before(scene, pivot, new_alias)
-
-    @overload
-    def start_scene_after(self, scene: Scene, pivot: Union[Scene, SceneAlias]) -> None:
-        ...
-
-    @overload
-    def start_scene_after(self, scene: Scene, pivot: Union[Scene, SceneAlias], new_alias: SceneAlias) -> None:
-        ...
-
-    @overload
-    def start_scene_after(self, scene: SceneAlias, pivot: Union[Scene, SceneAlias]) -> None:
-        ...
-
-    def start_scene_after(
-        self, scene: Union[Scene, SceneAlias], pivot: Union[Scene, SceneAlias], new_alias: Optional[SceneAlias] = None
-    ) -> None:
-        self.__scenes.push_after(scene, pivot, new_alias)
+        scene = self.get_scene(scene)
+        if scene.looping():
+            return
+        transition: _WindowTransition = _WindowTransition.SHOW
+        try:
+            self.__scenes.clear(until=scene)
+        except WindowError:
+            self.__scenes.push(scene, new_alias)
+        if self.__actual_scene is None or self.__actual_scene is scene:
+            return
+        if self.__actual_scene not in self.__scenes:
+            transition = _WindowTransition.HIDE
+        self.__transition = transition
 
     def stop_scene(self, scene: Union[Scene, SceneAlias]) -> None:
+        self.__scenes.clear(until=scene)
         self.__scenes.remove(scene)
+        self.__transition = _WindowTransition.HIDE
 
     def __update_actual_scene(self) -> Optional[Scene]:
-        actual_scene: Optional[Scene] = self.__scenes.top()
+        actual_scene: Optional[Scene] = self.get_actual_scene()
         if actual_scene is not self.__actual_scene:
+            if actual_scene is None:
+                if self.__actual_scene is not None:
+                    self.__actual_scene.on_quit()
+            elif self.__actual_scene is None:
+                actual_scene.on_start_loop()
+            else:
+                self.__actual_scene.on_quit()
+                if self.__actual_scene.transition is not None:
+                    if self.__transition == _WindowTransition.SHOW:
+                        self.__actual_scene.transition.show_new_scene(self.__actual_scene, actual_scene)
+                    elif self.__transition == _WindowTransition.HIDE:
+                        self.__actual_scene.transition.hide_actual_scene(self.__actual_scene, actual_scene)
+                actual_scene.on_start_loop()
             self.__actual_scene = actual_scene
         return actual_scene
 
