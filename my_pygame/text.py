@@ -165,9 +165,11 @@ class Text(ThemedDrawable):
         render_width: float = 0
         render_height: float = 0
         text: Surface
+        color: Color = self.color if not drawing_shadow else self.shadow_color
+        custom_font: Dict[int, Font] = self.__custom_font
         for index, line in enumerate(self.message.splitlines()):
-            font = self.__custom_font.get(index, self.font)
-            render = font.render(line, True, self.color if not drawing_shadow else self.shadow_color)
+            font = custom_font.get(index, self.font)
+            render = font.render(line, True, color)
             render_width = max(render_width, render.get_width())
             render_height += render.get_height()
             render_lines.append(render)
@@ -179,12 +181,11 @@ class Text(ThemedDrawable):
             text = create_surface((render_width, render_height))
             text_rect = text.get_rect()
             y = 0
-            justify_parameters = {
+            params = {
                 Text.Justify.LEFT: {"left": text_rect.left},
                 Text.Justify.RIGHT: {"right": text_rect.right},
                 Text.Justify.CENTER: {"centerx": text_rect.centerx},
-            }
-            params = justify_parameters[self.__justify]
+            }[self.__justify]
             for render in render_lines:
                 text.blit(render, render.get_rect(**params, y=y))
                 y += render.get_height()

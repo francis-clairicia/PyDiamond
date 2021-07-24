@@ -54,7 +54,9 @@ class AbstractShape(Drawable):
         return self.__image.get_size()
 
     def _apply_rotation_scale(self) -> None:
-        self.__image = pygame.transform.rotozoom(self.__shape_image, self.angle, self.scale)
+        angle: float = self.angle
+        scale: float = self.scale
+        self.__image = pygame.transform.rotozoom(self.__shape_image, angle, scale)
 
         all_points: List[Vector2] = self.get_local_vertices()
         left: float = min((point.x for point in all_points), default=0)
@@ -67,15 +69,16 @@ class AbstractShape(Drawable):
         local_center: Vector2 = Vector2(left + w / 2, top + h / 2)
 
         center: Vector2 = Vector2(self.center)
+        vertices: List[Vector2] = self.__vertices
 
-        self.__vertices.clear()
+        vertices.clear()
         for point in all_points:
-            offset: Vector2 = (point - local_center).rotate(-self.angle)
+            offset: Vector2 = (point - local_center).rotate(-angle)
             try:
-                offset.scale_to_length(offset.length() * self.scale)
+                offset.scale_to_length(offset.length() * scale)
             except ValueError:
                 offset = Vector2(0, 0)
-            self.__vertices.append(center + offset)
+            vertices.append(center + offset)
 
     @abstractmethod
     def _make(self) -> Surface:
@@ -150,6 +153,7 @@ class PolygonShape(OutlinedShape, ThemedShape):
         super().__init__(color, outline, outline_color)
         self.__points: List[Vector2] = []
         self.__center: Vector2 = Vector2(0, 0)
+        self.__size: Tuple[float, float] = (0, 0)
         self.set_points(points)
         self._need_update()
 
@@ -159,14 +163,14 @@ class PolygonShape(OutlinedShape, ThemedShape):
         )
 
     def _make(self) -> Surface:
-        if len(self.__points) < 2:
+        outline: int = self.outline
+        all_points: List[Vector2] = self.__points
+
+        if len(all_points) < 2:
             return create_surface((0, 0))
 
-        all_points: List[Vector2] = self.get_points()
-
-        offset: float = self.outline / 2 + (self.outline % 2)
-        w, h = self.get_local_size()
-        w, h = (w + offset * 2, h + offset * 2)
+        offset: float = outline / 2 + (outline % 2)
+        w, h = (self.__size[0] + offset * 2, self.__size[1] + offset * 2)
         image: Surface = create_surface((w, h))
 
         center_diff: Vector2 = Vector2(w / 2, h / 2) - self.__center
@@ -175,24 +179,18 @@ class PolygonShape(OutlinedShape, ThemedShape):
             p.y += center_diff.y
 
         if len(all_points) == 2:
-            if self.outline > 0:
+            if outline > 0:
                 start, end = all_points
-                pygame.draw.line(image, self.outline_color, start, end, width=self.outline)
+                pygame.draw.line(image, self.outline_color, start, end, width=outline)
         else:
             pygame.draw.polygon(image, self.color, all_points)
-            if self.outline > 0:
-                pygame.draw.polygon(image, self.outline_color, all_points, width=self.outline)
+            if outline > 0:
+                pygame.draw.polygon(image, self.outline_color, all_points, width=outline)
 
         return image
 
     def get_local_size(self) -> Tuple[float, float]:
-        left: float = min((point.x for point in self.__points), default=0)
-        right: float = max((point.x for point in self.__points), default=0)
-        top: float = min((point.y for point in self.__points), default=0)
-        bottom: float = max((point.y for point in self.__points), default=0)
-        width: float = right - left
-        height: float = bottom - top
-        return width, height
+        return self.__size
 
     def get_local_vertices(self) -> List[Vector2]:
         return self.get_points()
@@ -220,6 +218,7 @@ class PolygonShape(OutlinedShape, ThemedShape):
 
         self.__points = points
         self.__center = Vector2(left + w / 2, top + h / 2)
+        self.__size = (w, h)
         self._need_update()
 
 
@@ -269,22 +268,24 @@ class RectangleShape(OutlinedShape, ThemedShape):
         )
 
     def _make(self) -> Surface:
-        offset: float = self.outline / 2 + (self.outline % 2)
-        w, h = self.get_local_size()
+        outline: int = self.outline
+        offset: float = outline / 2 + (outline % 2)
+        w, h = self.__w, self.__h
         image: Surface = create_surface((w + offset * 2, h + offset * 2))
         default_rect: Rect = image.get_rect()
         rect: Rect = Rect(0, 0, w, h)
         rect.center = default_rect.center
-        pygame.draw.rect(image, self.color, rect, **self.__draw_params)
-        if self.outline > 0:
-            pygame.draw.rect(image, self.outline_color, rect, width=self.outline, **self.__draw_params)
+        draw_params = self.__draw_params
+        pygame.draw.rect(image, self.color, rect, **draw_params)
+        if outline > 0:
+            pygame.draw.rect(image, self.outline_color, rect, width=outline, **draw_params)
         return image
 
     def get_local_size(self) -> Tuple[float, float]:
-        return self.local_size
+        return self.__w, self.__h
 
     def get_local_vertices(self) -> List[Vector2]:
-        w, h = self.get_local_size()
+        w, h = self.__w, self.__h
         return [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
 
     @property
@@ -399,20 +400,23 @@ class CircleShape(OutlinedShape, ThemedShape):
         )
 
     def _make(self) -> Surface:
-        width, height = self.get_local_size()
+        radius: float = self.radius
+        width = height = radius * 2
+        outline: int = self.outline
         image: Surface = create_surface((width, height))
         center: Tuple[float, float] = (width / 2, height / 2)
-        radius: float = self.radius
-        pygame.draw.circle(image, self.color, center, radius, **self.__draw_params)
-        if self.outline > 0:
-            pygame.draw.circle(image, self.outline_color, center, radius, width=self.outline, **self.__draw_params)
+        draw_params = self.__draw_params
+        pygame.draw.circle(image, self.color, center, radius, **draw_params)
+        if outline > 0:
+            pygame.draw.circle(image, self.outline_color, center, radius, width=outline, **draw_params)
         return image
 
     def get_local_size(self) -> Tuple[float, float]:
         return (self.radius * 2, self.radius * 2)
 
     def get_local_vertices(self) -> List[Vector2]:
-        if all(not drawn for drawn in self.__draw_params.values()):
+        draw_params = self.__draw_params
+        if all(not drawn for drawn in draw_params.values()):
             return []
 
         center: Vector2 = Vector2(self.radius, self.radius)
@@ -428,7 +432,7 @@ class CircleShape(OutlinedShape, ThemedShape):
         all_points: List[Vector2] = []
 
         for draw_side, angle_range in angle_ranges.items():
-            if self.__draw_params[draw_side] is True:
+            if draw_params[draw_side]:
                 all_points.extend(center + radius.rotate(-i) for i in angle_range)
             elif not all_points or all_points[-1] != center:
                 all_points.append(Vector2(center))
@@ -508,6 +512,7 @@ class CrossShape(OutlinedShape, ThemedShape):
         self.__h: float = 0
         self.__line_width: float = 0
         self.__type: CrossShape.Type = CrossShape.Type(type)
+        self.__points: List[Vector2] = []
         self.local_size = width, height
         self.line_width = line_width
         self._need_update()
@@ -525,18 +530,18 @@ class CrossShape(OutlinedShape, ThemedShape):
         )
 
     def _make(self) -> Surface:
-        all_points: List[Vector2] = self.get_local_vertices()
-        return PolygonShape(self.color, outline=self.outline, outline_color=self.outline_color, points=all_points).to_surface()
+        compute_vertices = {
+            CrossShape.Type.DIAGONAL: self.__get_diagonal_cross_points,
+            CrossShape.Type.PLUS: self.__get_plus_cross_points,
+        }
+        self.__points = compute_vertices[self.__type]()
+        return PolygonShape(self.color, outline=self.outline, outline_color=self.outline_color, points=self.__points).to_surface()
 
     def get_local_size(self) -> Tuple[float, float]:
         return self.local_size
 
     def get_local_vertices(self) -> List[Vector2]:
-        compute_vertices = {
-            CrossShape.Type.DIAGONAL: self.__get_diagonal_cross_points,
-            CrossShape.Type.PLUS: self.__get_plus_cross_points,
-        }
-        return compute_vertices[self.__type]()
+        return [Vector2(p) for p in self.__points]
 
     def __get_diagonal_cross_points(self) -> List[Vector2]:
         rect: Rect = self.get_local_rect()

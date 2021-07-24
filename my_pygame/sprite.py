@@ -43,17 +43,22 @@ class Sprite(Drawable, PygameSprite):
         return self.image
 
     def _apply_rotation_scale(self) -> None:
+        default_image: Surface = self.__default_image
+        image: Surface
+        angle: float = self.angle
+        scale: float = self.scale
         if not self.__smooth_scale:
-            self.__image = pygame.transform.rotozoom(self.__default_image, self.angle, self.scale)
+            image = pygame.transform.rotozoom(default_image, angle, scale)
         else:
-            if self.scale != 1:
-                w, h = self.get_local_size()
-                w = round(w * self.scale)
-                h = round(h * self.scale)
-                self.__image = pygame.transform.smoothscale(self.__default_image, (w, h))
+            if scale != 1:
+                w, h = default_image.get_size()
+                w = round(w * scale)
+                h = round(h * scale)
+                image = pygame.transform.smoothscale(default_image, (w, h))
             else:
-                self.__image = self.__default_image
-            self.__image = pygame.transform.rotate(self.__image, self.angle)
+                image = default_image
+            image = pygame.transform.rotate(image, angle)
+        self.__image = image
         self._update_mask()
 
     def _update_mask(self) -> None:
@@ -112,9 +117,9 @@ class AnimatedSprite(Sprite):
 
     def update(self, *args: Any, **kwargs: Any) -> None:
         if self.is_sprite_animating() and self.__clock.elapsed_time(self.__wait_time):
-            self.__sprite_idx = (self.__sprite_idx + 1) % len(self.__list)
-            self.default_image = self.__list[self.__sprite_idx]
-            if self.__sprite_idx == 0 and not self.__loop:
+            self.__sprite_idx = sprite_idx = (self.__sprite_idx + 1) % len(self.__list)
+            self.default_image = self.__list[sprite_idx]
+            if sprite_idx == 0 and not self.__loop:
                 self.stop_sprite_animation(reset=True)
 
     def is_sprite_animating(self) -> bool:
