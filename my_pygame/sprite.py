@@ -115,7 +115,7 @@ class AnimatedSprite(Sprite):
             self.__sprite_idx = (self.__sprite_idx + 1) % len(self.__list)
             self.default_image = self.__list[self.__sprite_idx]
             if self.__sprite_idx == 0 and not self.__loop:
-                self.stop_sprite_animation()
+                self.stop_sprite_animation(reset=True)
 
     def is_sprite_animating(self) -> bool:
         return self.__animation
@@ -127,6 +127,7 @@ class AnimatedSprite(Sprite):
         self.__sprite_idx = 0
         self.__animation = True
         self.__clock.restart()
+        self.default_image = self.__list[0]
 
     def restart_sprite_animation(self) -> None:
         if len(self.__list) <= 1:
@@ -134,8 +135,12 @@ class AnimatedSprite(Sprite):
         self.__animation = True
         self.__clock.restart(reset=False)
 
-    def stop_sprite_animation(self) -> None:
+    def stop_sprite_animation(self, reset: bool = False) -> None:
         self.__animation = False
+        if reset and self.__sprite_idx != 0:
+            self.__sprite_idx = 0
+            self.__loop = False
+            self.default_image = self.__list[0]
 
     @property
     def ratio(self) -> float:

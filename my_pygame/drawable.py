@@ -15,6 +15,13 @@ from .animation import Animation
 from .surface import create_surface
 
 
+def _set_default_position(instance: Drawable) -> None:
+    position: Dict[str, Union[float, Tuple[float, float]]] = instance.get_last_move()
+    w, h = instance.get_size()
+    instance.center = (w / 2, h / 2)
+    instance.set_position(**position)
+
+
 class MetaDrawable(ABCMeta):
     def __new__(metacls, name: str, bases: Tuple[type, ...], attrs: Dict[str, Any], **kwargs: Any) -> MetaDrawable:
         def draw_decorator(func: Callable[[Drawable, Surface], None]) -> Callable[[Drawable, Surface], None]:
@@ -25,38 +32,16 @@ class MetaDrawable(ABCMeta):
 
             return wrapper
 
-        def copy_decorator(func: Callable[[Drawable], Drawable]) -> Callable[[Drawable], Drawable]:
-            @wraps(func)
-            def wrapper(self: Drawable) -> Drawable:
-                copy_self: Drawable = func(self)
-                copy_self.scale = self.scale
-                copy_self.angle = self.angle
-                copy_self.center = self.center
-                return copy_self
-
-            return wrapper
-
         draw_method: Optional[Callable[[Drawable, Surface], None]] = attrs.get("draw_onto")
         if callable(draw_method):
             attrs["draw_onto"] = draw_decorator(draw_method)
-
-        copy_method: Optional[Callable[[Drawable], Drawable]] = attrs.get("copy")
-        if callable(copy_method):
-            attrs["copy"] = copy_decorator(copy_method)
 
         return super().__new__(metacls, name, bases, attrs, **kwargs)
 
     def __call__(cls, *args: Any, **kwds: Any) -> Any:
         instance: Drawable = super().__call__(*args, **kwds)
-        cls._set_default_position(instance)
+        _set_default_position(instance)
         return instance
-
-    @staticmethod
-    def _set_default_position(instance: Drawable) -> None:
-        position: Dict[str, Union[float, Tuple[float, float]]] = instance.get_last_move()
-        w, h = instance.get_size()
-        instance.center = (w / 2, h / 2)
-        instance.set_position(**position)
 
 
 class Drawable(metaclass=MetaDrawable):
@@ -78,6 +63,13 @@ class Drawable(metaclass=MetaDrawable):
     @abstractmethod
     def copy(self: __DrawableType) -> __DrawableType:
         raise NotImplementedError
+
+    def deep_copy(self: __DrawableType) -> __DrawableType:
+        copy_self: Drawable.__DrawableType = self.copy()
+        copy_self.scale = self.scale
+        copy_self.angle = self.angle
+        copy_self.center = self.center
+        return copy_self
 
     def to_surface(self) -> Surface:
         topleft: Tuple[float, float] = self.topleft
@@ -456,7 +448,7 @@ class Drawable(metaclass=MetaDrawable):
 class MetaThemedDrawable(MetaDrawable, MetaThemedObject):
     def __call__(cls, *args: Any, **kwds: Any) -> Any:
         instance: ThemedDrawable = MetaThemedObject.__call__(cls, *args, **kwds)
-        cls._set_default_position(instance)
+        _set_default_position(instance)
         return instance
 
 
