@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from abc import ABCMeta
-from typing import Any, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Type, TypeVar, Union, cast
 from operator import truth
 
 
@@ -44,6 +44,8 @@ _CLASSES_NOT_USING_PARENT_THEMES: List[type] = list()
 _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES: List[type] = list()
 _HIDDEN_THEME_PREFIX: str = "__"
 
+_T = TypeVar("_T")
+
 
 class _NoThemeType(str):
     pass
@@ -58,6 +60,7 @@ class MetaThemedObject(ABCMeta):
     def __init__(cls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwds: Any) -> None:
         super().__init__(name, bases, namespace, **kwds)
         setattr(cls, "__is_abstract_theme_class__", False)
+        cls.__virtual_themed_class_bases__: Tuple[MetaThemedObject, ...] = ()
         if all(not isinstance(b, MetaThemedObject) or b.is_abstract_theme_class() for b in bases):
             if cls not in _CLASSES_NOT_USING_PARENT_THEMES:
                 _CLASSES_NOT_USING_PARENT_THEMES.append(cls)
@@ -69,7 +72,7 @@ class MetaThemedObject(ABCMeta):
             return super().__call__(*args, **kwargs)
 
         theme: Optional[Theme] = kwargs.pop("theme", None)
-        if theme == NoTheme:
+        if isinstance(theme, _NoThemeType):
             return super().__call__(*args, **kwargs)
 
         default_theme: List[str] = list()
@@ -137,6 +140,25 @@ class MetaThemedObject(ABCMeta):
     def is_abstract_theme_class(cls) -> bool:
         return truth(getattr(cls, "__is_abstract_theme_class__", False))
 
+    def register(cls, subclass: Type[_T]) -> Type[_T]:
+        super().register(subclass)
+        if isinstance(subclass, MetaThemedObject):
+            cls.__register_themed_subclass(cast(MetaThemedObject, subclass))
+        return subclass
+
+    def __register_themed_subclass(cls, subclass: MetaThemedObject) -> None:
+        subclass.__virtual_themed_class_bases__ = (*subclass.__virtual_themed_class_bases__, cls)
+        if not getattr(subclass, "__no_parent_theme__", False):
+            try:
+                _CLASSES_NOT_USING_PARENT_THEMES.remove(subclass)
+            except ValueError:
+                pass
+        if not getattr(subclass, "__no_parent_default_theme__", False):
+            try:
+                _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.remove(subclass)
+            except ValueError:
+                pass
+
     @staticmethod
     def __get_theme_options(cls: type, theme: str) -> Dict[str, Any]:
         if theme.startswith(_HIDDEN_THEME_PREFIX):
@@ -144,11 +166,11 @@ class MetaThemedObject(ABCMeta):
         return _THEMES[ThemeNamespace.get()].get(cls, dict()).get(theme, dict())
 
     @staticmethod
-    def __get_all_parent_class(cls: type, do_not_search_for: List[type] = []) -> Iterator[type]:
-        if not isinstance(cls, MetaThemedObject) or cls in do_not_search_for:
+    def __get_all_parent_class(cls: MetaThemedObject, do_not_search_for: List[type] = []) -> Iterator[MetaThemedObject]:
+        if not isinstance(cls, MetaThemedObject) or cls in do_not_search_for or cls.is_abstract_theme_class():
             return
-        for base in cls.__bases__:
-            if not isinstance(base, MetaThemedObject):
+        for base in (*cls.__bases__, *cls.__virtual_themed_class_bases__):
+            if not isinstance(base, MetaThemedObject) or base.is_abstract_theme_class():
                 continue
             yield base
             yield from MetaThemedObject.__get_all_parent_class(base)
@@ -159,10 +181,6 @@ _ThemedObjectVar = TypeVar("_ThemedObjectVar", bound=MetaThemedObject)
 
 def abstract_theme_class(cls: _ThemedObjectVar) -> _ThemedObjectVar:
     setattr(cls, "__is_abstract_theme_class__", True)
-    if cls not in _CLASSES_NOT_USING_PARENT_THEMES:
-        _CLASSES_NOT_USING_PARENT_THEMES.append(cls)
-    if cls not in _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES:
-        _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.append(cls)
     return cls
 
 
@@ -172,6 +190,8 @@ class ThemedObject(metaclass=MetaThemedObject):
         super().__init_subclass__()
         if not use_parent_theme:
             _CLASSES_NOT_USING_PARENT_THEMES.append(cls)
+            setattr(cls, "__no_parent_theme__", True)
             use_parent_default_theme = False
         if not use_parent_default_theme:
             _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.append(cls)
+            setattr(cls, "__no_parent_default_theme__", True)

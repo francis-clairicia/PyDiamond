@@ -17,8 +17,10 @@ from pygame.surface import Surface
 
 from .drawable import ThemedDrawable
 from .colors import BLACK
-from .theme import Theme
+from .theme import NoTheme, Theme
 from .surface import create_surface
+
+# from .image import Image
 
 _TextFont = Union[Font, Tuple[Optional[str], int]]
 
@@ -76,6 +78,7 @@ class Text(ThemedDrawable):
             shadow_x=self.shadow_x,
             shadow_y=self.shadow_y,
             shadow_color=self.shadow_color,
+            theme=NoTheme,
         )
 
     def draw_onto(self, surface: Surface) -> None:
@@ -296,3 +299,80 @@ class Text(ThemedDrawable):
         if self.__shadow_color != color:
             self.__shadow_color = Color(color)
             self.__need_update()
+
+
+# @Text.register
+# class TextImage(ThemedDrawable):
+#     Justify = Text.Justify
+
+#     @unique
+#     class Compound(str, Enum):
+#         LEFT = "left"
+#         RIGHT = "right"
+#         TOP = "top"
+#         BOTTOM = "bottom"
+#         CENTER = "center"
+
+#     def __init__(
+#         self,
+#         message: str = "",
+#         *,
+#         img: Optional[Surface] = None,
+#         compound: str = "left",
+#         font: Optional[_TextFont] = None,
+#         bold: Optional[bool] = None,
+#         italic: Optional[bool] = None,
+#         underline: Optional[bool] = None,
+#         color: Color = BLACK,
+#         wrap: int = 0,
+#         justify: str = "left",
+#         shadow_x: float = 0,
+#         shadow_y: float = 0,
+#         shadow_color: Color = BLACK,
+#         theme: Optional[Theme] = None,
+#     ) -> None:
+#         super().__init__()
+#         self.__text: Text = Text(
+#             message=message,
+#             font=font,
+#             bold=bold,
+#             italic=italic,
+#             underline=underline,
+#             color=color,
+#             wrap=wrap,
+#             justify=justify,
+#             shadow_x=shadow_x,
+#             shadow_y=shadow_y,
+#             shadow_color=shadow_color,
+#             theme=NoTheme,
+#         )
+#         self.__img: Image = Image(img if img is not None else create_surface((0, 0)))
+#         self.__compound: TextImage.Compound = TextImage.Compound(compound)
+
+#     def draw_onto(self, surface: Surface) -> None:
+#         self.__text.center = self.center
+#         return self.__text.draw_onto(surface)
+
+#     def copy(self) -> TextImage:
+#         return TextImage(
+#             message=self.__text.message,
+#             img=self.__img.get(),
+#             compound=self.__compound,
+#             font=self.__text.font,
+#             color=self.__text.color,
+#             wrap=self.__text.wrap,
+#             justify=self.__text.justify,
+#             shadow_x=self.__text.shadow_x,
+#             shadow_y=self.__text.shadow_y,
+#             shadow_color=self.__text.shadow_color,
+#             theme=NoTheme,
+#         )
+
+#     def get_local_size(self) -> Tuple[float, float]:
+#         return self.__text.get_local_size()
+
+#     def _apply_rotation_scale(self) -> None:
+#         self.__text.set_rotation(self.angle)
+#         self.__text.set_scale(self.scale)
+#         self.__img.set_rotation(self.angle)
+#         self.__img.set_scale(self.scale)

@@ -14,7 +14,7 @@ from pygame.color import Color
 from pygame.surface import Surface
 
 from .drawable import Drawable, ThemedDrawable
-from .theme import Theme, abstract_theme_class
+from .theme import NoTheme, Theme, abstract_theme_class
 from .colors import BLACK
 from .surface import create_surface
 
@@ -138,7 +138,15 @@ class OutlinedShape(AbstractShape):
 class PolygonShape(OutlinedShape, ThemedShape):
     PointList = Union[List[Vector2], List[Tuple[float, float]], List[Tuple[int, int]]]
 
-    def __init__(self, color: Color, *, outline: int = 0, outline_color: Color = BLACK, points: List[Vector2] = []) -> None:
+    def __init__(
+        self,
+        color: Color,
+        *,
+        outline: int = 0,
+        outline_color: Color = BLACK,
+        points: List[Vector2] = [],
+        theme: Optional[Theme] = None,
+    ) -> None:
         super().__init__(color, outline, outline_color)
         self.__points: List[Vector2] = []
         self.__center: Vector2 = Vector2(0, 0)
@@ -146,7 +154,9 @@ class PolygonShape(OutlinedShape, ThemedShape):
         self._need_update()
 
     def copy(self) -> PolygonShape:
-        return PolygonShape(self.color, outline=self.outline, outline_color=self.outline_color, points=self.__points)
+        return PolygonShape(
+            self.color, outline=self.outline, outline_color=self.outline_color, points=self.__points, theme=NoTheme
+        )
 
     def _make(self) -> Surface:
         if len(self.__points) < 2:
@@ -255,7 +265,7 @@ class RectangleShape(OutlinedShape, ThemedShape):
             outline=self.outline,
             outline_color=self.outline_color,
             **self.__draw_params,
-            theme=None,
+            theme=NoTheme,
         )
 
     def _make(self) -> Surface:
@@ -385,7 +395,7 @@ class CircleShape(OutlinedShape, ThemedShape):
 
     def copy(self) -> CircleShape:
         return CircleShape(
-            self.radius, self.color, outline=self.outline, outline_color=self.outline_color, **self.__draw_params, theme=None
+            self.radius, self.color, outline=self.outline, outline_color=self.outline_color, **self.__draw_params, theme=NoTheme
         )
 
     def _make(self) -> Surface:
@@ -511,6 +521,7 @@ class CrossShape(OutlinedShape, ThemedShape):
             line_width=self.line_width,
             outline=self.outline,
             outline_color=self.outline_color,
+            theme=NoTheme,
         )
 
     def _make(self) -> Surface:
@@ -660,7 +671,7 @@ class DiagonalCrossShape(CrossShape):
             line_width=line_width,
             outline_color=outline_color,
             outline=outline,
-            theme=theme,
+            theme=NoTheme,
         )
 
     def copy(self) -> DiagonalCrossShape:
@@ -671,6 +682,7 @@ class DiagonalCrossShape(CrossShape):
             line_width=self.line_width,
             outline=self.outline,
             outline_color=self.outline_color,
+            theme=NoTheme,
         )
 
 
@@ -694,7 +706,7 @@ class PlusCrossShape(CrossShape):
             line_width=line_width,
             outline_color=outline_color,
             outline=outline,
-            theme=theme,
+            theme=NoTheme,
         )
 
     def copy(self) -> PlusCrossShape:
@@ -705,4 +717,5 @@ class PlusCrossShape(CrossShape):
             line_width=self.line_width,
             outline=self.outline,
             outline_color=self.outline_color,
+            theme=NoTheme,
         )
