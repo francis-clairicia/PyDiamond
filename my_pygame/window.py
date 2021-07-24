@@ -171,7 +171,7 @@ class WindowCallbackList(List[WindowCallback]):
             callback()
 
 
-class _WindowTransition(IntEnum):
+class _SceneTransitionEnum(IntEnum):
     SHOW = 1
     HIDE = 2
 
@@ -234,7 +234,7 @@ class Window:
         self.__text_framerate.hide()
         self.__text_framerate.midtop = (self.centerx, self.top + 10)
         self.__actual_scene: Optional[Scene] = None
-        self.__transition: _WindowTransition = _WindowTransition.SHOW
+        self.__transition: _SceneTransitionEnum = _SceneTransitionEnum.SHOW
 
     def __del__(self) -> None:
         Window.__main_window = True
@@ -415,7 +415,7 @@ class Window:
         scene = self.get_scene(scene)
         if scene.looping():
             return
-        transition: _WindowTransition = _WindowTransition.SHOW
+        transition: _SceneTransitionEnum = _SceneTransitionEnum.SHOW
         try:
             self.__scenes.clear(until=scene)
         except WindowError:
@@ -423,13 +423,13 @@ class Window:
         if self.__actual_scene is None or self.__actual_scene is scene:
             return
         if self.__actual_scene not in self.__scenes:
-            transition = _WindowTransition.HIDE
+            transition = _SceneTransitionEnum.HIDE
         self.__transition = transition
 
     def stop_scene(self, scene: Union[Scene, SceneAlias]) -> None:
         self.__scenes.clear(until=scene)
         self.__scenes.remove(scene)
-        self.__transition = _WindowTransition.HIDE
+        self.__transition = _SceneTransitionEnum.HIDE
 
     def __update_actual_scene(self) -> Optional[Scene]:
         actual_scene: Optional[Scene] = self.get_actual_scene()
@@ -441,9 +441,9 @@ class Window:
                 actual_scene.on_start_loop()
             else:
                 self.__actual_scene.on_quit()
-                if self.__transition == _WindowTransition.SHOW and self.__actual_scene.transition is not None:
+                if self.__transition == _SceneTransitionEnum.SHOW and self.__actual_scene.transition is not None:
                     self.__actual_scene.transition.show_new_scene(self.__actual_scene, actual_scene)
-                elif self.__transition == _WindowTransition.HIDE and actual_scene.transition is not None:
+                elif self.__transition == _SceneTransitionEnum.HIDE and actual_scene.transition is not None:
                     actual_scene.transition.hide_actual_scene(self.__actual_scene, actual_scene)
                 actual_scene.on_start_loop()
             self.__actual_scene = actual_scene

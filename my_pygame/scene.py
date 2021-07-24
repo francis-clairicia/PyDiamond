@@ -29,12 +29,11 @@ class MetaSceneEnum(EnumMeta):
 
         return super().__new__(metacls, name, bases, namespace)
 
-    def __init__(cls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any]) -> None:
-        super().__init__(name, bases, namespace)
-        unique(cls)  # type: ignore
-
 
 class SceneEnum(str, Enum, metaclass=MetaSceneEnum):
+    def __init_subclass__(cls) -> None:
+        unique(cls)
+
     def _generate_next_value_(name: str, start: int, count: int, last_values: List[str]) -> str:  # type: ignore[override]
         return name.upper()
 
