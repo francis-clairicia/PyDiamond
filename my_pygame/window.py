@@ -441,11 +441,10 @@ class Window:
                 actual_scene.on_start_loop()
             else:
                 self.__actual_scene.on_quit()
-                if self.__actual_scene.transition is not None:
-                    if self.__transition == _WindowTransition.SHOW:
-                        self.__actual_scene.transition.show_new_scene(self.__actual_scene, actual_scene)
-                    elif self.__transition == _WindowTransition.HIDE:
-                        self.__actual_scene.transition.hide_actual_scene(self.__actual_scene, actual_scene)
+                if self.__transition == _WindowTransition.SHOW and self.__actual_scene.transition is not None:
+                    self.__actual_scene.transition.show_new_scene(self.__actual_scene, actual_scene)
+                elif self.__transition == _WindowTransition.HIDE and actual_scene.transition is not None:
+                    actual_scene.transition.hide_actual_scene(self.__actual_scene, actual_scene)
                 actual_scene.on_start_loop()
             self.__actual_scene = actual_scene
         return actual_scene
