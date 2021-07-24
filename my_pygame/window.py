@@ -304,6 +304,8 @@ class Window:
             else:
                 self.clear(scene.background_color)
             scene.draw()
+        elif self.text_framerate.is_shown():
+            self.clear()
 
     def update(self) -> None:
         scene: Optional[Scene] = self.__update_actual_scene()

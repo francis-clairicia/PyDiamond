@@ -66,7 +66,7 @@ class MetaScene(ABCMeta):
     def __theme_namespace_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
         def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
-            cls: type = type(self)
+            cls: type = type(self) if not isinstance(self, type) else self
             output: Any
             if cls in MetaScene.__namespaces and ThemeNamespace.get() is not MetaScene.__namespaces[cls]:
                 with ThemeNamespace(MetaScene.__namespaces[cls]):
@@ -88,6 +88,8 @@ class MetaScene(ABCMeta):
                 obj = obj.setter(MetaScene.__theme_namespace_decorator(obj.fset))
             if callable(obj.fdel):
                 obj = obj.deleter(MetaScene.__theme_namespace_decorator(obj.fdel))
+        elif isinstance(obj, classmethod):
+            obj = classmethod(MetaScene.__theme_namespace_decorator(obj.__func__))
         return obj
 
 
