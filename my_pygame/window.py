@@ -280,7 +280,7 @@ class Window:
         if self.text_framerate.is_shown():
             if not self.text_framerate.message or self.__framerate_update_clock.elapsed_time(200):
                 self.text_framerate.message = f"{round(self.framerate)} FPS"
-            self.text_framerate.draw_onto(self.__surface)
+            self.draw(self.text_framerate)
         screen.blit(self.__surface, (0, 0))
         pygame.display.flip()
 
@@ -304,8 +304,6 @@ class Window:
             else:
                 self.clear(scene.background_color)
             scene.draw()
-        elif self.text_framerate.is_shown():
-            self.clear()
 
     def update(self) -> None:
         scene: Optional[Scene] = self.__update_actual_scene()
@@ -436,19 +434,20 @@ class Window:
     def __update_actual_scene(self) -> Optional[Scene]:
         actual_scene: Optional[Scene] = self.get_actual_scene()
         if actual_scene is not self.__actual_scene:
+            previous_scene: Optional[Scene] = self.__actual_scene
+            self.__actual_scene = actual_scene
             if actual_scene is None:
-                if self.__actual_scene is not None:
-                    self.__actual_scene.on_quit()
-            elif self.__actual_scene is None:
+                if previous_scene is not None:
+                    previous_scene.on_quit()
+            elif previous_scene is None:
                 actual_scene.on_start_loop()
             else:
-                self.__actual_scene.on_quit()
-                if self.__transition == _SceneTransitionEnum.SHOW and self.__actual_scene.transition is not None:
-                    self.__actual_scene.transition.show_new_scene(self.__actual_scene, actual_scene)
+                previous_scene.on_quit()
+                if self.__transition == _SceneTransitionEnum.SHOW and previous_scene.transition is not None:
+                    previous_scene.transition.show_new_scene(previous_scene, actual_scene)
                 elif self.__transition == _SceneTransitionEnum.HIDE and actual_scene.transition is not None:
-                    actual_scene.transition.hide_actual_scene(self.__actual_scene, actual_scene)
+                    actual_scene.transition.hide_actual_scene(previous_scene, actual_scene)
                 actual_scene.on_start_loop()
-            self.__actual_scene = actual_scene
         return actual_scene
 
     @property
