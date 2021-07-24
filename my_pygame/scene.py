@@ -55,7 +55,10 @@ class MetaScene(ABCMeta):
     def set_theme_namespace(cls, namespace: Any) -> None:
         if cls.__abstractmethods__:
             raise TypeError(f"{cls.__name__} is an abstract class")
-        MetaScene.__namespaces[cls] = namespace
+        if namespace is not None:
+            MetaScene.__namespaces[cls] = namespace
+        else:
+            MetaScene.__namespaces.pop(cls, None)
 
     def remove_theme_namespace(cls) -> None:
         if cls.__abstractmethods__:
