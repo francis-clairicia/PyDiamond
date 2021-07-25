@@ -251,11 +251,11 @@ class Window:
 
         self.__callback_after.process()
         actual_scene: Optional[Scene] = self.__update_actual_scene()
-        if actual_scene and actual_scene in self.__callback_after_scenes:
-            self.__callback_after_scenes[actual_scene].process()
-        for scene in self.__callback_after_scenes:
-            if scene not in self.__scenes:
-                self.__callback_after_scenes.pop(scene)
+        if actual_scene:
+            try:
+                self.__callback_after_scenes[actual_scene].process()
+            except KeyError:
+                pass
 
         self.__handle_mouse_pos(actual_scene)
         self.__handle_all_events(actual_scene)
@@ -458,6 +458,7 @@ class Window:
     def stop_scene(self, scene: Union[Scene, SceneAlias]) -> None:
         self.__scenes.clear(until=scene)
         self.__scenes.remove(scene)
+        self.__callback_after_scenes.pop(self.get_scene(scene), None)
         self.__transition = _SceneTransitionEnum.HIDE
 
     def __update_actual_scene(self) -> Optional[Scene]:

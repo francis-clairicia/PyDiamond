@@ -15,33 +15,42 @@ from .animation import Animation
 from .surface import create_surface
 
 
-def _set_default_position(instance: Drawable) -> None:
-    position: Dict[str, Union[float, Tuple[float, float]]] = instance.get_last_move()
-    w, h = instance.get_size()
-    instance.center = (w / 2, h / 2)
-    instance.set_position(**position)
+def _init_decorator(func: Callable[..., None]) -> Callable[..., None]:
+    @wraps(func)
+    def wrapper(self: Drawable, *args: Any, **kwargs: Any) -> None:
+        last_state: bool = getattr(self, "__save_last_move__", False)
+        setattr(self, "__save_last_move__", True)
+        if not hasattr(self, "__last_move__"):
+            setattr(self, "__last_move__", {"x": 0, "y": 0})
+        func(self, *args, **kwargs)
+        if last_state is False:
+            position: Dict[str, Union[float, Tuple[float, float]]] = getattr(self, "__last_move__")
+            self.set_position(**position)
+            setattr(self, "__save_last_move__", False)
+
+    return wrapper
+
+
+def _draw_decorator(func: Callable[[Drawable, Surface], None]) -> Callable[[Drawable, Surface], None]:
+    @wraps(func)
+    def wrapper(self: Drawable, surface: Surface) -> None:
+        if self.is_shown():
+            func(self, surface)
+
+    return wrapper
 
 
 class MetaDrawable(ABCMeta):
     def __new__(metacls, name: str, bases: Tuple[type, ...], attrs: Dict[str, Any], **kwargs: Any) -> MetaDrawable:
-        def draw_decorator(func: Callable[[Drawable, Surface], None]) -> Callable[[Drawable, Surface], None]:
-            @wraps(func)
-            def wrapper(self: Drawable, surface: Surface) -> None:
-                if self.is_shown():
-                    func(self, surface)
-
-            return wrapper
+        init_method: Optional[Callable[..., None]] = attrs.get("__init__")
+        if callable(init_method):
+            attrs["__init__"] = _init_decorator(init_method)
 
         draw_method: Optional[Callable[[Drawable, Surface], None]] = attrs.get("draw_onto")
         if callable(draw_method):
-            attrs["draw_onto"] = draw_decorator(draw_method)
+            attrs["draw_onto"] = _draw_decorator(draw_method)
 
         return super().__new__(metacls, name, bases, attrs, **kwargs)
-
-    def __call__(cls, *args: Any, **kwds: Any) -> Any:
-        instance: Drawable = super().__call__(*args, **kwds)
-        _set_default_position(instance)
-        return instance
 
 
 class Drawable(metaclass=MetaDrawable):
@@ -53,7 +62,6 @@ class Drawable(metaclass=MetaDrawable):
         self.__angle: float = 0
         self.__scale: float = 1
         self.__draw: bool = True
-        self.__last_move: Dict[str, Union[float, Tuple[float, float]]] = {"x": 0, "y": 0}
         self.__animation: Animation = Animation(self)
 
     @abstractmethod
@@ -117,16 +125,16 @@ class Drawable(metaclass=MetaDrawable):
             setattr(self, name, value)
 
     def __update_last_move(self, move: str, value: Union[float, Tuple[float, float]]) -> None:
+        if not getattr(self, "__save_last_move__", False):
+            return
+        last_move: Dict[str, Union[float, Tuple[float, float]]] = getattr(self, "__last_move__")
         horizontal_positions: Tuple[str, ...] = ("x", "left", "right", "centerx")
         vertical_positions: Tuple[str, ...] = ("y", "top", "bottom", "centery")
         for positions in [horizontal_positions, vertical_positions]:
             if move in positions:
                 for pos in positions:
-                    self.__last_move.pop(pos, None)
-        self.__last_move[move] = value
-
-    def get_last_move(self) -> Dict[str, Union[float, Tuple[float, float]]]:
-        return self.__last_move.copy()
+                    last_move.pop(pos, None)
+        last_move[move] = value
 
     def move(self, dx: float, dy: float) -> None:
         self.x += dx
@@ -446,10 +454,7 @@ class Drawable(metaclass=MetaDrawable):
 
 
 class MetaThemedDrawable(MetaDrawable, MetaThemedObject):
-    def __call__(cls, *args: Any, **kwds: Any) -> Any:
-        instance: ThemedDrawable = MetaThemedObject.__call__(cls, *args, **kwds)
-        _set_default_position(instance)
-        return instance
+    pass
 
 
 @abstract_theme_class

@@ -93,7 +93,7 @@ class ShapeScene(Scene):
 
     def update(self) -> None:
         degrees: float = 1
-        if self.__clock.elapsed_time(10):
+        if self.__clock.elapsed_time(15):
             self.__r.rotate(degrees)
             self.__p.rotate(-degrees, pivot=self.__r.center)
             self.__p.rotate(degrees * 3)
