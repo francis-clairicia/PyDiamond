@@ -116,14 +116,19 @@ class _AnimationRotation(_AbstractAnimationClass):
         milliseconds: float,
         angle: float,
         offset: float,
-        point: Union[Vector2, Tuple[float, float], str, None],
+        pivot: Union[Vector2, Tuple[float, float], str, None],
     ):
         super().__init__(drawable, milliseconds)
         self.__angle: float = abs(angle)
         self.__sign: int = int(angle // abs(angle)) if angle != 0 and offset > 0 else 0
         self.__offset: float = offset * self.__sign if offset > 0 else 0
         self.__actual_angle: float = 0
-        self.__pivot: Union[Vector2, Tuple[float, float], str, None] = point
+        self.__pivot: Union[Vector2, Tuple[float, float], None]
+        if isinstance(pivot, str):
+            pivot = getattr(self.drawable, pivot)
+            if not isinstance(pivot, tuple) or len(pivot) != 2:
+                raise AttributeError(f"Bad pivot attribute: {pivot}")
+        self.__pivot = pivot
 
     def started(self) -> bool:
         return super().started() and self.__angle != 0 and self.__offset != 0
@@ -215,18 +220,18 @@ class Animation:
         self,
         angle: float,
         offset: float = 1,
-        point: Optional[Union[Vector2, Tuple[float, float], str]] = None,
+        pivot: Optional[Union[Vector2, Tuple[float, float], str]] = None,
         milliseconds: float = 10,
     ) -> Animation:
-        animation = "rotate" if point is None else "rotate_point"
-        self.__animations[animation] = _AnimationRotation(self.__drawable, milliseconds, angle, offset, point)
+        animation = "rotate" if pivot is None else "rotate_point"
+        self.__animations[animation] = _AnimationRotation(self.__drawable, milliseconds, angle, offset, pivot)
         return self
 
     def register_rotation_set(
         self,
         angle: float,
         offset: float = 1,
-        point: Optional[Union[Vector2, Tuple[float, float], str]] = None,
+        pivot: Optional[Union[Vector2, Tuple[float, float], str]] = None,
         milliseconds: float = 10,
     ) -> Animation:
         angle %= 360
@@ -240,7 +245,7 @@ class Animation:
                 if offset < 0:
                     angle -= 360
             angle -= self.__drawable.angle
-        return self.register_rotation(angle, abs(offset), point, milliseconds)
+        return self.register_rotation(angle, abs(offset), pivot, milliseconds)
 
     def register_width_offset(self, width_offset: float, step: float = 1, milliseconds: float = 10) -> Animation:
         width: float = self.__drawable.width + width_offset

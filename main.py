@@ -95,11 +95,11 @@ class ShapeScene(Scene):
         degrees: float = 1
         if self.__clock.elapsed_time(10):
             self.__r.rotate(degrees)
-            self.__p.rotate(-degrees, point=self.__r.center)
+            self.__p.rotate(-degrees, pivot=self.__r.center)
             self.__p.rotate(degrees * 3)
-            self.__x.rotate(degrees, point=self.__r.center)
+            self.__x.rotate(degrees, pivot=self.__r.center)
             self.__x.rotate(-degrees * 3)
-            self.__c.rotate(-degrees, point=self.__r.center)
+            self.__c.rotate(-degrees, pivot=self.__r.center)
             # self.__scale += 0.02 * self.__scale_growth
             # if self.__scale >= 2:
             #     self.__scale_growth = -1
@@ -134,7 +134,7 @@ class AnimationScene(Scene):
         self.rectangle = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
         self.rectangle.midleft = window.midleft
         self.rectangle.animation.register_position(center=window.center, speed=3.7)
-        self.rectangle.animation.register_rotation(360, offset=2, point=window.center)
+        self.rectangle.animation.register_rotation(360, offset=2, pivot=window.center)
         self.rectangle.animation.register_rotation(360, offset=2)
         self.rectangle.animation.start_in_background(self, after_animation=self.move_to_left)
 

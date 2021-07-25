@@ -135,10 +135,10 @@ class Drawable(metaclass=MetaDrawable):
     def translate(self, vector: Union[Vector2, Tuple[float, float]]) -> None:
         self.move(vector[0], vector[1])
 
-    def rotate(self, angle_offset: float, point: Optional[Union[Tuple[float, float], Vector2, str]] = None) -> None:
-        self.set_rotation(self.__angle + angle_offset, point=point)
+    def rotate(self, angle_offset: float, pivot: Optional[Union[Tuple[float, float], Vector2, str]] = None) -> None:
+        self.set_rotation(self.__angle + angle_offset, pivot=pivot)
 
-    def set_rotation(self, angle: float, point: Optional[Union[Tuple[float, float], Vector2, str]] = None) -> None:
+    def set_rotation(self, angle: float, pivot: Optional[Union[Tuple[float, float], Vector2, str]] = None) -> None:
         angle %= 360
         if angle < 0:
             angle += 360
@@ -151,15 +151,15 @@ class Drawable(metaclass=MetaDrawable):
             self._apply_rotation_scale()
         except pygame.error:
             pass
-        if point is None:
-            point = center
-        elif isinstance(point, str):
-            point = getattr(self, point)
-            if not isinstance(point, tuple) or len(point) != 2:
-                raise AttributeError(f"Bad point attribute: {point}")
-        point = Vector2(point)
-        if point != center:
-            center = point + (center - point).rotate(-self.__angle + former_angle)
+        if pivot is None:
+            pivot = center
+        elif isinstance(pivot, str):
+            pivot = getattr(self, pivot)
+            if not isinstance(pivot, tuple) or len(pivot) != 2:
+                raise AttributeError(f"Bad pivot attribute: {pivot}")
+        pivot = Vector2(pivot)
+        if pivot != center:
+            center = pivot + (center - pivot).rotate(-self.__angle + former_angle)
         self.center = center.x, center.y
 
     def set_scale(self, scale: float) -> None:
