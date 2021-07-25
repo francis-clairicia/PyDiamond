@@ -1,7 +1,7 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
-from typing import Any, Callable, Dict, Iterator, List, NoReturn, Optional, SupportsInt, Tuple, Union, overload
+from typing import Any, Callable, Dict, Iterator, List, NoReturn, Optional, Tuple, TypeVar, Union, final, overload
 from enum import IntEnum
 
 import pygame
@@ -13,6 +13,7 @@ from pygame.surface import Surface
 from pygame.rect import Rect
 from pygame.time import Clock as PygameClock
 from pygame.color import Color
+from pygame.event import Event
 
 from .drawable import Drawable
 from .text import Text
@@ -20,108 +21,22 @@ from .colors import BLACK, WHITE
 from .scene import Scene, SceneAlias
 from .clock import Clock
 from .surface import create_surface
+from .mouse import Mouse
+from .keyboard import Keyboard
 
-EventType = SupportsInt
+EventType = int
+EventCallback = Callable[[Event], None]
+
+MousePosition = Tuple[float, float]
+MousePositionCallback = Callable[[MousePosition], None]
+
 ColorInput = Union[Color, str, List[int], Tuple[int, int, int], Tuple[int, int, int, int]]
+
+_T = TypeVar("_T")
 
 
 class WindowError(pygame.error):
     pass
-
-
-class _SceneManager:
-    def __init__(self, window: Window) -> None:
-        self.__stack: List[Scene] = []
-        self.__aliases: Dict[SceneAlias, Scene] = {}
-        self.__window: Window = window
-
-    def __iter__(self) -> Iterator[Scene]:
-        return self.from_top_to_bottom()
-
-    def __len__(self) -> int:
-        return len(self.__stack)
-
-    def __contains__(self, scene: Union[Scene, SceneAlias]) -> bool:
-        if isinstance(scene, Scene):
-            if scene.window is not self.__window:
-                return False
-            return scene in self.__stack
-        return scene in self.__aliases
-
-    def from_top_to_bottom(self) -> Iterator[Scene]:
-        return iter(self.__stack)
-
-    def from_bottom_to_top(self) -> Iterator[Scene]:
-        return iter(reversed(self.__stack))
-
-    def empty(self) -> bool:
-        return not self.__stack
-
-    def get(self, alias: SceneAlias) -> Scene:
-        return self.__aliases[alias]
-
-    def top(self) -> Optional[Scene]:
-        return self.__stack[0] if self.__stack else None
-
-    def index(self, scene: Union[Scene, SceneAlias]) -> int:
-        if isinstance(scene, Scene):
-            return self.__stack.index(scene)
-        return self.__stack.index(self.get(scene))
-
-    def clear(self, until: Optional[Union[Scene, SceneAlias]] = None) -> None:
-        if until is None:
-            self.__stack.clear()
-            self.__aliases.clear()
-            return
-        if not isinstance(until, Scene):
-            until = self.get(until)
-        if until not in self:
-            raise WindowError(f"{type(until).__name__} not stacked")
-        while self.__stack[0] is not until:
-            self.remove(self.__stack[0])
-
-    def remove(self, scene: Union[Scene, SceneAlias]) -> None:
-        alias: Optional[SceneAlias] = None
-        if not isinstance(scene, Scene):
-            alias = scene
-            scene = self.get(alias)
-        if scene.window is not self.__window:
-            raise WindowError("Trying to remove a scene bound to an another window")
-        try:
-            self.__stack.remove(scene)
-        except ValueError:
-            pass
-        finally:
-            if alias is None:
-                alias = self.__get_alias(scene)
-            if alias is not None:
-                self.__aliases.pop(alias)
-
-    def push(self, scene: Union[Scene, SceneAlias], alias: Optional[SceneAlias] = None) -> None:
-        if not isinstance(scene, Scene):
-            alias = scene
-            scene = self.get(scene)
-        if scene.window is not self.__window:
-            raise WindowError("Trying to push a scene bound to an another window")
-        if alias is None:
-            alias = self.__get_alias(scene)
-        self.remove(scene)
-        if any(type(stacked_scene) is type(scene) for stacked_scene in self):
-            raise TypeError("A scene with the same type is stacked")
-        self.__stack.insert(0, scene)
-        if alias is not None:
-            self.__set_alias(scene, alias)
-
-    def __get_alias(self, scene: Scene) -> Optional[SceneAlias]:
-        for alias, in_scene in self.__aliases.items():
-            if in_scene is scene:
-                return alias
-        return None
-
-    def __set_alias(self, scene: Scene, alias: SceneAlias) -> None:
-        if alias in self.__aliases:
-            raise ValueError(f"A scene uses this alias: {repr(alias)}")
-        self.__aliases[alias] = scene
 
 
 class WindowCallback:
@@ -203,11 +118,6 @@ class Window:
             status: Tuple[int, int] = pygame.init()
             if status[1] > 0:
                 raise WindowError(f"Error on pygame initialization: {status[1]} modules failed to load")
-        elif pygame.mixer.get_init() is not None:
-            pygame.mixer.quit()
-            pygame.mixer.init(Window.MIXER_FREQUENCY, Window.MIXER_SIZE, Window.MIXER_CHANNELS, Window.MIXER_BUFFER)
-            if pygame.mixer.get_init() is None:
-                raise WindowError("Error on pygame initialization: pygame.mixer module failed to load")
 
         self.set_title(title)
 
@@ -220,21 +130,36 @@ class Window:
                 flags |= pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF
             screen = pygame.display.set_mode(size, flags=flags, depth=32)
         self.__surface: Surface = create_surface(screen.get_size())
+        self.__rect: Rect = self.__surface.get_rect()
         self.clear_all_events()
 
-        self.__rect: Rect = self.__surface.get_rect()
         self.__main_clock: PygameClock = PygameClock()
+
         self.__framerate_update_clock: Clock = Clock(start=True)
-        self.__framerate: int = 0
-        self.__loop: bool = True
-        self.__scenes: _SceneManager = _SceneManager(self)
-        self.__callback_after: WindowCallbackList = WindowCallbackList()
-        self.__callback_after_scenes: Dict[Scene, WindowCallbackList] = dict()
+        self.__framerate: int = Window.DEFAULT_FRAMERATE
         self.__text_framerate: Text = Text(color=WHITE)
         self.__text_framerate.hide()
         self.__text_framerate.midtop = (self.centerx, self.top + 10)
+
+        self.__loop: bool = True
+        self.__scenes: _SceneManager = _SceneManager(self)
         self.__actual_scene: Optional[Scene] = None
         self.__transition: _SceneTransitionEnum = _SceneTransitionEnum.SHOW
+
+        self.__callback_after: WindowCallbackList = WindowCallbackList()
+        self.__callback_after_scenes: Dict[Scene, WindowCallbackList] = dict()
+
+        self.__event_handler_dict: Dict[EventType, List[EventCallback]] = dict()
+        self.__key_pressed_handler_dict: Dict[Keyboard.Key, List[EventCallback]] = dict()
+        self.__key_released_handler_dict: Dict[Keyboard.Key, List[EventCallback]] = dict()
+        self.__mouse_button_pressed_handler_dict: Dict[Mouse.Button, List[EventCallback]] = dict()
+        self.__mouse_button_released_handler_dict: Dict[Mouse.Button, List[EventCallback]] = dict()
+        self.__mouse_pos_handler_list: List[MousePositionCallback] = list()
+
+        self.bind_event(pygame.KEYDOWN, self.__handle_key_event)
+        self.bind_event(pygame.KEYUP, self.__handle_key_event)
+        self.bind_event(pygame.MOUSEBUTTONDOWN, self.__handle_mouse_event)
+        self.bind_event(pygame.MOUSEBUTTONUP, self.__handle_mouse_event)
 
     def __del__(self) -> None:
         Window.__main_window = True
@@ -253,7 +178,7 @@ class Window:
     def mainloop(self) -> None:
         try:
             self.__loop = True
-            while self.__loop:
+            while self.is_open():
                 self.handle_events()
                 self.update()
                 self.draw_and_refresh()
@@ -320,7 +245,10 @@ class Window:
         except pygame.error:
             pass
 
-    def handle_events(self, only_close_event: bool = False) -> None:
+    def handle_events(self) -> None:
+        Keyboard.update()
+        Mouse.update()
+
         self.__callback_after.process()
         actual_scene: Optional[Scene] = self.__update_actual_scene()
         if actual_scene and actual_scene in self.__callback_after_scenes:
@@ -329,20 +257,120 @@ class Window:
             if scene not in self.__scenes:
                 self.__callback_after_scenes.pop(scene)
 
-        if only_close_event:
-            self.__handle_only_close_event()
-        else:
-            self.__handle_all_events()
+        self.__handle_mouse_pos(actual_scene)
+        self.__handle_all_events(actual_scene)
 
-    def __handle_only_close_event(self) -> None:
+    def __handle_all_events(self, actual_scene: Optional[Scene]) -> None:
+        event_dict: Dict[int, List[EventCallback]] = self.__event_handler_dict
+        scene_handler: Optional[Callable[[Event], None]] = actual_scene._handle_event if actual_scene is not None else None
         for event in pygame.event.get():
+            for callback in event_dict.get(event.type, []):
+                callback(event)
+            if scene_handler:
+                scene_handler(event)
             if event.type == pygame.QUIT:
                 self.close()
 
-    def __handle_all_events(self) -> None:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.close()
+    def __handle_key_event(self, event: Event) -> None:
+        key_handler_dict: Optional[Dict[Keyboard.Key, List[EventCallback]]] = None
+        if event.type == pygame.KEYDOWN:
+            key_handler_dict = self.__key_pressed_handler_dict
+        elif event.type == pygame.KEYUP:
+            key_handler_dict = self.__key_released_handler_dict
+        if key_handler_dict:
+            for callback in key_handler_dict.get(event.key, []):
+                callback(event)
+
+    def __handle_mouse_event(self, event: Event) -> None:
+        mouse_handler_dict: Optional[Dict[Mouse.Button, List[EventCallback]]] = None
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_handler_dict = self.__mouse_button_pressed_handler_dict
+        elif event.type == pygame.MOUSEBUTTONUP:
+            mouse_handler_dict = self.__mouse_button_released_handler_dict
+        if mouse_handler_dict:
+            for callback in mouse_handler_dict.get(event.button, []):
+                callback(event)
+
+    def __handle_mouse_pos(self, actual_scene: Optional[Scene]) -> None:
+        mouse_pos: MousePosition = Mouse.get_pos()
+        for callback in self.__mouse_pos_handler_list:
+            callback(mouse_pos)
+        if actual_scene:
+            actual_scene._handle_mouse_pos(mouse_pos)
+
+    @staticmethod
+    def __bind(handler_dict: Dict[_T, List[EventCallback]], key: _T, callback: EventCallback) -> None:
+        try:
+            event_list: List[EventCallback] = handler_dict[key]
+        except KeyError:
+            event_list = handler_dict[key] = []
+        if callback not in event_list:
+            event_list.append(callback)
+
+    @staticmethod
+    def __unbind(handler_dict: Dict[_T, List[EventCallback]], key: _T, callback: EventCallback) -> None:
+        try:
+            handler_dict[key].remove(callback)
+        except (KeyError, ValueError):
+            pass
+
+    def bind_event(self, event_type: EventType, callback: EventCallback) -> None:
+        Window.__bind(self.__event_handler_dict, int(event_type), callback)
+
+    def unbind_event(self, event_type: EventType, callback_to_remove: EventCallback) -> None:
+        Window.__unbind(self.__event_handler_dict, int(event_type), callback_to_remove)
+
+    def bind_key(self, key: Union[int, Keyboard.Key], callback: EventCallback) -> None:
+        self.bind_key_press(key, callback)
+        self.bind_key_release(key, callback)
+
+    def bind_key_press(self, key: Union[int, Keyboard.Key], callback: EventCallback) -> None:
+        Window.__bind(self.__key_pressed_handler_dict, Keyboard.Key(key), callback)
+
+    def bind_key_release(self, key: Union[int, Keyboard.Key], callback: EventCallback) -> None:
+        Window.__bind(self.__key_released_handler_dict, Keyboard.Key(key), callback)
+
+    def unbind_key(self, key: Union[int, Keyboard.Key], callback_to_remove: EventCallback) -> None:
+        self.unbind_key_press(key, callback_to_remove)
+        self.unbind_key_release(key, callback_to_remove)
+
+    def unbind_key_press(self, key: Union[int, Keyboard.Key], callback_to_remove: EventCallback) -> None:
+        Window.__unbind(self.__key_pressed_handler_dict, Keyboard.Key(key), callback_to_remove)
+
+    def unbind_key_release(self, key: Union[int, Keyboard.Key], callback_to_remove: EventCallback) -> None:
+        Window.__unbind(self.__key_released_handler_dict, Keyboard.Key(key), callback_to_remove)
+
+    def bind_mouse_button(self, button: Union[int, Mouse.Button], callback: EventCallback) -> None:
+        self.bind_mouse_button_press(button, callback)
+        self.bind_mouse_button_release(button, callback)
+
+    def bind_mouse_button_press(self, button: Union[int, Mouse.Button], callback: EventCallback) -> None:
+        Window.__bind(self.__mouse_button_pressed_handler_dict, Mouse.Button(button), callback)
+
+    def bind_mouse_button_release(self, button: Union[int, Mouse.Button], callback: EventCallback) -> None:
+        Window.__bind(self.__mouse_button_released_handler_dict, Mouse.Button(button), callback)
+
+    def unbind_mouse_button(self, button: Union[int, Mouse.Button], callback_to_remove: EventCallback) -> None:
+        self.unbind_mouse_button_press(button, callback_to_remove)
+        self.unbind_mouse_button_release(button, callback_to_remove)
+
+    def unbind_mouse_button_press(self, button: Union[int, Mouse.Button], callback_to_remove: EventCallback) -> None:
+        Window.__unbind(self.__mouse_button_pressed_handler_dict, Mouse.Button(button), callback_to_remove)
+
+    def unbind_mouse_button_release(self, button: Union[int, Mouse.Button], callback_to_remove: EventCallback) -> None:
+        Window.__unbind(self.__mouse_button_released_handler_dict, Mouse.Button(button), callback_to_remove)
+
+    def bind_mouse_position(self, callback: MousePositionCallback) -> None:
+        mouse_pos_handler_list: List[MousePositionCallback] = self.__mouse_pos_handler_list
+        if callback not in mouse_pos_handler_list:
+            mouse_pos_handler_list.append(callback)
+
+    def unbind_mouse_position(self, callback_to_remove: MousePositionCallback) -> None:
+        mouse_pos_handler_list: List[MousePositionCallback] = self.__mouse_pos_handler_list
+        try:
+            mouse_pos_handler_list.remove(callback_to_remove)
+        except ValueError:
+            pass
 
     def allow_only_event(self, *event_types: EventType) -> None:
         pygame.event.set_allowed(event_types)
@@ -411,6 +439,7 @@ class Window:
     def start_scene(self, scene: SceneAlias) -> None:
         ...
 
+    @final
     def start_scene(self, scene: Union[Scene, SceneAlias], new_alias: Optional[SceneAlias] = None) -> None:
         scene = self.get_scene(scene)
         if scene.looping():
@@ -533,3 +562,98 @@ class Window:
     @property
     def midright(self) -> Tuple[int, int]:
         return self.__rect.midright
+
+
+class _SceneManager:
+    def __init__(self, window: Window) -> None:
+        self.__stack: List[Scene] = []
+        self.__aliases: Dict[SceneAlias, Scene] = {}
+        self.__window: Window = window
+
+    def __iter__(self) -> Iterator[Scene]:
+        return self.from_top_to_bottom()
+
+    def __len__(self) -> int:
+        return len(self.__stack)
+
+    def __contains__(self, scene: Union[Scene, SceneAlias]) -> bool:
+        if isinstance(scene, Scene):
+            if scene.window is not self.__window:
+                return False
+            return scene in self.__stack
+        return scene in self.__aliases
+
+    def from_top_to_bottom(self) -> Iterator[Scene]:
+        return iter(self.__stack)
+
+    def from_bottom_to_top(self) -> Iterator[Scene]:
+        return iter(reversed(self.__stack))
+
+    def empty(self) -> bool:
+        return not self.__stack
+
+    def get(self, alias: SceneAlias) -> Scene:
+        return self.__aliases[alias]
+
+    def top(self) -> Optional[Scene]:
+        return self.__stack[0] if self.__stack else None
+
+    def index(self, scene: Union[Scene, SceneAlias]) -> int:
+        if isinstance(scene, Scene):
+            return self.__stack.index(scene)
+        return self.__stack.index(self.get(scene))
+
+    def clear(self, until: Optional[Union[Scene, SceneAlias]] = None) -> None:
+        if until is None:
+            self.__stack.clear()
+            self.__aliases.clear()
+            return
+        if not isinstance(until, Scene):
+            until = self.get(until)
+        if until not in self:
+            raise WindowError(f"{type(until).__name__} not stacked")
+        while self.__stack[0] is not until:
+            self.remove(self.__stack[0])
+
+    def remove(self, scene: Union[Scene, SceneAlias]) -> None:
+        alias: Optional[SceneAlias] = None
+        if not isinstance(scene, Scene):
+            alias = scene
+            scene = self.get(alias)
+        if scene.window is not self.__window:
+            raise WindowError("Trying to remove a scene bound to an another window")
+        try:
+            self.__stack.remove(scene)
+        except ValueError:
+            pass
+        finally:
+            if alias is None:
+                alias = self.__get_alias(scene)
+            if alias is not None:
+                self.__aliases.pop(alias)
+
+    def push(self, scene: Union[Scene, SceneAlias], alias: Optional[SceneAlias] = None) -> None:
+        if not isinstance(scene, Scene):
+            alias = scene
+            scene = self.get(scene)
+        if scene.window is not self.__window:
+            raise WindowError("Trying to push a scene bound to an another window")
+        if alias is None:
+            alias = self.__get_alias(scene)
+        self.remove(scene)
+        if any(type(stacked_scene) is type(scene) for stacked_scene in self):
+            raise TypeError("A scene with the same type is stacked")
+        self.__stack.insert(0, scene)
+        if alias is not None:
+            self.__set_alias(scene, alias)
+
+    def __get_alias(self, scene: Scene) -> Optional[SceneAlias]:
+        for alias, in_scene in self.__aliases.items():
+            if in_scene is scene:
+                return alias
+        return None
+
+    def __set_alias(self, scene: Scene, alias: SceneAlias) -> None:
+        if alias in self.__aliases:
+            raise ValueError(f"A scene uses this alias: {repr(alias)}")
+        self.__aliases[alias] = scene

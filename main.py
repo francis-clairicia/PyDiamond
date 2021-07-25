@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: Utf-8 -*
 
+from my_pygame.mouse import Mouse
 from typing import List
+import pygame
+from pygame.event import Event
 from pygame.surface import Surface
 from my_pygame.text import Text
 from my_pygame.window import Window
@@ -224,17 +227,36 @@ class AnimatedSpriteScene(Scene):
         self.window.draw(self.sprite)
 
 
+class EventScene(Scene):
+    def __init__(self, window: Window) -> None:
+        super().__init__(window, framerate=120)
+        self.background_color = BLUE_DARK
+        self.shape: CrossShape = CrossShape(50, 50, type="diagonal", color=RED, outline_color=WHITE, outline=3)
+        self.bind_mouse_position(lambda pos: self.shape.set_position(center=pos))
+        self.bind_mouse_button(Mouse.LEFT, self.__switch_color)
+
+    def draw(self) -> None:
+        self.window.draw(self.shape)
+
+    def __switch_color(self, event: Event) -> None:
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            self.shape.color = YELLOW
+        elif event.type == pygame.MOUSEBUTTONUP:
+            self.shape.color = RED
+
+
 def main() -> None:
     # w: Window = Window("my window", (0, 0))
     w: Window = Window("my window", (1366, 768))
     # MyResources.load_all_resources()
     w.text_framerate.show()
-    w.start_scene(ShapeScene(w))
+    # w.start_scene(ShapeScene(w))
     # w.start_scene(AnimationScene(w))
     # w.start_scene(GradientScene(w))
     # w.start_scene(TextScene(w))
     # w.start_scene(ResourceScene(w))
     # w.start_scene(AnimatedSpriteScene(w))
+    w.start_scene(EventScene(w))
     w.mainloop()
 
 

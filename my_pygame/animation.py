@@ -271,7 +271,7 @@ class Animation:
             self.__animate(at_every_frame)
             if scene is not None and not scene.looping():
                 break
-            master.handle_events(only_close_event=True)
+            master.handle_events()
             master.draw_and_refresh()
         self.__animate(at_every_frame)
         master.draw_and_refresh()
