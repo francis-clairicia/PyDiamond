@@ -36,7 +36,7 @@ class ShapeScene(Scene):
             cls.set_theme("default", {"outline_color": RED, "outline": 3})
         self.__r: RectangleShape = RectangleShape(50, 50, WHITE)
         self.__p: PolygonShape = PolygonShape(WHITE)
-        self.__c: CircleShape = CircleShape(30, WHITE, draw_bottom_left=False, draw_top_right=False)
+        self.__c: CircleShape = CircleShape(30, WHITE, outline=1)
         self.__x: CrossShape = CrossShape(
             50,
             50,
@@ -73,6 +73,7 @@ class ShapeScene(Scene):
             abs(self.__x.centerx - self.__r.centerx),
             TRANSPARENT,
             outline_color=YELLOW,
+            outline=1
         )
         self.__x_trajectory.center = self.__r.center
         self.__x_center: CircleShape = CircleShape(5, YELLOW, outline=0)
@@ -250,12 +251,12 @@ def main() -> None:
     w: Window = Window("my window", (1366, 768))
     # MyResources.load_all_resources()
     w.text_framerate.show()
-    # w.start_scene(ShapeScene(w))
+    w.start_scene(ShapeScene(w))
     # w.start_scene(AnimationScene(w))
     # w.start_scene(GradientScene(w))
     # w.start_scene(TextScene(w))
     # w.start_scene(ResourceScene(w))
-    w.start_scene(AnimatedSpriteScene(w))
+    # w.start_scene(AnimatedSpriteScene(w))
     # w.start_scene(EventScene(w))
     w.mainloop()
 

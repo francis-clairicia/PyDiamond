@@ -169,7 +169,7 @@ class PolygonShape(OutlinedShape, ThemedShape):
         if len(all_points) < 2:
             return create_surface((0, 0))
 
-        offset: float = outline / 2 + (outline % 2)
+        offset: float = outline / 2 + 2
         w, h = (self.__size[0] + offset * 2, self.__size[1] + offset * 2)
         image: Surface = create_surface((w, h))
 
@@ -269,7 +269,7 @@ class RectangleShape(OutlinedShape, ThemedShape):
 
     def _make(self) -> Surface:
         outline: int = self.outline
-        offset: float = outline / 2 + (outline % 2)
+        offset: float = outline / 2 + 2
         w, h = self.__w, self.__h
         image: Surface = create_surface((w + offset * 2, h + offset * 2))
         default_rect: Rect = image.get_rect()
@@ -403,7 +403,8 @@ class CircleShape(OutlinedShape, ThemedShape):
         radius: float = self.radius
         width = height = radius * 2
         outline: int = self.outline
-        image: Surface = create_surface((width, height))
+        offset: float = outline / 2 + 2
+        image: Surface = create_surface((width + offset * 2, height + offset * 2))
         center: Tuple[float, float] = (width / 2, height / 2)
         draw_params = self.__draw_params
         pygame.draw.circle(image, self.color, center, radius, **draw_params)
