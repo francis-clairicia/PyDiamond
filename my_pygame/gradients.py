@@ -44,11 +44,8 @@ class AbstractRectangleGradientShape(AbstractGradientShape):
         self.local_size = width, height
         self._need_update()
 
-    def get_local_size(self) -> Tuple[float, float]:
-        return self.local_size
-
     def get_local_vertices(self) -> List[Vector2]:
-        w, h = self.get_local_size()
+        w, h = self.local_size
         return [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
 
     @property
@@ -87,7 +84,7 @@ class HorizontalGradientShape(AbstractRectangleGradientShape):
         return HorizontalGradientShape(self.local_width, self.local_height, self.color, self.second_color)
 
     def _make(self) -> Surface:
-        size = self.get_local_size()
+        size = self.local_size
         if size[0] < 1 or size[1] < 1:
             return create_surface(size)
         start_color = (self.color.r, self.color.g, self.color.b, self.color.a)
@@ -100,7 +97,7 @@ class VerticalGradientShape(AbstractRectangleGradientShape):
         return VerticalGradientShape(self.local_width, self.local_height, self.color, self.second_color)
 
     def _make(self) -> Surface:
-        size = self.get_local_size()
+        size = self.local_size
         if size[0] < 1 or size[1] < 1:
             return create_surface(size)
         start_color = (self.color.r, self.color.g, self.color.b, self.color.a)
@@ -117,9 +114,6 @@ class SquaredGradientShape(AbstractGradientShape):
 
     def copy(self) -> SquaredGradientShape:
         return SquaredGradientShape(self.local_width, self.color, self.second_color)
-
-    def get_local_size(self) -> Tuple[float, float]:
-        return (self.local_width, self.local_width)
 
     def _make(self) -> Surface:
         size: int = int(self.local_width)
@@ -161,9 +155,6 @@ class RadialGradientShape(AbstractGradientShape):
         start_color = (self.color.r, self.color.g, self.color.b, self.color.a)
         end_color = (self.second_color.r, self.second_color.g, self.second_color.b, self.second_color.a)
         return gradient_radial(self.radius, start_color, end_color)  # type: ignore
-
-    def get_local_size(self) -> Tuple[float, float]:
-        return (self.radius * 2, self.radius * 2)
 
     def get_local_vertices(self) -> List[Vector2]:
         center: Vector2 = Vector2(self.radius, self.radius)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from abc import abstractmethod
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, final
 from math import sin, tan, radians
 from enum import Enum, unique
 
@@ -27,6 +27,8 @@ class AbstractShape(Drawable):
         self.__shape_image: Surface = self.__image.copy()
         self.__color: Color = BLACK
         self.__vertices: List[Vector2] = []
+        self.__local_size: Tuple[float, float] = (0, 0)
+        self.__size: Tuple[float, float] = (0, 0)
         self.color = color
         self._need_update()
 
@@ -49,9 +51,15 @@ class AbstractShape(Drawable):
         self.__update_shape()
         surface.blit(self.__image, self.__image.get_rect(center=self.center))
 
+    @final
+    def get_local_size(self) -> Tuple[float, float]:
+        self.__update_shape()
+        return self.__local_size
+
+    @final
     def get_size(self) -> Tuple[float, float]:
         self.__update_shape()
-        return self.__image.get_size()
+        return self.__size
 
     def _apply_rotation_scale(self) -> None:
         angle: float = self.angle
@@ -59,19 +67,24 @@ class AbstractShape(Drawable):
         self.__image = pygame.transform.rotozoom(self.__shape_image, angle, scale)
 
         all_points: List[Vector2] = self.get_local_vertices()
+        vertices: List[Vector2] = self.__vertices
+        vertices.clear()
+
+        if not all_points:
+            self.__local_size = self.__size = (0, 0)
+            return
+
         left: float = min((point.x for point in all_points), default=0)
         top: float = min((point.y for point in all_points), default=0)
         right: float = max((point.x for point in all_points), default=0)
         bottom: float = max((point.y for point in all_points), default=0)
         w: float = right - left
         h: float = bottom - top
+        self.__local_size = (w, h)
 
         local_center: Vector2 = Vector2(left + w / 2, top + h / 2)
 
         center: Vector2 = Vector2(self.center)
-        vertices: List[Vector2] = self.__vertices
-
-        vertices.clear()
         for point in all_points:
             offset: Vector2 = (point - local_center).rotate(-angle)
             try:
@@ -79,6 +92,12 @@ class AbstractShape(Drawable):
             except ValueError:
                 offset = Vector2(0, 0)
             vertices.append(center + offset)
+
+        left = min((point.x for point in vertices), default=0)
+        top = min((point.y for point in vertices), default=0)
+        right = max((point.x for point in vertices), default=0)
+        bottom = max((point.y for point in vertices), default=0)
+        self.__size = (right - left, bottom - top)
 
     @abstractmethod
     def _make(self) -> Surface:
@@ -189,9 +208,6 @@ class PolygonShape(OutlinedShape, ThemedShape):
 
         return image
 
-    def get_local_size(self) -> Tuple[float, float]:
-        return self.__size
-
     def get_local_vertices(self) -> List[Vector2]:
         return self.get_points()
 
@@ -280,9 +296,6 @@ class RectangleShape(OutlinedShape, ThemedShape):
         if outline > 0:
             pygame.draw.rect(image, self.outline_color, rect, width=outline, **draw_params)
         return image
-
-    def get_local_size(self) -> Tuple[float, float]:
-        return self.__w, self.__h
 
     def get_local_vertices(self) -> List[Vector2]:
         w, h = self.__w, self.__h
@@ -387,6 +400,7 @@ class CircleShape(OutlinedShape, ThemedShape):
             "draw_bottom_left": True,
             "draw_bottom_right": True,
         }
+        self.__points: List[Vector2] = []
         self.radius = radius
         self.draw_top_left = draw_top_left
         self.draw_top_right = draw_top_right
@@ -400,11 +414,14 @@ class CircleShape(OutlinedShape, ThemedShape):
         )
 
     def _make(self) -> Surface:
+        self.__points = self.__compute_vertices()
         radius: float = self.radius
-        width = height = radius * 2
         outline: int = self.outline
         offset: float = outline / 2 + 2
-        image: Surface = create_surface((width + offset * 2, height + offset * 2))
+        width = height = int(radius * 2 + offset * 2)
+        radius += width % 2
+        image: Surface = create_surface((width, height))
+        width, height = image.get_size()
         center: Tuple[float, float] = (width / 2, height / 2)
         draw_params = self.__draw_params
         pygame.draw.circle(image, self.color, center, radius, **draw_params)
@@ -412,10 +429,10 @@ class CircleShape(OutlinedShape, ThemedShape):
             pygame.draw.circle(image, self.outline_color, center, radius, width=outline, **draw_params)
         return image
 
-    def get_local_size(self) -> Tuple[float, float]:
-        return (self.radius * 2, self.radius * 2)
-
     def get_local_vertices(self) -> List[Vector2]:
+        return [Vector2(p) for p in self.__points]
+
+    def __compute_vertices(self) -> List[Vector2]:
         draw_params = self.__draw_params
         if all(not drawn for drawn in draw_params.values()):
             return []
@@ -538,14 +555,11 @@ class CrossShape(OutlinedShape, ThemedShape):
         self.__points = compute_vertices[self.__type]()
         return PolygonShape(self.color, outline=self.outline, outline_color=self.outline_color, points=self.__points).to_surface()
 
-    def get_local_size(self) -> Tuple[float, float]:
-        return self.local_size
-
     def get_local_vertices(self) -> List[Vector2]:
         return [Vector2(p) for p in self.__points]
 
     def __get_diagonal_cross_points(self) -> List[Vector2]:
-        rect: Rect = self.get_local_rect()
+        rect: Rect = Rect((0, 0), self.local_size)
         line_width: float = self.line_width
         if line_width == 0:
             return []
@@ -558,14 +572,22 @@ class CrossShape(OutlinedShape, ThemedShape):
 
         def compute_width_offset() -> float:
             alpha: float = radians(diagonal.rotate(90).angle_to(Vector2(-1, 0)))
-            return tan(alpha) * (line_width) / sin(alpha)
+            try:
+                return tan(alpha) * (line_width) / sin(alpha)
+            except ZeroDivisionError:
+                return 0
 
         def compute_height_offset() -> float:
             alpha: float = radians(diagonal.rotate(-90).angle_to(Vector2(0, 1)))
-            return tan(alpha) * (line_width) / sin(alpha)
+            try:
+                return tan(alpha) * (line_width) / sin(alpha)
+            except ZeroDivisionError:
+                return 0
 
         w_offset: float = compute_width_offset()
         h_offset: float = compute_height_offset()
+        if w_offset == 0 or h_offset == 0:
+            return []
         return [
             Vector2(rect.left, rect.top),
             Vector2(rect.left + w_offset, rect.top),

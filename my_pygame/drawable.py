@@ -255,7 +255,7 @@ class Drawable(metaclass=MetaDrawable):
         return r
 
     def get_rect(self, **kwargs: Union[float, Tuple[float, float]]) -> Rect:
-        r: Rect = Rect((0, 0), self.size)
+        r: Rect = self.rect
         for name, value in kwargs.items():
             if not hasattr(r, name):
                 raise AttributeError(f"{type(r).__name__} does not have {repr(name)} attribute")

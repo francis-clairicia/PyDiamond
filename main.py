@@ -36,7 +36,7 @@ class ShapeScene(Scene):
             cls.set_theme("default", {"outline_color": RED, "outline": 3})
         self.__r: RectangleShape = RectangleShape(50, 50, WHITE)
         self.__p: PolygonShape = PolygonShape(WHITE)
-        self.__c: CircleShape = CircleShape(30, WHITE, outline=1)
+        self.__c: CircleShape = CircleShape(30, WHITE, outline=4)
         self.__x: CrossShape = CrossShape(
             50,
             50,
@@ -70,16 +70,13 @@ class ShapeScene(Scene):
         self.__c.center = self.__r.centerx - window.centery * 3 / 4, window.centery
 
         self.__x_trajectory: CircleShape = CircleShape(
-            abs(self.__x.centerx - self.__r.centerx),
-            TRANSPARENT,
-            outline_color=YELLOW,
-            outline=1
+            abs(self.__x.centerx - self.__r.centerx), TRANSPARENT, outline_color=YELLOW, outline=1
         )
         self.__x_trajectory.center = self.__r.center
         self.__x_center: CircleShape = CircleShape(5, YELLOW, outline=0)
 
         self.__c_trajectory: CircleShape = CircleShape(
-            abs(self.__c.centerx - self.__r.centerx), TRANSPARENT, outline_color=YELLOW
+            abs(self.__c.centerx - self.__r.centerx), TRANSPARENT, outline_color=YELLOW, outline=2
         )
         self.__c_trajectory.center = self.__r.center
         self.__c_center: CircleShape = CircleShape(5, YELLOW, outline=0)
@@ -232,18 +229,25 @@ class EventScene(Scene):
     def __init__(self, window: Window) -> None:
         super().__init__(window, framerate=120)
         self.background_color = BLUE_DARK
-        self.shape: CrossShape = CrossShape(50, 50, type="diagonal", color=RED, outline_color=WHITE, outline=3)
-        self.bind_mouse_position(lambda pos: self.shape.set_position(center=pos))
+        self.cross: CrossShape = CrossShape(50, 50, type="diagonal", color=RED, outline_color=WHITE, outline=3)
+        self.circle: CircleShape = CircleShape(5.5, color=YELLOW)
+        # self.circle: CircleShape = RectangleShape(5, 5, YELLOW)
+        self.bind_mouse_position(lambda pos: self.cross.set_position(center=pos))
         self.bind_mouse_button(Mouse.LEFT, self.__switch_color)
+        Mouse.hide_cursor()
+
+    def update(self) -> None:
+        self.circle.center = self.cross.center
 
     def draw(self) -> None:
-        self.window.draw(self.shape)
+        self.window.draw(self.cross)
+        self.window.draw(self.circle)
 
     def __switch_color(self, event: Event) -> None:
         if event.type == pygame.MOUSEBUTTONDOWN:
-            self.shape.color = YELLOW
+            self.cross.color = YELLOW
         elif event.type == pygame.MOUSEBUTTONUP:
-            self.shape.color = RED
+            self.cross.color = RED
 
 
 def main() -> None:
