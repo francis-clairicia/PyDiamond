@@ -255,8 +255,8 @@ def main() -> None:
     # w.start_scene(GradientScene(w))
     # w.start_scene(TextScene(w))
     # w.start_scene(ResourceScene(w))
-    # w.start_scene(AnimatedSpriteScene(w))
-    w.start_scene(EventScene(w))
+    w.start_scene(AnimatedSpriteScene(w))
+    # w.start_scene(EventScene(w))
     w.mainloop()
 
 

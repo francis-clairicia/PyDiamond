@@ -113,11 +113,10 @@ class MetaResourceManager(type):
             raise AttributeError("Resource attributes can't be set")
         return super().__setattr__(name, value)
 
-    def __getattribute__(cls, name: str) -> Any:
-        if name != "__resources_files__" and name in cls.__resources_files__:
+    def __getattr__(cls, name: str) -> Any:
+        if name in cls.__resources_files__:
             return cls.__get_resource(name)
-
-        return super().__getattribute__(name)
+        raise AttributeError(f"type object {repr(cls.__name__)} has no attribute {repr(name)}")
 
     def __delattr__(cls, name: str) -> None:
         if name in cls.__resources_files__:
