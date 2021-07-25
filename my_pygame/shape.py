@@ -26,7 +26,6 @@ class AbstractShape(Drawable):
         self.__image: Surface = create_surface((0, 0))
         self.__shape_image: Surface = self.__image.copy()
         self.__color: Color = BLACK
-        self.__vertices: List[Vector2] = []
         self.__local_size: Tuple[float, float] = (0, 0)
         self.__size: Tuple[float, float] = (0, 0)
         self.color = color
@@ -67,8 +66,7 @@ class AbstractShape(Drawable):
         self.__image = pygame.transform.rotozoom(self.__shape_image, angle, scale)
 
         all_points: List[Vector2] = self.get_local_vertices()
-        vertices: List[Vector2] = self.__vertices
-        vertices.clear()
+        vertices: List[Vector2] = []
 
         if not all_points:
             self.__local_size = self.__size = (0, 0)
@@ -108,7 +106,31 @@ class AbstractShape(Drawable):
         raise NotImplementedError
 
     def get_vertices(self) -> List[Vector2]:
-        return [Vector2(p) for p in self.__vertices]
+        angle: float = self.angle
+        scale: float = self.scale
+        all_points: List[Vector2] = self.get_local_vertices()
+        vertices: List[Vector2] = []
+
+        if all_points:
+            left: float = min((point.x for point in all_points), default=0)
+            top: float = min((point.y for point in all_points), default=0)
+            right: float = max((point.x for point in all_points), default=0)
+            bottom: float = max((point.y for point in all_points), default=0)
+            w: float = right - left
+            h: float = bottom - top
+
+            local_center: Vector2 = Vector2(left + w / 2, top + h / 2)
+
+            center: Vector2 = Vector2(self.center)
+            for point in all_points:
+                offset: Vector2 = (point - local_center).rotate(-angle)
+                try:
+                    offset.scale_to_length(offset.length() * scale)
+                except ValueError:
+                    offset = Vector2(0, 0)
+                vertices.append(center + offset)
+
+        return vertices
 
     @property
     def color(self) -> Color:
@@ -566,6 +588,8 @@ class CrossShape(OutlinedShape, ThemedShape):
 
         if line_width < 1:
             line_width = min(self.local_width * line_width, self.local_height * line_width)
+            if line_width == 0:
+                return []
 
         line_width /= 2
         diagonal: Vector2 = Vector2(rect.bottomleft) - Vector2(rect.topright)

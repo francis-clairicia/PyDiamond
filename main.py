@@ -230,8 +230,7 @@ class EventScene(Scene):
         super().__init__(window, framerate=120)
         self.background_color = BLUE_DARK
         self.cross: CrossShape = CrossShape(50, 50, type="diagonal", color=RED, outline_color=WHITE, outline=3)
-        self.circle: CircleShape = CircleShape(5.5, color=YELLOW)
-        # self.circle: CircleShape = RectangleShape(5, 5, YELLOW)
+        self.circle: CircleShape = CircleShape(4, color=YELLOW)
         self.bind_mouse_position(lambda pos: self.cross.set_position(center=pos))
         self.bind_mouse_button(Mouse.LEFT, self.__switch_color)
         Mouse.hide_cursor()
@@ -255,13 +254,13 @@ def main() -> None:
     w: Window = Window("my window", (1366, 768))
     # MyResources.load_all_resources()
     w.text_framerate.show()
-    w.start_scene(ShapeScene(w))
+    # w.start_scene(ShapeScene(w))
     # w.start_scene(AnimationScene(w))
     # w.start_scene(GradientScene(w))
     # w.start_scene(TextScene(w))
     # w.start_scene(ResourceScene(w))
     # w.start_scene(AnimatedSpriteScene(w))
-    # w.start_scene(EventScene(w))
+    w.start_scene(EventScene(w))
     w.mainloop()
 
 
