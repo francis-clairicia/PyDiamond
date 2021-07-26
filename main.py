@@ -3,7 +3,7 @@
 
 from my_pygame.button import Button
 from my_pygame.mouse import Mouse
-from typing import List
+from typing import List, Type
 import pygame
 from pygame.event import Event
 from pygame.surface import Surface
@@ -131,6 +131,9 @@ class AnimationScene(Scene):
     def __init__(self, window: Window) -> None:
         super().__init__(window, framerate=120)
         self.rectangle = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
+
+    def on_start_loop(self) -> None:
+        window: Window = self.window
         self.rectangle.midleft = window.midleft
         self.rectangle.animation.register_position(center=window.center, speed=3.7)
         self.rectangle.animation.register_rotation(360, offset=2, pivot=window.center)
@@ -174,7 +177,10 @@ class TextScene(Scene):
         self.text = Text(
             "I'm a text", font=(None, 300), italic=True, color=WHITE, shadow_x=-25, shadow_y=-25, wrap=5, justify="center"
         )
-        self.text.center = window.center
+
+    def on_start_loop(self) -> None:
+        self.text.angle = 0
+        self.text.center = self.window.center
         self.text.animation.register_rotation(360).start_in_background(self)
 
     def draw(self) -> None:
@@ -216,7 +222,10 @@ class AnimatedSpriteScene(Scene):
         self.sprite: AnimatedSprite = AnimatedSprite(*MyResources.car)
         self.sprite.start_sprite_animation(loop=True)
         self.sprite.ratio = 20
-        self.sprite.center = window.center
+
+    def on_start_loop(self) -> None:
+        self.sprite.angle = 0
+        self.sprite.center = self.window.center
         self.sprite.animation.register_rotation(360, offset=2).start_in_background(self)
 
     def update(self) -> None:
@@ -234,7 +243,12 @@ class EventScene(Scene):
         self.circle: CircleShape = CircleShape(4, color=YELLOW)
         self.bind_mouse_position(lambda pos: self.cross.set_position(center=pos))
         self.bind_mouse_button(Mouse.LEFT, self.__switch_color)
+
+    def on_start_loop(self) -> None:
         Mouse.hide_cursor()
+
+    def on_quit(self) -> None:
+        Mouse.show_cursor()
 
     def update(self) -> None:
         self.circle.center = self.cross.center
@@ -268,9 +282,12 @@ class ButtonScene(Scene):
     def __init__(self, window: Window) -> None:
         super().__init__(window, framerate=120)
         self.background_color = BLUE_DARK
-        self.button = Button(self, "0", font=(None, 80), callback=self.__increase_counter, text_offset=(2, 2))
+        self.button = Button(self, font=(None, 80), callback=self.__increase_counter, text_offset=(2, 2))
         self.button.center = window.center
+
+    def on_start_loop(self) -> None:
         self.counter = 0
+        self.button.text = "0"
 
     def __increase_counter(self) -> None:
         self.counter += 1
@@ -280,20 +297,56 @@ class ButtonScene(Scene):
         self.window.draw(self.button)
 
 
+class MainWindow(Window):
+
+    __SCENES: List[Type[Scene]] = [
+        ShapeScene,
+        AnimationScene,
+        GradientScene,
+        TextScene,
+        ResourceScene,
+        AnimatedSpriteScene,
+        EventScene,
+        ButtonScene,
+    ]
+
+    def __init__(self) -> None:
+        # super().__init__("my window", (0, 0))
+        super().__init__("my window", (1366, 768))
+        self.text_framerate.show()
+        self.all_scenes: List[Scene] = []
+        for cls in MainWindow.__SCENES:
+            cls.set_theme_namespace(cls.__name__)
+            self.all_scenes.append(cls(self))
+
+        Button.set_default_theme("default")
+        Button.set_theme("default", {"font": (MyResources.cooperblack, 20), "border_radius": 5})
+
+        self.index: int = 0
+        self.all_scenes[0].start()
+        self.prev_button: Button = Button(self, "Previous", callback=self.__previous_scene)
+        self.prev_button.topleft = self.left + 10, self.top + 10
+        self.next_button: Button = Button(self, "Next", callback=self.__next_scene)
+        self.next_button.topright = self.right - 10, self.top + 10
+
+    def draw_screen(self) -> None:
+        super().draw_screen()
+        self.draw(self.prev_button)
+        self.draw(self.next_button)
+
+    def __next_scene(self) -> None:
+        self.all_scenes[self.index].stop()
+        self.index = (self.index + 1) % len(self.all_scenes)
+        self.all_scenes[self.index].start()
+
+    def __previous_scene(self) -> None:
+        self.all_scenes[self.index].stop()
+        self.index = len(self.all_scenes) - 1 if self.index == 0 else self.index - 1
+        self.all_scenes[self.index].start()
+
+
 def main() -> None:
-    # w: Window = Window("my window", (0, 0))
-    w: Window = Window("my window", (1366, 768))
-    # MyResources.load_all_resources()
-    w.text_framerate.show()
-    # w.start_scene(ShapeScene(w))
-    # w.start_scene(AnimationScene(w))
-    # w.start_scene(GradientScene(w))
-    # w.start_scene(TextScene(w))
-    # w.start_scene(ResourceScene(w))
-    # w.start_scene(AnimatedSpriteScene(w))
-    # w.start_scene(EventScene(w))
-    # w.start_scene(TextImageScene(w))
-    w.start_scene(ButtonScene(w))
+    w: Window = MainWindow()
     w.mainloop()
 
 
