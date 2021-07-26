@@ -245,8 +245,10 @@ class Drawable(metaclass=MetaDrawable):
         w, h = self.get_local_size()
         w *= scale
         h *= scale
-        if angle == 0:
+        if angle == 0 or angle == 180:
             return (w, h)
+        if angle == 90 or angle == 270:
+            return (h, w)
 
         center: Vector2 = Vector2(w / 2, h / 2)
         corners: List[Vector2] = [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
