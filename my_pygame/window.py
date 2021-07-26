@@ -123,8 +123,7 @@ class Window:
 
         screen: Optional[Surface] = pygame.display.get_surface()
         if screen is None:
-            if size[0] <= 0 or size[1] <= 0:
-                size = (0, 0)
+            size = (max(size[0], 0), max(size[1], 0))
             flags: int = 0
             if fullscreen:
                 flags |= pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF
