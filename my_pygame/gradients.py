@@ -11,10 +11,10 @@ from .shape import AbstractShape
 from .surface import create_surface
 
 from ._gradients import (  # type: ignore
-    horizontal as gradient_horizontal,
-    vertical as gradient_vertical,
-    radial as gradient_radial,
-    squared as gradient_squared,
+    horizontal as _gradient_horizontal,
+    vertical as _gradient_vertical,
+    radial as _gradient_radial,
+    squared as _gradient_squared,
 )
 
 
@@ -87,9 +87,7 @@ class HorizontalGradientShape(AbstractRectangleGradientShape):
         size = self.local_size
         if size[0] < 1 or size[1] < 1:
             return create_surface(size)
-        start_color = (self.color.r, self.color.g, self.color.b, self.color.a)
-        end_color = (self.second_color.r, self.second_color.g, self.second_color.b, self.second_color.a)
-        return gradient_horizontal(size, start_color, end_color)  # type: ignore
+        return _gradient_horizontal(size, tuple(self.color), tuple(self.second_color))  # type: ignore
 
 
 class VerticalGradientShape(AbstractRectangleGradientShape):
@@ -100,9 +98,7 @@ class VerticalGradientShape(AbstractRectangleGradientShape):
         size = self.local_size
         if size[0] < 1 or size[1] < 1:
             return create_surface(size)
-        start_color = (self.color.r, self.color.g, self.color.b, self.color.a)
-        end_color = (self.second_color.r, self.second_color.g, self.second_color.b, self.second_color.a)
-        return gradient_vertical(size, start_color, end_color)  # type: ignore
+        return _gradient_vertical(size, tuple(self.color), tuple(self.second_color))  # type: ignore
 
 
 class SquaredGradientShape(AbstractGradientShape):
@@ -119,9 +115,7 @@ class SquaredGradientShape(AbstractGradientShape):
         size: int = int(self.local_width)
         if size < 1:
             return create_surface((0, 0))
-        start_color = (self.color.r, self.color.g, self.color.b, self.color.a)
-        end_color = (self.second_color.r, self.second_color.g, self.second_color.b, self.second_color.a)
-        return gradient_squared(size, start_color, end_color)  # type: ignore
+        return _gradient_squared(size, tuple(self.color), tuple(self.second_color))  # type: ignore
 
     def get_local_vertices(self) -> List[Vector2]:
         w = h = self.local_width
@@ -152,9 +146,7 @@ class RadialGradientShape(AbstractGradientShape):
     def _make(self) -> Surface:
         if self.radius == 0:
             return create_surface((0, 0))
-        start_color = (self.color.r, self.color.g, self.color.b, self.color.a)
-        end_color = (self.second_color.r, self.second_color.g, self.second_color.b, self.second_color.a)
-        return gradient_radial(self.radius, start_color, end_color)  # type: ignore
+        return _gradient_radial(self.radius, tuple(self.color), tuple(self.second_color))  # type: ignore
 
     def get_local_vertices(self) -> List[Vector2]:
         center: Vector2 = Vector2(self.radius, self.radius)
