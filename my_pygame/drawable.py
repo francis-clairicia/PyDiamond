@@ -159,7 +159,7 @@ class Drawable(metaclass=MetaDrawable):
             self._apply_rotation_scale()
         except NotImplementedError:
             self.__angle = 0
-            return
+            raise
         except pygame.error:
             pass
         if pivot is None:
@@ -183,7 +183,7 @@ class Drawable(metaclass=MetaDrawable):
             self._apply_rotation_scale()
         except NotImplementedError:
             self.__scale = 1
-            return
+            raise
         except pygame.error:
             pass
         self.center = center

@@ -26,7 +26,10 @@ class _AbstractAnimationClass(metaclass=ABCMeta):
 
     def stop(self) -> None:
         self.__animation_started = False
-        self.default()
+        try:
+            self.default()
+        except NotImplementedError:
+            pass
 
     def ready(self) -> bool:
         if not self.started():
@@ -326,10 +329,15 @@ class Animation:
 
     def __animate(self, at_every_frame: Optional[Callable[[], None]]) -> None:
         for animation in self.__iter_animations():
-            if animation.started():
-                animation()
-            else:
-                animation.default()
+            try:
+                if animation.started():
+                    animation()
+                else:
+                    animation.default()
+            except NotImplementedError:
+                if animation.started():
+                    animation.stop()
+                continue
         if callable(at_every_frame):
             at_every_frame()
 
