@@ -157,6 +157,9 @@ class Drawable(metaclass=MetaDrawable):
         self.__angle = angle
         try:
             self._apply_rotation_scale()
+        except NotImplementedError:
+            self.__angle = 0
+            return
         except pygame.error:
             pass
         if pivot is None:
@@ -178,6 +181,9 @@ class Drawable(metaclass=MetaDrawable):
         self.__scale = scale
         try:
             self._apply_rotation_scale()
+        except NotImplementedError:
+            self.__scale = 1
+            return
         except pygame.error:
             pass
         self.center = center
@@ -221,7 +227,7 @@ class Drawable(metaclass=MetaDrawable):
             self.scale_to_size(size)
 
     def _apply_rotation_scale(self) -> None:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_local_size(self) -> Tuple[float, float]:
