@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: Utf-8 -*
 
+from my_pygame.button import Button
 from my_pygame.mouse import Mouse
 from typing import List
 import pygame
@@ -263,6 +264,22 @@ class TextImageScene(Scene):
         self.window.draw(self.text)
 
 
+class ButtonScene(Scene):
+    def __init__(self, window: Window) -> None:
+        super().__init__(window, framerate=120)
+        self.background_color = BLUE_DARK
+        self.button = Button(self, "0", font=(None, 80), callback=self.__increase_counter, text_offset=(2, 2))
+        self.button.center = window.center
+        self.counter = 0
+
+    def __increase_counter(self) -> None:
+        self.counter += 1
+        self.button.text = str(self.counter)
+
+    def draw(self) -> None:
+        self.window.draw(self.button)
+
+
 def main() -> None:
     # w: Window = Window("my window", (0, 0))
     w: Window = Window("my window", (1366, 768))
@@ -275,7 +292,8 @@ def main() -> None:
     # w.start_scene(ResourceScene(w))
     # w.start_scene(AnimatedSpriteScene(w))
     # w.start_scene(EventScene(w))
-    w.start_scene(TextImageScene(w))
+    # w.start_scene(TextImageScene(w))
+    w.start_scene(ButtonScene(w))
     w.mainloop()
 
 
