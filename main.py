@@ -6,7 +6,7 @@ from typing import List
 import pygame
 from pygame.event import Event
 from pygame.surface import Surface
-from my_pygame.text import Text
+from my_pygame.text import Text, TextImage
 from my_pygame.window import Window
 from my_pygame.scene import Scene, SceneEnum
 
@@ -249,6 +249,20 @@ class EventScene(Scene):
             self.cross.color = RED
 
 
+class TextImageScene(Scene):
+    def __init__(self, window: Window) -> None:
+        super().__init__(window, framerate=120)
+        self.background_color = BLUE_DARK
+        self.text: TextImage = TextImage("I'm a text", font=(None, 50), color=WHITE, shadow_x=-5, shadow_y=-5, wrap=5)
+        self.text.img = MyResources.cactus
+        self.text.img_scale_to_size((100, 100))
+        self.text.compound = "center"
+        self.text.center = window.center
+
+    def draw(self) -> None:
+        self.window.draw(self.text)
+
+
 def main() -> None:
     # w: Window = Window("my window", (0, 0))
     w: Window = Window("my window", (1366, 768))
@@ -260,7 +274,8 @@ def main() -> None:
     # w.start_scene(TextScene(w))
     # w.start_scene(ResourceScene(w))
     # w.start_scene(AnimatedSpriteScene(w))
-    w.start_scene(EventScene(w))
+    # w.start_scene(EventScene(w))
+    w.start_scene(TextImageScene(w))
     w.mainloop()
 
 

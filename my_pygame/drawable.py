@@ -240,12 +240,17 @@ class Drawable(metaclass=MetaDrawable):
         return self.get_local_size()[1]
 
     def get_size(self) -> Tuple[float, float]:
+        scale: float = self.__scale
+        angle: float = self.__angle
         w, h = self.get_local_size()
-        w *= self.scale
-        h *= self.scale
+        w *= scale
+        h *= scale
+        if angle == 0:
+            return (w, h)
+
         center: Vector2 = Vector2(w / 2, h / 2)
         corners: List[Vector2] = [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
-        all_points: List[Vector2] = [center + (point - center).rotate(-self.angle) for point in corners]
+        all_points: List[Vector2] = [center + (point - center).rotate(-angle) for point in corners]
         left: float = min((point.x for point in all_points), default=0)
         right: float = max((point.x for point in all_points), default=0)
         top: float = min((point.y for point in all_points), default=0)
@@ -256,7 +261,7 @@ class Drawable(metaclass=MetaDrawable):
         r: Rect = Rect((0, 0), self.get_local_size())
         for name, value in kwargs.items():
             if not hasattr(r, name):
-                raise AttributeError(f"{type(r).__name__} does not have {repr(name)} attribute")
+                raise AttributeError(f"{repr(type(r).__name__)} has no attribute {repr(name)}")
             setattr(r, name, value)
         return r
 
@@ -264,7 +269,7 @@ class Drawable(metaclass=MetaDrawable):
         r: Rect = self.rect
         for name, value in kwargs.items():
             if not hasattr(r, name):
-                raise AttributeError(f"{type(r).__name__} does not have {repr(name)} attribute")
+                raise AttributeError(f"{repr(type(r).__name__)} has no attribute {repr(name)}")
             setattr(r, name, value)
         return r
 

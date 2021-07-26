@@ -242,7 +242,7 @@ class Window:
     def draw(self, target: Drawable) -> None:
         try:
             target.draw_onto(self.__surface)
-        except pygame.error:
+        except (NotImplementedError, pygame.error):
             pass
 
     def handle_events(self) -> None:

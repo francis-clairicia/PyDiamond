@@ -91,6 +91,8 @@ class MetaThemedObject(ABCMeta):
             raise TypeError("Abstract theme classes cannot set themes.")
         if name is NoTheme:
             raise ValueError("Couldn't set 'NoTheme' as theme")
+        if "theme" in options:
+            raise ValueError("'theme' parameter must not be given in options")
 
         theme_dict: Dict[str, Dict[str, Any]]
 

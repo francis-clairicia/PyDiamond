@@ -20,7 +20,7 @@ from .colors import BLACK
 from .theme import NoTheme, Theme
 from .surface import create_surface
 
-# from .image import Image
+from .image import Image
 
 _TextFont = Union[Font, Tuple[Optional[str], int]]
 
@@ -64,7 +64,7 @@ class Text(ThemedDrawable):
         self.message = message
         self.color = color
         self.wrap = wrap
-        self.justify = Text.Justify(justify)
+        self.justify = justify
         self.shadow = (shadow_x, shadow_y)
         self.shadow_color = shadow_color
 
@@ -302,78 +302,287 @@ class Text(ThemedDrawable):
             self.__need_update()
 
 
-# @Text.register
-# class TextImage(ThemedDrawable):
-#     Justify = Text.Justify
+@Text.register
+class TextImage(ThemedDrawable):
+    Justify = Text.Justify
 
-#     @unique
-#     class Compound(str, Enum):
-#         LEFT = "left"
-#         RIGHT = "right"
-#         TOP = "top"
-#         BOTTOM = "bottom"
-#         CENTER = "center"
+    @unique
+    class Compound(str, Enum):
+        LEFT = "left"
+        RIGHT = "right"
+        TOP = "top"
+        BOTTOM = "bottom"
+        CENTER = "center"
 
-#     def __init__(
-#         self,
-#         message: str = "",
-#         *,
-#         img: Optional[Surface] = None,
-#         compound: str = "left",
-#         font: Optional[_TextFont] = None,
-#         bold: Optional[bool] = None,
-#         italic: Optional[bool] = None,
-#         underline: Optional[bool] = None,
-#         color: Color = BLACK,
-#         wrap: int = 0,
-#         justify: str = "left",
-#         shadow_x: float = 0,
-#         shadow_y: float = 0,
-#         shadow_color: Color = BLACK,
-#         theme: Optional[Theme] = None,
-#     ) -> None:
-#         super().__init__()
-#         self.__text: Text = Text(
-#             message=message,
-#             font=font,
-#             bold=bold,
-#             italic=italic,
-#             underline=underline,
-#             color=color,
-#             wrap=wrap,
-#             justify=justify,
-#             shadow_x=shadow_x,
-#             shadow_y=shadow_y,
-#             shadow_color=shadow_color,
-#             theme=NoTheme,
-#         )
-#         self.__img: Image = Image(img if img is not None else create_surface((0, 0)))
-#         self.__compound: TextImage.Compound = TextImage.Compound(compound)
+    def __init__(
+        self,
+        message: str = "",
+        *,
+        img: Optional[Surface] = None,
+        compound: str = "left",
+        distance: float = 5,
+        font: Optional[_TextFont] = None,
+        bold: Optional[bool] = None,
+        italic: Optional[bool] = None,
+        underline: Optional[bool] = None,
+        color: Color = BLACK,
+        wrap: int = 0,
+        justify: str = "left",
+        shadow_x: float = 0,
+        shadow_y: float = 0,
+        shadow_color: Color = BLACK,
+        theme: Optional[Theme] = None,
+    ) -> None:
+        super().__init__()
+        self.__text: Text = Text(
+            message=message,
+            font=font,
+            bold=bold,
+            italic=italic,
+            underline=underline,
+            color=color,
+            wrap=wrap,
+            justify=justify,
+            shadow_x=shadow_x,
+            shadow_y=shadow_y,
+            shadow_color=shadow_color,
+            theme=NoTheme,
+        )
+        self.__img: Optional[Image] = Image(img) if img is not None else None
+        self.__compound: TextImage.Compound = TextImage.Compound(compound)
+        self.__distance: float = float(distance)
 
-#     def draw_onto(self, surface: Surface) -> None:
-#         self.__text.center = self.center
-#         return self.__text.draw_onto(surface)
+    def to_surface(self) -> Surface:
+        if self.__img is None:
+            return self.__text.to_surface()
+        return super().to_surface()
 
-#     def copy(self) -> TextImage:
-#         return TextImage(
-#             message=self.__text.message,
-#             img=self.__img.get(),
-#             compound=self.__compound,
-#             font=self.__text.font,
-#             color=self.__text.color,
-#             wrap=self.__text.wrap,
-#             justify=self.__text.justify,
-#             shadow_x=self.__text.shadow_x,
-#             shadow_y=self.__text.shadow_y,
-#             shadow_color=self.__text.shadow_color,
-#             theme=NoTheme,
-#         )
+    def draw_onto(self, surface: Surface) -> None:
+        if self.__img is None:
+            self.__text.center = self.center
+            return self.__text.draw_onto(surface)
+        if self.__compound == TextImage.Compound.LEFT:
+            self.__text.midleft = self.midleft
+            self.__img.midright = self.midright
+        elif self.__compound == TextImage.Compound.RIGHT:
+            self.__text.midright = self.midright
+            self.__img.midleft = self.midleft
+        elif self.__compound == TextImage.Compound.TOP:
+            self.__text.midtop = self.midtop
+            self.__img.midbottom = self.midbottom
+        elif self.__compound == TextImage.Compound.BOTTOM:
+            self.__text.midbottom = self.midbottom
+            self.__img.midtop = self.midtop
+        else:
+            self.__img.center = self.__text.center = self.center
+        self.__img.draw_onto(surface)
+        self.__text.draw_onto(surface)
 
-#     def get_local_size(self) -> Tuple[float, float]:
-#         return self.__text.get_local_size()
+    def copy(self) -> TextImage:
+        return TextImage(
+            message=self.__text.message,
+            img=self.__img.get() if self.__img is not None else None,
+            compound=self.__compound,
+            font=self.__text.font,
+            color=self.__text.color,
+            wrap=self.__text.wrap,
+            justify=self.__text.justify,
+            shadow_x=self.__text.shadow_x,
+            shadow_y=self.__text.shadow_y,
+            shadow_color=self.__text.shadow_color,
+            theme=NoTheme,
+        )
 
-#     def _apply_rotation_scale(self) -> None:
-#         self.__text.set_rotation(self.angle)
-#         self.__text.set_scale(self.scale)
-#         self.__img.set_rotation(self.angle)
-#         self.__img.set_scale(self.scale)
+    def get_local_size(self) -> Tuple[float, float]:
+        if self.__img is None:
+            return self.__text.get_local_size()
+        text_width, text_height = self.__text.get_local_size()
+        img_width, img_height = self.__img.get_size()
+        offset: float = self.__distance
+        if self.__compound in [TextImage.Compound.LEFT, TextImage.Compound.RIGHT]:
+            if text_width == 0 or img_width == 0:
+                offset = 0
+            return text_width + img_width + offset, max(text_height, img_height)
+        if self.__compound in [TextImage.Compound.TOP, TextImage.Compound.BOTTOM]:
+            if text_height == 0 or img_height == 0:
+                offset = 0
+            return max(text_width, img_width), text_height + img_height + offset
+        return max(text_width, img_width), max(text_height, img_height)
+
+    def get_size(self) -> Tuple[float, float]:
+        if self.__img is None:
+            return self.__text.get_size()
+        return super().get_size()
+
+    @staticmethod
+    def create_font(
+        font: Optional[_TextFont], bold: Optional[bool] = None, italic: Optional[bool] = None, underline: Optional[bool] = None
+    ) -> Font:
+        return Text.create_font(font, bold, italic, underline)
+
+    def set_font(
+        self,
+        font: Optional[_TextFont],
+        bold: Optional[bool] = None,
+        italic: Optional[bool] = None,
+        underline: Optional[bool] = None,
+    ) -> None:
+        self.__text.set_font(font, bold, italic, underline)
+
+    def set_custom_line_font(self, index: int, font: Font) -> None:
+        self.__text.set_custom_line_font(index, font)
+
+    def remove_custom_line_font(self, index: int) -> None:
+        self.__text.remove_custom_line_font(index)
+
+    def img_rotate(self, angle_offset: float) -> None:
+        if self.__img is not None:
+            self.__img.rotate(angle_offset)
+
+    def img_set_rotation(self, angle: float) -> None:
+        if self.__img is not None:
+            self.__img.set_rotation(angle)
+
+    def img_set_scale(self, scale: float) -> None:
+        if self.__img is not None:
+            self.__img.set_scale(scale)
+
+    def img_scale_to_width(self, width: float) -> None:
+        if self.__img is not None:
+            self.__img.scale_to_width(width)
+
+    def img_scale_to_height(self, height: float) -> None:
+        if self.__img is not None:
+            self.__img.scale_to_height(height)
+
+    def img_scale_to_size(self, size: Tuple[float, float]) -> None:
+        if self.__img is not None:
+            self.__img.scale_to_size(size)
+
+    def img_set_min_width(self, width: float) -> None:
+        if self.__img is not None:
+            self.__img.set_min_width(width)
+
+    def img_set_max_width(self, width: float) -> None:
+        if self.__img is not None:
+            self.__img.set_max_width(width)
+
+    def img_set_min_height(self, height: float) -> None:
+        if self.__img is not None:
+            self.__img.set_min_height(height)
+
+    def img_set_max_height(self, height: float) -> None:
+        if self.__img is not None:
+            self.__img.set_max_height(height)
+
+    def img_set_min_size(self, size: Tuple[float, float]) -> None:
+        if self.__img is not None:
+            self.__img.set_min_size(size)
+
+    def img_set_max_size(self, size: Tuple[float, float]) -> None:
+        if self.__img is not None:
+            self.__img.set_max_size(size)
+
+    @property
+    def img(self) -> Optional[Surface]:
+        if self.__img is None:
+            return None
+        return self.__img.get()
+
+    @img.setter
+    def img(self, surface: Optional[Surface]) -> None:
+        if surface is None:
+            self.__img = None
+            return
+        if self.__img is None:
+            self.__img = Image(surface)
+        else:
+            self.__img.set(surface)
+
+    @property
+    def compound(self) -> str:
+        return str(self.__compound.value)
+
+    @compound.setter
+    def compound(self, compound: str) -> None:
+        self.__compound = TextImage.Compound(compound)
+
+    @property
+    def distance(self) -> float:
+        return self.__distance
+
+    @distance.setter
+    def distance(self, distance: float) -> None:
+        self.__distance = float(distance)
+
+    @property
+    def font(self) -> Font:
+        return self.__text.font
+
+    @font.setter
+    def font(self, font: Font) -> None:
+        self.set_font(font)
+
+    @property
+    def message(self) -> str:
+        return self.__text.message
+
+    @message.setter
+    def message(self, string: str) -> None:
+        self.__text.message = string
+
+    @property
+    def wrap(self) -> int:
+        return self.__text.wrap
+
+    @wrap.setter
+    def wrap(self, value: int) -> None:
+        self.__text.wrap = value
+
+    @property
+    def justify(self) -> str:
+        return self.__text.justify
+
+    @justify.setter
+    def justify(self, justify: str) -> None:
+        self.__text.justify = justify
+
+    @property
+    def color(self) -> Color:
+        return self.__text.color
+
+    @color.setter
+    def color(self, color: Color) -> None:
+        self.__text.color = color
+
+    @property
+    def shadow(self) -> Tuple[float, float]:
+        return self.__text.shadow
+
+    @shadow.setter
+    def shadow(self, shadow: Tuple[float, float]) -> None:
+        self.__text.shadow = shadow
+
+    @property
+    def shadow_x(self) -> float:
+        return self.__text.shadow_x
+
+    @shadow_x.setter
+    def shadow_x(self, shadow_x: float) -> None:
+        self.__text.shadow_x = shadow_x
+
+    @property
+    def shadow_y(self) -> float:
+        return self.__text.shadow_y
+
+    @shadow_y.setter
+    def shadow_y(self, shadow_y: float) -> None:
+        self.__text.shadow_y = shadow_y
+
+    @property
+    def shadow_color(self) -> Color:
+        return self.__text.shadow_color
+
+    @shadow_color.setter
+    def shadow_color(self, color: Color) -> None:
+        self.__text.shadow_color = color
