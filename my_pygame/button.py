@@ -18,6 +18,7 @@ from .window import Window
 from .scene import Scene
 from .colors import WHITE, GRAY, GRAY_LIGHT, GRAY_DARK, BLACK
 from .theme import NoTheme, Theme
+from .cursor import Cursor
 
 _ButtonCallback = Callable[[], None]
 _TextFont = Union[Font, Tuple[Optional[str], int]]
@@ -85,7 +86,7 @@ class Button(ThemedDrawable, Clickable):
         hover_sound: Optional[Sound] = None,
         active_bg: Optional[Color] = GRAY,
         active_fg: Optional[Color] = None,
-        on_click_sound: Optional[Sound] = None,
+        click_sound: Optional[Sound] = None,
         disabled_bg: Color = GRAY_DARK,
         disabled_fg: Color = BLACK,
         disabled_sound: Optional[Sound] = None,
@@ -95,8 +96,8 @@ class Button(ThemedDrawable, Clickable):
         disabled_active_fg: Optional[Color] = None,
         # highlight_color=BLUE,
         # highlight_thickness=2,
-        # cursor=None,
-        # disabled_cursor=None,
+        cursor: Optional[Cursor] = None,
+        disabled_cursor: Optional[Cursor] = None,
         text_align_x: str = "center",
         text_align_y: str = "center",
         text_offset: Tuple[float, float] = (0, 0),
@@ -115,8 +116,10 @@ class Button(ThemedDrawable, Clickable):
             master=master,
             state=state,
             hover_sound=hover_sound,
-            on_click_sound=on_click_sound,
+            click_sound=click_sound,
             disabled_sound=disabled_sound,
+            cursor=cursor,
+            disabled_cursor=disabled_cursor,
         )
         self.__text: Text = Text(
             message=text,
@@ -207,7 +210,7 @@ class Button(ThemedDrawable, Clickable):
             hover_sound=self.hover_sound,
             active_bg=self.__bg[Clickable.State.NORMAL]["active"],
             active_fg=self.__fg[Clickable.State.NORMAL]["active"],
-            on_click_sound=self.on_click_sound,
+            click_sound=self.click_sound,
             disabled_bg=self.__bg[Clickable.State.DISABLED]["normal"],
             disabled_fg=self.__fg[Clickable.State.DISABLED]["normal"],
             disabled_sound=self.disabled_sound,
@@ -215,6 +218,8 @@ class Button(ThemedDrawable, Clickable):
             disabled_hover_fg=self.__fg[Clickable.State.DISABLED]["hover"],
             disabled_active_bg=self.__bg[Clickable.State.DISABLED]["active"],
             disabled_active_fg=self.__fg[Clickable.State.DISABLED]["active"],
+            cursor=self.cursor,
+            disabled_cursor=self.disabled_cursor,
             text_align_x=self.__text_align_x,
             text_align_y=self.__text_align_y,
             text_offset=self.__text_offset,

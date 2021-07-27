@@ -11,7 +11,7 @@ import pygame.mixer
 
 from pygame.surface import Surface
 from pygame.rect import Rect
-from pygame.time import Clock as PygameClock
+from pygame.time import Clock as _Clock
 from pygame.color import Color
 from pygame.event import Event
 
@@ -23,6 +23,7 @@ from .clock import Clock
 from .surface import create_surface
 from .mouse import Mouse
 from .keyboard import Keyboard
+from .cursor import Cursor, SystemCursor
 
 EventType = int
 EventCallback = Callable[[Event], None]
@@ -105,6 +106,8 @@ class Window:
     DEFAULT_FRAMERATE = 60
 
     __main_window: bool = True
+    __default_cursor: Cursor = SystemCursor(SystemCursor.CURSOR_ARROW)
+    __cursor: Cursor = __default_cursor
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Any:
         if not Window.__main_window:
@@ -132,7 +135,7 @@ class Window:
         self.__rect: Rect = self.__surface.get_rect()
         self.clear_all_events()
 
-        self.__main_clock: PygameClock = PygameClock()
+        self.__main_clock: _Clock = _Clock()
 
         self.__framerate_update_clock: Clock = Clock(start=True)
         self.__framerate: int = Window.DEFAULT_FRAMERATE
@@ -178,6 +181,8 @@ class Window:
         try:
             self.__loop = True
             while self.is_open():
+                Window.__cursor.set()
+                Window.__cursor = Window.__default_cursor
                 self.handle_events()
                 self.update()
                 self.draw_and_refresh()
@@ -296,6 +301,14 @@ class Window:
             callback(mouse_pos)
         if actual_scene:
             actual_scene._handle_mouse_pos(mouse_pos)
+
+    def set_temporary_window_cursor(self, cursor: Cursor) -> None:
+        if isinstance(cursor, Cursor):
+            Window.__cursor = cursor
+
+    def set_window_cursor(self, cursor: Cursor) -> None:
+        if isinstance(cursor, Cursor):
+            Window.__cursor = Window.__default_cursor = cursor
 
     @staticmethod
     def __bind(handler_dict: Dict[_T, List[EventCallback]], key: _T, callback: EventCallback) -> None:

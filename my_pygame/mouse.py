@@ -1,6 +1,6 @@
 # -*- coding: Utf-8 -*
 
-from typing import Tuple, cast
+from typing import Tuple
 from enum import IntEnum
 from operator import truth
 
@@ -23,7 +23,8 @@ class Mouse:
     @staticmethod
     def update() -> None:
         global _MOUSE_BUTTON_STATE
-        _MOUSE_BUTTON_STATE = cast(_MouseButtonState, pygame.mouse.get_pressed(3))
+        button_states = pygame.mouse.get_pressed(3)
+        _MOUSE_BUTTON_STATE = (truth(button_states[0]), truth(button_states[1]), truth(button_states[2]))
 
     @staticmethod
     def is_pressed(button: int) -> bool:

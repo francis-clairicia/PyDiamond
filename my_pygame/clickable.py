@@ -14,6 +14,7 @@ from .scene import Scene
 from .window import Window
 from .mouse import Mouse
 from .drawable import Drawable
+from .cursor import Cursor, SystemCursor
 
 
 class Clickable(metaclass=ABCMeta):
@@ -28,10 +29,10 @@ class Clickable(metaclass=ABCMeta):
         *,
         state: str = "normal",
         hover_sound: Optional[Sound] = None,
-        on_click_sound: Optional[Sound] = None,
+        click_sound: Optional[Sound] = None,
         disabled_sound: Optional[Sound] = None,
-        # cursor=None,
-        # disabled_cursor=None
+        cursor: Optional[Cursor] = None,
+        disabled_cursor: Optional[Cursor] = None,
     ) -> None:
         self.__master: Window
         self.__scene: Optional[Scene]
@@ -45,11 +46,20 @@ class Clickable(metaclass=ABCMeta):
         self.__hover: bool = False
         self.__active: bool = False
         self.__hover_sound: Optional[Sound] = None
-        self.__on_click_sound: Dict[Clickable.State, Optional[Sound]] = dict.fromkeys(Clickable.State)
+        self.__click_sound: Dict[Clickable.State, Optional[Sound]] = dict.fromkeys(Clickable.State)
+        self.__default_hover_cursor: Dict[Clickable.State, Cursor] = {
+            Clickable.State.NORMAL: SystemCursor(SystemCursor.CURSOR_HAND),
+            Clickable.State.DISABLED: SystemCursor(SystemCursor.CURSOR_NO),
+        }
+        self.__hover_cursor: Dict[Clickable.State, Cursor] = self.__default_hover_cursor.copy()
+        if isinstance(cursor, Cursor):
+            self.__hover_cursor[Clickable.State.NORMAL] = cursor
+        if isinstance(disabled_cursor, Cursor):
+            self.__hover_cursor[Clickable.State.DISABLED] = disabled_cursor
 
         self.state = state
         self.hover_sound = hover_sound
-        self.on_click_sound = on_click_sound
+        self.click_sound = click_sound
         self.disabled_sound = disabled_sound
         master.bind_event(pygame.MOUSEBUTTONDOWN, self.__handle_click_event)
         master.bind_event(pygame.MOUSEBUTTONUP, self.__handle_click_event)
@@ -65,10 +75,22 @@ class Clickable(metaclass=ABCMeta):
         if hover_sound is not None:
             hover_sound.play()
 
-    def play_on_click_sound(self) -> None:
-        on_click_sound: Optional[Sound] = self.__on_click_sound[self.__state]
-        if on_click_sound is not None:
-            on_click_sound.play()
+    def play_click_sound(self) -> None:
+        click_sound: Optional[Sound] = self.__click_sound[self.__state]
+        if click_sound is not None:
+            click_sound.play()
+
+    def get_default_cursor(self) -> Cursor:
+        return self.__default_hover_cursor[Clickable.State.NORMAL]
+
+    def get_default_disabled_cursor(self) -> Cursor:
+        return self.__default_hover_cursor[Clickable.State.DISABLED]
+
+    def set_cursor_to_default(self) -> None:
+        self.__hover_cursor[Clickable.State.NORMAL] = self.__default_hover_cursor[Clickable.State.NORMAL]
+
+    def set_disabled_cursor_to_default(self) -> None:
+        self.__hover_cursor[Clickable.State.DISABLED] = self.__default_hover_cursor[Clickable.State.DISABLED]
 
     def __handle_click_event(self, event: Event) -> None:
         if isinstance(self, Drawable) and not self.is_shown():
@@ -86,7 +108,7 @@ class Clickable(metaclass=ABCMeta):
                 return
             self._on_click_up(event)
             if valid_click():
-                self.play_on_click_sound()
+                self.play_click_sound()
                 self._on_hover()
                 if self.__state != Clickable.State.DISABLED:
                     self.invoke()
@@ -94,7 +116,9 @@ class Clickable(metaclass=ABCMeta):
     def __handle_mouse_position(self, mouse_pos: Tuple[float, float]) -> None:
         if isinstance(self, Drawable) and not self.is_shown():
             return
-        self.hover = self._mouse_in_hitbox(mouse_pos)
+        self.hover = hover = self._mouse_in_hitbox(mouse_pos)
+        if hover:
+            self.master.set_temporary_window_cursor(self.__hover_cursor[self.__state])
 
     @abstractmethod
     def _mouse_in_hitbox(self, mouse_pos: Tuple[float, float]) -> bool:
@@ -188,21 +212,37 @@ class Clickable(metaclass=ABCMeta):
         self.__hover_sound = sound
 
     @property
-    def on_click_sound(self) -> Optional[Sound]:
-        return self.__on_click_sound[Clickable.State.NORMAL]
+    def click_sound(self) -> Optional[Sound]:
+        return self.__click_sound[Clickable.State.NORMAL]
 
-    @on_click_sound.setter
-    def on_click_sound(self, sound: Optional[Sound]) -> None:
+    @click_sound.setter
+    def click_sound(self, sound: Optional[Sound]) -> None:
         if sound is not None and not isinstance(sound, Sound):
             raise TypeError(f"sound must be a '{Sound.__module__}.{Sound.__name__}' object")
-        self.__on_click_sound[Clickable.State.NORMAL] = sound
+        self.__click_sound[Clickable.State.NORMAL] = sound
 
     @property
     def disabled_sound(self) -> Optional[Sound]:
-        return self.__on_click_sound[Clickable.State.DISABLED]
+        return self.__click_sound[Clickable.State.DISABLED]
 
     @disabled_sound.setter
     def disabled_sound(self, sound: Optional[Sound]) -> None:
         if sound is not None and not isinstance(sound, Sound):
             raise TypeError(f"sound must be a '{Sound.__module__}.{Sound.__name__}' object")
-        self.__on_click_sound[Clickable.State.DISABLED] = sound
+        self.__click_sound[Clickable.State.DISABLED] = sound
+
+    @property
+    def cursor(self) -> Cursor:
+        return self.__hover_cursor[Clickable.State.NORMAL]
+
+    @cursor.setter
+    def cursor(self, cursor: Cursor) -> None:
+        self.__hover_cursor[Clickable.State.NORMAL] = cursor
+
+    @property
+    def disabled_cursor(self) -> Cursor:
+        return self.__hover_cursor[Clickable.State.DISABLED]
+
+    @disabled_cursor.setter
+    def disabled_cursor(self, cursor: Cursor) -> None:
+        self.__hover_cursor[Clickable.State.DISABLED] = cursor

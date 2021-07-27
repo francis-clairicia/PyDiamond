@@ -26,7 +26,7 @@ class MyScenes(SceneEnum):
 
 class ShapeScene(Scene):
     def __init__(self, window: Window) -> None:
-        super().__init__(window, framerate=120, busy_loop=True)
+        super().__init__(window, framerate=120)
         self.background_color = BLUE_DARK
         # self.__r: RectangleShape = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
         # self.__p: PolygonShape = PolygonShape(WHITE, outline=3, outline_color=RED)
