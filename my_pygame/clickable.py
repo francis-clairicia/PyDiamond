@@ -15,8 +15,6 @@ from .window import Window
 from .mouse import Mouse
 from .drawable import Drawable
 
-_ClickableCallback = Callable[[], None]
-
 
 class Clickable(metaclass=ABCMeta):
     @unique
@@ -28,7 +26,6 @@ class Clickable(metaclass=ABCMeta):
         self,
         master: Union[Scene, Window],
         *,
-        callback: Optional[_ClickableCallback] = None,
         state: str = "normal",
         hover_sound: Optional[Sound] = None,
         on_click_sound: Optional[Sound] = None,
@@ -44,14 +41,12 @@ class Clickable(metaclass=ABCMeta):
         else:
             self.__master = master
             self.__scene = None
-        self.__callback: Optional[_ClickableCallback] = None
         self.__state: Clickable.State = Clickable.State.NORMAL
         self.__hover: bool = False
         self.__active: bool = False
         self.__hover_sound: Optional[Sound] = None
         self.__on_click_sound: Dict[Clickable.State, Optional[Sound]] = dict.fromkeys(Clickable.State)
 
-        self.callback = callback
         self.state = state
         self.hover_sound = hover_sound
         self.on_click_sound = on_click_sound
@@ -60,6 +55,10 @@ class Clickable(metaclass=ABCMeta):
         master.bind_event(pygame.MOUSEBUTTONUP, self.__handle_click_event)
         master.bind_event(pygame.MOUSEMOTION, lambda event: self._on_mouse_motion(event))
         master.bind_mouse_position(self.__handle_mouse_position)
+
+    @abstractmethod
+    def invoke(self) -> None:
+        raise NotImplementedError
 
     def play_hover_sound(self) -> None:
         hover_sound: Optional[Sound] = self.__hover_sound
@@ -89,8 +88,8 @@ class Clickable(metaclass=ABCMeta):
             if valid_click():
                 self.play_on_click_sound()
                 self._on_hover()
-                if callable(self.__callback) and self.__state != Clickable.State.DISABLED:
-                    self.__callback()
+                if self.__state != Clickable.State.DISABLED:
+                    self.invoke()
 
     def __handle_mouse_position(self, mouse_pos: Tuple[float, float]) -> None:
         if isinstance(self, Drawable) and not self.is_shown():
@@ -129,17 +128,6 @@ class Clickable(metaclass=ABCMeta):
     @property
     def scene(self) -> Optional[Scene]:
         return self.__scene
-
-    @property
-    def callback(self) -> Optional[_ClickableCallback]:
-        return self.__callback
-
-    @callback.setter
-    def callback(self, callback: Optional[_ClickableCallback]) -> None:
-        if callable(callback):
-            self.__callback = callback
-        else:
-            self.__callback = None
 
     @property
     def state(self) -> str:
