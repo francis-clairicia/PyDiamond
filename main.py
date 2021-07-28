@@ -307,6 +307,7 @@ class MainWindow(Window):
         ResourceScene,
         AnimatedSpriteScene,
         EventScene,
+        TextImageScene,
         ButtonScene,
     ]
 

@@ -468,10 +468,11 @@ class Window:
         self.__transition = transition
 
     def stop_scene(self, scene: Union[Scene, SceneAlias]) -> None:
-        self.__scenes.clear(until=scene)
+        scene = self.get_scene(scene)
+        if scene.looping():
+            self.__transition = _SceneTransitionEnum.HIDE
         self.__scenes.remove(scene)
-        self.__callback_after_scenes.pop(self.get_scene(scene), None)
-        self.__transition = _SceneTransitionEnum.HIDE
+        self.__callback_after_scenes.pop(scene, None)
 
     def __update_actual_scene(self) -> Optional[Scene]:
         actual_scene: Optional[Scene] = self.get_actual_scene()

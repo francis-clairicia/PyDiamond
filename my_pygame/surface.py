@@ -38,11 +38,7 @@ def load_image(file: str) -> Surface:
         with bz2.open(file, mode="rb", compresslevel=9) as f:
             buffer_dict: _BufferDict = pickle.loads(f.read())
         image = pygame.image.fromstring(buffer_dict["string"], buffer_dict["size"], "RGBA")
-    try:
-        image = image.convert_alpha()
-    except pygame.error:
-        pass
-    return image
+    return image.convert_alpha()
 
 
 def save_image(image: Surface, file: str) -> None:

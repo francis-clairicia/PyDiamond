@@ -19,7 +19,7 @@ from .colors import BLACK
 from .surface import create_surface
 
 
-class AbstractShape(Drawable):
+class Shape(Drawable):
     def __init__(self, color: Color) -> None:
         super().__init__()
         self.__update: bool = True
@@ -144,11 +144,11 @@ class AbstractShape(Drawable):
 
 
 @abstract_theme_class
-class ThemedShape(AbstractShape, ThemedDrawable):
+class ThemedShape(Shape, ThemedDrawable):
     pass
 
 
-class OutlinedShape(AbstractShape):
+class OutlinedShape(Shape):
     def __init__(self, color: Color, outline: int, outline_color: Color) -> None:
         super().__init__(color)
         self.__outline: int = 0

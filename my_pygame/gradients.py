@@ -7,7 +7,7 @@ from pygame.color import Color
 from pygame.math import Vector2
 from pygame.surface import Surface
 
-from .shape import AbstractShape
+from .shape import Shape
 from .surface import create_surface
 
 from ._gradients import (  # type: ignore
@@ -18,7 +18,7 @@ from ._gradients import (  # type: ignore
 )
 
 
-class AbstractGradientShape(AbstractShape):
+class GradientShape(Shape):
     def __init__(self, color: Color, second_color: Color) -> None:
         super().__init__(color)
         self.__second_color: Color = self.color
@@ -36,7 +36,7 @@ class AbstractGradientShape(AbstractShape):
             self._need_update()
 
 
-class AbstractRectangleGradientShape(AbstractGradientShape):
+class _AbstractRectangleGradientShape(GradientShape):
     def __init__(self, width: float, height: float, color: Color, second_color: Color) -> None:
         super().__init__(color, second_color)
         self.__w: float = 0
@@ -79,7 +79,7 @@ class AbstractRectangleGradientShape(AbstractGradientShape):
             self._need_update()
 
 
-class HorizontalGradientShape(AbstractRectangleGradientShape):
+class HorizontalGradientShape(_AbstractRectangleGradientShape):
     def copy(self) -> HorizontalGradientShape:
         return HorizontalGradientShape(self.local_width, self.local_height, self.color, self.second_color)
 
@@ -90,7 +90,7 @@ class HorizontalGradientShape(AbstractRectangleGradientShape):
         return _gradient_horizontal(size, tuple(self.color), tuple(self.second_color))  # type: ignore
 
 
-class VerticalGradientShape(AbstractRectangleGradientShape):
+class VerticalGradientShape(_AbstractRectangleGradientShape):
     def copy(self) -> VerticalGradientShape:
         return VerticalGradientShape(self.local_width, self.local_height, self.color, self.second_color)
 
@@ -101,7 +101,7 @@ class VerticalGradientShape(AbstractRectangleGradientShape):
         return _gradient_vertical(size, tuple(self.color), tuple(self.second_color))  # type: ignore
 
 
-class SquaredGradientShape(AbstractGradientShape):
+class SquaredGradientShape(GradientShape):
     def __init__(self, width: float, color: Color, second_color: Color) -> None:
         super().__init__(color, second_color)
         self.__w: float = 0
@@ -133,7 +133,7 @@ class SquaredGradientShape(AbstractGradientShape):
             self._need_update()
 
 
-class RadialGradientShape(AbstractGradientShape):
+class RadialGradientShape(GradientShape):
     def __init__(self, radius: float, color: Color, second_color: Color) -> None:
         super().__init__(color, second_color)
         self.__radius: float = 0
