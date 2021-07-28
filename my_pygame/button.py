@@ -30,6 +30,20 @@ class _ButtonColor(TypedDict):
     active: Optional[Color]
 
 
+class _ImageDict(TypedDict):
+    normal: Optional[Surface]
+    hover: Optional[Surface]
+    active: Optional[Surface]
+
+
+def _copy_color(c: Optional[Color]) -> Optional[Color]:
+    return Color(c) if c is not None else None
+
+
+def _copy_img(surface: Optional[Surface]) -> Optional[Surface]:
+    return surface.copy() if surface is not None else None
+
+
 class Button(ThemedDrawable, Clickable):
     Justify = TextImage.Justify
     Compound = TextImage.Compound
@@ -98,6 +112,11 @@ class Button(ThemedDrawable, Clickable):
         disabled_hover_fg: Optional[Color] = None,
         disabled_active_bg: Optional[Color] = None,
         disabled_active_fg: Optional[Color] = None,
+        hover_img: Optional[Surface] = None,
+        active_img: Optional[Surface] = None,
+        disabled_img: Optional[Surface] = None,
+        disabled_hover_img: Optional[Surface] = None,
+        disabled_active_img: Optional[Surface] = None,
         # highlight_color=BLUE,
         # highlight_thickness=2,
         cursor: Optional[Cursor] = None,
@@ -164,25 +183,37 @@ class Button(ThemedDrawable, Clickable):
         self.__bg: Dict[Clickable.State, _ButtonColor] = {
             Clickable.State.NORMAL: {
                 "normal": Color(bg),
-                "hover": Color(hover_bg) if hover_bg is not None else None,
-                "active": Color(active_bg) if active_bg is not None else None,
+                "hover": _copy_color(hover_bg),
+                "active": _copy_color(active_bg),
             },
             Clickable.State.DISABLED: {
                 "normal": Color(disabled_bg),
-                "hover": Color(disabled_hover_bg) if disabled_hover_bg is not None else None,
-                "active": Color(disabled_active_bg) if disabled_active_bg is not None else None,
+                "hover": _copy_color(disabled_hover_bg),
+                "active": _copy_color(disabled_active_bg),
             },
         }
         self.__fg: Dict[Clickable.State, _ButtonColor] = {
             Clickable.State.NORMAL: {
                 "normal": Color(fg),
-                "hover": Color(hover_fg) if hover_fg is not None else None,
-                "active": Color(active_fg) if active_fg is not None else None,
+                "hover": _copy_color(hover_fg),
+                "active": _copy_color(active_fg),
             },
             Clickable.State.DISABLED: {
                 "normal": Color(disabled_fg),
-                "hover": Color(disabled_hover_fg) if disabled_hover_fg is not None else None,
-                "active": Color(disabled_active_fg) if disabled_active_fg is not None else None,
+                "hover": _copy_color(disabled_hover_fg),
+                "active": _copy_color(disabled_active_fg),
+            },
+        }
+        self.__img: Dict[Clickable.State, _ImageDict] = {
+            Clickable.State.NORMAL: {
+                "normal": _copy_img(img),
+                "hover": _copy_img(hover_img),
+                "active": _copy_img(active_img),
+            },
+            Clickable.State.DISABLED: {
+                "normal": _copy_img(disabled_img),
+                "hover": _copy_img(disabled_hover_img),
+                "active": _copy_img(disabled_active_img),
             },
         }
         self.__text_align_x: Button.HorizontalAlign = Button.HorizontalAlign(text_align_x)
@@ -195,7 +226,7 @@ class Button(ThemedDrawable, Clickable):
         b: Button = Button(
             master=self.scene if self.scene is not None else self.master,
             text=self.__text.message,
-            img=self.__text.img,
+            img=self.__img[Clickable.State.NORMAL]["normal"],
             compound=self.__text.compound,
             text_img_distance=self.__text.distance,
             font=self.__text.font,
@@ -228,6 +259,11 @@ class Button(ThemedDrawable, Clickable):
             disabled_hover_fg=self.__fg[Clickable.State.DISABLED]["hover"],
             disabled_active_bg=self.__bg[Clickable.State.DISABLED]["active"],
             disabled_active_fg=self.__fg[Clickable.State.DISABLED]["active"],
+            hover_img=self.__img[Clickable.State.NORMAL]["hover"],
+            active_img=self.__img[Clickable.State.NORMAL]["active"],
+            disabled_img=self.__img[Clickable.State.DISABLED]["normal"],
+            disabled_hover_img=self.__img[Clickable.State.DISABLED]["hover"],
+            disabled_active_img=self.__img[Clickable.State.DISABLED]["active"],
             cursor=self.cursor,
             disabled_cursor=self.disabled_cursor,
             text_align_x=self.__text_align_x,
@@ -369,15 +405,15 @@ class Button(ThemedDrawable, Clickable):
         return truth(self.rect.collidepoint(mouse_pos))
 
     def _on_hover(self) -> None:
-        self.__set_color("hover")
+        self.__set_state("hover")
 
     def _on_leave(self) -> None:
-        self.__set_color("normal")
+        self.__set_state("normal")
 
     def _on_active_set(self) -> None:
-        self.__set_color("active")
+        self.__set_state("active")
 
-    def __set_color(self, button_state: Union[Literal["normal"], Literal["hover"], Literal["active"]]) -> None:
+    def __set_state(self, button_state: Union[Literal["normal"], Literal["hover"], Literal["active"]]) -> None:
         clickable_state: Clickable.State = Clickable.State(self.state)
         bg_color: Optional[Color] = self.__bg[clickable_state][button_state]
         if bg_color is None:
@@ -385,16 +421,21 @@ class Button(ThemedDrawable, Clickable):
         fg_color: Optional[Color] = self.__fg[clickable_state][button_state]
         if fg_color is None:
             fg_color = self.__fg[clickable_state]["normal"]
+        img: Optional[Surface] = self.__img[clickable_state][button_state]
+        if img is None:
+            img = self.__img[clickable_state]["normal"]
         self.__shape.color = bg_color
         self.__text.color = fg_color
+        self.__text.img = img
+        self.__update_shape_size()
 
-    def __update_colors(self) -> None:
+    def __update_state(self) -> None:
         if self.active:
-            self.__set_color("active")
+            self.__set_state("active")
         elif self.hover:
-            self.__set_color("hover")
+            self.__set_state("hover")
         else:
-            self.__set_color("normal")
+            self.__set_state("normal")
 
     def __update_shape_size(self) -> None:
         center = self.center
@@ -479,12 +520,12 @@ class Button(ThemedDrawable, Clickable):
 
     @property
     def img(self) -> Optional[Surface]:
-        return self.__text.img
+        return _copy_img(self.__img[Clickable.State.NORMAL]["normal"])
 
     @img.setter
     def img(self, surface: Optional[Surface]) -> None:
-        self.__text.img = surface
-        self.__update_shape_size()
+        self.__img[Clickable.State.NORMAL]["normal"] = _copy_img(surface)
+        self.__update_state()
 
     @property
     def compound(self) -> str:
@@ -572,7 +613,7 @@ class Button(ThemedDrawable, Clickable):
     @background.setter
     def background(self, color: Color) -> None:
         self.__bg[Clickable.State.NORMAL]["normal"] = Color(color)
-        self.__update_colors()
+        self.__update_state()
 
     @property
     def bg(self) -> Color:
@@ -589,7 +630,7 @@ class Button(ThemedDrawable, Clickable):
     @foreground.setter
     def foreground(self, color: Color) -> None:
         self.__fg[Clickable.State.NORMAL]["normal"] = Color(color)
-        self.__update_colors()
+        self.__update_state()
 
     @property
     def fg(self) -> Color:
@@ -618,12 +659,12 @@ class Button(ThemedDrawable, Clickable):
     @property
     def hover_background(self) -> Optional[Color]:
         c: Optional[Color] = self.__bg[Clickable.State.NORMAL]["hover"]
-        return Color(c) if c is not None else None
+        return _copy_color(c)
 
     @hover_background.setter
     def hover_background(self, color: Optional[Color]) -> None:
-        self.__bg[Clickable.State.NORMAL]["hover"] = Color(color) if color is not None else None
-        self.__update_colors()
+        self.__bg[Clickable.State.NORMAL]["hover"] = _copy_color(color)
+        self.__update_state()
 
     @property
     def hover_bg(self) -> Optional[Color]:
@@ -636,12 +677,12 @@ class Button(ThemedDrawable, Clickable):
     @property
     def hover_foreground(self) -> Optional[Color]:
         c: Optional[Color] = self.__fg[Clickable.State.NORMAL]["hover"]
-        return Color(c) if c is not None else None
+        return _copy_color(c)
 
     @hover_foreground.setter
     def hover_foreground(self, color: Optional[Color]) -> None:
-        self.__fg[Clickable.State.NORMAL]["hover"] = Color(color) if color is not None else None
-        self.__update_colors()
+        self.__fg[Clickable.State.NORMAL]["hover"] = _copy_color(color)
+        self.__update_state()
 
     @property
     def hover_fg(self) -> Optional[Color]:
@@ -654,12 +695,12 @@ class Button(ThemedDrawable, Clickable):
     @property
     def active_background(self) -> Optional[Color]:
         c: Optional[Color] = self.__bg[Clickable.State.NORMAL]["active"]
-        return Color(c) if c is not None else None
+        return _copy_color(c)
 
     @active_background.setter
     def active_background(self, color: Optional[Color]) -> None:
-        self.__bg[Clickable.State.NORMAL]["active"] = Color(color) if color is not None else None
-        self.__update_colors()
+        self.__bg[Clickable.State.NORMAL]["active"] = _copy_color(color)
+        self.__update_state()
 
     @property
     def active_bg(self) -> Optional[Color]:
@@ -672,12 +713,12 @@ class Button(ThemedDrawable, Clickable):
     @property
     def active_foreground(self) -> Optional[Color]:
         c: Optional[Color] = self.__fg[Clickable.State.NORMAL]["active"]
-        return Color(c) if c is not None else None
+        return _copy_color(c)
 
     @active_foreground.setter
     def active_foreground(self, color: Optional[Color]) -> None:
-        self.__fg[Clickable.State.NORMAL]["active"] = Color(color) if color is not None else None
-        self.__update_colors()
+        self.__fg[Clickable.State.NORMAL]["active"] = _copy_color(color)
+        self.__update_state()
 
     @property
     def active_fg(self) -> Optional[Color]:
@@ -694,7 +735,7 @@ class Button(ThemedDrawable, Clickable):
     @disabled_background.setter
     def disabled_background(self, color: Color) -> None:
         self.__bg[Clickable.State.DISABLED]["normal"] = Color(color)
-        self.__update_colors()
+        self.__update_state()
 
     @property
     def disabled_bg(self) -> Color:
@@ -711,7 +752,7 @@ class Button(ThemedDrawable, Clickable):
     @disabled_foreground.setter
     def disabled_foreground(self, color: Color) -> None:
         self.__fg[Clickable.State.DISABLED]["normal"] = Color(color)
-        self.__update_colors()
+        self.__update_state()
 
     @property
     def disabled_fg(self) -> Color:
@@ -724,12 +765,12 @@ class Button(ThemedDrawable, Clickable):
     @property
     def disabled_hover_background(self) -> Optional[Color]:
         c: Optional[Color] = self.__bg[Clickable.State.DISABLED]["hover"]
-        return Color(c) if c is not None else None
+        return _copy_color(c)
 
     @disabled_hover_background.setter
     def disabled_hover_background(self, color: Optional[Color]) -> None:
-        self.__bg[Clickable.State.DISABLED]["hover"] = Color(color) if color is not None else None
-        self.__update_colors()
+        self.__bg[Clickable.State.DISABLED]["hover"] = _copy_color(color)
+        self.__update_state()
 
     @property
     def disabled_hover_bg(self) -> Optional[Color]:
@@ -742,12 +783,12 @@ class Button(ThemedDrawable, Clickable):
     @property
     def disabled_hover_foreground(self) -> Optional[Color]:
         c: Optional[Color] = self.__fg[Clickable.State.DISABLED]["hover"]
-        return Color(c) if c is not None else None
+        return _copy_color(c)
 
     @disabled_hover_foreground.setter
     def disabled_hover_foreground(self, color: Optional[Color]) -> None:
-        self.__fg[Clickable.State.DISABLED]["hover"] = Color(color) if color is not None else None
-        self.__update_colors()
+        self.__fg[Clickable.State.DISABLED]["hover"] = _copy_color(color)
+        self.__update_state()
 
     @property
     def disabled_hover_fg(self) -> Optional[Color]:
@@ -760,12 +801,12 @@ class Button(ThemedDrawable, Clickable):
     @property
     def disabled_active_background(self) -> Optional[Color]:
         c: Optional[Color] = self.__bg[Clickable.State.DISABLED]["active"]
-        return Color(c) if c is not None else None
+        return _copy_color(c)
 
     @disabled_active_background.setter
     def disabled_active_background(self, color: Optional[Color]) -> None:
-        self.__bg[Clickable.State.DISABLED]["active"] = Color(color) if color is not None else None
-        self.__update_colors()
+        self.__bg[Clickable.State.DISABLED]["active"] = _copy_color(color)
+        self.__update_state()
 
     @property
     def disabled_active_bg(self) -> Optional[Color]:
@@ -778,12 +819,12 @@ class Button(ThemedDrawable, Clickable):
     @property
     def disabled_active_foreground(self) -> Optional[Color]:
         c: Optional[Color] = self.__fg[Clickable.State.DISABLED]["active"]
-        return Color(c) if c is not None else None
+        return _copy_color(c)
 
     @disabled_active_foreground.setter
     def disabled_active_foreground(self, color: Optional[Color]) -> None:
-        self.__fg[Clickable.State.DISABLED]["active"] = Color(color) if color is not None else None
-        self.__update_colors()
+        self.__fg[Clickable.State.DISABLED]["active"] = _copy_color(color)
+        self.__update_state()
 
     @property
     def disabled_active_fg(self) -> Optional[Color]:
@@ -792,6 +833,42 @@ class Button(ThemedDrawable, Clickable):
     @disabled_active_fg.setter
     def disabled_active_fg(self, color: Optional[Color]) -> None:
         self.disabled_active_foreground = color
+
+    @property
+    def hover_img(self) -> Optional[Surface]:
+        return _copy_img(self.__img[Clickable.State.NORMAL]["hover"])
+
+    @hover_img.setter
+    def hover_img(self, surface: Optional[Surface]) -> None:
+        self.__img[Clickable.State.NORMAL]["hover"] = _copy_img(surface)
+        self.__update_state()
+
+    @property
+    def active_img(self) -> Optional[Surface]:
+        return _copy_img(self.__img[Clickable.State.NORMAL]["active"])
+
+    @active_img.setter
+    def active_img(self, surface: Optional[Surface]) -> None:
+        self.__img[Clickable.State.NORMAL]["active"] = _copy_img(surface)
+        self.__update_state()
+
+    @property
+    def disabled_hover_img(self) -> Optional[Surface]:
+        return _copy_img(self.__img[Clickable.State.DISABLED]["hover"])
+
+    @disabled_hover_img.setter
+    def disabled_hover_img(self, surface: Optional[Surface]) -> None:
+        self.__img[Clickable.State.DISABLED]["hover"] = _copy_img(surface)
+        self.__update_state()
+
+    @property
+    def disabled_active_img(self) -> Optional[Surface]:
+        return _copy_img(self.__img[Clickable.State.DISABLED]["active"])
+
+    @disabled_active_img.setter
+    def disabled_active_img(self, surface: Optional[Surface]) -> None:
+        self.__img[Clickable.State.DISABLED]["active"] = _copy_img(surface)
+        self.__update_state()
 
     @property
     def text_align_x(self) -> str:

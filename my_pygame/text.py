@@ -350,6 +350,8 @@ class TextImage(Text):
             theme=NoTheme,
         )
         self.__img: Optional[Image] = _BoundImage(self, img) if img is not None else None
+        self.__img_angle: float = 0
+        self.__img_scale: float = 1
         self.__compound: TextImage.Compound = TextImage.Compound(compound)
         self.__distance: float = float(distance)
         self._need_update()
@@ -369,63 +371,75 @@ class TextImage(Text):
             theme=NoTheme,
         )
         if self.__img is not None:
-            t.img_set_rotation(self.__img.angle)
-            t.img_set_scale(self.__img.scale)
+            t.img_set_rotation(self.__img_angle)
+            t.img_set_scale(self.__img_scale)
         return t
 
     def get_img_angle(self) -> float:
-        return self.__img.angle if self.__img is not None else 0
+        return self.__img_angle
 
     def get_img_scale(self) -> float:
-        return self.__img.scale if self.__img is not None else 1
+        return self.__img_scale
 
     def img_rotate(self, angle_offset: float) -> None:
         if self.__img is not None:
             self.__img.rotate(angle_offset)
+            self.__img_angle = self.__img.angle
 
     def img_set_rotation(self, angle: float) -> None:
         if self.__img is not None:
             self.__img.set_rotation(angle)
+            self.__img_angle = self.__img.angle
 
     def img_set_scale(self, scale: float) -> None:
         if self.__img is not None:
             self.__img.set_scale(scale)
+            self.__img_scale = self.__img.scale
 
     def img_scale_to_width(self, width: float) -> None:
         if self.__img is not None:
             self.__img.scale_to_width(width)
+            self.__img_scale = self.__img.scale
 
     def img_scale_to_height(self, height: float) -> None:
         if self.__img is not None:
             self.__img.scale_to_height(height)
+            self.__img_scale = self.__img.scale
 
     def img_scale_to_size(self, size: Tuple[float, float]) -> None:
         if self.__img is not None:
             self.__img.scale_to_size(size)
+            self.__img_scale = self.__img.scale
 
     def img_set_min_width(self, width: float) -> None:
         if self.__img is not None:
             self.__img.set_min_width(width)
+            self.__img_scale = self.__img.scale
 
     def img_set_max_width(self, width: float) -> None:
         if self.__img is not None:
             self.__img.set_max_width(width)
+            self.__img_scale = self.__img.scale
 
     def img_set_min_height(self, height: float) -> None:
         if self.__img is not None:
             self.__img.set_min_height(height)
+            self.__img_scale = self.__img.scale
 
     def img_set_max_height(self, height: float) -> None:
         if self.__img is not None:
             self.__img.set_max_height(height)
+            self.__img_scale = self.__img.scale
 
     def img_set_min_size(self, size: Tuple[float, float]) -> None:
         if self.__img is not None:
             self.__img.set_min_size(size)
+            self.__img_scale = self.__img.scale
 
     def img_set_max_size(self, size: Tuple[float, float]) -> None:
         if self.__img is not None:
             self.__img.set_max_size(size)
+            self.__img_scale = self.__img.scale
 
     def _render(self) -> Surface:
         text: Surface = super()._render()
@@ -490,6 +504,8 @@ class TextImage(Text):
             return
         if self.__img is None:
             self.__img = _BoundImage(self, surface)
+            self.__img.set_scale(self.__img_scale)
+            self.__img.set_rotation(self.__img_angle)
         else:
             self.__img.set(surface)
         self._need_update()
