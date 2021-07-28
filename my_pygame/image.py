@@ -1,7 +1,7 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
-from typing import Tuple, Union, overload
+from typing import Optional, Tuple, Union, overload
 
 import pygame.transform
 from pygame.surface import Surface
@@ -12,14 +12,14 @@ from .surface import load_image, save_image
 
 class Image(Drawable):
     @overload
-    def __init__(self, image: Surface) -> None:
+    def __init__(self, image: Surface, *, width: Optional[float] = None, height: Optional[float] = None) -> None:
         ...
 
     @overload
-    def __init__(self, image: str) -> None:
+    def __init__(self, image: str, *, width: Optional[float] = None, height: Optional[float] = None) -> None:
         ...
 
-    def __init__(self, image: Union[Surface, str]) -> None:
+    def __init__(self, image: Union[Surface, str], *, width: Optional[float] = None, height: Optional[float] = None) -> None:
         super().__init__()
         self.__default_image: Surface
         self.__image: Surface
@@ -32,6 +32,12 @@ class Image(Drawable):
             self.__default_image = Surface((0, 0))
             self.__image = self.__default_image.copy()
             self.load(image)
+        if width is not None and height is not None:
+            self.scale_to_size((width, height))
+        elif width is not None:
+            self.scale_to_width(width)
+        elif height is not None:
+            self.scale_to_height(height)
 
     def copy(self) -> Image:
         return Image(self.__default_image)

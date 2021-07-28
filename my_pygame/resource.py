@@ -80,7 +80,15 @@ class ResourceManagerFiles(Mapping[str, ResourcesFile]):
 
 class MetaResourceManager(type):
     def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **extra: Any) -> MetaResourceManager:
-        namespace["__resources_files__"] = ResourceManagerFiles(namespace.get("__resources_files__", dict()))
+        namespace["__resources_files__"] = resources = ResourceManagerFiles(namespace.get("__resources_files__", dict()))
+
+        annotations: Dict[str, Union[type, str]] = namespace.get("__annotations__", dict())
+        for attr_name in annotations:
+            if attr_name == "__resources_files__":
+                continue
+            if attr_name not in resources:
+                raise KeyError(f"Missing {repr(attr_name)} key in '__resources_files__' dict")
+
         return super().__new__(metacls, name, bases, namespace, **extra)
 
     def __init__(cls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **extra: Any) -> None:

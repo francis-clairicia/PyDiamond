@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: Utf-8 -*
 
-from my_pygame.button import Button
+from my_pygame.button import Button, ImageButton
 from my_pygame.mouse import Mouse
 from typing import List, Type
 import pygame
@@ -191,6 +191,8 @@ class MyResources(ResourceManager):
     cactus: Surface
     cooperblack: str
     car: List[Surface]
+    cross: Surface
+    cross_hover: Surface
     __resources_files__ = {
         "cactus": {"path": "./files/img/cactus.png", "loader": ImageLoader},
         "cooperblack": {"path": "./files/fonts/COOPBL.ttf", "loader": FontLoader},
@@ -198,6 +200,8 @@ class MyResources(ResourceManager):
             "path": [f"./files/img/gameplay/voiture_7/{i + 1}.png" for i in range(10)],
             "loader": ImageLoader,
         },
+        "cross": {"path": "./files/img/croix_rouge.png", "loader": ImageLoader},
+        "cross_hover": {"path": "./files/img/croix_rouge_over.png", "loader": ImageLoader},
     }
 
 
@@ -290,7 +294,14 @@ class ButtonScene(Scene):
         self.button.img_scale_to_size((100, 100))
         self.button.center = window.center
 
+        self.cancel = ImageButton(self, img=MyResources.cross, active_img=MyResources.cross_hover, callback=self.__reset)
+        self.cancel.center = window.center
+        self.cancel.move(450, 0)
+
     def on_start_loop(self) -> None:
+        self.__reset()
+
+    def __reset(self) -> None:
         self.counter = 0
         self.button.text = "0"
         self.button.scale = 1
@@ -302,6 +313,7 @@ class ButtonScene(Scene):
 
     def draw(self) -> None:
         self.window.draw(self.button)
+        self.window.draw(self.cancel)
 
 
 class MainWindow(Window):
