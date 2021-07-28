@@ -352,9 +352,10 @@ class TextImage(Text):
         self.__img: Optional[Image] = TextImage.__BoundImage(self, img) if img is not None else None
         self.__compound: TextImage.Compound = TextImage.Compound(compound)
         self.__distance: float = float(distance)
+        self._need_update()
 
     def copy(self) -> TextImage:
-        return TextImage(
+        t: TextImage = TextImage(
             message=self.message,
             img=self.__img.get() if self.__img is not None else None,
             compound=self.__compound,
@@ -367,25 +368,30 @@ class TextImage(Text):
             shadow_color=self.shadow_color,
             theme=NoTheme,
         )
+        if self.__img is not None:
+            t.img_set_rotation(self.__img.angle)
+            t.img_set_scale(self.__img.scale)
+        return t
 
     def _render(self) -> Surface:
         text: Surface = super()._render()
         if self.__img is None:
             return text
         text_width, text_height = text.get_size()
-        text_rect: Rect = text.get_rect()
         img_width, img_height = self.__img.get_size()
+        if img_width == 0 or img_height == 0:
+            return text
+        if text_width == 0 or text_height == 0:
+            return self.__img.to_surface()
+
+        text_rect: Rect = text.get_rect()
         offset: float = self.__distance
         render_width: float
         render_height: float
         if self.__compound in [TextImage.Compound.LEFT, TextImage.Compound.RIGHT]:
-            if text_width == 0 or img_width == 0:
-                offset = 0
             render_width = text_width + img_width + offset
             render_height = max(text_height, img_height)
         elif self.__compound in [TextImage.Compound.TOP, TextImage.Compound.BOTTOM]:
-            if text_height == 0 or img_height == 0:
-                offset = 0
             render_width = max(text_width, img_width)
             render_height = text_height + img_height + offset
         else:
