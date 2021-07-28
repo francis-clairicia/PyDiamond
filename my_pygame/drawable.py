@@ -46,6 +46,9 @@ def _can_apply_decorator(func: Callable[..., Any]) -> bool:
 
 class MetaDrawable(ABCMeta):
     def __new__(metacls, name: str, bases: Tuple[type, ...], attrs: Dict[str, Any], **kwargs: Any) -> MetaDrawable:
+        if "copy" not in attrs:
+            attrs["copy"] = Drawable.copy
+
         init_method: Optional[Callable[..., None]] = attrs.get("__init__")
         if callable(init_method) and _can_apply_decorator(init_method):
             attrs["__init__"] = _init_decorator(init_method)

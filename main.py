@@ -134,6 +134,8 @@ class AnimationScene(Scene):
 
     def on_start_loop(self) -> None:
         window: Window = self.window
+        self.rectangle.angle = 0
+        self.rectangle.scale = 1
         self.rectangle.midleft = window.midleft
         self.rectangle.animation.register_position(center=window.center, speed=3.7)
         self.rectangle.animation.register_rotation(360, offset=2, pivot=window.center)

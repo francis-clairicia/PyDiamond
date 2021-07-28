@@ -537,6 +537,9 @@ class _BoundImage(Image):
         super().__init__(image)
         self.__text: TextImage = text
 
+    def copy(self) -> _BoundImage:
+        raise NotImplementedError
+
     def _apply_rotation_scale(self) -> None:
         super()._apply_rotation_scale()
         self.__text._need_update()

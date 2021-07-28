@@ -34,13 +34,14 @@ class Clickable(metaclass=ABCMeta):
         cursor: Optional[Cursor] = None,
         disabled_cursor: Optional[Cursor] = None,
     ) -> None:
-        self.__master: Window
+        self.__master: Union[Scene, Window] = master
+        self.__window: Window
         self.__scene: Optional[Scene]
         if isinstance(master, Scene):
-            self.__master = master.window
+            self.__window = master.window
             self.__scene = master
         else:
-            self.__master = master
+            self.__window = master
             self.__scene = None
         self.__state: Clickable.State = Clickable.State.NORMAL
         self.__hover: bool = False
@@ -118,7 +119,7 @@ class Clickable(metaclass=ABCMeta):
             return
         self.hover = hover = self._mouse_in_hitbox(mouse_pos)
         if hover:
-            self.master.set_temporary_window_cursor(self.__hover_cursor[self.__state])
+            self.__window.set_temporary_window_cursor(self.__hover_cursor[self.__state])
 
     @abstractmethod
     def _mouse_in_hitbox(self, mouse_pos: Tuple[float, float]) -> bool:
@@ -146,8 +147,12 @@ class Clickable(metaclass=ABCMeta):
         pass
 
     @property
-    def master(self) -> Window:
+    def master(self) -> Union[Scene, Window]:
         return self.__master
+
+    @property
+    def window(self) -> Window:
+        return self.__window
 
     @property
     def scene(self) -> Optional[Scene]:

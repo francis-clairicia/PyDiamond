@@ -21,7 +21,6 @@ from .theme import NoTheme, Theme
 from .cursor import Cursor
 from .image import Image
 
-_ButtonCallback = Callable[[], None]
 _TextFont = Union[Font, Tuple[Optional[str], int]]
 
 
@@ -115,7 +114,7 @@ class Button(ThemedDrawable, Clickable):
         shadow_x: float = 0,
         shadow_y: float = 0,
         shadow_color: Color = BLACK,
-        callback: Optional[_ButtonCallback] = None,
+        callback: Optional[Callable[[], None]] = None,
         state: str = "normal",
         width: Optional[float] = None,
         height: Optional[float] = None,
@@ -188,7 +187,7 @@ class Button(ThemedDrawable, Clickable):
             shadow_color=shadow_color,
             theme=NoTheme,
         )
-        self.__callback: Optional[_ButtonCallback] = callback if callable(callback) else None
+        self.__callback: Optional[Callable[[], None]] = callback if callable(callback) else None
         self.__x_add_size: float = max(float(x_add_size), 0)
         self.__y_add_size: float = max(float(y_add_size), 0)
         self.__fixed_width: Optional[float] = max(float(width), 0) if width is not None else None
@@ -251,7 +250,7 @@ class Button(ThemedDrawable, Clickable):
 
     def copy(self) -> Button:
         b: Button = Button(
-            master=self.scene if self.scene is not None else self.master,
+            master=self.master,
             text=self.__text.message,
             img=self.__img[Clickable.State.NORMAL]["normal"],
             compound=self.__text.compound,
@@ -571,11 +570,11 @@ class Button(ThemedDrawable, Clickable):
         self.__update_shape_size()
 
     @property
-    def callback(self) -> Optional[_ButtonCallback]:
+    def callback(self) -> Optional[Callable[[], None]]:
         return self.__callback
 
     @callback.setter
-    def callback(self, callback: Optional[_ButtonCallback]) -> None:
+    def callback(self, callback: Optional[Callable[[], None]]) -> None:
         if callable(callback):
             self.__callback = callback
         else:
@@ -996,7 +995,7 @@ class ImageButton(ThemedDrawable, Clickable):
         disabled_img: Optional[Surface] = None,
         disabled_hover_img: Optional[Surface] = None,
         disabled_active_img: Optional[Surface] = None,
-        callback: Optional[_ButtonCallback] = None,
+        callback: Optional[Callable[[], None]] = None,
         state: str = "normal",
         x_add_size: float = 20,
         y_add_size: float = 20,
@@ -1036,7 +1035,7 @@ class ImageButton(ThemedDrawable, Clickable):
             disabled_cursor=disabled_cursor,
         )
         self.__image: Image = Image(img)
-        self.__callback: Optional[_ButtonCallback] = callback if callable(callback) else None
+        self.__callback: Optional[Callable[[], None]] = callback if callable(callback) else None
         self.__x_add_size: float = max(float(x_add_size), 0)
         self.__y_add_size: float = max(float(y_add_size), 0)
         self.__shape: RectangleShape = RectangleShape(
@@ -1081,7 +1080,7 @@ class ImageButton(ThemedDrawable, Clickable):
 
     def copy(self) -> ImageButton:
         return ImageButton(
-            master=self.scene if self.scene is not None else self.master,
+            master=self.master,
             img=self.__img[Clickable.State.NORMAL]["normal"],
             callback=self.__callback,
             state=self.state,
@@ -1194,11 +1193,11 @@ class ImageButton(ThemedDrawable, Clickable):
         self.__update_state()
 
     @property
-    def callback(self) -> Optional[_ButtonCallback]:
+    def callback(self) -> Optional[Callable[[], None]]:
         return self.__callback
 
     @callback.setter
-    def callback(self, callback: Optional[_ButtonCallback]) -> None:
+    def callback(self, callback: Optional[Callable[[], None]]) -> None:
         if callable(callback):
             self.__callback = callback
         else:
