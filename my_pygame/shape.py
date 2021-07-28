@@ -19,16 +19,14 @@ from .colors import BLACK
 from .surface import create_surface
 
 
-class Shape(Drawable):
-    def __init__(self, color: Color) -> None:
+class AbstractShape(Drawable):
+    def __init__(self) -> None:
         super().__init__()
         self.__update: bool = True
         self.__image: Surface = create_surface((0, 0))
         self.__shape_image: Surface = self.__image.copy()
-        self.__color: Color = BLACK
         self.__local_size: Tuple[float, float] = (0, 0)
         self.__size: Tuple[float, float] = (0, 0)
-        self.color = color
         self._need_update()
 
     def _need_update(self) -> None:
@@ -132,6 +130,14 @@ class Shape(Drawable):
 
         return vertices
 
+
+class Shape(AbstractShape):
+    def __init__(self, color: Color) -> None:
+        super().__init__()
+        self.__color: Color = BLACK
+        self.color = color
+        self._need_update()
+
     @property
     def color(self) -> Color:
         return Color(self.__color)
@@ -144,7 +150,7 @@ class Shape(Drawable):
 
 
 @abstract_theme_class
-class ThemedShape(Shape, ThemedDrawable):
+class ThemedShape(AbstractShape, ThemedDrawable):
     pass
 
 
