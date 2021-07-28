@@ -349,7 +349,7 @@ class TextImage(Text):
             shadow_color=shadow_color,
             theme=NoTheme,
         )
-        self.__img: Optional[Image] = TextImage.__BoundImage(self, img) if img is not None else None
+        self.__img: Optional[Image] = _BoundImage(self, img) if img is not None else None
         self.__compound: TextImage.Compound = TextImage.Compound(compound)
         self.__distance: float = float(distance)
         self._need_update()
@@ -373,52 +373,11 @@ class TextImage(Text):
             t.img_set_scale(self.__img.scale)
         return t
 
-    def _render(self) -> Surface:
-        text: Surface = super()._render()
-        if self.__img is None:
-            return text
-        text_width, text_height = text.get_size()
-        img_width, img_height = self.__img.get_size()
-        if img_width == 0 or img_height == 0:
-            return text
-        if text_width == 0 or text_height == 0:
-            return self.__img.to_surface()
+    def get_img_angle(self) -> float:
+        return self.__img.angle if self.__img is not None else 0
 
-        text_rect: Rect = text.get_rect()
-        offset: float = self.__distance
-        render_width: float
-        render_height: float
-        if self.__compound in [TextImage.Compound.LEFT, TextImage.Compound.RIGHT]:
-            render_width = text_width + img_width + offset
-            render_height = max(text_height, img_height)
-        elif self.__compound in [TextImage.Compound.TOP, TextImage.Compound.BOTTOM]:
-            render_width = max(text_width, img_width)
-            render_height = text_height + img_height + offset
-        else:
-            render_width = max(text_width, img_width)
-            render_height = max(text_height, img_height)
-        render: Surface = create_surface((render_width, render_height))
-        render_rect: Rect = render.get_rect()
-
-        if self.__compound == TextImage.Compound.LEFT:
-            text_rect.midleft = render_rect.midleft
-            self.__img.midright = render_rect.midright
-        elif self.__compound == TextImage.Compound.RIGHT:
-            text_rect.midright = render_rect.midright
-            self.__img.midleft = render_rect.midleft
-        elif self.__compound == TextImage.Compound.TOP:
-            text_rect.midtop = render_rect.midtop
-            self.__img.midbottom = render_rect.midbottom
-        elif self.__compound == TextImage.Compound.BOTTOM:
-            text_rect.midbottom = render_rect.midbottom
-            self.__img.midtop = render_rect.midtop
-        else:
-            self.__img.center = text_rect.center = render_rect.center
-
-        self.__img.draw_onto(render)
-        render.blit(text, text_rect)
-
-        return render
+    def get_img_scale(self) -> float:
+        return self.__img.scale if self.__img is not None else 1
 
     def img_rotate(self, angle_offset: float) -> None:
         if self.__img is not None:
@@ -468,6 +427,53 @@ class TextImage(Text):
         if self.__img is not None:
             self.__img.set_max_size(size)
 
+    def _render(self) -> Surface:
+        text: Surface = super()._render()
+        if self.__img is None:
+            return text
+        text_width, text_height = text.get_size()
+        img_width, img_height = self.__img.get_size()
+        if img_width == 0 or img_height == 0:
+            return text
+        if text_width == 0 or text_height == 0:
+            return self.__img.to_surface()
+
+        text_rect: Rect = text.get_rect()
+        offset: float = self.__distance
+        render_width: float
+        render_height: float
+        if self.__compound in [TextImage.Compound.LEFT, TextImage.Compound.RIGHT]:
+            render_width = text_width + img_width + offset
+            render_height = max(text_height, img_height)
+        elif self.__compound in [TextImage.Compound.TOP, TextImage.Compound.BOTTOM]:
+            render_width = max(text_width, img_width)
+            render_height = text_height + img_height + offset
+        else:
+            render_width = max(text_width, img_width)
+            render_height = max(text_height, img_height)
+        render: Surface = create_surface((render_width, render_height))
+        render_rect: Rect = render.get_rect()
+
+        if self.__compound == TextImage.Compound.LEFT:
+            text_rect.midleft = render_rect.midleft
+            self.__img.midright = render_rect.midright
+        elif self.__compound == TextImage.Compound.RIGHT:
+            text_rect.midright = render_rect.midright
+            self.__img.midleft = render_rect.midleft
+        elif self.__compound == TextImage.Compound.TOP:
+            text_rect.midtop = render_rect.midtop
+            self.__img.midbottom = render_rect.midbottom
+        elif self.__compound == TextImage.Compound.BOTTOM:
+            text_rect.midbottom = render_rect.midbottom
+            self.__img.midtop = render_rect.midtop
+        else:
+            self.__img.center = text_rect.center = render_rect.center
+
+        self.__img.draw_onto(render)
+        render.blit(text, text_rect)
+
+        return render
+
     @property
     def img(self) -> Optional[Surface]:
         if self.__img is None:
@@ -483,7 +489,7 @@ class TextImage(Text):
             self._need_update()
             return
         if self.__img is None:
-            self.__img = TextImage.__BoundImage(self, surface)
+            self.__img = _BoundImage(self, surface)
         else:
             self.__img.set(surface)
         self._need_update()
@@ -509,15 +515,16 @@ class TextImage(Text):
             self.__distance = distance
             self._need_update()
 
-    class __BoundImage(Image):
-        def __init__(self, text: TextImage, image: Surface) -> None:
-            super().__init__(image)
-            self.__text: TextImage = text
 
-        def _apply_rotation_scale(self) -> None:
-            super()._apply_rotation_scale()
-            self.__text._need_update()
+class _BoundImage(Image):
+    def __init__(self, text: TextImage, image: Surface) -> None:
+        super().__init__(image)
+        self.__text: TextImage = text
 
-        def set(self, image: Surface) -> None:
-            super().set(image)
-            self.__text._need_update()
+    def _apply_rotation_scale(self) -> None:
+        super()._apply_rotation_scale()
+        self.__text._need_update()
+
+    def set(self, image: Surface) -> None:
+        super().set(image)
+        self.__text._need_update()

@@ -40,14 +40,18 @@ def _draw_decorator(func: Callable[[Drawable, Surface], None]) -> Callable[[Draw
     return wrapper
 
 
+def _can_apply_decorator(func: Callable[..., Any]) -> bool:
+    return not getattr(func, "__isabstractmethod__", False)
+
+
 class MetaDrawable(ABCMeta):
     def __new__(metacls, name: str, bases: Tuple[type, ...], attrs: Dict[str, Any], **kwargs: Any) -> MetaDrawable:
         init_method: Optional[Callable[..., None]] = attrs.get("__init__")
-        if callable(init_method):
+        if callable(init_method) and _can_apply_decorator(init_method):
             attrs["__init__"] = _init_decorator(init_method)
 
         draw_method: Optional[Callable[[Drawable, Surface], None]] = attrs.get("draw_onto")
-        if callable(draw_method):
+        if callable(draw_method) and _can_apply_decorator(draw_method):
             attrs["draw_onto"] = _draw_decorator(draw_method)
 
         return super().__new__(metacls, name, bases, attrs, **kwargs)

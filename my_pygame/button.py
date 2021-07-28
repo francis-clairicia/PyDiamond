@@ -13,7 +13,7 @@ from pygame.surface import Surface
 from .drawable import ThemedDrawable
 from .clickable import Clickable
 from .shape import RectangleShape
-from .text import Text
+from .text import TextImage
 from .window import Window
 from .scene import Scene
 from .colors import WHITE, GRAY, GRAY_LIGHT, GRAY_DARK, BLACK
@@ -31,7 +31,8 @@ class _ButtonColor(TypedDict):
 
 
 class Button(ThemedDrawable, Clickable):
-    Justify = Text.Justify
+    Justify = TextImage.Justify
+    Compound = TextImage.Compound
 
     @unique
     class HorizontalAlign(str, Enum):
@@ -61,6 +62,9 @@ class Button(ThemedDrawable, Clickable):
         master: Union[Scene, Window],
         text: str = "",
         *,
+        img: Optional[Surface] = None,
+        compound: str = "left",
+        text_img_distance: float = 5,
         font: Optional[_TextFont] = None,
         bold: Optional[bool] = None,
         italic: Optional[bool] = None,
@@ -121,8 +125,11 @@ class Button(ThemedDrawable, Clickable):
             cursor=cursor,
             disabled_cursor=disabled_cursor,
         )
-        self.__text: Text = Text(
+        self.__text: TextImage = TextImage(
             message=text,
+            img=img,
+            compound=compound,
+            distance=text_img_distance,
             font=font,
             bold=bold,
             italic=italic,
@@ -185,9 +192,12 @@ class Button(ThemedDrawable, Clickable):
         self.__text_active_offset: Tuple[float, float] = text_active_offset
 
     def copy(self) -> Button:
-        return Button(
+        b: Button = Button(
             master=self.scene if self.scene is not None else self.master,
             text=self.__text.message,
+            img=self.__text.img,
+            compound=self.__text.compound,
+            text_img_distance=self.__text.distance,
             font=self.__text.font,
             wrap=self.__text.wrap,
             justify=self.__text.justify,
@@ -232,8 +242,14 @@ class Button(ThemedDrawable, Clickable):
             border_bottom_right_radius=self.__shape.border_bottom_right_radius,
             theme=NoTheme,
         )
+        b.img_set_rotation(self.__text.get_img_angle())
+        b.img_set_scale(self.__text.get_img_scale())
+        return b
 
     def draw_onto(self, surface: Surface) -> None:
+        def compute_offset(offset: Tuple[float, float]) -> Tuple[float, float]:
+            return offset[0] * self.scale, offset[1] * self.scale
+
         text_align_x: str = Button.__HORIZONTAL_ALIGN_POS[self.__text_align_x]
         text_align_y: str = Button.__VERTICAL_ALIGN_POS[self.__text_align_y]
         self.__shape.center = self.center
@@ -243,12 +259,12 @@ class Button(ThemedDrawable, Clickable):
                 text_align_y: getattr(self.__shape, text_align_y),
             }
         )
-        self.__text.translate(self.__text_offset)
+        self.__text.translate(compute_offset(self.__text_offset))
         if self.state != Clickable.State.DISABLED:
             if self.active:
-                self.__text.translate(self.__text_active_offset)
+                self.__text.translate(compute_offset(self.__text_active_offset))
             elif self.hover:
-                self.__text.translate(self.__text_hover_offset)
+                self.__text.translate(compute_offset(self.__text_hover_offset))
         self.__shape.draw_onto(surface)
         self.__text.draw_onto(surface)
 
@@ -262,7 +278,7 @@ class Button(ThemedDrawable, Clickable):
         if callable(self.__callback):
             self.__callback()
 
-    def set_text_font(
+    def text_set_font(
         self,
         font: Optional[_TextFont],
         bold: Optional[bool] = None,
@@ -272,12 +288,60 @@ class Button(ThemedDrawable, Clickable):
         self.__text.set_font(font, bold, italic, underline)
         self.__update_shape_size()
 
-    def set_text_custom_line_font(self, index: int, font: Font) -> None:
+    def text_set_custom_line_font(self, index: int, font: Font) -> None:
         self.__text.set_custom_line_font(index, font)
         self.__update_shape_size()
 
-    def remove_text_custom_line_font(self, index: int) -> None:
+    def text_remove_custom_line_font(self, index: int) -> None:
         self.__text.remove_custom_line_font(index)
+        self.__update_shape_size()
+
+    def img_rotate(self, angle_offset: float) -> None:
+        self.__text.img_rotate(angle_offset)
+        self.__update_shape_size()
+
+    def img_set_rotation(self, angle: float) -> None:
+        self.__text.img_set_rotation(angle)
+        self.__update_shape_size()
+
+    def img_set_scale(self, scale: float) -> None:
+        self.__text.img_set_scale(scale)
+        self.__update_shape_size()
+
+    def img_scale_to_width(self, width: float) -> None:
+        self.__text.img_scale_to_width(width)
+        self.__update_shape_size()
+
+    def img_scale_to_height(self, height: float) -> None:
+        self.__text.img_scale_to_height(height)
+        self.__update_shape_size()
+
+    def img_scale_to_size(self, size: Tuple[float, float]) -> None:
+        self.__text.img_scale_to_size(size)
+        self.__update_shape_size()
+
+    def img_set_min_width(self, width: float) -> None:
+        self.__text.img_set_min_width(width)
+        self.__update_shape_size()
+
+    def img_set_max_width(self, width: float) -> None:
+        self.__text.set_max_width(width)
+        self.__update_shape_size()
+
+    def img_set_min_height(self, height: float) -> None:
+        self.__text.set_min_height(height)
+        self.__update_shape_size()
+
+    def img_set_max_height(self, height: float) -> None:
+        self.__text.img_set_max_height(height)
+        self.__update_shape_size()
+
+    def img_set_min_size(self, size: Tuple[float, float]) -> None:
+        self.__text.img_set_min_size(size)
+        self.__update_shape_size()
+
+    def img_set_max_size(self, size: Tuple[float, float]) -> None:
+        self.__text.img_set_max_size(size)
         self.__update_shape_size()
 
     @overload
@@ -293,6 +357,13 @@ class Button(ThemedDrawable, Clickable):
             return self.__shape.is_shown()
         self.__shape.set_visibility(truth(status))
         return None
+
+    def _apply_rotation_scale(self) -> None:
+        if self.angle != 0:
+            raise NotImplementedError
+        self.__shape.scale = self.scale
+        self.__text.scale = self.scale
+        self.__update_shape_size()
 
     def _mouse_in_hitbox(self, mouse_pos: Tuple[float, float]) -> bool:
         return truth(self.rect.collidepoint(mouse_pos))
@@ -327,9 +398,12 @@ class Button(ThemedDrawable, Clickable):
 
     def __update_shape_size(self) -> None:
         center = self.center
+        text_width, text_height = self.__text.get_local_size()
+        x_add_size: float = self.__x_add_size * self.scale
+        y_add_size: float = self.__y_add_size * self.scale
         self.__shape.local_size = (
-            self.__text.width + self.__x_add_size if self.__fixed_width is None else self.__fixed_width,
-            self.__text.height + self.__y_add_size if self.__fixed_height is None else self.__fixed_height,
+            text_width + x_add_size if self.__fixed_width is None else self.__fixed_width,
+            text_height + y_add_size if self.__fixed_height is None else self.__fixed_height,
         )
         self.center = center
 
@@ -348,7 +422,7 @@ class Button(ThemedDrawable, Clickable):
 
     @text_font.setter
     def text_font(self, font: Font) -> None:
-        self.set_text_font(font)
+        self.text_set_font(font)
 
     @property
     def text_justify(self) -> str:
@@ -402,6 +476,33 @@ class Button(ThemedDrawable, Clickable):
     @text_shadow_color.setter
     def text_shadow_color(self, color: Color) -> None:
         self.__text.shadow_color = color
+
+    @property
+    def img(self) -> Optional[Surface]:
+        return self.__text.img
+
+    @img.setter
+    def img(self, surface: Optional[Surface]) -> None:
+        self.__text.img = surface
+        self.__update_shape_size()
+
+    @property
+    def compound(self) -> str:
+        return self.__text.compound
+
+    @compound.setter
+    def compound(self, compound: str) -> None:
+        self.__text.compound = compound
+        self.__update_shape_size()
+
+    @property
+    def distance_text_img(self) -> float:
+        return self.__text.distance
+
+    @distance_text_img.setter
+    def distance_text_img(self, value: float) -> None:
+        self.__text.distance = value
+        self.__update_shape_size()
 
     @property
     def callback(self) -> Optional[_ButtonCallback]:

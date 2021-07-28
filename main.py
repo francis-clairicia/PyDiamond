@@ -286,12 +286,15 @@ class ButtonScene(Scene):
     def __init__(self, window: Window) -> None:
         super().__init__(window, framerate=120)
         self.background_color = BLUE_DARK
-        self.button = Button(self, font=(None, 80), callback=self.__increase_counter, text_offset=(2, 2))
+        self.button = Button(self, font=(None, 80), img=MyResources.cactus, callback=self.__increase_counter, text_offset=(2, 2))
+        self.button.img_scale_to_size((100, 100))
         self.button.center = window.center
 
     def on_start_loop(self) -> None:
         self.counter = 0
         self.button.text = "0"
+        self.button.scale = 1
+        self.button.animation.register_width_offset(100).start_in_background(self)
 
     def __increase_counter(self) -> None:
         self.counter += 1

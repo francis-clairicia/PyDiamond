@@ -27,10 +27,14 @@ def _set_decorator(func: Callable[[Cursor], None]) -> Callable[[Cursor], None]:
     return wrapper
 
 
+def _can_apply_decorator(func: Callable[..., Any]) -> bool:
+    return not getattr(func, "__isabstractmethod__", False)
+
+
 class MetaCursor(ABCMeta):
     def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaCursor:
         set_method: Optional[Callable[[Cursor], None]] = namespace.get("set")
-        if callable(set_method) and not getattr(set_method, "__isabstractmethod__", False):
+        if callable(set_method) and _can_apply_decorator(set_method):
             namespace["set"] = _set_decorator(set_method)
 
         return super().__new__(metacls, name, bases, namespace, **kwargs)

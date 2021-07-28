@@ -31,14 +31,14 @@ class Keyboard:
         if isinstance(key, str):
             return pygame.key.key_code(key)
         if isinstance(key, int):
-            return pygame.key.name(key)
+            return pygame.key.name(Keyboard.Key(key).value)
         raise TypeError("Bad argument type")
 
     @staticmethod
     def is_pressed(key: Union[int, str]) -> bool:
         if isinstance(key, str):
             key = pygame.key.key_code(key)
-        return truth(_KEY_STATES[key])
+        return truth(_KEY_STATES[Keyboard.Key(key).value])
 
     class Key(IntEnum):
         K_BACKSPACE = pygame.K_BACKSPACE
