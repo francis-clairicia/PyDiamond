@@ -271,8 +271,12 @@ class TextImageScene(Scene):
         self.text: TextImage = TextImage("I'm a text", font=(None, 50), color=WHITE, shadow_x=-5, shadow_y=-5, wrap=5)
         self.text.img = MyResources.cactus
         self.text.img_scale_to_size((100, 100))
-        self.text.compound = "center"
         self.text.center = window.center
+
+    def on_start_loop(self) -> None:
+        self.text.angle = 0
+        self.text.scale = 1
+        self.text.animation.register_rotation(360).register_width_offset(100).start_in_background(self)
 
     def draw(self) -> None:
         self.window.draw(self.text)

@@ -14,6 +14,7 @@ import pygame.transform
 from pygame.font import Font, SysFont, get_default_font
 from pygame.color import Color
 from pygame.surface import Surface
+from pygame.rect import Rect
 
 from .drawable import ThemedDrawable
 from .colors import BLACK
@@ -132,43 +133,43 @@ class Text(ThemedDrawable):
         underline: Optional[bool] = None,
     ) -> None:
         self.__font = Text.create_font(font, bold=bold, italic=italic, underline=underline)
-        self.__need_update()
+        self._need_update()
 
     def set_custom_line_font(self, index: int, font: Font) -> None:
         if index < 0:
             raise ValueError(f"Negative index: {index}")
         self.__custom_font[index] = Text.create_font(font)
-        self.__need_update()
+        self._need_update()
 
     def remove_custom_line_font(self, index: int) -> None:
         if index < 0:
             raise ValueError(f"Negative index: {index}")
         self.__custom_font.pop(index, None)
-        self.__need_update()
+        self._need_update()
 
-    def __need_update(self) -> None:
+    def _need_update(self) -> None:
         self.__update = True
 
     def __update_surface(self) -> None:
         if self.__update:
             self.__update = False
             center: Tuple[float, float] = self.center
-            self.__default_image = self.__render_text()
+            self.__default_image = self._render()
             self._apply_rotation_scale()
             self.center = center
 
     def _apply_rotation_scale(self) -> None:
         self.__image = pygame.transform.rotozoom(self.__default_image, self.angle, self.scale)
 
-    def __render_text(self, *, drawing_shadow: bool = False) -> Surface:
+    def __render_text(self, color: Color) -> Surface:
         render_lines: List[Surface] = list()
         render_width: float = 0
         render_height: float = 0
         text: Surface
-        color: Color = self.color if not drawing_shadow else self.shadow_color
+        default_font: Font = self.font
         custom_font: Dict[int, Font] = self.__custom_font
         for index, line in enumerate(self.message.splitlines()):
-            font = custom_font.get(index, self.font)
+            font = custom_font.get(index, default_font)
             render = font.render(line, True, color)
             render_width = max(render_width, render.get_width())
             render_height += render.get_height()
@@ -180,21 +181,25 @@ class Text(ThemedDrawable):
         else:
             text = create_surface((render_width, render_height))
             text_rect = text.get_rect()
-            y = 0
+            top = 0
             params = {
                 Text.Justify.LEFT: {"left": text_rect.left},
                 Text.Justify.RIGHT: {"right": text_rect.right},
                 Text.Justify.CENTER: {"centerx": text_rect.centerx},
             }[self.__justify]
             for render in render_lines:
-                text.blit(render, render.get_rect(**params, y=y))
-                y += render.get_height()
-        if drawing_shadow:
-            return text
+                text.blit(render, render.get_rect(**params, top=top))
+                top += render.get_height()
+        return text
+
+    def _render(self) -> Surface:
+        text: Surface = self.__render_text(self.color)
         shadow_x, shadow_y = self.shadow
         if shadow_x == 0 and shadow_y == 0:
             return text
-        shadow_text: Surface = self.__render_text(drawing_shadow=True)
+        render_width: float = text.get_width()
+        render_height: float = text.get_height()
+        shadow_text: Surface = self.__render_text(self.shadow_color)
         render_width += abs(shadow_x)
         render_height += abs(shadow_y)
         render = create_surface((render_width, render_height))
@@ -230,7 +235,7 @@ class Text(ThemedDrawable):
     def message(self, string: str) -> None:
         if string != self.__str:
             self.__str = "\n".join(wrap(string, width=self.__wrap)) if self.__wrap > 0 else string
-            self.__need_update()
+            self._need_update()
 
     @property
     def wrap(self) -> int:
@@ -242,7 +247,7 @@ class Text(ThemedDrawable):
         if value != self.__wrap:
             self.__wrap = value
             self.__str = "\n".join(wrap(self.__str, width=self.__wrap)) if self.__wrap > 0 else self.__str
-            self.__need_update()
+            self._need_update()
 
     @property
     def justify(self) -> str:
@@ -253,7 +258,7 @@ class Text(ThemedDrawable):
         justify = Text.Justify(justify)
         if justify != self.__justify:
             self.__justify = justify
-            self.__need_update()
+            self._need_update()
 
     @property
     def color(self) -> Color:
@@ -263,7 +268,7 @@ class Text(ThemedDrawable):
     def color(self, color: Color) -> None:
         if color != self.__color:
             self.__color = Color(color)
-            self.__need_update()
+            self._need_update()
 
     @property
     def shadow(self) -> Tuple[float, float]:
@@ -273,7 +278,7 @@ class Text(ThemedDrawable):
     def shadow(self, pos: Tuple[float, float]) -> None:
         if self.__shadow_offset != pos:
             self.__shadow_offset = pos
-            self.__need_update()
+            self._need_update()
 
     @property
     def shadow_x(self) -> float:
@@ -299,13 +304,10 @@ class Text(ThemedDrawable):
     def shadow_color(self, color: Color) -> None:
         if self.__shadow_color != color:
             self.__shadow_color = Color(color)
-            self.__need_update()
+            self._need_update()
 
 
-@Text.register
-class TextImage(ThemedDrawable):
-    Justify = Text.Justify
-
+class TextImage(Text):
     @unique
     class Compound(str, Enum):
         LEFT = "left"
@@ -333,8 +335,7 @@ class TextImage(ThemedDrawable):
         shadow_color: Color = BLACK,
         theme: Optional[Theme] = None,
     ) -> None:
-        super().__init__()
-        self.__text: Text = Text(
+        super().__init__(
             message=message,
             font=font,
             bold=bold,
@@ -348,92 +349,70 @@ class TextImage(ThemedDrawable):
             shadow_color=shadow_color,
             theme=NoTheme,
         )
-        self.__img: Optional[Image] = Image(img) if img is not None else None
+        self.__img: Optional[Image] = TextImage.__BoundImage(self, img) if img is not None else None
         self.__compound: TextImage.Compound = TextImage.Compound(compound)
         self.__distance: float = float(distance)
 
-    def to_surface(self) -> Surface:
-        if self.__img is None:
-            return self.__text.to_surface()
-        return super().to_surface()
-
-    def draw_onto(self, surface: Surface) -> None:
-        if self.__img is None:
-            self.__text.center = self.center
-            return self.__text.draw_onto(surface)
-        if self.__compound == TextImage.Compound.LEFT:
-            self.__text.midleft = self.midleft
-            self.__img.midright = self.midright
-        elif self.__compound == TextImage.Compound.RIGHT:
-            self.__text.midright = self.midright
-            self.__img.midleft = self.midleft
-        elif self.__compound == TextImage.Compound.TOP:
-            self.__text.midtop = self.midtop
-            self.__img.midbottom = self.midbottom
-        elif self.__compound == TextImage.Compound.BOTTOM:
-            self.__text.midbottom = self.midbottom
-            self.__img.midtop = self.midtop
-        else:
-            self.__img.center = self.__text.center = self.center
-        self.__img.draw_onto(surface)
-        self.__text.draw_onto(surface)
-
     def copy(self) -> TextImage:
         return TextImage(
-            message=self.__text.message,
+            message=self.message,
             img=self.__img.get() if self.__img is not None else None,
             compound=self.__compound,
-            font=self.__text.font,
-            color=self.__text.color,
-            wrap=self.__text.wrap,
-            justify=self.__text.justify,
-            shadow_x=self.__text.shadow_x,
-            shadow_y=self.__text.shadow_y,
-            shadow_color=self.__text.shadow_color,
+            font=self.font,
+            color=self.color,
+            wrap=self.wrap,
+            justify=self.justify,
+            shadow_x=self.shadow_x,
+            shadow_y=self.shadow_y,
+            shadow_color=self.shadow_color,
             theme=NoTheme,
         )
 
-    def get_local_size(self) -> Tuple[float, float]:
+    def _render(self) -> Surface:
+        text: Surface = super()._render()
         if self.__img is None:
-            return self.__text.get_local_size()
-        text_width, text_height = self.__text.get_local_size()
+            return text
+        text_width, text_height = text.get_size()
+        text_rect: Rect = text.get_rect()
         img_width, img_height = self.__img.get_size()
         offset: float = self.__distance
+        render_width: float
+        render_height: float
         if self.__compound in [TextImage.Compound.LEFT, TextImage.Compound.RIGHT]:
             if text_width == 0 or img_width == 0:
                 offset = 0
-            return text_width + img_width + offset, max(text_height, img_height)
-        if self.__compound in [TextImage.Compound.TOP, TextImage.Compound.BOTTOM]:
+            render_width = text_width + img_width + offset
+            render_height = max(text_height, img_height)
+        elif self.__compound in [TextImage.Compound.TOP, TextImage.Compound.BOTTOM]:
             if text_height == 0 or img_height == 0:
                 offset = 0
-            return max(text_width, img_width), text_height + img_height + offset
-        return max(text_width, img_width), max(text_height, img_height)
+            render_width = max(text_width, img_width)
+            render_height = text_height + img_height + offset
+        else:
+            render_width = max(text_width, img_width)
+            render_height = max(text_height, img_height)
+        render: Surface = create_surface((render_width, render_height))
+        render_rect: Rect = render.get_rect()
 
-    def get_size(self) -> Tuple[float, float]:
-        if self.__img is None:
-            return self.__text.get_size()
-        return super().get_size()
+        if self.__compound == TextImage.Compound.LEFT:
+            text_rect.midleft = render_rect.midleft
+            self.__img.midright = render_rect.midright
+        elif self.__compound == TextImage.Compound.RIGHT:
+            text_rect.midright = render_rect.midright
+            self.__img.midleft = render_rect.midleft
+        elif self.__compound == TextImage.Compound.TOP:
+            text_rect.midtop = render_rect.midtop
+            self.__img.midbottom = render_rect.midbottom
+        elif self.__compound == TextImage.Compound.BOTTOM:
+            text_rect.midbottom = render_rect.midbottom
+            self.__img.midtop = render_rect.midtop
+        else:
+            self.__img.center = text_rect.center = render_rect.center
 
-    @staticmethod
-    def create_font(
-        font: Optional[_TextFont], bold: Optional[bool] = None, italic: Optional[bool] = None, underline: Optional[bool] = None
-    ) -> Font:
-        return Text.create_font(font, bold, italic, underline)
+        self.__img.draw_onto(render)
+        render.blit(text, text_rect)
 
-    def set_font(
-        self,
-        font: Optional[_TextFont],
-        bold: Optional[bool] = None,
-        italic: Optional[bool] = None,
-        underline: Optional[bool] = None,
-    ) -> None:
-        self.__text.set_font(font, bold, italic, underline)
-
-    def set_custom_line_font(self, index: int, font: Font) -> None:
-        self.__text.set_custom_line_font(index, font)
-
-    def remove_custom_line_font(self, index: int) -> None:
-        self.__text.remove_custom_line_font(index)
+        return render
 
     def img_rotate(self, angle_offset: float) -> None:
         if self.__img is not None:
@@ -492,12 +471,16 @@ class TextImage(ThemedDrawable):
     @img.setter
     def img(self, surface: Optional[Surface]) -> None:
         if surface is None:
+            if self.__img is None:
+                return
             self.__img = None
+            self._need_update()
             return
         if self.__img is None:
-            self.__img = Image(surface)
+            self.__img = TextImage.__BoundImage(self, surface)
         else:
             self.__img.set(surface)
+        self._need_update()
 
     @property
     def compound(self) -> str:
@@ -505,7 +488,10 @@ class TextImage(ThemedDrawable):
 
     @compound.setter
     def compound(self, compound: str) -> None:
-        self.__compound = TextImage.Compound(compound)
+        compound = TextImage.Compound(compound)
+        if compound != self.__compound:
+            self.__compound = compound
+            self._need_update()
 
     @property
     def distance(self) -> float:
@@ -513,76 +499,19 @@ class TextImage(ThemedDrawable):
 
     @distance.setter
     def distance(self, distance: float) -> None:
-        self.__distance = float(distance)
+        if float(distance) != self.__distance:
+            self.__distance = distance
+            self._need_update()
 
-    @property
-    def font(self) -> Font:
-        return self.__text.font
+    class __BoundImage(Image):
+        def __init__(self, text: TextImage, image: Surface) -> None:
+            super().__init__(image)
+            self.__text: TextImage = text
 
-    @font.setter
-    def font(self, font: Font) -> None:
-        self.set_font(font)
+        def _apply_rotation_scale(self) -> None:
+            super()._apply_rotation_scale()
+            self.__text._need_update()
 
-    @property
-    def message(self) -> str:
-        return self.__text.message
-
-    @message.setter
-    def message(self, string: str) -> None:
-        self.__text.message = string
-
-    @property
-    def wrap(self) -> int:
-        return self.__text.wrap
-
-    @wrap.setter
-    def wrap(self, value: int) -> None:
-        self.__text.wrap = value
-
-    @property
-    def justify(self) -> str:
-        return self.__text.justify
-
-    @justify.setter
-    def justify(self, justify: str) -> None:
-        self.__text.justify = justify
-
-    @property
-    def color(self) -> Color:
-        return self.__text.color
-
-    @color.setter
-    def color(self, color: Color) -> None:
-        self.__text.color = color
-
-    @property
-    def shadow(self) -> Tuple[float, float]:
-        return self.__text.shadow
-
-    @shadow.setter
-    def shadow(self, shadow: Tuple[float, float]) -> None:
-        self.__text.shadow = shadow
-
-    @property
-    def shadow_x(self) -> float:
-        return self.__text.shadow_x
-
-    @shadow_x.setter
-    def shadow_x(self, shadow_x: float) -> None:
-        self.__text.shadow_x = shadow_x
-
-    @property
-    def shadow_y(self) -> float:
-        return self.__text.shadow_y
-
-    @shadow_y.setter
-    def shadow_y(self, shadow_y: float) -> None:
-        self.__text.shadow_y = shadow_y
-
-    @property
-    def shadow_color(self) -> Color:
-        return self.__text.shadow_color
-
-    @shadow_color.setter
-    def shadow_color(self, color: Color) -> None:
-        self.__text.shadow_color = color
+        def set(self, image: Surface) -> None:
+            super().set(image)
+            self.__text._need_update()
