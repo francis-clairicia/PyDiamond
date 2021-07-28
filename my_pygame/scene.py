@@ -4,6 +4,7 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from functools import wraps
 from enum import Enum, EnumMeta, auto, unique
+from operator import truth
 from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Tuple, TypeVar, Union, final, overload
 import pygame
 
@@ -15,7 +16,7 @@ from .mouse import Mouse
 from .keyboard import Keyboard
 
 if TYPE_CHECKING:
-    from .window import EventCallback, EventType, MousePositionCallback, MousePosition, Window
+    from .window import EventCallback, EventType, MousePositionCallback, MousePosition, Window, WindowCallback
 
 _T = TypeVar("_T")
 
@@ -123,7 +124,7 @@ class Scene(metaclass=MetaScene):
             self.__master = None
             self.__window = master
         self.__framerate: int = max(framerate, 0)
-        self.__busy_loop: bool = busy_loop
+        self.__busy_loop: bool = truth(busy_loop)
         self.__bg_color: Color = Color(0, 0, 0)
         self.__transition: Optional[SceneTransition] = None
         self.__event_handler_dict: Dict[int, List[EventCallback]] = dict()
@@ -152,10 +153,10 @@ class Scene(metaclass=MetaScene):
         raise NotImplementedError
 
     def looping(self) -> bool:
-        return self.window.get_actual_scene() is self
+        return self.__window.get_actual_scene() is self
 
     def started(self) -> bool:
-        return self in self.window
+        return self in self.__window
 
     @overload
     def start(self) -> None:
@@ -168,12 +169,12 @@ class Scene(metaclass=MetaScene):
     @final
     def start(self, new_alias: Optional[SceneAlias] = None) -> None:
         if new_alias is not None:
-            self.window.start_scene(self, new_alias)
+            self.__window.start_scene(self, new_alias)
         else:
-            self.window.start_scene(self)
+            self.__window.start_scene(self)
 
     def stop(self) -> None:
-        self.window.stop_scene(self)
+        self.__window.stop_scene(self)
 
     @staticmethod
     def __bind(handler_dict: Dict[_T, List[EventCallback]], key: _T, callback: EventCallback) -> None:
@@ -248,6 +249,9 @@ class Scene(metaclass=MetaScene):
             mouse_pos_handler_list.remove(callback_to_remove)
         except ValueError:
             pass
+
+    def after(self, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
+        return self.__window.after(milliseconds, callback, *args, scene=self, **kwargs)
 
     @final
     def _handle_event(self, event: Event) -> None:

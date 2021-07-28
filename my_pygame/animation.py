@@ -347,23 +347,14 @@ class Animation:
         at_every_frame: Optional[Callable[[], None]],
         after_animation: Optional[Callable[[], None]],
     ) -> None:
-        window: Window
-        scene: Optional[Scene]
-        if isinstance(master, Scene):
-            window = master.window
-            scene = master
-        else:
-            window = master
-            scene = None
         self.__animate(at_every_frame)
         if self.started():
-            self.__window_callback = window.after(
+            self.__window_callback = master.after(
                 0,
                 self.__start_window_callback,
                 master=master,
                 at_every_frame=at_every_frame,
                 after_animation=after_animation,
-                scene=scene,
             )
         else:
             self.__animate(at_every_frame)

@@ -397,7 +397,7 @@ class Window:
         pygame.event.set_blocked(event_types)
 
     def after(
-        self, milliseconds: float, callback: Callable[..., None], scene: Optional[Scene] = None, *args: Any, **kwargs: Any
+        self, milliseconds: float, callback: Callable[..., None], *args: Any, scene: Optional[Scene] = None, **kwargs: Any
     ) -> WindowCallback:
         window_callback: WindowCallback
         if scene is not None:
