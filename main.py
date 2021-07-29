@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: Utf-8 -*
 
+from my_pygame.checkbox import CheckBox
 from my_pygame.button import Button, ImageButton
 from my_pygame.mouse import Mouse
 from typing import List, Type
@@ -16,7 +17,7 @@ from my_pygame.resource import FontLoader, ImageLoader, ResourceManager
 from my_pygame.shape import RectangleShape, PolygonShape, CircleShape, CrossShape
 from my_pygame.gradients import HorizontalGradientShape, RadialGradientShape, SquaredGradientShape, VerticalGradientShape
 from my_pygame.sprite import AnimatedSprite, Sprite
-from my_pygame.colors import BLUE_DARK, TRANSPARENT, WHITE, RED, YELLOW
+from my_pygame.colors import BLUE_DARK, BLUE_LIGHT, TRANSPARENT, WHITE, RED, YELLOW
 from my_pygame.clock import Clock
 
 
@@ -316,6 +317,27 @@ class ButtonScene(Scene):
         self.window.draw(self.button, self.cancel)
 
 
+class CheckBoxScene(Scene):
+    def __init__(self, window: Window) -> None:
+        super().__init__(window, framerate=120)
+        self.background_color = BLUE_DARK
+        self.text = Text(font=(MyResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
+        self.box: CheckBox[int, int] = CheckBox(self, 50, 50, BLUE_LIGHT, off_value=0, on_value=10, callback=self.__set_text)
+
+    def on_start_loop(self) -> None:
+        self.box.value = self.box.off_value
+        self.box.center = self.window.center
+
+    def update(self) -> None:
+        self.text.midtop = (self.box.centerx, self.box.bottom + 10)
+
+    def draw(self) -> None:
+        self.window.draw(self.box, self.text)
+
+    def __set_text(self, value: int) -> None:
+        self.text.message = f"Value: {value}"
+
+
 class MainWindow(Window):
 
     __SCENES: List[Type[Scene]] = [
@@ -328,6 +350,7 @@ class MainWindow(Window):
         EventScene,
         TextImageScene,
         ButtonScene,
+        CheckBoxScene,
     ]
 
     def __init__(self) -> None:
