@@ -1,7 +1,7 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
-from typing import Any, Callable, Dict, Iterator, List, NoReturn, Optional, Tuple, TypeVar, Union, final, overload
+from typing import Any, Callable, Dict, Iterable, Iterator, List, NoReturn, Optional, Tuple, TypeVar, Union, final, overload
 from enum import IntEnum
 
 import pygame
@@ -243,7 +243,24 @@ class Window:
         self.draw_screen()
         self.refresh()
 
-    def draw(self, target: Drawable) -> None:
+    @overload
+    def draw(self, target: Drawable, *targets: Drawable) -> None:
+        ...
+
+    @overload
+    def draw(self, target: Iterable[Drawable]) -> None:
+        ...
+
+    def draw(self, target: Union[Drawable, Iterable[Drawable]], *targets: Drawable) -> None:
+        if isinstance(target, Drawable):
+            self.__draw_target(target)
+            for t in targets:
+                self.__draw_target(t)
+        else:
+            for t in target:
+                self.__draw_target(t)
+
+    def __draw_target(self, target: Drawable) -> None:
         try:
             target.draw_onto(self.__surface)
         except (NotImplementedError, pygame.error):
@@ -486,11 +503,11 @@ class Window:
                 actual_scene.on_start_loop()
             else:
                 previous_scene.on_quit()
+                actual_scene.on_start_loop()
                 if self.__transition == _SceneTransitionEnum.SHOW and previous_scene.transition is not None:
                     previous_scene.transition.show_new_scene(previous_scene, actual_scene)
                 elif self.__transition == _SceneTransitionEnum.HIDE and actual_scene.transition is not None:
                     actual_scene.transition.hide_actual_scene(previous_scene, actual_scene)
-                actual_scene.on_start_loop()
         return actual_scene
 
     @property

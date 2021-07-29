@@ -115,16 +115,18 @@ class ShapeScene(Scene):
         self.__shape_copy.set_points(self.__c.get_vertices())
 
     def draw(self) -> None:
-        self.window.draw(self.__r)
-        self.window.draw(self.__p)
-        self.window.draw(self.__c)
-        self.window.draw(self.__c_center)
-        self.window.draw(self.__c_trajectory)
-        self.window.draw(self.__s)
-        self.window.draw(self.__x)
-        self.window.draw(self.__shape_copy)
-        self.window.draw(self.__x_center)
-        self.window.draw(self.__x_trajectory)
+        self.window.draw(
+            self.__r,
+            self.__p,
+            self.__c,
+            self.__c_center,
+            self.__c_trajectory,
+            self.__s,
+            self.__x,
+            self.__shape_copy,
+            self.__x_center,
+            self.__x_trajectory,
+        )
 
 
 class AnimationScene(Scene):
@@ -168,8 +170,7 @@ class GradientScene(Scene):
         self.squared.midbottom = self.window.midbottom
 
     def draw(self) -> None:
-        for obj in [self.horizontal, self.vertical, self.squared, self.radial]:
-            self.window.draw(obj)
+        self.window.draw(self.horizontal, self.vertical, self.squared, self.radial)
 
 
 class TextScene(Scene):
@@ -217,8 +218,7 @@ class ResourceScene(Scene):
         self.text.center = window.center
 
     def draw(self) -> None:
-        self.window.draw(self.cactus)
-        self.window.draw(self.text)
+        self.window.draw(self.cactus, self.text)
 
 
 class AnimatedSpriteScene(Scene):
@@ -260,8 +260,7 @@ class EventScene(Scene):
         self.circle.center = self.cross.center
 
     def draw(self) -> None:
-        self.window.draw(self.cross)
-        self.window.draw(self.circle)
+        self.window.draw(self.cross, self.circle)
 
     def __switch_color(self, event: Event) -> None:
         if event.type == pygame.MOUSEBUTTONDOWN:
@@ -314,8 +313,7 @@ class ButtonScene(Scene):
         self.button.text = str(self.counter)
 
     def draw(self) -> None:
-        self.window.draw(self.button)
-        self.window.draw(self.cancel)
+        self.window.draw(self.button, self.cancel)
 
 
 class MainWindow(Window):
@@ -353,8 +351,7 @@ class MainWindow(Window):
 
     def draw_screen(self) -> None:
         super().draw_screen()
-        self.draw(self.prev_button)
-        self.draw(self.next_button)
+        self.draw(self.prev_button, self.next_button)
 
     def __next_scene(self) -> None:
         self.all_scenes[self.index].stop()
