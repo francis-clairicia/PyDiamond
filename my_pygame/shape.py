@@ -46,7 +46,8 @@ class AbstractShape(Drawable):
 
     def draw_onto(self, surface: Surface) -> None:
         self.__update_shape()
-        surface.blit(self.__image, self.__image.get_rect(center=self.center))
+        image: Surface = self.__image
+        surface.blit(image, image.get_rect(center=self.center))
 
     @final
     def get_local_size(self) -> Tuple[float, float]:
