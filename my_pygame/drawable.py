@@ -116,7 +116,8 @@ class Drawable(metaclass=MetaDrawable):
         self.y += dy
 
     def translate(self, vector: Union[Vector2, Tuple[float, float]]) -> None:
-        self.move(vector[0], vector[1])
+        self.x += vector[0]
+        self.y += vector[1]
 
     def rotate(self, angle_offset: float, pivot: Optional[Union[Tuple[float, float], Vector2, str]] = None) -> None:
         self.set_rotation(self.__angle + angle_offset, pivot=pivot)
@@ -300,7 +301,7 @@ class Drawable(metaclass=MetaDrawable):
 
     @property
     def width(self) -> float:
-        return self.size[0]
+        return self.get_size()[0]
 
     @width.setter
     def width(self, width: float) -> None:
@@ -308,7 +309,7 @@ class Drawable(metaclass=MetaDrawable):
 
     @property
     def height(self) -> float:
-        return self.size[1]
+        return self.get_size()[1]
 
     @height.setter
     def height(self, height: float) -> None:
@@ -348,11 +349,14 @@ class Drawable(metaclass=MetaDrawable):
 
     @property
     def center(self) -> Tuple[float, float]:
-        return (self.centerx, self.centery)
+        w, h = self.get_size()
+        return (self.x + (w / 2), self.y + (h / 2))
 
     @center.setter
     def center(self, center: Tuple[float, float]) -> None:
-        self.centerx, self.centery = center
+        w, h = self.get_size()
+        self.x = center[0] - (w / 2)
+        self.y = center[1] - (h / 2)
 
     @property
     def centerx(self) -> float:
@@ -372,67 +376,81 @@ class Drawable(metaclass=MetaDrawable):
 
     @property
     def topleft(self) -> Tuple[float, float]:
-        return (self.left, self.top)
+        return (self.x, self.y)
 
     @topleft.setter
     def topleft(self, topleft: Tuple[float, float]) -> None:
-        self.left, self.top = topleft
+        self.x = topleft[0]
+        self.y = topleft[1]
 
     @property
     def topright(self) -> Tuple[float, float]:
-        return (self.right, self.top)
+        return (self.x + self.width, self.y)
 
     @topright.setter
     def topright(self, topright: Tuple[float, float]) -> None:
-        self.right, self.top = topright
+        self.x = topright[0] - self.width
+        self.y = topright[1]
 
     @property
     def bottomleft(self) -> Tuple[float, float]:
-        return (self.left, self.bottom)
+        return (self.x, self.y + self.height)
 
     @bottomleft.setter
     def bottomleft(self, bottomleft: Tuple[float, float]) -> None:
-        self.left, self.bottom = bottomleft
+        self.x = bottomleft[0]
+        self.y = bottomleft[1] - self.height
 
     @property
     def bottomright(self) -> Tuple[float, float]:
-        return (self.right, self.bottom)
+        w, h = self.get_size()
+        return (self.x + w, self.y + h)
 
     @bottomright.setter
     def bottomright(self, bottomright: Tuple[float, float]) -> None:
-        self.right, self.bottom = bottomright
+        w, h = self.get_size()
+        self.x = bottomright[0] - w
+        self.y = bottomright[1] - h
 
     @property
     def midtop(self) -> Tuple[float, float]:
-        return (self.centerx, self.top)
+        return (self.x + (self.width / 2), self.y)
 
     @midtop.setter
     def midtop(self, midtop: Tuple[float, float]) -> None:
-        self.centerx, self.top = midtop
+        self.x = midtop[0] - (self.width / 2)
+        self.y = midtop[1]
 
     @property
     def midbottom(self) -> Tuple[float, float]:
-        return (self.centerx, self.bottom)
+        w, h = self.get_size()
+        return (self.x + (w / 2), self.y + h)
 
     @midbottom.setter
     def midbottom(self, midbottom: Tuple[float, float]) -> None:
-        self.centerx, self.bottom = midbottom
+        w, h = self.get_size()
+        self.x = midbottom[0] - (w / 2)
+        self.y = midbottom[1] - h
 
     @property
     def midleft(self) -> Tuple[float, float]:
-        return (self.left, self.centery)
+        return (self.x, self.y + (self.height / 2))
 
     @midleft.setter
     def midleft(self, midleft: Tuple[float, float]) -> None:
-        self.left, self.centery = midleft
+        self.x = midleft[0]
+        self.y = midleft[1] - (self.height / 2)
 
     @property
     def midright(self) -> Tuple[float, float]:
-        return (self.right, self.centery)
+        w, h = self.get_size()
+        return (self.x + w, self.y + (h / 2))
 
     @midright.setter
     def midright(self, midright: Tuple[float, float]) -> None:
-        self.right, self.centery = midright
+        w, h = self.get_size()
+        self.x = midright[0] - w
+        self.y = midright[1] - (h / 2)
 
 
 class MetaThemedDrawable(MetaDrawable, MetaThemedObject):
