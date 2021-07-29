@@ -306,6 +306,26 @@ class Text(ThemedDrawable):
             self.__shadow_color = Color(color)
             self._need_update()
 
+    @property
+    def x(self) -> float:
+        self.__update_surface()
+        return super().x
+
+    @x.setter
+    def x(self, x: float) -> None:
+        self.__update_surface()
+        ThemedDrawable.x.fset(self, x)  # type: ignore
+
+    @property
+    def y(self) -> float:
+        self.__update_surface()
+        return super().y
+
+    @y.setter
+    def y(self, y: float) -> None:
+        self.__update_surface()
+        ThemedDrawable.y.fset(self, y)  # type: ignore
+
 
 class TextImage(Text):
     @unique

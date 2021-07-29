@@ -24,6 +24,7 @@ from .surface import create_surface
 from .mouse import Mouse
 from .keyboard import Keyboard
 from .cursor import Cursor, SystemCursor
+from .theme import NoTheme
 
 EventType = int
 EventCallback = Callable[[Event], None]
@@ -139,7 +140,7 @@ class Window:
 
         self.__framerate_update_clock: Clock = Clock(start=True)
         self.__framerate: int = Window.DEFAULT_FRAMERATE
-        self.__text_framerate: Text = Text(color=WHITE)
+        self.__text_framerate: Text = Text(color=WHITE, theme=NoTheme)
         self.__text_framerate.hide()
         self.__text_framerate.midtop = (self.centerx, self.top + 10)
 

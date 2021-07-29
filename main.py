@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: Utf-8 -*
 
+from __future__ import annotations
+from my_pygame.surface import create_surface
 from my_pygame.checkbox import CheckBox
 from my_pygame.button import Button, ImageButton
 from my_pygame.mouse import Mouse
@@ -14,10 +16,24 @@ from my_pygame.scene import Scene, SceneEnum
 
 from my_pygame.resource import FontLoader, ImageLoader, ResourceManager
 
-from my_pygame.shape import RectangleShape, PolygonShape, CircleShape, CrossShape
+from my_pygame.shape import AbstractRectangleShape, RectangleShape, PolygonShape, CircleShape, CrossShape
 from my_pygame.gradients import HorizontalGradientShape, RadialGradientShape, SquaredGradientShape, VerticalGradientShape
 from my_pygame.sprite import AnimatedSprite, Sprite
-from my_pygame.colors import BLUE_DARK, BLUE_LIGHT, TRANSPARENT, WHITE, RED, YELLOW
+from my_pygame.colors import (
+    BLACK,
+    BLUE,
+    BLUE_DARK,
+    BLUE_LIGHT,
+    CYAN,
+    GREEN,
+    MAGENTA,
+    ORANGE,
+    PURPLE,
+    TRANSPARENT,
+    WHITE,
+    RED,
+    YELLOW,
+)
 from my_pygame.clock import Clock
 
 
@@ -172,6 +188,51 @@ class GradientScene(Scene):
 
     def draw(self) -> None:
         self.window.draw(self.horizontal, self.vertical, self.squared, self.radial)
+
+
+class Rainbow(AbstractRectangleShape):
+    def __init__(self, width: float, height: float) -> None:
+        super().__init__(width, height)
+        self.__colors: List[HorizontalGradientShape] = [
+            HorizontalGradientShape(0, 0, RED, ORANGE),
+            HorizontalGradientShape(0, 0, ORANGE, YELLOW),
+            HorizontalGradientShape(0, 0, YELLOW, GREEN),
+            HorizontalGradientShape(0, 0, GREEN, CYAN),
+            HorizontalGradientShape(0, 0, CYAN, BLUE),
+            HorizontalGradientShape(0, 0, BLUE, MAGENTA),
+            HorizontalGradientShape(0, 0, MAGENTA, PURPLE),
+            HorizontalGradientShape(0, 0, PURPLE, RED),
+        ]
+
+    def copy(self) -> Rainbow:
+        return Rainbow(self.local_width, self.local_height)
+
+    def _make(self) -> Surface:
+        width, height = self.local_size
+        gradient_width: float = round(width / len(self.__colors))
+        gradient_height: float = height
+        rainbow: Surface = create_surface((width, height))
+        for i, gradient in enumerate(self.__colors):
+            gradient.local_size = (gradient_width, gradient_height)
+            gradient.topleft = (gradient_width * i, 0)
+            gradient.draw_onto(rainbow)
+        return rainbow
+
+
+class RainbowScene(Scene):
+    def __init__(self, window: Window) -> None:
+        super().__init__(window, framerate=120)
+        self.rainbow = Rainbow(*window.size)
+
+    def on_start_loop(self) -> None:
+        self.rainbow.center = self.window.center
+        self.window.text_framerate.color = BLACK
+
+    def on_quit(self) -> None:
+        self.window.text_framerate.color = WHITE
+
+    def draw(self) -> None:
+        self.window.draw(self.rainbow)
 
 
 class TextScene(Scene):
@@ -344,6 +405,7 @@ class MainWindow(Window):
         ShapeScene,
         AnimationScene,
         GradientScene,
+        RainbowScene,
         TextScene,
         ResourceScene,
         AnimatedSpriteScene,

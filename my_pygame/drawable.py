@@ -15,22 +15,6 @@ from .animation import Animation
 from .surface import create_surface
 
 
-def _init_decorator(func: Callable[..., None]) -> Callable[..., None]:
-    @wraps(func)
-    def wrapper(self: Drawable, *args: Any, **kwargs: Any) -> None:
-        last_state: bool = getattr(self, "__save_last_move__", False)
-        setattr(self, "__save_last_move__", True)
-        if not hasattr(self, "__last_move__"):
-            setattr(self, "__last_move__", {"x": 0, "y": 0})
-        func(self, *args, **kwargs)
-        if last_state is False:
-            position: Dict[str, Union[float, Tuple[float, float]]] = getattr(self, "__last_move__")
-            self.set_position(**position)
-            setattr(self, "__save_last_move__", False)
-
-    return wrapper
-
-
 def _draw_decorator(func: Callable[[Drawable, Surface], None]) -> Callable[[Drawable, Surface], None]:
     @wraps(func)
     def wrapper(self: Drawable, surface: Surface) -> None:
@@ -48,10 +32,6 @@ class MetaDrawable(ABCMeta):
     def __new__(metacls, name: str, bases: Tuple[type, ...], attrs: Dict[str, Any], **kwargs: Any) -> MetaDrawable:
         if "copy" not in attrs:
             attrs["copy"] = Drawable.copy
-
-        init_method: Optional[Callable[..., None]] = attrs.get("__init__")
-        if callable(init_method) and _can_apply_decorator(init_method):
-            attrs["__init__"] = _init_decorator(init_method)
 
         draw_method: Optional[Callable[[Drawable, Surface], None]] = attrs.get("draw_onto")
         if callable(draw_method) and _can_apply_decorator(draw_method):
@@ -130,18 +110,6 @@ class Drawable(metaclass=MetaDrawable):
             if name not in all_valid_positions:
                 raise AttributeError(f"Unknown position attribute {repr(name)}")
             setattr(self, name, value)
-
-    def __update_last_move(self, move: str, value: Union[float, Tuple[float, float]]) -> None:
-        if not getattr(self, "__save_last_move__", False):
-            return
-        last_move: Dict[str, Union[float, Tuple[float, float]]] = getattr(self, "__last_move__")
-        horizontal_positions: Tuple[str, ...] = ("x", "left", "right", "centerx")
-        vertical_positions: Tuple[str, ...] = ("y", "top", "bottom", "centery")
-        for positions in [horizontal_positions, vertical_positions]:
-            if move in positions:
-                for pos in positions:
-                    last_move.pop(pos, None)
-        last_move[move] = value
 
     def move(self, dx: float, dy: float) -> None:
         self.x += dx
@@ -313,7 +281,6 @@ class Drawable(metaclass=MetaDrawable):
     @x.setter
     def x(self, x: float) -> None:
         self.__x = x
-        self.__update_last_move("x", x)
 
     @property
     def y(self) -> float:
@@ -322,7 +289,6 @@ class Drawable(metaclass=MetaDrawable):
     @y.setter
     def y(self, y: float) -> None:
         self.__y = y
-        self.__update_last_move("y", y)
 
     @property
     def size(self) -> Tuple[float, float]:
@@ -363,7 +329,6 @@ class Drawable(metaclass=MetaDrawable):
     @right.setter
     def right(self, right: float) -> None:
         self.x = right - self.width
-        self.__update_last_move("right", right)
 
     @property
     def top(self) -> float:
@@ -380,7 +345,6 @@ class Drawable(metaclass=MetaDrawable):
     @bottom.setter
     def bottom(self, bottom: float) -> None:
         self.y = bottom - self.height
-        self.__update_last_move("bottom", bottom)
 
     @property
     def center(self) -> Tuple[float, float]:
@@ -397,7 +361,6 @@ class Drawable(metaclass=MetaDrawable):
     @centerx.setter
     def centerx(self, centerx: float) -> None:
         self.x = centerx - (self.width / 2)
-        self.__update_last_move("centerx", centerx)
 
     @property
     def centery(self) -> float:
@@ -406,7 +369,6 @@ class Drawable(metaclass=MetaDrawable):
     @centery.setter
     def centery(self, centery: float) -> None:
         self.y = centery - (self.height / 2)
-        self.__update_last_move("centery", centery)
 
     @property
     def topleft(self) -> Tuple[float, float]:

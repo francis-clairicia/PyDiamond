@@ -130,6 +130,26 @@ class AbstractShape(Drawable):
 
         return vertices
 
+    @property
+    def x(self) -> float:
+        self.__update_shape()
+        return super().x
+
+    @x.setter
+    def x(self, x: float) -> None:
+        self.__update_shape()
+        Drawable.x.fset(self, x)  # type: ignore
+
+    @property
+    def y(self) -> float:
+        self.__update_shape()
+        return super().y
+
+    @y.setter
+    def y(self, y: float) -> None:
+        self.__update_shape()
+        Drawable.y.fset(self, y)  # type: ignore
+
 
 class Shape(AbstractShape):
     def __init__(self, color: Color) -> None:
@@ -266,67 +286,16 @@ class PolygonShape(OutlinedShape, ThemedShape):
         self._need_update()
 
 
-class RectangleShape(OutlinedShape, ThemedShape):
-    def __init__(
-        self,
-        width: float,
-        height: float,
-        color: Color,
-        *,
-        outline: int = 0,
-        outline_color: Color = BLACK,
-        border_radius: int = 0,
-        border_top_left_radius: int = -1,
-        border_top_right_radius: int = -1,
-        border_bottom_left_radius: int = -1,
-        border_bottom_right_radius: int = -1,
-        theme: Optional[Theme] = None,
-    ):
-        super().__init__(color, outline, outline_color)
+class AbstractRectangleShape(AbstractShape):
+    def __init__(self, width: float, height: float) -> None:
+        AbstractShape.__init__(self)
         self.__w: float = 0
         self.__h: float = 0
         self.local_size = width, height
-        self.__draw_params: Dict[str, int] = {
-            "border_radius": -1,
-            "border_top_left_radius": -1,
-            "border_top_right_radius": -1,
-            "border_bottom_left_radius": -1,
-            "border_bottom_right_radius": -1,
-        }
-        self.border_radius = border_radius
-        self.border_top_left_radius = border_top_left_radius
-        self.border_top_right_radius = border_top_right_radius
-        self.border_bottom_left_radius = border_bottom_left_radius
-        self.border_bottom_right_radius = border_bottom_right_radius
         self._need_update()
 
-    def copy(self) -> RectangleShape:
-        return RectangleShape(
-            self.__w,
-            self.__h,
-            self.color,
-            outline=self.outline,
-            outline_color=self.outline_color,
-            **self.__draw_params,
-            theme=NoTheme,
-        )
-
-    def _make(self) -> Surface:
-        outline: int = self.outline
-        offset: float = outline / 2 + 2
-        w, h = self.__w, self.__h
-        image: Surface = create_surface((w + offset * 2, h + offset * 2))
-        default_rect: Rect = image.get_rect()
-        rect: Rect = Rect(0, 0, w, h)
-        rect.center = default_rect.center
-        draw_params = self.__draw_params
-        pygame.draw.rect(image, self.color, rect, **draw_params)
-        if outline > 0:
-            pygame.draw.rect(image, self.outline_color, rect, width=outline, **draw_params)
-        return image
-
     def get_local_vertices(self) -> List[Vector2]:
-        w, h = self.__w, self.__h
+        w, h = self.local_size
         return [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
 
     @property
@@ -358,6 +327,65 @@ class RectangleShape(OutlinedShape, ThemedShape):
         if height != self.__h:
             self.__h = height
             self._need_update()
+
+
+class RectangleShape(AbstractRectangleShape, OutlinedShape, ThemedShape):
+    def __init__(
+        self,
+        width: float,
+        height: float,
+        color: Color,
+        *,
+        outline: int = 0,
+        outline_color: Color = BLACK,
+        border_radius: int = 0,
+        border_top_left_radius: int = -1,
+        border_top_right_radius: int = -1,
+        border_bottom_left_radius: int = -1,
+        border_bottom_right_radius: int = -1,
+        theme: Optional[Theme] = None,
+    ) -> None:
+        AbstractRectangleShape.__init__(self, width, height)
+        OutlinedShape.__init__(self, color, outline, outline_color)
+        self.__draw_params: Dict[str, int] = {
+            "border_radius": -1,
+            "border_top_left_radius": -1,
+            "border_top_right_radius": -1,
+            "border_bottom_left_radius": -1,
+            "border_bottom_right_radius": -1,
+        }
+        self.border_radius = border_radius
+        self.border_top_left_radius = border_top_left_radius
+        self.border_top_right_radius = border_top_right_radius
+        self.border_bottom_left_radius = border_bottom_left_radius
+        self.border_bottom_right_radius = border_bottom_right_radius
+        self._need_update()
+
+    def copy(self) -> RectangleShape:
+        return RectangleShape(
+            self.__w,
+            self.__h,
+            self.color,
+            outline=self.outline,
+            outline_color=self.outline_color,
+            **self.__draw_params,
+            theme=NoTheme,
+        )
+
+    def _make(self) -> Surface:
+        outline: int = self.outline
+        offset: float = outline / 2 + 2
+        w: float = self.local_width
+        h: float = self.local_height
+        image: Surface = create_surface((w + offset * 2, h + offset * 2))
+        default_rect: Rect = image.get_rect()
+        rect: Rect = Rect(0, 0, w, h)
+        rect.center = default_rect.center
+        draw_params = self.__draw_params
+        pygame.draw.rect(image, self.color, rect, **draw_params)
+        if outline > 0:
+            pygame.draw.rect(image, self.outline_color, rect, width=outline, **draw_params)
+        return image
 
     @property
     def border_radius(self) -> int:
@@ -406,7 +434,32 @@ class RectangleShape(OutlinedShape, ThemedShape):
             self._need_update()
 
 
-class CircleShape(OutlinedShape, ThemedShape):
+class AbstractCircleShape(AbstractShape):
+    def __init__(self, radius: float) -> None:
+        AbstractShape.__init__(self)
+        self.__radius: float = 0
+        self.radius = radius
+        self._need_update()
+
+    def get_local_vertices(self) -> List[Vector2]:
+        r: float = self.__radius
+        center: Vector2 = Vector2(r, r)
+        radius: Vector2 = Vector2(r, 0)
+        return [center + radius.rotate(-i) for i in range(360)]
+
+    @property
+    def radius(self) -> float:
+        return self.__radius
+
+    @radius.setter
+    def radius(self, radius: float) -> None:
+        radius = max(radius, 0)
+        if radius != self.__radius:
+            self.__radius = radius
+            self._need_update()
+
+
+class CircleShape(AbstractCircleShape, OutlinedShape, ThemedShape):
     def __init__(
         self,
         radius: float,
@@ -420,8 +473,8 @@ class CircleShape(OutlinedShape, ThemedShape):
         draw_bottom_right: bool = True,
         theme: Optional[Theme] = None,
     ) -> None:
-        super().__init__(color, outline, outline_color)
-        self.__radius: float = 0
+        AbstractCircleShape.__init__(self, radius)
+        OutlinedShape.__init__(self, color, outline, outline_color)
         self.__draw_params: Dict[str, bool] = {
             "draw_top_left": True,
             "draw_top_right": True,
@@ -484,17 +537,6 @@ class CircleShape(OutlinedShape, ThemedShape):
                 all_points.append(Vector2(center))
 
         return all_points
-
-    @property
-    def radius(self) -> float:
-        return self.__radius
-
-    @radius.setter
-    def radius(self, radius: float) -> None:
-        radius = max(radius, 0)
-        if radius != self.__radius:
-            self.__radius = radius
-            self._need_update()
 
     @property
     def draw_top_left(self) -> int:
