@@ -1,7 +1,7 @@
 # -*- coding: Utf-8 -*
 
 from abc import ABCMeta, abstractmethod
-from typing import Callable, Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 from enum import Enum, unique
 from operator import truth
 
@@ -64,7 +64,7 @@ class Clickable(metaclass=ABCMeta):
         self.disabled_sound = disabled_sound
         master.bind_event(pygame.MOUSEBUTTONDOWN, self.__handle_click_event)
         master.bind_event(pygame.MOUSEBUTTONUP, self.__handle_click_event)
-        master.bind_event(pygame.MOUSEMOTION, lambda event: self._on_mouse_motion(event))
+        master.bind_event(pygame.MOUSEMOTION, self._on_mouse_motion)
         master.bind_mouse_position(self.__handle_mouse_position)
 
     @abstractmethod
@@ -97,10 +97,10 @@ class Clickable(metaclass=ABCMeta):
         if isinstance(self, Drawable) and not self.is_shown():
             return
 
-        valid_click: Callable[[], bool] = lambda: event.button == Mouse.LEFT and self._mouse_in_hitbox(event.pos)
+        valid_click: bool = truth(event.button == Mouse.LEFT and self._mouse_in_hitbox(event.pos))
 
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if valid_click():
+            if valid_click:
                 self.active = True
                 self._on_click_down(event)
         elif event.type == pygame.MOUSEBUTTONUP:
@@ -108,7 +108,7 @@ class Clickable(metaclass=ABCMeta):
             if not active:
                 return
             self._on_click_up(event)
-            if valid_click():
+            if valid_click:
                 self.play_click_sound()
                 self._on_hover()
                 if self.__state != Clickable.State.DISABLED:
@@ -203,7 +203,7 @@ class Clickable(metaclass=ABCMeta):
         if status == self.__active:
             return
         self.__active = status
-        if status is True:
+        if self.active:
             self._on_active_set()
 
     @property
