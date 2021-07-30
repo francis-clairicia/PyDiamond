@@ -118,7 +118,7 @@ class RadialGradientShape(AbstractCircleShape, GradientShape):
         return RadialGradientShape(self.radius, self.first_color, self.second_color)
 
     def _make(self) -> Surface:
-        radius: float = self.radius
-        if radius == 0:
+        radius: int = int(self.radius)
+        if radius < 1:
             return create_surface((0, 0))
         return _gradient_radial(radius, tuple(self.first_color), tuple(self.second_color))  # type: ignore

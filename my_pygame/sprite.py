@@ -28,7 +28,7 @@ class Sprite(Drawable, _Sprite):
         self.set_mask_threshold(mask_threshold)
 
     def copy(self) -> Sprite:
-        return Sprite(self.__default_image, mask_threshold=self.get_mask_threshold())
+        return Sprite(self.__default_image, mask_threshold=self.__mask_threshold)
 
     def update(self, *args: Any, **kwargs: Any) -> None:
         pass
@@ -62,7 +62,7 @@ class Sprite(Drawable, _Sprite):
         self._update_mask()
 
     def _update_mask(self) -> None:
-        self.__mask = pygame.mask.from_surface(self.__image, self.get_mask_threshold())
+        self.__mask = pygame.mask.from_surface(self.__image, self.__mask_threshold)
 
     def get_size(self) -> Tuple[float, float]:
         return self.__image.get_size()

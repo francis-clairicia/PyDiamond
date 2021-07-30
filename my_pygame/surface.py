@@ -45,10 +45,6 @@ def save_image(image: Surface, file: str) -> None:
     if splitext(file)[1] != COMPILED_SURFACE_EXTENSION:
         return pygame.image.save(image, file)
 
-    surface: Surface = Surface(image.get_size(), flags=pygame.SRCALPHA)
-    surface.fill((0, 0, 0, 0))
-    surface.blit(image, (0, 0))
-
-    buffer_dict: _BufferDict = {"string": pygame.image.tostring(surface, "RGBA"), "size": surface.get_size()}
+    buffer_dict: _BufferDict = {"string": pygame.image.tostring(image, "RGBA"), "size": image.get_size()}
     with bz2.open(file, mode="wb", compresslevel=9) as f:
         f.write(pickle.dumps(buffer_dict))

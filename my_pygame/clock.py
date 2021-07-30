@@ -20,7 +20,7 @@ class Clock:
     def elapsed_time(self, milliseconds: float, restart: bool = True) -> bool:
         if self.get_elapsed_time() >= milliseconds:
             if restart:
-                self.restart()
+                self.__time = 0
             return True
         return False
 

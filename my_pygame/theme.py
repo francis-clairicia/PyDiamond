@@ -72,7 +72,7 @@ class MetaThemedObject(ABCMeta):
             return super().__call__(*args, **kwargs)
 
         theme: Optional[Theme] = kwargs.pop("theme", None)
-        if isinstance(theme, _NoThemeType):
+        if theme is NoTheme:
             return super().__call__(*args, **kwargs)
 
         default_theme: List[str] = list()
