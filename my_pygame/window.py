@@ -1,7 +1,7 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
-from typing import Any, Callable, Dict, Iterable, Iterator, List, NoReturn, Optional, Tuple, TypeVar, Union, final, overload
+from typing import Any, Callable, Dict, Iterable, Iterator, List, NoReturn, Optional, Tuple, TypeVar, Union, overload
 from enum import IntEnum
 
 import pygame
@@ -11,14 +11,14 @@ import pygame.mixer
 
 from pygame.surface import Surface
 from pygame.rect import Rect
-from pygame.time import Clock as _Clock
+from pygame.time import Clock as _PygameClock
 from pygame.color import Color
 from pygame.event import Event
 
 from .drawable import Drawable
 from .text import Text
 from .colors import BLACK, WHITE
-from .scene import Scene, SceneAlias
+from .scene import Scene
 from .clock import Clock
 from .surface import create_surface
 from .mouse import Mouse
@@ -128,15 +128,15 @@ class Window:
         screen: Optional[Surface] = pygame.display.get_surface()
         if screen is None:
             size = (max(size[0], 0), max(size[1], 0))
-            flags: int = 0
+            flags: int = pygame.HWSURFACE | pygame.DOUBLEBUF
             if fullscreen:
-                flags |= pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF
+                flags |= pygame.FULLSCREEN
             screen = pygame.display.set_mode(size, flags=flags, depth=32)
         self.__surface: Surface = create_surface(screen.get_size())
         self.__rect: Rect = self.__surface.get_rect()
         self.clear_all_events()
 
-        self.__main_clock: _Clock = _Clock()
+        self.__main_clock: _PygameClock = _PygameClock()
 
         self.__framerate_update_clock: Clock = Clock(start=True)
         self.__framerate: int = Window.DEFAULT_FRAMERATE
@@ -169,7 +169,7 @@ class Window:
         print("Quit pygame")
         pygame.quit()
 
-    def __contains__(self, scene: Union[Scene, SceneAlias]) -> bool:
+    def __contains__(self, scene: Scene) -> bool:
         return scene in self.__scenes
 
     def set_title(self, title: Optional[str]) -> None:
@@ -431,8 +431,9 @@ class Window:
         return window_callback
 
     def remove_window_callback(self, window_callback: WindowCallback) -> None:
-        if window_callback.scene is not None:
-            scene_callback_after: Optional[WindowCallbackList] = self.__callback_after_scenes.get(window_callback.scene)
+        scene: Optional[Scene] = window_callback.scene
+        if scene is not None:
+            scene_callback_after: Optional[WindowCallbackList] = self.__callback_after_scenes.get(scene)
             if scene_callback_after is None:
                 return
             try:
@@ -440,7 +441,7 @@ class Window:
             except ValueError:
                 pass
             if not scene_callback_after:
-                self.__callback_after_scenes.pop(window_callback.scene)
+                self.__callback_after_scenes.pop(scene)
         else:
             try:
                 self.__callback_after.remove(window_callback)
@@ -450,52 +451,36 @@ class Window:
     def get_actual_scene(self) -> Optional[Scene]:
         return self.__scenes.top()
 
-    def get_scene(self, scene: Union[Scene, SceneAlias]) -> Scene:
-        if not isinstance(scene, Scene):
-            return self.__scenes.get(scene)
+    def __check_scene(self, scene: Scene) -> None:
         if scene.window is not self:
-            raise WindowError(f"{type(scene).__name__}: Trying to get a scene bound to an another window")
-        return scene
+            raise WindowError(f"{type(scene).__name__}: Trying to deal with a scene bound to an another window")
 
-    @overload
     def start_scene(self, scene: Scene) -> None:
-        ...
-
-    @overload
-    def start_scene(self, scene: Scene, new_alias: SceneAlias) -> None:
-        ...
-
-    @overload
-    def start_scene(self, scene: SceneAlias) -> None:
-        ...
-
-    @final
-    def start_scene(self, scene: Union[Scene, SceneAlias], new_alias: Optional[SceneAlias] = None) -> None:
-        scene = self.get_scene(scene)
+        self.__check_scene(scene)
         if scene.looping():
             return
         transition: _SceneTransitionEnum = _SceneTransitionEnum.SHOW
         try:
             self.__scenes.clear(until=scene)
         except WindowError:
-            self.__scenes.push(scene, new_alias)
+            self.__scenes.push(scene)
         if self.__actual_scene is None or self.__actual_scene is scene:
             return
         if self.__actual_scene not in self.__scenes:
             transition = _SceneTransitionEnum.HIDE
         self.__transition = transition
 
-    def stop_scene(self, scene: Union[Scene, SceneAlias]) -> None:
-        scene = self.get_scene(scene)
+    def stop_scene(self, scene: Scene) -> None:
+        self.__check_scene(scene)
         if scene.looping():
             self.__transition = _SceneTransitionEnum.HIDE
         self.__scenes.remove(scene)
         self.__callback_after_scenes.pop(scene, None)
 
     def __update_actual_scene(self) -> Optional[Scene]:
-        actual_scene: Optional[Scene] = self.get_actual_scene()
-        if actual_scene is not self.__actual_scene:
-            previous_scene: Optional[Scene] = self.__actual_scene
+        actual_scene: Optional[Scene] = self.__scenes.top()
+        previous_scene: Optional[Scene] = self.__actual_scene
+        if actual_scene is not previous_scene:
             self.__actual_scene = actual_scene
             if actual_scene is None:
                 if previous_scene is not None:
@@ -599,7 +584,6 @@ class Window:
 class _SceneManager:
     def __init__(self, window: Window) -> None:
         self.__stack: List[Scene] = []
-        self.__aliases: Dict[SceneAlias, Scene] = {}
         self.__window: Window = window
 
     def __iter__(self) -> Iterator[Scene]:
@@ -608,12 +592,10 @@ class _SceneManager:
     def __len__(self) -> int:
         return len(self.__stack)
 
-    def __contains__(self, scene: Union[Scene, SceneAlias]) -> bool:
-        if isinstance(scene, Scene):
-            if scene.window is not self.__window:
-                return False
-            return scene in self.__stack
-        return scene in self.__aliases
+    def __contains__(self, scene: Scene) -> bool:
+        if scene.window is not self.__window:
+            return False
+        return scene in self.__stack
 
     def from_top_to_bottom(self) -> Iterator[Scene]:
         return iter(self.__stack)
@@ -624,68 +606,33 @@ class _SceneManager:
     def empty(self) -> bool:
         return not self.__stack
 
-    def get(self, alias: SceneAlias) -> Scene:
-        return self.__aliases[alias]
-
     def top(self) -> Optional[Scene]:
         return self.__stack[0] if self.__stack else None
 
-    def index(self, scene: Union[Scene, SceneAlias]) -> int:
-        if isinstance(scene, Scene):
-            return self.__stack.index(scene)
-        return self.__stack.index(self.get(scene))
+    def index(self, scene: Scene) -> int:
+        return self.__stack.index(scene)
 
-    def clear(self, until: Optional[Union[Scene, SceneAlias]] = None) -> None:
+    def clear(self, until: Optional[Scene] = None) -> None:
         if until is None:
             self.__stack.clear()
-            self.__aliases.clear()
             return
-        if not isinstance(until, Scene):
-            until = self.get(until)
         if until not in self:
             raise WindowError(f"{type(until).__name__} not stacked")
         while self.__stack[0] is not until:
-            self.remove(self.__stack[0])
+            self.__stack.pop(0)
 
-    def remove(self, scene: Union[Scene, SceneAlias]) -> None:
-        alias: Optional[SceneAlias] = None
-        if not isinstance(scene, Scene):
-            alias = scene
-            scene = self.get(alias)
+    def remove(self, scene: Scene) -> None:
         if scene.window is not self.__window:
             raise WindowError("Trying to remove a scene bound to an another window")
         try:
             self.__stack.remove(scene)
         except ValueError:
             pass
-        finally:
-            if alias is None:
-                alias = self.__get_alias(scene)
-            if alias is not None:
-                self.__aliases.pop(alias)
 
-    def push(self, scene: Union[Scene, SceneAlias], alias: Optional[SceneAlias] = None) -> None:
-        if not isinstance(scene, Scene):
-            alias = scene
-            scene = self.get(scene)
+    def push(self, scene: Scene) -> None:
         if scene.window is not self.__window:
             raise WindowError("Trying to push a scene bound to an another window")
-        if alias is None:
-            alias = self.__get_alias(scene)
         self.remove(scene)
         if any(type(stacked_scene) is type(scene) for stacked_scene in self):
-            raise TypeError("A scene with the same type is stacked")
+            raise TypeError(f"A scene with the same type is stacked: {type(scene).__name__}")
         self.__stack.insert(0, scene)
-        if alias is not None:
-            self.__set_alias(scene, alias)
-
-    def __get_alias(self, scene: Scene) -> Optional[SceneAlias]:
-        for alias, in_scene in self.__aliases.items():
-            if in_scene is scene:
-                return alias
-        return None
-
-    def __set_alias(self, scene: Scene, alias: SceneAlias) -> None:
-        if alias in self.__aliases:
-            raise ValueError(f"A scene uses this alias: {repr(alias)}")
-        self.__aliases[alias] = scene

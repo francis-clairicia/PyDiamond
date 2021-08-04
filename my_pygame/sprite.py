@@ -8,7 +8,7 @@ import pygame.transform
 
 from pygame.surface import Surface
 from pygame.rect import Rect
-from pygame.sprite import Sprite as _Sprite
+from pygame.sprite import Sprite as _PygameSprite
 from pygame.mask import Mask
 
 from .drawable import Drawable
@@ -16,10 +16,10 @@ from .surface import create_surface
 from .clock import Clock
 
 
-class Sprite(Drawable, _Sprite):
+class Sprite(Drawable, _PygameSprite):
     def __init__(self, image: Optional[Surface] = None, mask_threshold: int = 127) -> None:
         Drawable.__init__(self)
-        _Sprite.__init__(self)
+        _PygameSprite.__init__(self)
         self.__default_image: Surface = image.copy() if image is not None else create_surface((0, 0))
         self.__image: Surface = self.__default_image.copy()
         self.__mask_threshold: int

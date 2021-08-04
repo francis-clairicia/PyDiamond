@@ -1,6 +1,6 @@
 # -*- coding: Utf-8 -*
 
-from pygame.time import Clock as _Clock
+from pygame.time import Clock as _PygameClock
 
 
 class Clock:
@@ -9,7 +9,7 @@ class Clock:
 
     def __init__(self, start: bool = False) -> None:
         self.__time: float = 0
-        self.__clock: _Clock = _Clock()
+        self.__clock: _PygameClock = _PygameClock()
         if start:
             self.restart()
 

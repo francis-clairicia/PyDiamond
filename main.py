@@ -12,7 +12,7 @@ from pygame.event import Event
 from pygame.surface import Surface
 from my_pygame.text import Text, TextImage
 from my_pygame.window import Window
-from my_pygame.scene import Scene, SceneEnum
+from my_pygame.scene import Scene
 
 from my_pygame.resource import FontLoader, ImageLoader, ResourceManager
 
@@ -35,10 +35,6 @@ from my_pygame.colors import (
     YELLOW,
 )
 from my_pygame.clock import Clock
-
-
-class MyScenes(SceneEnum):
-    Shape: str
 
 
 class ShapeScene(Scene):
@@ -111,11 +107,11 @@ class ShapeScene(Scene):
         degrees: float = 1
         if self.__clock.elapsed_time(15):
             self.__r.rotate(degrees)
-            self.__p.rotate(-degrees, pivot=self.__r.center)
+            self.__p.rotate_around_point(-degrees, pivot=self.__r.center)
             self.__p.rotate(degrees * 3)
-            self.__x.rotate(degrees, pivot=self.__r.center)
+            self.__x.rotate_around_point(degrees, pivot=self.__r.center)
             self.__x.rotate(-degrees * 3)
-            self.__c.rotate(-degrees, pivot=self.__r.center)
+            self.__c.rotate_around_point(-degrees, pivot=self.__r.center)
             # self.__scale += 0.02 * self.__scale_growth
             # if self.__scale >= 2:
             #     self.__scale_growth = -1

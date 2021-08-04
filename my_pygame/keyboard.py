@@ -1,19 +1,19 @@
 # -*- coding: Utf-8 -*
 
-from typing import Tuple, Union, final, overload
+from typing import Sequence, Union, final, overload
 from operator import truth
 from enum import IntEnum
 
 import pygame.key
 
-_KEY_STATES: Tuple[bool, ...] = ()
+_KEY_STATES: Sequence[bool] = []
 
 
 class Keyboard:
     @staticmethod
     def update() -> None:
         global _KEY_STATES
-        _KEY_STATES = tuple(pygame.key.get_pressed())
+        _KEY_STATES = pygame.key.get_pressed()
 
     @overload
     @staticmethod

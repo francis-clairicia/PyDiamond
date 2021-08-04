@@ -149,6 +149,20 @@ class Drawable(metaclass=MetaDrawable):
             center = pivot + (center - pivot).rotate(-self.__angle + former_angle)
         self.center = center.x, center.y
 
+    def rotate_around_point(self, angle_offset: float, pivot: Union[Tuple[float, float], Vector2, str]) -> None:
+        if angle_offset == 0:
+            return
+        if isinstance(pivot, str):
+            pivot = getattr(self, pivot)
+            if not isinstance(pivot, tuple) or len(pivot) != 2:
+                raise AttributeError(f"Bad pivot attribute: {pivot}")
+        pivot = Vector2(pivot)
+        center: Vector2 = Vector2(self.center)
+        if pivot == center:
+            return
+        center = pivot + (center - pivot).rotate(-angle_offset)
+        self.center = center.x, center.y
+
     def set_scale(self, scale: float) -> None:
         scale = max(scale, 0)
         if self.scale == scale:

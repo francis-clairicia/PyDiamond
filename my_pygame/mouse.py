@@ -28,7 +28,7 @@ class Mouse:
 
     @staticmethod
     def is_pressed(button: int) -> bool:
-        return truth(_MOUSE_BUTTON_STATE[button])
+        return _MOUSE_BUTTON_STATE[button]
 
     @staticmethod
     def show_cursor() -> None:

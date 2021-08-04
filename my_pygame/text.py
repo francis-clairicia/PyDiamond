@@ -165,7 +165,6 @@ class Text(ThemedDrawable):
         render_lines: List[Surface] = list()
         render_width: float = 0
         render_height: float = 0
-        text: Surface
         default_font: Font = self.font
         custom_font: Dict[int, Font] = self.__custom_font
         for index, line in enumerate(self.message.splitlines()):
@@ -177,19 +176,18 @@ class Text(ThemedDrawable):
         if not render_lines:
             return create_surface((0, 0))
         if len(render_lines) == 1:
-            text = render_lines[0]
-        else:
-            text = create_surface((render_width, render_height))
-            text_rect = text.get_rect()
-            top = 0
-            params = {
-                Text.Justify.LEFT: {"left": text_rect.left},
-                Text.Justify.RIGHT: {"right": text_rect.right},
-                Text.Justify.CENTER: {"centerx": text_rect.centerx},
-            }[self.__justify]
-            for render in render_lines:
-                text.blit(render, render.get_rect(**params, top=top))
-                top += render.get_height()
+            return render_lines[0]
+        text: Surface = create_surface((render_width, render_height))
+        text_rect: Rect = text.get_rect()
+        top: int = 0
+        params: Dict[str, int] = {
+            Text.Justify.LEFT: {"left": text_rect.left},
+            Text.Justify.RIGHT: {"right": text_rect.right},
+            Text.Justify.CENTER: {"centerx": text_rect.centerx},
+        }[self.__justify]
+        for render in render_lines:
+            text.blit(render, render.get_rect(**params, top=top))
+            top += render.get_height()
         return text
 
     def _render(self) -> Surface:
@@ -197,12 +195,8 @@ class Text(ThemedDrawable):
         shadow_x, shadow_y = self.shadow
         if shadow_x == 0 and shadow_y == 0:
             return text
-        render_width: float = text.get_width()
-        render_height: float = text.get_height()
         shadow_text: Surface = self.__render_text(self.shadow_color)
-        render_width += abs(shadow_x)
-        render_height += abs(shadow_y)
-        render = create_surface((render_width, render_height))
+        render = create_surface((text.get_width() + abs(shadow_x), text.get_height() + abs(shadow_y)))
 
         text_x: float = 0
         text_y: float = 0

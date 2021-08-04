@@ -3,9 +3,8 @@
 from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from functools import wraps
-from enum import Enum, EnumMeta, auto, unique
 from operator import truth
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Tuple, TypeVar, Union, final, overload
+from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Tuple, TypeVar, Union, final
 import pygame
 
 from pygame.color import Color
@@ -19,33 +18,6 @@ if TYPE_CHECKING:
     from .window import EventCallback, EventType, MousePositionCallback, MousePosition, Window, WindowCallback
 
 _T = TypeVar("_T")
-
-
-class MetaSceneEnum(EnumMeta):
-    def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any]) -> MetaSceneEnum:
-        annotations: Dict[str, Union[type, str]] = namespace.get("__annotations__", dict())
-        for enum_name, enum_type in annotations.items():
-            if not isinstance(enum_type, (type, str)):
-                raise TypeError(f"Enum type annotation must be str, not {repr(enum_type)}")
-            if isinstance(enum_type, str) and enum_type != "str":
-                raise TypeError(f"Enum type annotation must be str, not {repr(enum_type)}")
-            if isinstance(enum_type, type) and enum_type is not str:
-                raise TypeError(f"Enum type annotation must be str, not {repr(enum_type.__name__)}")
-            if enum_name not in namespace:
-                namespace[enum_name] = auto()
-
-        return super().__new__(metacls, name, bases, namespace)
-
-
-class SceneEnum(str, Enum, metaclass=MetaSceneEnum):
-    def __init_subclass__(cls) -> None:
-        unique(cls)
-
-    def _generate_next_value_(name: str, start: int, count: int, last_values: List[str]) -> str:  # type: ignore[override]
-        return name.upper()
-
-
-SceneAlias = Union[str, SceneEnum]
 
 
 class MetaScene(ABCMeta):
@@ -158,20 +130,8 @@ class Scene(metaclass=MetaScene):
     def started(self) -> bool:
         return self in self.__window
 
-    @overload
     def start(self) -> None:
-        ...
-
-    @overload
-    def start(self, new_alias: SceneAlias) -> None:
-        ...
-
-    @final
-    def start(self, new_alias: Optional[SceneAlias] = None) -> None:
-        if new_alias is not None:
-            self.__window.start_scene(self, new_alias)
-        else:
-            self.__window.start_scene(self)
+        self.__window.start_scene(self)
 
     def stop(self) -> None:
         self.__window.stop_scene(self)
@@ -309,3 +269,10 @@ class Scene(metaclass=MetaScene):
     @property
     def transition(self) -> Optional[SceneTransition]:
         return self.__transition
+
+    @transition.setter
+    def transition(self, transition: Optional[SceneTransition]) -> None:
+        if isinstance(transition, SceneTransition):
+            self.__transition = transition
+        else:
+            self.__transition = None
