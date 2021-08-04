@@ -1,7 +1,7 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
-from typing import Any, Callable, Generic, Optional, Tuple, TypeVar, Union, cast
+from typing import Callable, Generic, Optional, Tuple, TypeVar, Union, cast
 from operator import truth
 
 from pygame.color import Color
@@ -23,10 +23,6 @@ _OffValue = TypeVar("_OffValue")
 
 
 class CheckBox(ThemedDrawable, Clickable, Generic[_OnValue, _OffValue]):
-    def __init_subclass__(cls, /, **kwargs: Any) -> None:
-        ThemedDrawable.__init_subclass__(**kwargs)
-        Generic.__init_subclass__()
-
     def __init__(
         self,
         master: Union[Scene, Window],
@@ -143,7 +139,7 @@ class CheckBox(ThemedDrawable, Clickable, Generic[_OnValue, _OffValue]):
 
     def set_value(self, value: Union[_OnValue, _OffValue]) -> None:
         if value not in [self.__on_value, self.__off_value]:
-            raise ValueError(f"{repr(value)} is not {repr(self.__on_value)} or {repr(self.__off_value)}")
+            raise ValueError(f"{value!r} is not {self.__on_value!r} or {self.__off_value!r}")
         if value == self.__value:
             return
         self.__value = value

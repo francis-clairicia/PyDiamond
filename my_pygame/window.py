@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import Any, Callable, Dict, Iterable, Iterator, List, NoReturn, Optional, Tuple, TypeVar, Union, overload
 from enum import IntEnum
+from operator import truth
 
 import pygame
 import pygame.display
@@ -139,7 +140,8 @@ class Window:
         self.__main_clock: _PygameClock = _PygameClock()
 
         self.__framerate_update_clock: Clock = Clock(start=True)
-        self.__framerate: int = Window.DEFAULT_FRAMERATE
+        self.__default_framerate: int = Window.DEFAULT_FRAMERATE
+        self.__busy_loop: bool = False
         self.__text_framerate: Text = Text(color=WHITE, theme=NoTheme)
         self.__text_framerate.hide()
         self.__text_framerate.midtop = (self.centerx, self.top + 10)
@@ -193,6 +195,8 @@ class Window:
             self.__loop = False
             self.__callback_after.clear()
             self.__callback_after_scenes.clear()
+            for scene in self.__scenes.from_top_to_bottom():
+                scene.on_quit()
 
     def close(self) -> NoReturn:
         self.__loop = False
@@ -204,6 +208,15 @@ class Window:
     def clear(self, color: ColorInput = BLACK) -> None:
         self.__surface.fill(color)
 
+    def get_default_framerate(self) -> int:
+        return self.__default_framerate
+
+    def set_default_framerate(self, value: int) -> None:
+        self.__default_framerate = max(int(value), 0)
+
+    def set_busy_loop(self, status: bool) -> None:
+        self.__busy_loop = truth(status)
+
     def refresh(self) -> None:
         screen: Surface = pygame.display.get_surface()
         screen.fill(BLACK)
@@ -214,17 +227,19 @@ class Window:
         screen.blit(self.__surface, (0, 0))
         pygame.display.flip()
 
-        self.__framerate = Window.DEFAULT_FRAMERATE
+        framerate: int = self.__default_framerate
         actual_scene: Optional[Scene] = self.__scenes.top()
         for scene in self.__scenes.from_bottom_to_top():
             f: int = scene.get_required_framerate()
             if f > 0:
-                self.__framerate = f
+                framerate = f
                 break
-        if actual_scene is not None and actual_scene.require_busy_loop():
-            self.__main_clock.tick_busy_loop(self.__framerate)
+        if framerate == 0:
+            self.__main_clock.tick()
+        elif self.__busy_loop or (actual_scene is not None and actual_scene.require_busy_loop()):
+            self.__main_clock.tick_busy_loop(framerate)
         else:
-            self.__main_clock.tick(self.__framerate)
+            self.__main_clock.tick(framerate)
 
     def draw_screen(self) -> None:
         scene: Optional[Scene] = self.__update_actual_scene()

@@ -4,7 +4,7 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from functools import wraps
 from operator import truth
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Tuple, TypeVar, Union, final
+from typing import Any, Callable, Dict, FrozenSet, List, Optional, TYPE_CHECKING, Tuple, Type, TypeVar, Union, final
 import pygame
 
 from pygame.color import Color
@@ -22,16 +22,24 @@ _T = TypeVar("_T")
 
 class MetaScene(ABCMeta):
 
-    __abstractmethods__: frozenset[str]
-    __namespaces: Dict[type, Any] = dict()
+    __abstractmethods__: FrozenSet[str]
+    __namespaces: Dict[type, str] = dict()
 
     def __new__(metacls, name: str, bases: Tuple[type, ...], attrs: Dict[str, Any], **extra: Any) -> MetaScene:
         for attr_name, attr_obj in attrs.items():
             attrs[attr_name] = metacls.__apply_theme_namespace_decorator(attr_obj)
 
-        return super().__new__(metacls, name, bases, attrs, **extra)
+        cls: MetaScene = super().__new__(metacls, name, bases, attrs, **extra)
+        try:
+            if getattr(cls, "__main_scene__") and not cls.__abstractmethods__:
+                closed_namespace(cls)
+        except AttributeError:
+            pass
+        else:
+            delattr(cls, "__main_scene__")
+        return cls
 
-    def set_theme_namespace(cls, namespace: Any) -> None:
+    def set_theme_namespace(cls, namespace: str) -> None:
         if cls.__abstractmethods__:
             raise TypeError(f"{cls.__name__} is an abstract class")
         if namespace is not None:
@@ -45,19 +53,32 @@ class MetaScene(ABCMeta):
         MetaScene.__namespaces.pop(cls, None)
 
     @staticmethod
-    def __theme_namespace_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+    def __theme_namespace_decorator(func: Callable[..., Any], *, class_method: bool = False) -> Callable[..., Any]:
         @wraps(func)
-        def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
-            cls: type = type(self) if not isinstance(self, type) else self
+        def method_wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
             output: Any
-            if cls in MetaScene.__namespaces and ThemeNamespace.get() is not MetaScene.__namespaces[cls]:
-                with ThemeNamespace(MetaScene.__namespaces[cls]):
-                    output = func(self, *args, **kwargs)
-            else:
+            try:
+                theme_namespace: Any = MetaScene.__namespaces[type(self)]
+            except KeyError:
                 output = func(self, *args, **kwargs)
+            else:
+                with ThemeNamespace(theme_namespace):
+                    output = func(self, *args, **kwargs)
             return output
 
-        return wrapper
+        @wraps(func)
+        def classmethod_wrapper(cls: Type[Any], *args: Any, **kwargs: Any) -> Any:
+            output: Any
+            try:
+                theme_namespace: Any = MetaScene.__namespaces[cls]
+            except KeyError:
+                output = func(cls, *args, **kwargs)
+            else:
+                with ThemeNamespace(theme_namespace):
+                    output = func(cls, *args, **kwargs)
+            return output
+
+        return method_wrapper if not class_method else classmethod_wrapper
 
     @staticmethod
     def __apply_theme_namespace_decorator(obj: Any) -> Any:
@@ -71,7 +92,7 @@ class MetaScene(ABCMeta):
             if callable(obj.fdel):
                 obj = obj.deleter(MetaScene.__theme_namespace_decorator(obj.fdel))
         elif isinstance(obj, classmethod):
-            obj = classmethod(MetaScene.__theme_namespace_decorator(obj.__func__))
+            obj = classmethod(MetaScene.__theme_namespace_decorator(obj.__func__, class_method=True))
         return obj
 
 
@@ -276,3 +297,32 @@ class Scene(metaclass=MetaScene):
             self.__transition = transition
         else:
             self.__transition = None
+
+
+class MainScene(Scene):
+    def __init_subclass__(cls) -> None:
+        super().__init_subclass__()
+        setattr(cls, "__main_scene__", True)
+
+    def __init__(self, master: Window, framerate: int = 0, busy_loop: bool = False) -> None:
+        super().__init__(master, framerate=framerate, busy_loop=busy_loop)
+
+    @property
+    def master(self) -> None:
+        return None
+
+
+_S = TypeVar("_S", bound=MetaScene)
+
+
+def set_default_theme_namespace(namespace: str) -> Callable[[_S], _S]:
+    def decorator(scene: _S) -> _S:
+        scene.set_theme_namespace(namespace)
+        return scene
+
+    return decorator
+
+
+def closed_namespace(scene: _S) -> _S:
+    scene.set_theme_namespace(f"_{scene.__name__}__{id(scene):#x}")
+    return scene

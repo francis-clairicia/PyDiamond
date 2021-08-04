@@ -108,7 +108,7 @@ class Drawable(metaclass=MetaDrawable):
         )
         for name, value in position.items():
             if name not in all_valid_positions:
-                raise AttributeError(f"Unknown position attribute {repr(name)}")
+                raise AttributeError(f"Unknown position attribute {name!r}")
             setattr(self, name, value)
 
     def move(self, dx: float, dy: float) -> None:
@@ -253,7 +253,7 @@ class Drawable(metaclass=MetaDrawable):
         r: Rect = Rect((0, 0), self.get_local_size())
         for name, value in kwargs.items():
             if not hasattr(r, name):
-                raise AttributeError(f"{repr(type(r).__name__)} has no attribute {repr(name)}")
+                raise AttributeError(f"{type(r).__name__!r} has no attribute {name!r}")
             setattr(r, name, value)
         return r
 
@@ -261,7 +261,7 @@ class Drawable(metaclass=MetaDrawable):
         r: Rect = self.rect
         for name, value in kwargs.items():
             if not hasattr(r, name):
-                raise AttributeError(f"{repr(type(r).__name__)} has no attribute {repr(name)}")
+                raise AttributeError(f"{type(r).__name__!r} has no attribute {name!r}")
             setattr(r, name, value)
         return r
 

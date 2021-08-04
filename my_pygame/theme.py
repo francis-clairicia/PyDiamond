@@ -2,47 +2,55 @@
 
 from __future__ import annotations
 from abc import ABCMeta
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Type, TypeVar, Union, cast
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Type, TypeVar, Union, cast
 from operator import truth
-
-
-class ThemeNamespace:
-
-    __NAMESPACE: Any = None
-
-    def __init__(self, namespace: Any) -> None:
-        self.__namespace: Any = namespace
-        self.__save_namespace: Any = None
-
-    def __enter__(self) -> ThemeNamespace:
-        self.__save_namespace = ThemeNamespace.__NAMESPACE
-        ThemeNamespace.__NAMESPACE = self.__namespace
-        if ThemeNamespace.__NAMESPACE not in _THEMES:
-            _THEMES[ThemeNamespace.__NAMESPACE] = dict()
-        return self
-
-    def __exit__(self, *args: Any) -> None:
-        ThemeNamespace.__NAMESPACE = self.__save_namespace
-
-    @staticmethod
-    def get() -> Any:
-        return ThemeNamespace.__NAMESPACE
-
-    @property
-    def namespace(self) -> Any:
-        return self.__namespace
-
 
 _ClassTheme = Dict[str, Dict[str, Any]]
 _ClassThemeDict = Dict[type, _ClassTheme]
 
-_THEMES: Dict[Any, _ClassThemeDict] = {ThemeNamespace.get(): dict()}
+_THEMES: _ClassThemeDict = dict()
 _HIDDEN_THEMES: _ClassThemeDict = dict()
-_DEFAULT_THEME: Dict[type, List[str]] = dict()
-_HIDDEN_DEFAULT_THEME: Dict[type, List[str]] = dict()
-_CLASSES_NOT_USING_PARENT_THEMES: List[type] = list()
-_CLASSES_NOT_USING_PARENT_DEFAULT_THEMES: List[type] = list()
+_DEFAULT_THEME: Dict[type, Set[str]] = dict()
+_HIDDEN_DEFAULT_THEME: Dict[type, Set[str]] = dict()
+_CLASSES_NOT_USING_PARENT_THEMES: Set[type] = set()
+_CLASSES_NOT_USING_PARENT_DEFAULT_THEMES: Set[type] = set()
 _HIDDEN_THEME_PREFIX: str = "__"
+
+
+class ThemeNamespace:
+
+    __DEFAULT: _ClassThemeDict = _THEMES
+    __NAMESPACE: Dict[str, _ClassThemeDict] = {}
+    __actual_namespace: Optional[str] = None
+
+    def __init__(self, namespace: str) -> None:
+        self.__namespace: str = str(namespace)
+        self.__save_namespace: Optional[str] = None
+
+    def __enter__(self) -> ThemeNamespace:
+        global _THEMES
+        self.__save_namespace = ThemeNamespace.__actual_namespace
+        ThemeNamespace.__actual_namespace = namespace = self.__namespace
+        try:
+            theme_dict: _ClassThemeDict = ThemeNamespace.__NAMESPACE[namespace]
+        except KeyError:
+            ThemeNamespace.__NAMESPACE[namespace] = theme_dict = dict()
+        _THEMES = theme_dict
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        global _THEMES
+        namespace, self.__save_namespace = self.__save_namespace, None
+        if namespace is None:
+            _THEMES = ThemeNamespace.__DEFAULT
+        else:
+            _THEMES = ThemeNamespace.__NAMESPACE.get(namespace, ThemeNamespace.__DEFAULT)
+        ThemeNamespace.__actual_namespace = namespace
+
+    @property
+    def namespace(self) -> str:
+        return self.__namespace
+
 
 _T = TypeVar("_T")
 
@@ -62,10 +70,8 @@ class MetaThemedObject(ABCMeta):
         setattr(cls, "__is_abstract_theme_class__", False)
         cls.__virtual_themed_class_bases__: Tuple[MetaThemedObject, ...] = ()
         if all(not isinstance(b, MetaThemedObject) or b.is_abstract_theme_class() for b in bases):
-            if cls not in _CLASSES_NOT_USING_PARENT_THEMES:
-                _CLASSES_NOT_USING_PARENT_THEMES.append(cls)
-            if cls not in _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES:
-                _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.append(cls)
+            _CLASSES_NOT_USING_PARENT_THEMES.add(cls)
+            _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.add(cls)
 
     def __call__(cls, *args: Any, **kwargs: Any) -> Any:
         if cls.is_abstract_theme_class():
@@ -75,10 +81,22 @@ class MetaThemedObject(ABCMeta):
         if theme is NoTheme:
             return super().__call__(*args, **kwargs)
 
-        default_theme: List[str] = list()
+        default_theme: Set[str] = set()
+
+        def add_default_themes(cls: MetaThemedObject) -> None:
+            nonlocal default_theme
+            try:
+                default_theme.update(_HIDDEN_DEFAULT_THEME[cls])
+            except KeyError:
+                pass
+            try:
+                default_theme.update(_DEFAULT_THEME[cls])
+            except KeyError:
+                pass
+
         for parent in cls.__get_all_parent_class(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_DEFAULT_THEMES):
-            default_theme += _HIDDEN_DEFAULT_THEME.get(parent, list()) + _DEFAULT_THEME.get(parent, list())
-        default_theme += _HIDDEN_DEFAULT_THEME.get(cls, list()) + _DEFAULT_THEME.get(cls, list())
+            add_default_themes(parent)
+        add_default_themes(cls)
         if theme is None:
             theme = list()
         elif isinstance(theme, str):
@@ -97,9 +115,9 @@ class MetaThemedObject(ABCMeta):
         theme_dict: Dict[str, Dict[str, Any]]
 
         if not name.startswith(_HIDDEN_THEME_PREFIX):
-            if cls not in _THEMES[ThemeNamespace.get()]:
-                _THEMES[ThemeNamespace.get()][cls] = dict()
-            theme_dict = _THEMES[ThemeNamespace.get()][cls]
+            if cls not in _THEMES:
+                _THEMES[cls] = dict()
+            theme_dict = _THEMES[cls]
         else:
             if cls not in _HIDDEN_THEMES:
                 _HIDDEN_THEMES[cls] = dict()
@@ -121,22 +139,31 @@ class MetaThemedObject(ABCMeta):
         if isinstance(name, str):
             name = [name]
         for theme in name:
-            default_theme: Dict[type, List[str]] = (
+            default_theme: Dict[type, Set[str]] = (
                 _DEFAULT_THEME if not theme.startswith(_HIDDEN_THEME_PREFIX) else _HIDDEN_DEFAULT_THEME
             )
             if cls not in default_theme:
-                default_theme[cls] = list()
-            default_theme[cls].append(theme)
+                default_theme[cls] = set()
+            default_theme[cls].add(theme)
 
     def get_theme_options(cls, *themes: str) -> Dict[str, Any]:
         if cls.is_abstract_theme_class():
             raise TypeError("Abstract theme classes does not have themes.")
 
         theme_kwargs: Dict[str, Any] = dict()
+
+        def get_theme_options(cls: type, theme: str) -> None:
+            nonlocal theme_kwargs
+            theme_dict: _ClassThemeDict = _HIDDEN_THEMES if theme.startswith(_HIDDEN_THEME_PREFIX) else _THEMES
+            try:
+                theme_kwargs |= theme_dict[cls][theme]
+            except KeyError:
+                pass
+
         for t in themes:
             for parent in reversed(list(cls.__get_all_parent_class(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_THEMES))):
-                theme_kwargs |= cls.__get_theme_options(parent, t)
-            theme_kwargs |= cls.__get_theme_options(cls, t)
+                get_theme_options(parent, t)
+            get_theme_options(cls, t)
         return theme_kwargs
 
     def is_abstract_theme_class(cls) -> bool:
@@ -162,20 +189,14 @@ class MetaThemedObject(ABCMeta):
                 pass
 
     @staticmethod
-    def __get_theme_options(cls: type, theme: str) -> Dict[str, Any]:
-        if theme.startswith(_HIDDEN_THEME_PREFIX):
-            return _HIDDEN_THEMES.get(cls, dict()).get(theme, dict())
-        return _THEMES[ThemeNamespace.get()].get(cls, dict()).get(theme, dict())
-
-    @staticmethod
-    def __get_all_parent_class(cls: MetaThemedObject, do_not_search_for: List[type] = []) -> Iterator[MetaThemedObject]:
+    def __get_all_parent_class(cls: MetaThemedObject, do_not_search_for: Set[type]) -> Iterator[MetaThemedObject]:
         if not isinstance(cls, MetaThemedObject) or cls in do_not_search_for or cls.is_abstract_theme_class():
             return
         for base in (*cls.__bases__, *cls.__virtual_themed_class_bases__):
             if not isinstance(base, MetaThemedObject) or base.is_abstract_theme_class():
                 continue
             yield base
-            yield from MetaThemedObject.__get_all_parent_class(base)
+            yield from MetaThemedObject.__get_all_parent_class(base, do_not_search_for=do_not_search_for)
 
 
 _ThemedObjectVar = TypeVar("_ThemedObjectVar", bound=MetaThemedObject)
@@ -191,9 +212,9 @@ class ThemedObject(metaclass=MetaThemedObject):
     def __init_subclass__(cls, /, *, use_parent_theme: bool = True, use_parent_default_theme: bool = True) -> None:
         super().__init_subclass__()
         if not use_parent_theme:
-            _CLASSES_NOT_USING_PARENT_THEMES.append(cls)
+            _CLASSES_NOT_USING_PARENT_THEMES.add(cls)
             setattr(cls, "__no_parent_theme__", True)
             use_parent_default_theme = False
         if not use_parent_default_theme:
-            _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.append(cls)
+            _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.add(cls)
             setattr(cls, "__no_parent_default_theme__", True)
