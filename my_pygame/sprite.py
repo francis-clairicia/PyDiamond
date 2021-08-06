@@ -90,11 +90,11 @@ class Sprite(Drawable, _PygameSprite):
         self.center = center
 
     @property
-    def image(self) -> Surface:  # type: ignore
+    def image(self) -> Surface:  # type: ignore[override]
         return self.__image.copy()
 
     @property
-    def rect(self) -> Rect:  # type: ignore
+    def rect(self) -> Rect:  # type: ignore[override]
         return super().rect
 
     @property

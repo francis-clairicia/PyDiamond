@@ -308,7 +308,7 @@ class Text(ThemedDrawable):
     @x.setter
     def x(self, x: float) -> None:
         self.__update_surface()
-        ThemedDrawable.x.fset(self, x)  # type: ignore
+        ThemedDrawable.x.fset(self, x)  # type: ignore[attr-defined]
 
     @property
     def y(self) -> float:
@@ -318,7 +318,7 @@ class Text(ThemedDrawable):
     @y.setter
     def y(self, y: float) -> None:
         self.__update_surface()
-        ThemedDrawable.y.fset(self, y)  # type: ignore
+        ThemedDrawable.y.fset(self, y)  # type: ignore[attr-defined]
 
 
 class TextImage(Text):

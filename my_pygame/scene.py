@@ -54,37 +54,39 @@ class MetaScene(ABCMeta):
 
     @staticmethod
     def __theme_namespace_decorator(func: Callable[..., Any], *, class_method: bool = False) -> Callable[..., Any]:
-        @wraps(func)
-        def method_wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
-            output: Any
-            try:
-                theme_namespace: Any = MetaScene.__namespaces[type(self)]
-            except KeyError:
-                output = func(self, *args, **kwargs)
-            else:
-                with ThemeNamespace(theme_namespace):
+        if not class_method:
+
+            @wraps(func)
+            def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+                output: Any
+                try:
+                    theme_namespace: Any = MetaScene.__namespaces[type(self)]
+                except KeyError:
                     output = func(self, *args, **kwargs)
-            return output
+                else:
+                    with ThemeNamespace(theme_namespace):
+                        output = func(self, *args, **kwargs)
+                return output
 
-        @wraps(func)
-        def classmethod_wrapper(cls: Type[Any], *args: Any, **kwargs: Any) -> Any:
-            output: Any
-            try:
-                theme_namespace: Any = MetaScene.__namespaces[cls]
-            except KeyError:
-                output = func(cls, *args, **kwargs)
-            else:
-                with ThemeNamespace(theme_namespace):
+        else:
+
+            @wraps(func)
+            def wrapper(cls: Type[Any], *args: Any, **kwargs: Any) -> Any:
+                output: Any
+                try:
+                    theme_namespace: Any = MetaScene.__namespaces[cls]
+                except KeyError:
                     output = func(cls, *args, **kwargs)
-            return output
+                else:
+                    with ThemeNamespace(theme_namespace):
+                        output = func(cls, *args, **kwargs)
+                return output
 
-        return method_wrapper if not class_method else classmethod_wrapper
+        return wrapper
 
     @staticmethod
     def __apply_theme_namespace_decorator(obj: Any) -> Any:
-        if callable(obj):
-            obj = MetaScene.__theme_namespace_decorator(obj)
-        elif isinstance(obj, property):
+        if isinstance(obj, property):
             if callable(obj.fget):
                 obj = obj.getter(MetaScene.__theme_namespace_decorator(obj.fget))
             if callable(obj.fset):
@@ -93,6 +95,8 @@ class MetaScene(ABCMeta):
                 obj = obj.deleter(MetaScene.__theme_namespace_decorator(obj.fdel))
         elif isinstance(obj, classmethod):
             obj = classmethod(MetaScene.__theme_namespace_decorator(obj.__func__, class_method=True))
+        elif callable(obj):
+            obj = MetaScene.__theme_namespace_decorator(obj)
         return obj
 
 

@@ -139,7 +139,7 @@ class AbstractShape(Drawable):
     @x.setter
     def x(self, x: float) -> None:
         self.__update_shape()
-        Drawable.x.fset(self, x)  # type: ignore
+        Drawable.x.fset(self, x)  # type: ignore[attr-defined]
 
     @property
     def y(self) -> float:
@@ -149,7 +149,7 @@ class AbstractShape(Drawable):
     @y.setter
     def y(self, y: float) -> None:
         self.__update_shape()
-        Drawable.y.fset(self, y)  # type: ignore
+        Drawable.y.fset(self, y)  # type: ignore[attr-defined]
 
 
 class Shape(AbstractShape):

@@ -11,7 +11,7 @@ from .shape import AbstractCircleShape, AbstractShape, AbstractRectangleShape
 from .surface import create_surface
 from .colors import BLACK
 
-from ._gradients import (  # type: ignore
+from ._gradients import (  # type: ignore[attr-defined]
     horizontal as _gradient_horizontal,
     vertical as _gradient_vertical,
     radial as _gradient_radial,
