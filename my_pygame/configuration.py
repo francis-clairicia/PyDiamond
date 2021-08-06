@@ -12,6 +12,7 @@ from typing import (
     Tuple,
     TypeVar,
     Union,
+    cast,
     overload,
 )
 from copy import deepcopy, Error as CopyError
@@ -24,22 +25,28 @@ _ValueUpdater = TypeVar("_ValueUpdater", bound=Union[Callable[[Any, str, Any], N
 _ValueValidator = TypeVar("_ValueValidator", bound=Union[Callable[[Any, Any], Any], Callable[[Any], Any]])
 
 
-def _make_function_wrapper(func: Callable[..., Any]) -> Callable[..., Any]:
-    if getattr(func, "__boundconfiguration_wrapper__", False):
-        return func
+def _make_function_wrapper(func: Any) -> Callable[..., Any]:
+    if getattr(func, "__boundconfiguration_wrapper__", False) and callable(func):
+        return cast(Callable[..., Any], func)
 
     def wrapper(obj: Any, /, *args: Any, **kwargs: Any) -> Any:
         try:
             _func = getattr(func, "__get__")(obj, type(obj))
             if not callable(_func):
-                raise TypeError
+                raise AttributeError
             _func_name: str = _func.__name__
             if _func_name != "<lambda>":
                 _sub_func = getattr(obj, _func_name, _func)
                 if _sub_func is not _func and callable(_sub_func):
                     _func = _sub_func
-        except (AttributeError, TypeError):
-            return func(obj, *args, **kwargs)
+        except AttributeError:
+            try:
+                return func(obj, *args, **kwargs)
+            except TypeError as exc:
+                try:
+                    return func(*args, **kwargs)
+                except TypeError as subexc:
+                    raise subexc from exc
         return _func(*args, **kwargs)
 
     setattr(wrapper, "__boundconfiguration_wrapper__", True)
@@ -48,7 +55,7 @@ def _make_function_wrapper(func: Callable[..., Any]) -> Callable[..., Any]:
 
 class Configuration:
     class Infos:
-        keys: FrozenSet[str]
+        options: FrozenSet[str]
         update: Optional[Callable[[Any], None]]
         value_update: Dict[str, Callable[[Any, str, Any], None]]
         value_validator: Dict[str, Callable[[Any, Any], Any]]
@@ -61,14 +68,14 @@ class Configuration:
         ...
 
     @overload
-    def __init__(self, *known_keys: str, autocopy: bool = False) -> None:
+    def __init__(self, *known_options: str, autocopy: bool = False) -> None:
         ...
 
-    def __init__(self, *known_keys: str, autocopy: bool = False) -> None:
-        if any(not key for key in known_keys):
-            raise ValueError("Configuration key must not be empty")
+    def __init__(self, *known_options: str, autocopy: bool = False) -> None:
+        if any(not option for option in known_options):
+            raise ValueError("Configuration option must not be empty")
         self.__infos: Configuration.Infos = Configuration.Infos()
-        self.__infos.keys = frozenset(known_keys)
+        self.__infos.options = frozenset(known_options)
         self.__infos.update = None
         self.__infos.value_update = dict()
         self.__infos.value_validator = dict()
@@ -77,10 +84,10 @@ class Configuration:
         self.__infos.value_autocopy_set = dict()
         self.__owner: Optional[type] = None
 
-    def copy(self, *added_known_keys: str) -> Configuration:
+    def copy(self, *added_known_options: str) -> Configuration:
         c: Configuration = Configuration()
         c.__infos = deepcopy(self.__infos)
-        c.__infos.keys = frozenset((*c.__infos.keys, *added_known_keys))
+        c.__infos.options = frozenset((*c.__infos.options, *added_known_options))
         return c
 
     def __set_name__(self, owner: type, name: str) -> None:
@@ -92,8 +99,8 @@ class Configuration:
                 setattr(owner, attr, new_obj)
                 new_obj.__set_name__(owner, attr)
 
-    def known_keys(self) -> FrozenSet[str]:
-        return self.__infos.keys
+    def known_options(self) -> FrozenSet[str]:
+        return self.__infos.options
 
     @overload
     def set_autocopy(self, autocopy: bool, /) -> None:
@@ -115,9 +122,9 @@ class Configuration:
         if isinstance(arg1, bool) and not kwargs:
             self.__infos.autocopy = arg1
         elif isinstance(arg1, str) and ("copy_on_get" in kwargs or "copy_on_set" in kwargs):
-            keys: FrozenSet[str] = self.__infos.keys
-            if keys and arg1 not in keys:
-                raise KeyError(f"Unknown config key {arg1!r}")
+            options: FrozenSet[str] = self.__infos.options
+            if options and arg1 not in options:
+                raise KeyError(f"Unknown config option {arg1!r}")
             if "copy_on_get" in kwargs:
                 copy_on_get: Optional[bool] = kwargs["copy_on_get"]
                 if copy_on_get is None:
@@ -163,9 +170,9 @@ class Configuration:
     def get_updater(self, name: Optional[str] = None) -> Union[Callable[[Any], None], Callable[[Any, str, Any], None], None]:
         if name is None:
             return self.__infos.update
-        keys: FrozenSet[str] = self.__infos.keys
-        if keys and name not in keys:
-            raise KeyError(f"Unknown config key {name!r}")
+        options: FrozenSet[str] = self.__infos.options
+        if options and name not in options:
+            raise KeyError(f"Unknown config option {name!r}")
         return self.__infos.value_update.get(name)
 
     @overload
@@ -188,9 +195,9 @@ class Configuration:
         self, arg: Union[_Updater, str, None], /, *func_args: Optional[_ValueUpdater]
     ) -> Union[_Updater, Callable[[_ValueUpdater], _ValueUpdater], Optional[_ValueUpdater]]:
         if isinstance(arg, str):
-            keys: FrozenSet[str] = self.__infos.keys
-            if keys and arg not in keys:
-                raise KeyError(f"Unknown config key {arg!r}")
+            options: FrozenSet[str] = self.__infos.options
+            if options and arg not in options:
+                raise KeyError(f"Unknown config option {arg!r}")
 
             if not func_args:
                 config_name: str = arg
@@ -214,9 +221,9 @@ class Configuration:
         return arg
 
     def get_validator(self, name: str) -> Optional[Callable[[Any, Any], Any]]:
-        keys: FrozenSet[str] = self.__infos.keys
-        if keys and name not in keys:
-            raise KeyError(f"Unknown config key {name!r}")
+        options: FrozenSet[str] = self.__infos.options
+        if options and name not in options:
+            raise KeyError(f"Unknown config option {name!r}")
         return self.__infos.value_validator.get(name)
 
     @overload
@@ -224,15 +231,23 @@ class Configuration:
         ...
 
     @overload
+    def validator(self, name: str, func: type, /) -> type:
+        ...
+
+    @overload
+    def validator(self, name: str, func: Tuple[type, ...], /) -> Tuple[type, ...]:
+        ...
+
+    @overload
     def validator(self, name: str, func: Optional[_ValueValidator], /) -> Optional[_ValueValidator]:
         ...
 
     def validator(
-        self, name: str, /, *func_args: Optional[_ValueValidator]
-    ) -> Union[Callable[[_ValueValidator], _ValueValidator], _ValueValidator, None]:
-        keys: FrozenSet[str] = self.__infos.keys
-        if keys and name not in keys:
-            raise KeyError(f"Unknown config key {name!r}")
+        self, name: str, /, *func_args: Optional[Union[_ValueValidator, type, Tuple[type, ...]]]
+    ) -> Union[Callable[[_ValueValidator], _ValueValidator], _ValueValidator, type, Tuple[type, ...], None]:
+        options: FrozenSet[str] = self.__infos.options
+        if options and name not in options:
+            raise KeyError(f"Unknown config option {name!r}")
 
         if not func_args:
 
@@ -244,9 +259,29 @@ class Configuration:
 
         if len(func_args) > 1:
             raise TypeError("Invalid arguments")
-        func: Optional[_ValueValidator] = func_args[0]
+        func: Optional[Union[_ValueValidator, type, Tuple[type, ...]]] = func_args[0]
         if func is None:
             self.__infos.value_validator.pop(name, None)
+        elif isinstance(func, (type, tuple)):
+            _type: Union[type, Tuple[type, ...]] = func
+            if isinstance(_type, tuple):
+                if not _type:
+                    raise TypeError(f"Empty tuple of types given")
+                if len(_type) == 1:
+                    _type = _type[0]
+
+            @staticmethod  # type: ignore[misc]
+            def type_checker(val: Any) -> Any:
+                if not isinstance(val, _type):
+                    expected: str
+                    if isinstance(_type, type):
+                        expected = repr(_type.__qualname__)
+                    else:
+                        expected = f"one of those: ({', '.join(repr(t.__qualname__) for t in _type)})"
+                    raise TypeError(f"Invalid value type. expected {expected}, got {type(val).__qualname__!r}")
+                return val
+
+            self.__infos.value_validator[name] = _make_function_wrapper(type_checker)
         else:
             self.__infos.value_validator[name] = _make_function_wrapper(func)
         return func
@@ -256,13 +291,13 @@ class ConfigAttribute(Generic[_T]):
     def __init__(self, config: Configuration) -> None:
         self.__name: str = str()
         self.__config = config.__get__
-        self.__known_keys: FrozenSet[str] = config.known_keys()
+        self.__known_options: FrozenSet[str] = config.known_options()
 
     def __set_name__(self, owner: type, name: str) -> None:
         if len(name) == 0:
             raise ValueError(f"Attribute name must not be empty")
-        known_keys: FrozenSet[str] = self.__known_keys
-        if known_keys and name not in known_keys:
+        known_options: FrozenSet[str] = self.__known_options
+        if known_options and name not in known_options:
             raise ValueError(f"Invalid attribute name {name!r}: Not known by configuration object")
         self.__name = name
 
@@ -311,8 +346,8 @@ class _BoundConfiguration:
         self.__type: type = objtype
         self.__infos: Configuration.Infos = infos
 
-    def known_keys(self) -> FrozenSet[str]:
-        return self.__infos.keys
+    def known_options(self) -> FrozenSet[str]:
+        return self.__infos.options
 
     def __getitem__(self, name: str) -> Any:
         return self.get(name)
@@ -327,15 +362,15 @@ class _BoundConfiguration:
 
     def get(self, name: str, copy: Optional[bool] = None) -> Any:
         if not name:
-            raise KeyError("Empty string key")
+            raise KeyError("Empty string option")
         infos: Configuration.Infos = self.__infos
-        keys: FrozenSet[str] = infos.keys
-        if keys and name not in keys:
-            raise KeyError(f"Unknown key {name!r}")
+        options: FrozenSet[str] = infos.options
+        if options and name not in options:
+            raise KeyError(f"Unknown option {name!r}")
         try:
             value: Any = getattr(self.__obj, f"_{self.__type.__name__}__{name}")
         except AttributeError:
-            raise KeyError(f"Unregistered key {name!r}") from None
+            raise KeyError(f"Unregistered option {name!r}") from None
         if copy is None:
             copy = infos.value_autocopy_get.get(name, infos.autocopy)
         if copy:
@@ -358,12 +393,12 @@ class _BoundConfiguration:
 
     def set(self, name: str, value: Any, copy: Optional[bool] = None) -> None:
         if not name:
-            raise KeyError("Empty string key")
+            raise KeyError("Empty string option")
 
         infos: Configuration.Infos = self.__infos
-        keys: FrozenSet[str] = infos.keys
-        if keys and name not in keys:
-            raise KeyError(f"Unknown config key {name!r}")
+        options: FrozenSet[str] = infos.options
+        if options and name not in options:
+            raise KeyError(f"Unknown config option {name!r}")
 
         if copy is None:
             copy = infos.value_autocopy_set.get(name, infos.autocopy)
@@ -406,18 +441,18 @@ class _BoundConfiguration:
 
     def remove(self, name: str) -> None:
         if not name:
-            raise KeyError("Empty string key")
+            raise KeyError("Empty string option")
         infos: Configuration.Infos = self.__infos
-        keys: FrozenSet[str] = infos.keys
+        options: FrozenSet[str] = infos.options
         obj: Any = self.__obj
         objtype: type = self.__type
         update: Optional[Callable[[Any], None]] = infos.update
-        if keys and name not in keys:
-            raise KeyError(f"Unknown key {name!r}")
+        if options and name not in options:
+            raise KeyError(f"Unknown option {name!r}")
         try:
             delattr(obj, f"_{objtype.__name__}__{name}")
         except AttributeError:
-            raise KeyError(f"Unregistered key {name!r}") from None
+            raise KeyError(f"Unregistered option {name!r}") from None
         else:
             if callable(update):
                 update(obj)
@@ -427,7 +462,7 @@ class _BoundConfiguration:
             raise TypeError("No config params given")
         infos: Configuration.Infos = self.__infos
         autocopy: bool = infos.autocopy
-        keys: FrozenSet[str] = infos.keys
+        options: FrozenSet[str] = infos.options
         obj: Any = self.__obj
         objtype: type = self.__type
         update: Optional[Callable[[Any], None]] = infos.update
@@ -454,8 +489,8 @@ class _BoundConfiguration:
         value_updates: List[Tuple[str, Any, Callable[[Any, str, Any], None]]] = list()
 
         for name, value in kwargs.items():
-            if keys and name not in keys:
-                raise KeyError(f"Unknown config key {name!r}")
+            if options and name not in options:
+                raise KeyError(f"Unknown config option {name!r}")
             value_validator: Optional[Callable[[Any, Any], None]] = value_validator_get(name)
             if callable(value_validator):
                 value = value_validator(obj, value)
@@ -507,6 +542,8 @@ if __name__ == "__main__":
         def __valid_int(val: Any) -> int:
             return max(int(val), 0)
 
+        config.validator("d", dict)
+
         @config.updater
         def _update(self) -> None:
             print("Update object")
@@ -527,7 +564,7 @@ if __name__ == "__main__":
         c = SubConfigurable()
         c.config["a"] = 4
         c.config(a=6, b=5, c=-9)
-        print(c.config.known_keys())
+        print(c.config.known_options())
         print(c.config["a"])
         c.config.set("a", 6)
         c.config(a=6, b=5, c=-12)
