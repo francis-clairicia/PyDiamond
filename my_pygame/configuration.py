@@ -24,10 +24,13 @@ _ValueUpdater = TypeVar("_ValueUpdater", bound=Union[Callable[[Any, str, Any], N
 _ValueValidator = TypeVar("_ValueValidator", bound=Union[Callable[[Any, Any], Any], Callable[[Any], Any]])
 
 
-def _make_function_wrapper(func: Any) -> Callable[..., Any]:
+def _make_function_wrapper(func: Callable[..., Any]) -> Callable[..., Any]:
+    if getattr(func, "__boundconfiguration_wrapper__", False):
+        return func
+
     def wrapper(obj: Any, /, *args: Any, **kwargs: Any) -> Any:
         try:
-            _func = func.__get__(obj, type(obj))
+            _func = getattr(func, "__get__")(obj, type(obj))
             if not callable(_func):
                 raise TypeError
             _func_name: str = _func.__name__
@@ -39,6 +42,7 @@ def _make_function_wrapper(func: Any) -> Callable[..., Any]:
             return func(obj, *args, **kwargs)
         return _func(*args, **kwargs)
 
+    setattr(wrapper, "__boundconfiguration_wrapper__", True)
     return wrapper
 
 
@@ -74,12 +78,9 @@ class Configuration:
         self.__owner: Optional[type] = None
 
     def copy(self, *added_known_keys: str) -> Configuration:
-        c: Configuration = Configuration(*self.__infos.keys, *added_known_keys, autocopy=self.__infos.autocopy)
-        c.__infos.update = self.__infos.update
-        c.__infos.value_update = self.__infos.value_update.copy()
-        c.__infos.value_validator = self.__infos.value_validator.copy()
-        c.__infos.value_autocopy_get = self.__infos.value_autocopy_get.copy()
-        c.__infos.value_autocopy_set = self.__infos.value_autocopy_set.copy()
+        c: Configuration = Configuration()
+        c.__infos = deepcopy(self.__infos)
+        c.__infos.keys = frozenset((*c.__infos.keys, *added_known_keys))
         return c
 
     def __set_name__(self, owner: type, name: str) -> None:
@@ -152,32 +153,103 @@ class Configuration:
         return _BoundConfiguration(obj, objtype, self.__infos)
 
     @overload
-    def updater(self, arg: _Updater) -> _Updater:
+    def get_updater(self) -> Optional[Callable[[Any], None]]:
         ...
 
     @overload
-    def updater(self, arg: str) -> Callable[[_ValueUpdater], _ValueUpdater]:
+    def get_updater(self, name: str) -> Optional[Callable[[Any, str, Any], None]]:
         ...
 
-    def updater(self, arg: Union[_Updater, str]) -> Union[_Updater, Callable[[_ValueUpdater], _ValueUpdater]]:
-        if isinstance(arg, str):
-            config_name: str = arg
+    def get_updater(self, name: Optional[str] = None) -> Union[Callable[[Any], None], Callable[[Any, str, Any], None], None]:
+        if name is None:
+            return self.__infos.update
+        keys: FrozenSet[str] = self.__infos.keys
+        if keys and name not in keys:
+            raise KeyError(f"Unknown config key {name!r}")
+        return self.__infos.value_update.get(name)
 
-            def decorator(func: _ValueUpdater) -> _ValueUpdater:
-                self.__infos.value_update[config_name] = _make_function_wrapper(func)
+    @overload
+    def updater(self, arg: _Updater, /) -> _Updater:
+        ...
+
+    @overload
+    def updater(self, arg: None, /) -> None:
+        ...
+
+    @overload
+    def updater(self, arg: str, /) -> Callable[[_ValueUpdater], _ValueUpdater]:
+        ...
+
+    @overload
+    def updater(self, arg: str, func: Optional[_ValueUpdater], /) -> Optional[_ValueUpdater]:
+        ...
+
+    def updater(
+        self, arg: Union[_Updater, str, None], /, *func_args: Optional[_ValueUpdater]
+    ) -> Union[_Updater, Callable[[_ValueUpdater], _ValueUpdater], Optional[_ValueUpdater]]:
+        if isinstance(arg, str):
+            keys: FrozenSet[str] = self.__infos.keys
+            if keys and arg not in keys:
+                raise KeyError(f"Unknown config key {arg!r}")
+
+            if not func_args:
+                config_name: str = arg
+
+                def decorator(func: _ValueUpdater) -> _ValueUpdater:
+                    self.__infos.value_update[config_name] = _make_function_wrapper(func)
+                    return func
+
+                return decorator
+
+            if len(func_args) > 1:
+                raise TypeError("Invalid arguments")
+            func: Optional[_ValueUpdater] = func_args[0]
+            if func is None:
+                self.__infos.value_update.pop(arg, None)
+            else:
+                self.__infos.value_update[arg] = _make_function_wrapper(func)
+            return func
+
+        self.__infos.update = _make_function_wrapper(arg) if arg is not None else None
+        return arg
+
+    def get_validator(self, name: str) -> Optional[Callable[[Any, Any], Any]]:
+        keys: FrozenSet[str] = self.__infos.keys
+        if keys and name not in keys:
+            raise KeyError(f"Unknown config key {name!r}")
+        return self.__infos.value_validator.get(name)
+
+    @overload
+    def validator(self, name: str, /) -> Callable[[_ValueValidator], _ValueValidator]:
+        ...
+
+    @overload
+    def validator(self, name: str, func: Optional[_ValueValidator], /) -> Optional[_ValueValidator]:
+        ...
+
+    def validator(
+        self, name: str, /, *func_args: Optional[_ValueValidator]
+    ) -> Union[Callable[[_ValueValidator], _ValueValidator], _ValueValidator, None]:
+        keys: FrozenSet[str] = self.__infos.keys
+        if keys and name not in keys:
+            raise KeyError(f"Unknown config key {name!r}")
+
+        if not func_args:
+
+            def decorator(func: _ValueValidator) -> _ValueValidator:
+                self.__infos.value_validator[name] = _make_function_wrapper(func)
                 return func
 
             return decorator
 
-        self.__infos.update = _make_function_wrapper(arg)
-        return arg
-
-    def validator(self, config_name: str) -> Callable[[_ValueValidator], _ValueValidator]:
-        def decorator(func: _ValueValidator) -> _ValueValidator:
-            self.__infos.value_validator[config_name] = _make_function_wrapper(func)
-            return func
-
-        return decorator
+        if len(func_args) > 1:
+            raise TypeError("Invalid arguments")
+        func: Optional[_ValueValidator] = func_args[0]
+        if func is None:
+            self.__infos.value_validator.pop(name, None)
+        else:
+            self.__infos.value_validator[name] = _make_function_wrapper(func)
+        return func
 
 
 class ConfigAttribute(Generic[_T]):
@@ -426,7 +498,7 @@ if __name__ == "__main__":
         def _on_update_field(self, name: str, val: int) -> None:
             print(f"{self}: {name} set to {val}")
 
-        config.updater("d")(lambda self, name, val: print((self, name, val)))
+        config.updater("d", lambda self, name, val: print((self, name, val)))
 
         @config.validator("a")
         @config.validator("b")
