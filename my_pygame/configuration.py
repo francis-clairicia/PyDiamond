@@ -71,6 +71,7 @@ class Configuration:
         self.__infos.autocopy = autocopy
         self.__infos.value_autocopy_get = dict()
         self.__infos.value_autocopy_set = dict()
+        self.__owner: Optional[type] = None
 
     def copy(self, *added_known_keys: str) -> Configuration:
         c: Configuration = Configuration(*self.__infos.keys, *added_known_keys, autocopy=self.__infos.autocopy)
@@ -82,6 +83,7 @@ class Configuration:
         return c
 
     def __set_name__(self, owner: type, name: str) -> None:
+        self.__owner = owner
         for attr in dir(owner):
             obj: Any = getattr(owner, attr)
             if isinstance(obj, ConfigAttribute) and obj.get_config() is not self:
@@ -141,7 +143,11 @@ class Configuration:
     def __get__(self, obj: Any, objtype: Optional[type] = None) -> Union[Configuration, _BoundConfiguration]:
         if obj is None:
             return self
-        if objtype is None:
+        owner: Optional[type] = self.__owner
+        if owner is not None:
+            if objtype is None or objtype is type(obj):
+                objtype = owner
+        elif objtype is None:
             objtype = type(obj)
         return _BoundConfiguration(obj, objtype, self.__infos)
 
