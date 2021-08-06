@@ -112,7 +112,8 @@ class Text(ThemedDrawable):
                     obj.set_italic(italic)
             else:
                 font_family: str = font[0] if font[0] is not None and font[0] else get_default_font()
-                obj = SysFont(font_family, font[1], bold=truth(bold), italic=truth(italic))
+                font_size: int = font[1]
+                obj = SysFont(font_family, font_size, bold=truth(bold), italic=truth(italic))
         elif isinstance(font, Font):
             obj = font
             if bold is not None:
