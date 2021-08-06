@@ -118,8 +118,7 @@ class _BoundConfiguration:
             value = copy_value(value)
             setattr(obj, attribute, value)
             need_update = True
-
-        keys.registered.add(name)
+            keys.registered.add(name)
 
         if need_update:
             if callable(value_update):
@@ -137,6 +136,8 @@ class _BoundConfiguration:
         self.__keys.registered.remove(name)
 
     def __call__(self, *, __copy: Optional[Union[bool, Dict[str, bool]]] = None, **kwargs: Any) -> None:
+        if not kwargs:
+            raise TypeError("No config params given")
         autocopy: bool = self.__autocopy
         keys: Configuration.Keys = self.__keys
         obj: Any = self.__obj
@@ -308,8 +309,8 @@ class ConfigAttribute(Generic[_T]):
         self.__known_keys: FrozenSet[str] = config.known_keys()
         self.__copy_get: Optional[bool] = copy_on_get
         self.__copy_set: Optional[bool] = copy_on_set
-        self.__updater: Optional[Callable[[Any, str, Any], None]] = None
-        self.__validator: Optional[Callable[[Any, Any], Any]] = None
+        self.__updater: Any = None
+        self.__validator: Any = None
 
     def __set_name__(self, owner: type, name: str) -> None:
         if len(name) == 0:
@@ -360,13 +361,13 @@ class ConfigAttribute(Generic[_T]):
         config.remove(name)
 
     def updater(self, func: _ValueUpdater) -> _ValueUpdater:
-        self.__updater = func  # type: ignore[assignment]
+        self.__updater = func
         if self.__name:
             self.__config(None).updater(self.__name)(func)
         return func
 
     def validator(self, func: _ValueValidator) -> _ValueValidator:
-        self.__validator = func  # type: ignore[assignment]
+        self.__validator = func
         if self.__name:
             self.__config(None).validator(self.__name)(func)
         return func
