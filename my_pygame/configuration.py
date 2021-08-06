@@ -242,6 +242,9 @@ class _BoundConfiguration:
     def known_keys(self) -> FrozenSet[str]:
         return self.__infos.keys
 
+    def __getitem__(self, name: str) -> Any:
+        return self.get(name)
+
     @overload
     def get(self, name: str) -> Any:
         ...
@@ -269,6 +272,9 @@ class _BoundConfiguration:
             except CopyError:
                 pass
         return value
+
+    def __setitem__(self, name: str, value: Any) -> None:
+        return self.set(name, value)
 
     @overload
     def set(self, name: str, value: Any) -> None:
@@ -323,16 +329,26 @@ class _BoundConfiguration:
             if callable(update):
                 update(obj)
 
+    def __delitem__(self, name: str) -> None:
+        return self.remove(name)
+
     def remove(self, name: str) -> None:
         if not name:
             raise KeyError("Empty string key")
-        keys: FrozenSet[str] = self.__infos.keys
+        infos: Configuration.Infos = self.__infos
+        keys: FrozenSet[str] = infos.keys
+        obj: Any = self.__obj
+        objtype: type = self.__type
+        update: Optional[Callable[[Any], None]] = infos.update
         if keys and name not in keys:
             raise KeyError(f"Unknown key {name!r}")
         try:
-            delattr(self.__obj, f"_{self.__type.__name__}__{name}")
+            delattr(obj, f"_{objtype.__name__}__{name}")
         except AttributeError:
             raise KeyError(f"Unregistered key {name!r}") from None
+        else:
+            if callable(update):
+                update(obj)
 
     def __call__(self, *, __copy: Optional[Union[bool, Dict[str, bool]]] = None, **kwargs: Any) -> None:
         if not kwargs:
@@ -437,10 +453,10 @@ if __name__ == "__main__":
 
     def main() -> None:
         c = SubConfigurable()
-        c.config.set("a", 4)
+        c.config["a"] = 4
         c.config(a=6, b=5, c=-9)
         print(c.config.known_keys())
-        print(c.config.get("a"))
+        print(c.config["a"])
         c.config.set("a", 6)
         c.config(a=6, b=5, c=-12)
 
