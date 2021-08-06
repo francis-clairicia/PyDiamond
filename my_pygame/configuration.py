@@ -247,6 +247,21 @@ class Configuration:
         self.__value_validator: Dict[str, Callable[[Any, Any], Any]] = dict()
         self.__autocopy: bool = autocopy
 
+    def copy(self) -> Configuration:
+        c: Configuration = Configuration(*self.__keys.known, autocopy=self.__autocopy)
+        c.__update.__func__ = self.__update.__func__
+        c.__value_update = self.__value_update.copy()
+        c.__value_validator = self.__value_validator.copy()
+        return c
+
+    def __set_name__(self, owner: type, name: str) -> None:
+        for attr in dir(owner):
+            obj: Any = getattr(owner, attr)
+            if isinstance(obj, ConfigAttribute) and obj.get_config() is not self:
+                new_obj: ConfigAttribute[Any] = ConfigAttribute(self, copy_on_get=obj.copy_on_get, copy_on_set=obj.copy_on_set)
+                setattr(owner, attr, new_obj)
+                new_obj.__set_name__(owner, attr)
+
     def __iter__(self) -> Iterator[str]:
         return self.__keys.registered.__iter__()
 
@@ -319,11 +334,13 @@ class ConfigAttribute(Generic[_T]):
         if known_keys and name not in known_keys:
             raise ValueError(f"Invalid attribute name {name!r}: Not known by configuration object")
         self.__name = name
-        config: Configuration = self.__config(None)
+        config: Configuration = self.get_config()
         if self.__updater is not None:
             config.updater(name)(self.__updater)
+            self.__updater = None
         if self.__validator is not None:
             config.validator(name)(self.__validator)
+            self.__validator = None
 
     @overload
     def __get__(self, obj: None, objtype: Optional[type] = None) -> ConfigAttribute[_T]:
@@ -360,17 +377,28 @@ class ConfigAttribute(Generic[_T]):
         config: _BoundConfiguration = self.__config(obj)
         config.remove(name)
 
+    def get_config(self) -> Configuration:
+        return self.__config(None)
+
     def updater(self, func: _ValueUpdater) -> _ValueUpdater:
         self.__updater = func
         if self.__name:
-            self.__config(None).updater(self.__name)(func)
+            self.get_config().updater(self.__name)(func)
         return func
 
     def validator(self, func: _ValueValidator) -> _ValueValidator:
         self.__validator = func
         if self.__name:
-            self.__config(None).validator(self.__name)(func)
+            self.get_config().validator(self.__name)(func)
         return func
+
+    @property
+    def copy_on_get(self) -> Optional[bool]:
+        return self.__copy_get
+
+    @property
+    def copy_on_set(self) -> Optional[bool]:
+        return self.__copy_set
 
 
 if __name__ == "__main__":
@@ -386,7 +414,7 @@ if __name__ == "__main__":
         @a.updater
         @config.updater("b")
         @config.updater("c")
-        def __on_update_field(self, name: str, val: int) -> None:
+        def _on_update_field(self, name: str, val: int) -> None:
             print(f"{self}: {name} set to {val}")
 
         d.updater(lambda self, name, val: print((self, name, val)))
@@ -403,6 +431,13 @@ if __name__ == "__main__":
             print("Update object")
 
     class SubConfigurable(Configurable):
+        config = Configurable.config.copy()
+
+        @config.updater("a")
+        def __special_case_a(self, name: str, val: int) -> None:
+            print(f"----------Special case for {name}--------")
+            self._on_update_field(name, val)
+
         def _update(self) -> None:
             super()._update()
             print("Subfunction update")
