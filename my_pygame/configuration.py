@@ -200,9 +200,12 @@ def _make_function_wrapper(func: Any) -> Callable[..., Any]:
     def wrapper(obj: Any, /, *args: Any, **kwargs: Any) -> Any:
         try:
             _func = func.__get__(obj, type(obj))
+            if not callable(_func):
+                raise TypeError
+            _sub_func = getattr(obj, _func.__name__, _func)
+            if _sub_func is not _func and callable(_sub_func):
+                _func = _sub_func
         except (AttributeError, TypeError):
-            return func(obj, *args, **kwargs)
-        if not callable(_func):
             return func(obj, *args, **kwargs)
         return _func(*args, **kwargs)
 
@@ -380,23 +383,29 @@ if __name__ == "__main__":
         @a.updater
         @config.updater("b")
         @config.updater("c")
-        @staticmethod
-        def on_update_field(name: str, val: int) -> None:
-            print(f"{name} set to {val}")
+        def __on_update_field(self, name: str, val: int) -> None:
+            print(f"{self}: {name} set to {val}")
+
+        d.updater(lambda self, name, val: print((self, name, val)))
 
         @config.validator("a")
         @config.validator("b")
         @c.validator
         @staticmethod
-        def _valid_int(val: Any) -> int:
+        def __valid_int(val: Any) -> int:
             return max(int(val), 0)
 
         @config.updater
         def _update(self) -> None:
             print("Update object")
 
+    class SubConfigurable(Configurable):
+        def _update(self) -> None:
+            super()._update()
+            print("Subfunction update")
+
     def main() -> None:
-        c = Configurable()
+        c = SubConfigurable()
         c.config.set("a", 4)
         c.config(a=6, b=5, c=-9)
         print(c.config.registered_keys())
