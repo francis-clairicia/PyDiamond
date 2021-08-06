@@ -362,6 +362,7 @@ class _BoundConfiguration:
                 return value
 
         need_update: bool = False
+        values: List[Tuple[str, Any]] = list()
         value_updates: List[Tuple[str, Any, Callable[[Any, str, Any], None]]] = list()
 
         for name, value in kwargs.items():
@@ -377,12 +378,14 @@ class _BoundConfiguration:
                     raise AttributeError
             except AttributeError:
                 value = copy_value(name, value)
-                setattr(obj, attribute, value)
+                values.append((attribute, value))
                 need_update = True
                 value_update: Optional[Callable[[Any, str, Any], None]] = value_update_get(name)
                 if callable(value_update):
                     value_updates.append((name, value, value_update))
 
+        for attribute, value in values:
+            setattr(obj, attribute, value)
         if need_update:
             for name, value, updater in value_updates:
                 updater(obj, name, value)
