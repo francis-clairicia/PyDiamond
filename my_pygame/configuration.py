@@ -35,13 +35,13 @@ def _make_function_wrapper(func: Any) -> Callable[..., Any]:
         try:
             _func = getattr(func, "__get__")(obj, type(obj))
             if not callable(_func):
-                raise AttributeError
+                raise TypeError
             _func_name: str = _func.__name__
             if _func_name != "<lambda>":
                 _sub_func = getattr(obj, _func_name, _func)
                 if _sub_func is not _func and callable(_sub_func):
                     _func = _sub_func
-        except AttributeError:
+        except (AttributeError, TypeError):
             try:
                 return func(obj, *args, **kwargs)
             except TypeError as exc:
