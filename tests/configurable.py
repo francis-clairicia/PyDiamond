@@ -41,7 +41,7 @@ class Configurable:
 
 
 class SubConfigurable(Configurable):
-    config = Configurable.config.copy(new_options=["e"])
+    config = Configuration("e", parent=Configurable.config)
     e: ConfigAttribute[int] = ConfigAttribute(config)
 
     @config.updater("a")
@@ -66,7 +66,7 @@ def main() -> None:
     c.a += 2
     print(c.a)
 
-    c.config["e"] = 4
+    c.e = 4
 
     c.d = d = {"a": 5}
     print(c.d is d)

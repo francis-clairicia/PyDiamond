@@ -7,9 +7,9 @@ from typing import (
     Dict,
     FrozenSet,
     Generic,
-    Iterable,
     List,
     Optional,
+    Sequence,
     Tuple,
     TypeVar,
     Union,
@@ -75,44 +75,63 @@ class EmptyOptionNameError(OptionError):
 
 class Configuration:
     class Infos:
-        options: FrozenSet[str]
-        update: Optional[Callable[[Any], None]]
-        value_update: Dict[str, Callable[[Any, str, Any], None]]
-        value_validator: Dict[str, Callable[[Any, Any], Any]]
-        autocopy: bool
-        value_autocopy_get: Dict[str, bool]
-        value_autocopy_set: Dict[str, bool]
-        owner: Optional[type]
-        attribute_class_owner: Dict[str, type]
+        def __init__(self, known_options: Sequence[str], autocopy: bool) -> None:
+            self.options: FrozenSet[str] = frozenset(known_options)
+            self.update: Optional[Callable[[Any], None]] = None
+            self.value_update: Dict[str, Callable[[Any, str, Any], None]] = dict()
+            self.value_validator: Dict[str, Callable[[Any, Any], Any]] = dict()
+            self.autocopy: bool = autocopy
+            self.value_autocopy_get: Dict[str, bool] = dict()
+            self.value_autocopy_set: Dict[str, bool] = dict()
+            self.attribute_class_owner: Dict[str, type] = dict()
+            self.owner: Optional[type] = None
 
     @overload
     def __init__(self, *, autocopy: bool = False) -> None:
         ...
 
     @overload
+    def __init__(self, *, autocopy: bool = False, parent: Union[Configuration, Sequence[Configuration]]) -> None:
+        ...
+
+    @overload
     def __init__(self, *known_options: str, autocopy: bool = False) -> None:
         ...
 
-    def __init__(self, *known_options: str, autocopy: bool = False) -> None:
+    @overload
+    def __init__(
+        self, *known_options: str, autocopy: bool = False, parent: Union[Configuration, Sequence[Configuration]]
+    ) -> None:
+        ...
+
+    def __init__(
+        self, *known_options: str, autocopy: bool = False, parent: Union[Configuration, Sequence[Configuration], None] = None
+    ) -> None:
         if any(not option for option in known_options):
             raise ValueError("Configuration option must not be empty")
-        self.__infos: Configuration.Infos
-        self.__infos = infos = Configuration.Infos()
-        infos.options = frozenset(known_options)
-        infos.update = None
-        infos.value_update = dict()
-        infos.value_validator = dict()
-        infos.autocopy = autocopy
-        infos.value_autocopy_get = dict()
-        infos.value_autocopy_set = dict()
-        infos.attribute_class_owner = dict()
-        infos.owner = None
+        infos: Configuration.Infos
+        if parent is None:
+            infos = Configuration.Infos(known_options, autocopy)
+        else:
+            main_parent: Configuration
+            if isinstance(parent, Configuration):
+                main_parent = parent
+                parent = []
+            else:
+                parent = list(set(parent))
+                if not parent:
+                    raise TypeError("parent: Invalid argument: Empty sequence")
+                main_parent = parent.pop(0)
+            infos = deepcopy(main_parent.__infos)
+            infos.options = infos.options.union(opt for p in parent for opt in p.__infos.options).union(known_options)
+            for parent_infos in (p.__infos for p in parent):
+                infos.value_update = parent_infos.value_update | infos.value_update
+                infos.value_validator = parent_infos.value_validator | infos.value_validator
+                infos.value_autocopy_get = parent_infos.value_autocopy_get | infos.value_autocopy_get
+                infos.value_autocopy_set = parent_infos.value_autocopy_set | infos.value_autocopy_set
+                infos.attribute_class_owner = parent_infos.attribute_class_owner | infos.attribute_class_owner
 
-    def copy(self, *, new_options: Iterable[str] = []) -> Configuration:
-        c: Configuration = Configuration()
-        c.__infos = deepcopy(self.__infos)
-        c.__infos.options = frozenset((*c.__infos.options, *new_options))
-        return c
+        self.__infos: Configuration.Infos = infos
 
     def __set_name__(self, owner: type, name: str) -> None:
         infos: Configuration.Infos = self.__infos
