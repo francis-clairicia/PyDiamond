@@ -10,6 +10,7 @@ from typing import (
     List,
     Optional,
     Sequence,
+    Set,
     Tuple,
     TypeVar,
     Union,
@@ -132,14 +133,21 @@ class Configuration:
                 infos.attribute_class_owner = parent_infos.attribute_class_owner | infos.attribute_class_owner
 
         self.__infos: Configuration.Infos = infos
+        self.__no_parent_ownership: Set[str] = set()
+        self.__bound_class: Optional[type] = None
 
     def __set_name__(self, owner: type, name: str) -> None:
         infos: Configuration.Infos = self.__infos
         if infos.owner is None:
             infos.owner = owner
+        self.__bound_class = owner
         attribute_class_owner: Dict[str, type] = infos.attribute_class_owner
+        no_parent_ownership: Set[str] = self.__no_parent_ownership
         for option in infos.options:
-            attribute_class_owner[option] = attribute_class_owner.get(option, owner)
+            if option in no_parent_ownership:
+                attribute_class_owner[option] = owner
+            else:
+                attribute_class_owner[option] = attribute_class_owner.get(option, owner)
         for attr in dir(owner):
             obj: Any = getattr(owner, attr)
             if isinstance(obj, ConfigAttribute) and obj.get_config() is not self:
@@ -189,6 +197,16 @@ class Configuration:
                     self.__infos.value_autocopy_set[arg1] = bool(copy_on_set)
         else:
             raise TypeError("Invalid argument")
+
+    def remove_parent_ownership(self, option: str) -> None:
+        if not option:
+            raise EmptyOptionNameError()
+        infos: Configuration.Infos = self.__infos
+        if infos.options and option not in infos.options:
+            raise UnknownOptionError(option)
+        self.__no_parent_ownership.add(option)
+        if self.__bound_class is not None and infos.options:
+            infos.attribute_class_owner[option] = self.__bound_class
 
     @overload
     def __get__(self, obj: None, objtype: Optional[type] = None) -> Configuration:

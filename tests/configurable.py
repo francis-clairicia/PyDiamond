@@ -42,6 +42,7 @@ class Configurable:
 
 class SubConfigurable(Configurable):
     config = Configuration("e", parent=Configurable.config)
+    config.remove_parent_ownership("b")
     e: ConfigAttribute[int] = ConfigAttribute(config)
 
     @config.updater("a")
