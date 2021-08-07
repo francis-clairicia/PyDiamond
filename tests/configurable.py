@@ -18,6 +18,12 @@ class Configurable:
     c: ConfigAttribute[int] = ConfigAttribute(config)
     d: ConfigAttribute[Dict[str, int]] = ConfigAttribute(config)
 
+    @config.initializer
+    def __init__(self) -> None:
+        self.a = 42
+        self.b = 3
+        self.c = 98
+
     @config.updater("a")
     @config.updater("b")
     @config.updater("c")
@@ -47,14 +53,14 @@ class SubConfigurable(Configurable):
 
     config.validator("e", int, convert=True)
 
-    @config.updater("a")
-    def __special_case_a(self, name: str, val: int) -> None:
-        print(f"----------Special case for {name}--------")
-        self._on_update_field(name, val)
+    # @config.updater("a")
+    # def __special_case_a(self, name: str, val: int) -> None:
+    #     print(f"----------Special case for {name}--------")
+    #     self._on_update_field(name, val)
 
-    def _update(self) -> None:
-        super()._update()
-        print("Subfunction update")
+    # def _update(self) -> None:
+    #     super()._update()
+    #     print("Subfunction update")
 
 
 def main() -> None:

@@ -1,12 +1,14 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
+from functools import wraps
 from typing import (
     Any,
     Callable,
     Dict,
     FrozenSet,
     Generic,
+    Iterator,
     List,
     Optional,
     Sequence,
@@ -18,38 +20,48 @@ from typing import (
     overload,
 )
 from copy import deepcopy, Error as CopyError
+from contextlib import ExitStack, contextmanager
 
 
 _T = TypeVar("_T")
 
+_Func = TypeVar("_Func", bound=Callable[..., Any])
 _Updater = TypeVar("_Updater", bound=Union[Callable[[Any], None], Callable[[], None]])
 _ValueUpdater = TypeVar("_ValueUpdater", bound=Union[Callable[[Any, str, Any], None], Callable[[str, Any], None]])
 _ValueValidator = TypeVar("_ValueValidator", bound=Union[Callable[[Any, Any], Any], Callable[[Any], Any]])
 
 
-def _make_function_wrapper(func: Any) -> Callable[..., Any]:
+def _make_function_wrapper(func: Any, *, internal: bool = False, check_override: bool = True) -> Callable[..., Any]:
     if getattr(func, "__boundconfiguration_wrapper__", False) and callable(func):
         return cast(Callable[..., Any], func)
 
-    def wrapper(obj: Any, /, *args: Any, **kwargs: Any) -> Any:
-        try:
-            _func = getattr(func, "__get__")(obj, type(obj))
-            if not callable(_func):
-                raise TypeError
-            _func_name: str = _func.__name__
-            if _func_name != "<lambda>":
-                _sub_func = getattr(obj, _func_name, _func)
-                if _sub_func is not _func and callable(_sub_func):
-                    _func = _sub_func
-        except (AttributeError, TypeError):
+    if not internal:
+
+        def wrapper(__obj: Any, /, *args: Any, **kwargs: Any) -> Any:
             try:
-                return func(obj, *args, **kwargs)
-            except TypeError as exc:
+                _func = getattr(func, "__get__")(__obj, type(__obj))
+                if not callable(_func):
+                    raise TypeError
+                if check_override:
+                    _func_name: str = _func.__name__
+                    if _func_name != "<lambda>":
+                        _sub_func = getattr(__obj, _func_name, _func)
+                        if _sub_func is not _func and callable(_sub_func):
+                            _func = _sub_func
+            except (AttributeError, TypeError):
                 try:
-                    return func(*args, **kwargs)
-                except TypeError as subexc:
-                    raise subexc from exc
-        return _func(*args, **kwargs)
+                    return func(__obj, *args, **kwargs)
+                except TypeError as exc:
+                    try:
+                        return func(*args, **kwargs)
+                    except TypeError as subexc:
+                        raise subexc from exc
+            return _func(*args, **kwargs)
+
+    else:
+
+        def wrapper(__obj: Any, /, *args: Any, **kwargs: Any) -> Any:
+            return func(*args, **kwargs)
 
     setattr(wrapper, "__boundconfiguration_wrapper__", True)
     return wrapper
@@ -135,12 +147,15 @@ class Configuration:
         self.__infos: Configuration.Infos = infos
         self.__no_parent_ownership: Set[str] = set()
         self.__bound_class: Optional[type] = None
+        self.__name: str = str()
+        self.__references: Dict[Any, _BoundConfiguration] = dict()
 
     def __set_name__(self, owner: type, name: str) -> None:
         infos: Configuration.Infos = self.__infos
         if infos.owner is None:
             infos.owner = owner
         self.__bound_class = owner
+        self.__name = name
         attribute_class_owner: Dict[str, type] = infos.attribute_class_owner
         no_parent_ownership: Set[str] = self.__no_parent_ownership
         for option in infos.options:
@@ -219,17 +234,40 @@ class Configuration:
     def __get__(self, obj: Any, objtype: Optional[type] = None) -> Union[Configuration, _BoundConfiguration]:
         if obj is None:
             return self
+        if self.__bound_class is None:
+            raise TypeError(f"{self} not bound to a class")
         infos: Configuration.Infos = self.__infos
         owner: Optional[type] = infos.owner
         specific_owner: Optional[type] = None
+        bound_references: Dict[Any, _BoundConfiguration] = self.__references
         if owner is not None:
             if objtype is None or objtype is type(obj):
                 objtype = owner
             else:
                 specific_owner = objtype
-        elif objtype is None:
-            objtype = type(obj)
-        return _BoundConfiguration(obj, objtype, infos, specific_owner)
+        else:
+            if objtype is None:
+                objtype = type(obj)
+            elif objtype is not type(obj):
+                specific_owner = objtype
+        try:
+            return bound_references[obj]
+        except KeyError:
+            return _BoundConfiguration(obj, objtype, infos, bound_references, specific_owner)
+
+    def initializer(self, func: _Func, /) -> _Func:
+        _func = _make_function_wrapper(func, check_override=False)
+
+        @wraps(func)
+        def initialize(__obj: Any, /, *args: Any, **kwargs: Any) -> Any:
+            config: Configuration = getattr(type(__obj), self.__name, self)
+            if not isinstance(config, Configuration):
+                config = self
+            bound_config: _BoundConfiguration = config.__get__(__obj)
+            with bound_config.initialization():
+                return _func(__obj, *args, **kwargs)
+
+        return cast(_Func, initialize)
 
     @overload
     def get_updater(self) -> Optional[Callable[[Any], None]]:
@@ -260,7 +298,11 @@ class Configuration:
         ...
 
     @overload
-    def updater(self, arg: str, func: Optional[_ValueUpdater], /) -> Optional[_ValueUpdater]:
+    def updater(self, arg: str, func: _ValueUpdater, /) -> _ValueUpdater:
+        ...
+
+    @overload
+    def updater(self, arg: str, func: None, /) -> None:
         ...
 
     def updater(
@@ -352,7 +394,6 @@ class Configuration:
                 if len(_type) == 1:
                     _type = _type[0]
 
-            @staticmethod  # type: ignore[misc]
             def type_checker(val: Any) -> Any:
                 if not isinstance(val, _type):
                     expected: str
@@ -363,15 +404,14 @@ class Configuration:
                     raise TypeError(f"Invalid value type. expected {expected}, got {type(val).__qualname__!r}")
                 return val
 
-            self.__infos.value_validator[option] = _make_function_wrapper(type_checker)
+            self.__infos.value_validator[option] = _make_function_wrapper(type_checker, internal=True)
         elif isinstance(func, type) and convert:
             _value_type: type = func
 
-            @staticmethod  # type: ignore[misc]
             def value_convert(val: Any) -> Any:
                 return _value_type(val)
 
-            self.__infos.value_validator[option] = _make_function_wrapper(value_convert)
+            self.__infos.value_validator[option] = _make_function_wrapper(value_convert, internal=True)
         else:
             self.__infos.value_validator[option] = _make_function_wrapper(func)
         return func
@@ -434,14 +474,58 @@ class ConfigAttribute(Generic[_T]):
 
 
 class _BoundConfiguration:
-    def __init__(self, obj: Any, objtype: type, infos: Configuration.Infos, specific_owner: Optional[type] = None) -> None:
+    def __init__(
+        self,
+        obj: Any,
+        objtype: type,
+        infos: Configuration.Infos,
+        bound_references: Dict[Any, _BoundConfiguration],
+        specific_owner: Optional[type] = None,
+    ) -> None:
         self.__obj: Any = obj
         self.__type: type = objtype
         self.__infos: Configuration.Infos = infos
         self.__owner: Optional[type] = specific_owner
+        self.__references: Dict[Any, _BoundConfiguration] = bound_references
+        self.__update_call: bool = True
+        self.__update_register: Optional[Dict[str, None]] = None
 
     def known_options(self) -> FrozenSet[str]:
         return self.__infos.options
+
+    @contextmanager
+    def initialization(self) -> Iterator[None]:
+        if not self.__update_call:
+            yield
+            return
+
+        with ExitStack() as stack:
+            bound_obj: Any = self.__obj
+
+            @stack.callback
+            def cleanup() -> None:
+                self.__update_call = True
+                self.__update_register = None
+                self.__references.pop(bound_obj, None)
+
+            update_register: Dict[str, None] = dict()
+            self.__update_register = update_register
+            self.__update_call = False
+            self.__references[bound_obj] = self
+            yield
+            stack.close()
+            infos: Configuration.Infos = self.__infos
+            get_attribute = self.__get_attribute
+            for option in (opt for opt in update_register if opt in infos.value_update):
+                updater_func: Callable[[Any, str, Any], None] = infos.value_update[option]
+                try:
+                    value: Any = getattr(bound_obj, get_attribute(option))
+                except AttributeError as exc:
+                    raise UnregisteredOptionError(option) from exc
+                updater_func(bound_obj, option, value)
+            update: Optional[Callable[[Any], None]] = infos.update
+            if callable(update):
+                update(bound_obj)
 
     def __getitem__(self, option: str) -> Any:
         return self.get(option)
@@ -463,8 +547,8 @@ class _BoundConfiguration:
             raise UnknownOptionError(option)
         try:
             value: Any = getattr(self.__obj, self.__get_attribute(option))
-        except AttributeError:
-            raise UnregisteredOptionError(option) from None
+        except AttributeError as exc:
+            raise UnregisteredOptionError(option) from exc
         if copy is None:
             copy = infos.value_autocopy_get.get(option, infos.autocopy)
         if copy:
@@ -501,6 +585,7 @@ class _BoundConfiguration:
         update: Optional[Callable[[Any], None]] = infos.update
         value_update: Optional[Callable[[Any, str, Any], None]] = infos.value_update.get(option)
         value_validator: Optional[Callable[[Any, Any], Any]] = infos.value_validator.get(option)
+        update_register: Optional[Dict[str, None]] = self.__update_register
         attribute: str = self.__get_attribute(option)
 
         def copy_value(value: Any) -> Any:
@@ -522,8 +607,10 @@ class _BoundConfiguration:
             value = copy_value(value)
             setattr(obj, attribute, value)
             need_update = True
+            if update_register is not None:
+                update_register[option] = None
 
-        if need_update:
+        if need_update and self.__update_call:
             if callable(value_update):
                 value_update(obj, option, value)
             if callable(update):
@@ -539,14 +626,17 @@ class _BoundConfiguration:
         options: FrozenSet[str] = infos.options
         obj: Any = self.__obj
         update: Optional[Callable[[Any], None]] = infos.update
+        update_register: Optional[Dict[str, None]] = self.__update_register
         if options and option not in options:
             raise UnknownOptionError(option)
         try:
             delattr(obj, self.__get_attribute(option))
-        except AttributeError:
-            raise UnregisteredOptionError(option) from None
+        except AttributeError as exc:
+            raise UnregisteredOptionError(option) from exc
         else:
-            if callable(update):
+            if update_register is not None:
+                update_register.pop(option, None)
+            if self.__update_call and callable(update):
                 update(obj)
 
     def __call__(self, *, __copy: Optional[Union[bool, Dict[str, bool]]] = None, **kwargs: Any) -> None:
@@ -560,6 +650,7 @@ class _BoundConfiguration:
         value_update_get: Callable[[str], Optional[Callable[[Any, str, Any], None]]] = infos.value_update.get
         value_validator_get: Callable[[str], Optional[Callable[[Any, Any], Any]]] = infos.value_validator.get
         get_attribute: Callable[[str], str] = self.__get_attribute
+        update_register: Optional[Dict[str, None]] = self.__update_register
 
         def copy_value(option: str, value: Any) -> Any:
             copy: bool
@@ -577,7 +668,7 @@ class _BoundConfiguration:
                 return value
 
         need_update: bool = False
-        values: List[Tuple[str, Any]] = list()
+        values: List[Tuple[str, str, Any]] = list()
         value_updates: List[Tuple[str, Any, Callable[[Any, str, Any], None]]] = list()
 
         for option, value in kwargs.items():
@@ -593,15 +684,17 @@ class _BoundConfiguration:
                     raise AttributeError
             except AttributeError:
                 value = copy_value(option, value)
-                values.append((attribute, value))
+                values.append((option, attribute, value))
                 need_update = True
                 value_update: Optional[Callable[[Any, str, Any], None]] = value_update_get(option)
                 if callable(value_update):
                     value_updates.append((option, value, value_update))
 
-        for attribute, value in values:
+        for option, attribute, value in values:
             setattr(obj, attribute, value)
-        if need_update:
+            if update_register is not None:
+                update_register[option] = None
+        if need_update and self.__update_call:
             for option, value, updater in value_updates:
                 updater(obj, option, value)
             if callable(update):
