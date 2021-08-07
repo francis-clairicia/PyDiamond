@@ -343,8 +343,8 @@ class Configuration:
         elif isinstance(func, (type, tuple)):
             _type: Union[type, Tuple[type, ...]] = func
             if isinstance(_type, tuple):
-                if not _type:
-                    raise TypeError(f"Empty tuple of types given")
+                if not _type or any(not isinstance(t, type) for t in _type):
+                    raise TypeError(f"Invalid types argument")
                 if len(_type) == 1:
                     _type = _type[0]
 
