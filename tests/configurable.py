@@ -45,6 +45,8 @@ class SubConfigurable(Configurable):
     config.remove_parent_ownership("b")
     e: ConfigAttribute[int] = ConfigAttribute(config)
 
+    config.validator("e", int, convert=True)
+
     @config.updater("a")
     def __special_case_a(self, name: str, val: int) -> None:
         print(f"----------Special case for {name}--------")
@@ -67,11 +69,12 @@ def main() -> None:
     c.a += 2
     print(c.a)
 
-    c.e = 4
+    c.config.set("e", "4")
+    assert isinstance(c.e, int)
 
     c.d = d = {"a": 5}
     print(c.d is d)
-    print(dir(c))
+    print(vars(c))
 
 
 if __name__ == "__main__":

@@ -307,7 +307,7 @@ class Configuration:
         ...
 
     @overload
-    def validator(self, option: str, func: type, /) -> type:
+    def validator(self, option: str, func: type, /, *, convert: bool = False) -> type:
         ...
 
     @overload
@@ -315,11 +315,15 @@ class Configuration:
         ...
 
     @overload
-    def validator(self, option: str, func: Optional[_ValueValidator], /) -> Optional[_ValueValidator]:
+    def validator(self, option: str, func: _ValueValidator, /) -> _ValueValidator:
+        ...
+
+    @overload
+    def validator(self, option: str, func: None, /) -> None:
         ...
 
     def validator(
-        self, option: str, /, *func_args: Optional[Union[_ValueValidator, type, Tuple[type, ...]]]
+        self, option: str, /, *func_args: Union[_ValueValidator, type, Tuple[type, ...], None], convert: bool = False
     ) -> Union[Callable[[_ValueValidator], _ValueValidator], _ValueValidator, type, Tuple[type, ...], None]:
         options: FrozenSet[str] = self.__infos.options
         if not option:
@@ -340,7 +344,7 @@ class Configuration:
         func: Optional[Union[_ValueValidator, type, Tuple[type, ...]]] = func_args[0]
         if func is None:
             self.__infos.value_validator.pop(option, None)
-        elif isinstance(func, (type, tuple)):
+        elif isinstance(func, tuple) or (isinstance(func, type) and not convert):
             _type: Union[type, Tuple[type, ...]] = func
             if isinstance(_type, tuple):
                 if not _type or any(not isinstance(t, type) for t in _type):
@@ -360,6 +364,14 @@ class Configuration:
                 return val
 
             self.__infos.value_validator[option] = _make_function_wrapper(type_checker)
+        elif isinstance(func, type) and convert:
+            _value_type: type = func
+
+            @staticmethod  # type: ignore[misc]
+            def value_convert(val: Any) -> Any:
+                return _value_type(val)
+
+            self.__infos.value_validator[option] = _make_function_wrapper(value_convert)
         else:
             self.__infos.value_validator[option] = _make_function_wrapper(func)
         return func
