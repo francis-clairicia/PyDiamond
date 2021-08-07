@@ -146,6 +146,8 @@ class Configuration:
                 new_obj: ConfigAttribute[Any] = ConfigAttribute(self)
                 setattr(owner, attr, new_obj)
                 new_obj.__set_name__(owner, attr)
+            elif isinstance(obj, Configuration) and obj is not self:
+                raise TypeError(f"A class can't have several {Configuration.__name__!r} objects")
 
     def known_options(self) -> FrozenSet[str]:
         return self.__infos.options
