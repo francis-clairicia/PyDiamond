@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from abc import ABCMeta
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Type, TypeVar, Union, cast
+from typing import Any, ContextManager, Dict, Iterator, List, Optional, Set, Tuple, Type, TypeVar, Union, cast
 from operator import truth
 
 _ClassTheme = Dict[str, Dict[str, Any]]
@@ -17,7 +17,7 @@ _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES: Set[type] = set()
 _HIDDEN_THEME_PREFIX: str = "__"
 
 
-class ThemeNamespace:
+class ThemeNamespace(ContextManager["ThemeNamespace"]):
 
     __DEFAULT: _ClassThemeDict = _THEMES
     __NAMESPACE: Dict[str, _ClassThemeDict] = {}
@@ -56,7 +56,15 @@ _T = TypeVar("_T")
 
 
 class _NoThemeType(str):
-    pass
+    def __init_subclass__(cls) -> None:
+        raise TypeError("No subclass are allowed")
+
+    def __new__(cls) -> _NoThemeType:
+        global NoTheme
+        try:
+            return NoTheme
+        except NameError:
+            return super().__new__(_NoThemeType, "NoTheme")
 
 
 NoTheme: _NoThemeType = _NoThemeType()
