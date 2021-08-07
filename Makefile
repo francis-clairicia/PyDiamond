@@ -30,9 +30,10 @@ STUBS			=	$(SRC:.py=.pyi)
 all:	stubs
 
 stubs:	$(STUBS)
+	black $^
 
 %.pyi:	%.py
-	@stubgen -o . --include-private --export-less $^ && black $@
+	@stubgen -o . --include-private --export-less $<
 
 fclean clean:
 	$(RM) $(STUBS)
