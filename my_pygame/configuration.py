@@ -97,25 +97,18 @@ class _ConfigInitializer:
             func: Callable[..., Any] = self.__func__
             return func(*args, **kwargs)
 
-    def __init__(self, func: Callable[..., Any], config_attribute_name: str = str()) -> None:
+    def __init__(self, func: Callable[..., Any]) -> None:
         self.__func__: Callable[..., Any] = func
-        self.__config_name__: str = config_attribute_name
 
     def __repr__(self) -> str:
         return self.__func__.__repr__()
 
     def __get__(self, obj: object, objtype: Optional[type] = None) -> Callable[..., Any]:
         func: Callable[..., Any] = self.__func__
-        config_attribute: str = self.__config_name__
         if obj is None:
             return func
         cls: type = objtype if objtype is not None else type(obj)
-        try:
-            config: Configuration = getattr(cls, config_attribute)
-        except AttributeError as exc:
-            raise TypeError(f"{cls.__name__} does not have a {Configuration.__name__} object") from exc
-        if not isinstance(config, Configuration):
-            raise TypeError(f"Expected {Configuration.__name__!r} object, got {type(config).__name__!r}")
+        config: Configuration = Configuration.find_in_class(cls)
 
         def method(*args: Any, **kwargs: Any) -> Any:
             bound_config: _BoundConfiguration = config.__get__(obj, objtype)
@@ -207,25 +200,19 @@ class Configuration:
                 attribute_class_owner[option] = owner
             else:
                 attribute_class_owner[option] = attribute_class_owner.get(option, owner)
-        for attr, obj in vars(owner).items():
-            if isinstance(obj, ConfigAttribute):
-                if not obj.__config_name__:
-                    obj.__config_name__ = name
-                elif obj.__config_name__ != name:
-                    new_obj: ConfigAttribute[Any] = ConfigAttribute()
-                    setattr(owner, attr, new_obj)
-                    new_obj.__set_name__(owner, attr)
-                    obj.__config_name__ = name
-            elif isinstance(obj, _ConfigInitializer):
-                if not obj.__config_name__:
-                    obj.__config_name__ = name
-                elif obj.__config_name__ != name:
-                    setattr(owner, attr, _ConfigInitializer(obj.__func__, name))
-            elif isinstance(obj, Configuration) and obj is not self:
+        for obj in vars(owner).values():
+            if isinstance(obj, Configuration) and obj is not self:
                 raise TypeError(f"A class can't have several {Configuration.__name__!r} objects")
 
     def known_options(self) -> FrozenSet[str]:
         return self.__infos.options
+
+    @staticmethod
+    def find_in_class(cls: type) -> Configuration:
+        for attr in vars(cls).values():
+            if isinstance(attr, Configuration):
+                return attr
+        raise TypeError(f"{cls.__name__} does not have a {Configuration.__name__} object")
 
     @overload
     def set_autocopy(self, autocopy: bool, /) -> None:
@@ -460,7 +447,6 @@ class Configuration:
 class ConfigAttribute(Generic[_T]):
     def __init__(self) -> None:
         self.__name: str = str()
-        self.__config_name__: str = str()
 
     def __set_name__(self, owner: type, name: str) -> None:
         if len(name) == 0:
@@ -481,7 +467,8 @@ class ConfigAttribute(Generic[_T]):
         name: str = self.__name
         if not name:
             raise ValueError("No name was given. Use __set_name__ method.")
-        config: _BoundConfiguration = self.get_config(obj, objtype)
+        cls: type = objtype if objtype is not None else type(obj)
+        config: _BoundConfiguration = Configuration.find_in_class(cls).__get__(obj, objtype)
         try:
             value: _T = config.get(name)
         except OptionError as e:
@@ -492,28 +479,18 @@ class ConfigAttribute(Generic[_T]):
         name: str = self.__name
         if not name:
             raise ValueError("No name was given. Use __set_name__ method.")
-        config: _BoundConfiguration = self.get_config(obj)
+        config: _BoundConfiguration = Configuration.find_in_class(type(obj)).__get__(obj)
         config.set(name, value)
 
     def __delete__(self, obj: object) -> None:
         name: str = self.__name
         if not name:
             raise ValueError("No name was given. Use __set_name__ method.")
-        config: _BoundConfiguration = self.get_config(obj)
+        config: _BoundConfiguration = Configuration.find_in_class(type(obj)).__get__(obj)
         try:
             config.remove(name)
         except OptionError as e:
             raise AttributeError(str(e)) from None
-
-    def get_config(self, obj: object, objtype: Optional[type] = None) -> _BoundConfiguration:
-        cls: type = objtype if objtype is not None else type(obj)
-        try:
-            config: Configuration = getattr(cls, self.__config_name__)
-        except AttributeError as exc:
-            raise TypeError(f"{cls.__name__} does not have a {Configuration.__name__} object") from exc
-        if not isinstance(config, Configuration):
-            raise TypeError(f"Expected {Configuration.__name__!r} object, got {type(config).__name__!r}")
-        return config.__get__(obj, objtype)
 
 
 class _BoundConfiguration:
