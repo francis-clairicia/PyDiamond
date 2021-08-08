@@ -534,6 +534,8 @@ class _BoundConfiguration:
             self.__references[bound_obj] = self
             yield self
             stack.close()
+            if not update_register:
+                return
             infos: Configuration.Infos = self.__infos
             get_attribute = self.__get_attribute
             for option in (opt for opt in update_register if opt in infos.value_update):
