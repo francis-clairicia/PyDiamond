@@ -37,20 +37,20 @@ def _make_function_wrapper(func: Any, *, internal: bool = False, check_override:
 
     if not internal:
 
-        def wrapper(__obj: Any, /, *args: Any, **kwargs: Any) -> Any:
+        def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
             try:
-                _func = getattr(func, "__get__")(__obj, type(__obj))
+                _func = getattr(func, "__get__")(self, type(self))
                 if not callable(_func):
                     raise TypeError
                 if check_override:
                     _func_name: str = _func.__name__
                     if _func_name != "<lambda>":
-                        _sub_func = getattr(__obj, _func_name, _func)
+                        _sub_func = getattr(self, _func_name, _func)
                         if _sub_func is not _func and callable(_sub_func):
                             _func = _sub_func
             except (AttributeError, TypeError):
                 try:
-                    return func(__obj, *args, **kwargs)
+                    return func(self, *args, **kwargs)
                 except TypeError as exc:
                     try:
                         return func(*args, **kwargs)
@@ -60,7 +60,7 @@ def _make_function_wrapper(func: Any, *, internal: bool = False, check_override:
 
     else:
 
-        def wrapper(__obj: Any, /, *args: Any, **kwargs: Any) -> Any:
+        def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
             return func(*args, **kwargs)
 
     setattr(wrapper, "__boundconfiguration_wrapper__", True)
@@ -236,36 +236,37 @@ class Configuration:
             return self
         if self.__bound_class is None:
             raise TypeError(f"{self} not bound to a class")
-        infos: Configuration.Infos = self.__infos
-        owner: Optional[type] = infos.owner
-        specific_owner: Optional[type] = None
         bound_references: Dict[Any, _BoundConfiguration] = self.__references
-        if owner is not None:
-            if objtype is None or objtype is type(obj):
-                objtype = owner
-            else:
-                specific_owner = objtype
-        else:
-            if objtype is None:
-                objtype = type(obj)
-            elif objtype is not type(obj):
-                specific_owner = objtype
         try:
             return bound_references[obj]
         except KeyError:
+            infos: Configuration.Infos = self.__infos
+            owner: Optional[type] = infos.owner
+            specific_owner: Optional[type] = None
+            if owner is not None:
+                if objtype is None or objtype is type(obj):
+                    objtype = owner
+                else:
+                    specific_owner = objtype
+            else:
+                if objtype is None:
+                    objtype = type(obj)
+                elif objtype is not type(obj):
+                    specific_owner = objtype
             return _BoundConfiguration(obj, objtype, infos, bound_references, specific_owner)
 
     def initializer(self, func: _Func, /) -> _Func:
         _func = _make_function_wrapper(func, check_override=False)
+        default_config: Configuration = self
 
         @wraps(func)
-        def initialize(__obj: Any, /, *args: Any, **kwargs: Any) -> Any:
-            config: Configuration = getattr(type(__obj), self.__name, self)
+        def initialize(self: object, /, *args: Any, **kwargs: Any) -> Any:
+            config: Configuration = getattr(type(self), default_config.__name, default_config)
             if not isinstance(config, Configuration):
-                config = self
-            bound_config: _BoundConfiguration = config.__get__(__obj)
+                config = default_config
+            bound_config: _BoundConfiguration = config.__get__(self)
             with bound_config.initialization():
-                return _func(__obj, *args, **kwargs)
+                return _func(self, *args, **kwargs)
 
         return cast(_Func, initialize)
 
@@ -705,8 +706,8 @@ class _BoundConfiguration:
         owner: type
         infos: Configuration.Infos = self.__infos
         attribute_class_owner: Dict[str, type] = infos.attribute_class_owner
-        if attribute_class_owner:
-            specific_owner: Optional[type] = self.__owner
+        specific_owner: Optional[type] = self.__owner
+        if infos.options:
             if specific_owner is not None:
                 owner = specific_owner
             elif objtype is infos.owner:
@@ -714,5 +715,5 @@ class _BoundConfiguration:
             else:
                 owner = objtype
         else:
-            owner = objtype
+            owner = objtype if specific_owner is None else specific_owner
         return f"_{owner.__name__}__{option}"
