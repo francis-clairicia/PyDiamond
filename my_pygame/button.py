@@ -17,7 +17,7 @@ from .text import TextImage
 from .window import Window
 from .scene import Scene
 from .colors import TRANSPARENT, WHITE, GRAY, GRAY_LIGHT, GRAY_DARK, BLACK
-from .theme import NoTheme, Theme
+from .theme import NoTheme, ThemeType
 from .cursor import Cursor
 from .image import Image
 
@@ -157,7 +157,7 @@ class Button(ThemedDrawable, Clickable):
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
-        theme: Optional[Theme] = None
+        theme: Optional[ThemeType] = None
     ) -> None:
         ThemedDrawable.__init__(self)
         Clickable.__init__(
@@ -1021,7 +1021,7 @@ class ImageButton(ThemedDrawable, Clickable):
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
-        theme: Optional[Theme] = None
+        theme: Optional[ThemeType] = None
     ) -> None:
         ThemedDrawable.__init__(self)
         Clickable.__init__(

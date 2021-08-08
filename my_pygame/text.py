@@ -18,7 +18,7 @@ from pygame.rect import Rect
 
 from .drawable import ThemedDrawable
 from .colors import BLACK
-from .theme import NoTheme, Theme
+from .theme import NoTheme, ThemeType
 from .surface import create_surface
 
 from .image import Image
@@ -47,7 +47,7 @@ class Text(ThemedDrawable):
         shadow_x: float = 0,
         shadow_y: float = 0,
         shadow_color: Color = BLACK,
-        theme: Optional[Theme] = None,
+        theme: Optional[ThemeType] = None,
     ) -> None:
         super().__init__()
         self.__update: bool = True
@@ -348,7 +348,7 @@ class TextImage(Text):
         shadow_x: float = 0,
         shadow_y: float = 0,
         shadow_color: Color = BLACK,
-        theme: Optional[Theme] = None,
+        theme: Optional[ThemeType] = None,
     ) -> None:
         super().__init__(
             message=message,

@@ -2,8 +2,25 @@
 
 from __future__ import annotations
 from abc import ABCMeta
-from typing import Any, ContextManager, Dict, Iterator, List, Optional, Set, Tuple, Type, TypeVar, Union, cast
+from typing import (
+    Any,
+    Callable,
+    ContextManager,
+    Dict,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
 from operator import truth
+from inspect import Parameter, Signature
 
 _ClassTheme = Dict[str, Dict[str, Any]]
 _ClassThemeDict = Dict[type, _ClassTheme]
@@ -69,7 +86,7 @@ class _NoThemeType(str):
 
 NoTheme: _NoThemeType = _NoThemeType()
 
-Theme = Union[str, List[str]]
+ThemeType = Union[str, List[str]]
 
 
 class MetaThemedObject(ABCMeta):
@@ -85,7 +102,7 @@ class MetaThemedObject(ABCMeta):
         if cls.is_abstract_theme_class():
             return super().__call__(*args, **kwargs)
 
-        theme: Optional[Theme] = kwargs.pop("theme", None)
+        theme: Optional[ThemeType] = kwargs.get("theme")
         if theme is NoTheme:
             return super().__call__(*args, **kwargs)
 
@@ -112,7 +129,7 @@ class MetaThemedObject(ABCMeta):
         theme_kwargs: Dict[str, Any] = cls.get_theme_options(*default_theme, *theme)
         return super().__call__(*args, **(theme_kwargs | kwargs))
 
-    def set_theme(cls, name: str, options: Dict[str, Any]) -> None:
+    def set_theme(cls, name: str, options: Dict[str, Any], update: bool = False) -> None:
         if cls.is_abstract_theme_class():
             raise TypeError("Abstract theme classes cannot set themes.")
         if name is NoTheme:
@@ -120,33 +137,71 @@ class MetaThemedObject(ABCMeta):
         if "theme" in options:
             raise ValueError("'theme' parameter must not be given in options")
 
+        def check_options(func: Callable[..., Any]) -> None:
+            sig: Signature = Signature.from_callable(func)
+            parameters: Mapping[str, Parameter] = sig.parameters
+            has_kwargs: bool = any(param.kind == Parameter.VAR_KEYWORD for param in parameters.values())
+
+            for option in options:
+                if option not in parameters:
+                    if not has_kwargs:
+                        raise KeyError(f"{func.__qualname__}: Unknown parameter {option!r}")
+                    continue
+                param: Parameter = parameters[option]
+                if param.kind is not Parameter.KEYWORD_ONLY:
+                    raise TypeError(f"{func.__qualname__}: {option!r} is a {param.kind} parameter")
+                if param.default is Parameter.empty:
+                    raise TypeError(f"{func.__qualname__}: {option!r} is a required argument")
+
+        default_new_method: Callable[[Type[object]], Any] = object.__new__
+        default_init_method: Callable[[object], None] = object.__init__
+        new_method: Callable[..., Any] = getattr(cls, "__new__", default_new_method)
+        init_method: Callable[..., None] = getattr(cls, "__init__", default_init_method)
+
+        if new_method is default_new_method and init_method is default_init_method:
+            raise TypeError(f"{cls.__name__} does not override default object constructors")
+        if new_method is not default_new_method:
+            check_options(new_method)
+        if init_method is not default_init_method:
+            check_options(init_method)
+
         theme_dict: Dict[str, Dict[str, Any]]
 
         if not name.startswith(_HIDDEN_THEME_PREFIX):
             if cls not in _THEMES:
-                _THEMES[cls] = dict()
-            theme_dict = _THEMES[cls]
+                _THEMES[cls] = theme_dict = dict()
+            else:
+                theme_dict = _THEMES[cls]
         else:
             if cls not in _HIDDEN_THEMES:
-                _HIDDEN_THEMES[cls] = dict()
-            theme_dict = _HIDDEN_THEMES[cls]
-        if name not in theme_dict:
+                _HIDDEN_THEMES[cls] = theme_dict = dict()
+            else:
+                theme_dict = _HIDDEN_THEMES[cls]
+        if name not in theme_dict or not update:
             theme_dict[name] = options
         else:
             theme_dict[name] |= options
 
-    def set_default_theme(cls, name: Union[Theme, None]) -> None:
+    @overload
+    def set_default_theme(cls, name: str, /, *names: str) -> None:
+        ...
+
+    @overload
+    def set_default_theme(cls, name: None, /) -> None:
+        ...
+
+    def set_default_theme(cls, name: Union[str, None], /, *names: str) -> None:
         if cls.is_abstract_theme_class():
             raise TypeError("Abstract theme classes cannot set themes.")
-        if name is NoTheme:
-            raise ValueError("Couldn't set 'NoTheme' as default theme")
 
         if name is None:
+            if names:
+                raise TypeError("Invalid arguments")
             _DEFAULT_THEME.pop(cls, None)
             return
-        if isinstance(name, str):
-            name = [name]
-        for theme in name:
+        for theme in [name, *names]:
+            if theme is NoTheme:
+                raise ValueError("Couldn't set 'NoTheme' as default theme")
             default_theme: Dict[type, Set[str]] = (
                 _DEFAULT_THEME if not theme.startswith(_HIDDEN_THEME_PREFIX) else _HIDDEN_DEFAULT_THEME
             )

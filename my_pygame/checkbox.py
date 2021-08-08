@@ -16,7 +16,7 @@ from .scene import Scene
 from .shape import RectangleShape, DiagonalCrossShape
 from .image import Image
 from .cursor import Cursor
-from .theme import NoTheme, Theme
+from .theme import NoTheme, ThemeType
 
 _OnValue = TypeVar("_OnValue")
 _OffValue = TypeVar("_OffValue")
@@ -50,7 +50,7 @@ class CheckBox(ThemedDrawable, Clickable, Generic[_OnValue, _OffValue]):
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
-        theme: Optional[Theme] = None,
+        theme: Optional[ThemeType] = None,
     ) -> None:
         if on_value == off_value:
             raise ValueError("'On' value and 'Off' value are identical")
@@ -256,7 +256,7 @@ class BooleanCheckBox(CheckBox[bool, bool]):
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
-        theme: Optional[Theme] = None,
+        theme: Optional[ThemeType] = None,
     ) -> None:
         super().__init__(
             master=master,
