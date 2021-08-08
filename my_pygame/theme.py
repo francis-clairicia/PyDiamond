@@ -149,7 +149,7 @@ class MetaThemedObject(ABCMeta):
                     continue
                 param: Parameter = parameters[option]
                 if param.kind is not Parameter.KEYWORD_ONLY:
-                    raise TypeError(f"{func.__qualname__}: {option!r} is a {param.kind} parameter")
+                    raise TypeError(f"{func.__qualname__}: {option!r} is a {param.kind.description} parameter")
                 if param.default is Parameter.empty:
                     raise TypeError(f"{func.__qualname__}: {option!r} is a required argument")
 
