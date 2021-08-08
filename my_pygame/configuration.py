@@ -1,7 +1,6 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
-from functools import wraps
 from typing import (
     Any,
     Callable,
@@ -29,6 +28,25 @@ _Func = TypeVar("_Func", bound=Callable[..., Any])
 _Updater = TypeVar("_Updater", bound=Union[Callable[[Any], None], Callable[[], None]])
 _ValueUpdater = TypeVar("_ValueUpdater", bound=Union[Callable[[Any, str, Any], None], Callable[[str, Any], None]])
 _ValueValidator = TypeVar("_ValueValidator", bound=Union[Callable[[Any, Any], Any], Callable[[Any], Any]])
+
+
+class OptionError(Exception):
+    pass
+
+
+class UnknownOptionError(OptionError):
+    def __init__(self, name: str) -> None:
+        super().__init__(f"Unknown config option {name!r}")
+
+
+class UnregisteredOptionError(OptionError):
+    def __init__(self, name: str) -> None:
+        super().__init__(f"Unregistered option {name!r}")
+
+
+class EmptyOptionNameError(OptionError):
+    def __init__(self) -> None:
+        super().__init__("Empty string option given")
 
 
 def _make_function_wrapper(func: Any, *, internal: bool = False, check_override: bool = True) -> Callable[..., Any]:
@@ -67,23 +85,48 @@ def _make_function_wrapper(func: Any, *, internal: bool = False, check_override:
     return wrapper
 
 
-class OptionError(Exception):
-    pass
+class _ConfigInitializer:
+    class config_initializer_method:
+        def __init__(self, func: Callable[..., Any]) -> None:
+            self.__func__: Callable[..., Any] = func
+
+        def __repr__(self) -> str:
+            return f"<{type(self).__name__} object at {id(self):#x}>"
+
+        def __call__(self, *args: Any, **kwargs: Any) -> Any:
+            func: Callable[..., Any] = self.__func__
+            return func(*args, **kwargs)
+
+    def __init__(self, func: Callable[..., Any], config_attribute_name: str = str()) -> None:
+        self.__func__: Callable[..., Any] = func
+        self.__config_name__: str = config_attribute_name
+
+    def __repr__(self) -> str:
+        return self.__func__.__repr__()
+
+    def __get__(self, obj: object, objtype: Optional[type] = None) -> Callable[..., Any]:
+        func: Callable[..., Any] = self.__func__
+        config_attribute: str = self.__config_name__
+        if obj is None:
+            return func
+        cls: type = objtype if objtype is not None else type(obj)
+        try:
+            config: Configuration = getattr(cls, config_attribute)
+        except AttributeError as exc:
+            raise TypeError(f"{cls.__name__} does not have a {Configuration.__name__} object") from exc
+        if not isinstance(config, Configuration):
+            raise TypeError(f"Expected {Configuration.__name__!r} object, got {type(config).__name__!r}")
+
+        def method(*args: Any, **kwargs: Any) -> Any:
+            bound_config: _BoundConfiguration = config.__get__(obj, objtype)
+            with bound_config.initialization():
+                return func(obj, *args, **kwargs)
+
+        return self.config_initializer_method(method)
 
 
-class UnknownOptionError(OptionError):
-    def __init__(self, name: str) -> None:
-        super().__init__(f"Unknown config option {name!r}")
-
-
-class UnregisteredOptionError(OptionError):
-    def __init__(self, name: str) -> None:
-        super().__init__(f"Unregistered option {name!r}")
-
-
-class EmptyOptionNameError(OptionError):
-    def __init__(self) -> None:
-        super().__init__("Empty string option given")
+def initializer(func: _Func) -> _Func:
+    return cast(_Func, _ConfigInitializer(func))
 
 
 class Configuration:
@@ -98,6 +141,8 @@ class Configuration:
             self.value_autocopy_set: Dict[str, bool] = dict()
             self.attribute_class_owner: Dict[str, type] = dict()
             self.owner: Optional[type] = None
+
+    __references: Dict[object, _BoundConfiguration] = dict()
 
     @overload
     def __init__(self, *, autocopy: bool = False) -> None:
@@ -148,7 +193,6 @@ class Configuration:
         self.__no_parent_ownership: Set[str] = set()
         self.__bound_class: Optional[type] = None
         self.__name: str = str()
-        self.__references: Dict[Any, _BoundConfiguration] = dict()
 
     def __set_name__(self, owner: type, name: str) -> None:
         infos: Configuration.Infos = self.__infos
@@ -163,12 +207,20 @@ class Configuration:
                 attribute_class_owner[option] = owner
             else:
                 attribute_class_owner[option] = attribute_class_owner.get(option, owner)
-        for attr in dir(owner):
-            obj: Any = getattr(owner, attr)
-            if isinstance(obj, ConfigAttribute) and obj.get_config() is not self:
-                new_obj: ConfigAttribute[Any] = ConfigAttribute(self)
-                setattr(owner, attr, new_obj)
-                new_obj.__set_name__(owner, attr)
+        for attr, obj in vars(owner).items():
+            if isinstance(obj, ConfigAttribute):
+                if not obj.__config_name__:
+                    obj.__config_name__ = name
+                elif obj.__config_name__ != name:
+                    new_obj: ConfigAttribute[Any] = ConfigAttribute()
+                    setattr(owner, attr, new_obj)
+                    new_obj.__set_name__(owner, attr)
+                    obj.__config_name__ = name
+            elif isinstance(obj, _ConfigInitializer):
+                if not obj.__config_name__:
+                    obj.__config_name__ = name
+                elif obj.__config_name__ != name:
+                    setattr(owner, attr, _ConfigInitializer(obj.__func__, name))
             elif isinstance(obj, Configuration) and obj is not self:
                 raise TypeError(f"A class can't have several {Configuration.__name__!r} objects")
 
@@ -236,7 +288,7 @@ class Configuration:
             return self
         if self.__bound_class is None:
             raise TypeError(f"{self} not bound to a class")
-        bound_references: Dict[Any, _BoundConfiguration] = self.__references
+        bound_references: Dict[object, _BoundConfiguration] = self.__references
         try:
             return bound_references[obj]
         except KeyError:
@@ -254,21 +306,6 @@ class Configuration:
                 elif objtype is not type(obj):
                     specific_owner = objtype
             return _BoundConfiguration(obj, objtype, infos, bound_references, specific_owner)
-
-    def initializer(self, func: _Func, /) -> _Func:
-        _func = _make_function_wrapper(func, check_override=False)
-        default_config: Configuration = self
-
-        @wraps(func)
-        def initialize(self: object, /, *args: Any, **kwargs: Any) -> Any:
-            config: Configuration = getattr(type(self), default_config.__name, default_config)
-            if not isinstance(config, Configuration):
-                config = default_config
-            bound_config: _BoundConfiguration = config.__get__(self)
-            with bound_config.initialization():
-                return _func(self, *args, **kwargs)
-
-        return cast(_Func, initialize)
 
     @overload
     def get_updater(self) -> Optional[Callable[[object], None]]:
@@ -421,17 +458,13 @@ class Configuration:
 
 
 class ConfigAttribute(Generic[_T]):
-    def __init__(self, config: Configuration) -> None:
+    def __init__(self) -> None:
         self.__name: str = str()
-        self.__config = config.__get__
-        self.__known_options: FrozenSet[str] = config.known_options()
+        self.__config_name__: str = str()
 
     def __set_name__(self, owner: type, name: str) -> None:
         if len(name) == 0:
             raise ValueError(f"Attribute name must not be empty")
-        known_options: FrozenSet[str] = self.__known_options
-        if known_options and name not in known_options:
-            raise ValueError(f"Invalid attribute name {name!r}: Not known by configuration object")
         self.__name = name
 
     @overload
@@ -448,7 +481,7 @@ class ConfigAttribute(Generic[_T]):
         name: str = self.__name
         if not name:
             raise ValueError("No name was given. Use __set_name__ method.")
-        config: _BoundConfiguration = self.__config(obj, objtype)
+        config: _BoundConfiguration = self.get_config(obj, objtype)
         try:
             value: _T = config.get(name)
         except OptionError as e:
@@ -459,21 +492,28 @@ class ConfigAttribute(Generic[_T]):
         name: str = self.__name
         if not name:
             raise ValueError("No name was given. Use __set_name__ method.")
-        config: _BoundConfiguration = self.__config(obj)
+        config: _BoundConfiguration = self.get_config(obj)
         config.set(name, value)
 
     def __delete__(self, obj: object) -> None:
         name: str = self.__name
         if not name:
             raise ValueError("No name was given. Use __set_name__ method.")
-        config: _BoundConfiguration = self.__config(obj)
+        config: _BoundConfiguration = self.get_config(obj)
         try:
             config.remove(name)
         except OptionError as e:
             raise AttributeError(str(e)) from None
 
-    def get_config(self) -> Configuration:
-        return self.__config(None)
+    def get_config(self, obj: object, objtype: Optional[type] = None) -> _BoundConfiguration:
+        cls: type = objtype if objtype is not None else type(obj)
+        try:
+            config: Configuration = getattr(cls, self.__config_name__)
+        except AttributeError as exc:
+            raise TypeError(f"{cls.__name__} does not have a {Configuration.__name__} object") from exc
+        if not isinstance(config, Configuration):
+            raise TypeError(f"Expected {Configuration.__name__!r} object, got {type(config).__name__!r}")
+        return config.__get__(obj, objtype)
 
 
 class _BoundConfiguration:
@@ -482,14 +522,14 @@ class _BoundConfiguration:
         obj: object,
         objtype: type,
         infos: Configuration.Infos,
-        bound_references: Dict[Any, _BoundConfiguration],
+        bound_references: Dict[object, _BoundConfiguration],
         specific_owner: Optional[type] = None,
     ) -> None:
         self.__obj: object = obj
         self.__type: type = objtype
         self.__infos: Configuration.Infos = infos
         self.__owner: Optional[type] = specific_owner
-        self.__references: Dict[Any, _BoundConfiguration] = bound_references
+        self.__references: Dict[object, _BoundConfiguration] = bound_references
         self.__update_call: bool = True
         self.__update_register: Optional[Dict[str, None]] = None
 
@@ -497,9 +537,9 @@ class _BoundConfiguration:
         return self.__infos.options
 
     @contextmanager
-    def initialization(self) -> Iterator[None]:
+    def initialization(self) -> Iterator[_BoundConfiguration]:
         if not self.__update_call:
-            yield
+            yield self
             return
 
         with ExitStack() as stack:
@@ -515,7 +555,7 @@ class _BoundConfiguration:
             self.__update_register = update_register
             self.__update_call = False
             self.__references[bound_obj] = self
-            yield
+            yield self
             stack.close()
             infos: Configuration.Infos = self.__infos
             get_attribute = self.__get_attribute

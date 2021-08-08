@@ -6,23 +6,24 @@ from typing import Any, Dict
 
 SYS_PATH.append(dirname(dirname(__file__)))
 
-from my_pygame.configuration import ConfigAttribute, Configuration
+from my_pygame.configuration import ConfigAttribute, Configuration, initializer
 
 
 class Configurable:
     config = Configuration("a", "b", "c", "d", autocopy=True)
     config.set_autocopy("d", copy_on_get=False, copy_on_set=False)
 
-    a: ConfigAttribute[int] = ConfigAttribute(config)
-    b: ConfigAttribute[int] = ConfigAttribute(config)
-    c: ConfigAttribute[int] = ConfigAttribute(config)
-    d: ConfigAttribute[Dict[str, int]] = ConfigAttribute(config)
+    a: ConfigAttribute[int] = ConfigAttribute()
+    b: ConfigAttribute[int] = ConfigAttribute()
+    c: ConfigAttribute[int] = ConfigAttribute()
+    d: ConfigAttribute[Dict[str, int]] = ConfigAttribute()
 
-    @config.initializer
+    @initializer
     def __init__(self) -> None:
         self.a = 42
         self.b = 3
         self.c = 98
+        print("END")
 
     @config.updater("a")
     @config.updater("b")
@@ -49,7 +50,7 @@ class Configurable:
 class SubConfigurable(Configurable):
     config = Configuration("e", parent=Configurable.config)
     config.remove_parent_ownership("b")
-    e: ConfigAttribute[int] = ConfigAttribute(config)
+    e: ConfigAttribute[int] = ConfigAttribute()
 
     config.validator("e", int, convert=True)
 
@@ -63,8 +64,33 @@ class SubConfigurable(Configurable):
     #     print("Subfunction update")
 
 
+class C:
+    config: Configuration = Configuration()
+
+    @initializer
+    def __init__(self) -> None:
+        self.config(a=5, b=6, c=7)
+
+    def __del__(self) -> None:
+        print(self)
+
+
+class A:
+    __config: Configuration = Configuration("a")
+
+    a: ConfigAttribute[int] = ConfigAttribute()
+
+    @initializer
+    def __init__(self) -> None:
+        self.a = 5
+
+    def __del__(self) -> None:
+        print(self)
+
+
 def main() -> None:
     c = SubConfigurable()
+    print("--------")
     c.config["a"] = 4
     c.config(a=6, b=5, c=-9)
     print(c.config.known_options())
