@@ -90,9 +90,9 @@ class Configuration:
     class Infos:
         def __init__(self, known_options: Sequence[str], autocopy: bool) -> None:
             self.options: FrozenSet[str] = frozenset(known_options)
-            self.update: Optional[Callable[[Any], None]] = None
-            self.value_update: Dict[str, Callable[[Any, str, Any], None]] = dict()
-            self.value_validator: Dict[str, Callable[[Any, Any], Any]] = dict()
+            self.update: Optional[Callable[[object], None]] = None
+            self.value_update: Dict[str, Callable[[object, str, Any], None]] = dict()
+            self.value_validator: Dict[str, Callable[[object, Any], Any]] = dict()
             self.autocopy: bool = autocopy
             self.value_autocopy_get: Dict[str, bool] = dict()
             self.value_autocopy_set: Dict[str, bool] = dict()
@@ -228,10 +228,10 @@ class Configuration:
         ...
 
     @overload
-    def __get__(self, obj: Any, objtype: Optional[type] = None) -> _BoundConfiguration:
+    def __get__(self, obj: object, objtype: Optional[type] = None) -> _BoundConfiguration:
         ...
 
-    def __get__(self, obj: Any, objtype: Optional[type] = None) -> Union[Configuration, _BoundConfiguration]:
+    def __get__(self, obj: object, objtype: Optional[type] = None) -> Union[Configuration, _BoundConfiguration]:
         if obj is None:
             return self
         if self.__bound_class is None:
@@ -271,14 +271,16 @@ class Configuration:
         return cast(_Func, initialize)
 
     @overload
-    def get_updater(self) -> Optional[Callable[[Any], None]]:
+    def get_updater(self) -> Optional[Callable[[object], None]]:
         ...
 
     @overload
-    def get_updater(self, option: str) -> Optional[Callable[[Any, str, Any], None]]:
+    def get_updater(self, option: str) -> Optional[Callable[[object, str, Any], None]]:
         ...
 
-    def get_updater(self, option: Optional[str] = None) -> Union[Callable[[Any], None], Callable[[Any, str, Any], None], None]:
+    def get_updater(
+        self, option: Optional[str] = None
+    ) -> Union[Callable[[object], None], Callable[[object, str, Any], None], None]:
         if option is None:
             return self.__infos.update
         options: FrozenSet[str] = self.__infos.options
@@ -337,7 +339,7 @@ class Configuration:
         self.__infos.update = _make_function_wrapper(arg) if arg is not None else None
         return arg
 
-    def get_validator(self, option: str) -> Optional[Callable[[Any, Any], Any]]:
+    def get_validator(self, option: str) -> Optional[Callable[[object, Any], Any]]:
         options: FrozenSet[str] = self.__infos.options
         if not option:
             raise EmptyOptionNameError()
@@ -437,10 +439,10 @@ class ConfigAttribute(Generic[_T]):
         ...
 
     @overload
-    def __get__(self, obj: Any, objtype: Optional[type] = None) -> _T:
+    def __get__(self, obj: object, objtype: Optional[type] = None) -> _T:
         ...
 
-    def __get__(self, obj: Any, objtype: Optional[type] = None) -> Union[_T, ConfigAttribute[_T]]:
+    def __get__(self, obj: object, objtype: Optional[type] = None) -> Union[_T, ConfigAttribute[_T]]:
         if obj is None:
             return self
         name: str = self.__name
@@ -453,14 +455,14 @@ class ConfigAttribute(Generic[_T]):
             raise AttributeError(str(e)) from None
         return value
 
-    def __set__(self, obj: Any, value: _T) -> None:
+    def __set__(self, obj: object, value: _T) -> None:
         name: str = self.__name
         if not name:
             raise ValueError("No name was given. Use __set_name__ method.")
         config: _BoundConfiguration = self.__config(obj)
         config.set(name, value)
 
-    def __delete__(self, obj: Any) -> None:
+    def __delete__(self, obj: object) -> None:
         name: str = self.__name
         if not name:
             raise ValueError("No name was given. Use __set_name__ method.")
@@ -477,13 +479,13 @@ class ConfigAttribute(Generic[_T]):
 class _BoundConfiguration:
     def __init__(
         self,
-        obj: Any,
+        obj: object,
         objtype: type,
         infos: Configuration.Infos,
         bound_references: Dict[Any, _BoundConfiguration],
         specific_owner: Optional[type] = None,
     ) -> None:
-        self.__obj: Any = obj
+        self.__obj: object = obj
         self.__type: type = objtype
         self.__infos: Configuration.Infos = infos
         self.__owner: Optional[type] = specific_owner
@@ -501,7 +503,7 @@ class _BoundConfiguration:
             return
 
         with ExitStack() as stack:
-            bound_obj: Any = self.__obj
+            bound_obj: object = self.__obj
 
             @stack.callback
             def cleanup() -> None:
@@ -518,13 +520,13 @@ class _BoundConfiguration:
             infos: Configuration.Infos = self.__infos
             get_attribute = self.__get_attribute
             for option in (opt for opt in update_register if opt in infos.value_update):
-                updater_func: Callable[[Any, str, Any], None] = infos.value_update[option]
+                updater_func: Callable[[object, str, Any], None] = infos.value_update[option]
                 try:
                     value: Any = getattr(bound_obj, get_attribute(option))
                 except AttributeError as exc:
                     raise UnregisteredOptionError(option) from exc
                 updater_func(bound_obj, option, value)
-            update: Optional[Callable[[Any], None]] = infos.update
+            update: Optional[Callable[[object], None]] = infos.update
             if callable(update):
                 update(bound_obj)
 
@@ -582,10 +584,10 @@ class _BoundConfiguration:
         if copy is None:
             copy = infos.value_autocopy_set.get(option, infos.autocopy)
 
-        obj: Any = self.__obj
-        update: Optional[Callable[[Any], None]] = infos.update
-        value_update: Optional[Callable[[Any, str, Any], None]] = infos.value_update.get(option)
-        value_validator: Optional[Callable[[Any, Any], Any]] = infos.value_validator.get(option)
+        obj: object = self.__obj
+        update: Optional[Callable[[object], None]] = infos.update
+        value_update: Optional[Callable[[object, str, Any], None]] = infos.value_update.get(option)
+        value_validator: Optional[Callable[[object, Any], Any]] = infos.value_validator.get(option)
         update_register: Optional[Dict[str, None]] = self.__update_register
         attribute: str = self.__get_attribute(option)
 
@@ -625,8 +627,8 @@ class _BoundConfiguration:
             raise EmptyOptionNameError()
         infos: Configuration.Infos = self.__infos
         options: FrozenSet[str] = infos.options
-        obj: Any = self.__obj
-        update: Optional[Callable[[Any], None]] = infos.update
+        obj: object = self.__obj
+        update: Optional[Callable[[object], None]] = infos.update
         update_register: Optional[Dict[str, None]] = self.__update_register
         if options and option not in options:
             raise UnknownOptionError(option)
@@ -646,10 +648,10 @@ class _BoundConfiguration:
         infos: Configuration.Infos = self.__infos
         autocopy: bool = infos.autocopy
         options: FrozenSet[str] = infos.options
-        obj: Any = self.__obj
-        update: Optional[Callable[[Any], None]] = infos.update
-        value_update_get: Callable[[str], Optional[Callable[[Any, str, Any], None]]] = infos.value_update.get
-        value_validator_get: Callable[[str], Optional[Callable[[Any, Any], Any]]] = infos.value_validator.get
+        obj: object = self.__obj
+        update: Optional[Callable[[object], None]] = infos.update
+        value_update_get: Callable[[str], Optional[Callable[[object, str, Any], None]]] = infos.value_update.get
+        value_validator_get: Callable[[str], Optional[Callable[[object, Any], Any]]] = infos.value_validator.get
         get_attribute: Callable[[str], str] = self.__get_attribute
         update_register: Optional[Dict[str, None]] = self.__update_register
 
@@ -670,12 +672,12 @@ class _BoundConfiguration:
 
         need_update: bool = False
         values: List[Tuple[str, str, Any]] = list()
-        value_updates: List[Tuple[str, Any, Callable[[Any, str, Any], None]]] = list()
+        value_updates: List[Tuple[str, Any, Callable[[object, str, Any], None]]] = list()
 
         for option, value in kwargs.items():
             if options and option not in options:
                 raise UnknownOptionError(option)
-            value_validator: Optional[Callable[[Any, Any], None]] = value_validator_get(option)
+            value_validator: Optional[Callable[[object, Any], None]] = value_validator_get(option)
             if callable(value_validator):
                 value = value_validator(obj, value)
             attribute: str = get_attribute(option)
@@ -687,7 +689,7 @@ class _BoundConfiguration:
                 value = copy_value(option, value)
                 values.append((option, attribute, value))
                 need_update = True
-                value_update: Optional[Callable[[Any, str, Any], None]] = value_update_get(option)
+                value_update: Optional[Callable[[object, str, Any], None]] = value_update_get(option)
                 if callable(value_update):
                     value_updates.append((option, value, value_update))
 
