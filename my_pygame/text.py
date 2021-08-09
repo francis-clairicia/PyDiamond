@@ -6,7 +6,7 @@ import os.path
 
 from typing import Dict, List, Optional, Tuple, Union
 from enum import Enum, unique
-from textwrap import wrap
+from textwrap import wrap as textwrap
 from operator import truth
 
 import pygame.transform
@@ -20,8 +20,9 @@ from .drawable import ThemedDrawable
 from .colors import BLACK
 from .theme import NoTheme, ThemeType
 from .surface import create_surface
-
 from .image import Image
+from .configuration import ConfigAttribute, Configuration, initializer, no_object
+from .utils import valid_float, valid_integer
 
 _TextFont = Union[Font, Tuple[Optional[str], int]]
 
@@ -33,6 +34,28 @@ class Text(ThemedDrawable):
         RIGHT = "right"
         CENTER = "center"
 
+    config: Configuration = Configuration(
+        "message", "font", "color", "wrap", "justify", "shadow_x", "shadow_y", "shadow_color", autocopy=True
+    )
+
+    message: ConfigAttribute[str] = ConfigAttribute()
+    font: ConfigAttribute[Font] = ConfigAttribute()
+    wrap: ConfigAttribute[int] = ConfigAttribute()
+    justify: ConfigAttribute[str] = ConfigAttribute()
+    shadow_x: ConfigAttribute[float] = ConfigAttribute()
+    shadow_y: ConfigAttribute[float] = ConfigAttribute()
+    shadow_color: ConfigAttribute[Color] = ConfigAttribute()
+
+    config.validator("message", str)
+    config.validator("wrap", no_object(valid_integer(min_value=0)))
+    config.validator("justify", Justify, convert=True)
+    config.validator("shadow_x", float, convert=True)
+    config.validator("shadow_y", float, convert=True)
+    config.validator("shadow_color", Color)
+
+    config.getter("justify", no_object(lambda justify: str(justify.value)))
+
+    @initializer
     def __init__(
         self,
         message: str = "",
@@ -50,17 +73,10 @@ class Text(ThemedDrawable):
         theme: Optional[ThemeType] = None,
     ) -> None:
         super().__init__()
-        self.__update: bool = True
-        self.__str: str = str()
-        self.__wrap: int = 0
-        self.__font: Font = Text.create_font(None)
         self.__custom_font: Dict[int, Font] = dict()
-        self.__color: Color = BLACK
-        self.__justify: Text.Justify = Text.Justify.LEFT
-        self.__shadow_offset: Tuple[float, float] = (0, 0)
-        self.__shadow_color = BLACK
         self.__default_image: Surface = create_surface((0, 0))
         self.__image: Surface = self.__default_image.copy()
+        self.__justify: Text.Justify
         self.set_font(font, bold=bold, italic=italic, underline=underline)
         self.message = message
         self.color = color
@@ -83,21 +99,18 @@ class Text(ThemedDrawable):
         )
 
     def draw_onto(self, surface: Surface) -> None:
-        self.__update_surface()
         surface.blit(self.__image, self.topleft)
 
     def to_surface(self) -> Surface:
-        self.__update_surface()
         return self.__image.copy()
 
     def get_local_size(self) -> Tuple[float, float]:
-        self.__update_surface()
         return self.__default_image.get_size()
 
     def get_size(self) -> Tuple[float, float]:
-        self.__update_surface()
         return self.__image.get_size()
 
+    @config.validator("font")
     @staticmethod
     def create_font(
         font: Optional[_TextFont], bold: Optional[bool] = None, italic: Optional[bool] = None, underline: Optional[bool] = None
@@ -133,27 +146,26 @@ class Text(ThemedDrawable):
         italic: Optional[bool] = None,
         underline: Optional[bool] = None,
     ) -> None:
-        self.__font = Text.create_font(font, bold=bold, italic=italic, underline=underline)
-        self._need_update()
+        self.config.set("font", Text.create_font(font, bold=bold, italic=italic, underline=underline), copy=False)
 
     def set_custom_line_font(self, index: int, font: Font) -> None:
         if index < 0:
             raise ValueError(f"Negative index: {index}")
         self.__custom_font[index] = Text.create_font(font)
-        self._need_update()
+        self.config.update()
 
     def remove_custom_line_font(self, index: int) -> None:
         if index < 0:
             raise ValueError(f"Negative index: {index}")
         self.__custom_font.pop(index, None)
-        self._need_update()
+        self.config.update()
 
-    def _need_update(self) -> None:
-        self.__update = True
-
+    @config.updater
     def __update_surface(self) -> None:
-        if self.__update:
-            self.__update = False
+        if self.config.has_initialization_context():
+            self.__default_image = self._render()
+            self._apply_rotation_scale()
+        else:
             center: Tuple[float, float] = self.center
             self.__default_image = self._render()
             self._apply_rotation_scale()
@@ -214,112 +226,18 @@ class Text(ThemedDrawable):
 
         return render
 
-    @property
-    def font(self) -> Font:
-        return self.__font
-
-    @font.setter
-    def font(self, font: Font) -> None:
-        self.set_font(font)
-
-    @property
-    def message(self) -> str:
-        return self.__str
-
-    @message.setter
-    def message(self, string: str) -> None:
-        if string != self.__str:
-            self.__str = "\n".join(wrap(string, width=self.__wrap)) if self.__wrap > 0 else string
-            self._need_update()
-
-    @property
-    def wrap(self) -> int:
-        return self.__wrap
-
-    @wrap.setter
-    def wrap(self, value: int) -> None:
-        value = max(int(value), 0)
-        if value != self.__wrap:
-            self.__wrap = value
-            self.__str = "\n".join(wrap(self.__str, width=self.__wrap)) if self.__wrap > 0 else self.__str
-            self._need_update()
-
-    @property
-    def justify(self) -> str:
-        return str(self.__justify.value)
-
-    @justify.setter
-    def justify(self, justify: str) -> None:
-        justify = Text.Justify(justify)
-        if justify != self.__justify:
-            self.__justify = justify
-            self._need_update()
-
-    @property
-    def color(self) -> Color:
-        return Color(self.__color)
-
-    @color.setter
-    def color(self, color: Color) -> None:
-        if color != self.__color:
-            self.__color = Color(color)
-            self._need_update()
+    @config.getter("message")
+    def __convert_message(self, message: str) -> str:
+        wrap: int = self.wrap
+        return "\n".join(textwrap(message, width=wrap)) if wrap > 0 else message
 
     @property
     def shadow(self) -> Tuple[float, float]:
-        return self.__shadow_offset
+        return (self.shadow_x, self.shadow_y)
 
     @shadow.setter
     def shadow(self, pos: Tuple[float, float]) -> None:
-        if self.__shadow_offset != pos:
-            self.__shadow_offset = pos
-            self._need_update()
-
-    @property
-    def shadow_x(self) -> float:
-        return self.shadow[0]
-
-    @shadow_x.setter
-    def shadow_x(self, shadow_x: float) -> None:
-        self.shadow = (shadow_x, self.shadow_y)
-
-    @property
-    def shadow_y(self) -> float:
-        return self.shadow[1]
-
-    @shadow_y.setter
-    def shadow_y(self, shadow_y: float) -> None:
-        self.shadow = (self.shadow_x, shadow_y)
-
-    @property
-    def shadow_color(self) -> Color:
-        return Color(self.__shadow_color)
-
-    @shadow_color.setter
-    def shadow_color(self, color: Color) -> None:
-        if self.__shadow_color != color:
-            self.__shadow_color = Color(color)
-            self._need_update()
-
-    @property
-    def x(self) -> float:
-        self.__update_surface()
-        return super().x
-
-    @x.setter
-    def x(self, x: float) -> None:
-        self.__update_surface()
-        ThemedDrawable.x.fset(self, x)  # type: ignore[attr-defined]
-
-    @property
-    def y(self) -> float:
-        self.__update_surface()
-        return super().y
-
-    @y.setter
-    def y(self, y: float) -> None:
-        self.__update_surface()
-        ThemedDrawable.y.fset(self, y)  # type: ignore[attr-defined]
+        self.config(shadow_x=pos[0], shadow_y=pos[1])
 
 
 class TextImage(Text):
@@ -331,6 +249,18 @@ class TextImage(Text):
         BOTTOM = "bottom"
         CENTER = "center"
 
+    config = Configuration("img", "compound", "distance", parent=Text.config)
+
+    img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
+    compound: ConfigAttribute[str] = ConfigAttribute()
+    distance: ConfigAttribute[float] = ConfigAttribute()
+
+    config.validator("compound", Compound, convert=True)
+    config.validator("distance", no_object(valid_float(min_value=0)))
+
+    config.getter("compound", no_object(lambda cmp: str(cmp.value)))
+
+    @initializer
     def __init__(
         self,
         message: str = "",
@@ -364,12 +294,13 @@ class TextImage(Text):
             shadow_color=shadow_color,
             theme=NoTheme,
         )
-        self.__img: Optional[Image] = _BoundImage(self, img) if img is not None else None
+        self.__img: Optional[Image]
+        self.__compound: TextImage.Compound
         self.__img_angle: float = 0
         self.__img_scale: float = 1
-        self.__compound: TextImage.Compound = TextImage.Compound(compound)
-        self.__distance: float = float(distance)
-        self._need_update()
+        self.img = img
+        self.compound = compound
+        self.distance = distance
 
     def copy(self) -> TextImage:
         t: TextImage = TextImage(
@@ -468,7 +399,7 @@ class TextImage(Text):
             return self.__img.to_surface()
 
         text_rect: Rect = text.get_rect()
-        offset: float = self.__distance
+        offset: float = self.distance
         render_width: float
         render_height: float
         if self.__compound in [TextImage.Compound.LEFT, TextImage.Compound.RIGHT]:
@@ -503,48 +434,25 @@ class TextImage(Text):
 
         return render
 
-    @property
-    def img(self) -> Optional[Surface]:
-        if self.__img is None:
+    @config.getter("img")
+    @staticmethod
+    def __get_img_surface(img: Optional[_BoundImage]) -> Optional[Surface]:
+        if img is None:
             return None
-        return self.__img.get()
+        return img.get()
 
-    @img.setter
-    def img(self, surface: Optional[Surface]) -> None:
+    @config.validator("img")
+    def __convert_surface(self, surface: Optional[Surface]) -> Optional[_BoundImage]:
         if surface is None:
-            if self.__img is None:
-                return
-            self.__img = None
-            self._need_update()
+            return None
+        return _BoundImage(self, surface)
+
+    @config.updater_no_name("img")
+    def __update_img(self, img: Optional[_BoundImage]) -> None:
+        if img is None:
             return
-        if self.__img is None:
-            self.__img = _BoundImage(self, surface)
-            self.__img.set_scale(self.__img_scale)
-            self.__img.set_rotation(self.__img_angle)
-        else:
-            self.__img.set(surface)
-        self._need_update()
-
-    @property
-    def compound(self) -> str:
-        return str(self.__compound.value)
-
-    @compound.setter
-    def compound(self, compound: str) -> None:
-        compound = TextImage.Compound(compound)
-        if compound != self.__compound:
-            self.__compound = compound
-            self._need_update()
-
-    @property
-    def distance(self) -> float:
-        return self.__distance
-
-    @distance.setter
-    def distance(self, distance: float) -> None:
-        if float(distance) != self.__distance:
-            self.__distance = distance
-            self._need_update()
+        img.set_scale(self.__img_scale)
+        img.set_rotation(self.__img_angle)
 
 
 class _BoundImage(Image):
@@ -557,8 +465,9 @@ class _BoundImage(Image):
 
     def _apply_rotation_scale(self) -> None:
         super()._apply_rotation_scale()
-        self.__text._need_update()
+        self.__text.config.update(call_value_updaters=False)
 
     def set(self, image: Surface) -> None:
-        super().set(image)
-        self.__text._need_update()
+        with self.__text.config.initialization():
+            super().set(image)
+            self.__text.config.update()
