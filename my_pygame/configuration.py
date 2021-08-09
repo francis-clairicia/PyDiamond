@@ -1,6 +1,7 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
+from functools import wraps
 from typing import (
     Any,
     Callable,
@@ -55,6 +56,7 @@ def _make_function_wrapper(func: Any, *, internal: bool = False, check_override:
 
     if not internal:
 
+        @wraps(func)
         def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
             try:
                 _func = getattr(func, "__get__")(self, type(self))
@@ -78,6 +80,7 @@ def _make_function_wrapper(func: Any, *, internal: bool = False, check_override:
 
     else:
 
+        @wraps(func)
         def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
             return func(*args, **kwargs)
 
@@ -85,37 +88,52 @@ def _make_function_wrapper(func: Any, *, internal: bool = False, check_override:
     return wrapper
 
 
+def _register_configuration(cls: type, config: Configuration) -> None:
+    setattr(cls, "____configuration____", config)
+
+
+def _retrieve_configuration(cls: type) -> Configuration:
+    try:
+        config: Configuration = getattr(cls, "____configuration____")
+        if not isinstance(config, Configuration):
+            raise AttributeError
+    except AttributeError:
+        raise TypeError(f"{cls.__name__} does not have a {Configuration.__name__} object") from None
+    return config
+
+
 class _ConfigInitializer:
     class config_initializer_method:
-        def __init__(self, func: Callable[..., Any]) -> None:
-            self.__func__: Callable[..., Any] = func
+        def __init__(self, func: Callable[..., Any], obj: object, cls: Optional[type], config: Configuration) -> None:
+            self.__func__: Callable[..., Any] = _make_function_wrapper(func, check_override=False)
+            self.__self__: object = obj
+            self.__type: Optional[type] = cls
+            self.__config: Callable[[object, Optional[type]], _BoundConfiguration] = config.__get__
 
         def __repr__(self) -> str:
             return f"<{type(self).__name__} object at {id(self):#x}>"
 
         def __call__(self, *args: Any, **kwargs: Any) -> Any:
             func: Callable[..., Any] = self.__func__
-            return func(*args, **kwargs)
+            obj: object = self.__self__
+            cls: Optional[type] = self.__type
+            bound_config: _BoundConfiguration = self.__config(obj, cls)
+            with bound_config.initialization():
+                return func(obj, *args, **kwargs)
 
     def __init__(self, func: Callable[..., Any]) -> None:
         self.__func__: Callable[..., Any] = func
 
-    def __repr__(self) -> str:
-        return self.__func__.__repr__()
-
     def __get__(self, obj: object, objtype: Optional[type] = None) -> Callable[..., Any]:
         func: Callable[..., Any] = self.__func__
         if obj is None:
-            return func
+            try:
+                return getattr(func, "__get__")(None, objtype)
+            except (AttributeError, TypeError):
+                return func
         cls: type = objtype if objtype is not None else type(obj)
-        config: Configuration = Configuration.find_in_class(cls)
-
-        def method(*args: Any, **kwargs: Any) -> Any:
-            bound_config: _BoundConfiguration = config.__get__(obj, objtype)
-            with bound_config.initialization():
-                return func(obj, *args, **kwargs)
-
-        return self.config_initializer_method(method)
+        config: Configuration = _retrieve_configuration(cls)
+        return self.config_initializer_method(func, obj, objtype, config)
 
 
 def initializer(func: _Func) -> _Func:
@@ -185,14 +203,12 @@ class Configuration:
         self.__infos: Configuration.Infos = infos
         self.__no_parent_ownership: Set[str] = set()
         self.__bound_class: Optional[type] = None
-        self.__name: str = str()
 
     def __set_name__(self, owner: type, name: str) -> None:
         infos: Configuration.Infos = self.__infos
         if infos.owner is None:
             infos.owner = owner
         self.__bound_class = owner
-        self.__name = name
         attribute_class_owner: Dict[str, type] = infos.attribute_class_owner
         no_parent_ownership: Set[str] = self.__no_parent_ownership
         for option in infos.options:
@@ -203,16 +219,10 @@ class Configuration:
         for obj in vars(owner).values():
             if isinstance(obj, Configuration) and obj is not self:
                 raise TypeError(f"A class can't have several {Configuration.__name__!r} objects")
+        _register_configuration(owner, self)
 
     def known_options(self) -> FrozenSet[str]:
         return self.__infos.options
-
-    @staticmethod
-    def find_in_class(cls: type) -> Configuration:
-        for attr in vars(cls).values():
-            if isinstance(attr, Configuration):
-                return attr
-        raise TypeError(f"{cls.__name__} does not have a {Configuration.__name__} object")
 
     @overload
     def set_autocopy(self, autocopy: bool, /) -> None:
@@ -468,7 +478,7 @@ class ConfigAttribute(Generic[_T]):
         if not name:
             raise ValueError("No name was given. Use __set_name__ method.")
         cls: type = objtype if objtype is not None else type(obj)
-        config: _BoundConfiguration = Configuration.find_in_class(cls).__get__(obj, objtype)
+        config: _BoundConfiguration = _retrieve_configuration(cls).__get__(obj, objtype)
         try:
             value: _T = config.get(name)
         except OptionError as e:
@@ -479,14 +489,14 @@ class ConfigAttribute(Generic[_T]):
         name: str = self.__name
         if not name:
             raise ValueError("No name was given. Use __set_name__ method.")
-        config: _BoundConfiguration = Configuration.find_in_class(type(obj)).__get__(obj)
+        config: _BoundConfiguration = _retrieve_configuration(type(obj)).__get__(obj)
         config.set(name, value)
 
     def __delete__(self, obj: object) -> None:
         name: str = self.__name
         if not name:
             raise ValueError("No name was given. Use __set_name__ method.")
-        config: _BoundConfiguration = Configuration.find_in_class(type(obj)).__get__(obj)
+        config: _BoundConfiguration = _retrieve_configuration(type(obj)).__get__(obj)
         try:
             config.remove(name)
         except OptionError as e:
