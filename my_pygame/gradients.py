@@ -9,7 +9,8 @@ from pygame.surface import Surface
 
 from .shape import AbstractCircleShape, AbstractShape, AbstractRectangleShape
 from .surface import create_surface
-from .colors import BLACK
+from .configuration import ConfigAttribute, Configuration, initializer, no_object
+from .utils import valid_float
 
 from ._gradients import (  # type: ignore[attr-defined]
     horizontal as _gradient_horizontal,
@@ -20,36 +21,25 @@ from ._gradients import (  # type: ignore[attr-defined]
 
 
 class GradientShape(AbstractShape):
+    config = Configuration("first_color", "second_color", parent=AbstractShape.config)
+
+    first_color: ConfigAttribute[Color] = ConfigAttribute()
+    second_color: ConfigAttribute[Color] = ConfigAttribute()
+
+    config.validator("first_color", Color)
+    config.validator("second_color", Color)
+
+    @initializer
     def __init__(self, first_color: Color, second_color: Color) -> None:
         super().__init__()
-        self.__first_color: Color = Color(BLACK)
-        self.__second_color: Color = Color(BLACK)
         self.first_color = first_color
         self.second_color = second_color
-        self._need_update()
-
-    @property
-    def first_color(self) -> Color:
-        return self.__first_color
-
-    @first_color.setter
-    def first_color(self, color: Color) -> None:
-        if self.__first_color != color:
-            self.__first_color = Color(color)
-            self._need_update()
-
-    @property
-    def second_color(self) -> Color:
-        return self.__second_color
-
-    @second_color.setter
-    def second_color(self, color: Color) -> None:
-        if self.__second_color != color:
-            self.__second_color = Color(color)
-            self._need_update()
 
 
 class _AbstractRectangleGradientShape(AbstractRectangleShape, GradientShape):
+    config = Configuration(parent=[AbstractRectangleShape.config, GradientShape.config])
+
+    @initializer
     def __init__(self, width: float, height: float, first_color: Color, second_color: Color) -> None:
         AbstractRectangleShape.__init__(self, width, height)
         GradientShape.__init__(self, first_color, second_color)
@@ -61,7 +51,7 @@ class HorizontalGradientShape(_AbstractRectangleGradientShape):
 
     def _make(self) -> Surface:
         size: Tuple[int, int] = (int(self.local_width), int(self.local_height))
-        if size[0] < 1 or size[1] < 1:
+        if size[0] == 0 or size[1] == 0:
             return create_surface(size)
         return _gradient_horizontal(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore
 
@@ -72,24 +62,28 @@ class VerticalGradientShape(_AbstractRectangleGradientShape):
 
     def _make(self) -> Surface:
         size: Tuple[int, int] = (int(self.local_width), int(self.local_height))
-        if size[0] < 1 or size[1] < 1:
+        if size[0] == 0 or size[1] == 0:
             return create_surface(size)
         return _gradient_vertical(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore
 
 
 class SquaredGradientShape(GradientShape):
+    config = Configuration("local_width", parent=GradientShape.config)
+
+    local_width: ConfigAttribute[float] = ConfigAttribute()
+    config.validator("local_width", no_object(valid_float(min_value=0)))
+
+    @initializer
     def __init__(self, width: float, first_color: Color, second_color: Color) -> None:
         super().__init__(first_color, second_color)
-        self.__w: float = 0
         self.local_width = width
-        self._need_update()
 
     def copy(self) -> SquaredGradientShape:
         return SquaredGradientShape(self.local_width, self.first_color, self.second_color)
 
     def _make(self) -> Surface:
         size: int = int(self.local_width)
-        if size < 1:
+        if size == 0:
             return create_surface((0, 0))
         return _gradient_squared(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore
 
@@ -97,19 +91,11 @@ class SquaredGradientShape(GradientShape):
         w = h = self.local_width
         return [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
 
-    @property
-    def local_width(self) -> float:
-        return self.__w
-
-    @local_width.setter
-    def local_width(self, width: float) -> None:
-        width = max(width, 0)
-        if width != self.__w:
-            self.__w = width
-            self._need_update()
-
 
 class RadialGradientShape(AbstractCircleShape, GradientShape):
+    config = Configuration(parent=[AbstractCircleShape.config, GradientShape.config])
+
+    @initializer
     def __init__(self, radius: float, first_color: Color, second_color: Color) -> None:
         AbstractCircleShape.__init__(self, radius)
         GradientShape.__init__(self, first_color, second_color)
@@ -119,6 +105,6 @@ class RadialGradientShape(AbstractCircleShape, GradientShape):
 
     def _make(self) -> Surface:
         radius: int = int(self.radius)
-        if radius < 1:
+        if radius == 0:
             return create_surface((0, 0))
         return _gradient_radial(radius, tuple(self.first_color), tuple(self.second_color))  # type: ignore

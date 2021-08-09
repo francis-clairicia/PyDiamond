@@ -188,7 +188,6 @@ class GradientScene(Scene):
 
 class Rainbow(AbstractRectangleShape):
     def __init__(self, width: float, height: float) -> None:
-        super().__init__(width, height)
         self.__colors: List[HorizontalGradientShape] = [
             HorizontalGradientShape(0, 0, RED, ORANGE),
             HorizontalGradientShape(0, 0, ORANGE, YELLOW),
@@ -199,6 +198,7 @@ class Rainbow(AbstractRectangleShape):
             HorizontalGradientShape(0, 0, MAGENTA, PURPLE),
             HorizontalGradientShape(0, 0, PURPLE, RED),
         ]
+        super().__init__(width, height)
 
     def copy(self) -> Rainbow:
         return Rainbow(self.local_width, self.local_height)
@@ -221,7 +221,6 @@ class RainbowScene(MainScene):
         self.rainbow = Rainbow(*window.size)
 
     def on_start_loop(self) -> None:
-        self.rainbow.center = self.window.center
         self.window.text_framerate.color = BLACK
 
     def on_quit(self) -> None:

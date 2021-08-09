@@ -28,6 +28,7 @@ _T = TypeVar("_T")
 _Func = TypeVar("_Func", bound=Callable[..., Any])
 _Updater = TypeVar("_Updater", bound=Union[Callable[[Any], None], Callable[[], None]])
 _ValueUpdater = TypeVar("_ValueUpdater", bound=Union[Callable[[Any, str, Any], None], Callable[[str, Any], None]])
+_NoNameValueUpdater = TypeVar("_NoNameValueUpdater", bound=Union[Callable[[Any, Any], Any], Callable[[Any], Any]])
 _ValueValidator = TypeVar("_ValueValidator", bound=Union[Callable[[Any, Any], Any], Callable[[Any], Any]])
 
 
@@ -50,11 +51,13 @@ class EmptyOptionNameError(OptionError):
         super().__init__("Empty string option given")
 
 
-def _make_function_wrapper(func: Any, *, internal: bool = False, check_override: bool = True) -> Callable[..., Any]:
+def _make_function_wrapper(func: Any, *, already_wrapper: bool = False, check_override: bool = True) -> Callable[..., Any]:
     if getattr(func, "__boundconfiguration_wrapper__", False) and callable(func):
         return cast(Callable[..., Any], func)
 
-    if not internal:
+    if already_wrapper:
+        wrapper: Callable[..., Any] = func
+    elif not getattr(func, "__no_object__", False):
 
         @wraps(func)
         def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
@@ -141,6 +144,11 @@ def initializer(func: _Func) -> _Func:
     return cast(_Func, _ConfigInitializer(func))
 
 
+def no_object(func: _Func) -> _Func:
+    setattr(func, "__no_object__", True)
+    return func
+
+
 class Configuration:
     class Infos:
         def __init__(self, known_options: Sequence[str], autocopy: bool) -> None:
@@ -157,31 +165,28 @@ class Configuration:
     __references: Dict[object, _BoundConfiguration] = dict()
 
     @overload
-    def __init__(self, *, autocopy: bool = False) -> None:
-        ...
-
-    @overload
-    def __init__(self, *, autocopy: bool = False, parent: Union[Configuration, Sequence[Configuration]]) -> None:
-        ...
-
-    @overload
     def __init__(self, *known_options: str, autocopy: bool = False) -> None:
         ...
 
     @overload
-    def __init__(
-        self, *known_options: str, autocopy: bool = False, parent: Union[Configuration, Sequence[Configuration]]
-    ) -> None:
+    def __init__(self, *known_options: str, parent: Union[Configuration, Sequence[Configuration]]) -> None:
+        ...
+
+    @overload
+    def __init__(self, *known_options: str, autocopy: bool, parent: Union[Configuration, Sequence[Configuration]]) -> None:
         ...
 
     def __init__(
-        self, *known_options: str, autocopy: bool = False, parent: Union[Configuration, Sequence[Configuration], None] = None
+        self,
+        *known_options: str,
+        autocopy: Optional[bool] = None,
+        parent: Union[Configuration, Sequence[Configuration], None] = None,
     ) -> None:
         if any(not option for option in known_options):
             raise ValueError("Configuration option must not be empty")
         infos: Configuration.Infos
         if parent is None:
-            infos = Configuration.Infos(known_options, autocopy)
+            infos = Configuration.Infos(known_options, bool(autocopy))
         else:
             main_parent: Configuration
             if isinstance(parent, Configuration):
@@ -200,6 +205,8 @@ class Configuration:
                 infos.value_autocopy_get = parent_infos.value_autocopy_get | infos.value_autocopy_get
                 infos.value_autocopy_set = parent_infos.value_autocopy_set | infos.value_autocopy_set
                 infos.attribute_class_owner = parent_infos.attribute_class_owner | infos.attribute_class_owner
+            if autocopy is not None:
+                infos.autocopy = autocopy
 
         self.__infos: Configuration.Infos = infos
         self.__no_parent_ownership: Set[str] = set()
@@ -374,6 +381,37 @@ class Configuration:
         self.__infos.update = _make_function_wrapper(arg) if arg is not None else None
         return arg
 
+    @overload
+    def updater_no_name(self, option: str, /) -> Callable[[_NoNameValueUpdater], _NoNameValueUpdater]:
+        ...
+
+    @overload
+    def updater_no_name(self, option: str, func: _NoNameValueUpdater, /) -> _NoNameValueUpdater:
+        ...
+
+    def updater_no_name(
+        self, option: str, func: Optional[_NoNameValueUpdater] = None, /
+    ) -> Union[_NoNameValueUpdater, Callable[[_NoNameValueUpdater], _NoNameValueUpdater]]:
+        options: FrozenSet[str] = self.__infos.options
+        if not option:
+            raise EmptyOptionNameError()
+        if options and option not in options:
+            raise OptionError(option)
+
+        def decorator(func: _NoNameValueUpdater) -> _NoNameValueUpdater:
+            _func = _make_function_wrapper(func)
+
+            @wraps(func)
+            def wrapper(self: object, /, name: str, value: Any) -> Any:
+                return _func(self, value)
+
+            self.updater(option, _make_function_wrapper(wrapper, already_wrapper=True))
+            return func
+
+        if func is None:
+            return decorator
+        return decorator(func)
+
     def get_validator(self, option: str) -> Optional[Callable[[object, Any], Any]]:
         options: FrozenSet[str] = self.__infos.options
         if not option:
@@ -432,6 +470,7 @@ class Configuration:
                 if len(_type) == 1:
                     _type = _type[0]
 
+            @no_object
             def type_checker(val: Any) -> Any:
                 if not isinstance(val, _type):
                     expected: str
@@ -442,17 +481,53 @@ class Configuration:
                     raise TypeError(f"Invalid value type. expected {expected}, got {type(val).__qualname__!r}")
                 return val
 
-            self.__infos.value_validator[option] = _make_function_wrapper(type_checker, internal=True)
+            self.__infos.value_validator[option] = _make_function_wrapper(type_checker)
         elif isinstance(func, type) and convert:
             _value_type: type = func
 
+            @no_object
             def value_convert(val: Any) -> Any:
                 return _value_type(val)
 
-            self.__infos.value_validator[option] = _make_function_wrapper(value_convert, internal=True)
+            self.__infos.value_validator[option] = _make_function_wrapper(value_convert)
         else:
             self.__infos.value_validator[option] = _make_function_wrapper(func)
         return func
+
+
+class ConfigTemplate(Configuration):
+    @overload
+    def __init__(self, *, autocopy: bool = False) -> None:
+        ...
+
+    @overload
+    def __init__(self, *, parent: Union[Configuration, Sequence[Configuration]]) -> None:
+        ...
+
+    @overload
+    def __init__(self, *, autocopy: bool, parent: Union[Configuration, Sequence[Configuration]]) -> None:
+        ...
+
+    def __init__(
+        self,
+        *,
+        autocopy: Optional[bool] = None,
+        parent: Union[Configuration, Sequence[Configuration], None] = None,
+    ) -> None:
+        super().__init__(autocopy=autocopy, parent=parent)  # type: ignore[arg-type]
+
+    @overload
+    def __get__(self, obj: None, objtype: Optional[type] = None) -> ConfigTemplate:
+        ...
+
+    @overload
+    def __get__(self, obj: object, objtype: Optional[type] = None) -> _BoundConfiguration:
+        ...
+
+    def __get__(self, obj: object, objtype: Optional[type] = None) -> Union[ConfigTemplate, _BoundConfiguration]:
+        if obj is None:
+            return self
+        raise TypeError("Cannot use configuration template as descriptor")
 
 
 class ConfigAttribute(Generic[_T]):
@@ -676,6 +751,12 @@ class _BoundConfiguration:
                 update_register.pop(option, None)
             if self.__update_call and callable(update):
                 update(obj)
+
+    def update(self) -> None:
+        obj: object = self.__obj
+        update: Optional[Callable[[object], None]] = self.__infos.update
+        if self.__update_call and callable(update):
+            update(obj)
 
     def __call__(self, *, __copy: Optional[Union[bool, Dict[str, bool]]] = None, **kwargs: Any) -> None:
         if not kwargs:

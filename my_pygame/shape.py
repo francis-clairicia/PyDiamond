@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from abc import abstractmethod
-from typing import Dict, List, Optional, Tuple, Union, final
+from typing import Dict, List, Optional, Tuple, Union
 from math import sin, tan, radians
 from enum import Enum, unique
 
@@ -17,46 +17,42 @@ from .drawable import Drawable, ThemedDrawable
 from .theme import NoTheme, ThemeType, abstract_theme_class
 from .colors import BLACK
 from .surface import create_surface
+from .configuration import ConfigAttribute, ConfigTemplate, Configuration, initializer, no_object
+from .utils import valid_float, valid_integer
 
 
 class AbstractShape(Drawable):
+    config: Configuration = ConfigTemplate(autocopy=True)
+
     def __init__(self) -> None:
         super().__init__()
-        self.__update: bool = True
         self.__image: Surface = create_surface((0, 0))
         self.__shape_image: Surface = self.__image.copy()
         self.__local_size: Tuple[float, float] = (0, 0)
         self.__size: Tuple[float, float] = (0, 0)
-        self._need_update()
 
-    def _need_update(self) -> None:
-        self.__update = True
-
+    @config.updater
     def __update_shape(self) -> None:
-        if self.__update:
-            self.__update = False
+        if self.config.has_initialization_context():
+            self.__shape_image = self._make()
+            self._apply_rotation_scale()
+        else:
             center: Tuple[float, float] = self.center
             self.__shape_image = self._make()
             self._apply_rotation_scale()
             self.center = center
 
     def to_surface(self) -> Surface:
-        self.__update_shape()
         return self.__image.copy()
 
     def draw_onto(self, surface: Surface) -> None:
-        self.__update_shape()
         image: Surface = self.__image
         surface.blit(image, image.get_rect(center=self.center))
 
-    @final
     def get_local_size(self) -> Tuple[float, float]:
-        self.__update_shape()
         return self.__local_size
 
-    @final
     def get_size(self) -> Tuple[float, float]:
-        self.__update_shape()
         return self.__size
 
     def _apply_rotation_scale(self) -> None:
@@ -131,43 +127,17 @@ class AbstractShape(Drawable):
 
         return vertices
 
-    @property
-    def x(self) -> float:
-        self.__update_shape()
-        return super().x
-
-    @x.setter
-    def x(self, x: float) -> None:
-        self.__update_shape()
-        Drawable.x.fset(self, x)  # type: ignore[attr-defined]
-
-    @property
-    def y(self) -> float:
-        self.__update_shape()
-        return super().y
-
-    @y.setter
-    def y(self, y: float) -> None:
-        self.__update_shape()
-        Drawable.y.fset(self, y)  # type: ignore[attr-defined]
-
 
 class Shape(AbstractShape):
+    config = Configuration("color", parent=AbstractShape.config)
+
+    color: ConfigAttribute[Color] = ConfigAttribute()
+    config.validator("color", Color)
+
+    @initializer
     def __init__(self, color: Color) -> None:
         super().__init__()
-        self.__color: Color = BLACK
         self.color = color
-        self._need_update()
-
-    @property
-    def color(self) -> Color:
-        return Color(self.__color)
-
-    @color.setter
-    def color(self, value: Color) -> None:
-        if self.__color != value:
-            self.__color = Color(value)
-            self._need_update()
 
 
 @abstract_theme_class
@@ -176,39 +146,30 @@ class ThemedShape(AbstractShape, ThemedDrawable):
 
 
 class OutlinedShape(Shape):
+    config = Configuration("outline", "outline_color", parent=Shape.config)
+
+    outline: ConfigAttribute[int] = ConfigAttribute()
+    config.validator("outline", no_object(valid_integer(min_value=0)))
+
+    outline_color: ConfigAttribute[Color] = ConfigAttribute()
+    config.validator("outline_color", Color)
+
+    @initializer
     def __init__(self, color: Color, outline: int, outline_color: Color) -> None:
         super().__init__(color)
-        self.__outline: int = 0
-        self.__outline_color: Color = BLACK
         self.outline = outline
         self.outline_color = outline_color
-        self._need_update()
-
-    @property
-    def outline(self) -> int:
-        return self.__outline
-
-    @outline.setter
-    def outline(self, value: int) -> None:
-        value = max(int(value), 0)
-        if self.__outline != value:
-            self.__outline = value
-            self._need_update()
-
-    @property
-    def outline_color(self) -> Color:
-        return Color(self.__outline_color)
-
-    @outline_color.setter
-    def outline_color(self, value: Color) -> None:
-        if self.__outline_color != value:
-            self.__outline_color = Color(value)
-            self._need_update()
 
 
 class PolygonShape(OutlinedShape, ThemedShape):
     PointList = Union[List[Vector2], List[Tuple[float, float]], List[Tuple[int, int]]]
 
+    config = Configuration("points", parent=OutlinedShape.config)
+
+    points: ConfigAttribute[List[Vector2]] = ConfigAttribute()
+    config.set_autocopy("points", copy_on_set=False)
+
+    @initializer
     def __init__(
         self,
         color: Color,
@@ -219,20 +180,16 @@ class PolygonShape(OutlinedShape, ThemedShape):
         theme: Optional[ThemeType] = None,
     ) -> None:
         super().__init__(color, outline, outline_color)
-        self.__points: List[Vector2] = []
         self.__center: Vector2 = Vector2(0, 0)
         self.__size: Tuple[float, float] = (0, 0)
-        self.set_points(points)
-        self._need_update()
+        self.points = points
 
     def copy(self) -> PolygonShape:
-        return PolygonShape(
-            self.color, outline=self.outline, outline_color=self.outline_color, points=self.__points, theme=NoTheme
-        )
+        return PolygonShape(self.color, outline=self.outline, outline_color=self.outline_color, points=self.points, theme=NoTheme)
 
     def _make(self) -> Surface:
         outline: int = self.outline
-        all_points: List[Vector2] = self.__points
+        all_points: List[Vector2] = self.points
 
         if len(all_points) < 2:
             return create_surface((0, 0))
@@ -258,42 +215,47 @@ class PolygonShape(OutlinedShape, ThemedShape):
         return image
 
     def get_local_vertices(self) -> List[Vector2]:
-        return self.get_points()
+        return self.points
 
-    def get_points(self) -> List[Vector2]:
-        return [Vector2(p) for p in self.__points]
-
-    def set_points(self, points: PointList) -> None:
+    @config.validator("points")
+    @staticmethod
+    def __valid_points(points: PointList) -> List[Vector2]:
         points = [Vector2(p) for p in points]
         left: float = min((point.x for point in points), default=0)
         top: float = min((point.y for point in points), default=0)
         for p in points:
             p.x -= left
             p.y -= top
+        return points
 
-        if len(points) == len(self.__points) and all(p1 == p2 for p1, p2 in zip(points, self.__points)):
-            return
-
-        left = 0
-        top = 0
+    @config.updater_no_name("points")
+    def __on_update_points(self, points: List[Vector2]) -> None:
+        left: float = 0
+        top: float = 0
         right: float = max((point.x for point in points), default=0)
         bottom: float = max((point.y for point in points), default=0)
         w: float = right - left
         h: float = bottom - top
 
-        self.__points = points
         self.__center = Vector2(left + w / 2, top + h / 2)
         self.__size = (w, h)
-        self._need_update()
+
+    def set_points(self, points: PointList) -> None:
+        self.config.set("points", points)
 
 
 class AbstractRectangleShape(AbstractShape):
+    config = Configuration("local_width", "local_height", parent=AbstractShape.config)
+
+    local_width: ConfigAttribute[float] = ConfigAttribute()
+    local_height: ConfigAttribute[float] = ConfigAttribute()
+    config.validator("local_width", no_object(valid_float(min_value=0)))
+    config.validator("local_height", no_object(valid_float(min_value=0)))
+
+    @initializer
     def __init__(self, width: float, height: float) -> None:
         AbstractShape.__init__(self)
-        self.__w: float = 0
-        self.__h: float = 0
         self.local_size = width, height
-        self._need_update()
 
     def get_local_vertices(self) -> List[Vector2]:
         w, h = self.local_size
@@ -305,32 +267,31 @@ class AbstractRectangleShape(AbstractShape):
 
     @local_size.setter
     def local_size(self, size: Tuple[float, float]) -> None:
-        self.local_width, self.local_height = size
-
-    @property
-    def local_width(self) -> float:
-        return self.__w
-
-    @local_width.setter
-    def local_width(self, width: float) -> None:
-        width = max(width, 0)
-        if width != self.__w:
-            self.__w = width
-            self._need_update()
-
-    @property
-    def local_height(self) -> float:
-        return self.__h
-
-    @local_height.setter
-    def local_height(self, height: float) -> None:
-        height = max(height, 0)
-        if height != self.__h:
-            self.__h = height
-            self._need_update()
+        self.config(local_width=size[0], local_height=size[1])
 
 
 class RectangleShape(AbstractRectangleShape, OutlinedShape, ThemedShape):
+    config = Configuration(
+        "border_radius",
+        "border_top_left_radius",
+        "border_top_right_radius",
+        "border_bottom_left_radius",
+        "border_bottom_right_radius",
+        parent=[AbstractRectangleShape.config, OutlinedShape.config],
+    )
+    border_radius: ConfigAttribute[int] = ConfigAttribute()
+    border_top_left_radius: ConfigAttribute[int] = ConfigAttribute()
+    border_top_right_radius: ConfigAttribute[int] = ConfigAttribute()
+    border_bottom_left_radius: ConfigAttribute[int] = ConfigAttribute()
+    border_bottom_right_radius: ConfigAttribute[int] = ConfigAttribute()
+
+    config.validator("border_radius", no_object(valid_integer(min_value=-1)))
+    config.validator("border_top_left_radius", no_object(valid_integer(min_value=-1)))
+    config.validator("border_top_right_radius", no_object(valid_integer(min_value=-1)))
+    config.validator("border_bottom_left_radius", no_object(valid_integer(min_value=-1)))
+    config.validator("border_bottom_right_radius", no_object(valid_integer(min_value=-1)))
+
+    @initializer
     def __init__(
         self,
         width: float,
@@ -348,24 +309,17 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, ThemedShape):
     ) -> None:
         AbstractRectangleShape.__init__(self, width, height)
         OutlinedShape.__init__(self, color, outline, outline_color)
-        self.__draw_params: Dict[str, int] = {
-            "border_radius": -1,
-            "border_top_left_radius": -1,
-            "border_top_right_radius": -1,
-            "border_bottom_left_radius": -1,
-            "border_bottom_right_radius": -1,
-        }
+        self.__draw_params: Dict[str, int] = dict()
         self.border_radius = border_radius
         self.border_top_left_radius = border_top_left_radius
         self.border_top_right_radius = border_top_right_radius
         self.border_bottom_left_radius = border_bottom_left_radius
         self.border_bottom_right_radius = border_bottom_right_radius
-        self._need_update()
 
     def copy(self) -> RectangleShape:
         return RectangleShape(
-            self.__w,
-            self.__h,
+            self.local_width,
+            self.local_height,
             self.color,
             outline=self.outline,
             outline_color=self.outline_color,
@@ -388,79 +342,53 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, ThemedShape):
             pygame.draw.rect(image, self.outline_color, rect, width=outline, **draw_params)
         return image
 
-    @property
-    def border_radius(self) -> int:
-        return self.__draw_params["border_radius"]
-
-    @border_radius.setter
-    def border_radius(self, radius: int) -> None:
-        self.__set_border_radius("border_radius", radius)
-
-    @property
-    def border_top_left_radius(self) -> int:
-        return self.__draw_params["border_top_left_radius"]
-
-    @border_top_left_radius.setter
-    def border_top_left_radius(self, radius: int) -> None:
-        self.__set_border_radius("border_top_left_radius", radius)
-
-    @property
-    def border_top_right_radius(self) -> int:
-        return self.__draw_params["border_top_right_radius"]
-
-    @border_top_right_radius.setter
-    def border_top_right_radius(self, radius: int) -> None:
-        self.__set_border_radius("border_top_right_radius", radius)
-
-    @property
-    def border_bottom_left_radius(self) -> int:
-        return self.__draw_params["border_bottom_left_radius"]
-
-    @border_bottom_left_radius.setter
-    def border_bottom_left_radius(self, radius: int) -> None:
-        self.__set_border_radius("border_bottom_left_radius", radius)
-
-    @property
-    def border_bottom_right_radius(self) -> int:
-        return self.__draw_params["border_bottom_right_radius"]
-
-    @border_bottom_right_radius.setter
-    def border_bottom_right_radius(self, radius: int) -> None:
-        self.__set_border_radius("border_bottom_right_radius", radius)
-
+    @config.updater("border_radius")
+    @config.updater("border_top_left_radius")
+    @config.updater("border_top_right_radius")
+    @config.updater("border_bottom_left_radius")
+    @config.updater("border_bottom_right_radius")
     def __set_border_radius(self, border: str, radius: int) -> None:
-        radius = max(int(radius), -1)
-        if self.__draw_params[border] != radius:
-            self.__draw_params[border] = radius
-            self._need_update()
+        self.__draw_params[border] = radius
 
 
 class AbstractCircleShape(AbstractShape):
+    config = Configuration("radius", parent=AbstractShape.config)
+
+    radius: ConfigAttribute[float] = ConfigAttribute()
+    config.validator("radius", valid_float(min_value=0))
+
+    @initializer
     def __init__(self, radius: float) -> None:
         AbstractShape.__init__(self)
-        self.__radius: float = 0
         self.radius = radius
-        self._need_update()
 
     def get_local_vertices(self) -> List[Vector2]:
-        r: float = self.__radius
+        r: float = self.radius
         center: Vector2 = Vector2(r, r)
         radius: Vector2 = Vector2(r, 0)
         return [center + radius.rotate(-i) for i in range(360)]
 
-    @property
-    def radius(self) -> float:
-        return self.__radius
-
-    @radius.setter
-    def radius(self, radius: float) -> None:
-        radius = max(radius, 0)
-        if radius != self.__radius:
-            self.__radius = radius
-            self._need_update()
-
 
 class CircleShape(AbstractCircleShape, OutlinedShape, ThemedShape):
+    config = Configuration(
+        "draw_top_left",
+        "draw_top_right",
+        "draw_bottom_left",
+        "draw_bottom_right",
+        parent=[AbstractCircleShape.config, OutlinedShape.config],
+    )
+
+    draw_top_left: ConfigAttribute[bool] = ConfigAttribute()
+    draw_top_right: ConfigAttribute[bool] = ConfigAttribute()
+    draw_bottom_left: ConfigAttribute[bool] = ConfigAttribute()
+    draw_bottom_right: ConfigAttribute[bool] = ConfigAttribute()
+
+    config.validator("draw_top_left", bool, convert=True)
+    config.validator("draw_top_right", bool, convert=True)
+    config.validator("draw_bottom_left", bool, convert=True)
+    config.validator("draw_bottom_right", bool, convert=True)
+
+    @initializer
     def __init__(
         self,
         radius: float,
@@ -476,19 +404,13 @@ class CircleShape(AbstractCircleShape, OutlinedShape, ThemedShape):
     ) -> None:
         AbstractCircleShape.__init__(self, radius)
         OutlinedShape.__init__(self, color, outline, outline_color)
-        self.__draw_params: Dict[str, bool] = {
-            "draw_top_left": True,
-            "draw_top_right": True,
-            "draw_bottom_left": True,
-            "draw_bottom_right": True,
-        }
+        self.__draw_params: Dict[str, bool] = dict()
         self.__points: List[Vector2] = []
         self.radius = radius
         self.draw_top_left = draw_top_left
         self.draw_top_right = draw_top_right
         self.draw_bottom_left = draw_bottom_left
         self.draw_bottom_right = draw_bottom_right
-        self._need_update()
 
     def copy(self) -> CircleShape:
         return CircleShape(
@@ -539,43 +461,12 @@ class CircleShape(AbstractCircleShape, OutlinedShape, ThemedShape):
 
         return all_points
 
-    @property
-    def draw_top_left(self) -> int:
-        return self.__draw_params["draw_top_left"]
-
-    @draw_top_left.setter
-    def draw_top_left(self, status: bool) -> None:
-        self.__draw_arc("draw_top_left", status)
-
-    @property
-    def draw_top_right(self) -> int:
-        return self.__draw_params["draw_top_right"]
-
-    @draw_top_right.setter
-    def draw_top_right(self, status: bool) -> None:
-        self.__draw_arc("draw_top_right", status)
-
-    @property
-    def draw_bottom_left(self) -> int:
-        return self.__draw_params["draw_bottom_left"]
-
-    @draw_bottom_left.setter
-    def draw_bottom_left(self, status: bool) -> None:
-        self.__draw_arc("draw_bottom_left", status)
-
-    @property
-    def draw_bottom_right(self) -> int:
-        return self.__draw_params["draw_bottom_right"]
-
-    @draw_bottom_right.setter
-    def draw_bottom_right(self, status: bool) -> None:
-        self.__draw_arc("draw_bottom_right", status)
-
+    @config.updater("draw_top_left")
+    @config.updater("draw_top_right")
+    @config.updater("draw_bottom_left")
+    @config.updater("draw_bottom_right")
     def __draw_arc(self, side: str, status: bool) -> None:
-        status = bool(status)
-        if status is not self.__draw_params[side]:
-            self.__draw_params[side] = status
-            self._need_update()
+        self.__draw_params[side] = status
 
 
 class CrossShape(OutlinedShape, ThemedShape):
@@ -584,6 +475,17 @@ class CrossShape(OutlinedShape, ThemedShape):
         DIAGONAL = "diagonal"
         PLUS = "plus"
 
+    config = Configuration("local_width", "local_height", "line_width", parent=OutlinedShape.config)
+
+    local_width: ConfigAttribute[float] = ConfigAttribute()
+    local_height: ConfigAttribute[float] = ConfigAttribute()
+    line_width: ConfigAttribute[float] = ConfigAttribute()
+
+    config.validator("local_width", no_object(valid_float(min_value=0)))
+    config.validator("local_height", no_object(valid_float(min_value=0)))
+    config.validator("line_width", no_object(valid_float(min_value=0)))
+
+    @initializer
     def __init__(
         self,
         width: float,
@@ -597,19 +499,15 @@ class CrossShape(OutlinedShape, ThemedShape):
         theme: Optional[ThemeType] = None,
     ) -> None:
         super().__init__(color, outline, outline_color)
-        self.__w: float = 0
-        self.__h: float = 0
-        self.__line_width: float = 0
         self.__type: CrossShape.Type = CrossShape.Type(type)
         self.__points: List[Vector2] = []
         self.local_size = width, height
         self.line_width = line_width
-        self._need_update()
 
     def copy(self) -> CrossShape:
         return CrossShape(
-            self.__w,
-            self.__h,
+            self.local_width,
+            self.local_height,
             self.color,
             self.type,
             line_width=self.line_width,
@@ -707,17 +605,6 @@ class CrossShape(OutlinedShape, ThemedShape):
         ]
 
     @property
-    def line_width(self) -> float:
-        return self.__line_width
-
-    @line_width.setter
-    def line_width(self, width: float) -> None:
-        width = max(width, 0)
-        if self.__line_width != width:
-            self.__line_width = width
-            self._need_update()
-
-    @property
     def type(self) -> str:
         return str(self.__type.value)
 
@@ -727,29 +614,7 @@ class CrossShape(OutlinedShape, ThemedShape):
 
     @local_size.setter
     def local_size(self, size: Tuple[float, float]) -> None:
-        self.local_width, self.local_height = size
-
-    @property
-    def local_width(self) -> float:
-        return self.__w
-
-    @local_width.setter
-    def local_width(self, width: float) -> None:
-        width = max(width, 0)
-        if width != self.__w:
-            self.__w = width
-            self._need_update()
-
-    @property
-    def local_height(self) -> float:
-        return self.__h
-
-    @local_height.setter
-    def local_height(self, height: float) -> None:
-        height = max(height, 0)
-        if height != self.__h:
-            self.__h = height
-            self._need_update()
+        self.config(local_width=size[0], local_height=size[1])
 
 
 class DiagonalCrossShape(CrossShape):
