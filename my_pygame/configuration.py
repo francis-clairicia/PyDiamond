@@ -225,7 +225,11 @@ class Configuration:
             else:
                 attribute_class_owner[option] = attribute_class_owner.get(option, owner)
         for obj in vars(owner).values():
-            if isinstance(obj, Configuration) and obj is not self:
+            if isinstance(obj, ConfigAttribute) and infos.options:
+                attr_name: str = obj.name
+                if attr_name and attr_name not in infos.options:
+                    raise UnknownOptionError(attr_name)
+            elif isinstance(obj, Configuration) and obj is not self:
                 raise TypeError(f"A class can't have several {Configuration.__name__!r} objects")
         _register_configuration(owner, self)
 
@@ -538,6 +542,9 @@ class ConfigAttribute(Generic[_T]):
         if len(name) == 0:
             raise ValueError(f"Attribute name must not be empty")
         self.__name = name
+        config: Configuration = _retrieve_configuration(owner)
+        if name not in config.known_options():
+            raise UnknownOptionError(name)
 
     @overload
     def __get__(self, obj: None, objtype: Optional[type] = None) -> ConfigAttribute[_T]:
@@ -577,6 +584,10 @@ class ConfigAttribute(Generic[_T]):
             config.remove(name)
         except OptionError as e:
             raise AttributeError(str(e)) from None
+
+    @property
+    def name(self) -> str:
+        return self.__name
 
 
 class _BoundConfiguration:
@@ -752,10 +763,18 @@ class _BoundConfiguration:
             if self.__update_call and callable(update):
                 update(obj)
 
-    def update(self) -> None:
+    def update(self, call_value_updaters: bool = True) -> None:
         obj: object = self.__obj
-        update: Optional[Callable[[object], None]] = self.__infos.update
-        if self.__update_call and callable(update):
+        infos: Configuration.Infos = self.__infos
+        update: Optional[Callable[[object], None]] = infos.update
+        if call_value_updaters:
+            get_attribute: Callable[[str], str] = self.__get_attribute
+            for option, value_updater in infos.value_update.items():
+                try:
+                    value_updater(obj, option, getattr(obj, get_attribute(option)))
+                except AttributeError as exc:
+                    raise UnregisteredOptionError(option) from exc
+        if callable(update):
             update(obj)
 
     def __call__(self, *, __copy: Optional[Union[bool, Dict[str, bool]]] = None, **kwargs: Any) -> None:
