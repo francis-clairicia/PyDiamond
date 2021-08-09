@@ -44,7 +44,10 @@ class Configurable:
 
     @config.updater
     def _update(self) -> None:
-        print("Update object")
+        if self.config.has_initialization_context():
+            print("Init object")
+        else:
+            print("Update object")
 
 
 class SubConfigurable(Configurable):

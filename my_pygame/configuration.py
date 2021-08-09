@@ -128,9 +128,10 @@ class _ConfigInitializer:
         func: Callable[..., Any] = self.__func__
         if obj is None:
             try:
-                return getattr(func, "__get__")(None, objtype)
+                func = getattr(func, "__get__")(None, objtype)
             except (AttributeError, TypeError):
-                return func
+                pass
+            return func
         cls: type = objtype if objtype is not None else type(obj)
         config: Configuration = _retrieve_configuration(cls)
         return self.config_initializer_method(func, obj, objtype, config)
@@ -518,6 +519,7 @@ class _BoundConfiguration:
         self.__owner: Optional[type] = specific_owner
         self.__references: Dict[object, _BoundConfiguration] = bound_references
         self.__update_call: bool = True
+        self.__init_context: bool = False
         self.__update_register: Optional[Dict[str, None]] = None
 
     def known_options(self) -> FrozenSet[str]:
@@ -525,25 +527,26 @@ class _BoundConfiguration:
 
     @contextmanager
     def initialization(self) -> Iterator[_BoundConfiguration]:
-        if not self.__update_call:
+        if self.__init_context:
             yield self
             return
 
+        def cleanup() -> None:
+            self.__update_call = True
+            self.__update_register = None
+            self.__references.pop(bound_obj, None)
+            self.__init_context = False
+
+        bound_obj: object = self.__obj
         with ExitStack() as stack:
-            bound_obj: object = self.__obj
-
-            @stack.callback
-            def cleanup() -> None:
-                self.__update_call = True
-                self.__update_register = None
-                self.__references.pop(bound_obj, None)
-
+            stack.callback(cleanup)
             update_register: Dict[str, None] = dict()
+
+            self.__init_context = True
             self.__update_register = update_register
             self.__update_call = False
             self.__references[bound_obj] = self
             yield self
-            stack.close()
             if not update_register:
                 return
             infos: Configuration.Infos = self.__infos
@@ -558,6 +561,9 @@ class _BoundConfiguration:
             update: Optional[Callable[[object], None]] = infos.update
             if callable(update):
                 update(bound_obj)
+
+    def has_initialization_context(self) -> bool:
+        return self.__init_context
 
     def __getitem__(self, option: str) -> Any:
         return self.get(option)
