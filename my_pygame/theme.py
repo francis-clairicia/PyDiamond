@@ -99,10 +99,12 @@ class MetaThemedObject(ABCMeta):
         if cls.is_abstract_theme_class():
             return super().__call__(*args, **kwargs)
 
-        theme: ThemeType = kwargs.get("theme", [])
+        theme: Optional[ThemeType] = kwargs.get("theme")
         if theme is NoTheme:
             return super().__call__(*args, **kwargs)
-        if isinstance(theme, str):
+        if theme is None:
+            theme = []
+        elif isinstance(theme, str):
             theme = [theme]
 
         default_theme: Dict[str, None] = dict()
