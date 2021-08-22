@@ -80,7 +80,7 @@ class CustomCursor(Cursor):
 
     @staticmethod
     def load_xbm(cursorfile: str, maskfile: str) -> CustomCursor:
-        return CustomCursor(pygame.cursors.load_xbm(cursorfile, maskfile))
+        return CustomCursor(*pygame.cursors.load_xbm(cursorfile, maskfile))  # type: ignore
 
     def set(self) -> None:
         pygame.mouse.set_cursor(self.__cursor)

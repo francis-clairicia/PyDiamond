@@ -67,21 +67,16 @@ def _make_function_wrapper(func: Any, *, already_wrapper: bool = False, check_ov
             try:
                 _func = getattr(func, "__get__")(self, type(self))
                 if not callable(_func):
-                    raise TypeError
+                    raise TypeError("Not callable")
+            except (AttributeError, TypeError) as exc:
+                raise TypeError(str(exc))
+            else:
                 if check_override:
                     _func_name: str = _func.__name__
                     if _func_name != "<lambda>":
                         _sub_func = getattr(self, _func_name, _func)
                         if _sub_func is not _func and callable(_sub_func):
                             _func = _sub_func
-            except (AttributeError, TypeError):
-                try:
-                    return func(self, *args, **kwargs)
-                except TypeError as exc:
-                    try:
-                        return func(*args, **kwargs)
-                    except TypeError as subexc:
-                        raise subexc from exc
             return _func(*args, **kwargs)
 
     else:
@@ -229,14 +224,14 @@ class Configuration:
                 attribute_class_owner[option] = owner
             else:
                 attribute_class_owner[option] = attribute_class_owner.get(option, owner)
+        _register_configuration(owner, self)
         for obj in vars(owner).values():
             if isinstance(obj, ConfigAttribute) and infos.options:
-                attr_name: str = obj.name
-                if attr_name and attr_name not in infos.options:
-                    raise UnknownOptionError(attr_name)
+                config_attr_name: str = obj.name
+                if config_attr_name and config_attr_name not in infos.options:
+                    raise UnknownOptionError(config_attr_name)
             elif isinstance(obj, Configuration) and obj is not self:
                 raise TypeError(f"A class can't have several {Configuration.__name__!r} objects")
-        _register_configuration(owner, self)
 
     def known_options(self) -> FrozenSet[str]:
         return self.__infos.options

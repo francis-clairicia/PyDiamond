@@ -77,7 +77,7 @@ class AbstractShape(Drawable):
 
         local_center: Vector2 = Vector2(left + w / 2, top + h / 2)
 
-        center: Vector2 = Vector2(self.center)
+        center: Vector2 = Vector2(self.center)  # type: ignore[arg-type]
         for point in all_points:
             offset: Vector2 = (point - local_center).rotate(-angle)
             try:
@@ -116,7 +116,7 @@ class AbstractShape(Drawable):
 
             local_center: Vector2 = Vector2(left + w / 2, top + h / 2)
 
-            center: Vector2 = Vector2(self.center)
+            center: Vector2 = Vector2(self.center)  # type: ignore[arg-type]
             for point in all_points:
                 offset: Vector2 = (point - local_center).rotate(-angle)
                 try:
@@ -220,7 +220,7 @@ class PolygonShape(OutlinedShape, ThemedShape):
     @config.validator("points")
     @staticmethod
     def __valid_points(points: PointList) -> List[Vector2]:
-        points = [Vector2(p) for p in points]
+        points = [Vector2(p) for p in points]  # type: ignore[arg-type]
         left: float = min((point.x for point in points), default=0)
         top: float = min((point.y for point in points), default=0)
         for p in points:
@@ -539,7 +539,7 @@ class CrossShape(OutlinedShape, ThemedShape):
                 return []
 
         line_width /= 2
-        diagonal: Vector2 = Vector2(rect.bottomleft) - Vector2(rect.topright)
+        diagonal: Vector2 = Vector2(rect.bottomleft) - Vector2(rect.topright)  # type: ignore[arg-type]
 
         def compute_width_offset() -> float:
             alpha: float = radians(diagonal.rotate(90).angle_to(Vector2(-1, 0)))

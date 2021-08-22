@@ -128,7 +128,7 @@ class Drawable(metaclass=MetaDrawable):
             angle += 360
         if self.angle == angle:
             return
-        center: Vector2 = Vector2(self.center)
+        center: Vector2 = Vector2(self.center)  # type: ignore[arg-type]
         former_angle: float = self.__angle
         self.__angle = angle
         try:
@@ -144,7 +144,7 @@ class Drawable(metaclass=MetaDrawable):
             pivot = getattr(self, pivot)
             if not isinstance(pivot, tuple) or len(pivot) != 2:
                 raise AttributeError(f"Bad pivot attribute: {pivot}")
-        pivot = Vector2(pivot)
+        pivot = Vector2(pivot)  # type: ignore[arg-type]
         if pivot != center:
             center = pivot + (center - pivot).rotate(-self.__angle + former_angle)
         self.center = center.x, center.y
@@ -156,8 +156,8 @@ class Drawable(metaclass=MetaDrawable):
             pivot = getattr(self, pivot)
             if not isinstance(pivot, tuple) or len(pivot) != 2:
                 raise AttributeError(f"Bad pivot attribute: {pivot}")
-        pivot = Vector2(pivot)
-        center: Vector2 = Vector2(self.center)
+        pivot = Vector2(pivot)  # type: ignore[arg-type]
+        center: Vector2 = Vector2(self.center)  # type: ignore[arg-type]
         if pivot == center:
             return
         center = pivot + (center - pivot).rotate(-angle_offset)
