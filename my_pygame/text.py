@@ -40,20 +40,21 @@ class Text(ThemedDrawable):
 
     message: ConfigAttribute[str] = ConfigAttribute()
     font: ConfigAttribute[Font] = ConfigAttribute()
+    color: ConfigAttribute[Color] = ConfigAttribute()
     wrap: ConfigAttribute[int] = ConfigAttribute()
     justify: ConfigAttribute[str] = ConfigAttribute()
     shadow_x: ConfigAttribute[float] = ConfigAttribute()
     shadow_y: ConfigAttribute[float] = ConfigAttribute()
     shadow_color: ConfigAttribute[Color] = ConfigAttribute()
 
+    config.enum("justify", Justify, return_value=True)
+
     config.validator("message", str)
     config.validator("wrap", no_object(valid_integer(min_value=0)))
-    config.validator("justify", Justify, convert=True)
+    config.validator("color", Color)
     config.validator("shadow_x", float, convert=True)
     config.validator("shadow_y", float, convert=True)
     config.validator("shadow_color", Color)
-
-    config.getter("justify", no_object(lambda justify: str(justify.value)))
 
     @initializer
     def __init__(
@@ -76,7 +77,6 @@ class Text(ThemedDrawable):
         self.__custom_font: Dict[int, Font] = dict()
         self.__default_image: Surface = create_surface((0, 0))
         self.__image: Surface = self.__default_image.copy()
-        self.__justify: Text.Justify
         self.set_font(font, bold=bold, italic=italic, underline=underline)
         self.message = message
         self.color = color
@@ -194,10 +194,10 @@ class Text(ThemedDrawable):
         text_rect: Rect = text.get_rect()
         top: int = 0
         params: Dict[str, int] = {
-            Text.Justify.LEFT: {"left": text_rect.left},
-            Text.Justify.RIGHT: {"right": text_rect.right},
-            Text.Justify.CENTER: {"centerx": text_rect.centerx},
-        }[self.__justify]
+            "left": {"left": text_rect.left},
+            "right": {"right": text_rect.right},
+            "center": {"centerx": text_rect.centerx},
+        }[self.justify]
         for render in render_lines:
             text.blit(render, render.get_rect(**params, top=top))
             top += render.get_height()
@@ -250,15 +250,15 @@ class TextImage(Text):
         CENTER = "center"
 
     config = Configuration("img", "compound", "distance", parent=Text.config)
+    config.set_autocopy("img", copy_on_get=False, copy_on_set=False)
 
     img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
     compound: ConfigAttribute[str] = ConfigAttribute()
     distance: ConfigAttribute[float] = ConfigAttribute()
 
-    config.validator("compound", Compound, convert=True)
-    config.validator("distance", no_object(valid_float(min_value=0)))
+    config.enum("compound", Compound, return_value=True)
 
-    config.getter("compound", no_object(lambda cmp: str(cmp.value)))
+    config.validator("distance", no_object(valid_float(min_value=0)))
 
     @initializer
     def __init__(

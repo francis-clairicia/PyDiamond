@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from functools import wraps
+from operator import truth
 from typing import (
     Any,
     Callable,
@@ -14,11 +15,13 @@ from typing import (
     Sequence,
     Set,
     Tuple,
+    Type,
     TypeVar,
     Union,
     cast,
     overload,
 )
+from enum import Enum
 from copy import deepcopy
 from contextlib import ExitStack, contextmanager
 
@@ -125,6 +128,9 @@ class _ConfigInitializer:
     def __init__(self, func: Callable[..., Any]) -> None:
         self.__func__: Callable[..., Any] = func
 
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        return self.__func__(*args, **kwargs)
+
     def __get__(self, obj: object, objtype: Optional[type] = None) -> Callable[..., Any]:
         func: Callable[..., Any] = self.__func__
         if obj is None:
@@ -136,6 +142,10 @@ class _ConfigInitializer:
         cls: type = objtype if objtype is not None else type(obj)
         config: Configuration = _retrieve_configuration(cls)
         return self.config_initializer_method(func, obj, objtype, config)
+
+    @property
+    def __isabstractmethod__(self) -> bool:
+        return truth(getattr(self.__func__, "__isabstractmethod__", False))
 
 
 def initializer(func: _Func) -> _Func:
@@ -297,7 +307,7 @@ class Configuration:
             return self
         if self.__bound_class is None:
             raise TypeError(f"{self} not bound to a class")
-        bound_references: Dict[object, _BoundConfiguration] = self.__references
+        bound_references: Dict[object, _BoundConfiguration] = Configuration.__references
         try:
             return bound_references[obj]
         except KeyError:
@@ -543,6 +553,43 @@ class Configuration:
         else:
             self.__infos.value_validator[option] = _make_function_wrapper(func)
         return func
+
+    @overload
+    def enum(self, option: str, enum: Type[Enum], *, return_value: bool = False) -> None:
+        ...
+
+    @overload
+    def enum(self, option: str, enum: None) -> None:
+        ...
+
+    def enum(self, option: str, enum: Optional[Type[Enum]], *, return_value: bool = False) -> None:
+        enum_config_wrapper_attr: str = "__enum_config_wrapper__"
+
+        if enum is None:
+            if getattr(self.get_option_getter(option), enum_config_wrapper_attr, False):
+                self.getter(option, None)
+            if getattr(self.get_validator(option), enum_config_wrapper_attr, False):
+                self.validator(option, None)
+            return
+
+        enum_type: Type[Enum] = enum
+
+        def enum_wrapper(func: _Func) -> _Func:
+            setattr(func, enum_config_wrapper_attr, True)
+            return func
+
+        @no_object
+        def enum_getter(val: Enum) -> Any:
+            if return_value:
+                return val.value
+            return val
+
+        @no_object
+        def enum_validator(val: Any) -> Enum:
+            return enum_type(val)
+
+        self.getter(option, enum_wrapper(_make_function_wrapper(enum_getter)))
+        self.validator(option, enum_wrapper(_make_function_wrapper(enum_validator)))
 
 
 class ConfigTemplate(Configuration):
