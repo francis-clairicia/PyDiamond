@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from abc import abstractmethod
+from operator import truth
 from typing import Dict, List, Optional, Tuple, Union
 from math import sin, tan, radians
 from enum import Enum, unique
@@ -23,6 +24,8 @@ from .utils import valid_float, valid_integer
 
 class AbstractShape(Drawable):
     config: Configuration = ConfigTemplate(autocopy=True)
+
+    config.register_copy_func(Color, lambda obj: Color(obj))
 
     def __init__(self) -> None:
         super().__init__()
@@ -129,15 +132,16 @@ class AbstractShape(Drawable):
 
 
 class Shape(AbstractShape):
-    config = Configuration("color", parent=AbstractShape.config)
-
-    color: ConfigAttribute[Color] = ConfigAttribute()
-    config.validator("color", Color)
-
     @initializer
     def __init__(self, color: Color) -> None:
         super().__init__()
         self.color = color
+
+    config = Configuration("color", parent=AbstractShape.config)
+
+    config.validator("color", Color)
+
+    color: ConfigAttribute[Color] = ConfigAttribute()
 
 
 @abstract_theme_class
@@ -146,28 +150,23 @@ class ThemedShape(AbstractShape, ThemedDrawable):
 
 
 class OutlinedShape(Shape):
-    config = Configuration("outline", "outline_color", parent=Shape.config)
-
-    outline: ConfigAttribute[int] = ConfigAttribute()
-    config.validator("outline", no_object(valid_integer(min_value=0)))
-
-    outline_color: ConfigAttribute[Color] = ConfigAttribute()
-    config.validator("outline_color", Color)
-
     @initializer
     def __init__(self, color: Color, outline: int, outline_color: Color) -> None:
         super().__init__(color)
         self.outline = outline
         self.outline_color = outline_color
 
+    config = Configuration("outline", "outline_color", parent=Shape.config)
+
+    config.validator("outline", no_object(valid_integer(min_value=0)))
+    config.validator("outline_color", Color)
+
+    outline: ConfigAttribute[int] = ConfigAttribute()
+    outline_color: ConfigAttribute[Color] = ConfigAttribute()
+
 
 class PolygonShape(OutlinedShape, ThemedShape):
     PointList = Union[List[Vector2], List[Tuple[float, float]], List[Tuple[int, int]]]
-
-    config = Configuration("points", parent=OutlinedShape.config)
-
-    points: ConfigAttribute[List[Vector2]] = ConfigAttribute()
-    config.set_autocopy("points", copy_on_set=False)
 
     @initializer
     def __init__(
@@ -217,6 +216,13 @@ class PolygonShape(OutlinedShape, ThemedShape):
     def get_local_vertices(self) -> List[Vector2]:
         return self.points
 
+    def set_points(self, points: PointList) -> None:
+        self.config.set("points", points)
+
+    config = Configuration("points", parent=OutlinedShape.config)
+
+    config.set_autocopy("points", copy_on_set=False)
+
     @config.validator("points")
     @staticmethod
     def __valid_points(points: PointList) -> List[Vector2]:
@@ -228,7 +234,7 @@ class PolygonShape(OutlinedShape, ThemedShape):
             p.y -= top
         return points
 
-    @config.updater_no_name("points")
+    @config.value_updater_no_name("points")
     def __on_update_points(self, points: List[Vector2]) -> None:
         left: float = 0
         top: float = 0
@@ -240,18 +246,10 @@ class PolygonShape(OutlinedShape, ThemedShape):
         self.__center = Vector2(left + w / 2, top + h / 2)
         self.__size = (w, h)
 
-    def set_points(self, points: PointList) -> None:
-        self.config.set("points", points)
+    points: ConfigAttribute[List[Vector2]] = ConfigAttribute()
 
 
 class AbstractRectangleShape(AbstractShape):
-    config = Configuration("local_width", "local_height", parent=AbstractShape.config)
-
-    local_width: ConfigAttribute[float] = ConfigAttribute()
-    local_height: ConfigAttribute[float] = ConfigAttribute()
-    config.validator("local_width", no_object(valid_float(min_value=0)))
-    config.validator("local_height", no_object(valid_float(min_value=0)))
-
     @initializer
     def __init__(self, width: float, height: float) -> None:
         AbstractShape.__init__(self)
@@ -269,28 +267,16 @@ class AbstractRectangleShape(AbstractShape):
     def local_size(self, size: Tuple[float, float]) -> None:
         self.config(local_width=size[0], local_height=size[1])
 
+    config = Configuration("local_width", "local_height", parent=AbstractShape.config)
+
+    config.validator("local_width", no_object(valid_float(min_value=0)))
+    config.validator("local_height", no_object(valid_float(min_value=0)))
+
+    local_width: ConfigAttribute[float] = ConfigAttribute()
+    local_height: ConfigAttribute[float] = ConfigAttribute()
+
 
 class RectangleShape(AbstractRectangleShape, OutlinedShape, ThemedShape):
-    config = Configuration(
-        "border_radius",
-        "border_top_left_radius",
-        "border_top_right_radius",
-        "border_bottom_left_radius",
-        "border_bottom_right_radius",
-        parent=[AbstractRectangleShape.config, OutlinedShape.config],
-    )
-    border_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_top_left_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_top_right_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_bottom_left_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_bottom_right_radius: ConfigAttribute[int] = ConfigAttribute()
-
-    config.validator("border_radius", no_object(valid_integer(min_value=-1)))
-    config.validator("border_top_left_radius", no_object(valid_integer(min_value=-1)))
-    config.validator("border_top_right_radius", no_object(valid_integer(min_value=-1)))
-    config.validator("border_bottom_left_radius", no_object(valid_integer(min_value=-1)))
-    config.validator("border_bottom_right_radius", no_object(valid_integer(min_value=-1)))
-
     @initializer
     def __init__(
         self,
@@ -342,21 +328,37 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, ThemedShape):
             pygame.draw.rect(image, self.outline_color, rect, width=outline, **draw_params)
         return image
 
-    @config.updater("border_radius")
-    @config.updater("border_top_left_radius")
-    @config.updater("border_top_right_radius")
-    @config.updater("border_bottom_left_radius")
-    @config.updater("border_bottom_right_radius")
+    config = Configuration(
+        "border_radius",
+        "border_top_left_radius",
+        "border_top_right_radius",
+        "border_bottom_left_radius",
+        "border_bottom_right_radius",
+        parent=[AbstractRectangleShape.config, OutlinedShape.config],
+    )
+
+    config.validator("border_radius", no_object(valid_integer(min_value=-1)))
+    config.validator("border_top_left_radius", no_object(valid_integer(min_value=-1)))
+    config.validator("border_top_right_radius", no_object(valid_integer(min_value=-1)))
+    config.validator("border_bottom_left_radius", no_object(valid_integer(min_value=-1)))
+    config.validator("border_bottom_right_radius", no_object(valid_integer(min_value=-1)))
+
+    @config.value_updater("border_radius")
+    @config.value_updater("border_top_left_radius")
+    @config.value_updater("border_top_right_radius")
+    @config.value_updater("border_bottom_left_radius")
+    @config.value_updater("border_bottom_right_radius")
     def __set_border_radius(self, border: str, radius: int) -> None:
         self.__draw_params[border] = radius
 
+    border_radius: ConfigAttribute[int] = ConfigAttribute()
+    border_top_left_radius: ConfigAttribute[int] = ConfigAttribute()
+    border_top_right_radius: ConfigAttribute[int] = ConfigAttribute()
+    border_bottom_left_radius: ConfigAttribute[int] = ConfigAttribute()
+    border_bottom_right_radius: ConfigAttribute[int] = ConfigAttribute()
+
 
 class AbstractCircleShape(AbstractShape):
-    config = Configuration("radius", parent=AbstractShape.config)
-
-    radius: ConfigAttribute[float] = ConfigAttribute()
-    config.validator("radius", valid_float(min_value=0))
-
     @initializer
     def __init__(self, radius: float) -> None:
         AbstractShape.__init__(self)
@@ -368,26 +370,14 @@ class AbstractCircleShape(AbstractShape):
         radius: Vector2 = Vector2(r, 0)
         return [center + radius.rotate(-i) for i in range(360)]
 
+    config = Configuration("radius", parent=AbstractShape.config)
+
+    config.validator("radius", valid_float(min_value=0))
+
+    radius: ConfigAttribute[float] = ConfigAttribute()
+
 
 class CircleShape(AbstractCircleShape, OutlinedShape, ThemedShape):
-    config = Configuration(
-        "draw_top_left",
-        "draw_top_right",
-        "draw_bottom_left",
-        "draw_bottom_right",
-        parent=[AbstractCircleShape.config, OutlinedShape.config],
-    )
-
-    draw_top_left: ConfigAttribute[bool] = ConfigAttribute()
-    draw_top_right: ConfigAttribute[bool] = ConfigAttribute()
-    draw_bottom_left: ConfigAttribute[bool] = ConfigAttribute()
-    draw_bottom_right: ConfigAttribute[bool] = ConfigAttribute()
-
-    config.validator("draw_top_left", bool, convert=True)
-    config.validator("draw_top_right", bool, convert=True)
-    config.validator("draw_bottom_left", bool, convert=True)
-    config.validator("draw_bottom_right", bool, convert=True)
-
     @initializer
     def __init__(
         self,
@@ -461,12 +451,30 @@ class CircleShape(AbstractCircleShape, OutlinedShape, ThemedShape):
 
         return all_points
 
-    @config.updater("draw_top_left")
-    @config.updater("draw_top_right")
-    @config.updater("draw_bottom_left")
-    @config.updater("draw_bottom_right")
+    config = Configuration(
+        "draw_top_left",
+        "draw_top_right",
+        "draw_bottom_left",
+        "draw_bottom_right",
+        parent=[AbstractCircleShape.config, OutlinedShape.config],
+    )
+
+    config.validator("draw_top_left", truth)
+    config.validator("draw_top_right", truth)
+    config.validator("draw_bottom_left", truth)
+    config.validator("draw_bottom_right", truth)
+
+    @config.value_updater("draw_top_left")
+    @config.value_updater("draw_top_right")
+    @config.value_updater("draw_bottom_left")
+    @config.value_updater("draw_bottom_right")
     def __draw_arc(self, side: str, status: bool) -> None:
         self.__draw_params[side] = status
+
+    draw_top_left: ConfigAttribute[bool] = ConfigAttribute()
+    draw_top_right: ConfigAttribute[bool] = ConfigAttribute()
+    draw_bottom_left: ConfigAttribute[bool] = ConfigAttribute()
+    draw_bottom_right: ConfigAttribute[bool] = ConfigAttribute()
 
 
 class CrossShape(OutlinedShape, ThemedShape):
@@ -474,16 +482,6 @@ class CrossShape(OutlinedShape, ThemedShape):
     class Type(str, Enum):
         DIAGONAL = "diagonal"
         PLUS = "plus"
-
-    config = Configuration("local_width", "local_height", "line_width", parent=OutlinedShape.config)
-
-    local_width: ConfigAttribute[float] = ConfigAttribute()
-    local_height: ConfigAttribute[float] = ConfigAttribute()
-    line_width: ConfigAttribute[float] = ConfigAttribute()
-
-    config.validator("local_width", no_object(valid_float(min_value=0)))
-    config.validator("local_height", no_object(valid_float(min_value=0)))
-    config.validator("line_width", no_object(valid_float(min_value=0)))
 
     @initializer
     def __init__(
@@ -603,6 +601,16 @@ class CrossShape(OutlinedShape, ThemedShape):
             Vector2(rect.left, rect.centery - line_width),
             Vector2(rect.centerx - line_width, rect.centery - line_width),
         ]
+
+    config = Configuration("local_width", "local_height", "line_width", parent=OutlinedShape.config)
+
+    config.validator("local_width", no_object(valid_float(min_value=0)))
+    config.validator("local_height", no_object(valid_float(min_value=0)))
+    config.validator("line_width", no_object(valid_float(min_value=0)))
+
+    local_width: ConfigAttribute[float] = ConfigAttribute()
+    local_height: ConfigAttribute[float] = ConfigAttribute()
+    line_width: ConfigAttribute[float] = ConfigAttribute()
 
     @property
     def type(self) -> str:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 from functools import wraps
 from operator import truth
+from types import BuiltinFunctionType, BuiltinMethodType
 from typing import (
     Any,
     Callable,
@@ -30,10 +31,13 @@ _T = TypeVar("_T")
 
 _Func = TypeVar("_Func", bound=Callable[..., Any])
 _Updater = TypeVar("_Updater", bound=Union[Callable[[Any], None], Callable[[], None]])
+_Getter = TypeVar("_Getter", bound=Union[Callable[[Any, str], Any], Callable[[str], Any]])
+_Setter = TypeVar("_Setter", bound=Union[Callable[[Any, str, Any], None], Callable[[str, Any], None]])
+_Deleter = TypeVar("_Deleter", bound=Union[Callable[[Any, str], None], Callable[[str], None]])
 _ValueUpdater = TypeVar("_ValueUpdater", bound=Union[Callable[[Any, str, Any], None], Callable[[str, Any], None]])
-_NoNameValueUpdater = TypeVar("_NoNameValueUpdater", bound=Union[Callable[[Any, Any], Any], Callable[[Any], Any]])
+_NoNameValueUpdater = TypeVar("_NoNameValueUpdater", bound=Union[Callable[[Any, Any], None], Callable[[Any], None]])
 _ValueValidator = TypeVar("_ValueValidator", bound=Union[Callable[[Any, Any], Any], Callable[[Any], Any]])
-_ValueGetter = TypeVar("_ValueGetter", bound=Union[Callable[[Any, Any], Any], Callable[[Any], Any]])
+_ValueConverter = TypeVar("_ValueConverter", bound=Union[Callable[[Any, Any], Any], Callable[[Any], Any]])
 
 
 class OptionError(Exception):
@@ -57,13 +61,18 @@ class EmptyOptionNameError(OptionError):
         super().__init__("", "Empty string option given")
 
 
+class InvalidAliasError(OptionError):
+    def __init__(self, name: str, message: str) -> None:
+        super().__init__(name, message)
+
+
 def _make_function_wrapper(func: Any, *, already_wrapper: bool = False, check_override: bool = True) -> Callable[..., Any]:
     if getattr(func, "__boundconfiguration_wrapper__", False) and callable(func):
         return cast(Callable[..., Any], func)
 
     if already_wrapper:
         wrapper: Callable[..., Any] = func
-    elif not getattr(func, "__no_object__", False):
+    elif not getattr(func, "__no_object__", False) and not isinstance(func, (BuiltinFunctionType, BuiltinMethodType)):
 
         @wraps(func)
         def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
@@ -161,8 +170,12 @@ class Configuration:
     class Infos:
         def __init__(self, known_options: Sequence[str], autocopy: bool) -> None:
             self.options: FrozenSet[str] = frozenset(known_options)
-            self.update: Optional[Callable[[object], None]] = None
-            self.value_getter: Dict[str, Callable[[object, Any], Any]] = dict()
+            self.main_update: Optional[Callable[[object], None]] = None
+            self.update: Dict[str, Callable[[object], None]] = dict()
+            self.value_getter: Dict[str, Callable[[object, str], Any]] = dict()
+            self.value_setter: Dict[str, Callable[[object, str, Any], None]] = dict()
+            self.value_deleter: Dict[str, Callable[[object, str], None]] = dict()
+            self.value_converter: Dict[str, Callable[[object, Any], Any]] = dict()
             self.value_update: Dict[str, Callable[[object, str, Any], None]] = dict()
             self.value_validator: Dict[str, Callable[[object, Any], Any]] = dict()
             self.autocopy: bool = autocopy
@@ -170,6 +183,45 @@ class Configuration:
             self.value_autocopy_set: Dict[str, bool] = dict()
             self.attribute_class_owner: Dict[str, type] = dict()
             self.owner: Optional[type] = None
+            self.aliases: Dict[str, str] = dict()
+            self.copy: Dict[type, Callable[[Any], Any]] = dict()
+            self.copy_allow_subclass: Dict[type, bool] = dict()
+
+        def __or__(self, rhs: Configuration.Infos) -> Configuration.Infos:
+            if not isinstance(rhs, type(self)):
+                return NotImplemented
+            other: Configuration.Infos = deepcopy(self)
+            other |= rhs
+            return other
+
+        def __ior__(self, rhs: Configuration.Infos) -> Configuration.Infos:
+            if not isinstance(rhs, type(self)):
+                return NotImplemented
+            self.options |= rhs.options
+            self.update |= rhs.update
+            self.value_getter |= rhs.value_getter
+            self.value_setter |= rhs.value_setter
+            self.value_deleter |= rhs.value_deleter
+            self.value_converter |= rhs.value_converter
+            self.value_update |= rhs.value_update
+            self.value_validator |= rhs.value_validator
+            self.value_autocopy_get |= rhs.value_autocopy_get
+            self.value_autocopy_set |= rhs.value_autocopy_set
+            self.attribute_class_owner |= rhs.attribute_class_owner
+            self.aliases |= rhs.aliases
+            self.copy |= rhs.copy
+            self.copy_allow_subclass |= rhs.copy_allow_subclass
+            return self
+
+        def get_copy_func(self, cls: type) -> Callable[[Any], Any]:
+            try:
+                return self.copy[cls]
+            except KeyError:
+                if self.copy_allow_subclass.get(cls, False):
+                    for t, func in self.copy.items():
+                        if issubclass(cls, t):
+                            return func
+            return deepcopy
 
     __references: Dict[object, _BoundConfiguration] = dict()
 
@@ -207,14 +259,9 @@ class Configuration:
                     raise TypeError("parent: Invalid argument: Empty sequence")
                 main_parent = parent.pop(0)
             infos = deepcopy(main_parent.__infos)
-            infos.options = infos.options.union(opt for p in parent for opt in p.__infos.options).union(known_options)
+            infos.options |= set(known_options)
             for parent_infos in (p.__infos for p in parent):
-                infos.value_getter = parent_infos.value_getter | infos.value_getter
-                infos.value_update = parent_infos.value_update | infos.value_update
-                infos.value_validator = parent_infos.value_validator | infos.value_validator
-                infos.value_autocopy_get = parent_infos.value_autocopy_get | infos.value_autocopy_get
-                infos.value_autocopy_set = parent_infos.value_autocopy_set | infos.value_autocopy_set
-                infos.attribute_class_owner = parent_infos.attribute_class_owner | infos.attribute_class_owner
+                infos = parent_infos | infos
             if autocopy is not None:
                 infos.autocopy = autocopy
 
@@ -235,16 +282,20 @@ class Configuration:
             else:
                 attribute_class_owner[option] = attribute_class_owner.get(option, owner)
         _register_configuration(owner, self)
+        all_options: FrozenSet[str] = frozenset((*infos.options, *infos.aliases))
         for obj in vars(owner).values():
-            if isinstance(obj, ConfigAttribute) and infos.options:
+            if isinstance(obj, ConfigAttribute):
                 config_attr_name: str = obj.name
-                if config_attr_name and config_attr_name not in infos.options:
+                if config_attr_name and config_attr_name not in all_options:
                     raise UnknownOptionError(config_attr_name)
             elif isinstance(obj, Configuration) and obj is not self:
                 raise TypeError(f"A class can't have several {Configuration.__name__!r} objects")
 
     def known_options(self) -> FrozenSet[str]:
         return self.__infos.options
+
+    def known_aliases(self) -> FrozenSet[str]:
+        return frozenset(self.__infos.aliases)
 
     @overload
     def set_autocopy(self, autocopy: bool, /) -> None:
@@ -263,24 +314,24 @@ class Configuration:
         ...
 
     def set_autocopy(self, arg1: Union[bool, str], /, **kwargs: Optional[bool]) -> None:
+        infos: Configuration.Infos = self.__infos
         if isinstance(arg1, bool) and not kwargs:
-            self.__infos.autocopy = arg1
+            infos.autocopy = arg1
         elif isinstance(arg1, str) and ("copy_on_get" in kwargs or "copy_on_set" in kwargs):
-            options: FrozenSet[str] = self.__infos.options
-            if options and arg1 not in options:
+            if arg1 not in infos.options:
                 raise UnknownOptionError(arg1)
             if "copy_on_get" in kwargs:
                 copy_on_get: Optional[bool] = kwargs["copy_on_get"]
                 if copy_on_get is None:
-                    self.__infos.value_autocopy_get.pop(arg1, None)
+                    infos.value_autocopy_get.pop(arg1, None)
                 else:
-                    self.__infos.value_autocopy_get[arg1] = bool(copy_on_get)
+                    infos.value_autocopy_get[arg1] = bool(copy_on_get)
             if "copy_on_set" in kwargs:
                 copy_on_set: Optional[bool] = kwargs["copy_on_set"]
                 if copy_on_set is None:
-                    self.__infos.value_autocopy_set.pop(arg1, None)
+                    infos.value_autocopy_set.pop(arg1, None)
                 else:
-                    self.__infos.value_autocopy_set[arg1] = bool(copy_on_set)
+                    infos.value_autocopy_set[arg1] = bool(copy_on_set)
         else:
             raise TypeError("Invalid argument")
 
@@ -288,10 +339,10 @@ class Configuration:
         if not option:
             raise EmptyOptionNameError()
         infos: Configuration.Infos = self.__infos
-        if infos.options and option not in infos.options:
+        if option not in infos.options:
             raise UnknownOptionError(option)
         self.__no_parent_ownership.add(option)
-        if self.__bound_class is not None and infos.options:
+        if self.__bound_class is not None:
             infos.attribute_class_owner[option] = self.__bound_class
 
     @overload
@@ -326,50 +377,50 @@ class Configuration:
                     specific_owner = objtype
             return _BoundConfiguration(obj, objtype, infos, bound_references, specific_owner)
 
-    def get_option_getter(self, option: str) -> Optional[Callable[[object, Any], Any]]:
-        options: FrozenSet[str] = self.__infos.options
+    def get_option_converter(self, option: str) -> Optional[Callable[[object, Any], Any]]:
+        infos: Configuration.Infos = self.__infos
         if not option:
             raise EmptyOptionNameError()
-        if options and option not in options:
+        if option not in infos.options:
             raise UnknownOptionError(option)
-        return self.__infos.value_getter.get(option)
+        return infos.value_converter.get(option)
 
     @overload
-    def getter(self, option: str, /) -> Callable[[_ValueGetter], _ValueGetter]:
+    def converter(self, option: str, /) -> Callable[[_ValueConverter], _ValueConverter]:
         ...
 
     @overload
-    def getter(self, option: str, func: _ValueGetter, /) -> _ValueGetter:
+    def converter(self, option: str, func: _ValueConverter, /) -> _ValueConverter:
         ...
 
     @overload
-    def getter(self, option: str, func: None, /) -> None:
+    def converter(self, option: str, func: None, /) -> None:
         ...
 
-    def getter(
-        self, option: str, /, *func_args: Union[_ValueGetter, None]
-    ) -> Union[Callable[[_ValueGetter], _ValueGetter], _ValueGetter, None]:
-        options: FrozenSet[str] = self.__infos.options
+    def converter(
+        self, option: str, /, *func_args: Union[_ValueConverter, None]
+    ) -> Union[Callable[[_ValueConverter], _ValueConverter], _ValueConverter, None]:
+        infos: Configuration.Infos = self.__infos
         if not option:
             raise EmptyOptionNameError()
-        if options and option not in options:
+        if option not in infos.options:
             raise UnknownOptionError(option)
 
         if not func_args:
 
-            def decorator(func: _ValueGetter) -> _ValueGetter:
-                self.__infos.value_getter[option] = _make_function_wrapper(func)
+            def decorator(func: _ValueConverter) -> _ValueConverter:
+                infos.value_converter[option] = _make_function_wrapper(func)
                 return func
 
             return decorator
 
         if len(func_args) > 1:
             raise TypeError("Invalid arguments")
-        func: Optional[_ValueGetter] = func_args[0]
+        func: Optional[_ValueConverter] = func_args[0]
         if func is None:
-            self.__infos.value_getter.pop(option, None)
+            infos.value_converter.pop(option, None)
         else:
-            self.__infos.value_getter[option] = _make_function_wrapper(func)
+            infos.value_converter[option] = _make_function_wrapper(func)
         return func
 
     @overload
@@ -383,12 +434,12 @@ class Configuration:
     def get_updater(
         self, option: Optional[str] = None
     ) -> Union[Callable[[object], None], Callable[[object, str, Any], None], None]:
+        infos: Configuration.Infos = self.__infos
         if option is None:
-            return self.__infos.update
-        options: FrozenSet[str] = self.__infos.options
-        if options and option not in options:
+            return infos.main_update
+        if option not in infos.options:
             raise UnknownOptionError(option)
-        return self.__infos.value_update.get(option)
+        return infos.value_update.get(option)
 
     @overload
     def updater(self, arg: _Updater, /) -> _Updater:
@@ -399,11 +450,11 @@ class Configuration:
         ...
 
     @overload
-    def updater(self, arg: str, /) -> Callable[[_ValueUpdater], _ValueUpdater]:
+    def updater(self, arg: str, /) -> Callable[[_Updater], _Updater]:
         ...
 
     @overload
-    def updater(self, arg: str, func: _ValueUpdater, /) -> _ValueUpdater:
+    def updater(self, arg: str, func: _Updater, /) -> _Updater:
         ...
 
     @overload
@@ -411,51 +462,90 @@ class Configuration:
         ...
 
     def updater(
-        self, arg: Union[_Updater, str, None], /, *func_args: Optional[_ValueUpdater]
-    ) -> Union[_Updater, Callable[[_ValueUpdater], _ValueUpdater], Optional[_ValueUpdater]]:
-        if isinstance(arg, str):
-            options: FrozenSet[str] = self.__infos.options
-            if not arg:
-                raise EmptyOptionNameError()
-            if options and arg not in options:
-                raise UnknownOptionError(arg)
+        self, arg: Union[_Updater, str, None], /, *func_args: Optional[_Updater]
+    ) -> Union[_Updater, Callable[[_Updater], _Updater], Optional[_Updater]]:
+        infos: Configuration.Infos = self.__infos
+        if not isinstance(arg, str):
+            infos.main_update = _make_function_wrapper(arg) if arg is not None else None
+            return arg
 
-            if not func_args:
-                config_name: str = arg
+        if not arg:
+            raise EmptyOptionNameError()
+        if arg not in infos.options:
+            raise UnknownOptionError(arg)
 
-                def decorator(func: _ValueUpdater) -> _ValueUpdater:
-                    self.__infos.value_update[config_name] = _make_function_wrapper(func)
-                    return func
+        option: str = arg
 
-                return decorator
-
-            if len(func_args) > 1:
-                raise TypeError("Invalid arguments")
-            func: Optional[_ValueUpdater] = func_args[0]
-            if func is None:
-                self.__infos.value_update.pop(arg, None)
-            else:
-                self.__infos.value_update[arg] = _make_function_wrapper(func)
+        def decorator(func: _Updater) -> _Updater:
+            infos.update[option] = _make_function_wrapper(func)
             return func
 
-        self.__infos.update = _make_function_wrapper(arg) if arg is not None else None
-        return arg
+        if not func_args:
+            return decorator
+
+        if len(func_args) > 1:
+            raise TypeError("Invalid arguments")
+        func: Optional[_Updater] = func_args[0]
+        if func is None:
+            infos.value_update.pop(arg, None)
+        else:
+            decorator(func)
+        return func
 
     @overload
-    def updater_no_name(self, option: str, /) -> Callable[[_NoNameValueUpdater], _NoNameValueUpdater]:
+    def value_updater(self, option: str, /) -> Callable[[_ValueUpdater], _ValueUpdater]:
         ...
 
     @overload
-    def updater_no_name(self, option: str, func: _NoNameValueUpdater, /) -> _NoNameValueUpdater:
+    def value_updater(self, option: str, func: _ValueUpdater, /) -> _ValueUpdater:
         ...
 
-    def updater_no_name(
-        self, option: str, func: Optional[_NoNameValueUpdater] = None, /
-    ) -> Union[_NoNameValueUpdater, Callable[[_NoNameValueUpdater], _NoNameValueUpdater]]:
-        options: FrozenSet[str] = self.__infos.options
+    @overload
+    def value_updater(self, option: str, func: None, /) -> None:
+        ...
+
+    def value_updater(
+        self, option: str, /, *func_args: Optional[_ValueUpdater]
+    ) -> Union[Callable[[_ValueUpdater], _ValueUpdater], Optional[_ValueUpdater]]:
+        infos: Configuration.Infos = self.__infos
         if not option:
             raise EmptyOptionNameError()
-        if options and option not in options:
+        if option not in infos.options:
+            raise UnknownOptionError(option)
+
+        if not func_args:
+            config_name: str = option
+
+            def decorator(func: _ValueUpdater) -> _ValueUpdater:
+                infos.value_update[config_name] = _make_function_wrapper(func)
+                return func
+
+            return decorator
+
+        if len(func_args) > 1:
+            raise TypeError("Invalid arguments")
+        func: Optional[_ValueUpdater] = func_args[0]
+        if func is None:
+            infos.value_update.pop(option, None)
+        else:
+            infos.value_update[option] = _make_function_wrapper(func)
+        return func
+
+    @overload
+    def value_updater_no_name(self, option: str, /) -> Callable[[_NoNameValueUpdater], _NoNameValueUpdater]:
+        ...
+
+    @overload
+    def value_updater_no_name(self, option: str, func: _NoNameValueUpdater, /) -> _NoNameValueUpdater:
+        ...
+
+    def value_updater_no_name(
+        self, option: str, func: Optional[_NoNameValueUpdater] = None, /
+    ) -> Union[_NoNameValueUpdater, Callable[[_NoNameValueUpdater], _NoNameValueUpdater]]:
+        infos: Configuration.Infos = self.__infos
+        if not option:
+            raise EmptyOptionNameError()
+        if option not in infos.options:
             raise UnknownOptionError(option)
 
         def decorator(func: _NoNameValueUpdater) -> _NoNameValueUpdater:
@@ -465,7 +555,7 @@ class Configuration:
             def wrapper(self: object, /, name: str, value: Any) -> Any:
                 return _func(self, value)
 
-            self.updater(option, _make_function_wrapper(wrapper, already_wrapper=True))
+            self.value_updater(option, _make_function_wrapper(wrapper, already_wrapper=True))
             return func
 
         if func is None:
@@ -473,12 +563,12 @@ class Configuration:
         return decorator(func)
 
     def get_validator(self, option: str) -> Optional[Callable[[object, Any], Any]]:
-        options: FrozenSet[str] = self.__infos.options
+        infos: Configuration.Infos = self.__infos
         if not option:
             raise EmptyOptionNameError()
-        if options and option not in options:
+        if option not in infos.options:
             raise UnknownOptionError(option)
-        return self.__infos.value_validator.get(option)
+        return infos.value_validator.get(option)
 
     @overload
     def validator(self, option: str, /) -> Callable[[_ValueValidator], _ValueValidator]:
@@ -503,16 +593,16 @@ class Configuration:
     def validator(
         self, option: str, /, *func_args: Union[_ValueValidator, type, Tuple[type, ...], None], convert: bool = False
     ) -> Union[Callable[[_ValueValidator], _ValueValidator], _ValueValidator, type, Tuple[type, ...], None]:
-        options: FrozenSet[str] = self.__infos.options
+        infos: Configuration.Infos = self.__infos
         if not option:
             raise EmptyOptionNameError()
-        if options and option not in options:
+        if option not in infos.options:
             raise UnknownOptionError(option)
 
         if not func_args:
 
             def decorator(func: _ValueValidator) -> _ValueValidator:
-                self.__infos.value_validator[option] = _make_function_wrapper(func)
+                infos.value_validator[option] = _make_function_wrapper(func)
                 return func
 
             return decorator
@@ -521,7 +611,7 @@ class Configuration:
             raise TypeError("Invalid arguments")
         func: Optional[Union[_ValueValidator, type, Tuple[type, ...]]] = func_args[0]
         if func is None:
-            self.__infos.value_validator.pop(option, None)
+            infos.value_validator.pop(option, None)
         elif isinstance(func, tuple) or (isinstance(func, type) and not convert):
             _type: Union[type, Tuple[type, ...]] = func
             if isinstance(_type, tuple):
@@ -541,7 +631,7 @@ class Configuration:
                     raise TypeError(f"Invalid value type. expected {expected}, got {type(val).__qualname__!r}")
                 return val
 
-            self.__infos.value_validator[option] = _make_function_wrapper(type_checker)
+            infos.value_validator[option] = _make_function_wrapper(type_checker)
         elif isinstance(func, type) and convert:
             _value_type: type = func
 
@@ -549,9 +639,9 @@ class Configuration:
             def value_convert(val: Any) -> Any:
                 return _value_type(val)
 
-            self.__infos.value_validator[option] = _make_function_wrapper(value_convert)
+            infos.value_validator[option] = _make_function_wrapper(value_convert)
         else:
-            self.__infos.value_validator[option] = _make_function_wrapper(func)
+            infos.value_validator[option] = _make_function_wrapper(func)
         return func
 
     @overload
@@ -566,8 +656,8 @@ class Configuration:
         enum_config_wrapper_attr: str = "__enum_config_wrapper__"
 
         if enum is None:
-            if getattr(self.get_option_getter(option), enum_config_wrapper_attr, False):
-                self.getter(option, None)
+            if getattr(self.get_option_converter(option), enum_config_wrapper_attr, False):
+                self.converter(option, None)
             if getattr(self.get_validator(option), enum_config_wrapper_attr, False):
                 self.validator(option, None)
             return
@@ -579,7 +669,7 @@ class Configuration:
             return func
 
         @no_object
-        def enum_getter(val: Enum) -> Any:
+        def enum_converter(val: Enum) -> Any:
             if return_value:
                 return val.value
             return val
@@ -588,8 +678,58 @@ class Configuration:
         def enum_validator(val: Any) -> Enum:
             return enum_type(val)
 
-        self.getter(option, enum_wrapper(_make_function_wrapper(enum_getter)))
+        self.converter(option, enum_wrapper(_make_function_wrapper(enum_converter)))
         self.validator(option, enum_wrapper(_make_function_wrapper(enum_validator)))
+
+    def set_alias(self, option: str, alias: str) -> None:
+        infos: Configuration.Infos = self.__infos
+        if not option:
+            raise EmptyOptionNameError()
+        if option not in infos.options:
+            raise UnknownOptionError(option)
+        if not isinstance(alias, str):
+            raise InvalidAliasError(alias, "Invalid type")
+        if alias == option:
+            return
+        if not alias:
+            raise InvalidAliasError(alias, "Empty string alias")
+        if alias in infos.options:
+            raise InvalidAliasError(alias, "Alias name is a configuration option")
+        aliases: Dict[str, str] = infos.aliases
+        if alias in aliases:
+            if aliases[alias] != option:
+                raise InvalidAliasError(alias, f"Already bound to option {aliases[alias]!r}")
+        else:
+            aliases[alias] = option
+
+    def remove_alias(self, alias: str) -> None:
+        aliases: Dict[str, str] = self.__infos.aliases
+        aliases.pop(alias)
+
+    def remove_all_aliases(self, option: str) -> None:
+        infos: Configuration.Infos = self.__infos
+        if not option:
+            raise EmptyOptionNameError()
+        if option not in infos.options:
+            raise UnknownOptionError(option)
+        aliases: Dict[str, str] = infos.aliases
+        for alias, opt in list(aliases.items()):
+            if opt == option:
+                aliases.pop(alias)
+
+    def register_copy_func(self, cls: type, func: Callable[[Any], Any], *, allow_subclass: bool = False) -> None:
+        if not isinstance(cls, type):
+            raise TypeError("'cls' argument must be a type")
+        if not callable(func):
+            raise TypeError("'func' is not callable")
+        infos: Configuration.Infos = self.__infos
+        infos.copy[cls] = func
+        infos.copy_allow_subclass[cls] = truth(allow_subclass)
+
+    def remove_copy_func(self, cls: type) -> None:
+        infos: Configuration.Infos = self.__infos
+        infos.copy.pop(cls, None)
+        infos.copy_allow_subclass.pop(cls, None)
 
 
 class ConfigTemplate(Configuration):
@@ -636,7 +776,7 @@ class ConfigAttribute(Generic[_T]):
             raise ValueError(f"Attribute name must not be empty")
         self.__name = name
         config: Configuration = _retrieve_configuration(owner)
-        if name not in config.known_options():
+        if name not in config.known_options() and name not in config.known_aliases():
             raise UnknownOptionError(name)
 
     @overload
@@ -742,9 +882,9 @@ class _BoundConfiguration:
                     except AttributeError as exc:
                         raise UnregisteredOptionError(option) from exc
                     updater_func(bound_obj, option, value)
-            update: Optional[Callable[[object], None]] = infos.update
-            if callable(update):
-                update(bound_obj)
+            main_update: Optional[Callable[[object], None]] = infos.main_update
+            if callable(main_update):
+                main_update(bound_obj)
 
     def has_initialization_context(self) -> bool:
         return self.__init_context
@@ -761,25 +901,30 @@ class _BoundConfiguration:
         ...
 
     def get(self, option: str, copy: Optional[bool] = None) -> Any:
+        infos: Configuration.Infos = self.__infos
+        option = infos.aliases.get(option, option)
         if not option:
             raise EmptyOptionNameError()
         obj: object = self.__obj
-        infos: Configuration.Infos = self.__infos
-        options: FrozenSet[str] = infos.options
-        if options and option not in options:
+        if option not in infos.options:
             raise UnknownOptionError(option)
-        try:
-            value: Any = getattr(obj, self.__get_attribute(option))
-        except AttributeError as exc:
-            raise UnregisteredOptionError(option) from exc
-        getter: Optional[Callable[[object, Any], Any]] = infos.value_getter.get(option)
-        if callable(getter):
-            value = getter(obj, value)
+        getter: Dict[str, Callable[[object, str], Any]] = infos.value_getter
+        value: Any
+        if option in getter:
+            value = getter[option](obj, option)
+        else:
+            try:
+                value = getattr(obj, self.__get_attribute(option))
+            except AttributeError as exc:
+                raise UnregisteredOptionError(option) from exc
+        converter: Optional[Callable[[object, Any], Any]] = infos.value_converter.get(option)
+        if callable(converter):
+            value = converter(obj, value)
         if copy is None:
             copy = infos.value_autocopy_get.get(option, infos.autocopy)
         if copy:
             try:
-                return deepcopy(value)
+                return infos.get_copy_func(type(value))(value)
             except:
                 pass
         return value
@@ -796,42 +941,51 @@ class _BoundConfiguration:
         ...
 
     def set(self, option: str, value: Any, copy: Optional[bool] = None) -> None:
+        infos: Configuration.Infos = self.__infos
+        option = infos.aliases.get(option, option)
         if not option:
             raise EmptyOptionNameError()
 
-        infos: Configuration.Infos = self.__infos
-        options: FrozenSet[str] = infos.options
-        if options and option not in options:
+        if option not in infos.options:
             raise UnknownOptionError(option)
 
         if copy is None:
             copy = infos.value_autocopy_set.get(option, infos.autocopy)
 
         obj: object = self.__obj
-        update: Optional[Callable[[object], None]] = infos.update
+        main_update: Optional[Callable[[object], None]] = infos.main_update
         value_update: Optional[Callable[[object, str, Any], None]] = infos.value_update.get(option)
         value_validator: Optional[Callable[[object, Any], Any]] = infos.value_validator.get(option)
         update_register: Optional[Dict[str, None]] = self.__update_register
         attribute: str = self.__get_attribute(option)
+        getter: Dict[str, Callable[[object, str], Any]] = infos.value_getter
+        setter: Dict[str, Callable[[object, str, Any], None]] = infos.value_setter
 
         def copy_value(value: Any) -> Any:
             if not copy:
                 return value
             try:
-                return deepcopy(value)
+                return infos.get_copy_func(type(value))(value)
             except:
                 return value
 
         if callable(value_validator):
             value = value_validator(obj, value)
         need_update: bool = False
+        actual_value: Any
         try:
-            actual_value: Any = getattr(obj, attribute)
+            if option in getter:
+                actual_value = getter[option](obj, option)
+            else:
+                actual_value = getattr(obj, attribute)
             if actual_value != value:
                 raise AttributeError
         except AttributeError:
             value = copy_value(value)
-            setattr(obj, attribute, value)
+            if option in setter:
+                setter[option](obj, option, value)
+            else:
+                setattr(obj, attribute, value)
             need_update = True
             if update_register is not None:
                 update_register[option] = None
@@ -839,31 +993,35 @@ class _BoundConfiguration:
         if need_update and self.__update_call:
             if callable(value_update):
                 value_update(obj, option, value)
-            if callable(update):
-                update(obj)
+            if callable(main_update):
+                main_update(obj)
 
     def __delitem__(self, option: str) -> None:
         return self.remove(option)
 
     def remove(self, option: str) -> None:
+        infos: Configuration.Infos = self.__infos
+        option = infos.aliases.get(option, option)
         if not option:
             raise EmptyOptionNameError()
-        infos: Configuration.Infos = self.__infos
-        options: FrozenSet[str] = infos.options
         obj: object = self.__obj
-        update: Optional[Callable[[object], None]] = infos.update
+        main_update: Optional[Callable[[object], None]] = infos.main_update
         update_register: Optional[Dict[str, None]] = self.__update_register
-        if options and option not in options:
+        deleter: Dict[str, Callable[[object, str], None]] = infos.value_deleter
+        if option not in infos.options:
             raise UnknownOptionError(option)
-        try:
-            delattr(obj, self.__get_attribute(option))
-        except AttributeError as exc:
-            raise UnregisteredOptionError(option) from exc
+        if option in deleter:
+            deleter[option](obj, option)
         else:
-            if update_register is not None:
-                update_register.pop(option, None)
-            if self.__update_call and callable(update):
-                update(obj)
+            try:
+                delattr(obj, self.__get_attribute(option))
+            except AttributeError as exc:
+                raise UnregisteredOptionError(option) from exc
+            else:
+                if update_register is not None:
+                    update_register.pop(option, None)
+                if self.__update_call and callable(main_update):
+                    main_update(obj)
 
     def update(self, call_value_updaters: bool = True) -> None:
         if not self.__update_call:
@@ -872,7 +1030,7 @@ class _BoundConfiguration:
             return
         obj: object = self.__obj
         infos: Configuration.Infos = self.__infos
-        update: Optional[Callable[[object], None]] = infos.update
+        main_update: Optional[Callable[[object], None]] = infos.main_update
         if call_value_updaters:
             get_attribute: Callable[[str], str] = self.__get_attribute
             for option, value_updater in infos.value_update.items():
@@ -880,21 +1038,21 @@ class _BoundConfiguration:
                     value_updater(obj, option, getattr(obj, get_attribute(option)))
                 except AttributeError as exc:
                     raise UnregisteredOptionError(option) from exc
-        if callable(update):
-            update(obj)
+        if callable(main_update):
+            main_update(obj)
 
     def __call__(self, *, __copy: Optional[Union[bool, Dict[str, bool]]] = None, **kwargs: Any) -> None:
         if not kwargs:
             raise TypeError("No config params given")
         infos: Configuration.Infos = self.__infos
         autocopy: bool = infos.autocopy
-        options: FrozenSet[str] = infos.options
         obj: object = self.__obj
-        update: Optional[Callable[[object], None]] = infos.update
+        main_update: Optional[Callable[[object], None]] = infos.main_update
         value_update_get: Callable[[str], Optional[Callable[[object, str, Any], None]]] = infos.value_update.get
         value_validator_get: Callable[[str], Optional[Callable[[object, Any], Any]]] = infos.value_validator.get
         get_attribute: Callable[[str], str] = self.__get_attribute
         update_register: Optional[Dict[str, None]] = self.__update_register
+        aliases: Dict[str, str] = infos.aliases
 
         def copy_value(option: str, value: Any) -> Any:
             copy: bool
@@ -907,7 +1065,7 @@ class _BoundConfiguration:
             if not copy:
                 return value
             try:
-                return deepcopy(value)
+                return infos.get_copy_func(type(value))(value)
             except:
                 return value
 
@@ -916,7 +1074,8 @@ class _BoundConfiguration:
         value_updates: List[Tuple[str, Any, Callable[[object, str, Any], None]]] = list()
 
         for option, value in kwargs.items():
-            if options and option not in options:
+            option = aliases.get(option, option)
+            if option not in infos.options:
                 raise UnknownOptionError(option)
             value_validator: Optional[Callable[[object, Any], None]] = value_validator_get(option)
             if callable(value_validator):
@@ -941,8 +1100,8 @@ class _BoundConfiguration:
         if need_update and self.__update_call:
             for option, value, updater in value_updates:
                 updater(obj, option, value)
-            if callable(update):
-                update(obj)
+            if callable(main_update):
+                main_update(obj)
 
     def __get_attribute(self, option: str) -> str:
         objtype: type = self.__type
@@ -950,13 +1109,10 @@ class _BoundConfiguration:
         infos: Configuration.Infos = self.__infos
         attribute_class_owner: Dict[str, type] = infos.attribute_class_owner
         specific_owner: Optional[type] = self.__owner
-        if infos.options:
-            if specific_owner is not None:
-                owner = specific_owner
-            elif objtype is infos.owner:
-                owner = attribute_class_owner.get(option, objtype)
-            else:
-                owner = objtype
+        if specific_owner is not None:
+            owner = specific_owner
+        elif objtype is infos.owner:
+            owner = attribute_class_owner.get(option, objtype)
         else:
-            owner = objtype if specific_owner is None else specific_owner
+            owner = objtype
         return f"_{owner.__name__}__{option}"

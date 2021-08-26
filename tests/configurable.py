@@ -25,13 +25,13 @@ class Configurable:
         self.c = 98
         print("END")
 
-    @config.updater("a")
-    @config.updater("b")
-    @config.updater("c")
+    @config.value_updater("a")
+    @config.value_updater("b")
+    @config.value_updater("c")
     def _on_update_field(self, name: str, val: int) -> None:
         print(f"{self}: {name} set to {val}")
 
-    config.updater("d", lambda self, name, val: print((self, name, val)))
+    config.value_updater("d", lambda self, name, val: print((self, name, val)))
 
     @config.validator("a")
     @config.validator("b")
@@ -68,7 +68,7 @@ class SubConfigurable(Configurable):
 
 
 class C:
-    config: Configuration = Configuration()
+    config: Configuration = Configuration("a", "b", "c")
 
     @initializer
     def __init__(self) -> None:

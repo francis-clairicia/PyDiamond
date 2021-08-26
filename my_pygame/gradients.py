@@ -21,19 +21,19 @@ from ._gradients import (  # type: ignore[attr-defined]
 
 
 class GradientShape(AbstractShape):
-    config = Configuration("first_color", "second_color", parent=AbstractShape.config)
-
-    first_color: ConfigAttribute[Color] = ConfigAttribute()
-    second_color: ConfigAttribute[Color] = ConfigAttribute()
-
-    config.validator("first_color", Color)
-    config.validator("second_color", Color)
-
     @initializer
     def __init__(self, first_color: Color, second_color: Color) -> None:
         super().__init__()
         self.first_color = first_color
         self.second_color = second_color
+
+    config = Configuration("first_color", "second_color", parent=AbstractShape.config)
+
+    config.validator("first_color", Color)
+    config.validator("second_color", Color)
+
+    first_color: ConfigAttribute[Color] = ConfigAttribute()
+    second_color: ConfigAttribute[Color] = ConfigAttribute()
 
 
 class _AbstractRectangleGradientShape(AbstractRectangleShape, GradientShape):
@@ -68,11 +68,6 @@ class VerticalGradientShape(_AbstractRectangleGradientShape):
 
 
 class SquaredGradientShape(GradientShape):
-    config = Configuration("local_width", parent=GradientShape.config)
-
-    local_width: ConfigAttribute[float] = ConfigAttribute()
-    config.validator("local_width", no_object(valid_float(min_value=0)))
-
     @initializer
     def __init__(self, width: float, first_color: Color, second_color: Color) -> None:
         super().__init__(first_color, second_color)
@@ -90,6 +85,12 @@ class SquaredGradientShape(GradientShape):
     def get_local_vertices(self) -> List[Vector2]:
         w = h = self.local_width
         return [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
+
+    config = Configuration("local_width", parent=GradientShape.config)
+
+    config.validator("local_width", no_object(valid_float(min_value=0)))
+
+    local_width: ConfigAttribute[float] = ConfigAttribute()
 
 
 class RadialGradientShape(AbstractCircleShape, GradientShape):

@@ -38,15 +38,6 @@ class Text(ThemedDrawable):
         "message", "font", "color", "wrap", "justify", "shadow_x", "shadow_y", "shadow_color", autocopy=True
     )
 
-    message: ConfigAttribute[str] = ConfigAttribute()
-    font: ConfigAttribute[Font] = ConfigAttribute()
-    color: ConfigAttribute[Color] = ConfigAttribute()
-    wrap: ConfigAttribute[int] = ConfigAttribute()
-    justify: ConfigAttribute[str] = ConfigAttribute()
-    shadow_x: ConfigAttribute[float] = ConfigAttribute()
-    shadow_y: ConfigAttribute[float] = ConfigAttribute()
-    shadow_color: ConfigAttribute[Color] = ConfigAttribute()
-
     config.enum("justify", Justify, return_value=True)
 
     config.validator("message", str)
@@ -55,6 +46,10 @@ class Text(ThemedDrawable):
     config.validator("shadow_x", float, convert=True)
     config.validator("shadow_y", float, convert=True)
     config.validator("shadow_color", Color)
+
+    config.set_autocopy("font", copy_on_get=False, copy_on_set=False)
+
+    config.register_copy_func(Color, lambda obj: Color(obj))
 
     @initializer
     def __init__(
@@ -226,10 +221,19 @@ class Text(ThemedDrawable):
 
         return render
 
-    @config.getter("message")
+    @config.converter("message")
     def __convert_message(self, message: str) -> str:
         wrap: int = self.wrap
         return "\n".join(textwrap(message, width=wrap)) if wrap > 0 else message
+
+    message: ConfigAttribute[str] = ConfigAttribute()
+    font: ConfigAttribute[Font] = ConfigAttribute()
+    color: ConfigAttribute[Color] = ConfigAttribute()
+    wrap: ConfigAttribute[int] = ConfigAttribute()
+    justify: ConfigAttribute[str] = ConfigAttribute()
+    shadow_x: ConfigAttribute[float] = ConfigAttribute()
+    shadow_y: ConfigAttribute[float] = ConfigAttribute()
+    shadow_color: ConfigAttribute[Color] = ConfigAttribute()
 
     @property
     def shadow(self) -> Tuple[float, float]:
@@ -252,13 +256,11 @@ class TextImage(Text):
     config = Configuration("img", "compound", "distance", parent=Text.config)
     config.set_autocopy("img", copy_on_get=False, copy_on_set=False)
 
-    img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
-    compound: ConfigAttribute[str] = ConfigAttribute()
-    distance: ConfigAttribute[float] = ConfigAttribute()
-
     config.enum("compound", Compound, return_value=True)
 
     config.validator("distance", no_object(valid_float(min_value=0)))
+
+    config.register_copy_func(Surface, lambda surface: surface.copy(), allow_subclass=True)
 
     @initializer
     def __init__(
@@ -434,7 +436,7 @@ class TextImage(Text):
 
         return render
 
-    @config.getter("img")
+    @config.converter("img")
     @staticmethod
     def __get_img_surface(img: Optional[_BoundImage]) -> Optional[Surface]:
         if img is None:
@@ -447,12 +449,16 @@ class TextImage(Text):
             return None
         return _BoundImage(self, surface)
 
-    @config.updater_no_name("img")
+    @config.value_updater_no_name("img")
     def __update_img(self, img: Optional[_BoundImage]) -> None:
         if img is None:
             return
         img.set_scale(self.__img_scale)
         img.set_rotation(self.__img_angle)
+
+    img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
+    compound: ConfigAttribute[str] = ConfigAttribute()
+    distance: ConfigAttribute[float] = ConfigAttribute()
 
 
 class _BoundImage(Image):
