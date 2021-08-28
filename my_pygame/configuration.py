@@ -77,7 +77,10 @@ def _make_function_wrapper(func: Any, *, already_wrapper: bool = False, check_ov
         @wraps(func)
         def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
             try:
-                _func = getattr(func, "__get__")(self, type(self))
+                get: Any = getattr(func, "__get__")
+                if not callable(get):
+                    raise TypeError("Not callable")
+                _func = get(self, type(self))
                 if not callable(_func):
                     raise TypeError("Not callable")
             except (AttributeError, TypeError) as exc:
@@ -116,41 +119,35 @@ def _retrieve_configuration(cls: type) -> Configuration:
 
 
 class _ConfigInitializer:
-    class config_initializer_method:
-        def __init__(self, func: Callable[..., Any], obj: object, cls: Optional[type], config: Configuration) -> None:
-            self.__func__: Callable[..., Any] = _make_function_wrapper(func, check_override=False)
-            self.__self__: object = obj
-            self.__type: Optional[type] = cls
-            self.__config: Callable[[object, Optional[type]], _BoundConfiguration] = config.__get__
-
-        def __repr__(self) -> str:
-            return f"<{type(self).__name__} object at {id(self):#x}>"
-
-        def __call__(self, *args: Any, **kwargs: Any) -> Any:
-            func: Callable[..., Any] = self.__func__
-            obj: object = self.__self__
-            cls: Optional[type] = self.__type
-            bound_config: _BoundConfiguration = self.__config(obj, cls)
-            with bound_config.initialization():
-                return func(obj, *args, **kwargs)
-
     def __init__(self, func: Callable[..., Any]) -> None:
         self.__func__: Callable[..., Any] = func
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        return self.__func__(*args, **kwargs)
+    @property
+    def __call__(self) -> Callable[..., Any]:
+        return self.__func__
 
     def __get__(self, obj: object, objtype: Optional[type] = None) -> Callable[..., Any]:
         func: Callable[..., Any] = self.__func__
+        try:
+            get: Any = getattr(func, "__get__")
+            if not callable(get):
+                raise TypeError
+            func = get(obj, objtype)
+        except (AttributeError, TypeError):
+            if obj is not None:
+                _func = func
+                func = lambda *args, **kwargs: _func(obj, *args, **kwargs)
         if obj is None:
-            try:
-                func = getattr(func, "__get__")(None, objtype)
-            except (AttributeError, TypeError):
-                pass
             return func
         cls: type = objtype if objtype is not None else type(obj)
         config: Configuration = _retrieve_configuration(cls)
-        return self.config_initializer_method(func, obj, objtype, config)
+
+        def config_initializer_method(*args: Any, **kwargs: Any) -> Any:
+            bound_config: _BoundConfiguration = config.__get__(obj, objtype)
+            with bound_config.initialization():
+                return func(*args, **kwargs)
+
+        return config_initializer_method
 
     @property
     def __isabstractmethod__(self) -> bool:
@@ -270,6 +267,8 @@ class Configuration:
         self.__bound_class: Optional[type] = None
 
     def __set_name__(self, owner: type, name: str) -> None:
+        if self.__bound_class is not None:
+            raise TypeError(f"This configuration object is bound to an another class: {self.__bound_class.__name__!r}")
         infos: Configuration.Infos = self.__infos
         if infos.owner is None:
             infos.owner = owner
@@ -670,15 +669,14 @@ class Configuration:
 
         @no_object
         def enum_converter(val: Enum) -> Any:
-            if return_value:
-                return val.value
-            return val
+            return val.value
 
         @no_object
         def enum_validator(val: Any) -> Enum:
             return enum_type(val)
 
-        self.converter(option, enum_wrapper(_make_function_wrapper(enum_converter)))
+        if return_value:
+            self.converter(option, enum_wrapper(_make_function_wrapper(enum_converter)))
         self.validator(option, enum_wrapper(_make_function_wrapper(enum_validator)))
 
     def set_alias(self, option: str, alias: str) -> None:
@@ -806,7 +804,10 @@ class ConfigAttribute(Generic[_T]):
         if not name:
             raise ValueError("No name was given. Use __set_name__ method.")
         config: _BoundConfiguration = _retrieve_configuration(type(obj)).__get__(obj)
-        config.set(name, value)
+        try:
+            config.set(name, value)
+        except OptionError as e:
+            raise AttributeError(str(e)) from None
 
     def __delete__(self, obj: object) -> None:
         name: str = self.__name
@@ -873,14 +874,24 @@ class _BoundConfiguration:
             if not update_register and not self.__explicit_update_call:
                 return
             infos: Configuration.Infos = self.__infos
+            getter: Dict[str, Callable[[object, str], Any]] = infos.value_getter
             get_attribute = self.__get_attribute
             if update_register or self.__explicit_value_update_call:
-                for option in (opt for opt in update_register if opt in infos.value_update):
+                it_option: Iterator[str]
+                if self.__explicit_value_update_call:
+                    it_option = iter(infos.value_update.keys())
+                else:
+                    it_option = (opt for opt in update_register if opt in infos.value_update)
+                for option in it_option:
                     updater_func: Callable[[object, str, Any], None] = infos.value_update[option]
-                    try:
-                        value: Any = getattr(bound_obj, get_attribute(option))
-                    except AttributeError as exc:
-                        raise UnregisteredOptionError(option) from exc
+                    value: Any
+                    if option in getter:
+                        value = getter[option](bound_obj, option)
+                    else:
+                        try:
+                            value = getattr(bound_obj, get_attribute(option))
+                        except AttributeError as exc:
+                            raise UnregisteredOptionError(option) from exc
                     updater_func(bound_obj, option, value)
             main_update: Optional[Callable[[object], None]] = infos.main_update
             if callable(main_update):
@@ -1031,13 +1042,17 @@ class _BoundConfiguration:
         obj: object = self.__obj
         infos: Configuration.Infos = self.__infos
         main_update: Optional[Callable[[object], None]] = infos.main_update
+        getter: Dict[str, Callable[[object, str], Any]] = infos.value_getter
         if call_value_updaters:
             get_attribute: Callable[[str], str] = self.__get_attribute
             for option, value_updater in infos.value_update.items():
-                try:
-                    value_updater(obj, option, getattr(obj, get_attribute(option)))
-                except AttributeError as exc:
-                    raise UnregisteredOptionError(option) from exc
+                if option in getter:
+                    value_updater(obj, option, getter[option](obj, option))
+                else:
+                    try:
+                        value_updater(obj, option, getattr(obj, get_attribute(option)))
+                    except AttributeError as exc:
+                        raise UnregisteredOptionError(option) from exc
         if callable(main_update):
             main_update(obj)
 
@@ -1053,6 +1068,8 @@ class _BoundConfiguration:
         get_attribute: Callable[[str], str] = self.__get_attribute
         update_register: Optional[Dict[str, None]] = self.__update_register
         aliases: Dict[str, str] = infos.aliases
+        getter: Dict[str, Callable[[object, str], Any]] = infos.value_getter
+        setter: Dict[str, Callable[[object, str, Any], None]] = infos.value_setter
 
         def copy_value(option: str, value: Any) -> Any:
             copy: bool
@@ -1082,7 +1099,11 @@ class _BoundConfiguration:
                 value = value_validator(obj, value)
             attribute: str = get_attribute(option)
             try:
-                actual_value: Any = getattr(obj, attribute)
+                actual_value: Any
+                if option in getter:
+                    actual_value = getter[option](obj, option)
+                else:
+                    actual_value = getattr(obj, attribute)
                 if actual_value != value:
                     raise AttributeError
             except AttributeError:
@@ -1094,7 +1115,10 @@ class _BoundConfiguration:
                     value_updates.append((option, value, value_update))
 
         for option, attribute, value in values:
-            setattr(obj, attribute, value)
+            if option in setter:
+                setter[option](obj, option, value)
+            else:
+                setattr(obj, attribute, value)
             if update_register is not None:
                 update_register[option] = None
         if need_update and self.__update_call:
