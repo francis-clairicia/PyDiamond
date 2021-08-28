@@ -66,94 +66,6 @@ class InvalidAliasError(OptionError):
         super().__init__(name, message)
 
 
-def _make_function_wrapper(func: Any, *, already_wrapper: bool = False, check_override: bool = True) -> Callable[..., Any]:
-    if getattr(func, "__boundconfiguration_wrapper__", False) and callable(func):
-        return cast(Callable[..., Any], func)
-
-    if already_wrapper:
-        wrapper: Callable[..., Any] = func
-    elif not getattr(func, "__no_object__", False) and not isinstance(func, (BuiltinFunctionType, BuiltinMethodType)):
-
-        @wraps(func)
-        def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-            try:
-                get: Any = getattr(func, "__get__")
-                if not callable(get):
-                    raise TypeError("Not callable")
-                _func = get(self, type(self))
-                if not callable(_func):
-                    raise TypeError("Not callable")
-            except (AttributeError, TypeError) as exc:
-                raise TypeError(str(exc))
-            else:
-                if check_override:
-                    _func_name: str = _func.__name__
-                    if _func_name != "<lambda>":
-                        _sub_func = getattr(self, _func_name, _func)
-                        if _sub_func is not _func and callable(_sub_func):
-                            _func = _sub_func
-            return _func(*args, **kwargs)
-
-    else:
-
-        @wraps(func)
-        def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-            return func(*args, **kwargs)
-
-    setattr(wrapper, "__boundconfiguration_wrapper__", True)
-    return wrapper
-
-
-def _register_configuration(cls: type, config: Configuration) -> None:
-    setattr(cls, "____configuration____", config)
-
-
-def _retrieve_configuration(cls: type) -> Configuration:
-    try:
-        config: Configuration = getattr(cls, "____configuration____")
-        if not isinstance(config, Configuration):
-            raise AttributeError
-    except AttributeError:
-        raise TypeError(f"{cls.__name__} does not have a {Configuration.__name__} object") from None
-    return config
-
-
-class _ConfigInitializer:
-    def __init__(self, func: Callable[..., Any]) -> None:
-        self.__func__: Callable[..., Any] = func
-
-    @property
-    def __call__(self) -> Callable[..., Any]:
-        return self.__func__
-
-    def __get__(self, obj: object, objtype: Optional[type] = None) -> Callable[..., Any]:
-        func: Callable[..., Any] = self.__func__
-        try:
-            get: Any = getattr(func, "__get__")
-            if not callable(get):
-                raise TypeError
-            func = get(obj, objtype)
-        except (AttributeError, TypeError):
-            if obj is not None:
-                _func = func
-                func = lambda *args, **kwargs: _func(obj, *args, **kwargs)
-        if obj is None:
-            return func
-        cls: type = objtype if objtype is not None else type(obj)
-        config: Configuration = _retrieve_configuration(cls)
-
-        def config_initializer_method(*args: Any, **kwargs: Any) -> Any:
-            bound_config: _BoundConfiguration = config.__get__(obj, objtype)
-            with bound_config.initialization():
-                return func(*args, **kwargs)
-
-        return config_initializer_method
-
-    @property
-    def __isabstractmethod__(self) -> bool:
-        return truth(getattr(self.__func__, "__isabstractmethod__", False))
-
-
 def initializer(func: _Func) -> _Func:
     return cast(_Func, _ConfigInitializer(func))
 
@@ -1140,3 +1052,91 @@ class _BoundConfiguration:
         else:
             owner = objtype
         return f"_{owner.__name__}__{option}"
+
+
+def _make_function_wrapper(func: Any, *, already_wrapper: bool = False, check_override: bool = True) -> Callable[..., Any]:
+    if getattr(func, "__boundconfiguration_wrapper__", False) and callable(func):
+        return cast(Callable[..., Any], func)
+
+    if already_wrapper:
+        wrapper: Callable[..., Any] = func
+    elif not getattr(func, "__no_object__", False) and not isinstance(func, (BuiltinFunctionType, BuiltinMethodType)):
+
+        @wraps(func)
+        def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
+            try:
+                get: Any = getattr(func, "__get__")
+                if not callable(get):
+                    raise TypeError("Not callable")
+                _func = get(self, type(self))
+                if not callable(_func):
+                    raise TypeError("Not callable")
+            except (AttributeError, TypeError) as exc:
+                raise TypeError(str(exc))
+            else:
+                if check_override:
+                    _func_name: str = _func.__name__
+                    if _func_name != "<lambda>":
+                        _sub_func = getattr(self, _func_name, _func)
+                        if _sub_func is not _func and callable(_sub_func):
+                            _func = _sub_func
+            return _func(*args, **kwargs)
+
+    else:
+
+        @wraps(func)
+        def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
+            return func(*args, **kwargs)
+
+    setattr(wrapper, "__boundconfiguration_wrapper__", True)
+    return wrapper
+
+
+def _register_configuration(cls: type, config: Configuration) -> None:
+    setattr(cls, "____configuration____", config)
+
+
+def _retrieve_configuration(cls: type) -> Configuration:
+    try:
+        config: Configuration = getattr(cls, "____configuration____")
+        if not isinstance(config, Configuration):
+            raise AttributeError
+    except AttributeError:
+        raise TypeError(f"{cls.__name__} does not have a {Configuration.__name__} object") from None
+    return config
+
+
+class _ConfigInitializer:
+    def __init__(self, func: Callable[..., Any]) -> None:
+        self.__func__: Callable[..., Any] = func
+
+    @property
+    def __call__(self) -> Callable[..., Any]:
+        return self.__func__
+
+    def __get__(self, obj: object, objtype: Optional[type] = None) -> Callable[..., Any]:
+        func: Callable[..., Any] = self.__func__
+        try:
+            get: Any = getattr(func, "__get__")
+            if not callable(get):
+                raise TypeError
+            func = get(obj, objtype)
+        except (AttributeError, TypeError):
+            if obj is not None:
+                _func = func
+                func = lambda *args, **kwargs: _func(obj, *args, **kwargs)
+        if obj is None:
+            return func
+        cls: type = objtype if objtype is not None else type(obj)
+        config: Configuration = _retrieve_configuration(cls)
+
+        def config_initializer_method(*args: Any, **kwargs: Any) -> Any:
+            bound_config: _BoundConfiguration = config.__get__(obj, objtype)
+            with bound_config.initialization():
+                return func(*args, **kwargs)
+
+        return config_initializer_method
+
+    @property
+    def __isabstractmethod__(self) -> bool:
+        return truth(getattr(self.__func__, "__isabstractmethod__", False))
