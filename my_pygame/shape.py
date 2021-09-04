@@ -259,21 +259,23 @@ class AbstractRectangleShape(AbstractShape):
         w, h = self.local_size
         return [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
 
-    @property
-    def local_size(self) -> Tuple[float, float]:
-        return (self.local_width, self.local_height)
-
-    @local_size.setter
-    def local_size(self, size: Tuple[float, float]) -> None:
-        self.config(local_width=size[0], local_height=size[1])
-
-    config = Configuration("local_width", "local_height", parent=AbstractShape.config)
+    config = Configuration("local_width", "local_height", "local_size", parent=AbstractShape.config)
 
     config.validator("local_width", no_object(valid_float(min_value=0)))
     config.validator("local_height", no_object(valid_float(min_value=0)))
+    config.validator("local_size", (tuple, list))
 
     local_width: ConfigAttribute[float] = ConfigAttribute()
     local_height: ConfigAttribute[float] = ConfigAttribute()
+    local_size: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
+
+    @config.getter_no_name("local_size")
+    def __get_local_size(self) -> Tuple[float, float]:
+        return (self.local_width, self.local_height)
+
+    @config.setter_no_name("local_size")
+    def ___set_local_size(self, size: Tuple[float, float]) -> None:
+        self.config(local_width=size[0], local_height=size[1])
 
 
 class RectangleShape(AbstractRectangleShape, OutlinedShape, ThemedShape):
@@ -343,11 +345,22 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, ThemedShape):
     config.validator("border_bottom_left_radius", no_object(valid_integer(min_value=-1)))
     config.validator("border_bottom_right_radius", no_object(valid_integer(min_value=-1)))
 
-    @config.value_updater("border_radius")
-    @config.value_updater("border_top_left_radius")
-    @config.value_updater("border_top_right_radius")
-    @config.value_updater("border_bottom_left_radius")
-    @config.value_updater("border_bottom_right_radius")
+    @config.getter("border_radius")
+    @config.getter("border_top_left_radius")
+    @config.getter("border_top_right_radius")
+    @config.getter("border_bottom_left_radius")
+    @config.getter("border_bottom_right_radius")
+    def __get_border_radius(self, border: str) -> int:
+        try:
+            return self.__draw_params[border]
+        except KeyError as exc:
+            raise AttributeError from exc
+
+    @config.setter("border_radius")
+    @config.setter("border_top_left_radius")
+    @config.setter("border_top_right_radius")
+    @config.setter("border_bottom_left_radius")
+    @config.setter("border_bottom_right_radius")
     def __set_border_radius(self, border: str, radius: int) -> None:
         self.__draw_params[border] = radius
 
@@ -464,11 +477,21 @@ class CircleShape(AbstractCircleShape, OutlinedShape, ThemedShape):
     config.validator("draw_bottom_left", truth)
     config.validator("draw_bottom_right", truth)
 
-    @config.value_updater("draw_top_left")
-    @config.value_updater("draw_top_right")
-    @config.value_updater("draw_bottom_left")
-    @config.value_updater("draw_bottom_right")
-    def __draw_arc(self, side: str, status: bool) -> None:
+    @config.getter("draw_top_left")
+    @config.getter("draw_top_right")
+    @config.getter("draw_bottom_left")
+    @config.getter("draw_bottom_right")
+    def __get_draw_arc(self, side: str) -> bool:
+        try:
+            return self.__draw_params[side]
+        except KeyError as exc:
+            raise AttributeError from exc
+
+    @config.setter("draw_top_left")
+    @config.setter("draw_top_right")
+    @config.setter("draw_bottom_left")
+    @config.setter("draw_bottom_right")
+    def __set_draw_arc(self, side: str, status: bool) -> None:
         self.__draw_params[side] = status
 
     draw_top_left: ConfigAttribute[bool] = ConfigAttribute()
@@ -602,26 +625,28 @@ class CrossShape(OutlinedShape, ThemedShape):
             Vector2(rect.centerx - line_width, rect.centery - line_width),
         ]
 
-    config = Configuration("local_width", "local_height", "line_width", parent=OutlinedShape.config)
+    config = Configuration("local_width", "local_height", "local_size", "line_width", parent=OutlinedShape.config)
 
     config.validator("local_width", no_object(valid_float(min_value=0)))
     config.validator("local_height", no_object(valid_float(min_value=0)))
+    config.validator("local_size", (tuple, list))
     config.validator("line_width", no_object(valid_float(min_value=0)))
 
     local_width: ConfigAttribute[float] = ConfigAttribute()
     local_height: ConfigAttribute[float] = ConfigAttribute()
+    local_size: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
     line_width: ConfigAttribute[float] = ConfigAttribute()
 
     @property
     def type(self) -> str:
         return str(self.__type.value)
 
-    @property
-    def local_size(self) -> Tuple[float, float]:
+    @config.getter_no_name("local_size")
+    def __get_local_size(self) -> Tuple[float, float]:
         return (self.local_width, self.local_height)
 
-    @local_size.setter
-    def local_size(self, size: Tuple[float, float]) -> None:
+    @config.setter_no_name("local_size")
+    def ___set_local_size(self, size: Tuple[float, float]) -> None:
         self.config(local_width=size[0], local_height=size[1])
 
 

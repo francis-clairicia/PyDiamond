@@ -35,7 +35,7 @@ class Text(ThemedDrawable):
         CENTER = "center"
 
     config: Configuration = Configuration(
-        "message", "font", "color", "wrap", "justify", "shadow_x", "shadow_y", "shadow_color", autocopy=True
+        "message", "font", "color", "wrap", "justify", "shadow_x", "shadow_y", "shadow", "shadow_color", autocopy=True
     )
 
     config.enum("justify", Justify, return_value=True)
@@ -45,6 +45,7 @@ class Text(ThemedDrawable):
     config.validator("color", Color)
     config.validator("shadow_x", float, convert=True)
     config.validator("shadow_y", float, convert=True)
+    config.validator("shadow", (tuple, list))
     config.validator("shadow_color", Color)
 
     config.set_autocopy("font", copy_on_get=False, copy_on_set=False)
@@ -72,10 +73,11 @@ class Text(ThemedDrawable):
         self.__custom_font: Dict[int, Font] = dict()
         self.__default_image: Surface = create_surface((0, 0))
         self.__image: Surface = self.__default_image.copy()
+        self.__justify: Text.Justify
         self.set_font(font, bold=bold, italic=italic, underline=underline)
+        self.wrap = wrap
         self.message = message
         self.color = color
-        self.wrap = wrap
         self.justify = justify
         self.shadow = (shadow_x, shadow_y)
         self.shadow_color = shadow_color
@@ -189,10 +191,10 @@ class Text(ThemedDrawable):
         text_rect: Rect = text.get_rect()
         top: int = 0
         params: Dict[str, int] = {
-            "left": {"left": text_rect.left},
-            "right": {"right": text_rect.right},
-            "center": {"centerx": text_rect.centerx},
-        }[self.justify]
+            Text.Justify.LEFT: {"left": text_rect.left},
+            Text.Justify.RIGHT: {"right": text_rect.right},
+            Text.Justify.CENTER: {"centerx": text_rect.centerx},
+        }[self.__justify]
         for render in render_lines:
             text.blit(render, render.get_rect(**params, top=top))
             top += render.get_height()
@@ -201,6 +203,8 @@ class Text(ThemedDrawable):
     def _render(self) -> Surface:
         text: Surface = self.__render_text(self.color)
         shadow_x, shadow_y = self.shadow
+        shadow_x = int(shadow_x)
+        shadow_y = int(shadow_y)
         if shadow_x == 0 and shadow_y == 0:
             return text
         shadow_text: Surface = self.__render_text(self.shadow_color)
@@ -221,7 +225,7 @@ class Text(ThemedDrawable):
 
         return render
 
-    @config.converter("message")
+    @config.converter("message", use_on_set=True)
     def __convert_message(self, message: str) -> str:
         wrap: int = self.wrap
         return "\n".join(textwrap(message, width=wrap)) if wrap > 0 else message
@@ -233,14 +237,15 @@ class Text(ThemedDrawable):
     justify: ConfigAttribute[str] = ConfigAttribute()
     shadow_x: ConfigAttribute[float] = ConfigAttribute()
     shadow_y: ConfigAttribute[float] = ConfigAttribute()
+    shadow: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
     shadow_color: ConfigAttribute[Color] = ConfigAttribute()
 
-    @property
-    def shadow(self) -> Tuple[float, float]:
+    @config.getter_no_name("shadow")
+    def get_shadow(self) -> Tuple[float, float]:
         return (self.shadow_x, self.shadow_y)
 
-    @shadow.setter
-    def shadow(self, pos: Tuple[float, float]) -> None:
+    @config.setter_no_name("shadow")
+    def set_shadow(self, pos: Tuple[float, float]) -> None:
         self.config(shadow_x=pos[0], shadow_y=pos[1])
 
 
@@ -258,6 +263,7 @@ class TextImage(Text):
 
     config.enum("compound", Compound, return_value=True)
 
+    config.validator("img", (Surface, type(None)))
     config.validator("distance", no_object(valid_float(min_value=0)))
 
     config.register_copy_func(Surface, lambda surface: surface.copy(), allow_subclass=True)
@@ -296,7 +302,7 @@ class TextImage(Text):
             shadow_color=shadow_color,
             theme=NoTheme,
         )
-        self.__img: Optional[Image]
+        self.__img: Optional[Image] = None
         self.__compound: TextImage.Compound
         self.__img_angle: float = 0
         self.__img_scale: float = 1
@@ -436,25 +442,25 @@ class TextImage(Text):
 
         return render
 
-    @config.converter("img")
-    @staticmethod
-    def __get_img_surface(img: Optional[_BoundImage]) -> Optional[Surface]:
+    @config.getter_no_name("img")
+    def __get_img_surface(self) -> Optional[Surface]:
+        img: Optional[Image] = self.__img
         if img is None:
             return None
         return img.get()
 
-    @config.validator("img")
-    def __convert_surface(self, surface: Optional[Surface]) -> Optional[_BoundImage]:
+    @config.setter_no_name("img")
+    def __update_img(self, surface: Optional[Surface]) -> None:
         if surface is None:
-            return None
-        return _BoundImage(self, surface)
-
-    @config.value_updater_no_name("img")
-    def __update_img(self, img: Optional[_BoundImage]) -> None:
-        if img is None:
+            self.__img = None
             return
-        img.set_scale(self.__img_scale)
-        img.set_rotation(self.__img_angle)
+        img: Optional[Image] = self.__img
+        if img is None:
+            self.__img = img = _BoundImage(self, surface)
+            img.set_scale(self.__img_scale)
+            img.set_rotation(self.__img_angle)
+        else:
+            img.set(surface)
 
     img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
     compound: ConfigAttribute[str] = ConfigAttribute()
