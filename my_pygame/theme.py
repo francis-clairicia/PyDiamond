@@ -45,20 +45,23 @@ class ThemeNamespace(ContextManager["ThemeNamespace"]):
         global _THEMES
         self.__save_namespace = ThemeNamespace.__actual_namespace
         ThemeNamespace.__actual_namespace = namespace = self.__namespace
+        NAMESPACE: Dict[str, _ClassThemeDict] = ThemeNamespace.__NAMESPACE
         try:
-            theme_dict: _ClassThemeDict = ThemeNamespace.__NAMESPACE[namespace]
+            _THEMES = NAMESPACE[namespace]
         except KeyError:
-            ThemeNamespace.__NAMESPACE[namespace] = theme_dict = dict()
-        _THEMES = theme_dict
+            NAMESPACE[namespace] = _THEMES = dict()
         return self
 
     def __exit__(self, *args: Any) -> None:
         global _THEMES
-        namespace, self.__save_namespace = self.__save_namespace, None
+        namespace: Optional[str] = self.__save_namespace
+        self.__save_namespace = None
+        NAMESPACE: Dict[str, _ClassThemeDict] = ThemeNamespace.__NAMESPACE
+        DEFAULT: _ClassThemeDict = ThemeNamespace.__DEFAULT
         if namespace is None:
-            _THEMES = ThemeNamespace.__DEFAULT
+            _THEMES = DEFAULT
         else:
-            _THEMES = ThemeNamespace.__NAMESPACE.get(namespace, ThemeNamespace.__DEFAULT)
+            _THEMES = NAMESPACE[namespace]
         ThemeNamespace.__actual_namespace = namespace
 
     @property
@@ -78,7 +81,8 @@ class _NoThemeType(str):
         try:
             return NoTheme
         except NameError:
-            return super().__new__(_NoThemeType, "NoTheme")
+            NoTheme = super().__new__(_NoThemeType, "NoTheme")
+        return NoTheme
 
 
 NoTheme: _NoThemeType = _NoThemeType()
