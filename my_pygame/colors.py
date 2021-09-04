@@ -24,6 +24,18 @@ PURPLE = Color(165, 0, 255)
 TRANSPARENT = Color(0, 0, 0, 0)
 
 
+def set_brightness(color: Color, value: int) -> Color:
+    c = Color(color)
+    H, S, V, A = c.hsva
+    V = value
+    if V > 100:
+        V = 100
+    elif V < 0:
+        V = 0
+    c.hsva = (H, S, V, A)
+    return c
+
+
 def change_brightness(color: Color, value: int) -> Color:
     c = Color(color)
     H, S, V, A = c.hsva
@@ -32,6 +44,18 @@ def change_brightness(color: Color, value: int) -> Color:
         V = 100
     elif V < 0:
         V = 0
+    c.hsva = (H, S, V, A)
+    return c
+
+
+def set_saturation(color: Color, value: int) -> Color:
+    c = Color(color)
+    H, S, V, A = c.hsva
+    S = value
+    if S > 100:
+        S = 100
+    elif S < 0:
+        S = 0
     c.hsva = (H, S, V, A)
     return c
 

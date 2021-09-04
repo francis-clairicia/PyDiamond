@@ -33,6 +33,7 @@ from my_pygame.colors import (
     WHITE,
     RED,
     YELLOW,
+    set_brightness,
 )
 from my_pygame.clock import Clock
 
@@ -198,6 +199,10 @@ class Rainbow(AbstractRectangleShape):
             HorizontalGradientShape(0, 0, MAGENTA, PURPLE),
             HorizontalGradientShape(0, 0, PURPLE, RED),
         ]
+        brightness: int = 75
+        for shape in self.__colors:
+            shape.first_color = set_brightness(shape.first_color, brightness)
+            shape.second_color = set_brightness(shape.second_color, brightness)
         super().__init__(width, height)
 
     def copy(self) -> Rainbow:
