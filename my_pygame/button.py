@@ -1,7 +1,7 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
-from typing import Callable, Dict, Literal, Optional, Tuple, TypedDict, Union, overload
+from typing import Any, Callable, Dict, Literal, Optional, Tuple, TypedDict, Union, overload
 from enum import Enum, unique
 from operator import truth
 
@@ -20,6 +20,8 @@ from .colors import TRANSPARENT, WHITE, GRAY, GRAY_LIGHT, GRAY_DARK, BLACK
 from .theme import NoTheme, ThemeType
 from .cursor import Cursor
 from .image import Image
+from .configuration import ConfigAttribute, Configuration, initializer, no_object
+from .utils import valid_float
 
 _TextFont = Union[Font, Tuple[Optional[str], int]]
 
@@ -86,25 +88,27 @@ class Button(ThemedDrawable, Clickable):
         BOTTOM = "bottom"
         CENTER = "center"
 
-    __HORIZONTAL_ALIGN_POS: Dict[HorizontalAlign, str] = {
-        HorizontalAlign.LEFT: "left",
-        HorizontalAlign.RIGHT: "right",
-        HorizontalAlign.CENTER: "centerx",
+    __HORIZONTAL_ALIGN_POS: Dict[str, str] = {
+        "left": "left",
+        "right": "right",
+        "center": "centerx",
     }
-    __VERTICAL_ALIGN_POS: Dict[VerticalAlign, str] = {
-        VerticalAlign.TOP: "top",
-        VerticalAlign.BOTTOM: "bottom",
-        VerticalAlign.CENTER: "centery",
+    __VERTICAL_ALIGN_POS: Dict[str, str] = {
+        "top": "top",
+        "bottom": "bottom",
+        "center": "centery",
     }
 
+    @initializer
     def __init__(
         self,
         master: Union[Scene, Window],
         text: str = "",
+        callback: Optional[Callable[[], None]] = None,
         *,
         img: Optional[Surface] = None,
         compound: str = "left",
-        text_img_distance: float = 5,
+        distance_text_img: float = 5,
         font: Optional[_TextFont] = None,
         bold: Optional[bool] = None,
         italic: Optional[bool] = None,
@@ -114,7 +118,6 @@ class Button(ThemedDrawable, Clickable):
         shadow_x: float = 0,
         shadow_y: float = 0,
         shadow_color: Color = BLACK,
-        callback: Optional[Callable[[], None]] = None,
         state: str = "normal",
         width: Optional[float] = None,
         height: Optional[float] = None,
@@ -174,7 +177,7 @@ class Button(ThemedDrawable, Clickable):
             message=text,
             img=img,
             compound=compound,
-            distance=text_img_distance,
+            distance=distance_text_img,
             font=font,
             bold=bold,
             italic=italic,
@@ -187,14 +190,15 @@ class Button(ThemedDrawable, Clickable):
             shadow_color=shadow_color,
             theme=NoTheme,
         )
-        self.__callback: Optional[Callable[[], None]] = callback if callable(callback) else None
-        self.__x_add_size: float = max(float(x_add_size), 0)
-        self.__y_add_size: float = max(float(y_add_size), 0)
-        self.__fixed_width: Optional[float] = max(float(width), 0) if width is not None else None
-        self.__fixed_height: Optional[float] = max(float(height), 0) if height is not None else None
+        self.__callback: Optional[Callable[[], None]]
+        self.callback = callback
+        self.x_add_size = x_add_size
+        self.y_add_size = y_add_size
+        self.fixed_width = width
+        self.fixed_height = height
         self.__shape: RectangleShape = RectangleShape(
-            width=self.__text.width + self.__x_add_size if self.__fixed_width is None else self.__fixed_width,
-            height=self.__text.height + self.__y_add_size if self.__fixed_height is None else self.__fixed_height,
+            width=0,
+            height=0,
             color=bg,
             outline=outline,
             outline_color=outline_color,
@@ -206,7 +210,7 @@ class Button(ThemedDrawable, Clickable):
             theme=NoTheme,
         )
         self.__shape.set_visibility(show_bg)
-        self.__bg: Dict[Clickable.State, _ButtonColor] = {
+        self.__bg_dict: Dict[Clickable.State, _ButtonColor] = {
             Clickable.State.NORMAL: {
                 "normal": Color(bg),
                 "hover": _copy_color(hover_bg),
@@ -218,7 +222,7 @@ class Button(ThemedDrawable, Clickable):
                 "active": _copy_color(disabled_active_bg),
             },
         }
-        self.__fg: Dict[Clickable.State, _ButtonColor] = {
+        self.__fg_dict: Dict[Clickable.State, _ButtonColor] = {
             Clickable.State.NORMAL: {
                 "normal": Color(fg),
                 "hover": _copy_color(hover_fg),
@@ -230,7 +234,7 @@ class Button(ThemedDrawable, Clickable):
                 "active": _copy_color(disabled_active_fg),
             },
         }
-        self.__img: Dict[Clickable.State, _ImageDict] = {
+        self.__img_dict: Dict[Clickable.State, _ImageDict] = {
             Clickable.State.NORMAL: {
                 "normal": _copy_img(img),
                 "hover": _copy_img(hover_img),
@@ -242,19 +246,21 @@ class Button(ThemedDrawable, Clickable):
                 "active": _copy_img(disabled_active_img),
             },
         }
-        self.__text_align_x: Button.HorizontalAlign = Button.HorizontalAlign(text_align_x)
-        self.__text_align_y: Button.VerticalAlign = Button.VerticalAlign(text_align_y)
-        self.__text_offset: Tuple[float, float] = text_offset
-        self.__text_hover_offset: Tuple[float, float] = text_hover_offset
-        self.__text_active_offset: Tuple[float, float] = text_active_offset
+        self.__text_align_x: Button.HorizontalAlign
+        self.__text_align_y: Button.VerticalAlign
+        self.text_align_x = text_align_x
+        self.text_align_y = text_align_y
+        self.text_offset = text_offset
+        self.text_hover_offset = text_hover_offset
+        self.text_active_offset = text_active_offset
 
     def copy(self) -> Button:
         b: Button = Button(
             master=self.master,
             text=self.__text.message,
-            img=self.__img[Clickable.State.NORMAL]["normal"],
+            img=self.__img_dict[Clickable.State.NORMAL]["normal"],
             compound=self.__text.compound,
-            text_img_distance=self.__text.distance,
+            distance_text_img=self.__text.distance,
             font=self.__text.font,
             wrap=self.__text.wrap,
             justify=self.__text.justify,
@@ -263,40 +269,40 @@ class Button(ThemedDrawable, Clickable):
             shadow_color=self.__text.shadow_color,
             callback=self.__callback,
             state=self.state,
-            width=self.__fixed_width,
-            height=self.__fixed_height,
-            x_add_size=self.__x_add_size,
-            y_add_size=self.__y_add_size,
+            width=self.fixed_width,
+            height=self.fixed_height,
+            x_add_size=self.x_add_size,
+            y_add_size=self.y_add_size,
             show_bg=self.__shape.is_shown(),
-            bg=self.__bg[Clickable.State.NORMAL]["normal"],
-            fg=self.__fg[Clickable.State.NORMAL]["normal"],
+            bg=self.__bg_dict[Clickable.State.NORMAL]["normal"],
+            fg=self.__fg_dict[Clickable.State.NORMAL]["normal"],
             outline=self.__shape.outline,
             outline_color=self.__shape.outline_color,
-            hover_bg=self.__bg[Clickable.State.NORMAL]["hover"],
-            hover_fg=self.__fg[Clickable.State.NORMAL]["hover"],
+            hover_bg=self.__bg_dict[Clickable.State.NORMAL]["hover"],
+            hover_fg=self.__fg_dict[Clickable.State.NORMAL]["hover"],
             hover_sound=self.hover_sound,
-            active_bg=self.__bg[Clickable.State.NORMAL]["active"],
-            active_fg=self.__fg[Clickable.State.NORMAL]["active"],
+            active_bg=self.__bg_dict[Clickable.State.NORMAL]["active"],
+            active_fg=self.__fg_dict[Clickable.State.NORMAL]["active"],
             click_sound=self.click_sound,
-            disabled_bg=self.__bg[Clickable.State.DISABLED]["normal"],
-            disabled_fg=self.__fg[Clickable.State.DISABLED]["normal"],
+            disabled_bg=self.__bg_dict[Clickable.State.DISABLED]["normal"],
+            disabled_fg=self.__fg_dict[Clickable.State.DISABLED]["normal"],
             disabled_sound=self.disabled_sound,
-            disabled_hover_bg=self.__bg[Clickable.State.DISABLED]["hover"],
-            disabled_hover_fg=self.__fg[Clickable.State.DISABLED]["hover"],
-            disabled_active_bg=self.__bg[Clickable.State.DISABLED]["active"],
-            disabled_active_fg=self.__fg[Clickable.State.DISABLED]["active"],
-            hover_img=self.__img[Clickable.State.NORMAL]["hover"],
-            active_img=self.__img[Clickable.State.NORMAL]["active"],
-            disabled_img=self.__img[Clickable.State.DISABLED]["normal"],
-            disabled_hover_img=self.__img[Clickable.State.DISABLED]["hover"],
-            disabled_active_img=self.__img[Clickable.State.DISABLED]["active"],
+            disabled_hover_bg=self.__bg_dict[Clickable.State.DISABLED]["hover"],
+            disabled_hover_fg=self.__fg_dict[Clickable.State.DISABLED]["hover"],
+            disabled_active_bg=self.__bg_dict[Clickable.State.DISABLED]["active"],
+            disabled_active_fg=self.__fg_dict[Clickable.State.DISABLED]["active"],
+            hover_img=self.__img_dict[Clickable.State.NORMAL]["hover"],
+            active_img=self.__img_dict[Clickable.State.NORMAL]["active"],
+            disabled_img=self.__img_dict[Clickable.State.DISABLED]["normal"],
+            disabled_hover_img=self.__img_dict[Clickable.State.DISABLED]["hover"],
+            disabled_active_img=self.__img_dict[Clickable.State.DISABLED]["active"],
             cursor=self.cursor,
             disabled_cursor=self.disabled_cursor,
             text_align_x=self.__text_align_x,
             text_align_y=self.__text_align_y,
-            text_offset=self.__text_offset,
-            text_hover_offset=self.__text_hover_offset,
-            text_active_offset=self.__text_active_offset,
+            text_offset=self.text_offset,
+            text_hover_offset=self.text_hover_offset,
+            text_active_offset=self.text_active_offset,
             border_radius=self.__shape.border_radius,
             border_top_left_radius=self.__shape.border_top_left_radius,
             border_top_right_radius=self.__shape.border_top_right_radius,
@@ -320,12 +326,12 @@ class Button(ThemedDrawable, Clickable):
                 text_align_y: getattr(self.__shape, text_align_y),
             }
         )
-        self.__text.translate(compute_offset(self.__text_offset))
+        self.__text.translate(compute_offset(self.text_offset))
         if self.state != Clickable.State.DISABLED:
             if self.active:
-                self.__text.translate(compute_offset(self.__text_active_offset))
+                self.__text.translate(compute_offset(self.text_active_offset))
             elif self.hover:
-                self.__text.translate(compute_offset(self.__text_hover_offset))
+                self.__text.translate(compute_offset(self.text_hover_offset))
         self.__shape.draw_onto(surface)
         self.__text.draw_onto(surface)
 
@@ -437,20 +443,19 @@ class Button(ThemedDrawable, Clickable):
     def _on_active_set(self) -> None:
         self.__set_state("active")
 
-    def __set_state(self, button_state: Union[Literal["normal"], Literal["hover"], Literal["active"]]) -> None:
+    def __set_state(self, button_state: Literal["normal", "hover", "active"]) -> None:
         clickable_state: Clickable.State = Clickable.State(self.state)
-        bg_color: Optional[Color] = self.__bg[clickable_state][button_state]
+        bg_color: Optional[Color] = self.__bg_dict[clickable_state][button_state]
         if bg_color is None:
-            bg_color = self.__bg[clickable_state]["normal"]
-        fg_color: Optional[Color] = self.__fg[clickable_state][button_state]
+            bg_color = self.__bg_dict[clickable_state]["normal"]
+        fg_color: Optional[Color] = self.__fg_dict[clickable_state][button_state]
         if fg_color is None:
-            fg_color = self.__fg[clickable_state]["normal"]
-        img: Optional[Surface] = self.__img[clickable_state][button_state]
+            fg_color = self.__fg_dict[clickable_state]["normal"]
+        img: Optional[Surface] = self.__img_dict[clickable_state][button_state]
         if img is None:
-            img = self.__img[clickable_state]["normal"]
-        self.__shape.color = bg_color
-        self.__text.color = fg_color
-        self.__text.img = img
+            img = self.__img_dict[clickable_state]["normal"]
+        self.__shape.config(color=bg_color)
+        self.__text.config(color=fg_color, img=img)
         self.__update_shape_size()
 
     def __update_state(self) -> None:
@@ -464,110 +469,375 @@ class Button(ThemedDrawable, Clickable):
     def __update_shape_size(self) -> None:
         center = self.center
         text_width, text_height = self.__text.get_local_size()
-        x_add_size: float = self.__x_add_size * self.scale
-        y_add_size: float = self.__y_add_size * self.scale
+        x_add_size: float = self.x_add_size * self.scale
+        y_add_size: float = self.y_add_size * self.scale
+        fixed_width: Optional[float] = self.fixed_width
+        fixed_height: Optional[float] = self.fixed_height
         self.__shape.local_size = (
-            text_width + x_add_size if self.__fixed_width is None else self.__fixed_width,
-            text_height + y_add_size if self.__fixed_height is None else self.__fixed_height,
+            text_width + x_add_size if fixed_width is None else fixed_width,
+            text_height + y_add_size if fixed_height is None else fixed_height,
         )
         self.center = center
 
-    @property
-    def text(self) -> str:
-        return self.__text.message
+    config: Configuration = Configuration(
+        "text",
+        "text_font",
+        "text_justify",
+        "text_wrap",
+        "text_shadow",
+        "text_shadow_x",
+        "text_shadow_y",
+        "text_shadow_color",
+        "img",
+        "compound",
+        "distance_text_img",
+        "fixed_width",
+        "fixed_height",
+        "x_add_size",
+        "y_add_size",
+        "background",
+        "foreground",
+        "outline",
+        "outline_color",
+        "hover_background",
+        "hover_foreground",
+        "active_background",
+        "active_foreground",
+        "disabled_background",
+        "disabled_foreground",
+        "disabled_hover_background",
+        "disabled_hover_foreground",
+        "disabled_active_background",
+        "disabled_active_foreground",
+        "hover_img",
+        "active_img",
+        "disabled_img",
+        "disabled_hover_img",
+        "disabled_active_img",
+        "text_align_x",
+        "text_align_y",
+        "text_offset",
+        "text_hover_offset",
+        "text_active_offset",
+        "border_radius",
+        "border_top_left_radius",
+        "border_top_right_radius",
+        "border_bottom_left_radius",
+        "border_bottom_right_radius",
+    )
 
-    @text.setter
-    def text(self, string: str) -> None:
-        self.__text.message = string
-        self.__update_shape_size()
+    config.set_alias("background", "bg")
+    config.set_alias("foreground", "fg")
+    config.set_alias("hover_background", "hover_bg")
+    config.set_alias("hover_foreground", "hover_fg")
+    config.set_alias("active_background", "active_bg")
+    config.set_alias("active_foreground", "active_fg")
+    config.set_alias("disabled_background", "disabled_bg")
+    config.set_alias("disabled_foreground", "disabled_fg")
+    config.set_alias("disabled_hover_background", "disabled_hover_bg")
+    config.set_alias("disabled_hover_foreground", "disabled_hover_fg")
+    config.set_alias("disabled_active_background", "disabled_active_bg")
+    config.set_alias("disabled_active_foreground", "disabled_active_fg")
 
-    @property
-    def text_font(self) -> Font:
-        return self.__text.font
+    config.register_copy_func(Color, _copy_color)
+    config.register_copy_func(Surface, _copy_img, allow_subclass=True)
 
-    @text_font.setter
-    def text_font(self, font: Font) -> None:
-        self.text_set_font(font)
+    text: ConfigAttribute[str] = ConfigAttribute()
+    text_font: ConfigAttribute[Font] = ConfigAttribute()
+    text_justify: ConfigAttribute[str] = ConfigAttribute()
+    text_wrap: ConfigAttribute[int] = ConfigAttribute()
+    text_shadow: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
+    text_shadow_x: ConfigAttribute[float] = ConfigAttribute()
+    text_shadow_y: ConfigAttribute[float] = ConfigAttribute()
+    text_shadow_color: ConfigAttribute[Color] = ConfigAttribute()
+    img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
+    compound: ConfigAttribute[str] = ConfigAttribute()
+    distance_text_img: ConfigAttribute[float] = ConfigAttribute()
+    fixed_width: ConfigAttribute[Optional[float]] = ConfigAttribute()
+    fixed_height: ConfigAttribute[Optional[float]] = ConfigAttribute()
+    x_add_size: ConfigAttribute[float] = ConfigAttribute()
+    y_add_size: ConfigAttribute[float] = ConfigAttribute()
+    background: ConfigAttribute[Color] = ConfigAttribute()
+    foreground: ConfigAttribute[Color] = ConfigAttribute()
+    bg: ConfigAttribute[Color] = ConfigAttribute()
+    fg: ConfigAttribute[Color] = ConfigAttribute()
+    outline: ConfigAttribute[int] = ConfigAttribute()
+    outline_color: ConfigAttribute[Color] = ConfigAttribute()
+    hover_background: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    hover_foreground: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    hover_bg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    hover_fg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    active_background: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    active_foreground: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    active_bg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    active_fg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    disabled_background: ConfigAttribute[Color] = ConfigAttribute()
+    disabled_foreground: ConfigAttribute[Color] = ConfigAttribute()
+    disabled_bg: ConfigAttribute[Color] = ConfigAttribute()
+    disabled_fg: ConfigAttribute[Color] = ConfigAttribute()
+    disabled_hover_background: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    disabled_hover_foreground: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    disabled_hover_bg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    disabled_hover_fg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    disabled_active_background: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    disabled_active_foreground: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    disabled_active_bg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    disabled_active_fg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    hover_img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
+    active_img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
+    disabled_img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
+    disabled_hover_img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
+    disabled_active_img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
+    text_align_x: ConfigAttribute[str] = ConfigAttribute()
+    text_align_y: ConfigAttribute[str] = ConfigAttribute()
+    text_offset: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
+    text_hover_offset: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
+    text_active_offset: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
+    border_radius: ConfigAttribute[int] = ConfigAttribute()
+    border_top_left_radius: ConfigAttribute[int] = ConfigAttribute()
+    border_top_right_radius: ConfigAttribute[int] = ConfigAttribute()
+    border_bottom_left_radius: ConfigAttribute[int] = ConfigAttribute()
+    border_bottom_right_radius: ConfigAttribute[int] = ConfigAttribute()
 
-    @property
-    def text_justify(self) -> str:
-        return self.__text.justify
+    __TEXT_OPTION: Dict[str, str] = {
+        "text": "message",
+        "text_font": "font",
+        "text_justify": "justify",
+        "text_wrap": "wrap",
+        "text_shadow": "shadow",
+        "text_shadow_x": "shadow_x",
+        "text_shadow_y": "shadow_y",
+        "text_shadow_color": "shadow_color",
+        "compound": "compound",
+        "distance_text_img": "distance",
+    }
 
-    @text_justify.setter
-    def text_justify(self, justify: str) -> None:
-        self.__text.justify = justify
-        self.__update_shape_size()
+    @config.getter("text")
+    @config.getter("text_font")
+    @config.getter("text_justify")
+    @config.getter("text_wrap")
+    @config.getter("text_shadow")
+    @config.getter("text_shadow_x")
+    @config.getter("text_shadow_y")
+    @config.getter("text_shadow_color")
+    @config.getter("compound")
+    @config.getter("distance_text_img")
+    def __get_text_option(self, option: str) -> Any:
+        return self.__text.config.get(Button.__TEXT_OPTION[option])
 
-    @property
-    def text_wrap(self) -> int:
-        return self.__text.wrap
+    @config.setter("text")
+    @config.setter("text_font")
+    @config.setter("text_justify")
+    @config.setter("text_wrap")
+    @config.setter("text_shadow")
+    @config.setter("text_shadow_x")
+    @config.setter("text_shadow_y")
+    @config.setter("text_shadow_color")
+    @config.setter("compound")
+    @config.setter("distance_text_img")
+    def __set_text_option(self, option: str, value: Any) -> None:
+        return self.__text.config.set(Button.__TEXT_OPTION[option], value)
 
-    @text_wrap.setter
-    def text_wrap(self, value: int) -> None:
-        self.__text.wrap = value
-        self.__update_shape_size()
+    config.updater("text", __update_shape_size)
+    config.updater("text_font", __update_shape_size)
+    config.updater("text_justify", __update_shape_size)
+    config.updater("text_wrap", __update_shape_size)
+    config.updater("text_shadow", __update_shape_size)
+    config.updater("text_shadow_x", __update_shape_size)
+    config.updater("text_shadow_y", __update_shape_size)
+    config.updater("text_shadow_color", __update_shape_size)
+    config.updater("compound", __update_shape_size)
+    config.updater("distance_text_img", __update_shape_size)
 
-    @property
-    def text_shadow(self) -> Tuple[float, float]:
-        return self.__text.shadow
+    @config.validator("fixed_width")
+    @config.validator("fixed_height")
+    @staticmethod
+    def __fixed_size_validator(size: Optional[float]) -> Optional[float]:
+        if size is None:
+            return None
+        return max(float(size), 0)
 
-    @text_shadow.setter
-    def text_shadow(self, shadow: Tuple[float, float]) -> None:
-        self.__text.shadow = shadow
-        self.__update_shape_size()
+    config.updater("fixed_width", __update_shape_size)
+    config.updater("fixed_height", __update_shape_size)
 
-    @property
-    def text_shadow_x(self) -> float:
-        return self.__text.shadow_x
+    config.validator("x_add_size", no_object(valid_float(min_value=0)))
+    config.validator("y_add_size", no_object(valid_float(min_value=0)))
+    config.updater("x_add_size", __update_shape_size)
+    config.updater("y_add_size", __update_shape_size)
 
-    @text_shadow_x.setter
-    def text_shadow_x(self, shadow: float) -> None:
-        self.__text.shadow_x = shadow
-        self.__update_shape_size()
+    __STATE: Dict[str, Tuple[Clickable.State, Literal["normal", "hover", "active"]]] = {
+        "background": (Clickable.State.NORMAL, "normal"),
+        "hover_background": (Clickable.State.NORMAL, "hover"),
+        "active_background": (Clickable.State.NORMAL, "active"),
+        "disabled_background": (Clickable.State.DISABLED, "normal"),
+        "disabled_hover_background": (Clickable.State.DISABLED, "hover"),
+        "disabled_active_background": (Clickable.State.DISABLED, "active"),
+        "foreground": (Clickable.State.NORMAL, "normal"),
+        "hover_foreground": (Clickable.State.NORMAL, "hover"),
+        "active_foreground": (Clickable.State.NORMAL, "active"),
+        "disabled_foreground": (Clickable.State.DISABLED, "normal"),
+        "disabled_hover_foreground": (Clickable.State.DISABLED, "hover"),
+        "disabled_active_foreground": (Clickable.State.DISABLED, "active"),
+        "img": (Clickable.State.NORMAL, "normal"),
+        "hover_img": (Clickable.State.NORMAL, "hover"),
+        "active_img": (Clickable.State.NORMAL, "active"),
+        "disabled_img": (Clickable.State.DISABLED, "normal"),
+        "disabled_hover_img": (Clickable.State.DISABLED, "hover"),
+        "disabled_active_img": (Clickable.State.DISABLED, "active"),
+    }
 
-    @property
-    def text_shadow_y(self) -> float:
-        return self.__text.shadow_y
+    config.set_autocopy("background", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("hover_background", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("active_background", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("disabled_background", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("disabled_hover_background", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("disabled_active_background", copy_on_get=True, copy_on_set=True)
 
-    @text_shadow_y.setter
-    def text_shadow_y(self, shadow: float) -> None:
-        self.__text.shadow_y = shadow
-        self.__update_shape_size()
+    @config.getter("background")
+    @config.getter("hover_background")
+    @config.getter("active_background")
+    @config.getter("disabled_background")
+    @config.getter("disabled_hover_background")
+    @config.getter("disabled_active_background")
+    def __get_background(self, option: str) -> Optional[Color]:
+        clickable_state, button_state = Button.__STATE[option]
+        return self.__bg_dict[clickable_state][button_state]
 
-    @property
-    def text_shadow_color(self) -> Color:
-        return self.__text.shadow_color
+    @config.setter("background")
+    @config.setter("hover_background")
+    @config.setter("active_background")
+    @config.setter("disabled_background")
+    @config.setter("disabled_hover_background")
+    @config.setter("disabled_active_background")
+    def __set_background(self, option: str, color: Optional[Color]) -> None:
+        clickable_state, button_state = Button.__STATE[option]
+        self.__bg_dict[clickable_state][button_state] = color
 
-    @text_shadow_color.setter
-    def text_shadow_color(self, color: Color) -> None:
-        self.__text.shadow_color = color
+    config.validator("background", Color)
+    config.validator("hover_background", (Color, type(None)))
+    config.validator("active_background", (Color, type(None)))
+    config.validator("disabled_background", Color)
+    config.validator("disabled_hover_background", (Color, type(None)))
+    config.validator("disabled_active_background", (Color, type(None)))
 
-    @property
-    def img(self) -> Optional[Surface]:
-        return _copy_img(self.__img[Clickable.State.NORMAL]["normal"])
+    config.updater("background", __update_state)
+    config.updater("hover_background", __update_state)
+    config.updater("active_background", __update_state)
+    config.updater("disabled_background", __update_state)
+    config.updater("disabled_hover_background", __update_state)
+    config.updater("disabled_active_background", __update_state)
 
-    @img.setter
-    def img(self, surface: Optional[Surface]) -> None:
-        self.__img[Clickable.State.NORMAL]["normal"] = _copy_img(surface)
-        self.__update_state()
+    config.set_autocopy("foreground", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("hover_foreground", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("active_foreground", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("disabled_foreground", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("disabled_hover_foreground", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("disabled_active_foreground", copy_on_get=True, copy_on_set=True)
 
-    @property
-    def compound(self) -> str:
-        return self.__text.compound
+    @config.getter("foreground")
+    @config.getter("hover_foreground")
+    @config.getter("active_foreground")
+    @config.getter("disabled_foreground")
+    @config.getter("disabled_hover_foreground")
+    @config.getter("disabled_active_foreground")
+    def __get_foreground(self, option: str) -> Optional[Color]:
+        clickable_state, button_state = Button.__STATE[option]
+        return self.__fg_dict[clickable_state][button_state]
 
-    @compound.setter
-    def compound(self, compound: str) -> None:
-        self.__text.compound = compound
-        self.__update_shape_size()
+    @config.setter("foreground")
+    @config.setter("hover_foreground")
+    @config.setter("active_foreground")
+    @config.setter("disabled_foreground")
+    @config.setter("disabled_hover_foreground")
+    @config.setter("disabled_active_foreground")
+    def __set_foreground(self, option: str, color: Optional[Color]) -> None:
+        clickable_state, button_state = Button.__STATE[option]
+        self.__fg_dict[clickable_state][button_state] = color
 
-    @property
-    def distance_text_img(self) -> float:
-        return self.__text.distance
+    config.validator("foreground", Color)
+    config.validator("hover_foreground", (Color, type(None)))
+    config.validator("active_foreground", (Color, type(None)))
+    config.validator("disabled_foreground", Color)
+    config.validator("disabled_hover_foreground", (Color, type(None)))
+    config.validator("disabled_active_foreground", (Color, type(None)))
 
-    @distance_text_img.setter
-    def distance_text_img(self, value: float) -> None:
-        self.__text.distance = value
-        self.__update_shape_size()
+    config.updater("foreground", __update_state)
+    config.updater("hover_foreground", __update_state)
+    config.updater("active_foreground", __update_state)
+    config.updater("disabled_foreground", __update_state)
+    config.updater("disabled_hover_foreground", __update_state)
+    config.updater("disabled_active_foreground", __update_state)
+
+    config.set_autocopy("img", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("hover_img", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("active_img", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("disabled_img", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("disabled_hover_img", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("disabled_active_img", copy_on_get=True, copy_on_set=True)
+
+    @config.getter("img")
+    @config.getter("hover_img")
+    @config.getter("active_img")
+    @config.getter("disabled_img")
+    @config.getter("disabled_hover_img")
+    @config.getter("disabled_active_img")
+    def __get_img(self, option: str) -> Optional[Surface]:
+        clickable_state, button_state = Button.__STATE[option]
+        return self.__img_dict[clickable_state][button_state]
+
+    @config.setter("img")
+    @config.setter("hover_img")
+    @config.setter("active_img")
+    @config.setter("disabled_img")
+    @config.setter("disabled_hover_img")
+    @config.setter("disabled_active_img")
+    def __set_img(self, option: str, img: Optional[Surface]) -> None:
+        clickable_state, button_state = Button.__STATE[option]
+        self.__img_dict[clickable_state][button_state] = img
+
+    config.validator("img", (Surface, type(None)))
+    config.validator("hover_img", (Surface, type(None)))
+    config.validator("active_img", (Surface, type(None)))
+    config.validator("disabled_img", (Surface, type(None)))
+    config.validator("disabled_hover_img", (Surface, type(None)))
+    config.validator("disabled_active_img", (Surface, type(None)))
+
+    config.updater("img", __update_state)
+    config.updater("hover_img", __update_state)
+    config.updater("active_img", __update_state)
+    config.updater("disabled_img", __update_state)
+    config.updater("disabled_hover_img", __update_state)
+    config.updater("disabled_active_img", __update_state)
+
+    config.enum("text_align_x", HorizontalAlign, return_value=True)
+    config.enum("text_align_y", VerticalAlign, return_value=True)
+
+    @config.validator("text_offset")
+    @config.validator("text_hover_offset")
+    @config.validator("text_active_offset")
+    @staticmethod
+    def __text_offset_validator(offset: Tuple[float, float]) -> Tuple[float, float]:
+        return (float(offset[0]), float(offset[1]))
+
+    @config.getter("outline")
+    @config.getter("outline_color")
+    @config.getter("border_radius")
+    @config.getter("border_top_left_radius")
+    @config.getter("border_top_right_radius")
+    @config.getter("border_bottom_left_radius")
+    @config.getter("border_bottom_right_radius")
+    def __get_shape_option(self, option: str) -> Any:
+        return self.__shape.config.get(option)
+
+    @config.setter("outline")
+    @config.setter("outline_color")
+    @config.setter("border_radius")
+    @config.setter("border_top_left_radius")
+    @config.setter("border_top_right_radius")
+    @config.setter("border_bottom_left_radius")
+    @config.setter("border_bottom_right_radius")
+    def __set_shape_option(self, option: str, value: Any) -> Any:
+        return self.__shape.config.set(option, value)
 
     @property
     def callback(self) -> Optional[Callable[[], None]]:
@@ -580,422 +850,19 @@ class Button(ThemedDrawable, Clickable):
         else:
             self.__callback = None
 
-    @property
-    def fixed_width(self) -> Optional[float]:
-        return self.__fixed_width
-
-    @fixed_width.setter
-    def fixed_width(self, width: Optional[float]) -> None:
-        if width == self.__fixed_width:
-            return
-        if width is None:
-            self.__fixed_width = None
-        else:
-            self.__fixed_width = max(float(width), 0)
-        self.__update_shape_size()
-
-    @property
-    def fixed_height(self) -> Optional[float]:
-        return self.__fixed_height
-
-    @fixed_height.setter
-    def fixed_height(self, height: Optional[float]) -> None:
-        if height == self.__fixed_height:
-            return
-        if height is None:
-            self.__fixed_height = None
-        else:
-            self.__fixed_height = max(float(height), 0)
-        self.__update_shape_size()
-
-    @property
-    def x_add_size(self) -> float:
-        return self.__x_add_size
-
-    @x_add_size.setter
-    def x_add_size(self, offset: float) -> None:
-        offset = max(offset, 0)
-        if offset != self.__x_add_size:
-            self.__x_add_size = offset
-            self.__update_shape_size()
-
-    @property
-    def y_add_size(self) -> float:
-        return self.__y_add_size
-
-    @y_add_size.setter
-    def y_add_size(self, offset: float) -> None:
-        offset = max(offset, 0)
-        if offset != self.__y_add_size:
-            self.__y_add_size = offset
-            self.__update_shape_size()
-
-    @property
-    def background(self) -> Color:
-        return Color(self.__bg[Clickable.State.NORMAL]["normal"])
-
-    @background.setter
-    def background(self, color: Color) -> None:
-        self.__bg[Clickable.State.NORMAL]["normal"] = Color(color)
-        self.__update_state()
-
-    @property
-    def bg(self) -> Color:
-        return self.background
-
-    @bg.setter
-    def bg(self, color: Color) -> None:
-        self.background = color
-
-    @property
-    def foreground(self) -> Color:
-        return Color(self.__fg[Clickable.State.NORMAL]["normal"])
-
-    @foreground.setter
-    def foreground(self, color: Color) -> None:
-        self.__fg[Clickable.State.NORMAL]["normal"] = Color(color)
-        self.__update_state()
-
-    @property
-    def fg(self) -> Color:
-        return self.foreground
-
-    @fg.setter
-    def fg(self, color: Color) -> None:
-        self.foreground = color
-
-    @property
-    def outline(self) -> int:
-        return self.__shape.outline
-
-    @outline.setter
-    def outline(self, outline: int) -> None:
-        self.__shape.outline = outline
-
-    @property
-    def outline_color(self) -> Color:
-        return self.__shape.outline_color
-
-    @outline_color.setter
-    def outline_color(self, color: Color) -> None:
-        self.__shape.outline_color = color
-
-    @property
-    def hover_background(self) -> Optional[Color]:
-        c: Optional[Color] = self.__bg[Clickable.State.NORMAL]["hover"]
-        return _copy_color(c)
-
-    @hover_background.setter
-    def hover_background(self, color: Optional[Color]) -> None:
-        self.__bg[Clickable.State.NORMAL]["hover"] = _copy_color(color)
-        self.__update_state()
-
-    @property
-    def hover_bg(self) -> Optional[Color]:
-        return self.hover_background
-
-    @hover_bg.setter
-    def hover_bg(self, color: Optional[Color]) -> None:
-        self.hover_background = color
-
-    @property
-    def hover_foreground(self) -> Optional[Color]:
-        c: Optional[Color] = self.__fg[Clickable.State.NORMAL]["hover"]
-        return _copy_color(c)
-
-    @hover_foreground.setter
-    def hover_foreground(self, color: Optional[Color]) -> None:
-        self.__fg[Clickable.State.NORMAL]["hover"] = _copy_color(color)
-        self.__update_state()
-
-    @property
-    def hover_fg(self) -> Optional[Color]:
-        return self.hover_foreground
-
-    @hover_fg.setter
-    def hover_fg(self, color: Optional[Color]) -> None:
-        self.hover_foreground = color
-
-    @property
-    def active_background(self) -> Optional[Color]:
-        c: Optional[Color] = self.__bg[Clickable.State.NORMAL]["active"]
-        return _copy_color(c)
-
-    @active_background.setter
-    def active_background(self, color: Optional[Color]) -> None:
-        self.__bg[Clickable.State.NORMAL]["active"] = _copy_color(color)
-        self.__update_state()
-
-    @property
-    def active_bg(self) -> Optional[Color]:
-        return self.active_background
-
-    @active_bg.setter
-    def active_bg(self, color: Optional[Color]) -> None:
-        self.active_background = color
-
-    @property
-    def active_foreground(self) -> Optional[Color]:
-        c: Optional[Color] = self.__fg[Clickable.State.NORMAL]["active"]
-        return _copy_color(c)
-
-    @active_foreground.setter
-    def active_foreground(self, color: Optional[Color]) -> None:
-        self.__fg[Clickable.State.NORMAL]["active"] = _copy_color(color)
-        self.__update_state()
-
-    @property
-    def active_fg(self) -> Optional[Color]:
-        return self.active_foreground
-
-    @active_fg.setter
-    def active_fg(self, color: Optional[Color]) -> None:
-        self.active_foreground = color
-
-    @property
-    def disabled_background(self) -> Color:
-        return Color(self.__bg[Clickable.State.DISABLED]["normal"])
-
-    @disabled_background.setter
-    def disabled_background(self, color: Color) -> None:
-        self.__bg[Clickable.State.DISABLED]["normal"] = Color(color)
-        self.__update_state()
-
-    @property
-    def disabled_bg(self) -> Color:
-        return self.disabled_background
-
-    @disabled_bg.setter
-    def disabled_bg(self, color: Color) -> None:
-        self.disabled_background = color
-
-    @property
-    def disabled_foreground(self) -> Color:
-        return Color(self.__fg[Clickable.State.DISABLED]["normal"])
-
-    @disabled_foreground.setter
-    def disabled_foreground(self, color: Color) -> None:
-        self.__fg[Clickable.State.DISABLED]["normal"] = Color(color)
-        self.__update_state()
-
-    @property
-    def disabled_fg(self) -> Color:
-        return self.disabled_foreground
-
-    @disabled_fg.setter
-    def disabled_fg(self, color: Color) -> None:
-        self.disabled_foreground = color
-
-    @property
-    def disabled_hover_background(self) -> Optional[Color]:
-        c: Optional[Color] = self.__bg[Clickable.State.DISABLED]["hover"]
-        return _copy_color(c)
-
-    @disabled_hover_background.setter
-    def disabled_hover_background(self, color: Optional[Color]) -> None:
-        self.__bg[Clickable.State.DISABLED]["hover"] = _copy_color(color)
-        self.__update_state()
-
-    @property
-    def disabled_hover_bg(self) -> Optional[Color]:
-        return self.disabled_hover_background
-
-    @disabled_hover_bg.setter
-    def disabled_hover_bg(self, color: Optional[Color]) -> None:
-        self.disabled_hover_background = color
-
-    @property
-    def disabled_hover_foreground(self) -> Optional[Color]:
-        c: Optional[Color] = self.__fg[Clickable.State.DISABLED]["hover"]
-        return _copy_color(c)
-
-    @disabled_hover_foreground.setter
-    def disabled_hover_foreground(self, color: Optional[Color]) -> None:
-        self.__fg[Clickable.State.DISABLED]["hover"] = _copy_color(color)
-        self.__update_state()
-
-    @property
-    def disabled_hover_fg(self) -> Optional[Color]:
-        return self.disabled_hover_foreground
-
-    @disabled_hover_fg.setter
-    def disabled_hover_fg(self, color: Optional[Color]) -> None:
-        self.disabled_hover_foreground = color
-
-    @property
-    def disabled_active_background(self) -> Optional[Color]:
-        c: Optional[Color] = self.__bg[Clickable.State.DISABLED]["active"]
-        return _copy_color(c)
-
-    @disabled_active_background.setter
-    def disabled_active_background(self, color: Optional[Color]) -> None:
-        self.__bg[Clickable.State.DISABLED]["active"] = _copy_color(color)
-        self.__update_state()
-
-    @property
-    def disabled_active_bg(self) -> Optional[Color]:
-        return self.disabled_active_background
-
-    @disabled_active_bg.setter
-    def disabled_active_bg(self, color: Optional[Color]) -> None:
-        self.disabled_active_background = color
-
-    @property
-    def disabled_active_foreground(self) -> Optional[Color]:
-        c: Optional[Color] = self.__fg[Clickable.State.DISABLED]["active"]
-        return _copy_color(c)
-
-    @disabled_active_foreground.setter
-    def disabled_active_foreground(self, color: Optional[Color]) -> None:
-        self.__fg[Clickable.State.DISABLED]["active"] = _copy_color(color)
-        self.__update_state()
-
-    @property
-    def disabled_active_fg(self) -> Optional[Color]:
-        return self.disabled_active_foreground
-
-    @disabled_active_fg.setter
-    def disabled_active_fg(self, color: Optional[Color]) -> None:
-        self.disabled_active_foreground = color
-
-    @property
-    def hover_img(self) -> Optional[Surface]:
-        return _copy_img(self.__img[Clickable.State.NORMAL]["hover"])
-
-    @hover_img.setter
-    def hover_img(self, surface: Optional[Surface]) -> None:
-        self.__img[Clickable.State.NORMAL]["hover"] = _copy_img(surface)
-        self.__update_state()
-
-    @property
-    def active_img(self) -> Optional[Surface]:
-        return _copy_img(self.__img[Clickable.State.NORMAL]["active"])
-
-    @active_img.setter
-    def active_img(self, surface: Optional[Surface]) -> None:
-        self.__img[Clickable.State.NORMAL]["active"] = _copy_img(surface)
-        self.__update_state()
-
-    @property
-    def disabled_img(self) -> Optional[Surface]:
-        return _copy_img(self.__img[Clickable.State.DISABLED]["normal"])
-
-    @disabled_img.setter
-    def disabled_img(self, surface: Optional[Surface]) -> None:
-        self.__img[Clickable.State.DISABLED]["normal"] = _copy_img(surface)
-        self.__update_state()
-
-    @property
-    def disabled_hover_img(self) -> Optional[Surface]:
-        return _copy_img(self.__img[Clickable.State.DISABLED]["hover"])
-
-    @disabled_hover_img.setter
-    def disabled_hover_img(self, surface: Optional[Surface]) -> None:
-        self.__img[Clickable.State.DISABLED]["hover"] = _copy_img(surface)
-        self.__update_state()
-
-    @property
-    def disabled_active_img(self) -> Optional[Surface]:
-        return _copy_img(self.__img[Clickable.State.DISABLED]["active"])
-
-    @disabled_active_img.setter
-    def disabled_active_img(self, surface: Optional[Surface]) -> None:
-        self.__img[Clickable.State.DISABLED]["active"] = _copy_img(surface)
-        self.__update_state()
-
-    @property
-    def text_align_x(self) -> str:
-        return str(self.__text_align_x.value)
-
-    @text_align_x.setter
-    def text_align_x(self, align: str) -> None:
-        self.__text_align_x = Button.HorizontalAlign(align)
-
-    @property
-    def text_align_y(self) -> str:
-        return str(self.__text_align_y.value)
-
-    @text_align_y.setter
-    def text_align_y(self, align: str) -> None:
-        self.__text_align_y = Button.VerticalAlign(align)
-
-    @property
-    def text_offset(self) -> Tuple[float, float]:
-        return self.__text_offset
-
-    @text_offset.setter
-    def text_offset(self, offset: Tuple[float, float]) -> None:
-        self.__text_offset = offset[0], offset[1]
-
-    @property
-    def text_hover_offset(self) -> Tuple[float, float]:
-        return self.__text_hover_offset
-
-    @text_hover_offset.setter
-    def text_hover_offset(self, offset: Tuple[float, float]) -> None:
-        self.__text_hover_offset = offset[0], offset[1]
-
-    @property
-    def text_active_offset(self) -> Tuple[float, float]:
-        return self.__text_active_offset
-
-    @text_active_offset.setter
-    def text_active_offset(self, offset: Tuple[float, float]) -> None:
-        self.__text_active_offset = offset[0], offset[1]
-
-    @property
-    def border_radius(self) -> int:
-        return self.__shape.border_radius
-
-    @border_radius.setter
-    def border_radius(self, radius: int) -> None:
-        self.__shape.border_radius = radius
-
-    @property
-    def border_top_left_radius(self) -> int:
-        return self.__shape.border_top_left_radius
-
-    @border_top_left_radius.setter
-    def border_top_left_radius(self, radius: int) -> None:
-        self.__shape.border_top_left_radius = radius
-
-    @property
-    def border_top_right_radius(self) -> int:
-        return self.__shape.border_top_right_radius
-
-    @border_top_right_radius.setter
-    def border_top_right_radius(self, radius: int) -> None:
-        self.__shape.border_top_right_radius = radius
-
-    @property
-    def border_bottom_left_radius(self) -> int:
-        return self.__shape.border_bottom_left_radius
-
-    @border_bottom_left_radius.setter
-    def border_bottom_left_radius(self, radius: int) -> None:
-        self.__shape.border_bottom_left_radius = radius
-
-    @property
-    def border_bottom_right_radius(self) -> int:
-        return self.__shape.border_bottom_right_radius
-
-    @border_bottom_right_radius.setter
-    def border_bottom_right_radius(self, radius: int) -> None:
-        self.__shape.border_bottom_right_radius = radius
-
 
 class ImageButton(ThemedDrawable, Clickable):
     def __init__(
         self,
         master: Union[Scene, Window],
-        *,
         img: Surface,
+        callback: Optional[Callable[[], None]] = None,
+        *,
         hover_img: Optional[Surface] = None,
         active_img: Optional[Surface] = None,
         disabled_img: Optional[Surface] = None,
         disabled_hover_img: Optional[Surface] = None,
         disabled_active_img: Optional[Surface] = None,
-        callback: Optional[Callable[[], None]] = None,
         state: str = "normal",
         x_add_size: float = 20,
         y_add_size: float = 20,
@@ -1051,7 +918,7 @@ class ImageButton(ThemedDrawable, Clickable):
             border_bottom_right_radius=border_bottom_right_radius,
             theme=NoTheme,
         )
-        self.__bg: Dict[Clickable.State, _ButtonColor] = {
+        self.__bg_dict: Dict[Clickable.State, _ButtonColor] = {
             Clickable.State.NORMAL: {
                 "normal": Color(bg),
                 "hover": _copy_color(hover_bg),
@@ -1063,7 +930,7 @@ class ImageButton(ThemedDrawable, Clickable):
                 "active": _copy_color(disabled_active_bg),
             },
         }
-        self.__img: Dict[Clickable.State, _ImageButtonDict] = {
+        self.__img_dict: Dict[Clickable.State, _ImageButtonDict] = {
             Clickable.State.NORMAL: {
                 "normal": img.copy(),
                 "hover": _copy_img(hover_img),
@@ -1081,27 +948,27 @@ class ImageButton(ThemedDrawable, Clickable):
     def copy(self) -> ImageButton:
         return ImageButton(
             master=self.master,
-            img=self.__img[Clickable.State.NORMAL]["normal"],
+            img=self.__img_dict[Clickable.State.NORMAL]["normal"],
             callback=self.__callback,
             state=self.state,
             x_add_size=self.__x_add_size,
             y_add_size=self.__y_add_size,
-            bg=self.__bg[Clickable.State.NORMAL]["normal"],
+            bg=self.__bg_dict[Clickable.State.NORMAL]["normal"],
             outline=self.__shape.outline,
             outline_color=self.__shape.outline_color,
-            hover_bg=self.__bg[Clickable.State.NORMAL]["hover"],
-            active_bg=self.__bg[Clickable.State.NORMAL]["active"],
-            disabled_bg=self.__bg[Clickable.State.DISABLED]["normal"],
-            disabled_hover_bg=self.__bg[Clickable.State.DISABLED]["hover"],
-            disabled_active_bg=self.__bg[Clickable.State.DISABLED]["active"],
+            hover_bg=self.__bg_dict[Clickable.State.NORMAL]["hover"],
+            active_bg=self.__bg_dict[Clickable.State.NORMAL]["active"],
+            disabled_bg=self.__bg_dict[Clickable.State.DISABLED]["normal"],
+            disabled_hover_bg=self.__bg_dict[Clickable.State.DISABLED]["hover"],
+            disabled_active_bg=self.__bg_dict[Clickable.State.DISABLED]["active"],
             hover_sound=self.hover_sound,
             click_sound=self.click_sound,
             disabled_sound=self.disabled_sound,
-            hover_img=self.__img[Clickable.State.NORMAL]["hover"],
-            active_img=self.__img[Clickable.State.NORMAL]["active"],
-            disabled_img=self.__img[Clickable.State.DISABLED]["normal"],
-            disabled_hover_img=self.__img[Clickable.State.DISABLED]["hover"],
-            disabled_active_img=self.__img[Clickable.State.DISABLED]["active"],
+            hover_img=self.__img_dict[Clickable.State.NORMAL]["hover"],
+            active_img=self.__img_dict[Clickable.State.NORMAL]["active"],
+            disabled_img=self.__img_dict[Clickable.State.DISABLED]["normal"],
+            disabled_hover_img=self.__img_dict[Clickable.State.DISABLED]["hover"],
+            disabled_active_img=self.__img_dict[Clickable.State.DISABLED]["active"],
             cursor=self.cursor,
             disabled_cursor=self.disabled_cursor,
             hover_offset=self.__hover_offset,
@@ -1157,12 +1024,12 @@ class ImageButton(ThemedDrawable, Clickable):
 
     def __set_state(self, button_state: Union[Literal["normal"], Literal["hover"], Literal["active"]]) -> None:
         clickable_state: Clickable.State = Clickable.State(self.state)
-        bg_color: Optional[Color] = self.__bg[clickable_state][button_state]
+        bg_color: Optional[Color] = self.__bg_dict[clickable_state][button_state]
         if bg_color is None:
-            bg_color = self.__bg[clickable_state]["normal"]
-        img: Optional[Surface] = self.__img[clickable_state][button_state]
+            bg_color = self.__bg_dict[clickable_state]["normal"]
+        img: Optional[Surface] = self.__img_dict[clickable_state][button_state]
         if img is None:
-            img = self.__img[clickable_state]["normal"]
+            img = self.__img_dict[clickable_state]["normal"]
         self.__shape.color = bg_color
         self.__image.set(img)
         self.__update_shape_size()
@@ -1185,11 +1052,11 @@ class ImageButton(ThemedDrawable, Clickable):
 
     @property
     def img(self) -> Surface:
-        return self.__img[Clickable.State.NORMAL]["normal"].copy()
+        return self.__img_dict[Clickable.State.NORMAL]["normal"].copy()
 
     @img.setter
     def img(self, surface: Surface) -> None:
-        self.__img[Clickable.State.NORMAL]["normal"] = surface.copy()
+        self.__img_dict[Clickable.State.NORMAL]["normal"] = surface.copy()
         self.__update_state()
 
     @property
@@ -1227,11 +1094,11 @@ class ImageButton(ThemedDrawable, Clickable):
 
     @property
     def background(self) -> Color:
-        return Color(self.__bg[Clickable.State.NORMAL]["normal"])
+        return Color(self.__bg_dict[Clickable.State.NORMAL]["normal"])
 
     @background.setter
     def background(self, color: Color) -> None:
-        self.__bg[Clickable.State.NORMAL]["normal"] = Color(color)
+        self.__bg_dict[Clickable.State.NORMAL]["normal"] = Color(color)
         self.__update_state()
 
     @property
@@ -1260,12 +1127,12 @@ class ImageButton(ThemedDrawable, Clickable):
 
     @property
     def hover_background(self) -> Optional[Color]:
-        c: Optional[Color] = self.__bg[Clickable.State.NORMAL]["hover"]
+        c: Optional[Color] = self.__bg_dict[Clickable.State.NORMAL]["hover"]
         return _copy_color(c)
 
     @hover_background.setter
     def hover_background(self, color: Optional[Color]) -> None:
-        self.__bg[Clickable.State.NORMAL]["hover"] = _copy_color(color)
+        self.__bg_dict[Clickable.State.NORMAL]["hover"] = _copy_color(color)
         self.__update_state()
 
     @property
@@ -1278,12 +1145,12 @@ class ImageButton(ThemedDrawable, Clickable):
 
     @property
     def active_background(self) -> Optional[Color]:
-        c: Optional[Color] = self.__bg[Clickable.State.NORMAL]["active"]
+        c: Optional[Color] = self.__bg_dict[Clickable.State.NORMAL]["active"]
         return _copy_color(c)
 
     @active_background.setter
     def active_background(self, color: Optional[Color]) -> None:
-        self.__bg[Clickable.State.NORMAL]["active"] = _copy_color(color)
+        self.__bg_dict[Clickable.State.NORMAL]["active"] = _copy_color(color)
         self.__update_state()
 
     @property
@@ -1296,11 +1163,11 @@ class ImageButton(ThemedDrawable, Clickable):
 
     @property
     def disabled_background(self) -> Color:
-        return Color(self.__bg[Clickable.State.DISABLED]["normal"])
+        return Color(self.__bg_dict[Clickable.State.DISABLED]["normal"])
 
     @disabled_background.setter
     def disabled_background(self, color: Color) -> None:
-        self.__bg[Clickable.State.DISABLED]["normal"] = Color(color)
+        self.__bg_dict[Clickable.State.DISABLED]["normal"] = Color(color)
         self.__update_state()
 
     @property
@@ -1313,12 +1180,12 @@ class ImageButton(ThemedDrawable, Clickable):
 
     @property
     def disabled_hover_background(self) -> Optional[Color]:
-        c: Optional[Color] = self.__bg[Clickable.State.DISABLED]["hover"]
+        c: Optional[Color] = self.__bg_dict[Clickable.State.DISABLED]["hover"]
         return _copy_color(c)
 
     @disabled_hover_background.setter
     def disabled_hover_background(self, color: Optional[Color]) -> None:
-        self.__bg[Clickable.State.DISABLED]["hover"] = _copy_color(color)
+        self.__bg_dict[Clickable.State.DISABLED]["hover"] = _copy_color(color)
         self.__update_state()
 
     @property
@@ -1331,12 +1198,12 @@ class ImageButton(ThemedDrawable, Clickable):
 
     @property
     def disabled_active_background(self) -> Optional[Color]:
-        c: Optional[Color] = self.__bg[Clickable.State.DISABLED]["active"]
+        c: Optional[Color] = self.__bg_dict[Clickable.State.DISABLED]["active"]
         return _copy_color(c)
 
     @disabled_active_background.setter
     def disabled_active_background(self, color: Optional[Color]) -> None:
-        self.__bg[Clickable.State.DISABLED]["active"] = _copy_color(color)
+        self.__bg_dict[Clickable.State.DISABLED]["active"] = _copy_color(color)
         self.__update_state()
 
     @property
@@ -1349,47 +1216,47 @@ class ImageButton(ThemedDrawable, Clickable):
 
     @property
     def hover_img(self) -> Optional[Surface]:
-        return _copy_img(self.__img[Clickable.State.NORMAL]["hover"])
+        return _copy_img(self.__img_dict[Clickable.State.NORMAL]["hover"])
 
     @hover_img.setter
     def hover_img(self, surface: Optional[Surface]) -> None:
-        self.__img[Clickable.State.NORMAL]["hover"] = _copy_img(surface)
+        self.__img_dict[Clickable.State.NORMAL]["hover"] = _copy_img(surface)
         self.__update_state()
 
     @property
     def active_img(self) -> Optional[Surface]:
-        return _copy_img(self.__img[Clickable.State.NORMAL]["active"])
+        return _copy_img(self.__img_dict[Clickable.State.NORMAL]["active"])
 
     @active_img.setter
     def active_img(self, surface: Optional[Surface]) -> None:
-        self.__img[Clickable.State.NORMAL]["active"] = _copy_img(surface)
+        self.__img_dict[Clickable.State.NORMAL]["active"] = _copy_img(surface)
         self.__update_state()
 
     @property
     def disabled_img(self) -> Surface:
-        return self.__img[Clickable.State.DISABLED]["normal"].copy()
+        return self.__img_dict[Clickable.State.DISABLED]["normal"].copy()
 
     @disabled_img.setter
     def disabled_img(self, surface: Surface) -> None:
-        self.__img[Clickable.State.DISABLED]["normal"] = surface.copy()
+        self.__img_dict[Clickable.State.DISABLED]["normal"] = surface.copy()
         self.__update_state()
 
     @property
     def disabled_hover_img(self) -> Optional[Surface]:
-        return _copy_img(self.__img[Clickable.State.DISABLED]["hover"])
+        return _copy_img(self.__img_dict[Clickable.State.DISABLED]["hover"])
 
     @disabled_hover_img.setter
     def disabled_hover_img(self, surface: Optional[Surface]) -> None:
-        self.__img[Clickable.State.DISABLED]["hover"] = _copy_img(surface)
+        self.__img_dict[Clickable.State.DISABLED]["hover"] = _copy_img(surface)
         self.__update_state()
 
     @property
     def disabled_active_img(self) -> Optional[Surface]:
-        return _copy_img(self.__img[Clickable.State.DISABLED]["active"])
+        return _copy_img(self.__img_dict[Clickable.State.DISABLED]["active"])
 
     @disabled_active_img.setter
     def disabled_active_img(self, surface: Optional[Surface]) -> None:
-        self.__img[Clickable.State.DISABLED]["active"] = _copy_img(surface)
+        self.__img_dict[Clickable.State.DISABLED]["active"] = _copy_img(surface)
         self.__update_state()
 
     @property

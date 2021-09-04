@@ -40,6 +40,13 @@ class Configurable:
     def __valid_int(val: Any) -> int:
         return max(int(val), 0)
 
+    @config.updater("a")
+    @config.updater("b")
+    @config.updater("c")
+    @staticmethod
+    def __update() -> None:
+        print("UPDATE CALL")
+
     config.validator("d", dict)
 
     @config.updater
