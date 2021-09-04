@@ -296,10 +296,10 @@ class MetaThemedObject(ABCMeta):
         return list(reversed(dict.fromkeys(get_all_parent_class(cls))))
 
 
-_ThemedObjectVar = TypeVar("_ThemedObjectVar", bound=MetaThemedObject)
+_ThemedObjectClass = TypeVar("_ThemedObjectClass", bound=MetaThemedObject)
 
 
-def abstract_theme_class(cls: _ThemedObjectVar) -> _ThemedObjectVar:
+def abstract_theme_class(cls: _ThemedObjectClass) -> _ThemedObjectClass:
     setattr(cls, "__is_abstract_theme_class__", True)
     return cls
 
