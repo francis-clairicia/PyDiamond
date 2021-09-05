@@ -128,6 +128,11 @@ class MetaThemedObject(ABCMeta):
             kwargs = theme_kwargs | kwargs
         return super().__call__(*args, **kwargs)
 
+    def __setattr__(cls, name: str, value: Any) -> None:
+        if name in ("__new__", "__init__"):
+            raise AttributeError("can't set attribute")
+        return super().__setattr__(name, value)
+
     @overload
     def set_theme(cls, name: str, options: Dict[str, Any], update: bool = False) -> None:
         ...
@@ -151,7 +156,7 @@ class MetaThemedObject(ABCMeta):
             raise ValueError("'theme' parameter must not be given in options")
 
         def check_options(func: Callable[..., Any], options: Dict[str, Any]) -> None:
-            sig: Signature = Signature.from_callable(func)
+            sig: Signature = Signature.from_callable(func, follow_wrapped=True)
             parameters: Mapping[str, Parameter] = sig.parameters
             has_kwargs: bool = any(param.kind == Parameter.VAR_KEYWORD for param in parameters.values())
 
@@ -236,7 +241,7 @@ class MetaThemedObject(ABCMeta):
             return theme_kwargs
 
         def check_options(func: Callable[..., Any]) -> None:
-            sig: Signature = Signature.from_callable(func)
+            sig: Signature = Signature.from_callable(func, follow_wrapped=True)
             parameters: Mapping[str, Parameter] = sig.parameters
             has_kwargs: bool = any(param.kind == Parameter.VAR_KEYWORD for param in parameters.values())
 
