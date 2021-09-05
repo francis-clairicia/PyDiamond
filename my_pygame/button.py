@@ -467,17 +467,23 @@ class Button(ThemedDrawable, Clickable):
             self.__set_state("normal")
 
     def __update_shape_size(self) -> None:
-        center = self.center
         text_width, text_height = self.__text.get_local_size()
         x_add_size: float = self.x_add_size * self.scale
         y_add_size: float = self.y_add_size * self.scale
         fixed_width: Optional[float] = self.fixed_width
         fixed_height: Optional[float] = self.fixed_height
-        self.__shape.local_size = (
+
+        new_size: Tuple[float, float] = (
             text_width + x_add_size if fixed_width is None else fixed_width,
             text_height + y_add_size if fixed_height is None else fixed_height,
         )
-        self.center = center
+
+        if self.config.has_initialization_context():
+            self.__shape.local_size = new_size
+        else:
+            center = self.center
+            self.__shape.local_size = new_size
+            self.center = center
 
     config: Configuration = Configuration(
         "text",
