@@ -29,15 +29,15 @@ def _can_apply_decorator(func: Callable[..., Any]) -> bool:
 
 
 class MetaDrawable(ABCMeta):
-    def __new__(metacls, name: str, bases: Tuple[type, ...], attrs: Dict[str, Any], **kwargs: Any) -> MetaDrawable:
-        if "copy" not in attrs:
-            attrs["copy"] = Drawable.copy
+    def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaDrawable:
+        if "copy" not in namespace:
+            namespace["copy"] = Drawable.copy
 
-        draw_method: Optional[Callable[[Drawable, Surface], None]] = attrs.get("draw_onto")
+        draw_method: Optional[Callable[[Drawable, Surface], None]] = namespace.get("draw_onto")
         if callable(draw_method) and _can_apply_decorator(draw_method):
-            attrs["draw_onto"] = _draw_decorator(draw_method)
+            namespace["draw_onto"] = _draw_decorator(draw_method)
 
-        return super().__new__(metacls, name, bases, attrs, **kwargs)
+        return super().__new__(metacls, name, bases, namespace, **kwargs)
 
 
 class Drawable(metaclass=MetaDrawable):
