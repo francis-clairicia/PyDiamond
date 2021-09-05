@@ -122,7 +122,7 @@ class Window:
             pygame.mixer.pre_init(Window.MIXER_FREQUENCY, Window.MIXER_SIZE, Window.MIXER_CHANNELS, Window.MIXER_BUFFER)
             status: Tuple[int, int] = pygame.init()
             if status[1] > 0:
-                raise WindowError(f"Error on pygame initialization: {status[1]} modules failed to load")
+                raise WindowError(f"Error on pygame initialization: {status[1]} module(s) failed to load")
 
         self.set_title(title)
 
@@ -268,19 +268,23 @@ class Window:
         ...
 
     def draw(self, target: Union[Drawable, Iterable[Drawable]], *targets: Drawable) -> None:
-        if isinstance(target, Drawable):
-            self.__draw_target(target)
-            for t in targets:
-                self.__draw_target(t)
-        else:
-            for t in target:
-                self.__draw_target(t)
+        surface: Surface = self.__surface
 
-    def __draw_target(self, target: Drawable) -> None:
-        try:
-            target.draw_onto(self.__surface)
-        except (NotImplementedError, pygame.error):
-            pass
+        def draw_target(target: Drawable) -> None:
+            try:
+                target.draw_onto(surface)
+            except (NotImplementedError, pygame.error):
+                pass
+
+        if isinstance(target, Drawable):
+            draw_target(target)
+            for t in targets:
+                draw_target(t)
+        else:
+            if targets:
+                raise TypeError("Invalid arguments")
+            for t in target:
+                draw_target(t)
 
     def handle_events(self) -> None:
         Keyboard.update()
