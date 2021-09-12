@@ -1,6 +1,6 @@
 # -*- coding: Utf-8 -*
 
-from typing import Tuple, TypedDict
+from typing import Literal, Tuple, TypedDict
 from os.path import splitext
 import bz2
 import pickle
@@ -30,6 +30,7 @@ COMPILED_SURFACE_EXTENSION: str = ".surface"
 class _BufferDict(TypedDict):
     string: str
     size: Tuple[int, int]
+    format: Literal["p", "RGB", "RGBX", "RGBA", "ARGB"]
 
 
 def load_image(file: str) -> Surface:
@@ -39,14 +40,14 @@ def load_image(file: str) -> Surface:
     else:
         with bz2.open(file, mode="rb", compresslevel=9) as f:
             buffer_dict: _BufferDict = pickle.loads(f.read())
-        image = pygame.image.fromstring(buffer_dict["string"], buffer_dict["size"], "RGBA")
+        image = pygame.image.fromstring(buffer_dict["string"], buffer_dict["size"], buffer_dict["format"])
     return image.convert_alpha()
 
 
-def save_image(image: Surface, file: str) -> None:
+def save_image(image: Surface, file: str, *, format: Literal["p", "RGB", "RGBX", "RGBA", "ARGB"] = "RGBA") -> None:
     if splitext(file)[1] != COMPILED_SURFACE_EXTENSION:
         return pygame.image.save(image, file)
 
-    buffer_dict: _BufferDict = {"string": pygame.image.tostring(image, "RGBA"), "size": image.get_size()}
+    buffer_dict: _BufferDict = {"string": pygame.image.tostring(image, format), "size": image.get_size(), "format": format}
     with bz2.open(file, mode="wb", compresslevel=9) as f:
         f.write(pickle.dumps(buffer_dict))
