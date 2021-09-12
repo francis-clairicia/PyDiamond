@@ -1,7 +1,7 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
-from typing import Callable, Generic, Optional, Tuple, TypeVar, Union, cast
+from typing import Any, Callable, Generic, Optional, Tuple, TypeVar, Union
 from operator import truth
 
 from pygame.color import Color
@@ -23,6 +23,8 @@ __all__ = ["CheckBox", "BooleanCheckBox"]
 _OnValue = TypeVar("_OnValue")
 _OffValue = TypeVar("_OffValue")
 
+NoDefaultValue: Any = object()
+
 
 class CheckBox(ThemedDrawable, Clickable, Generic[_OnValue, _OffValue]):
     def __init__(
@@ -34,7 +36,7 @@ class CheckBox(ThemedDrawable, Clickable, Generic[_OnValue, _OffValue]):
         *,
         off_value: _OffValue,
         on_value: _OnValue,
-        value: Optional[Union[_OnValue, _OffValue]] = None,
+        value: Union[_OnValue, _OffValue] = NoDefaultValue,
         outline: int = 2,
         outline_color: Color = BLACK,
         img: Optional[Surface] = None,
@@ -89,7 +91,9 @@ class CheckBox(ThemedDrawable, Clickable, Generic[_OnValue, _OffValue]):
         self.__off_value: _OffValue = off_value
         self.__value: Union[_OnValue, _OffValue] = off_value
         if value in [on_value, off_value]:
-            self.__value = cast(Union[_OnValue, _OffValue], value)
+            self.__value = value
+        elif value is not NoDefaultValue:
+            raise ValueError(f"'value' parameter doesn't fit with on/off values")
         if callable(callback):
             callback(self.__value)
 
@@ -133,7 +137,7 @@ class CheckBox(ThemedDrawable, Clickable, Generic[_OnValue, _OffValue]):
     def get_size(self) -> Tuple[float, float]:
         return self.__shape.get_size()
 
-    def invoke(self) -> None:
+    def __invoke__(self) -> None:
         self.value = self.__on_value if self.value == self.__off_value else self.__off_value
 
     def get_value(self) -> Union[_OnValue, _OffValue]:
@@ -240,7 +244,7 @@ class BooleanCheckBox(CheckBox[bool, bool]):
         *,
         off_value: bool = False,
         on_value: bool = True,
-        value: Optional[bool] = None,
+        value: bool = NoDefaultValue,
         outline: int = 2,
         outline_color: Color = BLACK,
         img: Optional[Surface] = None,

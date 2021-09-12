@@ -70,7 +70,7 @@ class Clickable(metaclass=ABCMeta):
         master.bind_mouse_position(self.__handle_mouse_position)
 
     @abstractmethod
-    def invoke(self) -> None:
+    def __invoke__(self) -> None:
         raise NotImplementedError
 
     def play_hover_sound(self) -> None:
@@ -114,7 +114,7 @@ class Clickable(metaclass=ABCMeta):
                 self.play_click_sound()
                 self._on_hover()
                 if self.__state != Clickable.State.DISABLED:
-                    self.invoke()
+                    self.__invoke__()
 
     def __handle_mouse_position(self, mouse_pos: Tuple[float, float]) -> None:
         if isinstance(self, Drawable) and not self.is_shown():

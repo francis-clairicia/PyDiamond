@@ -353,7 +353,7 @@ class Button(ThemedDrawable, Clickable):
     def get_size(self) -> Tuple[float, float]:
         return self.__shape.get_size()
 
-    def invoke(self) -> None:
+    def __invoke__(self) -> None:
         callback: Optional[Callable[[], None]] = self.__callback
         if callable(callback):
             callback()
@@ -1024,7 +1024,7 @@ class ImageButton(ThemedDrawable, Clickable):
     def get_size(self) -> Tuple[float, float]:
         return self.__shape.get_size()
 
-    def invoke(self) -> None:
+    def __invoke__(self) -> None:
         callback: Optional[Callable[[], None]] = self.__callback
         if callable(callback):
             callback()
