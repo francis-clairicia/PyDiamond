@@ -2,6 +2,35 @@
 
 from pygame.color import Color
 
+__all__ = [
+    "Color",
+    "WHITE",
+    "BLACK",
+    "GRAY",
+    "GRAY_DARK",
+    "GRAY_LIGHT",
+    "RED",
+    "RED_DARK",
+    "RED_LIGHT",
+    "ORANGE",
+    "YELLOW",
+    "GREEN",
+    "GREEN_DARK",
+    "GREEN_LIGHT",
+    "CYAN",
+    "BLUE",
+    "BLUE_DARK",
+    "BLUE_LIGHT",
+    "MAGENTA",
+    "PURPLE",
+    "TRANSPARENT",
+    "set_brightness",
+    "change_brightness",
+    "set_saturation",
+    "change_saturation",
+    "set_color_alpha",
+]
+
 WHITE = Color(255, 255, 255)
 BLACK = Color(0, 0, 0)
 GRAY = Color(127, 127, 127)

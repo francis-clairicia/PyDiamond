@@ -13,6 +13,8 @@ from pygame.math import Vector2
 from .theme import MetaThemedObject, ThemedObject, abstract_theme_class
 from .animation import Animation
 
+__all__ = ["MetaDrawable", "Drawable", "MetaThemedDrawable", "ThemedDrawable"]
+
 
 def _draw_decorator(func: Callable[[Drawable, Surface], None]) -> Callable[[Drawable, Surface], None]:
     @wraps(func)

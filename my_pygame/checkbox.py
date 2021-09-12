@@ -18,6 +18,8 @@ from .image import Image
 from .cursor import Cursor
 from .theme import NoTheme, ThemeType
 
+__all__ = ["CheckBox", "BooleanCheckBox"]
+
 _OnValue = TypeVar("_OnValue")
 _OffValue = TypeVar("_OffValue")
 

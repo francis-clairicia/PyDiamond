@@ -9,6 +9,8 @@ from pygame.surface import Surface
 from .drawable import Drawable
 from .surface import load_image, save_image
 
+__all__ = ["Image"]
+
 
 class Image(Drawable):
     @overload

@@ -24,6 +24,8 @@ from .image import Image
 from .configuration import ConfigAttribute, Configuration, initializer, no_object
 from .utils import valid_float, valid_integer
 
+__all__ = ["Text", "TextImage"]
+
 _TextFont = Union[Font, Tuple[Optional[str], int]]
 
 

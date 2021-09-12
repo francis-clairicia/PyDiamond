@@ -14,6 +14,9 @@ if TYPE_CHECKING:
     from .window import Window, WindowCallback
 
 
+__all__ = ["Animation"]
+
+
 class _AbstractAnimationClass(metaclass=ABCMeta):
     def __init__(self, drawable: Drawable, milliseconds: float):
         self.__drawable: Drawable = drawable

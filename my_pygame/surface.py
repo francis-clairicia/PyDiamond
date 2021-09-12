@@ -10,6 +10,8 @@ import pygame.image
 
 from pygame.surface import Surface
 
+__all__ = ["Surface", "create_surface", "load_image", "save_image"]
+
 
 def create_surface(size: Tuple[float, float], *, convert_alpha: bool = True) -> Surface:
     size = (max(size[0], 0), max(size[1], 0))

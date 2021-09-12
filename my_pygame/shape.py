@@ -21,6 +21,21 @@ from .surface import create_surface
 from .configuration import ConfigAttribute, ConfigTemplate, Configuration, initializer, no_object
 from .utils import valid_float, valid_integer
 
+__all__ = [
+    "AbstractShape",
+    "Shape",
+    "ThemedShape",
+    "OutlinedShape",
+    "PolygonShape",
+    "AbstractRectangleShape",
+    "RectangleShape",
+    "AbstractCircleShape",
+    "CircleShape",
+    "CrossShape",
+    "DiagonalCrossShape",
+    "PlusCrossShape",
+]
+
 
 class AbstractShape(Drawable):
     config: Configuration = ConfigTemplate(autocopy=True)

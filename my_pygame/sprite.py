@@ -15,6 +15,8 @@ from .drawable import Drawable
 from .surface import create_surface
 from .clock import Clock
 
+__all__ = ["Sprite"]
+
 
 class Sprite(Drawable, _PygameSprite):
     def __init__(self, image: Optional[Surface] = None, mask_threshold: int = 127) -> None:

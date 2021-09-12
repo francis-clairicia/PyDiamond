@@ -16,6 +16,8 @@ from .mouse import Mouse
 from .drawable import Drawable
 from .cursor import Cursor, SystemCursor
 
+__all__ = ["Clickable"]
+
 
 class Clickable(metaclass=ABCMeta):
     @unique

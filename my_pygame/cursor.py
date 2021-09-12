@@ -13,6 +13,8 @@ import pygame.cursors
 from pygame.surface import Surface
 from pygame.cursors import Cursor as _Cursor
 
+__all__ = ["MetaCursor", "Cursor", "CustomCursor", "SystemCursor"]
+
 
 def _set_decorator(func: Callable[[Cursor], None]) -> Callable[[Cursor], None]:
     actual_cursor: Optional[Cursor] = None

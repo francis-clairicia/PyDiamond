@@ -2,6 +2,8 @@
 
 from pygame.time import Clock as _PygameClock
 
+__all__ = ["Clock"]
+
 
 class Clock:
 

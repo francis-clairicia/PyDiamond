@@ -27,13 +27,15 @@ from .keyboard import Keyboard
 from .cursor import Cursor, SystemCursor
 from .theme import NoTheme
 
-EventType = int
-EventCallback = Callable[[Event], None]
+__all__ = ["Window", "WindowError", "WindowCallback"]
 
-MousePosition = Tuple[float, float]
-MousePositionCallback = Callable[[MousePosition], None]
+_EventType = int
+_EventCallback = Callable[[Event], None]
 
-ColorInput = Union[Color, str, List[int], Tuple[int, int, int], Tuple[int, int, int, int]]
+_MousePosition = Tuple[float, float]
+_MousePositionCallback = Callable[[_MousePosition], None]
+
+_ColorInput = Union[Color, str, List[int], Tuple[int, int, int], Tuple[int, int, int, int]]
 
 _T = TypeVar("_T")
 
@@ -81,7 +83,7 @@ class WindowCallback:
         return self.__scene
 
 
-class WindowCallbackList(List[WindowCallback]):
+class _WindowCallbackList(List[WindowCallback]):
     def process(self) -> None:
         if not self:
             return
@@ -151,15 +153,15 @@ class Window:
         self.__actual_scene: Optional[Scene] = None
         self.__transition: _SceneTransitionEnum = _SceneTransitionEnum.SHOW
 
-        self.__callback_after: WindowCallbackList = WindowCallbackList()
-        self.__callback_after_scenes: Dict[Scene, WindowCallbackList] = dict()
+        self.__callback_after: _WindowCallbackList = _WindowCallbackList()
+        self.__callback_after_scenes: Dict[Scene, _WindowCallbackList] = dict()
 
-        self.__event_handler_dict: Dict[EventType, List[EventCallback]] = dict()
-        self.__key_pressed_handler_dict: Dict[Keyboard.Key, List[EventCallback]] = dict()
-        self.__key_released_handler_dict: Dict[Keyboard.Key, List[EventCallback]] = dict()
-        self.__mouse_button_pressed_handler_dict: Dict[Mouse.Button, List[EventCallback]] = dict()
-        self.__mouse_button_released_handler_dict: Dict[Mouse.Button, List[EventCallback]] = dict()
-        self.__mouse_pos_handler_list: List[MousePositionCallback] = list()
+        self.__event_handler_dict: Dict[_EventType, List[_EventCallback]] = dict()
+        self.__key_pressed_handler_dict: Dict[Keyboard.Key, List[_EventCallback]] = dict()
+        self.__key_released_handler_dict: Dict[Keyboard.Key, List[_EventCallback]] = dict()
+        self.__mouse_button_pressed_handler_dict: Dict[Mouse.Button, List[_EventCallback]] = dict()
+        self.__mouse_button_released_handler_dict: Dict[Mouse.Button, List[_EventCallback]] = dict()
+        self.__mouse_pos_handler_list: List[_MousePositionCallback] = list()
 
         self.bind_event(pygame.KEYDOWN, self.__handle_key_event)
         self.bind_event(pygame.KEYUP, self.__handle_key_event)
@@ -205,7 +207,7 @@ class Window:
     def is_open(self) -> bool:
         return self.__loop
 
-    def clear(self, color: ColorInput = BLACK) -> None:
+    def clear(self, color: _ColorInput = BLACK) -> None:
         self.__surface.fill(color)
 
     def get_default_framerate(self) -> int:
@@ -302,7 +304,7 @@ class Window:
         self.__handle_all_events(actual_scene)
 
     def __handle_all_events(self, actual_scene: Optional[Scene]) -> None:
-        event_dict: Dict[int, List[EventCallback]] = self.__event_handler_dict
+        event_dict: Dict[int, List[_EventCallback]] = self.__event_handler_dict
         scene_handler: Optional[Callable[[Event], None]] = actual_scene._handle_event if actual_scene is not None else None
         for event in pygame.event.get():
             for callback in event_dict.get(event.type, []):
@@ -313,7 +315,7 @@ class Window:
                 self.close()
 
     def __handle_key_event(self, event: Event) -> None:
-        key_handler_dict: Optional[Dict[Keyboard.Key, List[EventCallback]]] = None
+        key_handler_dict: Optional[Dict[Keyboard.Key, List[_EventCallback]]] = None
         if event.type == pygame.KEYDOWN:
             key_handler_dict = self.__key_pressed_handler_dict
         elif event.type == pygame.KEYUP:
@@ -323,7 +325,7 @@ class Window:
                 callback(event)
 
     def __handle_mouse_event(self, event: Event) -> None:
-        mouse_handler_dict: Optional[Dict[Mouse.Button, List[EventCallback]]] = None
+        mouse_handler_dict: Optional[Dict[Mouse.Button, List[_EventCallback]]] = None
         if event.type == pygame.MOUSEBUTTONDOWN:
             mouse_handler_dict = self.__mouse_button_pressed_handler_dict
         elif event.type == pygame.MOUSEBUTTONUP:
@@ -333,7 +335,7 @@ class Window:
                 callback(event)
 
     def __handle_mouse_pos(self, actual_scene: Optional[Scene]) -> None:
-        mouse_pos: MousePosition = Mouse.get_pos()
+        mouse_pos: _MousePosition = Mouse.get_pos()
         for callback in self.__mouse_pos_handler_list:
             callback(mouse_pos)
         if actual_scene:
@@ -348,80 +350,80 @@ class Window:
             Window.__cursor = Window.__default_cursor = cursor
 
     @staticmethod
-    def __bind(handler_dict: Dict[_T, List[EventCallback]], key: _T, callback: EventCallback) -> None:
+    def __bind(handler_dict: Dict[_T, List[_EventCallback]], key: _T, callback: _EventCallback) -> None:
         try:
-            event_list: List[EventCallback] = handler_dict[key]
+            event_list: List[_EventCallback] = handler_dict[key]
         except KeyError:
             event_list = handler_dict[key] = []
         if callback not in event_list:
             event_list.append(callback)
 
     @staticmethod
-    def __unbind(handler_dict: Dict[_T, List[EventCallback]], key: _T, callback: EventCallback) -> None:
+    def __unbind(handler_dict: Dict[_T, List[_EventCallback]], key: _T, callback: _EventCallback) -> None:
         try:
             handler_dict[key].remove(callback)
         except (KeyError, ValueError):
             pass
 
-    def bind_event(self, event_type: EventType, callback: EventCallback) -> None:
+    def bind_event(self, event_type: _EventType, callback: _EventCallback) -> None:
         Window.__bind(self.__event_handler_dict, int(event_type), callback)
 
-    def unbind_event(self, event_type: EventType, callback_to_remove: EventCallback) -> None:
+    def unbind_event(self, event_type: _EventType, callback_to_remove: _EventCallback) -> None:
         Window.__unbind(self.__event_handler_dict, int(event_type), callback_to_remove)
 
-    def bind_key(self, key: Union[int, Keyboard.Key], callback: EventCallback) -> None:
+    def bind_key(self, key: Union[int, Keyboard.Key], callback: _EventCallback) -> None:
         self.bind_key_press(key, callback)
         self.bind_key_release(key, callback)
 
-    def bind_key_press(self, key: Union[int, Keyboard.Key], callback: EventCallback) -> None:
+    def bind_key_press(self, key: Union[int, Keyboard.Key], callback: _EventCallback) -> None:
         Window.__bind(self.__key_pressed_handler_dict, Keyboard.Key(key), callback)
 
-    def bind_key_release(self, key: Union[int, Keyboard.Key], callback: EventCallback) -> None:
+    def bind_key_release(self, key: Union[int, Keyboard.Key], callback: _EventCallback) -> None:
         Window.__bind(self.__key_released_handler_dict, Keyboard.Key(key), callback)
 
-    def unbind_key(self, key: Union[int, Keyboard.Key], callback_to_remove: EventCallback) -> None:
+    def unbind_key(self, key: Union[int, Keyboard.Key], callback_to_remove: _EventCallback) -> None:
         self.unbind_key_press(key, callback_to_remove)
         self.unbind_key_release(key, callback_to_remove)
 
-    def unbind_key_press(self, key: Union[int, Keyboard.Key], callback_to_remove: EventCallback) -> None:
+    def unbind_key_press(self, key: Union[int, Keyboard.Key], callback_to_remove: _EventCallback) -> None:
         Window.__unbind(self.__key_pressed_handler_dict, Keyboard.Key(key), callback_to_remove)
 
-    def unbind_key_release(self, key: Union[int, Keyboard.Key], callback_to_remove: EventCallback) -> None:
+    def unbind_key_release(self, key: Union[int, Keyboard.Key], callback_to_remove: _EventCallback) -> None:
         Window.__unbind(self.__key_released_handler_dict, Keyboard.Key(key), callback_to_remove)
 
-    def bind_mouse_button(self, button: Union[int, Mouse.Button], callback: EventCallback) -> None:
+    def bind_mouse_button(self, button: Union[int, Mouse.Button], callback: _EventCallback) -> None:
         self.bind_mouse_button_press(button, callback)
         self.bind_mouse_button_release(button, callback)
 
-    def bind_mouse_button_press(self, button: Union[int, Mouse.Button], callback: EventCallback) -> None:
+    def bind_mouse_button_press(self, button: Union[int, Mouse.Button], callback: _EventCallback) -> None:
         Window.__bind(self.__mouse_button_pressed_handler_dict, Mouse.Button(button), callback)
 
-    def bind_mouse_button_release(self, button: Union[int, Mouse.Button], callback: EventCallback) -> None:
+    def bind_mouse_button_release(self, button: Union[int, Mouse.Button], callback: _EventCallback) -> None:
         Window.__bind(self.__mouse_button_released_handler_dict, Mouse.Button(button), callback)
 
-    def unbind_mouse_button(self, button: Union[int, Mouse.Button], callback_to_remove: EventCallback) -> None:
+    def unbind_mouse_button(self, button: Union[int, Mouse.Button], callback_to_remove: _EventCallback) -> None:
         self.unbind_mouse_button_press(button, callback_to_remove)
         self.unbind_mouse_button_release(button, callback_to_remove)
 
-    def unbind_mouse_button_press(self, button: Union[int, Mouse.Button], callback_to_remove: EventCallback) -> None:
+    def unbind_mouse_button_press(self, button: Union[int, Mouse.Button], callback_to_remove: _EventCallback) -> None:
         Window.__unbind(self.__mouse_button_pressed_handler_dict, Mouse.Button(button), callback_to_remove)
 
-    def unbind_mouse_button_release(self, button: Union[int, Mouse.Button], callback_to_remove: EventCallback) -> None:
+    def unbind_mouse_button_release(self, button: Union[int, Mouse.Button], callback_to_remove: _EventCallback) -> None:
         Window.__unbind(self.__mouse_button_released_handler_dict, Mouse.Button(button), callback_to_remove)
 
-    def bind_mouse_position(self, callback: MousePositionCallback) -> None:
-        mouse_pos_handler_list: List[MousePositionCallback] = self.__mouse_pos_handler_list
+    def bind_mouse_position(self, callback: _MousePositionCallback) -> None:
+        mouse_pos_handler_list: List[_MousePositionCallback] = self.__mouse_pos_handler_list
         if callback not in mouse_pos_handler_list:
             mouse_pos_handler_list.append(callback)
 
-    def unbind_mouse_position(self, callback_to_remove: MousePositionCallback) -> None:
-        mouse_pos_handler_list: List[MousePositionCallback] = self.__mouse_pos_handler_list
+    def unbind_mouse_position(self, callback_to_remove: _MousePositionCallback) -> None:
+        mouse_pos_handler_list: List[_MousePositionCallback] = self.__mouse_pos_handler_list
         try:
             mouse_pos_handler_list.remove(callback_to_remove)
         except ValueError:
             pass
 
-    def allow_only_event(self, *event_types: EventType) -> None:
+    def allow_only_event(self, *event_types: _EventType) -> None:
         pygame.event.set_allowed(event_types)
 
     def allow_all_events(self) -> None:
@@ -430,7 +432,7 @@ class Window:
     def clear_all_events(self) -> None:
         pygame.event.clear()
 
-    def block_only_event(self, *event_types: EventType) -> None:
+    def block_only_event(self, *event_types: _EventType) -> None:
         pygame.event.set_blocked(event_types)
 
     def after(
@@ -442,7 +444,7 @@ class Window:
                 raise WindowError("Assigning a task for a scene from an another window.")
             window_callback = WindowCallback(scene, milliseconds, callback, args, kwargs)
             if scene not in self.__callback_after_scenes:
-                self.__callback_after_scenes[scene] = WindowCallbackList()
+                self.__callback_after_scenes[scene] = _WindowCallbackList()
             self.__callback_after_scenes[scene].append(window_callback)
         else:
             window_callback = WindowCallback(self, milliseconds, callback, args, kwargs)
@@ -452,7 +454,7 @@ class Window:
     def remove_window_callback(self, window_callback: WindowCallback) -> None:
         scene: Optional[Scene] = window_callback.scene
         if scene is not None:
-            scene_callback_after: Optional[WindowCallbackList] = self.__callback_after_scenes.get(scene)
+            scene_callback_after: Optional[_WindowCallbackList] = self.__callback_after_scenes.get(scene)
             if scene_callback_after is None:
                 return
             try:

@@ -6,6 +6,8 @@ from enum import IntEnum
 
 import pygame.key
 
+__all__ = ["Keyboard"]
+
 _KEY_STATES: Sequence[bool] = []
 
 

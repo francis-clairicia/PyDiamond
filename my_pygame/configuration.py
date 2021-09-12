@@ -26,6 +26,19 @@ from enum import Enum
 from copy import deepcopy
 from contextlib import ExitStack, contextmanager
 
+__all__ = [
+    "Configuration",
+    "ConfigTemplate",
+    "ConfigAttribute",
+    "no_object",
+    "initializer",
+    "OptionError",
+    "UnknownOptionError",
+    "UnregisteredOptionError",
+    "EmptyOptionNameError",
+    "InvalidAliasError",
+]
+
 
 _T = TypeVar("_T")
 

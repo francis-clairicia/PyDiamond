@@ -4,6 +4,8 @@ import os.path
 from sys import argv
 from typing import Callable, Optional, overload
 
+__all__ = ["set_constant_directory", "set_constant_file"]
+
 
 def __set_path(path_exists: Callable[[str], bool], *paths: str, raise_error: bool, special_msg: Optional[str]) -> str:
     all_path = os.path.join(*paths)

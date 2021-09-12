@@ -19,6 +19,8 @@ from ._gradients import (  # type: ignore[attr-defined]
     squared as _gradient_squared,
 )
 
+__all__ = ["GradientShape", "HorizontalGradientShape", "VerticalGradientShape", "SquaredGradientShape", "RadialGradientShape"]
+
 
 class GradientShape(AbstractShape):
     @initializer

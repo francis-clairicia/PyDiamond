@@ -6,6 +6,8 @@ from operator import truth
 
 import pygame.mouse
 
+__all__ = ["Mouse"]
+
 _MouseButtonState = Tuple[bool, bool, bool]
 
 _MOUSE_BUTTON_STATE: _MouseButtonState = (False, False, False)
