@@ -39,29 +39,23 @@ class Sprite(Drawable, _PygameSprite):
     def get_local_size(self) -> Tuple[float, float]:
         return self.__default_image.get_size()
 
-    def to_surface(self) -> Surface:
-        return self.image
-
     def _apply_rotation_scale(self) -> None:
-        default_image: Surface = self.__default_image
-        image: Surface
         angle: float = self.angle
         scale: float = self.scale
+        image: Surface = self.__default_image
+
         if not self.__smooth_scale:
-            image = pygame.transform.rotozoom(default_image, angle, scale)
+            self.__image = pygame.transform.rotozoom(image, angle, scale)
         else:
             if scale != 1:
-                w, h = default_image.get_size()
+                w, h = self.get_local_size()
                 w = round(w * scale)
                 h = round(h * scale)
-                image = pygame.transform.smoothscale(default_image, (w, h))
-            else:
-                image = default_image
-            image = pygame.transform.rotate(image, angle)
-        self.__image = image
-        self._update_mask()
+                image = pygame.transform.smoothscale(image, (w, h))
+            self.__image = pygame.transform.rotate(image, angle)
+        self.__update_mask()
 
-    def _update_mask(self) -> None:
+    def __update_mask(self) -> None:
         self.__mask = pygame.mask.from_surface(self.__image, self.__mask_threshold)
 
     def get_size(self) -> Tuple[float, float]:
@@ -73,10 +67,13 @@ class Sprite(Drawable, _PygameSprite):
     def set_mask_threshold(self, threshold: int) -> None:
         self.__mask_threshold = max(int(threshold), 0)
         self.__mask_threshold = min(self.__mask_threshold, 255)
-        self._update_mask()
+        self.__update_mask()
 
     def use_smooth_scale(self, status: bool) -> None:
-        self.__smooth_scale = bool(status)
+        former_state: bool = self.__smooth_scale
+        self.__smooth_scale = actual_state = bool(status)
+        if former_state != actual_state:
+            self._apply_rotation_scale()
 
     @property
     def default_image(self) -> Surface:
@@ -142,7 +139,7 @@ class AnimatedSprite(Sprite):
 
     def stop_sprite_animation(self, reset: bool = False) -> None:
         self.__animation = False
-        if reset and self.__sprite_idx != 0:
+        if reset:
             self.__sprite_idx = 0
             self.__loop = False
             self.default_image = self.__list[0]

@@ -32,15 +32,16 @@ class AbstractShape(Drawable):
         self.__image: Surface = create_surface((0, 0))
         self.__shape_image: Surface = self.__image.copy()
         self.__local_size: Tuple[float, float] = (0, 0)
-        self.__size: Tuple[float, float] = (0, 0)
 
     @config.updater
     def __update_shape(self) -> None:
         if self.config.has_initialization_context():
+            self.__compute_shape_size()
             self.__shape_image = self._make()
             self._apply_rotation_scale()
         else:
             center: Tuple[float, float] = self.center
+            self.__compute_shape_size()
             self.__shape_image = self._make()
             self._apply_rotation_scale()
             self.center = center
@@ -56,18 +57,18 @@ class AbstractShape(Drawable):
         return self.__local_size
 
     def get_size(self) -> Tuple[float, float]:
-        return self.__size
+        return self.__image.get_size()
 
     def _apply_rotation_scale(self) -> None:
         angle: float = self.angle
         scale: float = self.scale
         self.__image = pygame.transform.rotozoom(self.__shape_image, angle, scale)
 
+    def __compute_shape_size(self) -> None:
         all_points: List[Vector2] = self.get_local_vertices()
-        vertices: List[Vector2] = []
 
         if not all_points:
-            self.__local_size = self.__size = (0, 0)
+            self.__local_size = (0, 0)
             return
 
         left: float = min((point.x for point in all_points), default=0)
@@ -77,23 +78,6 @@ class AbstractShape(Drawable):
         w: float = right - left
         h: float = bottom - top
         self.__local_size = (w, h)
-
-        local_center: Vector2 = Vector2(left + w / 2, top + h / 2)
-
-        center: Vector2 = Vector2(self.center)  # type: ignore[arg-type]
-        for point in all_points:
-            offset: Vector2 = (point - local_center).rotate(-angle)
-            try:
-                offset.scale_to_length(offset.length() * scale)
-            except ValueError:
-                offset = Vector2(0, 0)
-            vertices.append(center + offset)
-
-        left = min((point.x for point in vertices), default=0)
-        top = min((point.y for point in vertices), default=0)
-        right = max((point.x for point in vertices), default=0)
-        bottom = max((point.y for point in vertices), default=0)
-        self.__size = (right - left, bottom - top)
 
     @abstractmethod
     def _make(self) -> Surface:
@@ -156,6 +140,12 @@ class OutlinedShape(Shape):
         self.outline = outline
         self.outline_color = outline_color
 
+    def get_local_size(self) -> Tuple[float, float]:
+        w, h = super().get_local_size()
+        outline: int = self.outline
+        offset: float = outline / 2 + 1
+        return (w + offset * 2, h + offset * 2)
+
     config = Configuration("outline", "outline_color", parent=Shape.config)
 
     config.validator("outline", no_object(valid_integer(min_value=0)))
@@ -180,7 +170,6 @@ class PolygonShape(OutlinedShape, ThemedShape):
     ) -> None:
         super().__init__(color, outline, outline_color)
         self.__center: Vector2 = Vector2(0, 0)
-        self.__size: Tuple[float, float] = (0, 0)
         self.points = points
 
     def copy(self) -> PolygonShape:
@@ -193,8 +182,7 @@ class PolygonShape(OutlinedShape, ThemedShape):
         if len(all_points) < 2:
             return create_surface((0, 0))
 
-        offset: float = outline / 2 + 2
-        w, h = (self.__size[0] + offset * 2, self.__size[1] + offset * 2)
+        w, h = self.get_local_size()
         image: Surface = create_surface((w, h))
 
         center_diff: Vector2 = Vector2(w / 2, h / 2) - self.__center
@@ -317,10 +305,9 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, ThemedShape):
 
     def _make(self) -> Surface:
         outline: int = self.outline
-        offset: float = outline / 2 + 2
         w: float = self.local_width
         h: float = self.local_height
-        image: Surface = create_surface((w + offset * 2, h + offset * 2))
+        image: Surface = create_surface(self.get_local_size())
         default_rect: Rect = image.get_rect()
         rect: Rect = Rect(0, 0, w, h)
         rect.center = default_rect.center
@@ -421,11 +408,9 @@ class CircleShape(AbstractCircleShape, OutlinedShape, ThemedShape):
         )
 
     def _make(self) -> Surface:
-        self.__points = self.__compute_vertices()
         radius: float = self.radius
         outline: int = self.outline
-        offset: float = outline / 2 + 2
-        width = height = int(radius * 2 + offset * 2)
+        width, height = self.get_local_size()
         radius += width % 2
         image: Surface = create_surface((width, height))
         width, height = image.get_size()
@@ -438,31 +423,6 @@ class CircleShape(AbstractCircleShape, OutlinedShape, ThemedShape):
 
     def get_local_vertices(self) -> List[Vector2]:
         return [Vector2(p) for p in self.__points]
-
-    def __compute_vertices(self) -> List[Vector2]:
-        draw_params = self.__draw_params
-        if all(not drawn for drawn in draw_params.values()):
-            return []
-
-        center: Vector2 = Vector2(self.radius, self.radius)
-        radius: Vector2 = Vector2(self.radius, 0)
-
-        angle_ranges: Dict[str, range] = {
-            "draw_top_right": range(0, 90),
-            "draw_top_left": range(90, 180),
-            "draw_bottom_left": range(180, 270),
-            "draw_bottom_right": range(270, 360),
-        }
-
-        all_points: List[Vector2] = []
-
-        for draw_side, angle_range in angle_ranges.items():
-            if draw_params[draw_side]:
-                all_points.extend(center + radius.rotate(-i) for i in angle_range)
-            elif not all_points or all_points[-1] != center:
-                all_points.append(Vector2(center))
-
-        return all_points
 
     config = Configuration(
         "draw_top_left",
@@ -493,6 +453,36 @@ class CircleShape(AbstractCircleShape, OutlinedShape, ThemedShape):
     @config.setter("draw_bottom_right")
     def __set_draw_arc(self, side: str, status: bool) -> None:
         self.__draw_params[side] = status
+
+    @config.updater("draw_top_left")
+    @config.updater("draw_top_right")
+    @config.updater("draw_bottom_left")
+    @config.updater("draw_bottom_right")
+    def __compute_vertices(self) -> None:
+        draw_params = self.__draw_params
+        if all(not drawn for drawn in draw_params.values()):
+            self.__points = []
+            return
+
+        center: Vector2 = Vector2(self.radius, self.radius)
+        radius: Vector2 = Vector2(self.radius, 0)
+
+        angle_ranges: Dict[str, range] = {
+            "draw_top_right": range(0, 90),
+            "draw_top_left": range(90, 180),
+            "draw_bottom_left": range(180, 270),
+            "draw_bottom_right": range(270, 360),
+        }
+
+        all_points: List[Vector2] = []
+
+        for draw_side, angle_range in angle_ranges.items():
+            if draw_params[draw_side]:
+                all_points.extend(center + radius.rotate(-i) for i in angle_range)
+            elif not all_points or all_points[-1] != center:
+                all_points.append(Vector2(center))
+
+        self.__points = all_points
 
     draw_top_left: ConfigAttribute[bool] = ConfigAttribute()
     draw_top_right: ConfigAttribute[bool] = ConfigAttribute()
@@ -538,12 +528,9 @@ class CrossShape(OutlinedShape, ThemedShape):
         )
 
     def _make(self) -> Surface:
-        compute_vertices = {
-            CrossShape.Type.DIAGONAL: self.__get_diagonal_cross_points,
-            CrossShape.Type.PLUS: self.__get_plus_cross_points,
-        }
-        self.__points = compute_vertices[self.__type]()
-        return PolygonShape(self.color, outline=self.outline, outline_color=self.outline_color, points=self.__points).to_surface()
+        p = PolygonShape(self.color, outline=self.outline, outline_color=self.outline_color, points=self.__points)
+        image: Surface = getattr(p, "_AbstractShape__image")
+        return image
 
     def get_local_vertices(self) -> List[Vector2]:
         return [Vector2(p) for p in self.__points]
@@ -648,6 +635,17 @@ class CrossShape(OutlinedShape, ThemedShape):
     @config.setter_no_name("local_size")
     def ___set_local_size(self, size: Tuple[float, float]) -> None:
         self.config(local_width=size[0], local_height=size[1])
+
+    @config.updater("local_width")
+    @config.updater("local_height")
+    @config.updater("local_size")
+    @config.updater("line_width")
+    def __compute_vertices(self) -> None:
+        compute_vertices = {
+            CrossShape.Type.DIAGONAL: self.__get_diagonal_cross_points,
+            CrossShape.Type.PLUS: self.__get_plus_cross_points,
+        }
+        self.__points = compute_vertices[self.__type]()
 
 
 class DiagonalCrossShape(CrossShape):

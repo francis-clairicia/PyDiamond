@@ -7,7 +7,9 @@ from operator import truth
 
 from pygame.color import Color
 from pygame.font import Font
+from pygame.math import Vector2
 from pygame.mixer import Sound
+from pygame.rect import Rect
 from pygame.surface import Surface
 
 from .drawable import ThemedDrawable
@@ -314,26 +316,34 @@ class Button(ThemedDrawable, Clickable):
         return b
 
     def draw_onto(self, surface: Surface) -> None:
+        angle: float = self.angle
+        scale: float = self.scale
+
         def compute_offset(offset: Tuple[float, float]) -> Tuple[float, float]:
-            return offset[0] * self.scale, offset[1] * self.scale
+            return offset[0] * scale, offset[1] * scale
 
         text_align_x: str = Button.__HORIZONTAL_ALIGN_POS[self.__text_align_x]
         text_align_y: str = Button.__VERTICAL_ALIGN_POS[self.__text_align_y]
-        self.__shape.center = self.center
-        self.__text.set_position(
+
+        shape: RectangleShape = self.__shape
+        text: TextImage = self.__text
+
+        shape.center = center = self.center
+        text.set_position(
             **{
-                text_align_x: getattr(self.__shape, text_align_x),
-                text_align_y: getattr(self.__shape, text_align_y),
+                text_align_x: getattr(shape, text_align_x),
+                text_align_y: getattr(shape, text_align_y),
             }
         )
-        self.__text.translate(compute_offset(self.text_offset))
+        text.translate(compute_offset(self.text_offset))
         if self.state != Clickable.State.DISABLED:
             if self.active:
-                self.__text.translate(compute_offset(self.text_active_offset))
+                text.translate(compute_offset(self.text_active_offset))
             elif self.hover:
-                self.__text.translate(compute_offset(self.text_hover_offset))
-        self.__shape.draw_onto(surface)
-        self.__text.draw_onto(surface)
+                text.translate(compute_offset(self.text_hover_offset))
+        text.rotate_around_point(angle, center)
+        shape.draw_onto(surface)
+        text.draw_onto(surface)
 
     def get_local_size(self) -> Tuple[float, float]:
         return self.__shape.get_local_size()
@@ -342,8 +352,9 @@ class Button(ThemedDrawable, Clickable):
         return self.__shape.get_size()
 
     def invoke(self) -> None:
-        if callable(self.__callback):
-            self.__callback()
+        callback: Optional[Callable[[], None]] = self.__callback
+        if callable(callback):
+            callback()
 
     def text_set_font(
         self,
@@ -426,13 +437,18 @@ class Button(ThemedDrawable, Clickable):
         return None
 
     def _apply_rotation_scale(self) -> None:
-        if self.angle != 0:
-            raise NotImplementedError
         self.__shape.scale = self.__text.scale = self.scale
+        self.__shape.angle = self.__text.angle = self.angle
         self.__update_shape_size()
 
     def _mouse_in_hitbox(self, mouse_pos: Tuple[float, float]) -> bool:
-        return truth(self.rect.collidepoint(mouse_pos))
+        rect: Rect = Rect((0, 0), self.get_area(apply_rotation=False))
+        center: Tuple[float, float] = self.center
+        rect.center = int(center[0]), int(center[1])
+        pivot: Vector2 = Vector2(rect.center)  # type: ignore[arg-type]
+        mouse: Vector2 = Vector2(mouse_pos)  # type: ignore[arg-type]
+        mouse = pivot + (mouse - pivot).rotate(self.angle)
+        return truth(rect.collidepoint(mouse.x, mouse.y))
 
     def _on_hover(self) -> None:
         self.__set_state("hover")
@@ -1007,8 +1023,9 @@ class ImageButton(ThemedDrawable, Clickable):
         return self.__shape.get_size()
 
     def invoke(self) -> None:
-        if callable(self.__callback):
-            self.__callback()
+        callback: Optional[Callable[[], None]] = self.__callback
+        if callable(callback):
+            callback()
 
     def _apply_rotation_scale(self) -> None:
         if self.angle != 0:

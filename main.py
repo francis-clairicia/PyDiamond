@@ -59,7 +59,6 @@ class ShapeScene(MainScene):
             color=RED,
             outline_color=WHITE,
         )
-        self.__s: Sprite = Sprite()
         self.__p.set_points(
             [
                 (20, 0),
@@ -99,7 +98,6 @@ class ShapeScene(MainScene):
         self.__clock: Clock = Clock()
         self.__scale: float = 1
         self.__scale_growth: int = 1
-        self.__s.center = window.width * 3 / 4, 100
         self.__shape_copy.center = window.width / 4, window.height * 3 / 4
         # self.__r.hide()
         # self.window.after(3000, self.window.close)
@@ -122,11 +120,9 @@ class ShapeScene(MainScene):
             # self.__p.scale = self.__scale
             # self.__x.scale = self.__scale
             # self.__c.scale = self.__scale
-            # self.__s.scale = self.__scale
         self.__x_center.center = self.__x.center
         self.__c_center.center = self.__c.center
-        self.__s.default_image = self.__r.to_surface()
-        self.__shape_copy.set_points(self.__c.get_vertices())
+        # self.__shape_copy.set_points(self.__c.get_vertices())
 
     def draw(self) -> None:
         self.window.draw(
@@ -135,9 +131,8 @@ class ShapeScene(MainScene):
             self.__c,
             self.__c_center,
             self.__c_trajectory,
-            self.__s,
             self.__x,
-            self.__shape_copy,
+            # self.__shape_copy,
             self.__x_center,
             self.__x_trajectory,
         )
@@ -358,7 +353,12 @@ class ButtonScene(MainScene):
         super().__init__(window, framerate=120)
         self.background_color = BLUE_DARK
         self.button = Button(
-            self, font=(None, 80), img=ImagesResources.cactus, callback=self.__increase_counter, text_offset=(2, 2)
+            self,
+            font=(None, 80),
+            img=ImagesResources.cactus,
+            callback=self.__increase_counter,
+            text_offset=(2, 2),
+            text_hover_offset=(0, -3),
         )
         self.button.img_scale_to_size((100, 100))
         self.button.center = window.center
@@ -374,7 +374,8 @@ class ButtonScene(MainScene):
         self.counter = 0
         self.button.text = "0"
         self.button.scale = 1
-        self.button.animation.register_width_offset(100).start_in_background(self)
+        self.button.angle = 0
+        self.button.animation.register_width_offset(100).register_rotation(360 + 30, offset=3).start_in_background(self)
 
     def __increase_counter(self) -> None:
         self.counter += 1

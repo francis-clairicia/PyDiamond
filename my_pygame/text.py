@@ -98,9 +98,6 @@ class Text(ThemedDrawable):
     def draw_onto(self, surface: Surface) -> None:
         surface.blit(self.__image, self.topleft)
 
-    def to_surface(self) -> Surface:
-        return self.__image.copy()
-
     def get_local_size(self) -> Tuple[float, float]:
         return self.__default_image.get_size()
 
@@ -404,7 +401,7 @@ class TextImage(Text):
         if img_width == 0 or img_height == 0:
             return text
         if text_width == 0 or text_height == 0:
-            return self.__img.to_surface()
+            return self.__img.get(apply_rotation_scale=True)
 
         text_rect: Rect = text.get_rect()
         offset: float = self.distance
@@ -477,9 +474,8 @@ class _BoundImage(Image):
 
     def _apply_rotation_scale(self) -> None:
         super()._apply_rotation_scale()
-        self.__text.config.update(call_value_updaters=False)
+        self.__text.config.update()
 
     def set(self, image: Surface) -> None:
-        with self.__text.config.initialization():
-            super().set(image)
-            self.__text.config.update()
+        super().set(image)
+        self.__text.config.update()

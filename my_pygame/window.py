@@ -273,7 +273,7 @@ class Window:
         def draw_target(target: Drawable) -> None:
             try:
                 target.draw_onto(surface)
-            except (NotImplementedError, pygame.error):
+            except pygame.error:
                 pass
 
         if isinstance(target, Drawable):

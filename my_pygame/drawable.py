@@ -12,7 +12,6 @@ from pygame.math import Vector2
 
 from .theme import MetaThemedObject, ThemedObject, abstract_theme_class
 from .animation import Animation
-from .surface import create_surface
 
 
 def _draw_decorator(func: Callable[[Drawable, Surface], None]) -> Callable[[Drawable, Surface], None]:
@@ -65,14 +64,6 @@ class Drawable(metaclass=MetaDrawable):
         copy_self.angle = self.angle
         copy_self.center = self.center
         return copy_self
-
-    def to_surface(self) -> Surface:
-        topleft: Tuple[float, float] = self.topleft
-        image: Surface = create_surface(self.get_size())
-        self.topleft = (0, 0)
-        self.draw_onto(image)
-        self.topleft = topleft
-        return image
 
     def show(self) -> None:
         self.set_visibility(True)
@@ -230,12 +221,19 @@ class Drawable(metaclass=MetaDrawable):
         return self.get_local_size()[1]
 
     def get_size(self) -> Tuple[float, float]:
+        return self.get_area()
+
+    def get_area(self, *, apply_scale: bool = True, apply_rotation: bool = True) -> Tuple[float, float]:
+        if not apply_scale and not apply_rotation:
+            return self.get_local_size()
+
         scale: float = self.__scale
         angle: float = self.__angle
         w, h = self.get_local_size()
-        w *= scale
-        h *= scale
-        if angle == 0 or angle == 180:
+        if apply_scale:
+            w *= scale
+            h *= scale
+        if not apply_rotation or angle == 0 or angle == 180:
             return (w, h)
         if angle == 90 or angle == 270:
             return (h, w)
@@ -248,6 +246,12 @@ class Drawable(metaclass=MetaDrawable):
         top: float = min((point.y for point in all_points), default=0)
         bottom: float = max((point.y for point in all_points), default=0)
         return (right - left, bottom - top)
+
+    def get_width(self) -> float:
+        return self.get_size()[0]
+
+    def get_height(self) -> float:
+        return self.get_size()[1]
 
     def get_local_rect(self, **kwargs: Union[float, Tuple[float, float]]) -> Rect:
         r: Rect = Rect((0, 0), self.get_local_size())
@@ -287,7 +291,7 @@ class Drawable(metaclass=MetaDrawable):
 
     @property
     def rect(self) -> Rect:
-        return Rect(self.topleft, self.size)
+        return Rect(self.topleft, self.get_size())
 
     @property
     def x(self) -> float:
@@ -471,6 +475,8 @@ class MetaThemedDrawable(MetaDrawable, MetaThemedObject):
     pass
 
 
-@abstract_theme_class
 class ThemedDrawable(Drawable, ThemedObject, metaclass=MetaThemedDrawable):
     pass
+
+
+abstract_theme_class(ThemedDrawable)

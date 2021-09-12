@@ -38,17 +38,17 @@ class Image(Drawable):
             self.scale_to_width(width)
         elif height is not None:
             self.scale_to_height(height)
+        self.topleft = (0, 0)
 
     def copy(self) -> Image:
         return Image(self.__default_image)
 
-    def to_surface(self) -> Surface:
-        return self.__image.copy()
-
     def draw_onto(self, surface: Surface) -> None:
         surface.blit(self.__image, self.topleft)
 
-    def get(self) -> Surface:
+    def get(self, apply_rotation_scale: bool = False) -> Surface:
+        if apply_rotation_scale:
+            return self.__image.copy()
         return self.__default_image.copy()
 
     def set(self, image: Surface) -> None:
@@ -73,17 +73,22 @@ class Image(Drawable):
         return self.__image.get_size()
 
     def use_smooth_scale(self, status: bool) -> None:
-        self.__smooth_scale = bool(status)
+        former_state: bool = self.__smooth_scale
+        self.__smooth_scale = actual_state = bool(status)
+        if former_state != actual_state:
+            self._apply_rotation_scale()
 
     def _apply_rotation_scale(self) -> None:
+        angle: float = self.angle
+        scale: float = self.scale
+        image: Surface = self.__default_image
+
         if not self.__smooth_scale:
-            self.__image = pygame.transform.rotozoom(self.__default_image, self.angle, self.scale)
+            self.__image = pygame.transform.rotozoom(image, angle, scale)
         else:
-            if self.scale != 1:
+            if scale != 1:
                 w, h = self.get_local_size()
-                w = round(w * self.scale)
-                h = round(h * self.scale)
-                self.__image = pygame.transform.smoothscale(self.__default_image, (w, h))
-            else:
-                self.__image = self.__default_image
-            self.__image = pygame.transform.rotate(self.__image, self.angle)
+                w = round(w * scale)
+                h = round(h * scale)
+                image = pygame.transform.smoothscale(image, (w, h))
+            self.__image = pygame.transform.rotate(image, angle)
