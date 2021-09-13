@@ -194,7 +194,6 @@ class Button(ThemedDrawable, Clickable):
             shadow_color=shadow_color,
             theme=NoTheme,
         )
-        self.__callback: Optional[Callable[[], None]]
         self.callback = callback
         self.x_add_size = x_add_size
         self.y_add_size = y_add_size
@@ -271,7 +270,7 @@ class Button(ThemedDrawable, Clickable):
             shadow_x=self.__text.shadow_x,
             shadow_y=self.__text.shadow_y,
             shadow_color=self.__text.shadow_color,
-            callback=self.__callback,
+            callback=self.callback,
             state=self.state,
             width=self.fixed_width,
             height=self.fixed_height,
@@ -354,7 +353,7 @@ class Button(ThemedDrawable, Clickable):
         return self.__shape.get_size()
 
     def __invoke__(self) -> None:
-        callback: Optional[Callable[[], None]] = self.__callback
+        callback: Optional[Callable[[], None]] = self.callback
         if callable(callback):
             callback()
 
@@ -865,6 +864,7 @@ class Button(ThemedDrawable, Clickable):
 
     @property
     def callback(self) -> Optional[Callable[[], None]]:
+        self.__callback: Optional[Callable[[], None]]
         return self.__callback
 
     @callback.setter
@@ -876,6 +876,7 @@ class Button(ThemedDrawable, Clickable):
 
 
 class ImageButton(ThemedDrawable, Clickable):
+    @initializer
     def __init__(
         self,
         master: Union[Scene, Window],
@@ -926,12 +927,12 @@ class ImageButton(ThemedDrawable, Clickable):
             disabled_cursor=disabled_cursor,
         )
         self.__image: Image = Image(img)
-        self.__callback: Optional[Callable[[], None]] = callback if callable(callback) else None
-        self.__x_add_size: float = max(float(x_add_size), 0)
-        self.__y_add_size: float = max(float(y_add_size), 0)
+        self.callback = callback
+        self.x_add_size = x_add_size
+        self.y_add_size = y_add_size
         self.__shape: RectangleShape = RectangleShape(
-            width=self.__image.width + self.__x_add_size,
-            height=self.__image.height + self.__y_add_size,
+            width=0,
+            height=0,
             color=bg,
             outline=outline,
             outline_color=outline_color,
@@ -966,17 +967,17 @@ class ImageButton(ThemedDrawable, Clickable):
                 "active": _copy_img(disabled_active_img),
             },
         }
-        self.__hover_offset: Tuple[float, float] = hover_offset
-        self.__active_offset: Tuple[float, float] = active_offset
+        self.hover_offset = hover_offset
+        self.active_offset = active_offset
 
     def copy(self) -> ImageButton:
         return ImageButton(
             master=self.master,
             img=self.__img_dict[Clickable.State.NORMAL]["normal"],
-            callback=self.__callback,
+            callback=self.callback,
             state=self.state,
-            x_add_size=self.__x_add_size,
-            y_add_size=self.__y_add_size,
+            x_add_size=self.x_add_size,
+            y_add_size=self.y_add_size,
             bg=self.__bg_dict[Clickable.State.NORMAL]["normal"],
             outline=self.__shape.outline,
             outline_color=self.__shape.outline_color,
@@ -995,8 +996,8 @@ class ImageButton(ThemedDrawable, Clickable):
             disabled_active_img=self.__img_dict[Clickable.State.DISABLED]["active"],
             cursor=self.cursor,
             disabled_cursor=self.disabled_cursor,
-            hover_offset=self.__hover_offset,
-            active_offset=self.__active_offset,
+            hover_offset=self.hover_offset,
+            active_offset=self.active_offset,
             border_radius=self.__shape.border_radius,
             border_top_left_radius=self.__shape.border_top_left_radius,
             border_top_right_radius=self.__shape.border_top_right_radius,
@@ -1006,17 +1007,22 @@ class ImageButton(ThemedDrawable, Clickable):
         )
 
     def draw_onto(self, surface: Surface) -> None:
+        scale: float = self.scale
+
         def compute_offset(offset: Tuple[float, float]) -> Tuple[float, float]:
-            return offset[0] * self.scale, offset[1] * self.scale
+            return offset[0] * scale, offset[1] * scale
 
-        self.__shape.center = self.__image.center = self.center
+        shape: RectangleShape = self.__shape
+        image: Image = self.__image
+
+        shape.center = image.center = self.center
         if self.active:
-            self.__image.translate(compute_offset(self.__active_offset))
+            image.translate(compute_offset(self.active_offset))
         elif self.hover:
-            self.__image.translate(compute_offset(self.__hover_offset))
+            image.translate(compute_offset(self.hover_offset))
 
-        self.__shape.draw_onto(surface)
-        self.__image.draw_onto(surface)
+        shape.draw_onto(surface)
+        image.draw_onto(surface)
 
     def get_local_size(self) -> Tuple[float, float]:
         return self.__shape.get_local_size()
@@ -1025,7 +1031,7 @@ class ImageButton(ThemedDrawable, Clickable):
         return self.__shape.get_size()
 
     def __invoke__(self) -> None:
-        callback: Optional[Callable[[], None]] = self.__callback
+        callback: Optional[Callable[[], None]] = self.callback
         if callable(callback):
             callback()
 
@@ -1047,7 +1053,7 @@ class ImageButton(ThemedDrawable, Clickable):
     def _on_active_set(self) -> None:
         self.__set_state("active")
 
-    def __set_state(self, button_state: Union[Literal["normal"], Literal["hover"], Literal["active"]]) -> None:
+    def __set_state(self, button_state: Literal["normal", "hover", "active"]) -> None:
         clickable_state: Clickable.State = Clickable.State(self.state)
         bg_color: Optional[Color] = self.__bg_dict[clickable_state][button_state]
         if bg_color is None:
@@ -1068,24 +1074,215 @@ class ImageButton(ThemedDrawable, Clickable):
             self.__set_state("normal")
 
     def __update_shape_size(self) -> None:
-        center = self.center
         img_width, img_height = self.__image.get_local_size()
-        x_add_size: float = self.__x_add_size * self.scale
-        y_add_size: float = self.__y_add_size * self.scale
-        self.__shape.local_size = (img_width + x_add_size, img_height + y_add_size)
-        self.center = center
+        scale: float = self.scale
+        x_add_size: float = self.x_add_size * scale
+        y_add_size: float = self.y_add_size * scale
+        new_size: Tuple[float, float] = (img_width + x_add_size, img_height + y_add_size)
+        if self.config.has_initialization_context():
+            self.__shape.local_size = new_size
+        else:
+            center = self.center
+            self.__shape.local_size = new_size
+            self.center = center
 
-    @property
-    def img(self) -> Surface:
-        return self.__img_dict[Clickable.State.NORMAL]["normal"].copy()
+    config: Configuration = Configuration(
+        "img",
+        "x_add_size",
+        "y_add_size",
+        "background",
+        "outline",
+        "outline_color",
+        "hover_background",
+        "active_background",
+        "disabled_background",
+        "disabled_hover_background",
+        "disabled_active_background",
+        "hover_img",
+        "active_img",
+        "disabled_img",
+        "disabled_hover_img",
+        "disabled_active_img",
+        "hover_offset",
+        "active_offset",
+        "border_radius",
+        "border_top_left_radius",
+        "border_top_right_radius",
+        "border_bottom_left_radius",
+        "border_bottom_right_radius",
+    )
 
-    @img.setter
-    def img(self, surface: Surface) -> None:
-        self.__img_dict[Clickable.State.NORMAL]["normal"] = surface.copy()
-        self.__update_state()
+    config.set_alias("background", "bg")
+    config.set_alias("hover_background", "hover_bg")
+    config.set_alias("active_background", "active_bg")
+    config.set_alias("disabled_background", "disabled_bg")
+    config.set_alias("disabled_hover_background", "disabled_hover_bg")
+    config.set_alias("disabled_active_background", "disabled_active_bg")
+
+    config.register_copy_func(Color, _copy_color)
+    config.register_copy_func(Surface, _copy_img, allow_subclass=True)
+
+    img: ConfigAttribute[Surface] = ConfigAttribute()
+    x_add_size: ConfigAttribute[float] = ConfigAttribute()
+    y_add_size: ConfigAttribute[float] = ConfigAttribute()
+    background: ConfigAttribute[Color] = ConfigAttribute()
+    bg: ConfigAttribute[Color] = ConfigAttribute()
+    outline: ConfigAttribute[int] = ConfigAttribute()
+    outline_color: ConfigAttribute[Color] = ConfigAttribute()
+    hover_background: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    hover_bg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    active_background: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    active_bg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    disabled_background: ConfigAttribute[Color] = ConfigAttribute()
+    disabled_bg: ConfigAttribute[Color] = ConfigAttribute()
+    disabled_hover_background: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    disabled_hover_bg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    disabled_active_background: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    disabled_active_bg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
+    hover_img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
+    active_img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
+    disabled_img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
+    disabled_hover_img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
+    disabled_active_img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
+    hover_offset: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
+    active_offset: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
+    border_radius: ConfigAttribute[int] = ConfigAttribute()
+    border_top_left_radius: ConfigAttribute[int] = ConfigAttribute()
+    border_top_right_radius: ConfigAttribute[int] = ConfigAttribute()
+    border_bottom_left_radius: ConfigAttribute[int] = ConfigAttribute()
+    border_bottom_right_radius: ConfigAttribute[int] = ConfigAttribute()
+
+    @config.validator("hover_offset")
+    @config.validator("active_offset")
+    @staticmethod
+    def __img_offset_validator(offset: Tuple[float, float]) -> Tuple[float, float]:
+        return (float(offset[0]), float(offset[1]))
+
+    config.validator("x_add_size", no_object(valid_float(min_value=0)))
+    config.validator("y_add_size", no_object(valid_float(min_value=0)))
+    config.updater("x_add_size", __update_shape_size)
+    config.updater("y_add_size", __update_shape_size)
+
+    __STATE: Dict[str, Tuple[Clickable.State, Literal["normal", "hover", "active"]]] = {
+        "background": (Clickable.State.NORMAL, "normal"),
+        "hover_background": (Clickable.State.NORMAL, "hover"),
+        "active_background": (Clickable.State.NORMAL, "active"),
+        "disabled_background": (Clickable.State.DISABLED, "normal"),
+        "disabled_hover_background": (Clickable.State.DISABLED, "hover"),
+        "disabled_active_background": (Clickable.State.DISABLED, "active"),
+        "img": (Clickable.State.NORMAL, "normal"),
+        "hover_img": (Clickable.State.NORMAL, "hover"),
+        "active_img": (Clickable.State.NORMAL, "active"),
+        "disabled_img": (Clickable.State.DISABLED, "normal"),
+        "disabled_hover_img": (Clickable.State.DISABLED, "hover"),
+        "disabled_active_img": (Clickable.State.DISABLED, "active"),
+    }
+
+    config.set_autocopy("background", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("hover_background", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("active_background", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("disabled_background", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("disabled_hover_background", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("disabled_active_background", copy_on_get=True, copy_on_set=True)
+
+    @config.getter("background")
+    @config.getter("hover_background")
+    @config.getter("active_background")
+    @config.getter("disabled_background")
+    @config.getter("disabled_hover_background")
+    @config.getter("disabled_active_background")
+    def __get_background(self, option: str) -> Optional[Color]:
+        clickable_state, button_state = ImageButton.__STATE[option]
+        return self.__bg_dict[clickable_state][button_state]
+
+    @config.setter("background")
+    @config.setter("hover_background")
+    @config.setter("active_background")
+    @config.setter("disabled_background")
+    @config.setter("disabled_hover_background")
+    @config.setter("disabled_active_background")
+    def __set_background(self, option: str, color: Optional[Color]) -> None:
+        clickable_state, button_state = ImageButton.__STATE[option]
+        self.__bg_dict[clickable_state][button_state] = color
+
+    config.validator("background", Color)
+    config.validator("hover_background", (Color, type(None)))
+    config.validator("active_background", (Color, type(None)))
+    config.validator("disabled_background", Color)
+    config.validator("disabled_hover_background", (Color, type(None)))
+    config.validator("disabled_active_background", (Color, type(None)))
+
+    config.updater("background", __update_state)
+    config.updater("hover_background", __update_state)
+    config.updater("active_background", __update_state)
+    config.updater("disabled_background", __update_state)
+    config.updater("disabled_hover_background", __update_state)
+    config.updater("disabled_active_background", __update_state)
+
+    config.set_autocopy("img", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("hover_img", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("active_img", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("disabled_img", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("disabled_hover_img", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("disabled_active_img", copy_on_get=True, copy_on_set=True)
+
+    @config.getter("img")
+    @config.getter("hover_img")
+    @config.getter("active_img")
+    @config.getter("disabled_img")
+    @config.getter("disabled_hover_img")
+    @config.getter("disabled_active_img")
+    def __get_img(self, option: str) -> Optional[Surface]:
+        clickable_state, button_state = ImageButton.__STATE[option]
+        return self.__img_dict[clickable_state][button_state]
+
+    @config.setter("img")
+    @config.setter("hover_img")
+    @config.setter("active_img")
+    @config.setter("disabled_img")
+    @config.setter("disabled_hover_img")
+    @config.setter("disabled_active_img")
+    def __set_img(self, option: str, img: Optional[Surface]) -> None:
+        clickable_state, button_state = ImageButton.__STATE[option]
+        self.__img_dict[clickable_state][button_state] = img
+
+    config.validator("img", Surface)
+    config.validator("hover_img", (Surface, type(None)))
+    config.validator("active_img", (Surface, type(None)))
+    config.validator("disabled_img", (Surface, type(None)))
+    config.validator("disabled_hover_img", (Surface, type(None)))
+    config.validator("disabled_active_img", (Surface, type(None)))
+
+    config.updater("img", __update_state)
+    config.updater("hover_img", __update_state)
+    config.updater("active_img", __update_state)
+    config.updater("disabled_img", __update_state)
+    config.updater("disabled_hover_img", __update_state)
+    config.updater("disabled_active_img", __update_state)
+
+    @config.getter("outline")
+    @config.getter("outline_color")
+    @config.getter("border_radius")
+    @config.getter("border_top_left_radius")
+    @config.getter("border_top_right_radius")
+    @config.getter("border_bottom_left_radius")
+    @config.getter("border_bottom_right_radius")
+    def __get_shape_option(self, option: str) -> Any:
+        return self.__shape.config.get(option)
+
+    @config.setter("outline")
+    @config.setter("outline_color")
+    @config.setter("border_radius")
+    @config.setter("border_top_left_radius")
+    @config.setter("border_top_right_radius")
+    @config.setter("border_bottom_left_radius")
+    @config.setter("border_bottom_right_radius")
+    def __set_shape_option(self, option: str, value: Any) -> Any:
+        return self.__shape.config.set(option, value)
 
     @property
     def callback(self) -> Optional[Callable[[], None]]:
+        self.__callback: Optional[Callable[[], None]]
         return self.__callback
 
     @callback.setter
@@ -1094,248 +1291,3 @@ class ImageButton(ThemedDrawable, Clickable):
             self.__callback = callback
         else:
             self.__callback = None
-
-    @property
-    def x_add_size(self) -> float:
-        return self.__x_add_size
-
-    @x_add_size.setter
-    def x_add_size(self, offset: float) -> None:
-        offset = max(offset, 0)
-        if offset != self.__x_add_size:
-            self.__x_add_size = offset
-            self.__update_shape_size()
-
-    @property
-    def y_add_size(self) -> float:
-        return self.__y_add_size
-
-    @y_add_size.setter
-    def y_add_size(self, offset: float) -> None:
-        offset = max(offset, 0)
-        if offset != self.__y_add_size:
-            self.__y_add_size = offset
-            self.__update_shape_size()
-
-    @property
-    def background(self) -> Color:
-        return Color(self.__bg_dict[Clickable.State.NORMAL]["normal"])
-
-    @background.setter
-    def background(self, color: Color) -> None:
-        self.__bg_dict[Clickable.State.NORMAL]["normal"] = Color(color)
-        self.__update_state()
-
-    @property
-    def bg(self) -> Color:
-        return self.background
-
-    @bg.setter
-    def bg(self, color: Color) -> None:
-        self.background = color
-
-    @property
-    def outline(self) -> int:
-        return self.__shape.outline
-
-    @outline.setter
-    def outline(self, outline: int) -> None:
-        self.__shape.outline = outline
-
-    @property
-    def outline_color(self) -> Color:
-        return self.__shape.outline_color
-
-    @outline_color.setter
-    def outline_color(self, color: Color) -> None:
-        self.__shape.outline_color = color
-
-    @property
-    def hover_background(self) -> Optional[Color]:
-        c: Optional[Color] = self.__bg_dict[Clickable.State.NORMAL]["hover"]
-        return _copy_color(c)
-
-    @hover_background.setter
-    def hover_background(self, color: Optional[Color]) -> None:
-        self.__bg_dict[Clickable.State.NORMAL]["hover"] = _copy_color(color)
-        self.__update_state()
-
-    @property
-    def hover_bg(self) -> Optional[Color]:
-        return self.hover_background
-
-    @hover_bg.setter
-    def hover_bg(self, color: Optional[Color]) -> None:
-        self.hover_background = color
-
-    @property
-    def active_background(self) -> Optional[Color]:
-        c: Optional[Color] = self.__bg_dict[Clickable.State.NORMAL]["active"]
-        return _copy_color(c)
-
-    @active_background.setter
-    def active_background(self, color: Optional[Color]) -> None:
-        self.__bg_dict[Clickable.State.NORMAL]["active"] = _copy_color(color)
-        self.__update_state()
-
-    @property
-    def active_bg(self) -> Optional[Color]:
-        return self.active_background
-
-    @active_bg.setter
-    def active_bg(self, color: Optional[Color]) -> None:
-        self.active_background = color
-
-    @property
-    def disabled_background(self) -> Color:
-        return Color(self.__bg_dict[Clickable.State.DISABLED]["normal"])
-
-    @disabled_background.setter
-    def disabled_background(self, color: Color) -> None:
-        self.__bg_dict[Clickable.State.DISABLED]["normal"] = Color(color)
-        self.__update_state()
-
-    @property
-    def disabled_bg(self) -> Color:
-        return self.disabled_background
-
-    @disabled_bg.setter
-    def disabled_bg(self, color: Color) -> None:
-        self.disabled_background = color
-
-    @property
-    def disabled_hover_background(self) -> Optional[Color]:
-        c: Optional[Color] = self.__bg_dict[Clickable.State.DISABLED]["hover"]
-        return _copy_color(c)
-
-    @disabled_hover_background.setter
-    def disabled_hover_background(self, color: Optional[Color]) -> None:
-        self.__bg_dict[Clickable.State.DISABLED]["hover"] = _copy_color(color)
-        self.__update_state()
-
-    @property
-    def disabled_hover_bg(self) -> Optional[Color]:
-        return self.disabled_hover_background
-
-    @disabled_hover_bg.setter
-    def disabled_hover_bg(self, color: Optional[Color]) -> None:
-        self.disabled_hover_background = color
-
-    @property
-    def disabled_active_background(self) -> Optional[Color]:
-        c: Optional[Color] = self.__bg_dict[Clickable.State.DISABLED]["active"]
-        return _copy_color(c)
-
-    @disabled_active_background.setter
-    def disabled_active_background(self, color: Optional[Color]) -> None:
-        self.__bg_dict[Clickable.State.DISABLED]["active"] = _copy_color(color)
-        self.__update_state()
-
-    @property
-    def disabled_active_bg(self) -> Optional[Color]:
-        return self.disabled_active_background
-
-    @disabled_active_bg.setter
-    def disabled_active_bg(self, color: Optional[Color]) -> None:
-        self.disabled_active_background = color
-
-    @property
-    def hover_img(self) -> Optional[Surface]:
-        return _copy_img(self.__img_dict[Clickable.State.NORMAL]["hover"])
-
-    @hover_img.setter
-    def hover_img(self, surface: Optional[Surface]) -> None:
-        self.__img_dict[Clickable.State.NORMAL]["hover"] = _copy_img(surface)
-        self.__update_state()
-
-    @property
-    def active_img(self) -> Optional[Surface]:
-        return _copy_img(self.__img_dict[Clickable.State.NORMAL]["active"])
-
-    @active_img.setter
-    def active_img(self, surface: Optional[Surface]) -> None:
-        self.__img_dict[Clickable.State.NORMAL]["active"] = _copy_img(surface)
-        self.__update_state()
-
-    @property
-    def disabled_img(self) -> Surface:
-        return self.__img_dict[Clickable.State.DISABLED]["normal"].copy()
-
-    @disabled_img.setter
-    def disabled_img(self, surface: Surface) -> None:
-        self.__img_dict[Clickable.State.DISABLED]["normal"] = surface.copy()
-        self.__update_state()
-
-    @property
-    def disabled_hover_img(self) -> Optional[Surface]:
-        return _copy_img(self.__img_dict[Clickable.State.DISABLED]["hover"])
-
-    @disabled_hover_img.setter
-    def disabled_hover_img(self, surface: Optional[Surface]) -> None:
-        self.__img_dict[Clickable.State.DISABLED]["hover"] = _copy_img(surface)
-        self.__update_state()
-
-    @property
-    def disabled_active_img(self) -> Optional[Surface]:
-        return _copy_img(self.__img_dict[Clickable.State.DISABLED]["active"])
-
-    @disabled_active_img.setter
-    def disabled_active_img(self, surface: Optional[Surface]) -> None:
-        self.__img_dict[Clickable.State.DISABLED]["active"] = _copy_img(surface)
-        self.__update_state()
-
-    @property
-    def hover_offset(self) -> Tuple[float, float]:
-        return self.__hover_offset
-
-    @hover_offset.setter
-    def hover_offset(self, offset: Tuple[float, float]) -> None:
-        self.__hover_offset = offset[0], offset[1]
-
-    @property
-    def active_offset(self) -> Tuple[float, float]:
-        return self.__active_offset
-
-    @active_offset.setter
-    def active_offset(self, offset: Tuple[float, float]) -> None:
-        self.__active_offset = offset[0], offset[1]
-
-    @property
-    def border_radius(self) -> int:
-        return self.__shape.border_radius
-
-    @border_radius.setter
-    def border_radius(self, radius: int) -> None:
-        self.__shape.border_radius = radius
-
-    @property
-    def border_top_left_radius(self) -> int:
-        return self.__shape.border_top_left_radius
-
-    @border_top_left_radius.setter
-    def border_top_left_radius(self, radius: int) -> None:
-        self.__shape.border_top_left_radius = radius
-
-    @property
-    def border_top_right_radius(self) -> int:
-        return self.__shape.border_top_right_radius
-
-    @border_top_right_radius.setter
-    def border_top_right_radius(self, radius: int) -> None:
-        self.__shape.border_top_right_radius = radius
-
-    @property
-    def border_bottom_left_radius(self) -> int:
-        return self.__shape.border_bottom_left_radius
-
-    @border_bottom_left_radius.setter
-    def border_bottom_left_radius(self, radius: int) -> None:
-        self.__shape.border_bottom_left_radius = radius
-
-    @property
-    def border_bottom_right_radius(self) -> int:
-        return self.__shape.border_bottom_right_radius
-
-    @border_bottom_right_radius.setter
-    def border_bottom_right_radius(self, radius: int) -> None:
-        self.__shape.border_bottom_right_radius = radius
