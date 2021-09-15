@@ -102,16 +102,19 @@ class MetaThemedObject(ABCMeta):
             _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.add(cls)
 
     def __call__(cls, *args: Any, **kwargs: Any) -> Any:
+        create_object: Callable[..., Any] = super().__call__
         if cls.is_abstract_theme_class():
-            return super().__call__(*args, **kwargs)
+            return create_object(*args, **kwargs)
 
         theme: Optional[ThemeType] = kwargs.get("theme")
         if theme is NoTheme:
-            return super().__call__(*args, **kwargs)
+            return create_object(*args, **kwargs)
         if theme is None:
             theme = []
         elif isinstance(theme, str):
             theme = [theme]
+        else:
+            theme = [str(t) for t in theme]
 
         default_theme: Dict[str, None] = dict()
 
@@ -128,7 +131,7 @@ class MetaThemedObject(ABCMeta):
         theme_kwargs: Dict[str, Any] = cls.get_theme_options(*default_theme, *theme, ignore_unusable=True)
         if theme_kwargs:
             kwargs = theme_kwargs | kwargs
-        return super().__call__(*args, **kwargs)
+        return create_object(*args, **kwargs)
 
     def __setattr__(cls, name: str, value: Any) -> None:
         if name in ("__new__", "__init__"):

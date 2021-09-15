@@ -55,8 +55,8 @@ def valid_float(*, min_value: Optional[float] = None, max_value: Optional[float]
 def __valid_number(
     value_type: Union[Type[int], Type[float]], *, min_value: Optional[float], max_value: Optional[float]
 ) -> Callable[[Any], Any]:
-    _min: float
-    _max: float
+    _min: Union[int, float]
+    _max: Union[int, float]
 
     if min_value is not None and max_value is not None:
         _min = value_type(min_value)
@@ -65,22 +65,22 @@ def __valid_number(
         if _min >= _max:
             raise ValueError(f"min_value ({_min}) >= max_value ({_max})")
 
-        def valid_impl(val: Any) -> float:
+        def valid_number_impl(val: Any) -> Union[int, float]:
             return min(max(value_type(val), _min), _max)
 
     elif min_value is not None:
         _min = value_type(min_value)
 
-        def valid_impl(val: Any) -> float:
+        def valid_number_impl(val: Any) -> Union[int, float]:
             return max(value_type(val), _min)
 
     elif max_value is not None:
         _max = value_type(max_value)
 
-        def valid_impl(val: Any) -> float:
+        def valid_number_impl(val: Any) -> Union[int, float]:
             return min(value_type(val), _max)
 
     else:
         raise TypeError("Invalid arguments")
 
-    return valid_impl
+    return valid_number_impl
