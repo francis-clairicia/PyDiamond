@@ -301,7 +301,12 @@ class MetaThemedObject(ABCMeta):
         def get_all_parent_class(cls: MetaThemedObject) -> Iterator[MetaThemedObject]:
             if not isinstance(cls, MetaThemedObject) or cls in do_not_search_for or cls.is_abstract_theme_class():
                 return
-            for base in (*cls.__bases__, *cls.__virtual_themed_class_bases__):
+            try:
+                mro: List[type] = list(getattr(cls, "__mro__"))[1:]
+            except AttributeError:
+                mro = list(cls.__bases__)
+
+            for base in (*mro, *cls.__virtual_themed_class_bases__):
                 if not isinstance(base, MetaThemedObject) or base.is_abstract_theme_class():
                     continue
                 yield base

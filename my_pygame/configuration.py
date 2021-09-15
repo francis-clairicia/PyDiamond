@@ -200,6 +200,24 @@ class Configuration:
         self.__bound_class: Optional[type] = None
 
     def __set_name__(self, owner: type, name: str) -> None:
+        def all_members(cls: type) -> Dict[str, Any]:
+            try:
+                mro: List[type] = list(getattr(cls, "__mro__"))
+            except AttributeError:
+
+                def getmro(cls: type) -> List[type]:
+                    mro = [cls]
+                    for base in cls.__bases__:
+                        mro.extend(getmro(base))
+                    return mro
+
+                mro = getmro(cls)
+            mro.reverse()
+            members: Dict[str, Any] = dict()
+            for someClass in mro:
+                members.update(vars(someClass))
+            return members
+
         if self.__bound_class is not None:
             raise TypeError(f"This configuration object is bound to an another class: {self.__bound_class.__name__!r}")
         infos: Configuration.Infos = self.__infos
@@ -215,7 +233,7 @@ class Configuration:
                 attribute_class_owner[option] = attribute_class_owner.get(option, owner)
         _register_configuration(owner, self)
         all_options: FrozenSet[str] = frozenset((*infos.options, *infos.aliases))
-        for obj in vars(owner).values():
+        for obj in all_members(owner).values():
             if isinstance(obj, ConfigAttribute):
                 config_attr_name: str = obj.name
                 if config_attr_name and config_attr_name not in all_options:
