@@ -27,6 +27,7 @@ _OffValue = TypeVar("_OffValue")
 NoDefaultValue: Any = object()
 
 
+@RectangleShape.register
 class CheckBox(ThemedDrawable, Clickable, Generic[_OnValue, _OffValue]):
     def __init__(
         self,
@@ -155,18 +156,20 @@ class CheckBox(ThemedDrawable, Clickable, Generic[_OnValue, _OffValue]):
         if value == self.__value:
             return
         self.__value = value
-        if callable(self.__on_changed_value):
-            self.__on_changed_value(self.__value)
+        callback = self.__on_changed_value
+        if callable(callback):
+            callback(value)
 
     def _mouse_in_hitbox(self, mouse_pos: Tuple[float, float]) -> bool:
         return truth(self.__shape.rect.collidepoint(mouse_pos))
 
     def _apply_rotation_scale(self) -> None:
-        if self.angle != 0:
-            raise NotImplementedError
+        angle: float = self.angle
         scale: float = self.scale
+        self.__shape.set_rotation(angle)
         self.__shape.set_scale(scale)
         if self.__active_img is not None:
+            self.__active_img.set_rotation(angle)
             self.__active_img.set_scale(scale)
         w, h = self.__shape.get_size()
         self.__cross.local_size = (0.7 * w), (0.7 * h)
@@ -300,7 +303,7 @@ class BooleanCheckBox(CheckBox[bool, bool]):
             border_top_right_radius=border_top_right_radius,
             border_bottom_left_radius=border_bottom_left_radius,
             border_bottom_right_radius=border_bottom_right_radius,
-            theme=NoTheme,
+            theme=theme,
         )
 
     def copy(self) -> BooleanCheckBox:

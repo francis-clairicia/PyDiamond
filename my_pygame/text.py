@@ -299,7 +299,7 @@ class TextImage(Text):
             shadow_x=shadow_x,
             shadow_y=shadow_y,
             shadow_color=shadow_color,
-            theme=NoTheme,
+            theme=theme,
         )
         self.__img: Optional[Image] = None
         self.__compound: TextImage.Compound

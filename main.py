@@ -2,6 +2,8 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
+from my_pygame.scale import Scale
+from my_pygame.progress import ProgressBar
 from my_pygame.surface import create_surface
 from my_pygame.checkbox import CheckBox
 from my_pygame.button import Button, ImageButton
@@ -11,7 +13,7 @@ import pygame
 from pygame.event import Event
 from pygame.surface import Surface
 from my_pygame.text import Text, TextImage
-from my_pygame.window import Window
+from my_pygame.window import Window, scheduled
 from my_pygame.scene import Scene, MainScene
 
 from my_pygame.resource import FontLoader, ImageLoader, ResourceManager
@@ -95,31 +97,30 @@ class ShapeScene(MainScene):
         self.__c_trajectory.center = self.__r.center
         self.__c_center: CircleShape = CircleShape(5, YELLOW, outline=0)
 
-        self.__clock: Clock = Clock()
         self.__scale: float = 1
         self.__scale_growth: int = 1
         self.__shape_copy.center = window.width / 4, window.height * 3 / 4
         # self.__r.hide()
         # self.window.after(3000, self.window.close)
 
+    @scheduled(15)
     def update(self) -> None:
         degrees: float = 1
-        if self.__clock.elapsed_time(15):
-            self.__r.rotate(degrees)
-            self.__p.rotate_around_point(-degrees, pivot=self.__r.center)
-            self.__p.rotate(degrees * 3)
-            self.__x.rotate_around_point(degrees, pivot=self.__r.center)
-            self.__x.rotate(-degrees * 3)
-            self.__c.rotate_around_point(-degrees, pivot=self.__r.center)
-            # self.__scale += 0.02 * self.__scale_growth
-            # if self.__scale >= 2:
-            #     self.__scale_growth = -1
-            # elif self.__scale <= 0.2:
-            #     self.__scale_growth = 1
-            # # self.__r.scale = self.__scale
-            # self.__p.scale = self.__scale
-            # self.__x.scale = self.__scale
-            # self.__c.scale = self.__scale
+        self.__r.rotate(degrees)
+        self.__p.rotate_around_point(-degrees, pivot=self.__r.center)
+        self.__p.rotate(degrees * 3)
+        self.__x.rotate_around_point(degrees, pivot=self.__r.center)
+        self.__x.rotate(-degrees * 3)
+        self.__c.rotate_around_point(-degrees, pivot=self.__r.center)
+        # self.__scale += 0.02 * self.__scale_growth
+        # if self.__scale >= 2:
+        #     self.__scale_growth = -1
+        # elif self.__scale <= 0.2:
+        #     self.__scale_growth = 1
+        # # self.__r.scale = self.__scale
+        # self.__p.scale = self.__scale
+        # self.__x.scale = self.__scale
+        # self.__c.scale = self.__scale
         self.__x_center.center = self.__x.center
         self.__c_center.center = self.__c.center
         # self.__shape_copy.set_points(self.__c.get_vertices())
@@ -363,14 +364,13 @@ class ButtonScene(MainScene):
         self.button.img_scale_to_size((100, 100))
         self.button.center = window.center
 
-        self.cancel = ImageButton(self, img=ImagesResources.cross, active_img=ImagesResources.cross_hover, callback=self.__reset)
+        self.cancel = ImageButton(
+            self, img=ImagesResources.cross, active_img=ImagesResources.cross_hover, callback=self.on_start_loop
+        )
         self.cancel.center = window.center
         self.cancel.move(450, 0)
 
     def on_start_loop(self) -> None:
-        self.__reset()
-
-    def __reset(self) -> None:
         self.counter = 0
         self.button.text = "0"
         self.button.scale = 1
@@ -406,6 +406,52 @@ class CheckBoxScene(MainScene):
         self.text.message = f"Value: {value}"
 
 
+class ProgressScene(MainScene):
+    def __init__(self, master: Window) -> None:
+        super().__init__(master, framerate=120)
+        self.background_color = BLUE_DARK
+        self.clock = Clock()
+        self.progress = progress = ProgressBar(500, 75, from_=10, to=90)
+        self.restart = restart = ImageButton(
+            self, img=ImagesResources.cross, active_img=ImagesResources.cross_hover, callback=self.on_start_loop
+        )
+
+        progress.show_label("Loading...", "top", font=(None, 60), color=WHITE)
+        progress.show_percent("inside", font=(None, 60))
+        progress.center = self.window.center
+        restart.midtop = progress.centerx, progress.bottom + 20
+
+    def on_start_loop(self) -> None:
+        self.progress.percent = 0
+        self.clock.restart()
+
+    def update(self) -> None:
+        if self.clock.elapsed_time(20):
+            self.progress.value += 1
+
+    def draw(self) -> None:
+        self.window.draw(self.progress, self.restart)
+
+
+class ScaleScene(MainScene):
+    def __init__(self, master: Window) -> None:
+        super().__init__(master, framerate=120)
+        self.background_color = BLUE_DARK
+        self.text = text = Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
+        self.scale = scale = Scale(
+            self, 500, 75, from_=10, to=90, callback=lambda value: self.text.config(message=f"Value: {value:.2f}")
+        )
+
+        scale.center = self.window.center
+        text.midtop = scale.centerx, scale.bottom + 20
+
+    def on_start_loop(self) -> None:
+        self.scale.value = self.scale.from_value
+
+    def draw(self) -> None:
+        self.window.draw(self.scale, self.text)
+
+
 class MainWindow(Window):
 
     __SCENES: List[Callable[[Window], Scene]] = [
@@ -420,6 +466,8 @@ class MainWindow(Window):
         TextImageScene,
         ButtonScene,
         CheckBoxScene,
+        ProgressScene,
+        ScaleScene,
     ]
 
     def __init__(self) -> None:

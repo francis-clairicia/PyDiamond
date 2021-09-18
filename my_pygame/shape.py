@@ -61,9 +61,6 @@ class AbstractShape(Drawable):
             self._apply_rotation_scale()
             self.center = center
 
-    def to_surface(self) -> Surface:
-        return self.__image.copy()
-
     def draw_onto(self, surface: Surface) -> None:
         image: Surface = self.__image
         surface.blit(image, image.get_rect(center=self.center))
@@ -683,7 +680,7 @@ class DiagonalCrossShape(CrossShape):
             line_width=line_width,
             outline_color=outline_color,
             outline=outline,
-            theme=NoTheme,
+            theme=theme,
         )
 
     def copy(self) -> DiagonalCrossShape:
@@ -718,7 +715,7 @@ class PlusCrossShape(CrossShape):
             line_width=line_width,
             outline_color=outline_color,
             outline=outline,
-            theme=NoTheme,
+            theme=theme,
         )
 
     def copy(self) -> PlusCrossShape:

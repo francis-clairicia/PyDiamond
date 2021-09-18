@@ -48,6 +48,7 @@ class Clickable(metaclass=ABCMeta):
         self.__state: Clickable.State = Clickable.State.NORMAL
         self.__hover: bool = False
         self.__active: bool = False
+        self.__active_only_on_hover: bool = True
         self.__hover_sound: Optional[Sound] = None
         self.__click_sound: Dict[Clickable.State, Optional[Sound]] = dict.fromkeys(Clickable.State)
         self.__default_hover_cursor: Dict[Clickable.State, Cursor] = {
@@ -95,6 +96,9 @@ class Clickable(metaclass=ABCMeta):
     def set_disabled_cursor_to_default(self) -> None:
         self.__hover_cursor[Clickable.State.DISABLED] = self.__default_hover_cursor[Clickable.State.DISABLED]
 
+    def set_active_only_on_hover(self, status: bool) -> None:
+        self.__active_only_on_hover = truth(status)
+
     def __handle_click_event(self, event: Event) -> None:
         if isinstance(self, Drawable) and not self.is_shown():
             return
@@ -120,7 +124,7 @@ class Clickable(metaclass=ABCMeta):
         if isinstance(self, Drawable) and not self.is_shown():
             return
         self.hover = hover = self._mouse_in_hitbox(mouse_pos)
-        if hover:
+        if hover or (self.active and not self.__active_only_on_hover):
             self.__window.set_temporary_window_cursor(self.__hover_cursor[self.__state])
 
     @abstractmethod
@@ -197,7 +201,7 @@ class Clickable(metaclass=ABCMeta):
 
     @property
     def active(self) -> bool:
-        return truth(self.__active and self.__hover)
+        return truth(self.__active and (self.__hover or not self.__active_only_on_hover))
 
     @active.setter
     def active(self, status: bool) -> None:

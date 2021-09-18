@@ -3,19 +3,22 @@
 from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from functools import wraps
+from inspect import isgeneratorfunction
 from operator import truth
-from typing import Any, Callable, Dict, FrozenSet, List, Optional, TYPE_CHECKING, Tuple, TypeVar, Union, final
+from typing import TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Iterator, List, Optional, Tuple, TypeVar, Union, final, overload
 import pygame
 
 from pygame.color import Color
 from pygame.event import Event
 
+from .clock import Clock
 from .theme import ThemeNamespace
 from .mouse import Mouse
 from .keyboard import Keyboard
+from .utils import MethodWrapper
 
 if TYPE_CHECKING:
-    from .window import _EventCallback, _EventType, _MousePositionCallback, _MousePosition, Window, WindowCallback
+    from .window import _EventCallback, _EventType, _MousePositionCallback, _MousePosition, Window
 
 __all__ = [
     "MetaScene",
@@ -53,9 +56,6 @@ class MetaScene(ABCMeta):
 
     @staticmethod
     def __theme_namespace_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-        if getattr(func, "__isabstractmethod__", False):
-            return func
-
         @wraps(func)
         def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
             cls: type = type(self) if not isinstance(self, type) else self
@@ -69,7 +69,7 @@ class MetaScene(ABCMeta):
                     output = func(self, *args, **kwargs)
             return output
 
-        return wrapper
+        return MethodWrapper(wrapper)
 
     @staticmethod
     def __apply_theme_namespace_decorator(obj: Any) -> Any:
@@ -107,7 +107,7 @@ class Scene(metaclass=MetaScene):
         else:
             self.__master = None
             self.__window = master
-        self.__framerate: int = max(framerate, 0)
+        self.__framerate: int = max(int(framerate), 0)
         self.__busy_loop: bool = truth(busy_loop)
         self.__bg_color: Color = Color(0, 0, 0)
         self.__transition: Optional[SceneTransition] = None
@@ -117,6 +117,8 @@ class Scene(metaclass=MetaScene):
         self.__mouse_button_pressed_handler_dict: Dict[Mouse.Button, List[_EventCallback]] = dict()
         self.__mouse_button_released_handler_dict: Dict[Mouse.Button, List[_EventCallback]] = dict()
         self.__mouse_pos_handler_list: List[_MousePositionCallback] = list()
+        self.__callback_after: _WindowCallbackList = _WindowCallbackList()
+        self.__callback_after_dict: Dict[Scene, _WindowCallbackList] = getattr(self.__window, "_Window__callback_after_scenes")
 
         self.bind_event(pygame.KEYDOWN, self.__handle_key_event)
         self.bind_event(pygame.KEYUP, self.__handle_key_event)
@@ -223,7 +225,46 @@ class Scene(metaclass=MetaScene):
             pass
 
     def after(self, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
-        return self.__window.after(milliseconds, callback, *args, scene=self, **kwargs)
+        window_callback: WindowCallback = WindowCallback(self, milliseconds, callback, args, kwargs)
+        callback_dict: Dict[Scene, _WindowCallbackList] = self.__callback_after_dict
+        callback_list: _WindowCallbackList = self.__callback_after
+
+        callback_dict[self] = callback_list
+        callback_list.append(window_callback)
+        return window_callback
+
+    @overload
+    def every(self, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
+        ...
+
+    @overload
+    def every(self, milliseconds: float, callback: Callable[..., Iterator[None]], *args: Any, **kwargs: Any) -> WindowCallback:
+        ...
+
+    def every(self, milliseconds: float, callback: Callable[..., Any], *args: Any, **kwargs: Any) -> WindowCallback:
+        window_callback: WindowCallback
+        callback_dict: Dict[Scene, _WindowCallbackList] = self.__callback_after_dict
+        callback_list: _WindowCallbackList = self.__callback_after
+        callback_dict[self] = callback_list
+
+        if isgeneratorfunction(callback):
+            generator: Iterator[None] = callback(*args, **kwargs)
+
+            def callback() -> None:
+                try:
+                    next(generator)
+                except ValueError:
+                    pass
+                except StopIteration:
+                    window_callback.kill()
+
+            window_callback = WindowCallback(self, milliseconds, callback, loop=True)
+
+        else:
+            window_callback = WindowCallback(self, milliseconds, callback, args, kwargs, loop=True)
+
+        callback_list.append(window_callback)
+        return window_callback
 
     @final
     def _handle_event(self, event: Event) -> None:
@@ -320,3 +361,55 @@ def set_default_theme_namespace(namespace: str) -> Callable[[_S], _S]:
 def closed_namespace(scene: _S) -> _S:
     scene.set_theme_namespace(f"_{scene.__name__}__{id(scene):#x}")
     return scene
+
+
+class WindowCallback:
+    def __init__(
+        self,
+        master: Union[Window, Scene],
+        wait_time: float,
+        callback: Callable[..., None],
+        args: Tuple[Any, ...] = (),
+        kwargs: Dict[str, Any] = {},
+        loop: bool = False,
+    ) -> None:
+        self.__master: Window
+        self.__scene: Optional[Scene]
+        if isinstance(master, Scene):
+            self.__master = master.window
+            self.__scene = master
+        else:
+            self.__master = master
+            self.__scene = None
+
+        self.__wait_time: float = wait_time
+        self.__callback: Callable[..., None] = callback
+        self.__args: Tuple[Any, ...] = args
+        self.__kwargs: Dict[str, Any] = kwargs
+        self.__clock = Clock(start=True)
+        self.__loop: bool = bool(loop)
+
+    def __call__(self) -> None:
+        scene: Optional[Scene] = self.__scene
+        if scene is not None and not scene.looping():
+            return
+        loop: bool = self.__loop
+        if self.__clock.elapsed_time(self.__wait_time, restart=loop):
+            self.__callback(*self.__args, **self.__kwargs)
+            if not loop:
+                self.kill()
+
+    def kill(self) -> None:
+        self.__master.remove_window_callback(self)
+
+    @property
+    def scene(self) -> Optional[Scene]:
+        return self.__scene
+
+
+class _WindowCallbackList(List[WindowCallback]):
+    def process(self) -> None:
+        if not self:
+            return
+        for callback in tuple(self):
+            callback()

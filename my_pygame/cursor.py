@@ -13,6 +13,8 @@ import pygame.cursors
 from pygame.surface import Surface
 from pygame.cursors import Cursor as _Cursor
 
+from .utils import MethodWrapper
+
 __all__ = ["MetaCursor", "Cursor", "CustomCursor", "SystemCursor"]
 
 
@@ -26,17 +28,13 @@ def _set_decorator(func: Callable[[Cursor], None]) -> Callable[[Cursor], None]:
             func(self)
             actual_cursor = self
 
-    return wrapper
-
-
-def _can_apply_decorator(func: Callable[..., Any]) -> bool:
-    return not getattr(func, "__isabstractmethod__", False)
+    return MethodWrapper(wrapper)
 
 
 class MetaCursor(ABCMeta):
     def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaCursor:
         set_method: Optional[Callable[[Cursor], None]] = namespace.get("set")
-        if callable(set_method) and _can_apply_decorator(set_method):
+        if callable(set_method):
             namespace["set"] = _set_decorator(set_method)
 
         return super().__new__(metacls, name, bases, namespace, **kwargs)

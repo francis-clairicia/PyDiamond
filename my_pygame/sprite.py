@@ -1,7 +1,7 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
-from typing import Any, List, Optional, Tuple
+from typing import Any, Iterable, List, Optional, Tuple, Type, TypeVar
 
 import pygame.mask
 import pygame.transform
@@ -15,7 +15,7 @@ from .drawable import Drawable
 from .surface import create_surface
 from .clock import Clock
 
-__all__ = ["Sprite"]
+__all__ = ["Sprite", "AnimatedSprite"]
 
 
 class Sprite(Drawable, _PygameSprite):
@@ -102,6 +102,8 @@ class Sprite(Drawable, _PygameSprite):
 
 
 class AnimatedSprite(Sprite):
+    __AnimatedSpriteVar = TypeVar("__AnimatedSpriteVar", bound="AnimatedSprite")
+
     def __init__(self, image: Surface, *images: Surface, mask_threshold: int = 127) -> None:
         super().__init__(image=image, mask_threshold=mask_threshold)
         self.__list: List[Surface] = [self.default_image, *(i.copy() for i in images)]
@@ -113,6 +115,18 @@ class AnimatedSprite(Sprite):
 
     def copy(self) -> AnimatedSprite:
         return AnimatedSprite(*self.__list, mask_threshold=self.get_mask_threshold())
+
+    @classmethod
+    def from_iterable(
+        cls: Type[__AnimatedSpriteVar], iterable: Iterable[Surface], *, mask_threshold: int = 127
+    ) -> __AnimatedSpriteVar:
+        return cls(*iterable, mask_threshold=mask_threshold)
+
+    @classmethod
+    def from_spritesheet(
+        cls: Type[__AnimatedSpriteVar], img: Surface, rect_list: List[Rect], *, mask_threshold: int = 127
+    ) -> __AnimatedSpriteVar:
+        return cls.from_iterable((img.subsurface(rect).copy() for rect in rect_list), mask_threshold=mask_threshold)
 
     def update(self, *args: Any, **kwargs: Any) -> None:
         if self.is_sprite_animating() and self.__clock.elapsed_time(self.__wait_time):

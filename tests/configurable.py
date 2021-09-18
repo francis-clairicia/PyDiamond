@@ -2,7 +2,7 @@
 
 from sys import path as SYS_PATH
 from os.path import dirname
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 SYS_PATH.append(dirname(dirname(__file__)))
 
@@ -98,7 +98,31 @@ class A:
         print(self)
 
 
+class Rect:
+    def __init__(self) -> None:
+        self.config.set("size", (4, 5))
+
+    config = Configuration("width", "height", "size")
+
+    @config.updater
+    def update(self) -> None:
+        print("UPDATE")
+
+    @config.getter_no_name("size")
+    def get_size(self) -> Tuple[Any, Any]:
+        return (self.config.get("width"), self.config.get("height"))
+
+    @config.setter_no_name("size")
+    def set_size(self, size: Any) -> None:
+        self.config(width=size[0], height=size[1])
+
+
+class SubRect(Rect):
+    config = Configuration(parent=Rect.config)
+
+
 def main() -> None:
+    rect = SubRect()
     c = SubConfigurable()
     print("--------")
     c.config["a"] = 4

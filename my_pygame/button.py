@@ -76,6 +76,8 @@ def _copy_img(surface: Optional[Surface], default: Optional[Surface] = None) -> 
     return surface.copy() if surface is not None else (None if default is None else _copy_img(default))
 
 
+@TextImage.register
+@RectangleShape.register
 class Button(ThemedDrawable, Clickable):
     Justify = TextImage.Justify
     Compound = TextImage.Compound
@@ -875,6 +877,7 @@ class Button(ThemedDrawable, Clickable):
             self.__callback = None
 
 
+@Button.register
 class ImageButton(ThemedDrawable, Clickable):
     @initializer
     def __init__(

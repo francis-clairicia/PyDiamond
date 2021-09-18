@@ -288,12 +288,12 @@ class MetaThemedObject(ABCMeta):
         if not getattr(subclass, "__no_parent_theme__", False):
             try:
                 _CLASSES_NOT_USING_PARENT_THEMES.remove(subclass)
-            except ValueError:
+            except (ValueError, KeyError):
                 pass
         if not getattr(subclass, "__no_parent_default_theme__", False):
             try:
                 _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.remove(subclass)
-            except ValueError:
+            except (ValueError, KeyError):
                 pass
 
     @staticmethod
@@ -301,8 +301,9 @@ class MetaThemedObject(ABCMeta):
         def get_all_parent_class(cls: MetaThemedObject) -> Iterator[MetaThemedObject]:
             if not isinstance(cls, MetaThemedObject) or cls in do_not_search_for or cls.is_abstract_theme_class():
                 return
+            mro: List[type]
             try:
-                mro: List[type] = list(getattr(cls, "__mro__"))[1:]
+                mro = list(getattr(cls, "__mro__"))[1:]
             except AttributeError:
                 mro = list(cls.__bases__)
 

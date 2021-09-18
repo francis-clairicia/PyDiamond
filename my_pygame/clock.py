@@ -13,7 +13,7 @@ class Clock:
         self.__time: float = 0
         self.__clock: _PygameClock = _PygameClock()
         if start:
-            self.restart()
+            self.__clock.tick()
 
     def get_elapsed_time(self) -> float:
         self.__time += self.__clock.tick()

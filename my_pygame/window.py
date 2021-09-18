@@ -1,7 +1,25 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
-from typing import Any, Callable, Dict, Iterable, Iterator, List, NoReturn, Optional, Tuple, TypeVar, Union, overload
+from functools import wraps
+from inspect import isgeneratorfunction
+from types import MethodType
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Iterable,
+    Iterator,
+    List,
+    NoReturn,
+    Optional,
+    Tuple,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
 from enum import IntEnum
 from operator import truth
 
@@ -19,7 +37,7 @@ from pygame.event import Event
 from .drawable import Drawable
 from .text import Text
 from .colors import BLACK, WHITE
-from .scene import Scene
+from .scene import Scene, WindowCallback, _WindowCallbackList
 from .clock import Clock
 from .surface import create_surface
 from .mouse import Mouse
@@ -38,62 +56,41 @@ _MousePositionCallback = Callable[[_MousePosition], None]
 _ColorInput = Union[Color, str, List[int], Tuple[int, int, int], Tuple[int, int, int, int]]
 
 _T = TypeVar("_T")
+_ScheduledFunc = TypeVar("_ScheduledFunc", bound=Callable[..., None])
 
 
 class WindowError(pygame.error):
     pass
 
 
-class WindowCallback:
-    def __init__(
-        self,
-        master: Union[Window, Scene],
-        wait_time: float,
-        callback: Callable[..., None],
-        args: Tuple[Any, ...],
-        kwargs: Dict[str, Any],
-    ) -> None:
-        self.__master: Window
-        self.__scene: Optional[Scene]
-        if isinstance(master, Scene):
-            self.__master = master.window
-            self.__scene = master
-        else:
-            self.__master = master
-            self.__scene = None
-
-        self.__wait_time: float = wait_time
-        self.__callback: Callable[..., None] = callback
-        self.__args: Tuple[Any, ...] = args
-        self.__kwargs: Dict[str, Any] = kwargs
-        self.__clock = Clock(start=True)
-
-    def __call__(self) -> None:
-        if self.scene is not None and not self.scene.looping():
-            return
-        if self.__clock.elapsed_time(self.__wait_time, restart=False):
-            self.__callback(*self.__args, **self.__kwargs)
-            self.kill()
-
-    def kill(self) -> None:
-        self.__master.remove_window_callback(self)
-
-    @property
-    def scene(self) -> Optional[Scene]:
-        return self.__scene
-
-
-class _WindowCallbackList(List[WindowCallback]):
-    def process(self) -> None:
-        if not self:
-            return
-        for callback in tuple(self):
-            callback()
-
-
 class _SceneTransitionEnum(IntEnum):
     SHOW = 1
     HIDE = 2
+
+
+class ScheduledFunction(Generic[_ScheduledFunc]):
+    def __init__(self, milliseconds: float, func: _ScheduledFunc) -> None:
+        super().__init__()
+        self.__clock = Clock()
+        self.__milliseconds: float = milliseconds
+        self.__func__: _ScheduledFunc = func
+
+    def __call__(self, *args: Any, **kwds: Any) -> None:
+        func: _ScheduledFunc = self.__func__
+        if self.__clock.elapsed_time(self.__milliseconds):
+            func(*args, **kwds)
+
+    def __get__(self, obj: object, objtype: Optional[type] = None) -> Callable[..., None]:
+        if obj is None:
+            return self
+        return MethodType(self, obj)
+
+
+def scheduled(milliseconds: float) -> Callable[[_ScheduledFunc], _ScheduledFunc]:
+    def decorator(func: _ScheduledFunc) -> _ScheduledFunc:
+        return cast(_ScheduledFunc, ScheduledFunction(milliseconds, func))
+
+    return decorator
 
 
 class Window:
@@ -435,20 +432,39 @@ class Window:
     def block_only_event(self, *event_types: _EventType) -> None:
         pygame.event.set_blocked(event_types)
 
-    def after(
-        self, milliseconds: float, callback: Callable[..., None], *args: Any, scene: Optional[Scene] = None, **kwargs: Any
-    ) -> WindowCallback:
+    def after(self, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
+        window_callback: WindowCallback = WindowCallback(self, milliseconds, callback, args, kwargs)
+        self.__callback_after.append(window_callback)
+        return window_callback
+
+    @overload
+    def every(self, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
+        ...
+
+    @overload
+    def every(self, milliseconds: float, callback: Callable[..., Iterator[None]], *args: Any, **kwargs: Any) -> WindowCallback:
+        ...
+
+    def every(self, milliseconds: float, callback: Callable[..., Any], *args: Any, **kwargs: Any) -> WindowCallback:
         window_callback: WindowCallback
-        if scene is not None:
-            if scene.window is not self:
-                raise WindowError("Assigning a task for a scene from an another window.")
-            window_callback = WindowCallback(scene, milliseconds, callback, args, kwargs)
-            if scene not in self.__callback_after_scenes:
-                self.__callback_after_scenes[scene] = _WindowCallbackList()
-            self.__callback_after_scenes[scene].append(window_callback)
+
+        if isgeneratorfunction(callback):
+            generator: Iterator[None] = callback(*args, **kwargs)
+
+            @wraps(callback)
+            def wrapper() -> None:
+                try:
+                    next(generator)
+                except ValueError:
+                    pass
+                except StopIteration:
+                    window_callback.kill()
+
+            window_callback = WindowCallback(self, milliseconds, wrapper)
+
         else:
-            window_callback = WindowCallback(self, milliseconds, callback, args, kwargs)
-            self.__callback_after.append(window_callback)
+            window_callback = WindowCallback(self, milliseconds, callback, args, kwargs, loop=True)
+        self.__callback_after.append(window_callback)
         return window_callback
 
     def remove_window_callback(self, window_callback: WindowCallback) -> None:
