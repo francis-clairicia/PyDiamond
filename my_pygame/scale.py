@@ -35,7 +35,7 @@ class Scale(ProgressBar, Clickable):
         hover_sound: Optional[Sound] = None,
         click_sound: Optional[Sound] = None,
         disabled_sound: Optional[Sound] = None,
-        cursor: Optional[Cursor] = None,
+        hover_cursor: Optional[Cursor] = None,
         disabled_cursor: Optional[Cursor] = None,
         color: Color = WHITE,
         scale_color: Color = GRAY,
@@ -75,7 +75,7 @@ class Scale(ProgressBar, Clickable):
             hover_sound=hover_sound,
             click_sound=click_sound,
             disabled_sound=disabled_sound,
-            cursor=cursor,
+            hover_cursor=hover_cursor,
             disabled_cursor=disabled_cursor,
         )
         self.__value_callback: Optional[Callable[[float], None]] = value_callback
@@ -96,7 +96,7 @@ class Scale(ProgressBar, Clickable):
             hover_sound=self.hover_sound,
             click_sound=self.click_sound,
             disabled_sound=self.disabled_sound,
-            cursor=self.cursor,
+            hover_cursor=self.hover_cursor,
             disabled_cursor=self.disabled_cursor,
             color=self.color,
             scale_color=self.scale_color,

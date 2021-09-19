@@ -154,7 +154,7 @@ class Button(ThemedDrawable, Clickable):
         disabled_active_img: Optional[Surface] = None,
         # highlight_color=BLUE,
         # highlight_thickness=2,
-        cursor: Optional[Cursor] = None,
+        hover_cursor: Optional[Cursor] = None,
         disabled_cursor: Optional[Cursor] = None,
         text_align_x: str = "center",
         text_align_y: str = "center",
@@ -176,7 +176,7 @@ class Button(ThemedDrawable, Clickable):
             hover_sound=hover_sound,
             click_sound=click_sound,
             disabled_sound=disabled_sound,
-            cursor=cursor,
+            hover_cursor=hover_cursor,
             disabled_cursor=disabled_cursor,
         )
         self.__text: TextImage = TextImage(
@@ -301,7 +301,7 @@ class Button(ThemedDrawable, Clickable):
             disabled_img=self.__img_dict[Clickable.State.DISABLED]["normal"],
             disabled_hover_img=self.__img_dict[Clickable.State.DISABLED]["hover"],
             disabled_active_img=self.__img_dict[Clickable.State.DISABLED]["active"],
-            cursor=self.cursor,
+            hover_cursor=self.hover_cursor,
             disabled_cursor=self.disabled_cursor,
             text_align_x=self.__text_align_x,
             text_align_y=self.__text_align_y,
@@ -907,7 +907,7 @@ class ImageButton(ThemedDrawable, Clickable):
         disabled_sound: Optional[Sound] = None,
         # highlight_color=BLUE,
         # highlight_thickness=2,
-        cursor: Optional[Cursor] = None,
+        hover_cursor: Optional[Cursor] = None,
         disabled_cursor: Optional[Cursor] = None,
         hover_offset: Tuple[float, float] = (0, 0),
         active_offset: Tuple[float, float] = (0, 3),
@@ -926,7 +926,7 @@ class ImageButton(ThemedDrawable, Clickable):
             hover_sound=hover_sound,
             click_sound=click_sound,
             disabled_sound=disabled_sound,
-            cursor=cursor,
+            hover_cursor=hover_cursor,
             disabled_cursor=disabled_cursor,
         )
         self.__image: Image = Image(img)
@@ -997,7 +997,7 @@ class ImageButton(ThemedDrawable, Clickable):
             disabled_img=self.__img_dict[Clickable.State.DISABLED]["normal"],
             disabled_hover_img=self.__img_dict[Clickable.State.DISABLED]["hover"],
             disabled_active_img=self.__img_dict[Clickable.State.DISABLED]["active"],
-            cursor=self.cursor,
+            hover_cursor=self.hover_cursor,
             disabled_cursor=self.disabled_cursor,
             hover_offset=self.hover_offset,
             active_offset=self.active_offset,

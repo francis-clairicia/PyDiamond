@@ -33,7 +33,7 @@ class Clickable(metaclass=ABCMeta):
         hover_sound: Optional[Sound] = None,
         click_sound: Optional[Sound] = None,
         disabled_sound: Optional[Sound] = None,
-        cursor: Optional[Cursor] = None,
+        hover_cursor: Optional[Cursor] = None,
         disabled_cursor: Optional[Cursor] = None,
     ) -> None:
         self.__master: Union[Scene, Window] = master
@@ -56,8 +56,8 @@ class Clickable(metaclass=ABCMeta):
             Clickable.State.DISABLED: SystemCursor(SystemCursor.CURSOR_NO),
         }
         self.__hover_cursor: Dict[Clickable.State, Cursor] = self.__default_hover_cursor.copy()
-        if isinstance(cursor, Cursor):
-            self.__hover_cursor[Clickable.State.NORMAL] = cursor
+        if isinstance(hover_cursor, Cursor):
+            self.__hover_cursor[Clickable.State.NORMAL] = hover_cursor
         if isinstance(disabled_cursor, Cursor):
             self.__hover_cursor[Clickable.State.DISABLED] = disabled_cursor
 
@@ -243,11 +243,11 @@ class Clickable(metaclass=ABCMeta):
         self.__click_sound[Clickable.State.DISABLED] = sound
 
     @property
-    def cursor(self) -> Cursor:
+    def hover_cursor(self) -> Cursor:
         return self.__hover_cursor[Clickable.State.NORMAL]
 
-    @cursor.setter
-    def cursor(self, cursor: Cursor) -> None:
+    @hover_cursor.setter
+    def hover_cursor(self, cursor: Cursor) -> None:
         self.__hover_cursor[Clickable.State.NORMAL] = cursor
 
     @property
