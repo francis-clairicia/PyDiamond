@@ -28,7 +28,8 @@ class Scale(ProgressBar, Clickable):
         from_: float = 0,
         to: float = 1,
         default: Optional[float] = None,
-        callback: Optional[Callable[[float], None]] = None,
+        value_callback: Optional[Callable[[float], None]] = None,
+        percent_callback: Optional[Callable[[float], None]] = None,
         *,
         state: str = "normal",
         hover_sound: Optional[Sound] = None,
@@ -77,7 +78,8 @@ class Scale(ProgressBar, Clickable):
             cursor=cursor,
             disabled_cursor=disabled_cursor,
         )
-        self.__callback: Optional[Callable[[float], None]] = callback
+        self.__value_callback: Optional[Callable[[float], None]] = value_callback
+        self.__percent_callback: Optional[Callable[[float], None]] = percent_callback
         self.set_active_only_on_hover(False)
 
     def copy(self) -> Scale:
@@ -88,7 +90,8 @@ class Scale(ProgressBar, Clickable):
             from_=self.from_value,
             to=self.to_value,
             default=self.value,
-            callback=self.__callback,
+            value_callback=self.__value_callback,
+            percent_callback=self.__percent_callback,
             state=self.state,
             hover_sound=self.hover_sound,
             click_sound=self.click_sound,
@@ -108,7 +111,15 @@ class Scale(ProgressBar, Clickable):
         )
 
     def __invoke__(self) -> None:
-        pass
+        callback: Optional[Callable[[float], None]]
+
+        callback = self.__value_callback
+        if callable(callback):
+            callback(self.value)
+
+        callback = self.__percent_callback
+        if callable(callback):
+            callback(self.percent)
 
     def _mouse_in_hitbox(self, mouse_pos: Tuple[float, float]) -> bool:
         return truth(self.rect.collidepoint(mouse_pos))
@@ -124,12 +135,5 @@ class Scale(ProgressBar, Clickable):
 
     config = Configuration(parent=ProgressBar.config)
 
-    @config.updater("value")
-    @config.updater("percent")
-    def __call_updater_callback(self) -> None:
-        default_updater: Optional[Callable[[object], None]] = ProgressBar.config.get_updater("value")
-        if callable(default_updater):
-            default_updater(self)
-        callback: Optional[Callable[[float], None]] = self.__callback
-        if callable(callback):
-            callback(self.value)
+    config.updater("value", __invoke__)
+    config.updater("percent", __invoke__)

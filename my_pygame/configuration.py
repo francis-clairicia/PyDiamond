@@ -178,6 +178,7 @@ class Configuration:
         if any(not option for option in known_options):
             raise ValueError("Configuration option must not be empty")
         infos: Configuration.Infos
+        __parents__: List[Configuration] = []
         if parent is None:
             infos = Configuration.Infos(known_options, bool(autocopy))
         else:
@@ -190,6 +191,8 @@ class Configuration:
                 if not parent:
                     raise TypeError("parent: Invalid argument: Empty sequence")
                 main_parent = parent.pop(0)
+            __parents__.append(main_parent)
+            __parents__.extend(parent)
             infos = deepcopy(main_parent.__infos)
             infos.options |= set(known_options)
             for parent_infos in (p.__infos for p in parent):
@@ -197,6 +200,7 @@ class Configuration:
             if autocopy is not None:
                 infos.autocopy = autocopy
 
+        self.__parents__: Tuple[Configuration, ...] = tuple(__parents__)
         self.__infos: Configuration.Infos = infos
         self.__no_parent_ownership: Set[str] = set()
         self.__bound_class: Optional[type] = None
@@ -643,6 +647,88 @@ class Configuration:
     def updater(
         self, arg: Union[_Updater, str, None], /, *func_args: Optional[_Updater]
     ) -> Union[_Updater, Callable[[_Updater], _Updater], Optional[_Updater]]:
+        if not self.__parents__:
+            return self.override_updater(arg, *func_args)
+        main_parent: Configuration = self.__parents__[0]
+        infos: Configuration.Infos = self.__infos
+        if not isinstance(arg, str):
+            if arg is None:
+                infos.main_update = main_parent.__infos.main_update
+                return None
+            if main_parent.__infos.main_update is None:
+                return self.override_updater(arg, *func_args)
+
+            parent_updater: Callable[[object], None] = main_parent.__infos.main_update
+            updater_func: Callable[[object], None] = _make_function_wrapper(arg)
+
+            @wraps(arg)
+            def wrapper(self: object) -> None:
+                parent_updater(self)
+                updater_func(self)
+
+            self.override_updater(_make_function_wrapper(wrapper, already_wrapper=True))
+            return arg
+
+        if not arg:
+            raise EmptyOptionNameError()
+        if arg not in infos.options:
+            raise UnknownOptionError(arg)
+
+        option: str = arg
+
+        def decorator(func: _Updater) -> _Updater:
+            if option not in infos.update:
+                return self.override_updater(option, func)
+            parent_updater: Callable[[object], None] = infos.update[option]
+            updater_func: Callable[[object], None] = _make_function_wrapper(func)
+
+            @wraps(func)
+            def wrapper(self: object) -> None:
+                parent_updater(self)
+                updater_func(self)
+
+            self.override_updater(option, _make_function_wrapper(wrapper, already_wrapper=True))
+            return func
+
+        if not func_args:
+            return decorator
+
+        if len(func_args) > 1:
+            raise TypeError("Invalid arguments")
+        func: Optional[_Updater] = func_args[0]
+
+        if func is not None:
+            return decorator(func)
+        infos.update.pop(option, None)
+        for parent_infos in (p.__infos for p in self.__parents__):
+            if option in parent_infos.update:
+                infos.update[option] = parent_infos.update[option]
+                break
+        return func
+
+    @overload
+    def override_updater(self, arg: _Updater, /) -> _Updater:
+        ...
+
+    @overload
+    def override_updater(self, arg: None, /) -> None:
+        ...
+
+    @overload
+    def override_updater(self, arg: str, /) -> Callable[[_Updater], _Updater]:
+        ...
+
+    @overload
+    def override_updater(self, arg: str, func: _Updater, /) -> _Updater:
+        ...
+
+    @overload
+    def override_updater(self, arg: str, func: None, /) -> None:
+        ...
+
+    def override_updater(
+        self, arg: Union[_Updater, str, None], /, *func_args: Optional[_Updater]
+    ) -> Union[_Updater, Callable[[_Updater], _Updater], Optional[_Updater]]:
         infos: Configuration.Infos = self.__infos
         if not isinstance(arg, str):
             infos.main_update = _make_function_wrapper(arg) if arg is not None else None
@@ -667,7 +753,7 @@ class Configuration:
             raise TypeError("Invalid arguments")
         func: Optional[_Updater] = func_args[0]
         if func is None:
-            infos.update.pop(arg, None)
+            infos.update.pop(option, None)
         else:
             infos.update[option] = _make_function_wrapper(func)
         return func
@@ -699,11 +785,61 @@ class Configuration:
         if option not in infos.options:
             raise UnknownOptionError(option)
 
+        def decorator(func: _ValueUpdater) -> _ValueUpdater:
+            if option not in infos.value_update:
+                return self.override_value_updater(option, func)
+            parent_updater: Callable[[object, str, Any], None] = infos.value_update[option]
+            updater_func: Callable[[object, str, Any], None] = _make_function_wrapper(func)
+
+            @wraps(func)
+            def wrapper(self: object, option: str, value: Any) -> None:
+                parent_updater(self, option, value)
+                updater_func(self, option, value)
+
+            self.override_value_updater(option, _make_function_wrapper(wrapper, already_wrapper=True))
+            return func
+
         if not func_args:
-            config_name: str = option
+            return decorator
+
+        if len(func_args) > 1:
+            raise TypeError("Invalid arguments")
+        func: Optional[_ValueUpdater] = func_args[0]
+
+        if func is not None:
+            return decorator(func)
+        infos.value_update.pop(option, None)
+        for parent_infos in (p.__infos for p in self.__parents__):
+            if option in parent_infos.value_update:
+                infos.value_update[option] = parent_infos.value_update[option]
+                break
+        return func
+
+    @overload
+    def override_value_updater(self, option: str, /) -> Callable[[_ValueUpdater], _ValueUpdater]:
+        ...
+
+    @overload
+    def override_value_updater(self, option: str, func: _ValueUpdater, /) -> _ValueUpdater:
+        ...
+
+    @overload
+    def override_value_updater(self, option: str, func: None, /) -> None:
+        ...
+
+    def override_value_updater(
+        self, option: str, /, *func_args: Optional[_ValueUpdater]
+    ) -> Union[Callable[[_ValueUpdater], _ValueUpdater], Optional[_ValueUpdater]]:
+        infos: Configuration.Infos = self.__infos
+        if not option:
+            raise EmptyOptionNameError()
+        if option not in infos.options:
+            raise UnknownOptionError(option)
+
+        if not func_args:
 
             def decorator(func: _ValueUpdater) -> _ValueUpdater:
-                infos.value_update[config_name] = _make_function_wrapper(func)
+                infos.value_update[option] = _make_function_wrapper(func)
                 return func
 
             return decorator
@@ -718,15 +854,17 @@ class Configuration:
         return func
 
     @overload
-    def value_updater_no_name(self, option: str, /) -> Callable[[_NoNameValueUpdater], _NoNameValueUpdater]:
+    def value_updater_no_name(
+        self, option: str, /, *, override: bool = False
+    ) -> Callable[[_NoNameValueUpdater], _NoNameValueUpdater]:
         ...
 
     @overload
-    def value_updater_no_name(self, option: str, func: _NoNameValueUpdater, /) -> _NoNameValueUpdater:
+    def value_updater_no_name(self, option: str, func: _NoNameValueUpdater, /, *, override: bool = False) -> _NoNameValueUpdater:
         ...
 
     def value_updater_no_name(
-        self, option: str, func: Optional[_NoNameValueUpdater] = None, /
+        self, option: str, func: Optional[_NoNameValueUpdater] = None, /, *, override: bool = False
     ) -> Union[_NoNameValueUpdater, Callable[[_NoNameValueUpdater], _NoNameValueUpdater]]:
         infos: Configuration.Infos = self.__infos
         if not option:
@@ -741,7 +879,10 @@ class Configuration:
             def wrapper(self: object, /, name: str, value: Any) -> Any:
                 return _func(self, value)
 
-            self.value_updater(option, _make_function_wrapper(wrapper, already_wrapper=True))
+            if not override:
+                self.value_updater(option, _make_function_wrapper(wrapper, already_wrapper=True))
+            else:
+                self.override_value_updater(option, _make_function_wrapper(wrapper, already_wrapper=True))
             return func
 
         if func is None:

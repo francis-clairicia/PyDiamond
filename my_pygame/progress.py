@@ -158,6 +158,15 @@ class ProgressBar(RectangleShape):
                 self.__label_text.set_position(**movements[side])
                 self.__label_text.draw_onto(surface)
 
+    def set_bounds(self, from_: float, to: float) -> None:
+        from_ = float(from_)
+        to = float(to)
+        if to <= from_:
+            raise ValueError("end value 'to' must be greather than 'from'")
+        self.__start = from_
+        self.__end = to
+        self.value = from_
+
     def show_value(self, side: str, round_n: int = 0, **kwargs: Any) -> None:
         self.__value_text.config(**kwargs)
         self.__value_text_side = ProgressBar.Side(side).value

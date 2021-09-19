@@ -64,10 +64,26 @@ class SubConfigurable(Configurable):
 
     config.validator("e", int, convert=True)
 
-    # @config.updater("a")
-    # def __special_case_a(self, name: str, val: int) -> None:
-    #     print(f"----------Special case for {name}--------")
-    #     self._on_update_field(name, val)
+    @config.updater
+    def _custom_update(self) -> None:
+        print("After parent update")
+        print("-----")
+
+    @config.updater("a")
+    def _custom_a_updater(self) -> None:
+        print("AAAAAAAAA")
+        print("----------")
+
+    def _custom_b_updater(self) -> None:
+        print("BBBBBBBBBBB")
+        print("----------")
+
+    config.updater("b", _custom_b_updater)
+
+    @config.value_updater("a")
+    def __special_case_a(self, name: str, val: int) -> None:
+        print(f"----------Special case for {name}--------")
+        # self._on_update_field(name, val)
 
     # def _update(self) -> None:
     #     super()._update()

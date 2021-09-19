@@ -439,7 +439,7 @@ class ScaleScene(MainScene):
         self.background_color = BLUE_DARK
         self.text = text = Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
         self.scale = scale = Scale(
-            self, 500, 75, from_=10, to=90, callback=lambda value: self.text.config(message=f"Value: {value:.2f}")
+            self, 500, 75, from_=10, to=90, value_callback=lambda value: self.text.config(message=f"Value: {value:.2f}")
         )
 
         scale.center = self.window.center
