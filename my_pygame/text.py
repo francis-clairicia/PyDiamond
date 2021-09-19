@@ -36,24 +36,6 @@ class Text(ThemedDrawable):
         RIGHT = "right"
         CENTER = "center"
 
-    config: Configuration = Configuration(
-        "message", "font", "color", "wrap", "justify", "shadow_x", "shadow_y", "shadow", "shadow_color", autocopy=True
-    )
-
-    config.enum("justify", Justify, return_value=True)
-
-    config.validator("message", str)
-    config.validator("wrap", no_object(valid_integer(min_value=0)))
-    config.validator("color", Color)
-    config.validator("shadow_x", float, convert=True)
-    config.validator("shadow_y", float, convert=True)
-    config.validator("shadow", (tuple, list))
-    config.validator("shadow_color", Color)
-
-    config.set_autocopy("font", copy_on_get=False, copy_on_set=False)
-
-    config.register_copy_func(Color, lambda obj: Color(obj))
-
     @initializer
     def __init__(
         self,
@@ -106,7 +88,6 @@ class Text(ThemedDrawable):
     def get_size(self) -> Tuple[float, float]:
         return self.__image.get_size()
 
-    @config.validator("font")
     @staticmethod
     def create_font(
         font: Optional[_TextFont], bold: Optional[bool] = None, italic: Optional[bool] = None, underline: Optional[bool] = None
@@ -155,17 +136,6 @@ class Text(ThemedDrawable):
             raise ValueError(f"Negative index: {index}")
         self.__custom_font.pop(index, None)
         self.config.update()
-
-    @config.updater
-    def __update_surface(self) -> None:
-        if self.config.has_initialization_context():
-            self.__default_image = self._render()
-            self._apply_rotation_scale()
-        else:
-            center: Tuple[float, float] = self.center
-            self.__default_image = self._render()
-            self._apply_rotation_scale()
-            self.center = center
 
     def _apply_rotation_scale(self) -> None:
         self.__image = pygame.transform.rotozoom(self.__default_image, self.angle, self.scale)
@@ -224,10 +194,40 @@ class Text(ThemedDrawable):
 
         return render
 
+    config: Configuration = Configuration(
+        "message", "font", "color", "wrap", "justify", "shadow_x", "shadow_y", "shadow", "shadow_color", autocopy=True
+    )
+
+    config.enum("justify", Justify, return_value=True)
+
+    config.validator("message", str)
+    config.validator("font", create_font)
+    config.validator("wrap", no_object(valid_integer(min_value=0)))
+    config.validator("color", Color)
+    config.validator("shadow_x", float, convert=True)
+    config.validator("shadow_y", float, convert=True)
+    config.validator("shadow", tuple, convert=True)
+    config.validator("shadow_color", Color)
+
+    config.set_autocopy("font", copy_on_get=False, copy_on_set=False)
+
+    config.register_copy_func(Color, lambda obj: Color(obj))
+
     @config.converter("message", use_on_set=True)
     def __convert_message(self, message: str) -> str:
         wrap: int = self.wrap
         return "\n".join(textwrap(message, width=wrap)) if wrap > 0 else message
+
+    @config.updater
+    def __update_surface(self) -> None:
+        if self.config.has_initialization_context():
+            self.__default_image = self._render()
+            self._apply_rotation_scale()
+        else:
+            center: Tuple[float, float] = self.center
+            self.__default_image = self._render()
+            self._apply_rotation_scale()
+            self.center = center
 
     message: ConfigAttribute[str] = ConfigAttribute()
     font: ConfigAttribute[Font] = ConfigAttribute()
@@ -256,16 +256,6 @@ class TextImage(Text):
         TOP = "top"
         BOTTOM = "bottom"
         CENTER = "center"
-
-    config = Configuration("img", "compound", "distance", parent=Text.config)
-    config.set_autocopy("img", copy_on_get=False, copy_on_set=False)
-
-    config.enum("compound", Compound, return_value=True)
-
-    config.validator("img", (Surface, type(None)))
-    config.validator("distance", no_object(valid_float(min_value=0)))
-
-    config.register_copy_func(Surface, lambda surface: surface.copy(), allow_subclass=True)
 
     @initializer
     def __init__(
@@ -440,6 +430,16 @@ class TextImage(Text):
         render.blit(text, text_rect)
 
         return render
+
+    config = Configuration("img", "compound", "distance", parent=Text.config)
+    config.set_autocopy("img", copy_on_get=False, copy_on_set=False)
+
+    config.enum("compound", Compound, return_value=True)
+
+    config.validator("img", (Surface, type(None)))
+    config.validator("distance", no_object(valid_float(min_value=0)))
+
+    config.register_copy_func(Surface, lambda surface: surface.copy(), allow_subclass=True)
 
     @config.getter_no_name("img")
     def __get_img_surface(self) -> Optional[Surface]:

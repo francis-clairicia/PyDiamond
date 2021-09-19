@@ -38,28 +38,11 @@ __all__ = [
 
 
 class AbstractShape(Drawable):
-    config: Configuration = ConfigTemplate(autocopy=True)
-
-    config.register_copy_func(Color, lambda obj: Color(obj))
-
     def __init__(self) -> None:
         super().__init__()
         self.__image: Surface = create_surface((0, 0))
         self.__shape_image: Surface = self.__image.copy()
         self.__local_size: Tuple[float, float] = (0, 0)
-
-    @config.updater
-    def __update_shape(self) -> None:
-        if self.config.has_initialization_context():
-            self.__compute_shape_size()
-            self.__shape_image = self._make()
-            self._apply_rotation_scale()
-        else:
-            center: Tuple[float, float] = self.center
-            self.__compute_shape_size()
-            self.__shape_image = self._make()
-            self._apply_rotation_scale()
-            self.center = center
 
     def draw_onto(self, surface: Surface) -> None:
         image: Surface = self.__image
@@ -125,6 +108,23 @@ class AbstractShape(Drawable):
                 vertices.append(center + offset)
 
         return vertices
+
+    config: Configuration = ConfigTemplate(autocopy=True)
+
+    config.register_copy_func(Color, lambda obj: Color(obj))
+
+    @config.updater
+    def __update_shape(self) -> None:
+        if self.config.has_initialization_context():
+            self.__compute_shape_size()
+            self.__shape_image = self._make()
+            self._apply_rotation_scale()
+        else:
+            center: Tuple[float, float] = self.center
+            self.__compute_shape_size()
+            self.__shape_image = self._make()
+            self._apply_rotation_scale()
+            self.center = center
 
 
 class Shape(AbstractShape):
@@ -244,7 +244,6 @@ class PolygonShape(OutlinedShape, ThemedShape):
         h: float = bottom - top
 
         self.__center = Vector2(left + w / 2, top + h / 2)
-        self.__size = (w, h)
 
     points: ConfigAttribute[List[Vector2]] = ConfigAttribute()
 
@@ -263,7 +262,7 @@ class AbstractRectangleShape(AbstractShape):
 
     config.validator("local_width", no_object(valid_float(min_value=0)))
     config.validator("local_height", no_object(valid_float(min_value=0)))
-    config.validator("local_size", (tuple, list))
+    config.validator("local_size", tuple, convert=True)
 
     local_width: ConfigAttribute[float] = ConfigAttribute()
     local_height: ConfigAttribute[float] = ConfigAttribute()
@@ -541,7 +540,7 @@ class CrossShape(OutlinedShape, ThemedShape):
 
     def _make(self) -> Surface:
         p = PolygonShape(self.color, outline=self.outline, outline_color=self.outline_color, points=self.__points)
-        image: Surface = getattr(p, "_AbstractShape__image")
+        image: Surface = getattr(p, f"_{AbstractShape.__name__}__image")
         return image
 
     def get_local_vertices(self) -> List[Vector2]:
@@ -628,7 +627,7 @@ class CrossShape(OutlinedShape, ThemedShape):
 
     config.validator("local_width", no_object(valid_float(min_value=0)))
     config.validator("local_height", no_object(valid_float(min_value=0)))
-    config.validator("local_size", (tuple, list))
+    config.validator("local_size", tuple, convert=True)
     config.validator("line_width", no_object(valid_float(min_value=0)))
 
     local_width: ConfigAttribute[float] = ConfigAttribute()

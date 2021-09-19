@@ -1077,26 +1077,6 @@ class ConfigTemplate(Configuration):
         raise TypeError("No subclass are allowed")
 
     @overload
-    def __init__(self, *, autocopy: bool = False) -> None:
-        ...
-
-    @overload
-    def __init__(self, *, parent: Union[Configuration, Sequence[Configuration]]) -> None:
-        ...
-
-    @overload
-    def __init__(self, *, autocopy: bool, parent: Union[Configuration, Sequence[Configuration]]) -> None:
-        ...
-
-    def __init__(
-        self,
-        *,
-        autocopy: Optional[bool] = None,
-        parent: Union[Configuration, Sequence[Configuration], None] = None,
-    ) -> None:
-        super().__init__(autocopy=autocopy, parent=parent)  # type: ignore[arg-type]
-
-    @overload
     def __get__(self, obj: None, objtype: Optional[type] = None) -> ConfigTemplate:
         ...
 
