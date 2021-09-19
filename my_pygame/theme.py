@@ -278,23 +278,23 @@ class MetaThemedObject(ABCMeta):
         return truth(getattr(cls, "__is_abstract_theme_class__", False))
 
     def register(cls, subclass: Type[_T]) -> Type[_T]:
-        super().register(subclass)
-        if isinstance(subclass, MetaThemedObject):
-            cls.__register_themed_subclass(cast(MetaThemedObject, subclass))
-        return subclass
+        def register_themed_subclass(subclass: MetaThemedObject) -> None:
+            subclass.__virtual_themed_class_bases__ = (*subclass.__virtual_themed_class_bases__, cls)
+            if not getattr(subclass, "__no_parent_theme__", False):
+                try:
+                    _CLASSES_NOT_USING_PARENT_THEMES.remove(subclass)
+                except (ValueError, KeyError):
+                    pass
+            if not getattr(subclass, "__no_parent_default_theme__", False):
+                try:
+                    _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.remove(subclass)
+                except (ValueError, KeyError):
+                    pass
 
-    def __register_themed_subclass(cls, subclass: MetaThemedObject) -> None:
-        subclass.__virtual_themed_class_bases__ = (*subclass.__virtual_themed_class_bases__, cls)
-        if not getattr(subclass, "__no_parent_theme__", False):
-            try:
-                _CLASSES_NOT_USING_PARENT_THEMES.remove(subclass)
-            except (ValueError, KeyError):
-                pass
-        if not getattr(subclass, "__no_parent_default_theme__", False):
-            try:
-                _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.remove(subclass)
-            except (ValueError, KeyError):
-                pass
+        super().register(subclass)
+        if isinstance(subclass, MetaThemedObject) and not issubclass(subclass, cls):
+            register_themed_subclass(cast(MetaThemedObject, subclass))
+        return subclass
 
     @staticmethod
     def __get_all_parent_class(cls: MetaThemedObject, do_not_search_for: Set[type]) -> List[MetaThemedObject]:
