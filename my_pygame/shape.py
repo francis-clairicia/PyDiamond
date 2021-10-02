@@ -234,7 +234,7 @@ class PolygonShape(OutlinedShape, ThemedShape):
             p.y -= top
         return points
 
-    @config.value_updater_no_name("points")
+    @config.value_updater_property("points")
     def __on_update_points(self, points: List[Vector2]) -> None:
         left: float = 0
         top: float = 0
@@ -264,17 +264,12 @@ class AbstractRectangleShape(AbstractShape):
     config.validator("local_height", no_object(valid_float(min_value=0)))
     config.validator("local_size", tuple, convert=True)
 
+    config.getter_property("local_size", lambda self: (self.local_width, self.local_height))
+    config.setter_property("local_size", lambda self, size: self.config(local_width=size[0], local_height=size[1]))
+
     local_width: ConfigAttribute[float] = ConfigAttribute()
     local_height: ConfigAttribute[float] = ConfigAttribute()
     local_size: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
-
-    @config.getter_no_name("local_size")
-    def __get_local_size(self) -> Tuple[float, float]:
-        return (self.local_width, self.local_height)
-
-    @config.setter_no_name("local_size")
-    def ___set_local_size(self, size: Tuple[float, float]) -> None:
-        self.config(local_width=size[0], local_height=size[1])
 
 
 class RectangleShape(AbstractRectangleShape, OutlinedShape, ThemedShape):
@@ -639,13 +634,8 @@ class CrossShape(OutlinedShape, ThemedShape):
     def type(self) -> str:
         return str(self.__type.value)
 
-    @config.getter_no_name("local_size")
-    def __get_local_size(self) -> Tuple[float, float]:
-        return (self.local_width, self.local_height)
-
-    @config.setter_no_name("local_size")
-    def ___set_local_size(self, size: Tuple[float, float]) -> None:
-        self.config(local_width=size[0], local_height=size[1])
+    config.getter_property("local_size", lambda self: (self.local_width, self.local_height))
+    config.setter_property("local_size", lambda self, size: self.config(local_width=size[0], local_height=size[1]))
 
     @config.updater("local_width")
     @config.updater("local_height")

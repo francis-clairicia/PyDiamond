@@ -93,6 +93,31 @@ ThemeType = Union[str, List[str]]
 
 
 class MetaThemedObject(ABCMeta):
+    def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaThemedObject:
+        def check_parameters(func: Callable[..., Any]) -> None:
+            sig: Signature = Signature.from_callable(func, follow_wrapped=True)
+            parameters: Mapping[str, Parameter] = sig.parameters
+            has_kwargs: bool = any(param.kind == Parameter.VAR_KEYWORD for param in parameters.values())
+
+            if "theme" not in parameters:
+                if not has_kwargs:
+                    raise TypeError(f"{func.__qualname__}: Can't support 'theme' parameter")
+            else:
+                param: Parameter = parameters["theme"]
+                if param.kind is not Parameter.KEYWORD_ONLY:
+                    raise TypeError(f"{func.__qualname__}: 'theme' is a {param.kind.description} parameter")
+                if param.default is not None:
+                    raise TypeError(f"{func.__qualname__}: 'theme' parameter must have None as default value")
+
+        new_method: Optional[Callable[..., Any]] = namespace.get("__new__")
+        init_method: Optional[Callable[..., None]] = namespace.get("__init__")
+        if new_method is not None:
+            check_parameters(new_method)
+        if init_method is not None:
+            check_parameters(init_method)
+
+        return super().__new__(metacls, name, bases, namespace, **kwargs)
+
     def __init__(cls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwds: Any) -> None:
         super().__init__(name, bases, namespace, **kwds)
         setattr(cls, "__is_abstract_theme_class__", False)
@@ -116,18 +141,7 @@ class MetaThemedObject(ABCMeta):
         else:
             theme = [str(t) for t in theme]
 
-        default_theme: Dict[str, None] = dict()
-
-        def add_default_themes(cls: MetaThemedObject) -> None:
-            nonlocal default_theme
-            try:
-                default_theme |= dict.fromkeys(_DEFAULT_THEME[cls])
-            except KeyError:
-                pass
-
-        for parent in MetaThemedObject.__get_all_parent_class(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_DEFAULT_THEMES):
-            add_default_themes(parent)
-        add_default_themes(cls)
+        default_theme: Tuple[str, ...] = cls.get_default_themes()
         theme_kwargs: Dict[str, Any] = cls.get_theme_options(*default_theme, *theme, ignore_unusable=True)
         if theme_kwargs:
             kwargs = theme_kwargs | kwargs
@@ -139,14 +153,14 @@ class MetaThemedObject(ABCMeta):
         return super().__setattr__(name, value)
 
     @overload
-    def set_theme(cls, name: str, options: Dict[str, Any], update: bool = False) -> None:
+    def set_theme(cls, name: str, options: Dict[str, Any], update: bool = False, ignore_unusable: bool = False) -> None:
         ...
 
     @overload
     def set_theme(cls, name: str, options: None) -> None:
         ...
 
-    def set_theme(cls, name: str, options: Optional[Dict[str, Any]], update: bool = False) -> None:
+    def set_theme(cls, name: str, options: Optional[Dict[str, Any]], update: bool = False, ignore_unusable: bool = False) -> None:
         if cls.is_abstract_theme_class():
             raise TypeError("Abstract theme classes cannot set themes.")
         if name is NoTheme:
@@ -165,16 +179,22 @@ class MetaThemedObject(ABCMeta):
             parameters: Mapping[str, Parameter] = sig.parameters
             has_kwargs: bool = any(param.kind == Parameter.VAR_KEYWORD for param in parameters.values())
 
-            for option in options:
+            for option in list(options):
                 if option not in parameters:
                     if not has_kwargs:
-                        raise TypeError(f"{func.__qualname__}: Unknown parameter {option!r}")
+                        if not ignore_unusable:
+                            raise TypeError(f"{func.__qualname__}: Unknown parameter {option!r}")
+                        options.pop(option)
                     continue
                 param: Parameter = parameters[option]
                 if param.kind is not Parameter.KEYWORD_ONLY:
-                    raise TypeError(f"{func.__qualname__}: {option!r} is a {param.kind.description} parameter")
-                if param.default is Parameter.empty:
-                    raise TypeError(f"{func.__qualname__}: {option!r} is a required argument")
+                    if not ignore_unusable:
+                        raise TypeError(f"{func.__qualname__}: {option!r} is a {param.kind.description} parameter")
+                    options.pop(option)
+                elif param.default is Parameter.empty:
+                    if not ignore_unusable:
+                        raise TypeError(f"{func.__qualname__}: {option!r} is a required parameter")
+                    options.pop(option)
 
         default_new_method: Callable[[Type[object]], Any] = object.__new__
         default_init_method: Callable[[object], None] = object.__init__
@@ -195,7 +215,7 @@ class MetaThemedObject(ABCMeta):
         else:
             theme_dict = _THEMES[cls]
         if name not in theme_dict or not update:
-            theme_dict[name] = options
+            theme_dict[name] = options.copy()
         else:
             theme_dict[name] |= options
 
@@ -224,7 +244,7 @@ class MetaThemedObject(ABCMeta):
             else:
                 _DEFAULT_THEME[cls] = list(dict.fromkeys((*_DEFAULT_THEME[cls], theme)))
 
-    def get_theme_options(cls, *themes: str, ignore_unusable: bool = False) -> Dict[str, Any]:
+    def get_theme_options(cls, *themes: str, parent_themes: bool = True, ignore_unusable: bool = False) -> Dict[str, Any]:
         if cls.is_abstract_theme_class():
             raise TypeError("Abstract theme classes does not have themes.")
 
@@ -237,9 +257,11 @@ class MetaThemedObject(ABCMeta):
             except KeyError:
                 pass
 
+        get_all_parents_class = MetaThemedObject.__get_all_parent_class
         for t in dict.fromkeys(themes):
-            for parent in MetaThemedObject.__get_all_parent_class(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_THEMES):
-                get_theme_options(parent, t)
+            if parent_themes:
+                for parent in get_all_parents_class(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_THEMES):
+                    get_theme_options(parent, t)
             get_theme_options(cls, t)
 
         if not ignore_unusable or not theme_kwargs:
@@ -273,6 +295,24 @@ class MetaThemedObject(ABCMeta):
                 check_options(init_method)
 
         return theme_kwargs
+
+    def get_default_themes(cls, *, parent_default_themes: bool = True) -> Tuple[str, ...]:
+        default_theme: Dict[str, None] = dict()
+
+        def add_default_themes(cls: MetaThemedObject) -> None:
+            nonlocal default_theme
+            try:
+                default_theme |= dict.fromkeys(_DEFAULT_THEME[cls])
+            except KeyError:
+                pass
+
+        if parent_default_themes:
+            get_all_parents_class = MetaThemedObject.__get_all_parent_class
+            for parent in get_all_parents_class(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_DEFAULT_THEMES):
+                add_default_themes(parent)
+        add_default_themes(cls)
+
+        return tuple(default_theme)
 
     def is_abstract_theme_class(cls) -> bool:
         return truth(getattr(cls, "__is_abstract_theme_class__", False))

@@ -15,7 +15,7 @@ from pygame.surface import Surface
 from .drawable import ThemedDrawable
 from .clickable import Clickable
 from .shape import RectangleShape
-from .text import TextImage
+from .text import TextImage, _TextFont
 from .window import Window
 from .scene import Scene
 from .colors import TRANSPARENT, WHITE, GRAY, GRAY_LIGHT, GRAY_DARK, BLACK
@@ -26,8 +26,6 @@ from .configuration import ConfigAttribute, Configuration, initializer, no_objec
 from .utils import valid_float
 
 __all__ = ["Button", "ImageButton"]
-
-_TextFont = Union[Font, Tuple[Optional[str], int]]
 
 
 class _ButtonColor(TypedDict):
@@ -624,44 +622,31 @@ class Button(ThemedDrawable, Clickable):
     border_bottom_left_radius: ConfigAttribute[int] = ConfigAttribute()
     border_bottom_right_radius: ConfigAttribute[int] = ConfigAttribute()
 
-    __TEXT_OPTION: Dict[str, str] = {
-        "text": "message",
-        "text_font": "font",
-        "text_justify": "justify",
-        "text_wrap": "wrap",
-        "text_shadow": "shadow",
-        "text_shadow_x": "shadow_x",
-        "text_shadow_y": "shadow_y",
-        "text_shadow_color": "shadow_color",
-        "compound": "compound",
-        "distance_text_img": "distance",
-    }
-
-    @config.getter("text")
-    @config.getter("text_font")
-    @config.getter("text_justify")
-    @config.getter("text_wrap")
-    @config.getter("text_shadow")
-    @config.getter("text_shadow_x")
-    @config.getter("text_shadow_y")
-    @config.getter("text_shadow_color")
+    @config.getter("text", use="message")
+    @config.getter("text_font", use="font")
+    @config.getter("text_justify", use="justify")
+    @config.getter("text_wrap", use="wrap")
+    @config.getter("text_shadow", use="shadow")
+    @config.getter("text_shadow_x", use="shadow_x")
+    @config.getter("text_shadow_y", use="shadow_y")
+    @config.getter("text_shadow_color", use="shadow_color")
     @config.getter("compound")
-    @config.getter("distance_text_img")
+    @config.getter("distance_text_img", use="distance")
     def __get_text_option(self, option: str) -> Any:
-        return self.__text.config.get(Button.__TEXT_OPTION[option])
+        return self.__text.config.get(option)
 
-    @config.setter("text")
-    @config.setter("text_font")
-    @config.setter("text_justify")
-    @config.setter("text_wrap")
-    @config.setter("text_shadow")
-    @config.setter("text_shadow_x")
-    @config.setter("text_shadow_y")
-    @config.setter("text_shadow_color")
+    @config.setter("text", use="message")
+    @config.setter("text_font", use="font")
+    @config.setter("text_justify", use="justify")
+    @config.setter("text_wrap", use="wrap")
+    @config.setter("text_shadow", use="shadow")
+    @config.setter("text_shadow_x", use="shadow_x")
+    @config.setter("text_shadow_y", use="shadow_y")
+    @config.setter("text_shadow_color", use="shadow_color")
     @config.setter("compound")
-    @config.setter("distance_text_img")
+    @config.setter("distance_text_img", use="distance")
     def __set_text_option(self, option: str, value: Any) -> None:
-        return self.__text.config.set(Button.__TEXT_OPTION[option], value)
+        return self.__text.config.set(option, value)
 
     config.updater("text", __update_shape_size)
     config.updater("text_font", __update_shape_size)
@@ -674,13 +659,8 @@ class Button(ThemedDrawable, Clickable):
     config.updater("compound", __update_shape_size)
     config.updater("distance_text_img", __update_shape_size)
 
-    @config.validator("fixed_width")
-    @config.validator("fixed_height")
-    @staticmethod
-    def __fixed_size_validator(size: Optional[float]) -> Optional[float]:
-        if size is None:
-            return None
-        return max(float(size), 0)
+    config.validator("fixed_width", no_object(valid_float(min_value=0)), accept_none=True)
+    config.validator("fixed_height", no_object(valid_float(min_value=0)), accept_none=True)
 
     config.updater("fixed_width", __update_shape_size)
     config.updater("fixed_height", __update_shape_size)
@@ -739,11 +719,11 @@ class Button(ThemedDrawable, Clickable):
         self.__bg_dict[clickable_state][button_state] = color
 
     config.validator("background", Color)
-    config.validator("hover_background", (Color, type(None)))
-    config.validator("active_background", (Color, type(None)))
+    config.validator("hover_background", Color, accept_none=True)
+    config.validator("active_background", Color, accept_none=True)
     config.validator("disabled_background", Color)
-    config.validator("disabled_hover_background", (Color, type(None)))
-    config.validator("disabled_active_background", (Color, type(None)))
+    config.validator("disabled_hover_background", Color, accept_none=True)
+    config.validator("disabled_active_background", Color, accept_none=True)
 
     config.updater("background", __update_state)
     config.updater("hover_background", __update_state)
@@ -780,11 +760,11 @@ class Button(ThemedDrawable, Clickable):
         self.__fg_dict[clickable_state][button_state] = color
 
     config.validator("foreground", Color)
-    config.validator("hover_foreground", (Color, type(None)))
-    config.validator("active_foreground", (Color, type(None)))
+    config.validator("hover_foreground", Color, accept_none=True)
+    config.validator("active_foreground", Color, accept_none=True)
     config.validator("disabled_foreground", Color)
-    config.validator("disabled_hover_foreground", (Color, type(None)))
-    config.validator("disabled_active_foreground", (Color, type(None)))
+    config.validator("disabled_hover_foreground", Color, accept_none=True)
+    config.validator("disabled_active_foreground", Color, accept_none=True)
 
     config.updater("foreground", __update_state)
     config.updater("hover_foreground", __update_state)
@@ -820,12 +800,12 @@ class Button(ThemedDrawable, Clickable):
         clickable_state, button_state = Button.__STATE[option]
         self.__img_dict[clickable_state][button_state] = img
 
-    config.validator("img", (Surface, type(None)))
-    config.validator("hover_img", (Surface, type(None)))
-    config.validator("active_img", (Surface, type(None)))
-    config.validator("disabled_img", (Surface, type(None)))
-    config.validator("disabled_hover_img", (Surface, type(None)))
-    config.validator("disabled_active_img", (Surface, type(None)))
+    config.validator("img", Surface, accept_none=True)
+    config.validator("hover_img", Surface, accept_none=True)
+    config.validator("active_img", Surface, accept_none=True)
+    config.validator("disabled_img", Surface, accept_none=True)
+    config.validator("disabled_hover_img", Surface, accept_none=True)
+    config.validator("disabled_active_img", Surface, accept_none=True)
 
     config.updater("img", __update_state)
     config.updater("hover_img", __update_state)
@@ -1209,11 +1189,11 @@ class ImageButton(ThemedDrawable, Clickable):
         self.__bg_dict[clickable_state][button_state] = color
 
     config.validator("background", Color)
-    config.validator("hover_background", (Color, type(None)))
-    config.validator("active_background", (Color, type(None)))
+    config.validator("hover_background", Color, accept_none=True)
+    config.validator("active_background", Color, accept_none=True)
     config.validator("disabled_background", Color)
-    config.validator("disabled_hover_background", (Color, type(None)))
-    config.validator("disabled_active_background", (Color, type(None)))
+    config.validator("disabled_hover_background", Color, accept_none=True)
+    config.validator("disabled_active_background", Color, accept_none=True)
 
     config.updater("background", __update_state)
     config.updater("hover_background", __update_state)
@@ -1250,11 +1230,11 @@ class ImageButton(ThemedDrawable, Clickable):
         self.__img_dict[clickable_state][button_state] = img
 
     config.validator("img", Surface)
-    config.validator("hover_img", (Surface, type(None)))
-    config.validator("active_img", (Surface, type(None)))
-    config.validator("disabled_img", (Surface, type(None)))
-    config.validator("disabled_hover_img", (Surface, type(None)))
-    config.validator("disabled_active_img", (Surface, type(None)))
+    config.validator("hover_img", Surface, accept_none=True)
+    config.validator("active_img", Surface, accept_none=True)
+    config.validator("disabled_img", Surface, accept_none=True)
+    config.validator("disabled_hover_img", Surface, accept_none=True)
+    config.validator("disabled_active_img", Surface, accept_none=True)
 
     config.updater("img", __update_state)
     config.updater("hover_img", __update_state)

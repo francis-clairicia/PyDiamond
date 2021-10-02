@@ -93,8 +93,8 @@ def __valid_number(value_type: Union[Type[int], Type[float]], **kwargs: Any) -> 
         _min = value_type(min_value)
         _max = value_type(max_value)
 
-        if _min >= _max:
-            raise ValueError(f"min_value ({_min}) >= max_value ({_max})")
+        if _min > _max:
+            raise ValueError(f"min_value ({_min}) > max_value ({_max})")
 
         def valid_number(val: Any) -> Union[int, float]:
             return min(max(value_type(val), _min), _max)

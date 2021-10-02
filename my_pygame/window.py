@@ -34,7 +34,7 @@ from pygame.time import Clock as _PygameClock
 from pygame.color import Color
 from pygame.event import Event
 
-from .drawable import Drawable
+from .drawable import SupportsDrawing
 from .text import Text
 from .colors import BLACK, WHITE
 from .scene import Scene, WindowCallback, _WindowCallbackList
@@ -107,7 +107,7 @@ class Window:
     DEFAULT_FRAMERATE = 60
 
     __main_window: bool = True
-    __default_cursor: Cursor = SystemCursor(SystemCursor.CURSOR_ARROW)
+    __default_cursor: Cursor = SystemCursor.CURSOR_ARROW
     __cursor: Cursor = __default_cursor
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Any:
@@ -259,23 +259,23 @@ class Window:
         self.refresh()
 
     @overload
-    def draw(self, target: Drawable, *targets: Drawable) -> None:
+    def draw(self, target: SupportsDrawing, *targets: SupportsDrawing) -> None:
         ...
 
     @overload
-    def draw(self, target: Iterable[Drawable]) -> None:
+    def draw(self, target: Iterable[SupportsDrawing]) -> None:
         ...
 
-    def draw(self, target: Union[Drawable, Iterable[Drawable]], *targets: Drawable) -> None:
+    def draw(self, target: Union[SupportsDrawing, Iterable[SupportsDrawing]], *targets: SupportsDrawing) -> None:
         surface: Surface = self.__surface
 
-        def draw_target(target: Drawable) -> None:
+        def draw_target(target: SupportsDrawing) -> None:
             try:
                 target.draw_onto(surface)
             except pygame.error:
                 pass
 
-        if isinstance(target, Drawable):
+        if isinstance(target, SupportsDrawing):
             draw_target(target)
             for t in targets:
                 draw_target(t)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from abc import ABCMeta, abstractmethod
-from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Callable, Dict, List, Optional, Protocol, Tuple, TypeVar, Union, runtime_checkable
 from functools import wraps
 
 import pygame
@@ -18,6 +18,27 @@ from ._animation import Animation
 __all__ = ["MetaDrawable", "Drawable", "MetaThemedDrawable", "ThemedDrawable"]
 
 
+_ALL_VALID_POSITIONS: Tuple[str, ...] = (
+    "x",
+    "y",
+    "left",
+    "right",
+    "top",
+    "bottom",
+    "center",
+    "centerx",
+    "centery",
+    "topleft",
+    "topright",
+    "bottomleft",
+    "bottomright",
+    "midleft",
+    "midright",
+    "midtop",
+    "midbottom",
+)
+
+
 def _draw_decorator(func: Callable[[Drawable, Surface], None]) -> Callable[[Drawable, Surface], None]:
     @wraps(func)
     def wrapper(self: Drawable, surface: Surface) -> None:
@@ -27,14 +48,63 @@ def _draw_decorator(func: Callable[[Drawable, Surface], None]) -> Callable[[Draw
     return MethodWrapper(wrapper)
 
 
+def _position_decorator(position: property) -> property:
+    if position.fset is None:
+        return position
+
+    setter: Callable[[Any, Any], None] = position.fset
+
+    if position.fget is None:
+
+        @wraps(setter)
+        def setter_wrapper(self: Drawable, /, _value: Any) -> None:
+            setter(self, _value)
+            self._on_move()
+
+        return property(fset=setter_wrapper)
+
+    getter: Callable[[Any], Any] = position.fget
+
+    @wraps(setter)  # type: ignore
+    def setter_wrapper(self: Drawable, /, _value: Any) -> None:
+        if getter(self) != _value:
+            setter(self, _value)
+            self._on_move()
+
+    return property(getter, setter_wrapper)
+
+
+@runtime_checkable
+class SupportsDrawing(Protocol):
+    @abstractmethod
+    def draw_onto(self, surface: Surface) -> None:
+        raise NotImplementedError
+
+
 class MetaDrawable(ABCMeta):
     def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaDrawable:
         if "copy" not in namespace:
-            namespace["copy"] = Drawable.copy
+            if not kwargs.pop("no_copy", False):
+                namespace["copy"] = Drawable.copy
+            else:
+
+                def copy(self: Any) -> Any:
+                    raise NotImplementedError
+
+                namespace["copy"] = copy
 
         draw_method: Optional[Callable[[Drawable, Surface], None]] = namespace.get("draw_onto")
         if callable(draw_method):
             namespace["draw_onto"] = _draw_decorator(draw_method)
+
+        for position in _ALL_VALID_POSITIONS:
+            if position in namespace and any(hasattr(cls, position) for cls in bases):
+                raise TypeError("Override of position attributes is not allowed")
+
+        for position in filter(lambda pos: pos in namespace, _ALL_VALID_POSITIONS):
+            obj: Any = namespace[position]
+            if isinstance(obj, property):
+                namespace[position] = _position_decorator(obj)
 
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
@@ -78,37 +148,25 @@ class Drawable(metaclass=MetaDrawable):
         return self.__draw
 
     def set_position(self, **position: Union[float, Tuple[float, float]]) -> None:
-        all_valid_positions: Tuple[str, ...] = (
-            "x",
-            "y",
-            "left",
-            "right",
-            "top",
-            "bottom",
-            "center",
-            "centerx",
-            "centery",
-            "topleft",
-            "topright",
-            "bottomleft",
-            "bottomright",
-            "midtop",
-            "midbottom",
-            "midleft",
-            "midright",
-        )
-        for name, value in position.items():
-            if name not in all_valid_positions:
+        for name in position:
+            if name not in _ALL_VALID_POSITIONS:
                 raise AttributeError(f"Unknown position attribute {name!r}")
+        for name, value in position.items():
             setattr(self, name, value)
 
     def move(self, dx: float, dy: float) -> None:
-        self.x += dx
-        self.y += dy
+        if dx == 0 and dy == 0:
+            return
+        self.__x += dx
+        self.__y += dy
+        self._on_move()
 
     def translate(self, vector: Union[Vector2, Tuple[float, float]]) -> None:
-        self.x += vector[0]
-        self.y += vector[1]
+        if vector[0] == 0 and vector[1] == 0:
+            return
+        self.__x += vector[0]
+        self.__y += vector[1]
+        self._on_move()
 
     def rotate(self, angle_offset: float, pivot: Optional[Union[Tuple[float, float], Vector2, str]] = None) -> None:
         self.set_rotation(self.__angle + angle_offset, pivot=pivot)
@@ -270,6 +328,9 @@ class Drawable(metaclass=MetaDrawable):
             setattr(r, name, value)
         return r
 
+    def _on_move(self) -> None:
+        pass
+
     @property
     def animation(self) -> Animation:
         return self.__animation
@@ -336,140 +397,140 @@ class Drawable(metaclass=MetaDrawable):
 
     @property
     def left(self) -> float:
-        return self.x
+        return self.__x
 
     @left.setter
     def left(self, left: float) -> None:
-        self.x = left
+        self.__x = left
 
     @property
     def right(self) -> float:
-        return self.x + self.width
+        return self.__x + self.width
 
     @right.setter
     def right(self, right: float) -> None:
-        self.x = right - self.width
+        self.__x = right - self.width
 
     @property
     def top(self) -> float:
-        return self.y
+        return self.__y
 
     @top.setter
     def top(self, top: float) -> None:
-        self.y = top
+        self.__y = top
 
     @property
     def bottom(self) -> float:
-        return self.y + self.height
+        return self.__y + self.height
 
     @bottom.setter
     def bottom(self, bottom: float) -> None:
-        self.y = bottom - self.height
+        self.__y = bottom - self.height
 
     @property
     def center(self) -> Tuple[float, float]:
         w, h = self.get_size()
-        return (self.x + (w / 2), self.y + (h / 2))
+        return (self.__x + (w / 2), self.__y + (h / 2))
 
     @center.setter
     def center(self, center: Tuple[float, float]) -> None:
         w, h = self.get_size()
-        self.x = center[0] - (w / 2)
-        self.y = center[1] - (h / 2)
+        self.__x = center[0] - (w / 2)
+        self.__y = center[1] - (h / 2)
 
     @property
     def centerx(self) -> float:
-        return self.x + (self.width / 2)
+        return self.__x + (self.width / 2)
 
     @centerx.setter
     def centerx(self, centerx: float) -> None:
-        self.x = centerx - (self.width / 2)
+        self.__x = centerx - (self.width / 2)
 
     @property
     def centery(self) -> float:
-        return self.y + (self.height / 2)
+        return self.__y + (self.height / 2)
 
     @centery.setter
     def centery(self, centery: float) -> None:
-        self.y = centery - (self.height / 2)
+        self.__y = centery - (self.height / 2)
 
     @property
     def topleft(self) -> Tuple[float, float]:
-        return (self.x, self.y)
+        return (self.__x, self.__y)
 
     @topleft.setter
     def topleft(self, topleft: Tuple[float, float]) -> None:
-        self.x = topleft[0]
-        self.y = topleft[1]
+        self.__x = topleft[0]
+        self.__y = topleft[1]
 
     @property
     def topright(self) -> Tuple[float, float]:
-        return (self.x + self.width, self.y)
+        return (self.__x + self.width, self.__y)
 
     @topright.setter
     def topright(self, topright: Tuple[float, float]) -> None:
-        self.x = topright[0] - self.width
-        self.y = topright[1]
+        self.__x = topright[0] - self.width
+        self.__y = topright[1]
 
     @property
     def bottomleft(self) -> Tuple[float, float]:
-        return (self.x, self.y + self.height)
+        return (self.__x, self.__y + self.height)
 
     @bottomleft.setter
     def bottomleft(self, bottomleft: Tuple[float, float]) -> None:
-        self.x = bottomleft[0]
-        self.y = bottomleft[1] - self.height
+        self.__x = bottomleft[0]
+        self.__y = bottomleft[1] - self.height
 
     @property
     def bottomright(self) -> Tuple[float, float]:
         w, h = self.get_size()
-        return (self.x + w, self.y + h)
+        return (self.__x + w, self.__y + h)
 
     @bottomright.setter
     def bottomright(self, bottomright: Tuple[float, float]) -> None:
         w, h = self.get_size()
-        self.x = bottomright[0] - w
-        self.y = bottomright[1] - h
+        self.__x = bottomright[0] - w
+        self.__y = bottomright[1] - h
 
     @property
     def midtop(self) -> Tuple[float, float]:
-        return (self.x + (self.width / 2), self.y)
+        return (self.__x + (self.width / 2), self.__y)
 
     @midtop.setter
     def midtop(self, midtop: Tuple[float, float]) -> None:
-        self.x = midtop[0] - (self.width / 2)
-        self.y = midtop[1]
+        self.__x = midtop[0] - (self.width / 2)
+        self.__y = midtop[1]
 
     @property
     def midbottom(self) -> Tuple[float, float]:
         w, h = self.get_size()
-        return (self.x + (w / 2), self.y + h)
+        return (self.__x + (w / 2), self.__y + h)
 
     @midbottom.setter
     def midbottom(self, midbottom: Tuple[float, float]) -> None:
         w, h = self.get_size()
-        self.x = midbottom[0] - (w / 2)
-        self.y = midbottom[1] - h
+        self.__x = midbottom[0] - (w / 2)
+        self.__y = midbottom[1] - h
 
     @property
     def midleft(self) -> Tuple[float, float]:
-        return (self.x, self.y + (self.height / 2))
+        return (self.__x, self.__y + (self.height / 2))
 
     @midleft.setter
     def midleft(self, midleft: Tuple[float, float]) -> None:
-        self.x = midleft[0]
-        self.y = midleft[1] - (self.height / 2)
+        self.__x = midleft[0]
+        self.__y = midleft[1] - (self.height / 2)
 
     @property
     def midright(self) -> Tuple[float, float]:
         w, h = self.get_size()
-        return (self.x + w, self.y + (h / 2))
+        return (self.__x + w, self.__y + (h / 2))
 
     @midright.setter
     def midright(self, midright: Tuple[float, float]) -> None:
         w, h = self.get_size()
-        self.x = midright[0] - w
-        self.y = midright[1] - (h / 2)
+        self.__x = midright[0] - w
+        self.__y = midright[1] - (h / 2)
 
 
 class MetaThemedDrawable(MetaDrawable, MetaThemedObject):

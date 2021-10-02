@@ -88,21 +88,31 @@ class Text(ThemedDrawable):
     def get_size(self) -> Tuple[float, float]:
         return self.__image.get_size()
 
+    def get(self, wrapped: bool = False) -> str:
+        message: str = self.message
+        if not wrapped:
+            return message
+        wrap: int = self.wrap
+        return "\n".join(textwrap(message, width=wrap)) if wrap > 0 else message
+
     @staticmethod
     def create_font(
         font: Optional[_TextFont], bold: Optional[bool] = None, italic: Optional[bool] = None, underline: Optional[bool] = None
     ) -> Font:
         obj: Font
+        if font is None:
+            font = (None, 15)
         if isinstance(font, (tuple, list)):
-            if font[0] is not None and os.path.isfile(font[0]):
-                obj = Font(*font)
+            font_family, font_size = font
+            if font_family is None:
+                font_family = Text.get_default_font()
+            if os.path.isfile(font_family):
+                obj = Font(font_family, font_size)
                 if bold is not None:
                     obj.set_bold(bold)
                 if italic is not None:
                     obj.set_italic(italic)
             else:
-                font_family: str = font[0] if font[0] is not None and font[0] else get_default_font()
-                font_size: int = font[1]
                 obj = SysFont(font_family, font_size, bold=truth(bold), italic=truth(italic))
         elif isinstance(font, Font):
             obj = font
@@ -111,10 +121,25 @@ class Text(ThemedDrawable):
             if italic is not None:
                 obj.set_italic(italic)
         else:
-            obj = SysFont(get_default_font(), 15, bold=truth(bold), italic=truth(italic))
+            raise TypeError("Invalid arguments")
         if underline is not None:
             obj.set_underline(underline)
         return obj
+
+    @staticmethod
+    def get_default_font() -> str:
+        font: str = getattr(Text, "__default_font__", get_default_font())
+        return font
+
+    @staticmethod
+    def set_default_font(font: Union[str, None]) -> None:
+        if font is None:
+            try:
+                delattr(Text, "__default_font__")
+            except AttributeError:
+                pass
+        else:
+            setattr(Text, "__default_font__", str(font))
 
     def set_font(
         self,
@@ -146,7 +171,7 @@ class Text(ThemedDrawable):
         render_height: float = 0
         default_font: Font = self.font
         custom_font: Dict[int, Font] = self.__custom_font
-        for index, line in enumerate(self.message.splitlines()):
+        for index, line in enumerate(self.get(wrapped=True).splitlines()):
             font = custom_font.get(index, default_font)
             render = font.render(line, True, color)
             render_width = max(render_width, render.get_width())
@@ -213,11 +238,6 @@ class Text(ThemedDrawable):
 
     config.register_copy_func(Color, lambda obj: Color(obj))
 
-    @config.converter("message", use_on_set=True)
-    def __convert_message(self, message: str) -> str:
-        wrap: int = self.wrap
-        return "\n".join(textwrap(message, width=wrap)) if wrap > 0 else message
-
     @config.updater
     def __update_surface(self) -> None:
         if self.config.has_initialization_context():
@@ -239,13 +259,8 @@ class Text(ThemedDrawable):
     shadow: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
     shadow_color: ConfigAttribute[Color] = ConfigAttribute()
 
-    @config.getter_no_name("shadow")
-    def get_shadow(self) -> Tuple[float, float]:
-        return (self.shadow_x, self.shadow_y)
-
-    @config.setter_no_name("shadow")
-    def set_shadow(self, pos: Tuple[float, float]) -> None:
-        self.config(shadow_x=pos[0], shadow_y=pos[1])
+    config.getter_property("shadow", lambda self: (self.shadow_x, self.shadow_y))
+    config.setter_property("shadow", lambda self, pos: self.config(shadow_x=pos[0], shadow_y=pos[1]))
 
 
 class TextImage(Text):
@@ -436,19 +451,19 @@ class TextImage(Text):
 
     config.enum("compound", Compound, return_value=True)
 
-    config.validator("img", (Surface, type(None)))
+    config.validator("img", Surface, accept_none=True)
     config.validator("distance", no_object(valid_float(min_value=0)))
 
     config.register_copy_func(Surface, lambda surface: surface.copy(), allow_subclass=True)
 
-    @config.getter_no_name("img")
+    @config.getter_property("img")
     def __get_img_surface(self) -> Optional[Surface]:
         img: Optional[Image] = self.__img
         if img is None:
             return None
         return img.get()
 
-    @config.setter_no_name("img")
+    @config.setter_property("img")
     def __update_img(self, surface: Optional[Surface]) -> None:
         if surface is None:
             self.__img = None
@@ -466,13 +481,10 @@ class TextImage(Text):
     distance: ConfigAttribute[float] = ConfigAttribute()
 
 
-class _BoundImage(Image):
+class _BoundImage(Image, no_copy=True):
     def __init__(self, text: TextImage, image: Surface) -> None:
         super().__init__(image)
         self.__text: TextImage = text
-
-    def copy(self) -> _BoundImage:
-        raise NotImplementedError
 
     def _apply_rotation_scale(self) -> None:
         super()._apply_rotation_scale()

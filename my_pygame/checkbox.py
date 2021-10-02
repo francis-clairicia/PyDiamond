@@ -119,6 +119,11 @@ class CheckBox(ThemedDrawable, Clickable, Generic[_OnValue, _OffValue]):
             hover_sound=self.hover_sound,
             click_sound=self.click_sound,
             disabled_sound=self.disabled_sound,
+            border_radius=self.border_radius,
+            border_top_left_radius=self.border_top_left_radius,
+            border_top_right_radius=self.border_top_right_radius,
+            border_bottom_left_radius=self.border_bottom_left_radius,
+            border_bottom_right_radius=self.border_bottom_right_radius,
             theme=NoTheme,
         )
 
@@ -202,8 +207,8 @@ class CheckBox(ThemedDrawable, Clickable, Generic[_OnValue, _OffValue]):
     border_bottom_left_radius: ConfigAttribute[int] = ConfigAttribute()
     border_bottom_right_radius: ConfigAttribute[int] = ConfigAttribute()
 
-    config.getter_no_name("value", get_value)
-    config.setter_no_name("value", set_value)
+    config.getter_property("value", get_value)
+    config.setter_property("value", set_value)
 
     @config.getter("local_width")
     @config.getter("local_height")
@@ -325,5 +330,10 @@ class BooleanCheckBox(CheckBox[bool, bool]):
             hover_sound=self.hover_sound,
             click_sound=self.click_sound,
             disabled_sound=self.disabled_sound,
+            border_radius=self.border_radius,
+            border_top_left_radius=self.border_top_left_radius,
+            border_top_right_radius=self.border_top_right_radius,
+            border_bottom_left_radius=self.border_bottom_left_radius,
+            border_bottom_right_radius=self.border_bottom_right_radius,
             theme=NoTheme,
         )

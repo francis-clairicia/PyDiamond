@@ -1,6 +1,6 @@
 # -*- coding: Utf-8 -*
 
-from typing import Sequence, Union, final, overload
+from typing import Optional, Sequence, Tuple, Union, overload
 from operator import truth
 from enum import IntEnum
 
@@ -9,6 +9,7 @@ import pygame.key
 __all__ = ["Keyboard"]
 
 _KEY_STATES: Sequence[bool] = []
+_KEY_REPEAT: Tuple[int, int] = (0, 0)
 
 
 class Keyboard:
@@ -27,7 +28,6 @@ class Keyboard:
     def get(key: str) -> int:
         ...
 
-    @final
     @staticmethod
     def get(key: Union[str, int]) -> Union[str, int]:
         if isinstance(key, str):
@@ -41,6 +41,63 @@ class Keyboard:
         if isinstance(key, str):
             key = pygame.key.key_code(key)
         return truth(_KEY_STATES[Keyboard.Key(key).value])
+
+    @staticmethod
+    def get_repeat() -> Tuple[int, int]:
+        return pygame.key.get_repeat()
+
+    @overload
+    @staticmethod
+    def set_repeat(delay: None) -> Tuple[int, int]:
+        ...
+
+    @overload
+    @staticmethod
+    def set_repeat(delay: int, interval: int = 0) -> Tuple[int, int]:
+        ...
+
+    @staticmethod
+    def set_repeat(delay: Optional[int], interval: int = 0) -> Tuple[int, int]:
+        global _KEY_REPEAT
+        former_params: Tuple[int, int]
+        if not Keyboard.IME.text_input_enabled():
+            former_params = pygame.key.get_repeat()
+            if delay is None:
+                pygame.key.set_repeat()
+            else:
+                pygame.key.set_repeat(delay, interval)
+        else:
+            former_params = _KEY_REPEAT
+            if delay is None:
+                _KEY_REPEAT = (0, 0)
+            else:
+                _KEY_REPEAT = (delay, interval)
+        return former_params
+
+    class IME:
+        __start: bool = False
+
+        @classmethod
+        def text_input_enabled(cls) -> bool:
+            return cls.__start
+
+        @classmethod
+        def start_text_input(cls) -> None:
+            global _KEY_REPEAT
+            if not cls.__start:
+                pygame.key.start_text_input()
+                _KEY_REPEAT = pygame.key.get_repeat()
+                pygame.key.set_repeat(500, 50)
+                cls.__start = True
+
+        @classmethod
+        def stop_text_input(cls) -> None:
+            global _KEY_REPEAT
+            if cls.__start:
+                pygame.key.stop_text_input()
+                pygame.key.set_repeat(*_KEY_REPEAT)
+                _KEY_REPEAT = (0, 0)
+                cls.__start = False
 
     class Key(IntEnum):
         K_BACKSPACE = pygame.K_BACKSPACE

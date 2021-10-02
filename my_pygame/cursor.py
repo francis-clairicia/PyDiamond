@@ -53,7 +53,7 @@ class Cursor(metaclass=MetaCursor):
 class CustomCursor(Cursor):
     @overload
     def __init__(
-        self, size: Tuple[int, int], hotspot: Tuple[int, int], xormasks: Sequence[int], andmasks: Sequence[int], /
+        self, size: Tuple[int, int], hotspot: Tuple[int, int], xormasks: Tuple[int, ...], andmasks: Tuple[int, ...], /
     ) -> None:
         ...
 
@@ -76,11 +76,14 @@ class CustomCursor(Cursor):
         data, mask = pygame.cursors.compile(strings, black=black, white=white, xor=xor)
         width = max(len(line) for line in strings)
         height = len(strings)
-        return CustomCursor((width, height), hotspot, data, mask)
+        return CustomCursor((width, height), hotspot, tuple(data), tuple(mask))
 
     @staticmethod
     def load_xbm(cursorfile: str, maskfile: str) -> CustomCursor:
-        return CustomCursor(*pygame.cursors.load_xbm(cursorfile, maskfile))  # type: ignore
+        size, hotspot, xormasks, andmasks = pygame.cursors.load_xbm(cursorfile, maskfile)
+        width, height = size
+        x, y = hotspot
+        return CustomCursor((width, height), (x, y), tuple(xormasks), tuple(andmasks))
 
     def set(self) -> None:
         pygame.mouse.set_cursor(self.__cursor)
@@ -108,15 +111,29 @@ class SystemCursor(Cursor):
         NO = pygame.SYSTEM_CURSOR_NO
         HAND = pygame.SYSTEM_CURSOR_HAND
 
-    CURSOR_ARROW = Type.ARROW
-    CURSOR_IBEAM = Type.IBEAM
-    CURSOR_WAIT = Type.WAIT
-    CURSOR_CROSSHAIR = Type.CROSSHAIR
-    CURSOR_WAITARROW = Type.WAITARROW
-    CURSOR_SIZENWSE = Type.SIZENWSE
-    CURSOR_SIZENESW = Type.SIZENESW
-    CURSOR_SIZEWE = Type.SIZEWE
-    CURSOR_SIZENS = Type.SIZENS
-    CURSOR_SIZEALL = Type.SIZEALL
-    CURSOR_NO = Type.NO
-    CURSOR_HAND = Type.HAND
+    CURSOR_ARROW: SystemCursor
+    CURSOR_IBEAM: SystemCursor
+    CURSOR_WAIT: SystemCursor
+    CURSOR_CROSSHAIR: SystemCursor
+    CURSOR_WAITARROW: SystemCursor
+    CURSOR_SIZENWSE: SystemCursor
+    CURSOR_SIZENESW: SystemCursor
+    CURSOR_SIZEWE: SystemCursor
+    CURSOR_SIZENS: SystemCursor
+    CURSOR_SIZEALL: SystemCursor
+    CURSOR_NO: SystemCursor
+    CURSOR_HAND: SystemCursor
+
+
+SystemCursor.CURSOR_ARROW = SystemCursor(SystemCursor.Type.ARROW)
+SystemCursor.CURSOR_IBEAM = SystemCursor(SystemCursor.Type.IBEAM)
+SystemCursor.CURSOR_WAIT = SystemCursor(SystemCursor.Type.WAIT)
+SystemCursor.CURSOR_CROSSHAIR = SystemCursor(SystemCursor.Type.CROSSHAIR)
+SystemCursor.CURSOR_WAITARROW = SystemCursor(SystemCursor.Type.WAITARROW)
+SystemCursor.CURSOR_SIZENWSE = SystemCursor(SystemCursor.Type.SIZENWSE)
+SystemCursor.CURSOR_SIZENESW = SystemCursor(SystemCursor.Type.SIZENESW)
+SystemCursor.CURSOR_SIZEWE = SystemCursor(SystemCursor.Type.SIZEWE)
+SystemCursor.CURSOR_SIZENS = SystemCursor(SystemCursor.Type.SIZENS)
+SystemCursor.CURSOR_SIZEALL = SystemCursor(SystemCursor.Type.SIZEALL)
+SystemCursor.CURSOR_NO = SystemCursor(SystemCursor.Type.NO)
+SystemCursor.CURSOR_HAND = SystemCursor(SystemCursor.Type.HAND)

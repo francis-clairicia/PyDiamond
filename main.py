@@ -2,6 +2,7 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
+from my_pygame.entry import Entry
 from my_pygame.scale import Scale
 from my_pygame.progress import ProgressBar
 from my_pygame.surface import create_surface
@@ -452,6 +453,21 @@ class ScaleScene(MainScene):
         self.window.draw(self.scale, self.text)
 
 
+class EntryScene(MainScene):
+    def __init__(self, master: Window) -> None:
+        super().__init__(master, framerate=120)
+        self.background_color = BLUE_DARK
+        self.entry = entry = Entry(self, font=(None, 70))
+
+        entry.center = master.center
+
+    def on_start_loop(self) -> None:
+        self.entry.clear()
+
+    def draw(self) -> None:
+        self.window.draw(self.entry)
+
+
 class MainWindow(Window):
 
     __SCENES: List[Callable[[Window], Scene]] = [
@@ -468,6 +484,7 @@ class MainWindow(Window):
         CheckBoxScene,
         ProgressScene,
         ScaleScene,
+        EntryScene,
     ]
 
     def __init__(self) -> None:
@@ -475,6 +492,9 @@ class MainWindow(Window):
         super().__init__("my window", (1366, 768))
         self.text_framerate.show()
         self.all_scenes: List[Scene] = []
+
+        # Text.set_default_font(FontResources.cooperblack)
+
         for cls in MainWindow.__SCENES:
             self.all_scenes.append(cls(self))
 
