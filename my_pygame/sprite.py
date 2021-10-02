@@ -12,6 +12,7 @@ from pygame.sprite import Sprite as _PygameSprite
 from pygame.mask import Mask
 
 from .drawable import Drawable
+from .renderer import Renderer
 from .surface import create_surface
 from .clock import Clock
 
@@ -35,8 +36,10 @@ class Sprite(Drawable, _PygameSprite):
     def update(self, *args: Any, **kwargs: Any) -> None:
         pass
 
-    def draw_onto(self, surface: Surface) -> None:
-        surface.blit(self.__image, self.topleft)
+    def draw_onto(self, target: Renderer) -> None:
+        image: Surface = self.__image
+        topleft: Tuple[float, float] = self.topleft
+        target.draw(image, topleft)
 
     def get_local_size(self) -> Tuple[float, float]:
         return self.__default_image.get_size()

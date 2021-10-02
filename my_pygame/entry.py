@@ -5,7 +5,6 @@ from typing import Any, Callable, Optional, Tuple, Union
 from string import printable as ASCII_PRINTABLE
 
 import pygame
-import pygame.draw
 
 from pygame.color import Color
 from pygame.event import Event
@@ -14,6 +13,7 @@ from pygame.font import Font
 from pygame.surface import Surface
 
 from .drawable import ThemedDrawable
+from .renderer import Renderer
 from .text import Text, _TextFont
 from .shape import RectangleShape
 from .clickable import Clickable
@@ -148,16 +148,16 @@ class Entry(ThemedDrawable, Clickable):
     def get_local_size(self) -> Tuple[float, float]:
         return self.__shape.get_local_size()
 
-    def draw_onto(self, surface: Surface) -> None:
+    def draw_onto(self, target: Renderer) -> None:
         shape: RectangleShape = self.__shape
         text: Text = self.__text
         cursor: int = self.__cursor
 
         shape.center = self.center
-        shape.draw_onto(surface)
+        shape.draw_onto(target)
 
         text.midleft = (self.left + self.__cursor_width_offset, self.centery)
-        text.draw_onto(surface)
+        text.draw_onto(target)
 
         show_cursor: bool = self.__show_cursor
         if self.__edit() and self.__cursor_animated:
@@ -172,7 +172,7 @@ class Entry(ThemedDrawable, Clickable):
         height: float = self.height - self.__cursor_height_offset
         cursor_start: Tuple[float, float] = (text.left + width, text.centery - height // 2)
         cursor_end: Tuple[float, float] = (text.left + width, text.centery + height // 2)
-        pygame.draw.line(surface, text.color, cursor_start, cursor_end, width=2)
+        target.draw_line(text.color, cursor_start, cursor_end, width=2)
 
     def get(self) -> str:
         return self.__text.message
@@ -395,4 +395,3 @@ class _TextEntry(Text, no_copy=True):
     config.validator("max_width", no_object(valid_integer(min_value=0)), accept_none=True)
 
     max_width: ConfigAttribute[Optional[int]] = ConfigAttribute()
-

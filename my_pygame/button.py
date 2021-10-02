@@ -13,6 +13,7 @@ from pygame.rect import Rect
 from pygame.surface import Surface
 
 from .drawable import ThemedDrawable
+from .renderer import Renderer
 from .clickable import Clickable
 from .shape import RectangleShape
 from .text import TextImage, _TextFont
@@ -316,7 +317,7 @@ class Button(ThemedDrawable, Clickable):
         b.img_set_scale(self.__text.get_img_scale())
         return b
 
-    def draw_onto(self, surface: Surface) -> None:
+    def draw_onto(self, target: Renderer) -> None:
         angle: float = self.angle
         scale: float = self.scale
 
@@ -343,8 +344,8 @@ class Button(ThemedDrawable, Clickable):
             elif self.hover:
                 text.translate(compute_offset(self.text_hover_offset))
         text.rotate_around_point(angle, center)
-        shape.draw_onto(surface)
-        text.draw_onto(surface)
+        shape.draw_onto(target)
+        text.draw_onto(target)
 
     def get_local_size(self) -> Tuple[float, float]:
         return self.__shape.get_local_size()
@@ -989,7 +990,7 @@ class ImageButton(ThemedDrawable, Clickable):
             theme=NoTheme,
         )
 
-    def draw_onto(self, surface: Surface) -> None:
+    def draw_onto(self, target: Renderer) -> None:
         scale: float = self.scale
 
         def compute_offset(offset: Tuple[float, float]) -> Tuple[float, float]:
@@ -1004,8 +1005,8 @@ class ImageButton(ThemedDrawable, Clickable):
         elif self.hover:
             image.translate(compute_offset(self.hover_offset))
 
-        shape.draw_onto(surface)
-        image.draw_onto(surface)
+        shape.draw_onto(target)
+        image.draw_onto(target)
 
     def get_local_size(self) -> Tuple[float, float]:
         return self.__shape.get_local_size()

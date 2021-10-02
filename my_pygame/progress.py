@@ -5,10 +5,10 @@ from enum import Enum, unique
 from typing import Any, Dict, Optional, Tuple, Union
 
 from pygame.color import Color
-from pygame.surface import Surface
+
 
 from .shape import RectangleShape
-
+from .renderer import Renderer
 from .text import Text
 from .colors import BLACK, GRAY, TRANSPARENT, WHITE
 from .theme import NoTheme, ThemeType
@@ -113,7 +113,7 @@ class ProgressBar(RectangleShape):
             theme=NoTheme,
         )
 
-    def draw_onto(self, surface: Surface) -> None:
+    def draw_onto(self, target: Renderer) -> None:
         scale_rect: RectangleShape = self.__scale_rect
         outline_rect: RectangleShape = self.__outline_rect
 
@@ -122,9 +122,9 @@ class ProgressBar(RectangleShape):
         outline: int = self.outline
         scale_rect.midleft = (midleft[0] + outline / 2, midleft[1])
 
-        super().draw_onto(surface)
-        scale_rect.draw_onto(surface)
-        outline_rect.draw_onto(surface)
+        super().draw_onto(target)
+        scale_rect.draw_onto(target)
+        outline_rect.draw_onto(target)
 
         offset = 10
         movements: Dict[str, Dict[str, Union[float, Tuple[float, float]]]]
@@ -145,7 +145,7 @@ class ProgressBar(RectangleShape):
                     value = self.percent * 100
                     self.__value_text.message = f"{round(value, round_n) if round_n > 0 else round(value)}%"
                 self.__value_text.set_position(**movements[side])
-                self.__value_text.draw_onto(surface)
+                self.__value_text.draw_onto(target)
         if self.__label_text.is_shown():
             movements = {
                 ProgressBar.Side.TOP.value: {"bottom": self.top - offset, "centerx": self.centerx},
@@ -156,7 +156,7 @@ class ProgressBar(RectangleShape):
             side = self.__label_text_side
             if side in movements:
                 self.__label_text.set_position(**movements[side])
-                self.__label_text.draw_onto(surface)
+                self.__label_text.draw_onto(target)
 
     def set_bounds(self, from_: float, to: float) -> None:
         from_ = float(from_)

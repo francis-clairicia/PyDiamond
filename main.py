@@ -3,9 +3,9 @@
 
 from __future__ import annotations
 from my_pygame.entry import Entry
+from my_pygame.renderer import SurfaceRenderer
 from my_pygame.scale import Scale
 from my_pygame.progress import ProgressBar
-from my_pygame.surface import create_surface
 from my_pygame.checkbox import CheckBox
 from my_pygame.button import Button, ImageButton
 from my_pygame.mouse import Mouse
@@ -209,12 +209,12 @@ class Rainbow(AbstractRectangleShape):
         width, height = self.local_size
         gradient_width: float = round(width / len(self.__colors))
         gradient_height: float = height
-        rainbow: Surface = create_surface((width, height))
+        renderer: SurfaceRenderer = SurfaceRenderer((width, height))
         for i, gradient in enumerate(self.__colors):
             gradient.local_size = (gradient_width, gradient_height)
             gradient.topleft = (gradient_width * i, 0)
-            gradient.draw_onto(rainbow)
-        return rainbow
+            gradient.draw_onto(renderer)
+        return renderer.surface
 
 
 class RainbowScene(MainScene):

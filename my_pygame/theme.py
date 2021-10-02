@@ -220,14 +220,14 @@ class MetaThemedObject(ABCMeta):
             theme_dict[name] |= options
 
     @overload
-    def set_default_theme(cls, name: str, /, *names: str) -> None:
+    def set_default_theme(cls, name: str, /, *names: str, update: bool = False) -> None:
         ...
 
     @overload
     def set_default_theme(cls, name: None, /) -> None:
         ...
 
-    def set_default_theme(cls, name: Union[str, None], /, *names: str) -> None:
+    def set_default_theme(cls, name: Union[str, None], /, *names: str, update: bool = False) -> None:
         if cls.is_abstract_theme_class():
             raise TypeError("Abstract theme classes cannot set themes.")
 
@@ -236,13 +236,13 @@ class MetaThemedObject(ABCMeta):
                 raise TypeError("Invalid arguments")
             _DEFAULT_THEME.pop(cls, None)
             return
-        for theme in dict.fromkeys([name, *names]):
-            if theme is NoTheme:
-                raise ValueError("Couldn't set 'NoTheme' as default theme")
-            if cls not in _DEFAULT_THEME:
-                _DEFAULT_THEME[cls] = [theme]
-            else:
-                _DEFAULT_THEME[cls] = list(dict.fromkeys((*_DEFAULT_THEME[cls], theme)))
+        default_themes: Dict[str, None] = dict.fromkeys([name, *names])
+        if any(theme is NoTheme for theme in default_themes):
+            raise ValueError("Couldn't set 'NoTheme' as default theme")
+        if cls not in _DEFAULT_THEME or not update:
+            _DEFAULT_THEME[cls] = list(default_themes)
+        else:
+            _DEFAULT_THEME[cls] = list(dict.fromkeys((*_DEFAULT_THEME[cls], *default_themes)))
 
     def get_theme_options(cls, *themes: str, parent_themes: bool = True, ignore_unusable: bool = False) -> Dict[str, Any]:
         if cls.is_abstract_theme_class():

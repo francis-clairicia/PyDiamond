@@ -9,6 +9,7 @@ from pygame.mixer import Sound
 from pygame.surface import Surface
 
 from .drawable import Drawable, ThemedDrawable
+from .renderer import Renderer
 from .clickable import Clickable
 from .colors import BLACK
 from .window import Window
@@ -127,21 +128,21 @@ class CheckBox(ThemedDrawable, Clickable, Generic[_OnValue, _OffValue]):
             theme=NoTheme,
         )
 
-    def draw_onto(self, surface: Surface) -> None:
+    def draw_onto(self, target: Renderer) -> None:
         shape: RectangleShape = self.__shape
         active_img: Optional[Image] = self.__active_img
         active: Drawable
         active_cross: DiagonalCrossShape = self.__cross
 
         shape.center = center = self.center
-        shape.draw_onto(surface)
+        shape.draw_onto(target)
         if self.__value == self.__on_value:
             if active_img is not None:
                 active = active_img
             else:
                 active = active_cross
             active.center = center
-            active.draw_onto(surface)
+            active.draw_onto(target)
 
     def get_local_size(self) -> Tuple[float, float]:
         return self.__shape.get_local_size()

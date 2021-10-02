@@ -7,6 +7,7 @@ import pygame.transform
 from pygame.surface import Surface
 
 from .drawable import Drawable
+from .renderer import Renderer
 from .surface import load_image, save_image
 
 __all__ = ["Image"]
@@ -45,8 +46,10 @@ class Image(Drawable):
     def copy(self) -> Image:
         return Image(self.__default_image)
 
-    def draw_onto(self, surface: Surface) -> None:
-        surface.blit(self.__image, self.topleft)
+    def draw_onto(self, target: Renderer) -> None:
+        image: Surface = self.__image
+        topleft: Tuple[float, float] = self.topleft
+        target.draw(image, topleft)
 
     def get(self, apply_rotation_scale: bool = False) -> Surface:
         if apply_rotation_scale:

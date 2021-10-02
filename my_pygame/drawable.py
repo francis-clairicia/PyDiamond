@@ -6,10 +6,10 @@ from typing import Any, Callable, Dict, List, Optional, Protocol, Tuple, TypeVar
 from functools import wraps
 
 import pygame
-from pygame.surface import Surface
 from pygame.rect import Rect
 from pygame.math import Vector2
 
+from .renderer import Renderer
 from .theme import MetaThemedObject, ThemedObject, abstract_theme_class
 from .utils import MethodWrapper
 
@@ -39,11 +39,11 @@ _ALL_VALID_POSITIONS: Tuple[str, ...] = (
 )
 
 
-def _draw_decorator(func: Callable[[Drawable, Surface], None]) -> Callable[[Drawable, Surface], None]:
+def _draw_decorator(func: Callable[[Drawable, Renderer], None]) -> Callable[[Drawable, Renderer], None]:
     @wraps(func)
-    def wrapper(self: Drawable, surface: Surface) -> None:
+    def wrapper(self: Drawable, /, target: Renderer) -> None:
         if self.is_shown():
-            func(self, surface)
+            func(self, target)
 
     return MethodWrapper(wrapper)
 
@@ -77,7 +77,7 @@ def _position_decorator(position: property) -> property:
 @runtime_checkable
 class SupportsDrawing(Protocol):
     @abstractmethod
-    def draw_onto(self, surface: Surface) -> None:
+    def draw_onto(self, target: Renderer) -> None:
         raise NotImplementedError
 
 
@@ -93,7 +93,7 @@ class MetaDrawable(ABCMeta):
 
                 namespace["copy"] = copy
 
-        draw_method: Optional[Callable[[Drawable, Surface], None]] = namespace.get("draw_onto")
+        draw_method: Optional[Callable[[Drawable, Renderer], None]] = namespace.get("draw_onto")
         if callable(draw_method):
             namespace["draw_onto"] = _draw_decorator(draw_method)
 
@@ -121,7 +121,7 @@ class Drawable(metaclass=MetaDrawable):
         self.__animation: Animation = Animation(self)
 
     @abstractmethod
-    def draw_onto(self, surface: Surface) -> None:
+    def draw_onto(self, target: Renderer) -> None:
         raise NotImplementedError
 
     @abstractmethod

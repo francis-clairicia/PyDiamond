@@ -15,6 +15,7 @@ from pygame.color import Color
 from pygame.surface import Surface
 
 from .drawable import Drawable, ThemedDrawable
+from .renderer import Renderer
 from .theme import NoTheme, ThemeType, abstract_theme_class
 from .colors import BLACK
 from .surface import create_surface
@@ -44,9 +45,10 @@ class AbstractShape(Drawable):
         self.__shape_image: Surface = self.__image.copy()
         self.__local_size: Tuple[float, float] = (0, 0)
 
-    def draw_onto(self, surface: Surface) -> None:
+    def draw_onto(self, target: Renderer) -> None:
         image: Surface = self.__image
-        surface.blit(image, image.get_rect(center=self.center))
+        center: Tuple[float, float] = self.center
+        target.draw(image, image.get_rect(center=center))
 
     def get_local_size(self) -> Tuple[float, float]:
         return self.__local_size

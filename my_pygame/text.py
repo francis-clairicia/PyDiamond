@@ -17,6 +17,7 @@ from pygame.surface import Surface
 from pygame.rect import Rect
 
 from .drawable import ThemedDrawable
+from .renderer import Renderer, SurfaceRenderer
 from .colors import BLACK
 from .theme import NoTheme, ThemeType
 from .surface import create_surface
@@ -79,8 +80,10 @@ class Text(ThemedDrawable):
             theme=NoTheme,
         )
 
-    def draw_onto(self, surface: Surface) -> None:
-        surface.blit(self.__image, self.topleft)
+    def draw_onto(self, target: Renderer) -> None:
+        image: Surface = self.__image
+        topleft: Tuple[float, float] = self.topleft
+        target.draw(image, topleft)
 
     def get_local_size(self) -> Tuple[float, float]:
         return self.__default_image.get_size()
@@ -441,7 +444,7 @@ class TextImage(Text):
         else:
             self.__img.center = text_rect.center = render_rect.center
 
-        self.__img.draw_onto(render)
+        self.__img.draw_onto(SurfaceRenderer(render))
         render.blit(text, text_rect)
 
         return render

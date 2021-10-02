@@ -35,6 +35,7 @@ from pygame.color import Color
 from pygame.event import Event
 
 from .drawable import SupportsDrawing
+from .renderer import SurfaceRenderer
 from .text import Text
 from .colors import BLACK, WHITE
 from .scene import Scene, WindowCallback, _WindowCallbackList
@@ -219,9 +220,10 @@ class Window:
     def refresh(self) -> None:
         screen: Surface = pygame.display.get_surface()
         screen.fill(BLACK)
-        if self.text_framerate.is_shown():
-            if not self.text_framerate.message or self.__framerate_update_clock.elapsed_time(200):
-                self.text_framerate.message = f"{round(self.framerate)} FPS"
+        text_framerate: Text = self.__text_framerate
+        if text_framerate.is_shown():
+            if not text_framerate.message or self.__framerate_update_clock.elapsed_time(200):
+                text_framerate.message = f"{round(self.framerate)} FPS"
             self.draw(self.text_framerate)
         screen.blit(self.__surface, (0, 0))
         pygame.display.flip()
@@ -268,10 +270,11 @@ class Window:
 
     def draw(self, target: Union[SupportsDrawing, Iterable[SupportsDrawing]], *targets: SupportsDrawing) -> None:
         surface: Surface = self.__surface
+        renderer: SurfaceRenderer = SurfaceRenderer(surface)
 
         def draw_target(target: SupportsDrawing) -> None:
             try:
-                target.draw_onto(surface)
+                target.draw_onto(renderer)
             except pygame.error:
                 pass
 
