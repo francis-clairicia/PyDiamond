@@ -7,7 +7,6 @@ from typing import Dict, List, Optional, Tuple, Union
 from math import sin, tan, radians
 from enum import Enum, unique
 
-import pygame.draw
 from pygame.math import Vector2
 from pygame.rect import Rect
 import pygame.transform
@@ -15,7 +14,7 @@ from pygame.color import Color
 from pygame.surface import Surface
 
 from .drawable import Drawable, ThemedDrawable
-from .renderer import Renderer
+from .renderer import Renderer, SurfaceRenderer
 from .theme import NoTheme, ThemeType, abstract_theme_class
 from .colors import BLACK
 from .surface import create_surface
@@ -100,7 +99,7 @@ class AbstractShape(Drawable):
 
             local_center: Vector2 = Vector2(left + w / 2, top + h / 2)
 
-            center: Vector2 = Vector2(self.center)  # type: ignore[arg-type]
+            center: Vector2 = Vector2(self.center)
             for point in all_points:
                 offset: Vector2 = (point - local_center).rotate(-angle)
                 try:
@@ -197,7 +196,7 @@ class PolygonShape(OutlinedShape, ThemedShape):
             return create_surface((0, 0))
 
         w, h = self.get_local_size()
-        image: Surface = create_surface((w, h))
+        image: SurfaceRenderer = SurfaceRenderer((w, h))
 
         center_diff: Vector2 = Vector2(w / 2, h / 2) - self.__center
         for p in all_points:
@@ -207,13 +206,13 @@ class PolygonShape(OutlinedShape, ThemedShape):
         if len(all_points) == 2:
             if outline > 0:
                 start, end = all_points
-                pygame.draw.line(image, self.outline_color, start, end, width=outline)
+                image.draw_line(self.outline_color, start, end, width=outline)
         else:
-            pygame.draw.polygon(image, self.color, all_points)
+            image.draw_polygon(self.color, all_points)
             if outline > 0:
-                pygame.draw.polygon(image, self.outline_color, all_points, width=outline)
+                image.draw_polygon(self.outline_color, all_points, width=outline)
 
-        return image
+        return image.surface
 
     def get_local_vertices(self) -> List[Vector2]:
         return self.points
@@ -228,7 +227,7 @@ class PolygonShape(OutlinedShape, ThemedShape):
     @config.validator("points")
     @staticmethod
     def __valid_points(points: PointList) -> List[Vector2]:
-        points = [Vector2(p) for p in points]  # type: ignore[arg-type]
+        points = [Vector2(p) for p in points]
         left: float = min((point.x for point in points), default=0)
         top: float = min((point.y for point in points), default=0)
         for p in points:
@@ -315,15 +314,15 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, ThemedShape):
         outline: int = self.outline
         w: float = self.local_width
         h: float = self.local_height
-        image: Surface = create_surface(self.get_local_size())
+        image: SurfaceRenderer = SurfaceRenderer(self.get_local_size())
         default_rect: Rect = image.get_rect()
         rect: Rect = Rect(0, 0, w, h)
         rect.center = default_rect.center
         draw_params = self.__draw_params
-        pygame.draw.rect(image, self.color, rect, **draw_params)
+        image.draw_rect(self.color, rect, **draw_params)
         if outline > 0:
-            pygame.draw.rect(image, self.outline_color, rect, width=outline, **draw_params)
-        return image
+            image.draw_rect(self.outline_color, rect, width=outline, **draw_params)
+        return image.surface
 
     config = Configuration(
         "border_radius",
@@ -420,14 +419,14 @@ class CircleShape(AbstractCircleShape, OutlinedShape, ThemedShape):
         outline: int = self.outline
         width, height = self.get_local_size()
         radius += width % 2
-        image: Surface = create_surface((width, height))
+        image: SurfaceRenderer = SurfaceRenderer((width, height))
         width, height = image.get_size()
         center: Tuple[float, float] = (width / 2, height / 2)
         draw_params = self.__draw_params
-        pygame.draw.circle(image, self.color, center, radius, **draw_params)
+        image.draw_circle(self.color, center, radius, **draw_params)
         if outline > 0:
-            pygame.draw.circle(image, self.outline_color, center, radius, width=outline, **draw_params)
-        return image
+            image.draw_circle(self.outline_color, center, radius, width=outline, **draw_params)
+        return image.surface
 
     def get_local_vertices(self) -> List[Vector2]:
         return [Vector2(p) for p in self.__points]
@@ -555,7 +554,7 @@ class CrossShape(OutlinedShape, ThemedShape):
                 return []
 
         line_width /= 2
-        diagonal: Vector2 = Vector2(rect.bottomleft) - Vector2(rect.topright)  # type: ignore[arg-type]
+        diagonal: Vector2 = Vector2(rect.bottomleft) - Vector2(rect.topright)
 
         def compute_width_offset() -> float:
             alpha: float = radians(diagonal.rotate(90).angle_to(Vector2(-1, 0)))

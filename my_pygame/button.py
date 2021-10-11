@@ -447,8 +447,8 @@ class Button(ThemedDrawable, Clickable):
         rect: Rect = Rect((0, 0), self.get_area(apply_rotation=False))
         center: Tuple[float, float] = self.center
         rect.center = int(center[0]), int(center[1])
-        pivot: Vector2 = Vector2(rect.center)  # type: ignore[arg-type]
-        mouse: Vector2 = Vector2(mouse_pos)  # type: ignore[arg-type]
+        pivot: Vector2 = Vector2(rect.center)
+        mouse: Vector2 = Vector2(mouse_pos)
         mouse = pivot + (mouse - pivot).rotate(self.angle)
         return truth(rect.collidepoint(mouse.x, mouse.y))
 

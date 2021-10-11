@@ -68,7 +68,7 @@ class _AnimationSetPosition(_AbstractAnimationClass):
         if not self.ready():
             return
         projection = self.drawable.get_rect(**self.__position)
-        direction = Vector2(projection.center) - Vector2(self.drawable.center)  # type: ignore[arg-type]
+        direction = Vector2(projection.center) - Vector2(self.drawable.center)
         length = direction.length()
         if length > 0 and length > self.__speed:
             direction.scale_to_length(self.__speed)
@@ -85,7 +85,7 @@ class _AnimationMove(_AbstractAnimationClass):
         self, drawable: Drawable, translation: Union[Vector2, Tuple[float, float]], milliseconds: float, speed: float
     ) -> None:
         super().__init__(drawable, milliseconds)
-        self.__vector: Vector2 = Vector2(translation)  # type: ignore[arg-type]
+        self.__vector: Vector2 = Vector2(translation)
         self.__speed: float = speed
         self.__traveled: float = 0
         self.__end: bool = False

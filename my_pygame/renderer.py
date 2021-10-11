@@ -23,7 +23,7 @@ from pygame.math import Vector2
 from .surface import create_surface
 
 
-_Coordinate = Union[Tuple[float, float], List[float], Vector2]
+_Coordinate = Union[Tuple[float, float], Sequence[float], Vector2]
 _ColorValue = Union[Color, str, Tuple[int, int, int], List[int], int, Tuple[int, int, int, int]]
 _ColorInput = Union[Color, str, List[int], Tuple[int, int, int], Tuple[int, int, int, int]]
 _CanBeRect = Union[
