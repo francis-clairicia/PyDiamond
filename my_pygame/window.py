@@ -27,12 +27,13 @@ import pygame
 import pygame.display
 import pygame.event
 import pygame.mixer
+import pygame.time
 
 from pygame.surface import Surface
 from pygame.rect import Rect
-from pygame.time import Clock as _PygameClock
 from pygame.color import Color
 from pygame.event import Event
+from pygame.time import get_ticks
 
 from .drawable import SupportsDrawing
 from .renderer import SurfaceRenderer
@@ -129,15 +130,15 @@ class Window:
         screen: Optional[Surface] = pygame.display.get_surface()
         if screen is None:
             size = (max(size[0], 0), max(size[1], 0))
-            flags: int = pygame.HWSURFACE | pygame.DOUBLEBUF
+            flags: int = 0
             if fullscreen:
                 flags |= pygame.FULLSCREEN
-            screen = pygame.display.set_mode(size, flags=flags, depth=32)
+            screen = pygame.display.set_mode(size, flags=flags)
         self.__surface: Surface = create_surface(screen.get_size())
         self.__rect: Rect = self.__surface.get_rect()
         self.clear_all_events()
 
-        self.__main_clock: _PygameClock = _PygameClock()
+        self.__main_clock: _FramerateManager = _FramerateManager()
 
         self.__framerate_update_clock: Clock = Clock(start=True)
         self.__default_framerate: int = Window.DEFAULT_FRAMERATE
@@ -619,6 +620,41 @@ class Window:
     @property
     def midright(self) -> Tuple[int, int]:
         return self.__rect.midright
+
+
+class _FramerateManager:
+    def __init__(self) -> None:
+        self.__fps: float = 0
+        self.__fps_count: int = 0
+        self.__fps_tick: int = get_ticks()
+        self.__last_tick: int = self.__fps_tick
+
+    def __tick_impl(self, framerate: int, *, use_accurate_delay: bool) -> None:
+        if framerate > 0:
+            tick_time: int = round(1000 / framerate)
+            elapsed: int = get_ticks() - self.__last_tick
+            if elapsed < tick_time:
+                delay: int = tick_time - elapsed
+                if use_accurate_delay:
+                    pygame.time.delay(delay)
+                else:
+                    pygame.time.wait(delay)
+
+        self.__last_tick = get_ticks()
+        self.__fps_count += 1
+        if self.__fps_count >= 10:
+            self.__fps = self.__fps_count / ((get_ticks() - self.__fps_tick) / 1000.0)
+            self.__fps_count = 0
+            self.__fps_tick = get_ticks()
+
+    def tick(self, framerate: int = 0) -> None:
+        return self.__tick_impl(framerate, use_accurate_delay=False)
+
+    def tick_busy_loop(self, framerate: int = 0) -> None:
+        return self.__tick_impl(framerate, use_accurate_delay=True)
+
+    def get_fps(self) -> float:
+        return self.__fps
 
 
 class _SceneManager:

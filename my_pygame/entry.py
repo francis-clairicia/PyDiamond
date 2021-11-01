@@ -217,8 +217,9 @@ class Entry(ThemedDrawable, Clickable):
             if event.key == pygame.K_ESCAPE:
                 self.stop_edit()
             elif event.key == pygame.K_BACKSPACE:
-                text.message = text.message[: cursor - 1] + text.message[cursor:]
-                self.cursor = cursor - 1
+                if cursor > 0:
+                    text.message = text.message[: cursor - 1] + text.message[cursor:]
+                    self.cursor = cursor - 1
             elif event.key == pygame.K_DELETE:
                 text.message = text.message[:cursor] + text.message[cursor + 1 :]
             elif event.key == pygame.K_LEFT:

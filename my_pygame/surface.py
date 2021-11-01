@@ -15,7 +15,7 @@ __all__ = ["Surface", "create_surface", "load_image", "save_image"]
 
 def create_surface(size: Tuple[float, float], *, convert_alpha: bool = True) -> Surface:
     size = (max(size[0], 0), max(size[1], 0))
-    s: Surface = Surface(size, pygame.HWSURFACE, depth=32)
+    s: Surface = Surface(size)
     if convert_alpha:
         s = s.convert_alpha()
         s.fill((0, 0, 0, 0))

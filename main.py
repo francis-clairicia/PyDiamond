@@ -38,12 +38,11 @@ from my_pygame.colors import (
     YELLOW,
     set_brightness,
 )
-from my_pygame.clock import Clock
 
 
 class ShapeScene(MainScene):
     def __init__(self, window: Window) -> None:
-        super().__init__(window, framerate=120)
+        super().__init__(window)
         self.background_color = BLUE_DARK
         # self.__r: RectangleShape = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
         # self.__p: PolygonShape = PolygonShape(WHITE, outline=3, outline_color=RED)
@@ -142,7 +141,7 @@ class ShapeScene(MainScene):
 
 class AnimationScene(MainScene):
     def __init__(self, window: Window) -> None:
-        super().__init__(window, framerate=120)
+        super().__init__(window)
         self.rectangle = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
 
     def on_start_loop(self) -> None:
@@ -167,7 +166,7 @@ class AnimationScene(MainScene):
 
 class GradientScene(Scene):
     def __init__(self, window: Window) -> None:
-        super().__init__(window, framerate=120)
+        super().__init__(window)
         self.background_color = BLUE_DARK
         self.horizontal: HorizontalGradientShape = HorizontalGradientShape(100, 100, RED, YELLOW)
         self.vertical: VerticalGradientShape = VerticalGradientShape(100, 100, RED, YELLOW)
@@ -219,7 +218,7 @@ class Rainbow(AbstractRectangleShape):
 
 class RainbowScene(MainScene):
     def __init__(self, window: Window) -> None:
-        super().__init__(window, framerate=120)
+        super().__init__(window)
         self.rainbow = Rainbow(*window.size)
 
     def on_start_loop(self) -> None:
@@ -234,7 +233,7 @@ class RainbowScene(MainScene):
 
 class TextScene(Scene):
     def __init__(self, window: Window) -> None:
-        super().__init__(window, framerate=120)
+        super().__init__(window)
         self.background_color = BLUE_DARK
         self.text = Text(
             "I'm a text", font=(None, 300), italic=True, color=WHITE, shadow_x=-25, shadow_y=-25, wrap=5, justify="center"
@@ -273,7 +272,7 @@ class FontResources(ResourceManager):
 
 class ResourceScene(MainScene):
     def __init__(self, window: Window) -> None:
-        super().__init__(window, framerate=120)
+        super().__init__(window)
         self.cactus = Sprite(image=ImagesResources.cactus)
         self.cactus.size = 100, 100
         self.cactus.topleft = 20, 20
@@ -286,7 +285,7 @@ class ResourceScene(MainScene):
 
 class AnimatedSpriteScene(MainScene):
     def __init__(self, window: Window) -> None:
-        super().__init__(window, framerate=120)
+        super().__init__(window)
         self.background_color = BLUE_DARK
         self.sprite: AnimatedSprite = AnimatedSprite(*ImagesResources.car)
         self.sprite.start_sprite_animation(loop=True)
@@ -306,7 +305,7 @@ class AnimatedSpriteScene(MainScene):
 
 class EventScene(MainScene):
     def __init__(self, window: Window) -> None:
-        super().__init__(window, framerate=120)
+        super().__init__(window)
         self.background_color = BLUE_DARK
         self.cross: CrossShape = CrossShape(50, 50, type="diagonal", color=RED, outline_color=WHITE, outline=3)
         self.circle: CircleShape = CircleShape(4, color=YELLOW)
@@ -334,7 +333,7 @@ class EventScene(MainScene):
 
 class TextImageScene(MainScene):
     def __init__(self, window: Window) -> None:
-        super().__init__(window, framerate=120)
+        super().__init__(window)
         self.background_color = BLUE_DARK
         self.text: TextImage = TextImage("I'm a text", font=(None, 50), color=WHITE, shadow_x=-5, shadow_y=-5, wrap=5)
         self.text.img = ImagesResources.cactus
@@ -352,7 +351,7 @@ class TextImageScene(MainScene):
 
 class ButtonScene(MainScene):
     def __init__(self, window: Window) -> None:
-        super().__init__(window, framerate=120)
+        super().__init__(window)
         self.background_color = BLUE_DARK
         self.button = Button(
             self,
@@ -388,7 +387,7 @@ class ButtonScene(MainScene):
 
 class CheckBoxScene(MainScene):
     def __init__(self, window: Window) -> None:
-        super().__init__(window, framerate=120)
+        super().__init__(window)
         self.background_color = BLUE_DARK
         self.text = Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
         self.box: CheckBox[int, int] = CheckBox(self, 50, 50, BLUE_LIGHT, off_value=0, on_value=10, callback=self.__set_text)
@@ -409,9 +408,8 @@ class CheckBoxScene(MainScene):
 
 class ProgressScene(MainScene):
     def __init__(self, master: Window) -> None:
-        super().__init__(master, framerate=120)
+        super().__init__(master)
         self.background_color = BLUE_DARK
-        self.clock = Clock()
         self.progress = progress = ProgressBar(500, 75, from_=10, to=90)
         self.restart = restart = ImageButton(
             self, img=ImagesResources.cross, active_img=ImagesResources.cross_hover, callback=self.on_start_loop
@@ -422,13 +420,10 @@ class ProgressScene(MainScene):
         progress.center = self.window.center
         restart.midtop = progress.centerx, progress.bottom + 20
 
+        self.every(20, lambda: progress.config(value=progress.value + 1))
+
     def on_start_loop(self) -> None:
         self.progress.percent = 0
-        self.clock.restart()
-
-    def update(self) -> None:
-        if self.clock.elapsed_time(20):
-            self.progress.value += 1
 
     def draw(self) -> None:
         self.window.draw(self.progress, self.restart)
@@ -436,7 +431,7 @@ class ProgressScene(MainScene):
 
 class ScaleScene(MainScene):
     def __init__(self, master: Window) -> None:
-        super().__init__(master, framerate=120)
+        super().__init__(master)
         self.background_color = BLUE_DARK
         self.text = text = Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
         self.scale = scale = Scale(
@@ -455,7 +450,7 @@ class ScaleScene(MainScene):
 
 class EntryScene(MainScene):
     def __init__(self, master: Window) -> None:
-        super().__init__(master, framerate=120)
+        super().__init__(master)
         self.background_color = BLUE_DARK
         self.entry = entry = Entry(self, font=(None, 70))
 
@@ -492,6 +487,8 @@ class MainWindow(Window):
         super().__init__("my window", (1366, 768))
         self.text_framerate.show()
         self.all_scenes: List[Scene] = []
+        self.set_busy_loop(True)
+        self.set_default_framerate(120)
 
         # Text.set_default_font(FontResources.cooperblack)
 
