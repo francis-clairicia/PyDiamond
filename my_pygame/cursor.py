@@ -40,8 +40,8 @@ class MetaCursor(ABCMeta):
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
     @cache
-    def __call__(cls, *args: Any, **kwds: Any) -> Any:
-        return super().__call__(*args, **kwds)
+    def __call__(cls, *args: Any, **kwargs: Any) -> Any:
+        return super().__call__(*args, **kwargs)
 
 
 class Cursor(metaclass=MetaCursor):

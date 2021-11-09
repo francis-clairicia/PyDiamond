@@ -6,13 +6,14 @@ from operator import truth
 
 from pygame.color import Color
 from pygame.mixer import Sound
-from pygame.event import Event
+
+from my_pygame.event import MouseButtonDownEvent, MouseMotionEvent
 
 from .colors import BLACK, GRAY, WHITE
 from .cursor import Cursor
 from .clickable import Clickable
 from .progress import ProgressBar
-from .theme import NoTheme, ThemeType
+from .theme import ThemeType
 from .scene import Scene
 from .window import Window
 from .configuration import Configuration, initializer
@@ -82,34 +83,6 @@ class Scale(ProgressBar, Clickable):
         self.__percent_callback: Optional[Callable[[float], None]] = percent_callback
         self.set_active_only_on_hover(False)
 
-    def copy(self) -> Scale:
-        return Scale(
-            master=self.master,
-            width=self.local_width,
-            height=self.local_height,
-            from_=self.from_value,
-            to=self.to_value,
-            default=self.value,
-            value_callback=self.__value_callback,
-            percent_callback=self.__percent_callback,
-            state=self.state,
-            hover_sound=self.hover_sound,
-            click_sound=self.click_sound,
-            disabled_sound=self.disabled_sound,
-            hover_cursor=self.hover_cursor,
-            disabled_cursor=self.disabled_cursor,
-            color=self.color,
-            scale_color=self.scale_color,
-            outline=self.outline,
-            outline_color=self.outline_color,
-            border_radius=self.border_radius,
-            border_top_left_radius=self.border_top_left_radius,
-            border_top_right_radius=self.border_top_right_radius,
-            border_bottom_left_radius=self.border_bottom_left_radius,
-            border_bottom_right_radius=self.border_bottom_right_radius,
-            theme=NoTheme,
-        )
-
     def __invoke__(self) -> None:
         callback: Optional[Callable[[float], None]]
 
@@ -124,11 +97,12 @@ class Scale(ProgressBar, Clickable):
     def _mouse_in_hitbox(self, mouse_pos: Tuple[float, float]) -> bool:
         return truth(self.rect.collidepoint(mouse_pos))
 
-    def _on_click_down(self, event: Event) -> None:
+    def _on_click_down(self, event: MouseButtonDownEvent) -> None:
         if self.active:
-            self._on_mouse_motion(event)
+            mouse_pos: Tuple[float, float] = event.pos
+            self.percent = (mouse_pos[0] - self.x) / self.width
 
-    def _on_mouse_motion(self, event: Event) -> None:
+    def _on_mouse_motion(self, event: MouseMotionEvent) -> None:
         mouse_pos: Tuple[float, float] = event.pos
         if self.active:
             self.percent = (mouse_pos[0] - self.x) / self.width

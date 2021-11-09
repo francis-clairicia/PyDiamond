@@ -10,13 +10,13 @@ from .clock import Clock
 from .scene import Scene
 
 if TYPE_CHECKING:
-    from .drawable import Drawable
+    from .transformable import Transformable
     from .window import Window, WindowCallback
 
 
 class _AbstractAnimationClass(metaclass=ABCMeta):
-    def __init__(self, drawable: Drawable, milliseconds: float):
-        self.__drawable: Drawable = drawable
+    def __init__(self, transformable: Transformable, milliseconds: float):
+        self.__transformable: Transformable = transformable
         self.__clock: Clock = Clock()
         self.__milliseconds: float = max(milliseconds, 0)
         self.__animation_started: bool = True
@@ -45,8 +45,8 @@ class _AbstractAnimationClass(metaclass=ABCMeta):
         raise NotImplementedError
 
     @property
-    def drawable(self) -> Drawable:
-        return self.__drawable
+    def transformable(self) -> Transformable:
+        return self.__transformable
 
     @property
     def milliseconds(self) -> float:
@@ -55,9 +55,9 @@ class _AbstractAnimationClass(metaclass=ABCMeta):
 
 class _AnimationSetPosition(_AbstractAnimationClass):
     def __init__(
-        self, drawable: Drawable, milliseconds: float, speed: float, **position: Union[float, Tuple[float, float]]
+        self, transformable: Transformable, milliseconds: float, speed: float, **position: Union[float, Tuple[float, float]]
     ) -> None:
-        super().__init__(drawable, milliseconds)
+        super().__init__(transformable, milliseconds)
         self.__position: Dict[str, Union[float, Tuple[float, float]]] = position
         self.__speed: float = speed
 
@@ -67,24 +67,24 @@ class _AnimationSetPosition(_AbstractAnimationClass):
     def __call__(self) -> None:
         if not self.ready():
             return
-        projection = self.drawable.get_rect(**self.__position)
-        direction = Vector2(projection.center) - Vector2(self.drawable.center)
+        projection = self.transformable.get_rect(**self.__position)
+        direction = Vector2(projection.center) - Vector2(self.transformable.center)
         length = direction.length()
         if length > 0 and length > self.__speed:
             direction.scale_to_length(self.__speed)
-            self.drawable.translate(direction)
+            self.transformable.translate(direction)
         else:
             self.stop()
 
     def default(self) -> None:
-        self.drawable.set_position(**self.__position)
+        self.transformable.set_position(**self.__position)
 
 
 class _AnimationMove(_AbstractAnimationClass):
     def __init__(
-        self, drawable: Drawable, translation: Union[Vector2, Tuple[float, float]], milliseconds: float, speed: float
+        self, transformable: Transformable, translation: Union[Vector2, Tuple[float, float]], milliseconds: float, speed: float
     ) -> None:
-        super().__init__(drawable, milliseconds)
+        super().__init__(transformable, milliseconds)
         self.__vector: Vector2 = Vector2(translation)
         self.__speed: float = speed
         self.__traveled: float = 0
@@ -100,14 +100,14 @@ class _AnimationMove(_AbstractAnimationClass):
         if direction.length() > self.__traveled + self.__speed:
             self.__traveled += self.__speed
             direction.scale_to_length(self.__speed)
-            self.drawable.translate(direction)
+            self.transformable.translate(direction)
         else:
             self.stop()
 
     def default(self) -> None:
         if not self.__end:
             self.__vector.scale_to_length(abs(self.__vector.length() - self.__traveled))
-            self.drawable.translate(self.__vector)
+            self.transformable.translate(self.__vector)
             self.__vector = Vector2(0, 0)
             self.__end = True
 
@@ -115,20 +115,20 @@ class _AnimationMove(_AbstractAnimationClass):
 class _AnimationRotation(_AbstractAnimationClass):
     def __init__(
         self,
-        drawable: Drawable,
+        transformable: Transformable,
         milliseconds: float,
         angle: float,
         offset: float,
         pivot: Union[Vector2, Tuple[float, float], str, None],
     ):
-        super().__init__(drawable, milliseconds)
+        super().__init__(transformable, milliseconds)
         self.__angle: float = abs(angle)
         self.__sign: int = int(angle // abs(angle)) if angle != 0 and offset > 0 else 0
         self.__offset: float = offset * self.__sign if offset > 0 else 0
         self.__actual_angle: float = 0
         self.__pivot: Union[Vector2, Tuple[float, float], None]
         if isinstance(pivot, str):
-            pivot = getattr(self.drawable, pivot)
+            pivot = getattr(self.transformable, pivot)
             if not isinstance(pivot, tuple) or len(pivot) != 2:
                 raise AttributeError(f"Bad pivot attribute: {pivot}")
         self.__pivot = pivot
@@ -141,24 +141,24 @@ class _AnimationRotation(_AbstractAnimationClass):
             return
         if self.__actual_angle + abs(self.__offset) < self.__angle:
             self.__actual_angle += abs(self.__offset)
-            self.drawable.rotate(self.__offset, self.__pivot)
+            self.transformable.rotate(self.__offset, self.__pivot)
         else:
             self.stop()
 
     def default(self) -> None:
         if self.__actual_angle != self.__angle:
-            self.drawable.rotate(abs(self.__angle - self.__actual_angle) * self.__sign, self.__pivot)
+            self.transformable.rotate(abs(self.__angle - self.__actual_angle) * self.__sign, self.__pivot)
             self.__actual_angle = self.__angle
 
 
 class _AnimationScaleSize(_AbstractAnimationClass):
-    def __init__(self, drawable: Drawable, milliseconds: float, field: str, size: float, offset: float):
-        super().__init__(drawable, milliseconds)
+    def __init__(self, transformable: Transformable, milliseconds: float, field: str, size: float, offset: float):
+        super().__init__(transformable, milliseconds)
         self.__size: float = max(size, 0)
         self.__field: str = field
         self.__offset: float
         self.__sign: int
-        self.__actual_size = self.get_drawable_size()
+        self.__actual_size = self.get_transformable_size()
         size_offset = self.__size - self.__actual_size
         if offset == 0 or size_offset == 0:
             self.__offset = self.__sign = 0
@@ -174,33 +174,33 @@ class _AnimationScaleSize(_AbstractAnimationClass):
             return
         self.__actual_size += self.__offset
         if (self.__offset < 0 and self.__actual_size > self.__size) or (self.__offset > 0 and self.__actual_size < self.__size):
-            self.set_drawable_size(self.__actual_size)
+            self.set_transformable_size(self.__actual_size)
         else:
             self.stop()
 
-    def get_drawable_size(self) -> float:
-        return float(getattr(self.drawable, self.__field))
+    def get_transformable_size(self) -> float:
+        return float(getattr(self.transformable, self.__field))
 
-    def set_drawable_size(self, value: float) -> None:
-        setattr(self.drawable, self.__field, value)
+    def set_transformable_size(self, value: float) -> None:
+        setattr(self.transformable, self.__field, value)
 
     def default(self) -> None:
-        self.set_drawable_size(self.__size)
+        self.set_transformable_size(self.__size)
 
 
 class _AnimationScaleWidth(_AnimationScaleSize):
-    def __init__(self, drawable: Drawable, milliseconds: float, width: float, offset: float) -> None:
-        super().__init__(drawable, milliseconds, "width", width, offset)
+    def __init__(self, transformable: Transformable, milliseconds: float, width: float, offset: float) -> None:
+        super().__init__(transformable, milliseconds, "width", width, offset)
 
 
 class _AnimationScaleHeight(_AnimationScaleSize):
-    def __init__(self, drawable: Drawable, milliseconds: float, height: float, offset: float) -> None:
-        super().__init__(drawable, milliseconds, "height", height, offset)
+    def __init__(self, transformable: Transformable, milliseconds: float, height: float, offset: float) -> None:
+        super().__init__(transformable, milliseconds, "height", height, offset)
 
 
 class Animation:
-    def __init__(self, drawable: Drawable):
-        self.__drawable: Drawable = drawable
+    def __init__(self, transformable: Transformable):
+        self.__transformable: Transformable = transformable
         self.__animations_order: List[str] = ["scale_width", "scale_height", "rotate", "rotate_point", "move"]
         self.__animations: Dict[str, Optional[_AbstractAnimationClass]] = dict.fromkeys(self.__animations_order)
         self.__window_callback: Optional[WindowCallback] = None
@@ -210,13 +210,13 @@ class Animation:
     def register_position(
         self, speed: float = 1, milliseconds: float = 10, **position: Union[float, Tuple[float, float]]
     ) -> Animation:
-        self.__animations["move"] = _AnimationSetPosition(self.__drawable, milliseconds, speed, **position)
+        self.__animations["move"] = _AnimationSetPosition(self.__transformable, milliseconds, speed, **position)
         return self
 
     def register_translation(
         self, translation: Union[Vector2, Tuple[float, float]], speed: float = 1, milliseconds: float = 10
     ) -> Animation:
-        self.__animations["move"] = _AnimationMove(self.__drawable, translation, milliseconds, speed)
+        self.__animations["move"] = _AnimationMove(self.__transformable, translation, milliseconds, speed)
         return self
 
     def register_rotation(
@@ -227,7 +227,7 @@ class Animation:
         milliseconds: float = 10,
     ) -> Animation:
         animation = "rotate" if pivot is None else "rotate_point"
-        self.__animations[animation] = _AnimationRotation(self.__drawable, milliseconds, angle, offset, pivot)
+        self.__animations[animation] = _AnimationRotation(self.__transformable, milliseconds, angle, offset, pivot)
         return self
 
     def register_rotation_set(
@@ -241,31 +241,31 @@ class Animation:
         if angle < 0:
             angle += 360
         if offset != 0:
-            if self.__drawable.angle > angle:
+            if self.__transformable.angle > angle:
                 if offset > 0:
                     angle += 360
             else:
                 if offset < 0:
                     angle -= 360
-            angle -= self.__drawable.angle
+            angle -= self.__transformable.angle
         return self.register_rotation(angle, abs(offset), pivot, milliseconds)
 
     def register_width_offset(self, width_offset: float, step: float = 1, milliseconds: float = 10) -> Animation:
-        width: float = self.__drawable.width + width_offset
+        width: float = self.__transformable.width + width_offset
         return self.register_width_set(width, max(step, 0), milliseconds)
 
     def register_width_set(self, width: float, offset: float = 1, milliseconds: float = 10) -> Animation:
         self.__animations.pop("scale_height", None)
-        self.__animations["scale_width"] = _AnimationScaleWidth(self.__drawable, milliseconds, width, offset)
+        self.__animations["scale_width"] = _AnimationScaleWidth(self.__transformable, milliseconds, width, offset)
         return self
 
     def register_height_offset(self, height_offset: float, step: float = 1, milliseconds: float = 10) -> Animation:
-        height: float = self.__drawable.height + height_offset
+        height: float = self.__transformable.height + height_offset
         return self.register_height_set(height, max(step, 0), milliseconds)
 
     def register_height_set(self, height: float, offset: float = 1, milliseconds: float = 10) -> Animation:
         self.__animations.pop("scale_width", None)
-        self.__animations["scale_height"] = _AnimationScaleHeight(self.__drawable, milliseconds, height, offset)
+        self.__animations["scale_height"] = _AnimationScaleHeight(self.__transformable, milliseconds, height, offset)
         return self
 
     def start(self, master: Union[Window, Scene], at_every_frame: Optional[Callable[[], None]] = None) -> None:

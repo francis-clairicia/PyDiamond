@@ -44,9 +44,6 @@ class HorizontalGradientShape(AbstractRectangleShape, GradientShape):
         AbstractRectangleShape.__init__(self, width, height)
         GradientShape.__init__(self, first_color, second_color)
 
-    def copy(self) -> HorizontalGradientShape:
-        return HorizontalGradientShape(self.local_width, self.local_height, self.first_color, self.second_color)
-
     def _make(self) -> Surface:
         size: Tuple[int, int] = (int(self.local_width), int(self.local_height))
         if size[0] == 0 or size[1] == 0:
@@ -61,9 +58,6 @@ class VerticalGradientShape(AbstractRectangleShape, GradientShape):
     def __init__(self, width: float, height: float, first_color: Color, second_color: Color) -> None:
         AbstractRectangleShape.__init__(self, width, height)
         GradientShape.__init__(self, first_color, second_color)
-
-    def copy(self) -> VerticalGradientShape:
-        return VerticalGradientShape(self.local_width, self.local_height, self.first_color, self.second_color)
 
     def _make(self) -> Surface:
         size: Tuple[int, int] = (int(self.local_width), int(self.local_height))
@@ -80,9 +74,6 @@ class SquaredGradientShape(GradientShape):
     def __init__(self, width: float, first_color: Color, second_color: Color) -> None:
         super().__init__(first_color, second_color)
         self.local_width = width
-
-    def copy(self) -> SquaredGradientShape:
-        return SquaredGradientShape(self.local_width, self.first_color, self.second_color)
 
     def _make(self) -> Surface:
         size: int = int(self.local_width)
@@ -112,9 +103,6 @@ class RadialGradientShape(AbstractCircleShape, GradientShape):
     def __init__(self, radius: float, first_color: Color, second_color: Color) -> None:
         AbstractCircleShape.__init__(self, radius)
         GradientShape.__init__(self, first_color, second_color)
-
-    def copy(self) -> RadialGradientShape:
-        return RadialGradientShape(self.radius, self.first_color, self.second_color)
 
     def _make(self) -> Surface:
         radius: int = int(self.radius)

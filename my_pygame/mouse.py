@@ -6,11 +6,11 @@ from operator import truth
 
 import pygame.mouse
 
+from pygame.constants import BUTTON_LEFT, BUTTON_MIDDLE, BUTTON_RIGHT, BUTTON_WHEELDOWN, BUTTON_WHEELUP
+
 __all__ = ["Mouse"]
 
-_MouseButtonState = Tuple[bool, bool, bool]
-
-_MOUSE_BUTTON_STATE: _MouseButtonState = (False, False, False)
+_MOUSE_BUTTON_STATE: Tuple[bool, bool, bool] = (False, False, False)
 
 
 class Mouse:
@@ -53,10 +53,10 @@ class Mouse:
         return pygame.mouse.get_visible()
 
     class Button(IntEnum):
-        LEFT = 1
-        RIGHT = 2
-        MIDDLE = 3
+        LEFT = BUTTON_LEFT
+        RIGHT = BUTTON_RIGHT
+        MIDDLE = BUTTON_MIDDLE
 
-    LEFT = Button.LEFT
-    RIGHT = Button.RIGHT
-    MIDDLE = Button.MIDDLE
+    class Wheel(IntEnum):
+        UP = BUTTON_WHEELUP
+        DOWN = BUTTON_WHEELDOWN

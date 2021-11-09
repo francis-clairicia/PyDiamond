@@ -93,7 +93,18 @@ ThemeType = Union[str, List[str]]
 
 
 class MetaThemedObject(ABCMeta):
-    def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaThemedObject:
+    __virtual_themed_class_bases__: Tuple[MetaThemedObject, ...]
+
+    def __new__(
+        metacls,
+        name: str,
+        bases: Tuple[type, ...],
+        namespace: Dict[str, Any],
+        *,
+        use_parent_theme: bool = True,
+        use_parent_default_theme: bool = True,
+        **kwargs: Any,
+    ) -> MetaThemedObject:
         def check_parameters(func: Callable[..., Any]) -> None:
             sig: Signature = Signature.from_callable(func, follow_wrapped=True)
             parameters: Mapping[str, Parameter] = sig.parameters
@@ -109,22 +120,31 @@ class MetaThemedObject(ABCMeta):
                 if param.default is not None:
                     raise TypeError(f"{func.__qualname__}: 'theme' parameter must have None as default value")
 
-        new_method: Optional[Callable[..., Any]] = namespace.get("__new__")
-        init_method: Optional[Callable[..., None]] = namespace.get("__init__")
-        if new_method is not None:
-            check_parameters(new_method)
-        if init_method is not None:
-            check_parameters(init_method)
+        if "ThemedObject" in globals() and not any(issubclass(cls, ThemedObject) for cls in bases):
+            bases += (ThemedObject,)
 
-        return super().__new__(metacls, name, bases, namespace, **kwargs)
+        if all(not getattr(attr, "__isabstractmethod__", False) for attr in namespace.values()):
+            new_method: Optional[Callable[..., Any]] = namespace.get("__new__")
+            init_method: Optional[Callable[..., None]] = namespace.get("__init__")
+            if new_method is not None:
+                check_parameters(new_method)
+            if init_method is not None:
+                check_parameters(init_method)
 
-    def __init__(cls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwds: Any) -> None:
-        super().__init__(name, bases, namespace, **kwds)
+        cls = super().__new__(metacls, name, bases, namespace, **kwargs)
+        if not use_parent_theme:
+            _CLASSES_NOT_USING_PARENT_THEMES.add(cls)
+            setattr(cls, "__no_parent_theme__", True)
+            use_parent_default_theme = False
+        if not use_parent_default_theme:
+            _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.add(cls)
+            setattr(cls, "__no_parent_default_theme__", True)
         setattr(cls, "__is_abstract_theme_class__", False)
-        cls.__virtual_themed_class_bases__: Tuple[MetaThemedObject, ...] = ()
+        cls.__virtual_themed_class_bases__ = ()
         if all(not isinstance(b, MetaThemedObject) or b.is_abstract_theme_class() for b in bases):
             _CLASSES_NOT_USING_PARENT_THEMES.add(cls)
             _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.add(cls)
+        return cls
 
     def __call__(cls, *args: Any, **kwargs: Any) -> Any:
         create_object: Callable[..., Any] = super().__call__
@@ -139,7 +159,9 @@ class MetaThemedObject(ABCMeta):
         elif isinstance(theme, str):
             theme = [theme]
         else:
-            theme = [str(t) for t in theme]
+            theme = list(theme)
+            if not all(isinstance(t, str) for t in theme):
+                raise TypeError("Themes must be str objects")
 
         default_theme: Tuple[str, ...] = cls.get_default_themes()
         theme_kwargs: Dict[str, Any] = cls.get_theme_options(*default_theme, *theme, ignore_unusable=True)
@@ -332,8 +354,8 @@ class MetaThemedObject(ABCMeta):
                     pass
 
         super().register(subclass)
-        if isinstance(subclass, MetaThemedObject) and not issubclass(subclass, cls):
-            register_themed_subclass(cast(MetaThemedObject, subclass))
+        if isinstance(subclass, MetaThemedObject):
+            register_themed_subclass(cast(MetaThemedObject, subclass))  # type: ignore
         return subclass
 
     @staticmethod
@@ -366,12 +388,4 @@ def abstract_theme_class(cls: _ThemedObjectClass) -> _ThemedObjectClass:
 
 @abstract_theme_class
 class ThemedObject(metaclass=MetaThemedObject):
-    def __init_subclass__(cls, /, *, use_parent_theme: bool = True, use_parent_default_theme: bool = True) -> None:
-        super().__init_subclass__()
-        if not use_parent_theme:
-            _CLASSES_NOT_USING_PARENT_THEMES.add(cls)
-            setattr(cls, "__no_parent_theme__", True)
-            use_parent_default_theme = False
-        if not use_parent_default_theme:
-            _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.add(cls)
-            setattr(cls, "__no_parent_default_theme__", True)
+    pass

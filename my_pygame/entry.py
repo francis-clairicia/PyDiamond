@@ -1,18 +1,16 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
-from typing import Any, Callable, Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 from string import printable as ASCII_PRINTABLE
 
-import pygame
-
 from pygame.color import Color
-from pygame.event import Event
 from pygame.mixer import Sound
 from pygame.font import Font
 from pygame.surface import Surface
 
-from .drawable import ThemedDrawable
+from .drawable import TDrawable, MetaTDrawable
+from .event import Event, KeyDownEvent, TextInputEvent
 from .renderer import Renderer
 from .text import Text, _TextFont
 from .shape import RectangleShape
@@ -22,15 +20,19 @@ from .window import Window
 from .scene import Scene
 from .clock import Clock
 from .cursor import SystemCursor
-from .theme import NoTheme, ThemeType
+from .theme import MetaThemedObject, NoTheme, ThemeType
 from .colors import WHITE, BLACK  # , GRAY
 from .configuration import ConfigAttribute, Configuration, initializer, no_object
 from .utils import valid_float, valid_integer
 
 
+class MetaEntry(MetaTDrawable, MetaThemedObject):
+    pass
+
+
 @Text.register
 @RectangleShape.register
-class Entry(ThemedDrawable, Clickable):
+class Entry(TDrawable, Clickable, metaclass=MetaEntry):
     @initializer
     def __init__(
         self,
@@ -63,7 +65,7 @@ class Entry(ThemedDrawable, Clickable):
         border_bottom_right_radius: int = -1,
         theme: Optional[ThemeType] = None,
     ):
-        ThemedDrawable.__init__(self)
+        TDrawable.__init__(self)
         self.__text: _TextEntry = _TextEntry(
             font=font,
             bold=bold,
@@ -115,35 +117,9 @@ class Entry(ThemedDrawable, Clickable):
         self.__cursor_animated: bool = False
         self.__cursor_animation_clock = Clock()
 
-        key_press_event: Callable[[Event], None] = self.__key_press
-        master.bind_event(pygame.KEYDOWN, key_press_event)
-        master.bind_event(pygame.TEXTINPUT, key_press_event)
-
-    def copy(self) -> Entry:
-        return Entry(
-            master=self.master,
-            max_nb_chars=self.__nb_chars,
-            width=self.__fixed_width,
-            font=self.__text.font,
-            shadow_x=self.__text.shadow_x,
-            shadow_y=self.__text.shadow_y,
-            shadow_color=self.__text.shadow_color,
-            bg=self.__shape.color,
-            fg=self.__text.color,
-            outline=self.__shape.outline,
-            outline_color=self.__shape.outline_color,
-            interval=self.interval,
-            state=self.state,
-            hover_sound=self.hover_sound,
-            click_sound=self.click_sound,
-            disabled_sound=self.disabled_sound,
-            border_radius=self.__shape.border_radius,
-            border_top_left_radius=self.__shape.border_top_left_radius,
-            border_top_right_radius=self.__shape.border_top_right_radius,
-            border_bottom_left_radius=self.__shape.border_bottom_left_radius,
-            border_bottom_right_radius=self.__shape.border_bottom_right_radius,
-            theme=NoTheme,
-        )
+        key_press_event = self.__key_press
+        master.bind_event(Event.Type.KEYDOWN, key_press_event)
+        master.bind_event(Event.Type.TEXTINPUT, key_press_event)
 
     def get_local_size(self) -> Tuple[float, float]:
         return self.__shape.get_local_size()
@@ -205,7 +181,7 @@ class Entry(ThemedDrawable, Clickable):
     def __edit(self) -> bool:
         return Keyboard.IME.text_input_enabled()
 
-    def __key_press(self, event: pygame.event.Event) -> None:
+    def __key_press(self, event: Union[KeyDownEvent, TextInputEvent]) -> None:
         if not self.__edit():
             return
         self.__show_cursor = True
@@ -213,24 +189,24 @@ class Entry(ThemedDrawable, Clickable):
         text: Text = self.__text
         cursor: int = self.__cursor
         max_nb_char: int = self.__nb_chars
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
+        if isinstance(event, KeyDownEvent):
+            if event.key == Keyboard.Key.ESCAPE:
                 self.stop_edit()
-            elif event.key == pygame.K_BACKSPACE:
+            elif event.key == Keyboard.Key.BACKSPACE:
                 if cursor > 0:
                     text.message = text.message[: cursor - 1] + text.message[cursor:]
                     self.cursor = cursor - 1
-            elif event.key == pygame.K_DELETE:
+            elif event.key == Keyboard.Key.DELETE:
                 text.message = text.message[:cursor] + text.message[cursor + 1 :]
-            elif event.key == pygame.K_LEFT:
+            elif event.key == Keyboard.Key.LEFT:
                 self.cursor = cursor - 1
-            elif event.key == pygame.K_RIGHT:
+            elif event.key == Keyboard.Key.RIGHT:
                 self.cursor = cursor + 1
-            elif event.key == pygame.K_HOME:
+            elif event.key == Keyboard.Key.HOME:
                 self.cursor = 0
-            elif event.key == pygame.K_END:
+            elif event.key == Keyboard.Key.END:
                 self.cursor = len(text.message)
-        elif event.type == pygame.TEXTINPUT:
+        elif isinstance(event, TextInputEvent):
             entered_text: str = event.text
             new_text: str = text.message[:cursor] + entered_text + text.message[cursor:]
             if max_nb_char == 0 or len(new_text) <= max_nb_char:
@@ -354,7 +330,7 @@ def _get_entry_size(font: Font, nb_chars: int) -> Tuple[int, int]:
     return font.size(max(ASCII_PRINTABLE, key=lambda char: font.size(char)) * nb_chars)
 
 
-class _TextEntry(Text, no_copy=True):
+class _TextEntry(Text):
     @initializer
     def __init__(
         self,

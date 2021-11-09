@@ -2,7 +2,9 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
+from my_pygame.animation import Animation
 from my_pygame.entry import Entry
+from my_pygame.event import Event, MouseButtonEvent
 from my_pygame.renderer import SurfaceRenderer
 from my_pygame.scale import Scale
 from my_pygame.progress import ProgressBar
@@ -10,8 +12,6 @@ from my_pygame.checkbox import CheckBox
 from my_pygame.button import Button, ImageButton
 from my_pygame.mouse import Mouse
 from typing import Callable, List
-import pygame
-from pygame.event import Event
 from pygame.surface import Surface
 from my_pygame.text import Text, TextImage
 from my_pygame.window import Window, scheduled
@@ -143,25 +143,26 @@ class AnimationScene(MainScene):
     def __init__(self, window: Window) -> None:
         super().__init__(window)
         self.rectangle = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
+        self.animation = Animation(self.rectangle)
 
     def on_start_loop(self) -> None:
         window: Window = self.window
         self.rectangle.angle = 0
         self.rectangle.scale = 1
         self.rectangle.midleft = window.midleft
-        self.rectangle.animation.register_position(center=window.center, speed=3.7)
-        self.rectangle.animation.register_rotation(360, offset=2, pivot=window.center)
-        self.rectangle.animation.register_rotation(360, offset=2)
-        self.rectangle.animation.start_in_background(self, after_animation=self.move_to_left)
+        self.animation.register_position(center=window.center, speed=3.7)
+        self.animation.register_rotation(360, offset=2, pivot=window.center)
+        self.animation.register_rotation(360, offset=2)
+        self.animation.start_in_background(self, after_animation=self.move_to_left)
 
     def draw(self) -> None:
         self.window.draw(self.rectangle)
 
     def move_to_left(self) -> None:
-        self.rectangle.animation.register_rotation_set(270, offset=5)
-        self.rectangle.animation.register_translation((-self.window.centerx / 2, -50), speed=5)
-        self.rectangle.animation.register_width_set(100)
-        self.rectangle.animation.start(self)
+        self.animation.register_rotation_set(270, offset=5)
+        self.animation.register_translation((-self.window.centerx / 2, -50), speed=5)
+        self.animation.register_width_set(100)
+        self.animation.start(self)
 
 
 class GradientScene(Scene):
@@ -201,9 +202,6 @@ class Rainbow(AbstractRectangleShape):
             shape.second_color = set_brightness(shape.second_color, brightness)
         super().__init__(width, height)
 
-    def copy(self) -> Rainbow:
-        return Rainbow(self.local_width, self.local_height)
-
     def _make(self) -> Surface:
         width, height = self.local_size
         gradient_width: float = round(width / len(self.__colors))
@@ -238,11 +236,12 @@ class TextScene(Scene):
         self.text = Text(
             "I'm a text", font=(None, 300), italic=True, color=WHITE, shadow_x=-25, shadow_y=-25, wrap=5, justify="center"
         )
+        self.text_animation = Animation(self.text)
 
     def on_start_loop(self) -> None:
         self.text.angle = 0
         self.text.center = self.window.center
-        self.text.animation.register_rotation(360).start_in_background(self)
+        self.text_animation.register_rotation(360).start_in_background(self)
 
     def draw(self) -> None:
         self.window.draw(self.text)
@@ -290,11 +289,12 @@ class AnimatedSpriteScene(MainScene):
         self.sprite: AnimatedSprite = AnimatedSprite(*ImagesResources.car)
         self.sprite.start_sprite_animation(loop=True)
         self.sprite.ratio = 20
+        self.sprite_move_animation = Animation(self.sprite)
 
     def on_start_loop(self) -> None:
         self.sprite.angle = 0
         self.sprite.center = self.window.center
-        self.sprite.animation.register_rotation(360, offset=2).start_in_background(self)
+        self.sprite_move_animation.register_rotation(360, offset=2).start_in_background(self)
 
     def update(self) -> None:
         self.sprite.update()
@@ -310,7 +310,7 @@ class EventScene(MainScene):
         self.cross: CrossShape = CrossShape(50, 50, type="diagonal", color=RED, outline_color=WHITE, outline=3)
         self.circle: CircleShape = CircleShape(4, color=YELLOW)
         self.bind_mouse_position(lambda pos: self.cross.set_position(center=pos))
-        self.bind_mouse_button(Mouse.LEFT, self.__switch_color)
+        self.bind_mouse_button(Mouse.Button.LEFT, self.__switch_color)
 
     def on_start_loop(self) -> None:
         Mouse.hide_cursor()
@@ -324,10 +324,10 @@ class EventScene(MainScene):
     def draw(self) -> None:
         self.window.draw(self.cross, self.circle)
 
-    def __switch_color(self, event: Event) -> None:
-        if event.type == pygame.MOUSEBUTTONDOWN:
+    def __switch_color(self, event: MouseButtonEvent) -> None:
+        if event.type == Event.Type.MOUSEBUTTONDOWN:
             self.cross.color = YELLOW
-        elif event.type == pygame.MOUSEBUTTONUP:
+        elif event.type == Event.Type.MOUSEBUTTONUP:
             self.cross.color = RED
 
 
@@ -339,11 +339,12 @@ class TextImageScene(MainScene):
         self.text.img = ImagesResources.cactus
         self.text.img_scale_to_size((100, 100))
         self.text.center = window.center
+        self.text_animation = Animation(self.text)
 
     def on_start_loop(self) -> None:
         self.text.angle = 0
         self.text.scale = 1
-        self.text.animation.register_rotation(360).register_width_offset(100).start_in_background(self)
+        self.text_animation.register_rotation(360).register_width_offset(100).start_in_background(self)
 
     def draw(self) -> None:
         self.window.draw(self.text)
@@ -369,13 +370,14 @@ class ButtonScene(MainScene):
         )
         self.cancel.center = window.center
         self.cancel.move(450, 0)
+        self.button_animation = Animation(self.button)
 
     def on_start_loop(self) -> None:
         self.counter = 0
         self.button.text = "0"
         self.button.scale = 1
         self.button.angle = 0
-        self.button.animation.register_width_offset(100).register_rotation(360 + 30, offset=3).start_in_background(self)
+        self.button_animation.register_width_offset(100).register_rotation(360 + 30, offset=3).start_in_background(self)
 
     def __increase_counter(self) -> None:
         self.counter += 1

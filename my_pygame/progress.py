@@ -94,25 +94,6 @@ class ProgressBar(RectangleShape):
         self.hide_label()
         self.hide_value()
 
-    def copy(self) -> ProgressBar:
-        return ProgressBar(
-            width=self.local_width,
-            height=self.local_height,
-            from_=self.__start,
-            to=self.__end,
-            default=self.__value,
-            color=self.color,
-            scale_color=self.scale_color,
-            outline=self.outline,
-            outline_color=self.outline_color,
-            border_radius=self.border_radius,
-            border_top_left_radius=self.border_top_left_radius,
-            border_top_right_radius=self.border_top_right_radius,
-            border_bottom_left_radius=self.border_bottom_left_radius,
-            border_bottom_right_radius=self.border_bottom_right_radius,
-            theme=NoTheme,
-        )
-
     def draw_onto(self, target: Renderer) -> None:
         scale_rect: RectangleShape = self.__scale_rect
         outline_rect: RectangleShape = self.__outline_rect

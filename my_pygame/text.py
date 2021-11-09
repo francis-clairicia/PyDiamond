@@ -16,10 +16,10 @@ from pygame.color import Color
 from pygame.surface import Surface
 from pygame.rect import Rect
 
-from .drawable import ThemedDrawable
+from .drawable import TDrawable, MetaTDrawable
 from .renderer import Renderer, SurfaceRenderer
 from .colors import BLACK
-from .theme import NoTheme, ThemeType
+from .theme import MetaThemedObject, ThemeType
 from .surface import create_surface
 from .image import Image
 from .configuration import ConfigAttribute, Configuration, initializer, no_object
@@ -30,7 +30,11 @@ __all__ = ["Text", "TextImage"]
 _TextFont = Union[Font, Tuple[Optional[str], int]]
 
 
-class Text(ThemedDrawable):
+class MetaText(MetaTDrawable, MetaThemedObject):
+    pass
+
+
+class Text(TDrawable, metaclass=MetaText):
     @unique
     class Justify(str, Enum):
         LEFT = "left"
@@ -66,19 +70,6 @@ class Text(ThemedDrawable):
         self.justify = justify
         self.shadow = (shadow_x, shadow_y)
         self.shadow_color = shadow_color
-
-    def copy(self) -> Text:
-        return Text(
-            message=self.message,
-            font=self.font,
-            color=self.color,
-            wrap=self.wrap,
-            justify=self.justify,
-            shadow_x=self.shadow_x,
-            shadow_y=self.shadow_y,
-            shadow_color=self.shadow_color,
-            theme=NoTheme,
-        )
 
     def draw_onto(self, target: Renderer) -> None:
         image: Surface = self.__image
@@ -317,25 +308,6 @@ class TextImage(Text):
         self.compound = compound
         self.distance = distance
 
-    def copy(self) -> TextImage:
-        t: TextImage = TextImage(
-            message=self.message,
-            img=self.__img.get() if self.__img is not None else None,
-            compound=self.__compound,
-            font=self.font,
-            color=self.color,
-            wrap=self.wrap,
-            justify=self.justify,
-            shadow_x=self.shadow_x,
-            shadow_y=self.shadow_y,
-            shadow_color=self.shadow_color,
-            theme=NoTheme,
-        )
-        if self.__img is not None:
-            t.img_set_rotation(self.__img_angle)
-            t.img_set_scale(self.__img_scale)
-        return t
-
     def get_img_angle(self) -> float:
         return self.__img_angle
 
@@ -484,7 +456,7 @@ class TextImage(Text):
     distance: ConfigAttribute[float] = ConfigAttribute()
 
 
-class _BoundImage(Image, no_copy=True):
+class _BoundImage(Image):
     def __init__(self, text: TextImage, image: Surface) -> None:
         super().__init__(image)
         self.__text: TextImage = text

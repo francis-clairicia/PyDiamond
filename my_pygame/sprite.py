@@ -11,7 +11,7 @@ from pygame.rect import Rect
 from pygame.sprite import Sprite as _PygameSprite
 from pygame.mask import Mask
 
-from .drawable import Drawable
+from .drawable import TDrawable
 from .renderer import Renderer
 from .surface import create_surface
 from .clock import Clock
@@ -19,9 +19,9 @@ from .clock import Clock
 __all__ = ["Sprite", "AnimatedSprite"]
 
 
-class Sprite(Drawable, _PygameSprite):
+class Sprite(TDrawable, _PygameSprite):
     def __init__(self, image: Optional[Surface] = None, mask_threshold: int = 127) -> None:
-        Drawable.__init__(self)
+        TDrawable.__init__(self)
         _PygameSprite.__init__(self)
         self.__default_image: Surface = image.copy() if image is not None else create_surface((0, 0))
         self.__image: Surface = self.__default_image.copy()
@@ -29,9 +29,6 @@ class Sprite(Drawable, _PygameSprite):
         self.__mask: Mask
         self.__smooth_scale: bool = False
         self.set_mask_threshold(mask_threshold)
-
-    def copy(self) -> Sprite:
-        return Sprite(self.__default_image, mask_threshold=self.__mask_threshold)
 
     def update(self, *args: Any, **kwargs: Any) -> None:
         pass
@@ -105,7 +102,7 @@ class Sprite(Drawable, _PygameSprite):
 
 
 class AnimatedSprite(Sprite):
-    __AnimatedSpriteVar = TypeVar("__AnimatedSpriteVar", bound="AnimatedSprite")
+    __T = TypeVar("__T", bound="AnimatedSprite")
 
     def __init__(self, image: Surface, *images: Surface, mask_threshold: int = 127) -> None:
         super().__init__(image=image, mask_threshold=mask_threshold)
@@ -116,19 +113,12 @@ class AnimatedSprite(Sprite):
         self.__animation: bool = False
         self.__loop: bool = False
 
-    def copy(self) -> AnimatedSprite:
-        return AnimatedSprite(*self.__list, mask_threshold=self.get_mask_threshold())
-
     @classmethod
-    def from_iterable(
-        cls: Type[__AnimatedSpriteVar], iterable: Iterable[Surface], *, mask_threshold: int = 127
-    ) -> __AnimatedSpriteVar:
+    def from_iterable(cls: Type[__T], iterable: Iterable[Surface], *, mask_threshold: int = 127) -> __T:
         return cls(*iterable, mask_threshold=mask_threshold)
 
     @classmethod
-    def from_spritesheet(
-        cls: Type[__AnimatedSpriteVar], img: Surface, rect_list: List[Rect], *, mask_threshold: int = 127
-    ) -> __AnimatedSpriteVar:
+    def from_spritesheet(cls: Type[__T], img: Surface, rect_list: List[Rect], *, mask_threshold: int = 127) -> __T:
         return cls.from_iterable((img.subsurface(rect).copy() for rect in rect_list), mask_threshold=mask_threshold)
 
     def update(self, *args: Any, **kwargs: Any) -> None:
@@ -137,6 +127,7 @@ class AnimatedSprite(Sprite):
             self.default_image = self.__list[sprite_idx]
             if sprite_idx == 0 and not self.__loop:
                 self.stop_sprite_animation(reset=True)
+        super().update(*args, **kwargs)
 
     def is_sprite_animating(self) -> bool:
         return self.__animation

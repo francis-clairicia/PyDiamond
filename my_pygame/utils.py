@@ -29,9 +29,9 @@ class MethodWrapper:
         func: Any = self.__wrapped__
         setattr(func, name, value)
 
-    def __call__(self, *args: Any, **kwds: Any) -> Any:
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         func: Callable[..., Any] = self.__wrapped__ if self.__call_wrapped else self.__func__
-        return func(*args, **kwds)
+        return func(*args, **kwargs)
 
     def __get__(self, obj: object, objtype: Optional[type] = None) -> Callable[..., Any]:
         func: Callable[..., Any] = self.__wrapped__ if obj is None else self.__func__

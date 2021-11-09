@@ -12,7 +12,7 @@ from pygame.mixer import Sound
 from pygame.rect import Rect
 from pygame.surface import Surface
 
-from .drawable import ThemedDrawable
+from .drawable import TDrawable, MetaTDrawable
 from .renderer import Renderer
 from .clickable import Clickable
 from .shape import RectangleShape
@@ -20,7 +20,7 @@ from .text import TextImage, _TextFont
 from .window import Window
 from .scene import Scene
 from .colors import TRANSPARENT, WHITE, GRAY, GRAY_LIGHT, GRAY_DARK, BLACK
-from .theme import NoTheme, ThemeType
+from .theme import MetaThemedObject, NoTheme, ThemeType
 from .cursor import Cursor
 from .image import Image
 from .configuration import ConfigAttribute, Configuration, initializer, no_object
@@ -75,9 +75,13 @@ def _copy_img(surface: Optional[Surface], default: Optional[Surface] = None) -> 
     return surface.copy() if surface is not None else (None if default is None else _copy_img(default))
 
 
+class MetaButton(MetaTDrawable, MetaThemedObject):
+    pass
+
+
 @TextImage.register
 @RectangleShape.register
-class Button(ThemedDrawable, Clickable):
+class Button(TDrawable, Clickable, metaclass=MetaButton):
     Justify = TextImage.Justify
     Compound = TextImage.Compound
 
@@ -167,7 +171,7 @@ class Button(ThemedDrawable, Clickable):
         border_bottom_right_radius: int = -1,
         theme: Optional[ThemeType] = None
     ) -> None:
-        ThemedDrawable.__init__(self)
+        TDrawable.__init__(self)
         Clickable.__init__(
             self,
             master=master,
@@ -257,65 +261,6 @@ class Button(ThemedDrawable, Clickable):
         self.text_offset = text_offset
         self.text_hover_offset = text_hover_offset
         self.text_active_offset = text_active_offset
-
-    def copy(self) -> Button:
-        b: Button = Button(
-            master=self.master,
-            text=self.__text.message,
-            img=self.__img_dict[Clickable.State.NORMAL]["normal"],
-            compound=self.__text.compound,
-            distance_text_img=self.__text.distance,
-            font=self.__text.font,
-            wrap=self.__text.wrap,
-            justify=self.__text.justify,
-            shadow_x=self.__text.shadow_x,
-            shadow_y=self.__text.shadow_y,
-            shadow_color=self.__text.shadow_color,
-            callback=self.callback,
-            state=self.state,
-            width=self.fixed_width,
-            height=self.fixed_height,
-            x_add_size=self.x_add_size,
-            y_add_size=self.y_add_size,
-            show_bg=self.__shape.is_shown(),
-            bg=self.__bg_dict[Clickable.State.NORMAL]["normal"],
-            fg=self.__fg_dict[Clickable.State.NORMAL]["normal"],
-            outline=self.__shape.outline,
-            outline_color=self.__shape.outline_color,
-            hover_bg=self.__bg_dict[Clickable.State.NORMAL]["hover"],
-            hover_fg=self.__fg_dict[Clickable.State.NORMAL]["hover"],
-            hover_sound=self.hover_sound,
-            active_bg=self.__bg_dict[Clickable.State.NORMAL]["active"],
-            active_fg=self.__fg_dict[Clickable.State.NORMAL]["active"],
-            click_sound=self.click_sound,
-            disabled_bg=self.__bg_dict[Clickable.State.DISABLED]["normal"],
-            disabled_fg=self.__fg_dict[Clickable.State.DISABLED]["normal"],
-            disabled_sound=self.disabled_sound,
-            disabled_hover_bg=self.__bg_dict[Clickable.State.DISABLED]["hover"],
-            disabled_hover_fg=self.__fg_dict[Clickable.State.DISABLED]["hover"],
-            disabled_active_bg=self.__bg_dict[Clickable.State.DISABLED]["active"],
-            disabled_active_fg=self.__fg_dict[Clickable.State.DISABLED]["active"],
-            hover_img=self.__img_dict[Clickable.State.NORMAL]["hover"],
-            active_img=self.__img_dict[Clickable.State.NORMAL]["active"],
-            disabled_img=self.__img_dict[Clickable.State.DISABLED]["normal"],
-            disabled_hover_img=self.__img_dict[Clickable.State.DISABLED]["hover"],
-            disabled_active_img=self.__img_dict[Clickable.State.DISABLED]["active"],
-            hover_cursor=self.hover_cursor,
-            disabled_cursor=self.disabled_cursor,
-            text_align_x=self.__text_align_x,
-            text_align_y=self.__text_align_y,
-            text_offset=self.text_offset,
-            text_hover_offset=self.text_hover_offset,
-            text_active_offset=self.text_active_offset,
-            border_radius=self.__shape.border_radius,
-            border_top_left_radius=self.__shape.border_top_left_radius,
-            border_top_right_radius=self.__shape.border_top_right_radius,
-            border_bottom_left_radius=self.__shape.border_bottom_left_radius,
-            border_bottom_right_radius=self.__shape.border_bottom_right_radius,
-            theme=NoTheme,
-        )
-        b.img_set_scale(self.__text.get_img_scale())
-        return b
 
     def draw_onto(self, target: Renderer) -> None:
         angle: float = self.angle
@@ -859,7 +804,7 @@ class Button(ThemedDrawable, Clickable):
 
 
 @Button.register
-class ImageButton(ThemedDrawable, Clickable):
+class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     @initializer
     def __init__(
         self,
@@ -899,7 +844,7 @@ class ImageButton(ThemedDrawable, Clickable):
         border_bottom_right_radius: int = -1,
         theme: Optional[ThemeType] = None
     ) -> None:
-        ThemedDrawable.__init__(self)
+        TDrawable.__init__(self)
         Clickable.__init__(
             self,
             master=master,
@@ -953,42 +898,6 @@ class ImageButton(ThemedDrawable, Clickable):
         }
         self.hover_offset = hover_offset
         self.active_offset = active_offset
-
-    def copy(self) -> ImageButton:
-        return ImageButton(
-            master=self.master,
-            img=self.__img_dict[Clickable.State.NORMAL]["normal"],
-            callback=self.callback,
-            state=self.state,
-            x_add_size=self.x_add_size,
-            y_add_size=self.y_add_size,
-            bg=self.__bg_dict[Clickable.State.NORMAL]["normal"],
-            outline=self.__shape.outline,
-            outline_color=self.__shape.outline_color,
-            hover_bg=self.__bg_dict[Clickable.State.NORMAL]["hover"],
-            active_bg=self.__bg_dict[Clickable.State.NORMAL]["active"],
-            disabled_bg=self.__bg_dict[Clickable.State.DISABLED]["normal"],
-            disabled_hover_bg=self.__bg_dict[Clickable.State.DISABLED]["hover"],
-            disabled_active_bg=self.__bg_dict[Clickable.State.DISABLED]["active"],
-            hover_sound=self.hover_sound,
-            click_sound=self.click_sound,
-            disabled_sound=self.disabled_sound,
-            hover_img=self.__img_dict[Clickable.State.NORMAL]["hover"],
-            active_img=self.__img_dict[Clickable.State.NORMAL]["active"],
-            disabled_img=self.__img_dict[Clickable.State.DISABLED]["normal"],
-            disabled_hover_img=self.__img_dict[Clickable.State.DISABLED]["hover"],
-            disabled_active_img=self.__img_dict[Clickable.State.DISABLED]["active"],
-            hover_cursor=self.hover_cursor,
-            disabled_cursor=self.disabled_cursor,
-            hover_offset=self.hover_offset,
-            active_offset=self.active_offset,
-            border_radius=self.__shape.border_radius,
-            border_top_left_radius=self.__shape.border_top_left_radius,
-            border_top_right_radius=self.__shape.border_top_right_radius,
-            border_bottom_left_radius=self.__shape.border_bottom_left_radius,
-            border_bottom_right_radius=self.__shape.border_bottom_right_radius,
-            theme=NoTheme,
-        )
 
     def draw_onto(self, target: Renderer) -> None:
         scale: float = self.scale

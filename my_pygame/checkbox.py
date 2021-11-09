@@ -8,7 +8,7 @@ from pygame.color import Color
 from pygame.mixer import Sound
 from pygame.surface import Surface
 
-from .drawable import Drawable, ThemedDrawable
+from .drawable import TDrawable, MetaTDrawable
 from .renderer import Renderer
 from .clickable import Clickable
 from .colors import BLACK
@@ -17,7 +17,7 @@ from .scene import Scene
 from .shape import RectangleShape, DiagonalCrossShape
 from .image import Image
 from .cursor import Cursor
-from .theme import NoTheme, ThemeType
+from .theme import MetaThemedObject, NoTheme, ThemeType
 from .configuration import ConfigAttribute, Configuration
 
 __all__ = ["CheckBox", "BooleanCheckBox"]
@@ -28,8 +28,12 @@ _OffValue = TypeVar("_OffValue")
 NoDefaultValue: Any = object()
 
 
+class MetaCheckBox(MetaTDrawable, MetaThemedObject):
+    pass
+
+
 @RectangleShape.register
-class CheckBox(ThemedDrawable, Clickable, Generic[_OnValue, _OffValue]):
+class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=MetaCheckBox):
     def __init__(
         self,
         master: Union[Scene, Window],
@@ -62,7 +66,7 @@ class CheckBox(ThemedDrawable, Clickable, Generic[_OnValue, _OffValue]):
     ) -> None:
         if on_value == off_value:
             raise ValueError("'On' value and 'Off' value are identical")
-        ThemedDrawable.__init__(self)
+        TDrawable.__init__(self)
         Clickable.__init__(
             self,
             master=master,
@@ -101,37 +105,10 @@ class CheckBox(ThemedDrawable, Clickable, Generic[_OnValue, _OffValue]):
         if callback_at_init and callable(callback):
             callback(self.__value)
 
-    def copy(self) -> CheckBox[_OnValue, _OffValue]:
-        return CheckBox(
-            master=self.master,
-            width=self.__shape.local_width,
-            height=self.__shape.local_height,
-            color=self.__shape.color,
-            off_value=self.__off_value,
-            on_value=self.__on_value,
-            value=self.__value,
-            outline=self.__shape.outline,
-            outline_color=self.__shape.outline_color,
-            img=self.__active_img.get() if self.__active_img is not None else None,
-            callback=self.__on_changed_value,
-            state=self.state,
-            hover_cursor=self.hover_cursor,
-            disabled_cursor=self.disabled_cursor,
-            hover_sound=self.hover_sound,
-            click_sound=self.click_sound,
-            disabled_sound=self.disabled_sound,
-            border_radius=self.border_radius,
-            border_top_left_radius=self.border_top_left_radius,
-            border_top_right_radius=self.border_top_right_radius,
-            border_bottom_left_radius=self.border_bottom_left_radius,
-            border_bottom_right_radius=self.border_bottom_right_radius,
-            theme=NoTheme,
-        )
-
     def draw_onto(self, target: Renderer) -> None:
         shape: RectangleShape = self.__shape
         active_img: Optional[Image] = self.__active_img
-        active: Drawable
+        active: TDrawable
         active_cross: DiagonalCrossShape = self.__cross
 
         shape.center = center = self.center
@@ -310,31 +287,4 @@ class BooleanCheckBox(CheckBox[bool, bool]):
             border_bottom_left_radius=border_bottom_left_radius,
             border_bottom_right_radius=border_bottom_right_radius,
             theme=theme,
-        )
-
-    def copy(self) -> BooleanCheckBox:
-        return BooleanCheckBox(
-            master=self.master,
-            width=self.local_width,
-            height=self.local_height,
-            color=self.color,
-            off_value=self.off_value,
-            on_value=self.on_value,
-            value=self.value,
-            outline=self.outline,
-            outline_color=self.outline_color,
-            img=self.img,
-            callback=self.callback,
-            state=self.state,
-            hover_cursor=self.hover_cursor,
-            disabled_cursor=self.disabled_cursor,
-            hover_sound=self.hover_sound,
-            click_sound=self.click_sound,
-            disabled_sound=self.disabled_sound,
-            border_radius=self.border_radius,
-            border_top_left_radius=self.border_top_left_radius,
-            border_top_right_radius=self.border_top_right_radius,
-            border_bottom_left_radius=self.border_bottom_left_radius,
-            border_bottom_right_radius=self.border_bottom_right_radius,
-            theme=NoTheme,
         )

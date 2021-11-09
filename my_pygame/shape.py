@@ -13,9 +13,9 @@ import pygame.transform
 from pygame.color import Color
 from pygame.surface import Surface
 
-from .drawable import Drawable, ThemedDrawable
+from .drawable import TDrawable, MetaTDrawable
 from .renderer import Renderer, SurfaceRenderer
-from .theme import NoTheme, ThemeType, abstract_theme_class
+from .theme import MetaThemedObject, ThemeType, abstract_theme_class
 from .colors import BLACK
 from .surface import create_surface
 from .configuration import ConfigAttribute, ConfigTemplate, Configuration, initializer, no_object
@@ -37,7 +37,15 @@ __all__ = [
 ]
 
 
-class AbstractShape(Drawable):
+class MetaShape(MetaTDrawable):
+    pass
+
+
+class MetaThemedShape(MetaShape, MetaThemedObject):
+    pass
+
+
+class AbstractShape(TDrawable, metaclass=MetaShape):
     def __init__(self) -> None:
         super().__init__()
         self.__image: Surface = create_surface((0, 0))
@@ -142,7 +150,7 @@ class Shape(AbstractShape):
 
 
 @abstract_theme_class
-class ThemedShape(AbstractShape, ThemedDrawable):
+class ThemedShape(AbstractShape, metaclass=MetaThemedShape):
     pass
 
 
@@ -184,9 +192,6 @@ class PolygonShape(OutlinedShape, ThemedShape):
         super().__init__(color, outline, outline_color)
         self.__center: Vector2 = Vector2(0, 0)
         self.points = points
-
-    def copy(self) -> PolygonShape:
-        return PolygonShape(self.color, outline=self.outline, outline_color=self.outline_color, points=self.points, theme=NoTheme)
 
     def _make(self) -> Surface:
         outline: int = self.outline
@@ -299,17 +304,6 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, ThemedShape):
         self.border_bottom_left_radius = border_bottom_left_radius
         self.border_bottom_right_radius = border_bottom_right_radius
 
-    def copy(self) -> RectangleShape:
-        return RectangleShape(
-            self.local_width,
-            self.local_height,
-            self.color,
-            outline=self.outline,
-            outline_color=self.outline_color,
-            **self.__draw_params,
-            theme=NoTheme,
-        )
-
     def _make(self) -> Surface:
         outline: int = self.outline
         w: float = self.local_width
@@ -408,11 +402,6 @@ class CircleShape(AbstractCircleShape, OutlinedShape, ThemedShape):
         self.draw_top_right = draw_top_right
         self.draw_bottom_left = draw_bottom_left
         self.draw_bottom_right = draw_bottom_right
-
-    def copy(self) -> CircleShape:
-        return CircleShape(
-            self.radius, self.color, outline=self.outline, outline_color=self.outline_color, **self.__draw_params, theme=NoTheme
-        )
 
     def _make(self) -> Surface:
         radius: float = self.radius
@@ -521,18 +510,6 @@ class CrossShape(OutlinedShape, ThemedShape):
         self.__points: List[Vector2] = []
         self.local_size = width, height
         self.line_width = line_width
-
-    def copy(self) -> CrossShape:
-        return CrossShape(
-            self.local_width,
-            self.local_height,
-            self.color,
-            self.type,
-            line_width=self.line_width,
-            outline=self.outline,
-            outline_color=self.outline_color,
-            theme=NoTheme,
-        )
 
     def _make(self) -> Surface:
         p = PolygonShape(self.color, outline=self.outline, outline_color=self.outline_color, points=self.__points)
@@ -673,17 +650,6 @@ class DiagonalCrossShape(CrossShape):
             theme=theme,
         )
 
-    def copy(self) -> DiagonalCrossShape:
-        return DiagonalCrossShape(
-            self.local_width,
-            self.local_height,
-            self.color,
-            line_width=self.line_width,
-            outline=self.outline,
-            outline_color=self.outline_color,
-            theme=NoTheme,
-        )
-
 
 class PlusCrossShape(CrossShape):
     def __init__(
@@ -706,15 +672,4 @@ class PlusCrossShape(CrossShape):
             outline_color=outline_color,
             outline=outline,
             theme=theme,
-        )
-
-    def copy(self) -> PlusCrossShape:
-        return PlusCrossShape(
-            self.local_width,
-            self.local_height,
-            self.color,
-            line_width=self.line_width,
-            outline=self.outline,
-            outline_color=self.outline_color,
-            theme=NoTheme,
         )

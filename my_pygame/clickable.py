@@ -1,16 +1,20 @@
 # -*- coding: Utf-8 -*
 
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 from typing import Dict, Optional, Tuple, Union
 from enum import Enum, unique
 from operator import truth
 
-import pygame
-
-from pygame.event import Event
 from pygame.mixer import Sound
 
 from .scene import Scene
+from .event import (
+    Event,
+    MouseButtonDownEvent,
+    MouseButtonEvent,
+    MouseButtonUpEvent,
+    MouseMotionEvent,
+)
 from .window import Window
 from .mouse import Mouse
 from .drawable import Drawable
@@ -19,7 +23,7 @@ from .cursor import Cursor, SystemCursor
 __all__ = ["Clickable"]
 
 
-class Clickable(metaclass=ABCMeta):
+class Clickable:
     @unique
     class State(str, Enum):
         NORMAL = "normal"
@@ -65,9 +69,9 @@ class Clickable(metaclass=ABCMeta):
         self.hover_sound = hover_sound
         self.click_sound = click_sound
         self.disabled_sound = disabled_sound
-        master.bind_event(pygame.MOUSEBUTTONDOWN, self.__handle_click_event)
-        master.bind_event(pygame.MOUSEBUTTONUP, self.__handle_click_event)
-        master.bind_event(pygame.MOUSEMOTION, self._on_mouse_motion)
+        master.bind_event(Event.Type.MOUSEBUTTONDOWN, self.__handle_click_event)
+        master.bind_event(Event.Type.MOUSEBUTTONUP, self.__handle_click_event)
+        master.bind_event(Event.Type.MOUSEMOTION, self._on_mouse_motion)
         master.bind_mouse_position(self.__handle_mouse_position)
 
     @abstractmethod
@@ -99,17 +103,17 @@ class Clickable(metaclass=ABCMeta):
     def set_active_only_on_hover(self, status: bool) -> None:
         self.__active_only_on_hover = truth(status)
 
-    def __handle_click_event(self, event: Event) -> None:
+    def __handle_click_event(self, event: MouseButtonEvent) -> None:
         if isinstance(self, Drawable) and not self.is_shown():
             return
 
-        valid_click: bool = truth(event.button == Mouse.LEFT and self._mouse_in_hitbox(event.pos))
+        valid_click: bool = truth(event.button == Mouse.Button.LEFT and self._mouse_in_hitbox(event.pos))
 
-        if event.type == pygame.MOUSEBUTTONDOWN:
+        if isinstance(event, MouseButtonDownEvent):
             if valid_click:
                 self.active = True
                 self._on_click_down(event)
-        elif event.type == pygame.MOUSEBUTTONUP:
+        elif isinstance(event, MouseButtonUpEvent):
             active, self.active = self.active, False
             if not active:
                 return
@@ -134,13 +138,13 @@ class Clickable(metaclass=ABCMeta):
     def _on_change_state(self) -> None:
         pass
 
-    def _on_click_down(self, event: Event) -> None:
+    def _on_click_down(self, event: MouseButtonDownEvent) -> None:
         pass
 
-    def _on_click_up(self, event: Event) -> None:
+    def _on_click_up(self, event: MouseButtonUpEvent) -> None:
         pass
 
-    def _on_mouse_motion(self, event: Event) -> None:
+    def _on_mouse_motion(self, event: MouseMotionEvent) -> None:
         pass
 
     def _on_hover(self) -> None:

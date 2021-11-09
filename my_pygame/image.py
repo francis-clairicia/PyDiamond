@@ -6,14 +6,14 @@ from typing import Optional, Tuple, Union, overload
 import pygame.transform
 from pygame.surface import Surface
 
-from .drawable import Drawable
+from .drawable import TDrawable
 from .renderer import Renderer
 from .surface import load_image, save_image
 
 __all__ = ["Image"]
 
 
-class Image(Drawable):
+class Image(TDrawable):
     @overload
     def __init__(self, image: Surface, *, width: Optional[float] = None, height: Optional[float] = None) -> None:
         ...
@@ -42,9 +42,6 @@ class Image(Drawable):
         elif height is not None:
             self.scale_to_height(height)
         self.topleft = (0, 0)
-
-    def copy(self) -> Image:
-        return Image(self.__default_image)
 
     def draw_onto(self, target: Renderer) -> None:
         image: Surface = self.__image

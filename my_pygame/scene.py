@@ -5,20 +5,17 @@ from abc import ABCMeta, abstractmethod
 from functools import wraps
 from inspect import isgeneratorfunction
 from operator import truth
-from typing import TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Iterator, List, Optional, Tuple, TypeVar, Union, final, overload
-import pygame
+from typing import TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Iterator, List, Optional, Tuple, Type, TypeVar, Union, overload
 
 from pygame.color import Color
-from pygame.event import Event
 
 from .clock import Clock
+from .event import EventManager
 from .theme import ThemeNamespace
-from .mouse import Mouse
-from .keyboard import Keyboard
 from .utils import MethodWrapper
 
 if TYPE_CHECKING:
-    from .window import _EventCallback, _EventType, _MousePositionCallback, _MousePosition, Window
+    from .window import Window
 
 __all__ = [
     "MetaScene",
@@ -31,18 +28,30 @@ __all__ = [
 ]
 
 _T = TypeVar("_T")
+_S = TypeVar("_S", bound="MetaScene")
 
 
 class MetaScene(ABCMeta):
 
     __abstractmethods__: FrozenSet[str]
     __namespaces: Dict[type, str] = dict()
+    __instances: Dict[Type[Any], Any] = dict()
 
     def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **extra: Any) -> MetaScene:
         for attr_name, attr_obj in namespace.items():
             namespace[attr_name] = metacls.__apply_theme_namespace_decorator(attr_obj)
 
         return super().__new__(metacls, name, bases, namespace, **extra)
+
+    def __call__(cls, *args: Any, **kwargs: Any) -> Any:
+        instance: object
+        dict_instances: Dict[Type[Any], Any] = cls.__instances
+        try:
+            instance = dict_instances[cls]
+            getattr(instance, "__init__")(*args, **kwargs)
+        except KeyError:
+            dict_instances[cls] = instance = super().__call__(*args, **kwargs)
+        return instance
 
     def set_theme_namespace(cls, namespace: str) -> None:
         if cls.__abstractmethods__:
@@ -97,8 +106,9 @@ class SceneTransition(metaclass=ABCMeta):
         raise NotImplementedError
 
 
-class Scene(metaclass=MetaScene):
+class Scene(EventManager, metaclass=MetaScene):
     def __init__(self, master: Union[Window, Scene], framerate: int = 0, busy_loop: bool = False) -> None:
+        super().__init__()
         self.__master: Optional[Scene]
         self.__window: Window
         if isinstance(master, Scene):
@@ -111,19 +121,8 @@ class Scene(metaclass=MetaScene):
         self.__busy_loop: bool = truth(busy_loop)
         self.__bg_color: Color = Color(0, 0, 0)
         self.__transition: Optional[SceneTransition] = None
-        self.__event_handler_dict: Dict[int, List[_EventCallback]] = dict()
-        self.__key_pressed_handler_dict: Dict[Keyboard.Key, List[_EventCallback]] = dict()
-        self.__key_released_handler_dict: Dict[Keyboard.Key, List[_EventCallback]] = dict()
-        self.__mouse_button_pressed_handler_dict: Dict[Mouse.Button, List[_EventCallback]] = dict()
-        self.__mouse_button_released_handler_dict: Dict[Mouse.Button, List[_EventCallback]] = dict()
-        self.__mouse_pos_handler_list: List[_MousePositionCallback] = list()
         self.__callback_after: _WindowCallbackList = _WindowCallbackList()
         self.__callback_after_dict: Dict[Scene, _WindowCallbackList] = getattr(self.__window, "_Window__callback_after_scenes")
-
-        self.bind_event(pygame.KEYDOWN, self.__handle_key_event)
-        self.bind_event(pygame.KEYUP, self.__handle_key_event)
-        self.bind_event(pygame.MOUSEBUTTONDOWN, self.__handle_mouse_event)
-        self.bind_event(pygame.MOUSEBUTTONUP, self.__handle_mouse_event)
 
     def on_start_loop(self) -> None:
         pass
@@ -149,80 +148,6 @@ class Scene(metaclass=MetaScene):
 
     def stop(self) -> None:
         self.__window.stop_scene(self)
-
-    @staticmethod
-    def __bind(handler_dict: Dict[_T, List[_EventCallback]], key: _T, callback: _EventCallback) -> None:
-        try:
-            event_list: List[_EventCallback] = handler_dict[key]
-        except KeyError:
-            event_list = handler_dict[key] = []
-        if callback not in event_list:
-            event_list.append(callback)
-
-    @staticmethod
-    def __unbind(handler_dict: Dict[_T, List[_EventCallback]], key: _T, callback: _EventCallback) -> None:
-        try:
-            handler_dict[key].remove(callback)
-        except (KeyError, ValueError):
-            pass
-
-    def bind_event(self, event_type: _EventType, callback: _EventCallback) -> None:
-        Scene.__bind(self.__event_handler_dict, int(event_type), callback)
-
-    def unbind_event(self, event_type: _EventType, callback_to_remove: _EventCallback) -> None:
-        Scene.__unbind(self.__event_handler_dict, int(event_type), callback_to_remove)
-
-    def bind_key(self, key: Union[int, Keyboard.Key], callback: _EventCallback) -> None:
-        self.bind_key_press(key, callback)
-        self.bind_key_release(key, callback)
-
-    def bind_key_press(self, key: Union[int, Keyboard.Key], callback: _EventCallback) -> None:
-        Scene.__bind(self.__key_pressed_handler_dict, Keyboard.Key(key), callback)
-
-    def bind_key_release(self, key: Union[int, Keyboard.Key], callback: _EventCallback) -> None:
-        Scene.__bind(self.__key_released_handler_dict, Keyboard.Key(key), callback)
-
-    def unbind_key(self, key: Union[int, Keyboard.Key], callback_to_remove: _EventCallback) -> None:
-        self.unbind_key_press(key, callback_to_remove)
-        self.unbind_key_release(key, callback_to_remove)
-
-    def unbind_key_press(self, key: Union[int, Keyboard.Key], callback_to_remove: _EventCallback) -> None:
-        Scene.__unbind(self.__key_pressed_handler_dict, Keyboard.Key(key), callback_to_remove)
-
-    def unbind_key_release(self, key: Union[int, Keyboard.Key], callback_to_remove: _EventCallback) -> None:
-        Scene.__unbind(self.__key_released_handler_dict, Keyboard.Key(key), callback_to_remove)
-
-    def bind_mouse_button(self, button: Union[int, Mouse.Button], callback: _EventCallback) -> None:
-        self.bind_mouse_button_press(button, callback)
-        self.bind_mouse_button_release(button, callback)
-
-    def bind_mouse_button_press(self, button: Union[int, Mouse.Button], callback: _EventCallback) -> None:
-        Scene.__bind(self.__mouse_button_pressed_handler_dict, Mouse.Button(button), callback)
-
-    def bind_mouse_button_release(self, button: Union[int, Mouse.Button], callback: _EventCallback) -> None:
-        Scene.__bind(self.__mouse_button_released_handler_dict, Mouse.Button(button), callback)
-
-    def unbind_mouse_button(self, button: Union[int, Mouse.Button], callback_to_remove: _EventCallback) -> None:
-        self.unbind_mouse_button_press(button, callback_to_remove)
-        self.unbind_mouse_button_release(button, callback_to_remove)
-
-    def unbind_mouse_button_press(self, button: Union[int, Mouse.Button], callback_to_remove: _EventCallback) -> None:
-        Scene.__unbind(self.__mouse_button_pressed_handler_dict, Mouse.Button(button), callback_to_remove)
-
-    def unbind_mouse_button_release(self, button: Union[int, Mouse.Button], callback_to_remove: _EventCallback) -> None:
-        Scene.__unbind(self.__mouse_button_released_handler_dict, Mouse.Button(button), callback_to_remove)
-
-    def bind_mouse_position(self, callback: _MousePositionCallback) -> None:
-        mouse_pos_handler_list: List[_MousePositionCallback] = self.__mouse_pos_handler_list
-        if callback not in mouse_pos_handler_list:
-            mouse_pos_handler_list.append(callback)
-
-    def unbind_mouse_position(self, callback_to_remove: _MousePositionCallback) -> None:
-        mouse_pos_handler_list: List[_MousePositionCallback] = self.__mouse_pos_handler_list
-        try:
-            mouse_pos_handler_list.remove(callback_to_remove)
-        except ValueError:
-            pass
 
     def after(self, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
         window_callback: WindowCallback = WindowCallback(self, milliseconds, callback, args, kwargs)
@@ -265,37 +190,6 @@ class Scene(metaclass=MetaScene):
 
         callback_list.append(window_callback)
         return window_callback
-
-    @final
-    def _handle_event(self, event: Event) -> None:
-        event_dict: Dict[int, List[_EventCallback]] = self.__event_handler_dict
-        for callback in event_dict.get(event.type, []):
-            callback(event)
-
-    def __handle_key_event(self, event: Event) -> None:
-        key_handler_dict: Optional[Dict[Keyboard.Key, List[_EventCallback]]] = None
-        if event.type == pygame.KEYDOWN:
-            key_handler_dict = self.__key_pressed_handler_dict
-        elif event.type == pygame.KEYUP:
-            key_handler_dict = self.__key_released_handler_dict
-        if key_handler_dict:
-            for callback in key_handler_dict.get(event.key, []):
-                callback(event)
-
-    def __handle_mouse_event(self, event: Event) -> None:
-        mouse_handler_dict: Optional[Dict[Mouse.Button, List[_EventCallback]]] = None
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            mouse_handler_dict = self.__mouse_button_pressed_handler_dict
-        elif event.type == pygame.MOUSEBUTTONUP:
-            mouse_handler_dict = self.__mouse_button_released_handler_dict
-        if mouse_handler_dict:
-            for callback in mouse_handler_dict.get(event.button, []):
-                callback(event)
-
-    @final
-    def _handle_mouse_pos(self, mouse_pos: _MousePosition) -> None:
-        for callback in self.__mouse_pos_handler_list:
-            callback(mouse_pos)
 
     def get_required_framerate(self) -> int:
         return self.__framerate
@@ -345,9 +239,6 @@ class MainScene(Scene, metaclass=MetaMainScene):
     @property
     def master(self) -> None:
         return None
-
-
-_S = TypeVar("_S", bound=MetaScene)
 
 
 def set_default_theme_namespace(namespace: str) -> Callable[[_S], _S]:
