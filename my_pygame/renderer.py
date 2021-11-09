@@ -45,15 +45,15 @@ _RectValue = Union[_CanBeRect, _HasRectAttribute]
 @runtime_checkable
 class Renderer(Protocol):
     @abstractmethod
-    def get_rect(self, **kwargs: Union[float, Sequence[float]]) -> Rect:
+    def get_rect(self, /, **kwargs: Union[float, Sequence[float]]) -> Rect:
         raise NotImplementedError
 
     @abstractmethod
-    def get_size(self) -> Tuple[float, float]:
+    def get_size(self, /) -> Tuple[float, float]:
         raise NotImplementedError
 
     @abstractmethod
-    def fill(self, color: _ColorInput) -> None:
+    def fill(self, /, color: _ColorInput) -> None:
         raise NotImplementedError
 
     @overload
@@ -71,6 +71,7 @@ class Renderer(Protocol):
     @abstractmethod
     def draw_rect(
         self,
+        /,
         color: _ColorValue,
         rect: _RectValue,
         width: int = 0,
@@ -85,6 +86,7 @@ class Renderer(Protocol):
     @abstractmethod
     def draw_polygon(
         self,
+        /,
         color: _ColorValue,
         points: Sequence[_Coordinate],
         width: int = 0,
@@ -94,6 +96,7 @@ class Renderer(Protocol):
     @abstractmethod
     def draw_circle(
         self,
+        /,
         color: _ColorValue,
         center: _Coordinate,
         radius: float,
@@ -106,12 +109,13 @@ class Renderer(Protocol):
         raise NotImplementedError
 
     @abstractmethod
-    def draw_ellipse(self, color: _ColorValue, rect: _RectValue, width: int = 0) -> Rect:
+    def draw_ellipse(self, /, color: _ColorValue, rect: _RectValue, width: int = 0) -> Rect:
         raise NotImplementedError
 
     @abstractmethod
     def draw_arc(
         self,
+        /,
         color: _ColorValue,
         rect: _RectValue,
         start_angle: float,
@@ -123,6 +127,7 @@ class Renderer(Protocol):
     @abstractmethod
     def draw_line(
         self,
+        /,
         color: _ColorValue,
         start_pos: _Coordinate,
         end_pos: _Coordinate,
@@ -133,6 +138,7 @@ class Renderer(Protocol):
     @abstractmethod
     def draw_lines(
         self,
+        /,
         color: _ColorValue,
         closed: bool,
         points: Sequence[_Coordinate],
@@ -143,6 +149,7 @@ class Renderer(Protocol):
     @abstractmethod
     def aaline(
         self,
+        /,
         color: _ColorValue,
         start_pos: _Coordinate,
         end_pos: _Coordinate,
@@ -153,6 +160,7 @@ class Renderer(Protocol):
     @abstractmethod
     def aalines(
         self,
+        /,
         color: _ColorValue,
         closed: bool,
         points: Sequence[_Coordinate],
@@ -173,15 +181,15 @@ class SurfaceRenderer(Renderer):
     def __init__(self, arg: Union[Surface, Tuple[float, float]], /, *, convert_alpha: bool = True) -> None:
         self.__target: Surface = arg if isinstance(arg, Surface) else create_surface(arg, convert_alpha=convert_alpha)
 
-    def get_rect(self, **kwargs: Union[float, Sequence[float]]) -> Rect:
+    def get_rect(self, /, **kwargs: Union[float, Sequence[float]]) -> Rect:
         target: Surface = self.__target
         return target.get_rect(**kwargs)
 
-    def get_size(self) -> Tuple[float, float]:
+    def get_size(self, /) -> Tuple[float, float]:
         target: Surface = self.__target
         return target.get_size()
 
-    def fill(self, color: _ColorInput) -> None:
+    def fill(self, /, color: _ColorInput) -> None:
         target: Surface = self.__target
         target.fill(color)
 
@@ -199,6 +207,7 @@ class SurfaceRenderer(Renderer):
 
     def draw_rect(
         self,
+        /,
         color: _ColorValue,
         rect: _RectValue,
         width: int = 0,
@@ -223,6 +232,7 @@ class SurfaceRenderer(Renderer):
 
     def draw_polygon(
         self,
+        /,
         color: _ColorValue,
         points: Sequence[_Coordinate],
         width: int = 0,
@@ -232,6 +242,7 @@ class SurfaceRenderer(Renderer):
 
     def draw_circle(
         self,
+        /,
         color: _ColorValue,
         center: _Coordinate,
         radius: float,
@@ -254,12 +265,13 @@ class SurfaceRenderer(Renderer):
             draw_bottom_right=draw_bottom_right,
         )
 
-    def draw_ellipse(self, color: _ColorValue, rect: _RectValue, width: int = 0) -> Rect:
+    def draw_ellipse(self, /, color: _ColorValue, rect: _RectValue, width: int = 0) -> Rect:
         target: Surface = self.__target
         return _draw_ellipse(surface=target, color=color, rect=rect, width=width)
 
     def draw_arc(
         self,
+        /,
         color: _ColorValue,
         rect: _RectValue,
         start_angle: float,
@@ -271,6 +283,7 @@ class SurfaceRenderer(Renderer):
 
     def draw_line(
         self,
+        /,
         color: _ColorValue,
         start_pos: _Coordinate,
         end_pos: _Coordinate,
@@ -281,6 +294,7 @@ class SurfaceRenderer(Renderer):
 
     def draw_lines(
         self,
+        /,
         color: _ColorValue,
         closed: bool,
         points: Sequence[_Coordinate],
@@ -291,6 +305,7 @@ class SurfaceRenderer(Renderer):
 
     def aaline(
         self,
+        /,
         color: _ColorValue,
         start_pos: _Coordinate,
         end_pos: _Coordinate,
@@ -301,6 +316,7 @@ class SurfaceRenderer(Renderer):
 
     def aalines(
         self,
+        /,
         color: _ColorValue,
         closed: bool,
         points: Sequence[_Coordinate],
@@ -310,5 +326,5 @@ class SurfaceRenderer(Renderer):
         return _draw_multiple_antialiased_lines(surface=target, color=color, closed=closed, points=points, blend=blend)
 
     @property
-    def surface(self) -> Surface:
+    def surface(self, /) -> Surface:
         return self.__target

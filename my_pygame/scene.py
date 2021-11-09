@@ -37,13 +37,13 @@ class MetaScene(ABCMeta):
     __namespaces: Dict[type, str] = dict()
     __instances: Dict[Type[Any], Any] = dict()
 
-    def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **extra: Any) -> MetaScene:
+    def __new__(metacls, /, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **extra: Any) -> MetaScene:
         for attr_name, attr_obj in namespace.items():
             namespace[attr_name] = metacls.__apply_theme_namespace_decorator(attr_obj)
 
         return super().__new__(metacls, name, bases, namespace, **extra)
 
-    def __call__(cls, *args: Any, **kwargs: Any) -> Any:
+    def __call__(cls, /, *args: Any, **kwargs: Any) -> Any:
         instance: object
         dict_instances: Dict[Type[Any], Any] = cls.__instances
         try:
@@ -53,20 +53,20 @@ class MetaScene(ABCMeta):
             dict_instances[cls] = instance = super().__call__(*args, **kwargs)
         return instance
 
-    def set_theme_namespace(cls, namespace: str) -> None:
+    def set_theme_namespace(cls, /, namespace: str) -> None:
         if cls.__abstractmethods__:
             raise TypeError(f"{cls.__name__} is an abstract class")
         MetaScene.__namespaces[cls] = namespace
 
-    def remove_theme_namespace(cls) -> None:
+    def remove_theme_namespace(cls, /) -> None:
         if cls.__abstractmethods__:
             raise TypeError(f"{cls.__name__} is an abstract class")
         MetaScene.__namespaces.pop(cls, None)
 
     @staticmethod
-    def __theme_namespace_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+    def __theme_namespace_decorator(func: Callable[..., Any], /) -> Callable[..., Any]:
         @wraps(func)
-        def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+        def wrapper(self: Any, /, *args: Any, **kwargs: Any) -> Any:
             cls: type = type(self) if not isinstance(self, type) else self
             output: Any
             try:
@@ -98,16 +98,16 @@ class MetaScene(ABCMeta):
 
 class SceneTransition(metaclass=ABCMeta):
     @abstractmethod
-    def show_new_scene(self, actual_scene: Scene, next_scene: Scene) -> None:
+    def show_new_scene(self, /, actual_scene: Scene, next_scene: Scene) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def hide_actual_scene(self, scene_to_hide: Scene, scene_to_show: Scene) -> None:
+    def hide_actual_scene(self, /, scene_to_hide: Scene, scene_to_show: Scene) -> None:
         raise NotImplementedError
 
 
 class Scene(EventManager, metaclass=MetaScene):
-    def __init__(self, master: Union[Window, Scene], framerate: int = 0, busy_loop: bool = False) -> None:
+    def __init__(self, /, master: Union[Window, Scene], framerate: int = 0, busy_loop: bool = False) -> None:
         super().__init__()
         self.__master: Optional[Scene]
         self.__window: Window
@@ -124,32 +124,32 @@ class Scene(EventManager, metaclass=MetaScene):
         self.__callback_after: _WindowCallbackList = _WindowCallbackList()
         self.__callback_after_dict: Dict[Scene, _WindowCallbackList] = getattr(self.__window, "_Window__callback_after_scenes")
 
-    def on_start_loop(self) -> None:
+    def on_start_loop(self, /) -> None:
         pass
 
-    def update(self) -> None:
+    def update(self, /) -> None:
         pass
 
-    def on_quit(self) -> None:
+    def on_quit(self, /) -> None:
         pass
 
     @abstractmethod
-    def draw(self) -> None:
+    def draw(self, /) -> None:
         raise NotImplementedError
 
-    def looping(self) -> bool:
+    def looping(self, /) -> bool:
         return self.__window.get_actual_scene() is self
 
-    def started(self) -> bool:
+    def started(self, /) -> bool:
         return self in self.__window
 
-    def start(self) -> None:
+    def start(self, /) -> None:
         self.__window.start_scene(self)
 
-    def stop(self) -> None:
+    def stop(self, /) -> None:
         self.__window.stop_scene(self)
 
-    def after(self, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
+    def after(self, /, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
         window_callback: WindowCallback = WindowCallback(self, milliseconds, callback, args, kwargs)
         callback_dict: Dict[Scene, _WindowCallbackList] = self.__callback_after_dict
         callback_list: _WindowCallbackList = self.__callback_after
@@ -159,14 +159,14 @@ class Scene(EventManager, metaclass=MetaScene):
         return window_callback
 
     @overload
-    def every(self, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
+    def every(self, /, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
         ...
 
     @overload
-    def every(self, milliseconds: float, callback: Callable[..., Iterator[None]], *args: Any, **kwargs: Any) -> WindowCallback:
+    def every(self, /, milliseconds: float, callback: Callable[..., Iterator[None]], *args: Any, **kwargs: Any) -> WindowCallback:
         ...
 
-    def every(self, milliseconds: float, callback: Callable[..., Any], *args: Any, **kwargs: Any) -> WindowCallback:
+    def every(self, /, milliseconds: float, callback: Callable[..., Any], *args: Any, **kwargs: Any) -> WindowCallback:
         window_callback: WindowCallback
         callback_dict: Dict[Scene, _WindowCallbackList] = self.__callback_after_dict
         callback_list: _WindowCallbackList = self.__callback_after
@@ -191,34 +191,34 @@ class Scene(EventManager, metaclass=MetaScene):
         callback_list.append(window_callback)
         return window_callback
 
-    def get_required_framerate(self) -> int:
+    def get_required_framerate(self, /) -> int:
         return self.__framerate
 
-    def require_busy_loop(self) -> bool:
+    def require_busy_loop(self, /) -> bool:
         return self.__busy_loop
 
     @property
-    def master(self) -> Optional[Scene]:
+    def master(self, /) -> Optional[Scene]:
         return self.__master
 
     @property
-    def window(self) -> Window:
+    def window(self, /) -> Window:
         return self.__window
 
     @property
-    def background_color(self) -> Color:
+    def background_color(self, /) -> Color:
         return self.__bg_color
 
     @background_color.setter
-    def background_color(self, color: Color) -> None:
+    def background_color(self, /, color: Color) -> None:
         self.__bg_color = Color(color)
 
     @property
-    def transition(self) -> Optional[SceneTransition]:
+    def transition(self, /) -> Optional[SceneTransition]:
         return self.__transition
 
     @transition.setter
-    def transition(self, transition: Optional[SceneTransition]) -> None:
+    def transition(self, /, transition: Optional[SceneTransition]) -> None:
         if isinstance(transition, SceneTransition):
             self.__transition = transition
         else:
@@ -226,23 +226,23 @@ class Scene(EventManager, metaclass=MetaScene):
 
 
 class MetaMainScene(MetaScene):
-    def __init__(cls, name: str, bases: Tuple[type, ...], namespace: dict[str, Any]) -> None:
+    def __init__(cls, /, name: str, bases: Tuple[type, ...], namespace: dict[str, Any]) -> None:
         super().__init__(name, bases, namespace)
         if not cls.__abstractmethods__:
             closed_namespace(cls)
 
 
 class MainScene(Scene, metaclass=MetaMainScene):
-    def __init__(self, master: Window, framerate: int = 0, busy_loop: bool = False) -> None:
+    def __init__(self, /, master: Window, framerate: int = 0, busy_loop: bool = False) -> None:
         super().__init__(master, framerate=framerate, busy_loop=busy_loop)
 
     @property
-    def master(self) -> None:
+    def master(self, /) -> None:
         return None
 
 
 def set_default_theme_namespace(namespace: str) -> Callable[[_S], _S]:
-    def decorator(scene: _S) -> _S:
+    def decorator(scene: _S, /) -> _S:
         scene.set_theme_namespace(namespace)
         return scene
 
@@ -257,6 +257,7 @@ def closed_namespace(scene: _S) -> _S:
 class WindowCallback:
     def __init__(
         self,
+        /,
         master: Union[Window, Scene],
         wait_time: float,
         callback: Callable[..., None],
@@ -280,7 +281,7 @@ class WindowCallback:
         self.__clock = Clock(start=True)
         self.__loop: bool = bool(loop)
 
-    def __call__(self) -> None:
+    def __call__(self, /) -> None:
         scene: Optional[Scene] = self.__scene
         if scene is not None and not scene.looping():
             return
@@ -290,16 +291,16 @@ class WindowCallback:
             if not loop:
                 self.kill()
 
-    def kill(self) -> None:
+    def kill(self, /) -> None:
         self.__master.remove_window_callback(self)
 
     @property
-    def scene(self) -> Optional[Scene]:
+    def scene(self, /) -> Optional[Scene]:
         return self.__scene
 
 
 class _WindowCallbackList(List[WindowCallback]):
-    def process(self) -> None:
+    def process(self, /) -> None:
         if not self:
             return
         for callback in tuple(self):

@@ -18,44 +18,44 @@ _T = TypeVar("_T")
 
 
 class ResourceLoader(Generic[_T], metaclass=ABCMeta):
-    def __init__(self, filepath: str) -> None:
+    def __init__(self, /, filepath: str) -> None:
         super().__init__()
         self.__filepath: str = set_constant_file(filepath)
 
-    def __repr__(self) -> str:
+    def __repr__(self, /) -> str:
         return f"{type(self).__name__}({self.filepath})"
 
     @abstractmethod
-    def load(self) -> _T:
+    def load(self, /) -> _T:
         raise NotImplementedError
 
     @property
-    def filepath(self) -> str:
+    def filepath(self, /) -> str:
         return self.__filepath
 
     @property
-    def type(self) -> Type[_T]:
+    def type(self, /) -> Type[_T]:
         return cast(Type[_T], get_args(getattr(type(self), "__orig_bases__")[0])[0])
 
 
 class ImageLoader(ResourceLoader[Surface]):
-    def load(self) -> Surface:
+    def load(self, /) -> Surface:
         return load_image(self.filepath)
 
 
 class SoundLoader(ResourceLoader[Sound]):
-    def load(self) -> Sound:
+    def load(self, /) -> Sound:
         return Sound(file=self.filepath)
 
 
 class FontLoader(ResourceLoader[str]):
-    def load(self) -> str:
+    def load(self, /) -> str:
         assert Font(self.filepath, 10)
         return self.filepath
 
 
 class MusicLoader(ResourceLoader[str]):
-    def load(self) -> str:
+    def load(self, /) -> str:
         assert Sound(file=self.filepath)
         return self.filepath
 
@@ -66,7 +66,7 @@ _ResourceLoader = Union[ResourceLoader[Any], List[Any], Tuple[Any, ...], Dict[An
 
 class _ResourceDescriptor:
     def __init__(
-        self, path: _ResourcePath, loader: Callable[[str], ResourceLoader[Any]], directory: Optional[str] = None
+        self, /, path: _ResourcePath, loader: Callable[[str], ResourceLoader[Any]], directory: Optional[str] = None
     ) -> None:
         def get_resources_loader(path: _ResourcePath) -> _ResourceLoader:
             if isinstance(path, str):
@@ -96,7 +96,7 @@ class _ResourceDescriptor:
     def __delete__(self, obj: Any, /) -> None:
         self.unload()
 
-    def load(self) -> Any:
+    def load(self, /) -> Any:
         def load_all_resources(resource_loader: _ResourceLoader) -> Any:
             if isinstance(resource_loader, ResourceLoader):
                 return resource_loader.load()
@@ -115,18 +115,18 @@ class _ResourceDescriptor:
             self.__resource = resource = load_all_resources(self.__loader)
         return resource
 
-    def unload(self) -> None:
+    def unload(self, /) -> None:
         try:
             del self.__resource
         except AttributeError:
             pass
 
     @property
-    def nb_resources(self) -> int:
+    def nb_resources(self, /) -> int:
         return self.__nb_resources
 
     @property
-    def nb_loaded_resources(self) -> int:
+    def nb_loaded_resources(self, /) -> int:
         try:
             self.__resource
         except AttributeError:
@@ -135,7 +135,7 @@ class _ResourceDescriptor:
 
 
 class MetaResourceManager(type):
-    def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **extra: Any) -> MetaResourceManager:
+    def __new__(metacls, /, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **extra: Any) -> MetaResourceManager:
         namespace["__resources_files__"] = resources = namespace.get("__resources_files__", dict())
 
         annotations: Dict[str, Union[type, str]] = namespace.get("__annotations__", dict())
@@ -155,7 +155,7 @@ class MetaResourceManager(type):
 
         return super().__new__(metacls, name, bases, namespace, **extra)
 
-    def __init__(cls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **extra: Any) -> None:
+    def __init__(cls, /, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **extra: Any) -> None:
         super().__init__(name, bases, namespace, **extra)
 
         cls.__resources_directory__: Optional[str]
@@ -165,7 +165,7 @@ class MetaResourceManager(type):
             name: value for name, value in vars(cls).items() if isinstance(value, _ResourceDescriptor)
         }
 
-    def __setattr__(cls, name: str, value: Any) -> None:
+    def __setattr__(cls, /, name: str, value: Any) -> None:
         try:
             resources: Dict[str, _ResourceDescriptor] = cls.__resources
         except AttributeError:
@@ -176,33 +176,33 @@ class MetaResourceManager(type):
                 return
         super().__setattr__(name, value)
 
-    def __delattr__(cls, name: str) -> None:
+    def __delattr__(cls, /, name: str) -> None:
         if name in cls.__resources:
             cls.__resources[name].__delete__(None)
         else:
             super().__delattr__(name)
 
-    def get_total_nb_resources(cls) -> int:
+    def get_total_nb_resources(cls, /) -> int:
         return sum(resource.nb_resources for resource in cls.__resources.values())
 
-    def get_nb_loaded_resources(cls) -> int:
+    def get_nb_loaded_resources(cls, /) -> int:
         return sum(resource.nb_loaded_resources for resource in cls.__resources.values())
 
-    def load(cls, *resources: str) -> None:
+    def load(cls, /, *resources: str) -> None:
         descriptors: Dict[str, _ResourceDescriptor] = cls.__resources
         for name in resources:
             descriptors[name].load()
 
-    def load_all_resources(cls) -> None:
+    def load_all_resources(cls, /) -> None:
         for resource in cls.__resources.values():
             resource.load()
 
-    def unload(cls, *resources: str) -> None:
+    def unload(cls, /, *resources: str) -> None:
         descriptors: Dict[str, _ResourceDescriptor] = cls.__resources
         for name in resources:
             descriptors[name].unload()
 
-    def unload_all_resources(cls) -> None:
+    def unload_all_resources(cls, /) -> None:
         for resource in cls.__resources.values():
             resource.unload()
 

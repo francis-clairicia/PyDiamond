@@ -18,11 +18,11 @@ from .utils import MethodWrapper
 __all__ = ["MetaCursor", "Cursor", "CustomCursor", "SystemCursor"]
 
 
-def _set_decorator(func: Callable[[Cursor], None]) -> Callable[[Cursor], None]:
+def _set_decorator(func: Callable[[Cursor], None], /) -> Callable[[Cursor], None]:
     actual_cursor: Optional[Cursor] = None
 
     @wraps(func)
-    def wrapper(self: Cursor) -> None:
+    def wrapper(self: Cursor, /) -> None:
         nonlocal actual_cursor
         if actual_cursor is not self:
             func(self)
@@ -32,7 +32,7 @@ def _set_decorator(func: Callable[[Cursor], None]) -> Callable[[Cursor], None]:
 
 
 class MetaCursor(ABCMeta):
-    def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaCursor:
+    def __new__(metacls, /, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaCursor:
         set_method: Optional[Callable[[Cursor], None]] = namespace.get("set")
         if callable(set_method):
             namespace["set"] = _set_decorator(set_method)
@@ -40,13 +40,13 @@ class MetaCursor(ABCMeta):
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
     @cache
-    def __call__(cls, *args: Any, **kwargs: Any) -> Any:
+    def __call__(cls, /, *args: Any, **kwargs: Any) -> Any:
         return super().__call__(*args, **kwargs)
 
 
 class Cursor(metaclass=MetaCursor):
     @abstractmethod
-    def set(self) -> None:
+    def set(self, /) -> None:
         raise NotImplementedError
 
 
@@ -65,7 +65,7 @@ class CustomCursor(Cursor):
     def __init__(self, cursor: _Cursor, /) -> None:
         ...
 
-    def __init__(self, *args: Any) -> None:
+    def __init__(self, /, *args: Any) -> None:
         super().__init__()
         self.__cursor: _Cursor = _Cursor(*args)
 
@@ -85,7 +85,7 @@ class CustomCursor(Cursor):
         x, y = hotspot
         return CustomCursor((width, height), (x, y), tuple(xormasks), tuple(andmasks))
 
-    def set(self) -> None:
+    def set(self, /) -> None:
         pygame.mouse.set_cursor(self.__cursor)
 
 
@@ -94,7 +94,7 @@ class SystemCursor(Cursor):
         super().__init__()
         self.__constant: int = SystemCursor.Type(constant).value
 
-    def set(self) -> None:
+    def set(self, /) -> None:
         pygame.mouse.set_system_cursor(self.__constant)
 
     class Type(IntEnum):

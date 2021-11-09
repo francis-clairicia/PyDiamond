@@ -39,11 +39,11 @@ class ThemeNamespace(ContextManager["ThemeNamespace"]):
     __NAMESPACE: Dict[str, _ClassThemeDict] = {}
     __actual_namespace: Optional[str] = None
 
-    def __init__(self, namespace: str) -> None:
+    def __init__(self, /, namespace: str) -> None:
         self.__namespace: str = str(namespace)
         self.__save_namespace: Optional[str] = None
 
-    def __enter__(self) -> ThemeNamespace:
+    def __enter__(self, /) -> ThemeNamespace:
         global _THEMES
         self.__save_namespace = ThemeNamespace.__actual_namespace
         ThemeNamespace.__actual_namespace = namespace = self.__namespace
@@ -54,7 +54,7 @@ class ThemeNamespace(ContextManager["ThemeNamespace"]):
             NAMESPACE[namespace] = _THEMES = dict()
         return self
 
-    def __exit__(self, *args: Any) -> None:
+    def __exit__(self, /, *args: Any) -> None:
         global _THEMES
         namespace: Optional[str] = self.__save_namespace
         self.__save_namespace = None
@@ -67,7 +67,7 @@ class ThemeNamespace(ContextManager["ThemeNamespace"]):
         ThemeNamespace.__actual_namespace = namespace
 
     @property
-    def namespace(self) -> str:
+    def namespace(self, /) -> str:
         return self.__namespace
 
 
@@ -75,10 +75,10 @@ _T = TypeVar("_T")
 
 
 class _NoThemeType(str):
-    def __init_subclass__(cls) -> None:
+    def __init_subclass__(cls, /) -> None:
         raise TypeError("No subclass are allowed")
 
-    def __new__(cls) -> _NoThemeType:
+    def __new__(cls, /) -> _NoThemeType:
         global NoTheme
         try:
             return NoTheme
@@ -97,6 +97,7 @@ class MetaThemedObject(ABCMeta):
 
     def __new__(
         metacls,
+        /,
         name: str,
         bases: Tuple[type, ...],
         namespace: Dict[str, Any],
@@ -146,7 +147,7 @@ class MetaThemedObject(ABCMeta):
             _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.add(cls)
         return cls
 
-    def __call__(cls, *args: Any, **kwargs: Any) -> Any:
+    def __call__(cls, /, *args: Any, **kwargs: Any) -> Any:
         create_object: Callable[..., Any] = super().__call__
         if cls.is_abstract_theme_class():
             return create_object(*args, **kwargs)
@@ -169,20 +170,22 @@ class MetaThemedObject(ABCMeta):
             kwargs = theme_kwargs | kwargs
         return create_object(*args, **kwargs)
 
-    def __setattr__(cls, name: str, value: Any) -> None:
+    def __setattr__(cls, /, name: str, value: Any) -> None:
         if name in ("__new__", "__init__"):
             raise AttributeError("can't set attribute")
         return super().__setattr__(name, value)
 
     @overload
-    def set_theme(cls, name: str, options: Dict[str, Any], update: bool = False, ignore_unusable: bool = False) -> None:
+    def set_theme(cls, /, name: str, options: Dict[str, Any], update: bool = False, ignore_unusable: bool = False) -> None:
         ...
 
     @overload
-    def set_theme(cls, name: str, options: None) -> None:
+    def set_theme(cls, /, name: str, options: None) -> None:
         ...
 
-    def set_theme(cls, name: str, options: Optional[Dict[str, Any]], update: bool = False, ignore_unusable: bool = False) -> None:
+    def set_theme(
+        cls, /, name: str, options: Optional[Dict[str, Any]], update: bool = False, ignore_unusable: bool = False
+    ) -> None:
         if cls.is_abstract_theme_class():
             raise TypeError("Abstract theme classes cannot set themes.")
         if name is NoTheme:
@@ -266,7 +269,7 @@ class MetaThemedObject(ABCMeta):
         else:
             _DEFAULT_THEME[cls] = list(dict.fromkeys((*_DEFAULT_THEME[cls], *default_themes)))
 
-    def get_theme_options(cls, *themes: str, parent_themes: bool = True, ignore_unusable: bool = False) -> Dict[str, Any]:
+    def get_theme_options(cls, /, *themes: str, parent_themes: bool = True, ignore_unusable: bool = False) -> Dict[str, Any]:
         if cls.is_abstract_theme_class():
             raise TypeError("Abstract theme classes does not have themes.")
 
@@ -318,7 +321,7 @@ class MetaThemedObject(ABCMeta):
 
         return theme_kwargs
 
-    def get_default_themes(cls, *, parent_default_themes: bool = True) -> Tuple[str, ...]:
+    def get_default_themes(cls, /, *, parent_default_themes: bool = True) -> Tuple[str, ...]:
         default_theme: Dict[str, None] = dict()
 
         def add_default_themes(cls: MetaThemedObject) -> None:
@@ -336,10 +339,10 @@ class MetaThemedObject(ABCMeta):
 
         return tuple(default_theme)
 
-    def is_abstract_theme_class(cls) -> bool:
+    def is_abstract_theme_class(cls, /) -> bool:
         return truth(getattr(cls, "__is_abstract_theme_class__", False))
 
-    def register(cls, subclass: Type[_T]) -> Type[_T]:
+    def register(cls, /, subclass: Type[_T]) -> Type[_T]:
         def register_themed_subclass(subclass: MetaThemedObject) -> None:
             subclass.__virtual_themed_class_bases__ = (*subclass.__virtual_themed_class_bases__, cls)
             if not getattr(subclass, "__no_parent_theme__", False):

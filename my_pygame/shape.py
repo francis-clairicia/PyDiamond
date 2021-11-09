@@ -18,7 +18,13 @@ from .renderer import Renderer, SurfaceRenderer
 from .theme import MetaThemedObject, ThemeType
 from .colors import BLACK
 from .surface import create_surface
-from .configuration import ConfigAttribute, ConfigTemplate, Configuration, initializer, no_object
+from .configuration import (
+    ConfigAttribute,
+    ConfigTemplate,
+    Configuration,
+    initializer,
+    no_object,
+)
 from .utils import valid_float, valid_integer
 
 __all__ = [
@@ -46,29 +52,29 @@ class MetaThemedShape(MetaShape, MetaThemedObject):
 
 
 class AbstractShape(TDrawable, metaclass=MetaShape):
-    def __init__(self) -> None:
+    def __init__(self, /) -> None:
         TDrawable.__init__(self)
         self.__image: Surface = create_surface((0, 0))
         self.__shape_image: Surface = self.__image.copy()
         self.__local_size: Tuple[float, float] = (0, 0)
 
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, /, target: Renderer) -> None:
         image: Surface = self.__image
         center: Tuple[float, float] = self.center
         target.draw(image, image.get_rect(center=center))
 
-    def get_local_size(self) -> Tuple[float, float]:
+    def get_local_size(self, /) -> Tuple[float, float]:
         return self.__local_size
 
-    def get_size(self) -> Tuple[float, float]:
+    def get_size(self, /) -> Tuple[float, float]:
         return self.__image.get_size()
 
-    def _apply_rotation_scale(self) -> None:
+    def _apply_rotation_scale(self, /) -> None:
         angle: float = self.angle
         scale: float = self.scale
         self.__image = pygame.transform.rotozoom(self.__shape_image, angle, scale)
 
-    def __compute_shape_size(self) -> None:
+    def __compute_shape_size(self, /) -> None:
         all_points: List[Vector2] = self.get_local_vertices()
 
         if not all_points:
@@ -84,14 +90,14 @@ class AbstractShape(TDrawable, metaclass=MetaShape):
         self.__local_size = (w, h)
 
     @abstractmethod
-    def _make(self) -> Surface:
+    def _make(self, /) -> Surface:
         raise NotImplementedError
 
     @abstractmethod
-    def get_local_vertices(self) -> List[Vector2]:
+    def get_local_vertices(self, /) -> List[Vector2]:
         raise NotImplementedError
 
-    def get_vertices(self) -> List[Vector2]:
+    def get_vertices(self, /) -> List[Vector2]:
         angle: float = self.angle
         scale: float = self.scale
         all_points: List[Vector2] = self.get_local_vertices()
@@ -123,7 +129,7 @@ class AbstractShape(TDrawable, metaclass=MetaShape):
     config.register_copy_func(Color, lambda obj: Color(obj))
 
     @config.updater
-    def __update_shape(self) -> None:
+    def __update_shape(self, /) -> None:
         if self.config.has_initialization_context():
             self.__compute_shape_size()
             self.__shape_image = self._make()
@@ -138,7 +144,7 @@ class AbstractShape(TDrawable, metaclass=MetaShape):
 
 class Shape(AbstractShape):
     @initializer
-    def __init__(self, *, color: Color, **kwargs: Any) -> None:
+    def __init__(self, /, *, color: Color, **kwargs: Any) -> None:
         self.color = color
         super().__init__(**kwargs)
 
@@ -151,12 +157,12 @@ class Shape(AbstractShape):
 
 class OutlinedShape(Shape):
     @initializer
-    def __init__(self, *, outline: int, outline_color: Color, **kwargs: Any) -> None:
+    def __init__(self, /, *, outline: int, outline_color: Color, **kwargs: Any) -> None:
         self.outline = outline
         self.outline_color = outline_color
         super().__init__(**kwargs)
 
-    def get_local_size(self) -> Tuple[float, float]:
+    def get_local_size(self, /) -> Tuple[float, float]:
         w, h = super().get_local_size()
         outline: int = self.outline
         offset: float = outline / 2 + 1
@@ -177,6 +183,7 @@ class PolygonShape(OutlinedShape, metaclass=MetaThemedShape):
     @initializer
     def __init__(
         self,
+        /,
         color: Color,
         *,
         outline: int = 0,
@@ -188,7 +195,7 @@ class PolygonShape(OutlinedShape, metaclass=MetaThemedShape):
         self.__center: Vector2 = Vector2(0, 0)
         self.points = points
 
-    def _make(self) -> Surface:
+    def _make(self, /) -> Surface:
         outline: int = self.outline
         all_points: List[Vector2] = self.points
 
@@ -214,10 +221,10 @@ class PolygonShape(OutlinedShape, metaclass=MetaThemedShape):
 
         return image.surface
 
-    def get_local_vertices(self) -> List[Vector2]:
+    def get_local_vertices(self, /) -> List[Vector2]:
         return self.points
 
-    def set_points(self, points: PointList) -> None:
+    def set_points(self, /, points: PointList) -> None:
         self.config.set("points", points)
 
     config = Configuration("points", parent=OutlinedShape.config)
@@ -236,7 +243,7 @@ class PolygonShape(OutlinedShape, metaclass=MetaThemedShape):
         return points
 
     @config.value_updater_property("points")
-    def __on_update_points(self, points: List[Vector2]) -> None:
+    def __on_update_points(self, /, points: List[Vector2]) -> None:
         left: float = 0
         top: float = 0
         right: float = max((point.x for point in points), default=0)
@@ -251,22 +258,27 @@ class PolygonShape(OutlinedShape, metaclass=MetaThemedShape):
 
 class AbstractRectangleShape(AbstractShape):
     @initializer
-    def __init__(self, *, width: float, height: float, **kwargs: Any) -> None:
+    def __init__(self, /, *, width: float, height: float, **kwargs: Any) -> None:
         self.local_size = width, height
         super().__init__(**kwargs)
 
-    def get_local_vertices(self) -> List[Vector2]:
+    def get_local_vertices(self, /) -> List[Vector2]:
         w, h = self.local_size
         return [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
 
-    config = Configuration("local_width", "local_height", "local_size", parent=AbstractShape.config)
+    config = Configuration(
+        "local_width", "local_height", "local_size", parent=AbstractShape.config
+    )
 
     config.validator("local_width", no_object(valid_float(min_value=0)))
     config.validator("local_height", no_object(valid_float(min_value=0)))
     config.validator("local_size", tuple, convert=True)
 
-    config.getter_property("local_size", lambda self: (self.local_width, self.local_height))
-    config.setter_property("local_size", lambda self, size: self.config(local_width=size[0], local_height=size[1]))
+    config.getter("local_size", lambda self: (self.local_width, self.local_height))
+    config.setter_property(
+        "local_size",
+        lambda self, size: self.config(local_width=size[0], local_height=size[1]),
+    )
 
     local_width: ConfigAttribute[float] = ConfigAttribute()
     local_height: ConfigAttribute[float] = ConfigAttribute()
@@ -277,6 +289,7 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, metaclass=MetaThemed
     @initializer
     def __init__(
         self,
+        /,
         width: float,
         height: float,
         color: Color,
@@ -290,7 +303,13 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, metaclass=MetaThemed
         border_bottom_right_radius: int = -1,
         theme: Optional[ThemeType] = None,
     ) -> None:
-        super().__init__(width=width, height=height, color=color, outline=outline, outline_color=outline_color)
+        super().__init__(
+            width=width,
+            height=height,
+            color=color,
+            outline=outline,
+            outline_color=outline_color,
+        )
         self.__draw_params: Dict[str, int] = dict()
         self.border_radius = border_radius
         self.border_top_left_radius = border_top_left_radius
@@ -298,7 +317,7 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, metaclass=MetaThemed
         self.border_bottom_left_radius = border_bottom_left_radius
         self.border_bottom_right_radius = border_bottom_right_radius
 
-    def _make(self) -> Surface:
+    def _make(self, /) -> Surface:
         outline: int = self.outline
         w: float = self.local_width
         h: float = self.local_height
@@ -324,15 +343,19 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, metaclass=MetaThemed
     config.validator("border_radius", no_object(valid_integer(min_value=-1)))
     config.validator("border_top_left_radius", no_object(valid_integer(min_value=-1)))
     config.validator("border_top_right_radius", no_object(valid_integer(min_value=-1)))
-    config.validator("border_bottom_left_radius", no_object(valid_integer(min_value=-1)))
-    config.validator("border_bottom_right_radius", no_object(valid_integer(min_value=-1)))
+    config.validator(
+        "border_bottom_left_radius", no_object(valid_integer(min_value=-1))
+    )
+    config.validator(
+        "border_bottom_right_radius", no_object(valid_integer(min_value=-1))
+    )
 
-    @config.getter("border_radius")
-    @config.getter("border_top_left_radius")
-    @config.getter("border_top_right_radius")
-    @config.getter("border_bottom_left_radius")
-    @config.getter("border_bottom_right_radius")
-    def __get_border_radius(self, border: str) -> int:
+    @config.getter_key("border_radius")
+    @config.getter_key("border_top_left_radius")
+    @config.getter_key("border_top_right_radius")
+    @config.getter_key("border_bottom_left_radius")
+    @config.getter_key("border_bottom_right_radius")
+    def __get_border_radius(self, /, border: str) -> int:
         try:
             return self.__draw_params[border]
         except KeyError as exc:
@@ -343,7 +366,7 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, metaclass=MetaThemed
     @config.setter("border_top_right_radius")
     @config.setter("border_bottom_left_radius")
     @config.setter("border_bottom_right_radius")
-    def __set_border_radius(self, border: str, radius: int) -> None:
+    def __set_border_radius(self, /, border: str, radius: int) -> None:
         self.__draw_params[border] = radius
 
     border_radius: ConfigAttribute[int] = ConfigAttribute()
@@ -355,11 +378,11 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, metaclass=MetaThemed
 
 class AbstractCircleShape(AbstractShape):
     @initializer
-    def __init__(self, *, radius: float, **kwargs: Any) -> None:
+    def __init__(self, /, *, radius: float, **kwargs: Any) -> None:
         self.radius = radius
         super().__init__(**kwargs)
 
-    def get_local_vertices(self) -> List[Vector2]:
+    def get_local_vertices(self, /) -> List[Vector2]:
         r: float = self.radius
         center: Vector2 = Vector2(r, r)
         radius: Vector2 = Vector2(r, 0)
@@ -376,6 +399,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, metaclass=MetaThemedShape)
     @initializer
     def __init__(
         self,
+        /,
         radius: float,
         color: Color,
         *,
@@ -387,7 +411,9 @@ class CircleShape(AbstractCircleShape, OutlinedShape, metaclass=MetaThemedShape)
         draw_bottom_right: bool = True,
         theme: Optional[ThemeType] = None,
     ) -> None:
-        super().__init__(radius=radius, color=color, outline=outline, outline_color=outline_color)
+        super().__init__(
+            radius=radius, color=color, outline=outline, outline_color=outline_color
+        )
         self.__draw_params: Dict[str, bool] = dict()
         self.__points: List[Vector2] = []
         self.radius = radius
@@ -396,7 +422,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, metaclass=MetaThemedShape)
         self.draw_bottom_left = draw_bottom_left
         self.draw_bottom_right = draw_bottom_right
 
-    def _make(self) -> Surface:
+    def _make(self, /) -> Surface:
         radius: float = self.radius
         outline: int = self.outline
         width, height = self.get_local_size()
@@ -407,10 +433,12 @@ class CircleShape(AbstractCircleShape, OutlinedShape, metaclass=MetaThemedShape)
         draw_params = self.__draw_params
         image.draw_circle(self.color, center, radius, **draw_params)
         if outline > 0:
-            image.draw_circle(self.outline_color, center, radius, width=outline, **draw_params)
+            image.draw_circle(
+                self.outline_color, center, radius, width=outline, **draw_params
+            )
         return image.surface
 
-    def get_local_vertices(self) -> List[Vector2]:
+    def get_local_vertices(self, /) -> List[Vector2]:
         return [Vector2(p) for p in self.__points]
 
     config = Configuration(
@@ -426,11 +454,11 @@ class CircleShape(AbstractCircleShape, OutlinedShape, metaclass=MetaThemedShape)
     config.validator("draw_bottom_left", truth)
     config.validator("draw_bottom_right", truth)
 
-    @config.getter("draw_top_left")
-    @config.getter("draw_top_right")
-    @config.getter("draw_bottom_left")
-    @config.getter("draw_bottom_right")
-    def __get_draw_arc(self, side: str) -> bool:
+    @config.getter_key("draw_top_left")
+    @config.getter_key("draw_top_right")
+    @config.getter_key("draw_bottom_left")
+    @config.getter_key("draw_bottom_right")
+    def __get_draw_arc(self, /, side: str) -> bool:
         try:
             return self.__draw_params[side]
         except KeyError as exc:
@@ -440,14 +468,14 @@ class CircleShape(AbstractCircleShape, OutlinedShape, metaclass=MetaThemedShape)
     @config.setter("draw_top_right")
     @config.setter("draw_bottom_left")
     @config.setter("draw_bottom_right")
-    def __set_draw_arc(self, side: str, status: bool) -> None:
+    def __set_draw_arc(self, /, side: str, status: bool) -> None:
         self.__draw_params[side] = status
 
     @config.updater("draw_top_left")
     @config.updater("draw_top_right")
     @config.updater("draw_bottom_left")
     @config.updater("draw_bottom_right")
-    def __compute_vertices(self) -> None:
+    def __compute_vertices(self, /) -> None:
         draw_params = self.__draw_params
         if all(not drawn for drawn in draw_params.values()):
             self.__points = []
@@ -488,6 +516,7 @@ class CrossShape(OutlinedShape, metaclass=MetaThemedShape):
     @initializer
     def __init__(
         self,
+        /,
         width: float,
         height: float,
         color: Color,
@@ -504,22 +533,29 @@ class CrossShape(OutlinedShape, metaclass=MetaThemedShape):
         self.local_size = width, height
         self.line_width = line_width
 
-    def _make(self) -> Surface:
-        p = PolygonShape(self.color, outline=self.outline, outline_color=self.outline_color, points=self.__points)
+    def _make(self, /) -> Surface:
+        p = PolygonShape(
+            self.color,
+            outline=self.outline,
+            outline_color=self.outline_color,
+            points=self.__points,
+        )
         image: Surface = getattr(p, f"_{AbstractShape.__name__}__image")
         return image
 
-    def get_local_vertices(self) -> List[Vector2]:
+    def get_local_vertices(self, /) -> List[Vector2]:
         return [Vector2(p) for p in self.__points]
 
-    def __get_diagonal_cross_points(self) -> List[Vector2]:
+    def __get_diagonal_cross_points(self, /) -> List[Vector2]:
         rect: Rect = Rect((0, 0), self.local_size)
         line_width: float = self.line_width
         if line_width == 0:
             return []
 
         if line_width < 1:
-            line_width = min(self.local_width * line_width, self.local_height * line_width)
+            line_width = min(
+                self.local_width * line_width, self.local_height * line_width
+            )
             if line_width == 0:
                 return []
 
@@ -563,14 +599,16 @@ class CrossShape(OutlinedShape, metaclass=MetaThemedShape):
             Vector2(rect.left, rect.top + h_offset),
         ]
 
-    def __get_plus_cross_points(self) -> List[Vector2]:
+    def __get_plus_cross_points(self, /) -> List[Vector2]:
         rect: Rect = self.get_local_rect()
         line_width: float = self.line_width
         if line_width == 0:
             return []
 
         if line_width < 1:
-            line_width = min(self.local_width * line_width, self.local_height * line_width)
+            line_width = min(
+                self.local_width * line_width, self.local_height * line_width
+            )
 
         line_width /= 2
 
@@ -589,7 +627,13 @@ class CrossShape(OutlinedShape, metaclass=MetaThemedShape):
             Vector2(rect.centerx - line_width, rect.centery - line_width),
         ]
 
-    config = Configuration("local_width", "local_height", "local_size", "line_width", parent=OutlinedShape.config)
+    config = Configuration(
+        "local_width",
+        "local_height",
+        "local_size",
+        "line_width",
+        parent=OutlinedShape.config,
+    )
 
     config.validator("local_width", no_object(valid_float(min_value=0)))
     config.validator("local_height", no_object(valid_float(min_value=0)))
@@ -602,17 +646,20 @@ class CrossShape(OutlinedShape, metaclass=MetaThemedShape):
     line_width: ConfigAttribute[float] = ConfigAttribute()
 
     @property
-    def type(self) -> str:
+    def type(self, /) -> str:
         return str(self.__type.value)
 
-    config.getter_property("local_size", lambda self: (self.local_width, self.local_height))
-    config.setter_property("local_size", lambda self, size: self.config(local_width=size[0], local_height=size[1]))
+    config.getter("local_size", lambda self: (self.local_width, self.local_height))
+    config.setter_property(
+        "local_size",
+        lambda self, size: self.config(local_width=size[0], local_height=size[1]),
+    )
 
     @config.updater("local_width")
     @config.updater("local_height")
     @config.updater("local_size")
     @config.updater("line_width")
-    def __compute_vertices(self) -> None:
+    def __compute_vertices(self, /) -> None:
         compute_vertices = {
             CrossShape.Type.DIAGONAL: self.__get_diagonal_cross_points,
             CrossShape.Type.PLUS: self.__get_plus_cross_points,
@@ -623,6 +670,7 @@ class CrossShape(OutlinedShape, metaclass=MetaThemedShape):
 class DiagonalCrossShape(CrossShape):
     def __init__(
         self,
+        /,
         width: float,
         height: float,
         color: Color,
@@ -647,6 +695,7 @@ class DiagonalCrossShape(CrossShape):
 class PlusCrossShape(CrossShape):
     def __init__(
         self,
+        /,
         width: float,
         height: float,
         color: Color,

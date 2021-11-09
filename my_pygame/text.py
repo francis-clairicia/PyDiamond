@@ -44,6 +44,7 @@ class Text(TDrawable, metaclass=MetaText):
     @initializer
     def __init__(
         self,
+        /,
         message: str = "",
         *,
         font: Optional[_TextFont] = None,
@@ -71,18 +72,18 @@ class Text(TDrawable, metaclass=MetaText):
         self.shadow = (shadow_x, shadow_y)
         self.shadow_color = shadow_color
 
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, /, target: Renderer) -> None:
         image: Surface = self.__image
         topleft: Tuple[float, float] = self.topleft
         target.draw(image, topleft)
 
-    def get_local_size(self) -> Tuple[float, float]:
+    def get_local_size(self, /) -> Tuple[float, float]:
         return self.__default_image.get_size()
 
-    def get_size(self) -> Tuple[float, float]:
+    def get_size(self, /) -> Tuple[float, float]:
         return self.__image.get_size()
 
-    def get(self, wrapped: bool = False) -> str:
+    def get(self, /, wrapped: bool = False) -> str:
         message: str = self.message
         if not wrapped:
             return message
@@ -91,7 +92,10 @@ class Text(TDrawable, metaclass=MetaText):
 
     @staticmethod
     def create_font(
-        font: Optional[_TextFont], bold: Optional[bool] = None, italic: Optional[bool] = None, underline: Optional[bool] = None
+        font: Optional[_TextFont],
+        bold: Optional[bool] = None,
+        italic: Optional[bool] = None,
+        underline: Optional[bool] = None,
     ) -> Font:
         obj: Font
         if font is None:
@@ -107,7 +111,9 @@ class Text(TDrawable, metaclass=MetaText):
                 if italic is not None:
                     obj.set_italic(italic)
             else:
-                obj = SysFont(font_family, font_size, bold=truth(bold), italic=truth(italic))
+                obj = SysFont(
+                    font_family, font_size, bold=truth(bold), italic=truth(italic)
+                )
         elif isinstance(font, Font):
             obj = font
             if bold is not None:
@@ -137,29 +143,36 @@ class Text(TDrawable, metaclass=MetaText):
 
     def set_font(
         self,
+        /,
         font: Optional[_TextFont],
         bold: Optional[bool] = None,
         italic: Optional[bool] = None,
         underline: Optional[bool] = None,
     ) -> None:
-        self.config.set("font", Text.create_font(font, bold=bold, italic=italic, underline=underline), copy=False)
+        self.config.set(
+            "font",
+            Text.create_font(font, bold=bold, italic=italic, underline=underline),
+            copy=False,
+        )
 
-    def set_custom_line_font(self, index: int, font: Font) -> None:
+    def set_custom_line_font(self, /, index: int, font: Font) -> None:
         if index < 0:
             raise ValueError(f"Negative index: {index}")
         self.__custom_font[index] = Text.create_font(font)
         self.config.update()
 
-    def remove_custom_line_font(self, index: int) -> None:
+    def remove_custom_line_font(self, /, index: int) -> None:
         if index < 0:
             raise ValueError(f"Negative index: {index}")
         self.__custom_font.pop(index, None)
         self.config.update()
 
-    def _apply_rotation_scale(self) -> None:
-        self.__image = pygame.transform.rotozoom(self.__default_image, self.angle, self.scale)
+    def _apply_rotation_scale(self, /) -> None:
+        self.__image = pygame.transform.rotozoom(
+            self.__default_image, self.angle, self.scale
+        )
 
-    def __render_text(self, color: Color) -> Surface:
+    def __render_text(self, /, color: Color) -> Surface:
         render_lines: List[Surface] = list()
         render_width: float = 0
         render_height: float = 0
@@ -188,7 +201,7 @@ class Text(TDrawable, metaclass=MetaText):
             top += render.get_height()
         return text
 
-    def _render(self) -> Surface:
+    def _render(self, /) -> Surface:
         text: Surface = self.__render_text(self.color)
         shadow_x, shadow_y = self.shadow
         shadow_x = int(shadow_x)
@@ -196,7 +209,9 @@ class Text(TDrawable, metaclass=MetaText):
         if shadow_x == 0 and shadow_y == 0:
             return text
         shadow_text: Surface = self.__render_text(self.shadow_color)
-        render = create_surface((text.get_width() + abs(shadow_x), text.get_height() + abs(shadow_y)))
+        render = create_surface(
+            (text.get_width() + abs(shadow_x), text.get_height() + abs(shadow_y))
+        )
 
         text_x: float = 0
         text_y: float = 0
@@ -214,7 +229,16 @@ class Text(TDrawable, metaclass=MetaText):
         return render
 
     config: Configuration = Configuration(
-        "message", "font", "color", "wrap", "justify", "shadow_x", "shadow_y", "shadow", "shadow_color", autocopy=True
+        "message",
+        "font",
+        "color",
+        "wrap",
+        "justify",
+        "shadow_x",
+        "shadow_y",
+        "shadow",
+        "shadow_color",
+        autocopy=True,
     )
 
     config.enum("justify", Justify, return_value=True)
@@ -233,7 +257,7 @@ class Text(TDrawable, metaclass=MetaText):
     config.register_copy_func(Color, lambda obj: Color(obj))
 
     @config.updater
-    def __update_surface(self) -> None:
+    def __update_surface(self, /) -> None:
         if self.config.has_initialization_context():
             self.__default_image = self._render()
             self._apply_rotation_scale()
@@ -253,8 +277,10 @@ class Text(TDrawable, metaclass=MetaText):
     shadow: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
     shadow_color: ConfigAttribute[Color] = ConfigAttribute()
 
-    config.getter_property("shadow", lambda self: (self.shadow_x, self.shadow_y))
-    config.setter_property("shadow", lambda self, pos: self.config(shadow_x=pos[0], shadow_y=pos[1]))
+    config.getter("shadow", lambda self: (self.shadow_x, self.shadow_y))
+    config.setter_property(
+        "shadow", lambda self, pos: self.config(shadow_x=pos[0], shadow_y=pos[1])
+    )
 
 
 class TextImage(Text):
@@ -269,6 +295,7 @@ class TextImage(Text):
     @initializer
     def __init__(
         self,
+        /,
         message: str = "",
         *,
         img: Optional[Surface] = None,
@@ -308,73 +335,73 @@ class TextImage(Text):
         self.compound = compound
         self.distance = distance
 
-    def get_img_angle(self) -> float:
+    def get_img_angle(self, /) -> float:
         return self.__img_angle
 
-    def get_img_scale(self) -> float:
+    def get_img_scale(self, /) -> float:
         return self.__img_scale
 
-    def img_rotate(self, angle_offset: float) -> None:
+    def img_rotate(self, /, angle_offset: float) -> None:
         if self.__img is not None:
             self.__img.rotate(angle_offset)
             self.__img_angle = self.__img.angle
 
-    def img_set_rotation(self, angle: float) -> None:
+    def img_set_rotation(self, /, angle: float) -> None:
         if self.__img is not None:
             self.__img.set_rotation(angle)
             self.__img_angle = self.__img.angle
 
-    def img_set_scale(self, scale: float) -> None:
+    def img_set_scale(self, /, scale: float) -> None:
         if self.__img is not None:
             self.__img.set_scale(scale)
             self.__img_scale = self.__img.scale
 
-    def img_scale_to_width(self, width: float) -> None:
+    def img_scale_to_width(self, /, width: float) -> None:
         if self.__img is not None:
             self.__img.scale_to_width(width)
             self.__img_scale = self.__img.scale
 
-    def img_scale_to_height(self, height: float) -> None:
+    def img_scale_to_height(self, /, height: float) -> None:
         if self.__img is not None:
             self.__img.scale_to_height(height)
             self.__img_scale = self.__img.scale
 
-    def img_scale_to_size(self, size: Tuple[float, float]) -> None:
+    def img_scale_to_size(self, /, size: Tuple[float, float]) -> None:
         if self.__img is not None:
             self.__img.scale_to_size(size)
             self.__img_scale = self.__img.scale
 
-    def img_set_min_width(self, width: float) -> None:
+    def img_set_min_width(self, /, width: float) -> None:
         if self.__img is not None:
             self.__img.set_min_width(width)
             self.__img_scale = self.__img.scale
 
-    def img_set_max_width(self, width: float) -> None:
+    def img_set_max_width(self, /, width: float) -> None:
         if self.__img is not None:
             self.__img.set_max_width(width)
             self.__img_scale = self.__img.scale
 
-    def img_set_min_height(self, height: float) -> None:
+    def img_set_min_height(self, /, height: float) -> None:
         if self.__img is not None:
             self.__img.set_min_height(height)
             self.__img_scale = self.__img.scale
 
-    def img_set_max_height(self, height: float) -> None:
+    def img_set_max_height(self, /, height: float) -> None:
         if self.__img is not None:
             self.__img.set_max_height(height)
             self.__img_scale = self.__img.scale
 
-    def img_set_min_size(self, size: Tuple[float, float]) -> None:
+    def img_set_min_size(self, /, size: Tuple[float, float]) -> None:
         if self.__img is not None:
             self.__img.set_min_size(size)
             self.__img_scale = self.__img.scale
 
-    def img_set_max_size(self, size: Tuple[float, float]) -> None:
+    def img_set_max_size(self, /, size: Tuple[float, float]) -> None:
         if self.__img is not None:
             self.__img.set_max_size(size)
             self.__img_scale = self.__img.scale
 
-    def _render(self) -> Surface:
+    def _render(self, /) -> Surface:
         text: Surface = super()._render()
         if self.__img is None:
             return text
@@ -429,17 +456,19 @@ class TextImage(Text):
     config.validator("img", Surface, accept_none=True)
     config.validator("distance", no_object(valid_float(min_value=0)))
 
-    config.register_copy_func(Surface, lambda surface: surface.copy(), allow_subclass=True)
+    config.register_copy_func(
+        Surface, lambda surface: surface.copy(), allow_subclass=True
+    )
 
-    @config.getter_property("img")
-    def __get_img_surface(self) -> Optional[Surface]:
+    @config.getter("img")
+    def __get_img_surface(self, /) -> Optional[Surface]:
         img: Optional[Image] = self.__img
         if img is None:
             return None
         return img.get()
 
     @config.setter_property("img")
-    def __update_img(self, surface: Optional[Surface]) -> None:
+    def __update_img(self, /, surface: Optional[Surface]) -> None:
         if surface is None:
             self.__img = None
             return
@@ -457,14 +486,14 @@ class TextImage(Text):
 
 
 class _BoundImage(Image):
-    def __init__(self, text: TextImage, image: Surface) -> None:
+    def __init__(self, /, text: TextImage, image: Surface) -> None:
         super().__init__(image)
         self.__text: TextImage = text
 
-    def _apply_rotation_scale(self) -> None:
+    def _apply_rotation_scale(self, /) -> None:
         super()._apply_rotation_scale()
         self.__text.config.update()
 
-    def set(self, image: Surface) -> None:
+    def set(self, /, image: Surface) -> None:
         super().set(image)
         self.__text.config.update()

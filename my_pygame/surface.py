@@ -44,7 +44,7 @@ def load_image(file: str) -> Surface:
     return image.convert_alpha()
 
 
-def save_image(image: Surface, file: str, *, format: Literal["p", "RGB", "RGBX", "RGBA", "ARGB"] = "RGBA") -> None:
+def save_image(image: Surface, file: str, *, format: Literal["p", "RGB", "RGBX", "RGBA", "ARGB"] = "ARGB") -> None:
     if splitext(file)[1] != COMPILED_SURFACE_EXTENSION:
         return pygame.image.save(image, file)
 

@@ -65,25 +65,25 @@ class _SceneTransitionEnum(IntEnum):
 
 
 class ScheduledFunction(Generic[_ScheduledFunc]):
-    def __init__(self, milliseconds: float, func: _ScheduledFunc) -> None:
+    def __init__(self, /, milliseconds: float, func: _ScheduledFunc) -> None:
         super().__init__()
         self.__clock = Clock()
         self.__milliseconds: float = milliseconds
         self.__func__: _ScheduledFunc = func
 
-    def __call__(self, *args: Any, **kwargs: Any) -> None:
+    def __call__(self, /, *args: Any, **kwargs: Any) -> None:
         func: _ScheduledFunc = self.__func__
         if self.__clock.elapsed_time(self.__milliseconds):
             func(*args, **kwargs)
 
-    def __get__(self, obj: object, objtype: Optional[type] = None) -> Callable[..., None]:
+    def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Callable[..., None]:
         if obj is None:
             return self
         return MethodType(self, obj)
 
 
 def scheduled(milliseconds: float) -> Callable[[_ScheduledFunc], _ScheduledFunc]:
-    def decorator(func: _ScheduledFunc) -> _ScheduledFunc:
+    def decorator(func: _ScheduledFunc, /) -> _ScheduledFunc:
         return cast(_ScheduledFunc, ScheduledFunction(milliseconds, func))
 
     return decorator
@@ -102,13 +102,13 @@ class Window(EventManager):
     __default_cursor: Cursor = SystemCursor.CURSOR_ARROW
     __cursor: Cursor = __default_cursor
 
-    def __new__(cls, *args: Any, **kwargs: Any) -> Any:
+    def __new__(cls, /, *args: Any, **kwargs: Any) -> Any:
         if not Window.__main_window:
             raise WindowError("Cannot have multiple open windows")
         Window.__main_window = False
         return super().__new__(cls)
 
-    def __init__(self, title: Optional[str] = None, size: Tuple[int, int] = (0, 0), fullscreen: bool = False) -> None:
+    def __init__(self, /, title: Optional[str] = None, size: Tuple[int, int] = (0, 0), fullscreen: bool = False) -> None:
         super().__init__()
         self.set_title(title)
         size = (max(size[0], 0), max(size[1], 0))
@@ -137,19 +137,19 @@ class Window(EventManager):
         self.__callback_after: _WindowCallbackList = _WindowCallbackList()
         self.__callback_after_scenes: Dict[Scene, _WindowCallbackList] = dict()
 
-    def __del__(self) -> None:
+    def __del__(self, /) -> None:
         Window.__main_window = True
 
-    def __contains__(self, scene: Scene) -> bool:
+    def __contains__(self, /, scene: Scene) -> bool:
         return scene in self.__scenes
 
-    def set_title(self, title: Optional[str]) -> None:
+    def set_title(self, /, title: Optional[str]) -> None:
         pygame.display.set_caption(title or Window.DEFAULT_TITLE)
 
-    def iconify(self) -> bool:
+    def iconify(self, /) -> bool:
         return truth(pygame.display.iconify())
 
-    def mainloop(self) -> None:
+    def mainloop(self, /) -> None:
         try:
             self.__loop = True
             while self.is_open():
@@ -167,26 +167,26 @@ class Window(EventManager):
             for scene in self.__scenes.from_top_to_bottom():
                 scene.on_quit()
 
-    def close(self) -> NoReturn:
+    def close(self, /) -> NoReturn:
         self.__loop = False
         raise Window.Exit
 
-    def is_open(self) -> bool:
+    def is_open(self, /) -> bool:
         return self.__loop
 
-    def clear(self, color: _ColorInput = BLACK) -> None:
+    def clear(self, /, color: _ColorInput = BLACK) -> None:
         self.__surface.fill(color)
 
-    def get_default_framerate(self) -> int:
+    def get_default_framerate(self, /) -> int:
         return self.__default_framerate
 
-    def set_default_framerate(self, value: int) -> None:
+    def set_default_framerate(self, /, value: int) -> None:
         self.__default_framerate = max(int(value), 0)
 
-    def set_busy_loop(self, status: bool) -> None:
+    def set_busy_loop(self, /, status: bool) -> None:
         self.__busy_loop = truth(status)
 
-    def refresh(self) -> None:
+    def refresh(self, /) -> None:
         screen: Surface = pygame.display.get_surface()
         screen.fill(BLACK)
         text_framerate: Text = self.__text_framerate
@@ -211,7 +211,7 @@ class Window(EventManager):
         else:
             self.__main_clock.tick(framerate)
 
-    def draw_screen(self) -> None:
+    def draw_screen(self, /) -> None:
         scene: Optional[Scene] = self.__update_actual_scene()
         if scene:
             if scene.master:
@@ -220,16 +220,16 @@ class Window(EventManager):
                 self.clear(scene.background_color)
             scene.draw()
 
-    def update(self) -> None:
+    def update(self, /) -> None:
         scene: Optional[Scene] = self.__update_actual_scene()
         if scene:
             scene.update()
 
-    def draw_and_refresh(self) -> None:
+    def draw_and_refresh(self, /) -> None:
         self.draw_screen()
         self.refresh()
 
-    def draw(self, target: SupportsDrawing, *targets: SupportsDrawing) -> None:
+    def draw(self, /, target: SupportsDrawing, *targets: SupportsDrawing) -> None:
         surface: Surface = self.__surface
         renderer: SurfaceRenderer = SurfaceRenderer(surface)
 
@@ -243,7 +243,7 @@ class Window(EventManager):
         for t in targets:
             draw_target(t)
 
-    def handle_events(self) -> None:
+    def handle_events(self, /) -> None:
         Keyboard.update()
         Mouse.update()
 
@@ -260,7 +260,7 @@ class Window(EventManager):
             actual_scene.handle_mouse_pos()
         self.__handle_all_events(actual_scene)
 
-    def __handle_all_events(self, actual_scene: Optional[Scene]) -> None:
+    def __handle_all_events(self, /, actual_scene: Optional[Scene]) -> None:
         scene_handler: Optional[Callable[[Event], None]] = actual_scene.process_event if actual_scene is not None else None
         for pg_event in pygame.event.get():
             try:
@@ -273,40 +273,40 @@ class Window(EventManager):
             if event.type == Event.Type.QUIT:
                 self.close()
 
-    def set_temporary_window_cursor(self, cursor: Cursor) -> None:
+    def set_temporary_window_cursor(self, /, cursor: Cursor) -> None:
         if isinstance(cursor, Cursor):
             Window.__cursor = cursor
 
-    def set_window_cursor(self, cursor: Cursor) -> None:
+    def set_window_cursor(self, /, cursor: Cursor) -> None:
         if isinstance(cursor, Cursor):
             Window.__cursor = Window.__default_cursor = cursor
 
-    def allow_only_event(self, *event_types: _EventType) -> None:
+    def allow_only_event(self, /, *event_types: _EventType) -> None:
         pygame.event.set_allowed(event_types)
 
-    def allow_all_events(self) -> None:
+    def allow_all_events(self, /) -> None:
         pygame.event.set_allowed(None)
 
-    def clear_all_events(self) -> None:
+    def clear_all_events(self, /) -> None:
         pygame.event.clear()
 
-    def block_only_event(self, *event_types: _EventType) -> None:
+    def block_only_event(self, /, *event_types: _EventType) -> None:
         pygame.event.set_blocked(event_types)
 
-    def after(self, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
+    def after(self, /, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
         window_callback: WindowCallback = WindowCallback(self, milliseconds, callback, args, kwargs)
         self.__callback_after.append(window_callback)
         return window_callback
 
     @overload
-    def every(self, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
+    def every(self, /, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
         ...
 
     @overload
-    def every(self, milliseconds: float, callback: Callable[..., Iterator[None]], *args: Any, **kwargs: Any) -> WindowCallback:
+    def every(self, /, milliseconds: float, callback: Callable[..., Iterator[None]], *args: Any, **kwargs: Any) -> WindowCallback:
         ...
 
-    def every(self, milliseconds: float, callback: Callable[..., Any], *args: Any, **kwargs: Any) -> WindowCallback:
+    def every(self, /, milliseconds: float, callback: Callable[..., Any], *args: Any, **kwargs: Any) -> WindowCallback:
         window_callback: WindowCallback
 
         if isgeneratorfunction(callback):
@@ -328,7 +328,7 @@ class Window(EventManager):
         self.__callback_after.append(window_callback)
         return window_callback
 
-    def remove_window_callback(self, window_callback: WindowCallback) -> None:
+    def remove_window_callback(self, /, window_callback: WindowCallback) -> None:
         scene: Optional[Scene] = window_callback.scene
         if scene is not None:
             scene_callback_after: Optional[_WindowCallbackList] = self.__callback_after_scenes.get(scene)
@@ -346,14 +346,14 @@ class Window(EventManager):
             except ValueError:
                 pass
 
-    def get_actual_scene(self) -> Optional[Scene]:
+    def get_actual_scene(self, /) -> Optional[Scene]:
         return self.__scenes.top()
 
-    def __check_scene(self, scene: Scene) -> None:
+    def __check_scene(self, /, scene: Scene) -> None:
         if scene.window is not self:
             raise WindowError(f"{type(scene).__name__}: Trying to deal with a scene bound to an another window")
 
-    def start_scene(self, scene: Scene) -> None:
+    def start_scene(self, /, scene: Scene) -> None:
         self.__check_scene(scene)
         if scene.looping():
             return
@@ -368,14 +368,14 @@ class Window(EventManager):
             transition = _SceneTransitionEnum.HIDE
         self.__transition = transition
 
-    def stop_scene(self, scene: Scene) -> None:
+    def stop_scene(self, /, scene: Scene) -> None:
         self.__check_scene(scene)
         if scene.looping():
             self.__transition = _SceneTransitionEnum.HIDE
         self.__scenes.remove(scene)
         self.__callback_after_scenes.pop(scene, None)
 
-    def __update_actual_scene(self) -> Optional[Scene]:
+    def __update_actual_scene(self, /) -> Optional[Scene]:
         actual_scene: Optional[Scene] = self.__scenes.top()
         previous_scene: Optional[Scene] = self.__actual_scene
         if actual_scene is not previous_scene:
@@ -395,98 +395,98 @@ class Window(EventManager):
         return actual_scene
 
     @property
-    def framerate(self) -> float:
+    def framerate(self, /) -> float:
         return self.__main_clock.get_fps()
 
     @property
-    def text_framerate(self) -> Text:
+    def text_framerate(self, /) -> Text:
         return self.__text_framerate
 
     @property
-    def rect(self) -> Rect:
+    def rect(self, /) -> Rect:
         return self.__rect.copy()
 
     @property
-    def left(self) -> int:
+    def left(self, /) -> int:
         return self.__rect.left
 
     @property
-    def right(self) -> int:
+    def right(self, /) -> int:
         return self.__rect.right
 
     @property
-    def top(self) -> int:
+    def top(self, /) -> int:
         return self.__rect.top
 
     @property
-    def bottom(self) -> int:
+    def bottom(self, /) -> int:
         return self.__rect.bottom
 
     @property
-    def size(self) -> Tuple[int, int]:
+    def size(self, /) -> Tuple[int, int]:
         return self.__rect.size
 
     @property
-    def width(self) -> int:
+    def width(self, /) -> int:
         return self.__rect.width
 
     @property
-    def height(self) -> int:
+    def height(self, /) -> int:
         return self.__rect.height
 
     @property
-    def center(self) -> Tuple[int, int]:
+    def center(self, /) -> Tuple[int, int]:
         return self.__rect.center
 
     @property
-    def centerx(self) -> int:
+    def centerx(self, /) -> int:
         return self.__rect.centerx
 
     @property
-    def centery(self) -> int:
+    def centery(self, /) -> int:
         return self.__rect.centery
 
     @property
-    def topleft(self) -> Tuple[int, int]:
+    def topleft(self, /) -> Tuple[int, int]:
         return self.__rect.topleft
 
     @property
-    def topright(self) -> Tuple[int, int]:
+    def topright(self, /) -> Tuple[int, int]:
         return self.__rect.topright
 
     @property
-    def bottomleft(self) -> Tuple[int, int]:
+    def bottomleft(self, /) -> Tuple[int, int]:
         return self.__rect.bottomleft
 
     @property
-    def bottomright(self) -> Tuple[int, int]:
+    def bottomright(self, /) -> Tuple[int, int]:
         return self.__rect.bottomright
 
     @property
-    def midtop(self) -> Tuple[int, int]:
+    def midtop(self, /) -> Tuple[int, int]:
         return self.__rect.midtop
 
     @property
-    def midbottom(self) -> Tuple[int, int]:
+    def midbottom(self, /) -> Tuple[int, int]:
         return self.__rect.midbottom
 
     @property
-    def midleft(self) -> Tuple[int, int]:
+    def midleft(self, /) -> Tuple[int, int]:
         return self.__rect.midleft
 
     @property
-    def midright(self) -> Tuple[int, int]:
+    def midright(self, /) -> Tuple[int, int]:
         return self.__rect.midright
 
 
 class _FramerateManager:
-    def __init__(self) -> None:
+    def __init__(self, /) -> None:
         self.__fps: float = 0
         self.__fps_count: int = 0
         self.__fps_tick: int = get_ticks()
         self.__last_tick: int = self.__fps_tick
 
-    def __tick_impl(self, framerate: int, use_accurate_delay: bool) -> None:
+    def __tick_impl(self, /, framerate: int, use_accurate_delay: bool) -> None:
         if framerate > 0:
             tick_time: int = round(1000 / framerate)
             elapsed: int = get_ticks() - self.__last_tick
@@ -504,48 +504,48 @@ class _FramerateManager:
             self.__fps_count = 0
             self.__fps_tick = get_ticks()
 
-    def tick(self, framerate: int = 0) -> None:
+    def tick(self, /, framerate: int = 0) -> None:
         return self.__tick_impl(framerate, False)
 
-    def tick_busy_loop(self, framerate: int = 0) -> None:
+    def tick_busy_loop(self, /, framerate: int = 0) -> None:
         return self.__tick_impl(framerate, True)
 
-    def get_fps(self) -> float:
+    def get_fps(self, /) -> float:
         return self.__fps
 
 
 class _SceneManager:
-    def __init__(self, window: Window) -> None:
+    def __init__(self, /, window: Window) -> None:
         self.__stack: List[Scene] = []
         self.__window: Window = window
 
-    def __iter__(self) -> Iterator[Scene]:
+    def __iter__(self, /) -> Iterator[Scene]:
         return self.from_top_to_bottom()
 
-    def __len__(self) -> int:
+    def __len__(self, /) -> int:
         return len(self.__stack)
 
-    def __contains__(self, scene: Scene) -> bool:
+    def __contains__(self, /, scene: Scene) -> bool:
         if scene.window is not self.__window:
             return False
         return scene in self.__stack
 
-    def from_top_to_bottom(self) -> Iterator[Scene]:
+    def from_top_to_bottom(self, /) -> Iterator[Scene]:
         return iter(self.__stack)
 
-    def from_bottom_to_top(self) -> Iterator[Scene]:
+    def from_bottom_to_top(self, /) -> Iterator[Scene]:
         return iter(reversed(self.__stack))
 
-    def empty(self) -> bool:
+    def empty(self, /) -> bool:
         return not self.__stack
 
-    def top(self) -> Optional[Scene]:
+    def top(self, /) -> Optional[Scene]:
         return self.__stack[0] if self.__stack else None
 
-    def index(self, scene: Scene) -> int:
+    def index(self, /, scene: Scene) -> int:
         return self.__stack.index(scene)
 
-    def clear(self, until: Optional[Scene] = None) -> None:
+    def clear(self, /, until: Optional[Scene] = None) -> None:
         if until is None:
             self.__stack.clear()
             return
@@ -554,7 +554,7 @@ class _SceneManager:
         while self.__stack[0] is not until:
             self.__stack.pop(0)
 
-    def remove(self, scene: Scene) -> None:
+    def remove(self, /, scene: Scene) -> None:
         if scene.window is not self.__window:
             raise WindowError("Trying to remove a scene bound to an another window")
         try:
@@ -562,7 +562,7 @@ class _SceneManager:
         except ValueError:
             pass
 
-    def push(self, scene: Scene) -> None:
+    def push(self, /, scene: Scene) -> None:
         if scene.window is not self.__window:
             raise WindowError("Trying to push a scene bound to an another window")
         self.remove(scene)

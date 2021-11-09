@@ -111,6 +111,7 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     @initializer
     def __init__(
         self,
+        /,
         master: Union[Scene, Window],
         text: str = "",
         callback: Optional[Callable[[], None]] = None,
@@ -169,7 +170,7 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
-        theme: Optional[ThemeType] = None
+        theme: Optional[ThemeType] = None,
     ) -> None:
         TDrawable.__init__(self)
         Clickable.__init__(
@@ -262,7 +263,7 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         self.text_hover_offset = text_hover_offset
         self.text_active_offset = text_active_offset
 
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, /, target: Renderer) -> None:
         angle: float = self.angle
         scale: float = self.scale
 
@@ -292,19 +293,20 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         shape.draw_onto(target)
         text.draw_onto(target)
 
-    def get_local_size(self) -> Tuple[float, float]:
+    def get_local_size(self, /) -> Tuple[float, float]:
         return self.__shape.get_local_size()
 
-    def get_size(self) -> Tuple[float, float]:
+    def get_size(self, /) -> Tuple[float, float]:
         return self.__shape.get_size()
 
-    def __invoke__(self) -> None:
+    def __invoke__(self, /) -> None:
         callback: Optional[Callable[[], None]] = self.callback
         if callable(callback):
             callback()
 
     def text_set_font(
         self,
+        /,
         font: Optional[_TextFont],
         bold: Optional[bool] = None,
         italic: Optional[bool] = None,
@@ -313,82 +315,82 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         self.__text.set_font(font, bold, italic, underline)
         self.__update_shape_size()
 
-    def text_set_custom_line_font(self, index: int, font: Font) -> None:
+    def text_set_custom_line_font(self, /, index: int, font: Font) -> None:
         self.__text.set_custom_line_font(index, font)
         self.__update_shape_size()
 
-    def text_remove_custom_line_font(self, index: int) -> None:
+    def text_remove_custom_line_font(self, /, index: int) -> None:
         self.__text.remove_custom_line_font(index)
         self.__update_shape_size()
 
-    def img_rotate(self, angle_offset: float) -> None:
+    def img_rotate(self, /, angle_offset: float) -> None:
         self.__text.img_rotate(angle_offset)
         self.__update_shape_size()
 
-    def img_set_rotation(self, angle: float) -> None:
+    def img_set_rotation(self, /, angle: float) -> None:
         self.__text.img_set_rotation(angle)
         self.__update_shape_size()
 
-    def img_set_scale(self, scale: float) -> None:
+    def img_set_scale(self, /, scale: float) -> None:
         self.__text.img_set_scale(scale)
         self.__update_shape_size()
 
-    def img_scale_to_width(self, width: float) -> None:
+    def img_scale_to_width(self, /, width: float) -> None:
         self.__text.img_scale_to_width(width)
         self.__update_shape_size()
 
-    def img_scale_to_height(self, height: float) -> None:
+    def img_scale_to_height(self, /, height: float) -> None:
         self.__text.img_scale_to_height(height)
         self.__update_shape_size()
 
-    def img_scale_to_size(self, size: Tuple[float, float]) -> None:
+    def img_scale_to_size(self, /, size: Tuple[float, float]) -> None:
         self.__text.img_scale_to_size(size)
         self.__update_shape_size()
 
-    def img_set_min_width(self, width: float) -> None:
+    def img_set_min_width(self, /, width: float) -> None:
         self.__text.img_set_min_width(width)
         self.__update_shape_size()
 
-    def img_set_max_width(self, width: float) -> None:
+    def img_set_max_width(self, /, width: float) -> None:
         self.__text.set_max_width(width)
         self.__update_shape_size()
 
-    def img_set_min_height(self, height: float) -> None:
+    def img_set_min_height(self, /, height: float) -> None:
         self.__text.set_min_height(height)
         self.__update_shape_size()
 
-    def img_set_max_height(self, height: float) -> None:
+    def img_set_max_height(self, /, height: float) -> None:
         self.__text.img_set_max_height(height)
         self.__update_shape_size()
 
-    def img_set_min_size(self, size: Tuple[float, float]) -> None:
+    def img_set_min_size(self, /, size: Tuple[float, float]) -> None:
         self.__text.img_set_min_size(size)
         self.__update_shape_size()
 
-    def img_set_max_size(self, size: Tuple[float, float]) -> None:
+    def img_set_max_size(self, /, size: Tuple[float, float]) -> None:
         self.__text.img_set_max_size(size)
         self.__update_shape_size()
 
     @overload
-    def show_background(self) -> bool:
+    def show_background(self, /) -> bool:
         ...
 
     @overload
-    def show_background(self, status: bool) -> None:
+    def show_background(self, /, status: bool) -> None:
         ...
 
-    def show_background(self, status: Optional[bool] = None) -> Optional[bool]:
+    def show_background(self, /, status: Optional[bool] = None) -> Optional[bool]:
         if status is None:
             return self.__shape.is_shown()
         self.__shape.set_visibility(truth(status))
         return None
 
-    def _apply_rotation_scale(self) -> None:
+    def _apply_rotation_scale(self, /) -> None:
         self.__shape.scale = self.__text.scale = self.scale
         self.__shape.angle = self.__text.angle = self.angle
         self.__update_shape_size()
 
-    def _mouse_in_hitbox(self, mouse_pos: Tuple[float, float]) -> bool:
+    def _mouse_in_hitbox(self, /, mouse_pos: Tuple[float, float]) -> bool:
         rect: Rect = Rect((0, 0), self.get_area(apply_rotation=False))
         center: Tuple[float, float] = self.center
         rect.center = int(center[0]), int(center[1])
@@ -397,16 +399,16 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         mouse = pivot + (mouse - pivot).rotate(self.angle)
         return truth(rect.collidepoint(mouse.x, mouse.y))
 
-    def _on_hover(self) -> None:
+    def _on_hover(self, /) -> None:
         self.__set_state("hover")
 
-    def _on_leave(self) -> None:
+    def _on_leave(self, /) -> None:
         self.__set_state("normal")
 
-    def _on_active_set(self) -> None:
+    def _on_active_set(self, /) -> None:
         self.__set_state("active")
 
-    def __set_state(self, button_state: Literal["normal", "hover", "active"]) -> None:
+    def __set_state(self, /, button_state: Literal["normal", "hover", "active"]) -> None:
         clickable_state: Clickable.State = Clickable.State(self.state)
         bg_color: Optional[Color] = self.__bg_dict[clickable_state][button_state]
         if bg_color is None:
@@ -421,7 +423,7 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         self.__text.config(color=fg_color, img=img)
         self.__update_shape_size()
 
-    def __update_state(self) -> None:
+    def __update_state(self, /) -> None:
         if self.active:
             self.__set_state("active")
         elif self.hover:
@@ -429,7 +431,7 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         else:
             self.__set_state("normal")
 
-    def __update_shape_size(self) -> None:
+    def __update_shape_size(self, /) -> None:
         text_width, text_height = self.__text.get_local_size()
         x_add_size: float = self.x_add_size * self.scale
         y_add_size: float = self.y_add_size * self.scale
@@ -568,17 +570,17 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     border_bottom_left_radius: ConfigAttribute[int] = ConfigAttribute()
     border_bottom_right_radius: ConfigAttribute[int] = ConfigAttribute()
 
-    @config.getter("text", use="message")
-    @config.getter("text_font", use="font")
-    @config.getter("text_justify", use="justify")
-    @config.getter("text_wrap", use="wrap")
-    @config.getter("text_shadow", use="shadow")
-    @config.getter("text_shadow_x", use="shadow_x")
-    @config.getter("text_shadow_y", use="shadow_y")
-    @config.getter("text_shadow_color", use="shadow_color")
-    @config.getter("compound")
-    @config.getter("distance_text_img", use="distance")
-    def __get_text_option(self, option: str) -> Any:
+    @config.getter_key("text", use="message")
+    @config.getter_key("text_font", use="font")
+    @config.getter_key("text_justify", use="justify")
+    @config.getter_key("text_wrap", use="wrap")
+    @config.getter_key("text_shadow", use="shadow")
+    @config.getter_key("text_shadow_x", use="shadow_x")
+    @config.getter_key("text_shadow_y", use="shadow_y")
+    @config.getter_key("text_shadow_color", use="shadow_color")
+    @config.getter_key("compound")
+    @config.getter_key("distance_text_img", use="distance")
+    def __get_text_option(self, /, option: str) -> Any:
         return self.__text.config.get(option)
 
     @config.setter("text", use="message")
@@ -591,7 +593,7 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     @config.setter("text_shadow_color", use="shadow_color")
     @config.setter("compound")
     @config.setter("distance_text_img", use="distance")
-    def __set_text_option(self, option: str, value: Any) -> None:
+    def __set_text_option(self, /, option: str, value: Any) -> None:
         return self.__text.config.set(option, value)
 
     config.updater("text", __update_shape_size)
@@ -644,13 +646,13 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     config.set_autocopy("disabled_hover_background", copy_on_get=True, copy_on_set=True)
     config.set_autocopy("disabled_active_background", copy_on_get=True, copy_on_set=True)
 
-    @config.getter("background")
-    @config.getter("hover_background")
-    @config.getter("active_background")
-    @config.getter("disabled_background")
-    @config.getter("disabled_hover_background")
-    @config.getter("disabled_active_background")
-    def __get_background(self, option: str) -> Optional[Color]:
+    @config.getter_key("background")
+    @config.getter_key("hover_background")
+    @config.getter_key("active_background")
+    @config.getter_key("disabled_background")
+    @config.getter_key("disabled_hover_background")
+    @config.getter_key("disabled_active_background")
+    def __get_background(self, /, option: str) -> Optional[Color]:
         clickable_state, button_state = Button.__STATE[option]
         return self.__bg_dict[clickable_state][button_state]
 
@@ -660,7 +662,7 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     @config.setter("disabled_background")
     @config.setter("disabled_hover_background")
     @config.setter("disabled_active_background")
-    def __set_background(self, option: str, color: Optional[Color]) -> None:
+    def __set_background(self, /, option: str, color: Optional[Color]) -> None:
         clickable_state, button_state = Button.__STATE[option]
         self.__bg_dict[clickable_state][button_state] = color
 
@@ -685,13 +687,13 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     config.set_autocopy("disabled_hover_foreground", copy_on_get=True, copy_on_set=True)
     config.set_autocopy("disabled_active_foreground", copy_on_get=True, copy_on_set=True)
 
-    @config.getter("foreground")
-    @config.getter("hover_foreground")
-    @config.getter("active_foreground")
-    @config.getter("disabled_foreground")
-    @config.getter("disabled_hover_foreground")
-    @config.getter("disabled_active_foreground")
-    def __get_foreground(self, option: str) -> Optional[Color]:
+    @config.getter_key("foreground")
+    @config.getter_key("hover_foreground")
+    @config.getter_key("active_foreground")
+    @config.getter_key("disabled_foreground")
+    @config.getter_key("disabled_hover_foreground")
+    @config.getter_key("disabled_active_foreground")
+    def __get_foreground(self, /, option: str) -> Optional[Color]:
         clickable_state, button_state = Button.__STATE[option]
         return self.__fg_dict[clickable_state][button_state]
 
@@ -701,7 +703,7 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     @config.setter("disabled_foreground")
     @config.setter("disabled_hover_foreground")
     @config.setter("disabled_active_foreground")
-    def __set_foreground(self, option: str, color: Optional[Color]) -> None:
+    def __set_foreground(self, /, option: str, color: Optional[Color]) -> None:
         clickable_state, button_state = Button.__STATE[option]
         self.__fg_dict[clickable_state][button_state] = color
 
@@ -726,13 +728,13 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     config.set_autocopy("disabled_hover_img", copy_on_get=True, copy_on_set=True)
     config.set_autocopy("disabled_active_img", copy_on_get=True, copy_on_set=True)
 
-    @config.getter("img")
-    @config.getter("hover_img")
-    @config.getter("active_img")
-    @config.getter("disabled_img")
-    @config.getter("disabled_hover_img")
-    @config.getter("disabled_active_img")
-    def __get_img(self, option: str) -> Optional[Surface]:
+    @config.getter_key("img")
+    @config.getter_key("hover_img")
+    @config.getter_key("active_img")
+    @config.getter_key("disabled_img")
+    @config.getter_key("disabled_hover_img")
+    @config.getter_key("disabled_active_img")
+    def __get_img(self, /, option: str) -> Optional[Surface]:
         clickable_state, button_state = Button.__STATE[option]
         return self.__img_dict[clickable_state][button_state]
 
@@ -742,7 +744,7 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     @config.setter("disabled_img")
     @config.setter("disabled_hover_img")
     @config.setter("disabled_active_img")
-    def __set_img(self, option: str, img: Optional[Surface]) -> None:
+    def __set_img(self, /, option: str, img: Optional[Surface]) -> None:
         clickable_state, button_state = Button.__STATE[option]
         self.__img_dict[clickable_state][button_state] = img
 
@@ -770,14 +772,14 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     def __text_offset_validator(offset: Tuple[float, float]) -> Tuple[float, float]:
         return (float(offset[0]), float(offset[1]))
 
-    @config.getter("outline")
-    @config.getter("outline_color")
-    @config.getter("border_radius")
-    @config.getter("border_top_left_radius")
-    @config.getter("border_top_right_radius")
-    @config.getter("border_bottom_left_radius")
-    @config.getter("border_bottom_right_radius")
-    def __get_shape_option(self, option: str) -> Any:
+    @config.getter_key("outline")
+    @config.getter_key("outline_color")
+    @config.getter_key("border_radius")
+    @config.getter_key("border_top_left_radius")
+    @config.getter_key("border_top_right_radius")
+    @config.getter_key("border_bottom_left_radius")
+    @config.getter_key("border_bottom_right_radius")
+    def __get_shape_option(self, /, option: str) -> Any:
         return self.__shape.config.get(option)
 
     @config.setter("outline")
@@ -787,16 +789,16 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     @config.setter("border_top_right_radius")
     @config.setter("border_bottom_left_radius")
     @config.setter("border_bottom_right_radius")
-    def __set_shape_option(self, option: str, value: Any) -> Any:
+    def __set_shape_option(self, /, option: str, value: Any) -> Any:
         return self.__shape.config.set(option, value)
 
     @property
-    def callback(self) -> Optional[Callable[[], None]]:
+    def callback(self, /) -> Optional[Callable[[], None]]:
         self.__callback: Optional[Callable[[], None]]
         return self.__callback
 
     @callback.setter
-    def callback(self, callback: Optional[Callable[[], None]]) -> None:
+    def callback(self, /, callback: Optional[Callable[[], None]]) -> None:
         if callable(callback):
             self.__callback = callback
         else:
@@ -808,6 +810,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     @initializer
     def __init__(
         self,
+        /,
         master: Union[Scene, Window],
         img: Surface,
         callback: Optional[Callable[[], None]] = None,
@@ -842,7 +845,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
-        theme: Optional[ThemeType] = None
+        theme: Optional[ThemeType] = None,
     ) -> None:
         TDrawable.__init__(self)
         Clickable.__init__(
@@ -899,7 +902,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
         self.hover_offset = hover_offset
         self.active_offset = active_offset
 
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, /, target: Renderer) -> None:
         scale: float = self.scale
 
         def compute_offset(offset: Tuple[float, float]) -> Tuple[float, float]:
@@ -917,36 +920,36 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
         shape.draw_onto(target)
         image.draw_onto(target)
 
-    def get_local_size(self) -> Tuple[float, float]:
+    def get_local_size(self, /) -> Tuple[float, float]:
         return self.__shape.get_local_size()
 
-    def get_size(self) -> Tuple[float, float]:
+    def get_size(self, /) -> Tuple[float, float]:
         return self.__shape.get_size()
 
-    def __invoke__(self) -> None:
+    def __invoke__(self, /) -> None:
         callback: Optional[Callable[[], None]] = self.callback
         if callable(callback):
             callback()
 
-    def _apply_rotation_scale(self) -> None:
+    def _apply_rotation_scale(self, /) -> None:
         if self.angle != 0:
             raise NotImplementedError
         self.__shape.scale = self.__image.scale = self.scale
         self.__update_shape_size()
 
-    def _mouse_in_hitbox(self, mouse_pos: Tuple[float, float]) -> bool:
+    def _mouse_in_hitbox(self, /, mouse_pos: Tuple[float, float]) -> bool:
         return truth(self.rect.collidepoint(mouse_pos))
 
-    def _on_hover(self) -> None:
+    def _on_hover(self, /) -> None:
         self.__set_state("hover")
 
-    def _on_leave(self) -> None:
+    def _on_leave(self, /) -> None:
         self.__set_state("normal")
 
-    def _on_active_set(self) -> None:
+    def _on_active_set(self, /) -> None:
         self.__set_state("active")
 
-    def __set_state(self, button_state: Literal["normal", "hover", "active"]) -> None:
+    def __set_state(self, /, button_state: Literal["normal", "hover", "active"]) -> None:
         clickable_state: Clickable.State = Clickable.State(self.state)
         bg_color: Optional[Color] = self.__bg_dict[clickable_state][button_state]
         if bg_color is None:
@@ -958,7 +961,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
         self.__image.set(img)
         self.__update_shape_size()
 
-    def __update_state(self) -> None:
+    def __update_state(self, /) -> None:
         if self.active:
             self.__set_state("active")
         elif self.hover:
@@ -966,7 +969,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
         else:
             self.__set_state("normal")
 
-    def __update_shape_size(self) -> None:
+    def __update_shape_size(self, /) -> None:
         img_width, img_height = self.__image.get_local_size()
         scale: float = self.scale
         x_add_size: float = self.x_add_size * scale
@@ -1078,13 +1081,13 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     config.set_autocopy("disabled_hover_background", copy_on_get=True, copy_on_set=True)
     config.set_autocopy("disabled_active_background", copy_on_get=True, copy_on_set=True)
 
-    @config.getter("background")
-    @config.getter("hover_background")
-    @config.getter("active_background")
-    @config.getter("disabled_background")
-    @config.getter("disabled_hover_background")
-    @config.getter("disabled_active_background")
-    def __get_background(self, option: str) -> Optional[Color]:
+    @config.getter_key("background")
+    @config.getter_key("hover_background")
+    @config.getter_key("active_background")
+    @config.getter_key("disabled_background")
+    @config.getter_key("disabled_hover_background")
+    @config.getter_key("disabled_active_background")
+    def __get_background(self, /, option: str) -> Optional[Color]:
         clickable_state, button_state = ImageButton.__STATE[option]
         return self.__bg_dict[clickable_state][button_state]
 
@@ -1094,7 +1097,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     @config.setter("disabled_background")
     @config.setter("disabled_hover_background")
     @config.setter("disabled_active_background")
-    def __set_background(self, option: str, color: Optional[Color]) -> None:
+    def __set_background(self, /, option: str, color: Optional[Color]) -> None:
         clickable_state, button_state = ImageButton.__STATE[option]
         self.__bg_dict[clickable_state][button_state] = color
 
@@ -1119,13 +1122,13 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     config.set_autocopy("disabled_hover_img", copy_on_get=True, copy_on_set=True)
     config.set_autocopy("disabled_active_img", copy_on_get=True, copy_on_set=True)
 
-    @config.getter("img")
-    @config.getter("hover_img")
-    @config.getter("active_img")
-    @config.getter("disabled_img")
-    @config.getter("disabled_hover_img")
-    @config.getter("disabled_active_img")
-    def __get_img(self, option: str) -> Optional[Surface]:
+    @config.getter_key("img")
+    @config.getter_key("hover_img")
+    @config.getter_key("active_img")
+    @config.getter_key("disabled_img")
+    @config.getter_key("disabled_hover_img")
+    @config.getter_key("disabled_active_img")
+    def __get_img(self, /, option: str) -> Optional[Surface]:
         clickable_state, button_state = ImageButton.__STATE[option]
         return self.__img_dict[clickable_state][button_state]
 
@@ -1135,7 +1138,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     @config.setter("disabled_img")
     @config.setter("disabled_hover_img")
     @config.setter("disabled_active_img")
-    def __set_img(self, option: str, img: Optional[Surface]) -> None:
+    def __set_img(self, /, option: str, img: Optional[Surface]) -> None:
         clickable_state, button_state = ImageButton.__STATE[option]
         self.__img_dict[clickable_state][button_state] = img
 
@@ -1153,14 +1156,14 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     config.updater("disabled_hover_img", __update_state)
     config.updater("disabled_active_img", __update_state)
 
-    @config.getter("outline")
-    @config.getter("outline_color")
-    @config.getter("border_radius")
-    @config.getter("border_top_left_radius")
-    @config.getter("border_top_right_radius")
-    @config.getter("border_bottom_left_radius")
-    @config.getter("border_bottom_right_radius")
-    def __get_shape_option(self, option: str) -> Any:
+    @config.getter_key("outline")
+    @config.getter_key("outline_color")
+    @config.getter_key("border_radius")
+    @config.getter_key("border_top_left_radius")
+    @config.getter_key("border_top_right_radius")
+    @config.getter_key("border_bottom_left_radius")
+    @config.getter_key("border_bottom_right_radius")
+    def __get_shape_option(self, /, option: str) -> Any:
         return self.__shape.config.get(option)
 
     @config.setter("outline")
@@ -1170,16 +1173,16 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     @config.setter("border_top_right_radius")
     @config.setter("border_bottom_left_radius")
     @config.setter("border_bottom_right_radius")
-    def __set_shape_option(self, option: str, value: Any) -> Any:
+    def __set_shape_option(self, /, option: str, value: Any) -> Any:
         return self.__shape.config.set(option, value)
 
     @property
-    def callback(self) -> Optional[Callable[[], None]]:
+    def callback(self, /) -> Optional[Callable[[], None]]:
         self.__callback: Optional[Callable[[], None]]
         return self.__callback
 
     @callback.setter
-    def callback(self, callback: Optional[Callable[[], None]]) -> None:
+    def callback(self, /, callback: Optional[Callable[[], None]]) -> None:
         if callable(callback):
             self.__callback = callback
         else:

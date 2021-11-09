@@ -14,26 +14,26 @@ def cache(func: _Func) -> _Func:
 
 
 class MethodWrapper:
-    def __init__(self, wrapper: Callable[..., Any], call_wrapped: bool = False) -> None:
+    def __init__(self, /, wrapper: Callable[..., Any], call_wrapped: bool = False) -> None:
         self.__func__: Callable[..., Any] = wrapper
         self.__wrapped__: Callable[..., Any] = getattr(wrapper, "__wrapped__")
         self.__call_wrapped: bool = bool(call_wrapped)
 
-    def __getattr__(self, name: str) -> Any:
+    def __getattr__(self, /, name: str) -> Any:
         func: Any = self.__wrapped__
         return getattr(func, name)
 
-    def __setattr__(self, name: str, value: Any) -> None:
+    def __setattr__(self, /, name: str, value: Any) -> None:
         if name in ("__func__", "__wrapped__"):
             return super().__setattr__(name, value)
         func: Any = self.__wrapped__
         setattr(func, name, value)
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    def __call__(self, /, *args: Any, **kwargs: Any) -> Any:
         func: Callable[..., Any] = self.__wrapped__ if self.__call_wrapped else self.__func__
         return func(*args, **kwargs)
 
-    def __get__(self, obj: object, objtype: Optional[type] = None) -> Callable[..., Any]:
+    def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Callable[..., Any]:
         func: Callable[..., Any] = self.__wrapped__ if obj is None else self.__func__
         func = getattr(func, "__get__")(obj, objtype)
         return func

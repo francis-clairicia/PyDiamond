@@ -77,27 +77,27 @@ class Keyboard:
     class IME:
         __start: bool = False
 
-        @classmethod
-        def text_input_enabled(cls) -> bool:
-            return cls.__start
+        @staticmethod
+        def text_input_enabled() -> bool:
+            return Keyboard.IME.__start
 
-        @classmethod
-        def start_text_input(cls) -> None:
+        @staticmethod
+        def start_text_input() -> None:
             global _KEY_REPEAT
-            if not cls.__start:
+            if not Keyboard.IME.__start:
                 pygame.key.start_text_input()
                 _KEY_REPEAT = pygame.key.get_repeat()
                 pygame.key.set_repeat(500, 50)
-                cls.__start = True
+                Keyboard.IME.__start = True
 
-        @classmethod
-        def stop_text_input(cls) -> None:
+        @staticmethod
+        def stop_text_input() -> None:
             global _KEY_REPEAT
-            if cls.__start:
+            if Keyboard.IME.__start:
                 pygame.key.stop_text_input()
                 pygame.key.set_repeat(*_KEY_REPEAT)
                 _KEY_REPEAT = (0, 0)
-                cls.__start = False
+                Keyboard.IME.__start = False
 
     class Key(IntEnum):
         BACKSPACE = pygame.K_BACKSPACE

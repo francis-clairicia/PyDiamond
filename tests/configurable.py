@@ -124,7 +124,7 @@ class Rect:
     def update(self) -> None:
         print("UPDATE")
 
-    @config.getter_property("size")
+    @config.getter("size")
     def get_size(self) -> Tuple[Any, Any]:
         return (self.config.get("width"), self.config.get("height"))
 

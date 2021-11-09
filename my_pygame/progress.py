@@ -28,6 +28,7 @@ class ProgressBar(RectangleShape):
     @initializer
     def __init__(
         self,
+        /,
         width: float,
         height: float,
         from_: float = 0,
@@ -94,7 +95,7 @@ class ProgressBar(RectangleShape):
         self.hide_label()
         self.hide_value()
 
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, /, target: Renderer) -> None:
         scale_rect: RectangleShape = self.__scale_rect
         outline_rect: RectangleShape = self.__outline_rect
 
@@ -109,12 +110,27 @@ class ProgressBar(RectangleShape):
 
         offset = 10
         movements: Dict[str, Dict[str, Union[float, Tuple[float, float]]]]
-        if self.__value_text.is_shown() and self.__value_text_type in ["value", "percent"]:
+        if self.__value_text.is_shown() and self.__value_text_type in [
+            "value",
+            "percent",
+        ]:
             movements = {
-                ProgressBar.Side.TOP.value: {"bottom": self.top - offset, "centerx": self.centerx},
-                ProgressBar.Side.BOTTOM.value: {"top": self.bottom + offset, "centerx": self.centerx},
-                ProgressBar.Side.LEFT.value: {"right": self.left - offset, "centery": self.centery},
-                ProgressBar.Side.RIGHT.value: {"left": self.right + offset, "centery": self.centery},
+                ProgressBar.Side.TOP.value: {
+                    "bottom": self.top - offset,
+                    "centerx": self.centerx,
+                },
+                ProgressBar.Side.BOTTOM.value: {
+                    "top": self.bottom + offset,
+                    "centerx": self.centerx,
+                },
+                ProgressBar.Side.LEFT.value: {
+                    "right": self.left - offset,
+                    "centery": self.centery,
+                },
+                ProgressBar.Side.RIGHT.value: {
+                    "left": self.right + offset,
+                    "centery": self.centery,
+                },
                 ProgressBar.Side.INSIDE.value: {"center": self.center},
             }
             side = self.__value_text_side
@@ -124,22 +140,36 @@ class ProgressBar(RectangleShape):
                     self.__value_text.message = f"{round(self.value, round_n) if round_n > 0 else round(self.value)}"
                 elif self.__value_text_type == "percent":
                     value = self.percent * 100
-                    self.__value_text.message = f"{round(value, round_n) if round_n > 0 else round(value)}%"
+                    self.__value_text.message = (
+                        f"{round(value, round_n) if round_n > 0 else round(value)}%"
+                    )
                 self.__value_text.set_position(**movements[side])
                 self.__value_text.draw_onto(target)
         if self.__label_text.is_shown():
             movements = {
-                ProgressBar.Side.TOP.value: {"bottom": self.top - offset, "centerx": self.centerx},
-                ProgressBar.Side.BOTTOM.value: {"top": self.bottom + offset, "centerx": self.centerx},
-                ProgressBar.Side.LEFT.value: {"right": self.left - offset, "centery": self.centery},
-                ProgressBar.Side.RIGHT.value: {"left": self.right + offset, "centery": self.centery},
+                ProgressBar.Side.TOP.value: {
+                    "bottom": self.top - offset,
+                    "centerx": self.centerx,
+                },
+                ProgressBar.Side.BOTTOM.value: {
+                    "top": self.bottom + offset,
+                    "centerx": self.centerx,
+                },
+                ProgressBar.Side.LEFT.value: {
+                    "right": self.left - offset,
+                    "centery": self.centery,
+                },
+                ProgressBar.Side.RIGHT.value: {
+                    "left": self.right + offset,
+                    "centery": self.centery,
+                },
             }
             side = self.__label_text_side
             if side in movements:
                 self.__label_text.set_position(**movements[side])
                 self.__label_text.draw_onto(target)
 
-    def set_bounds(self, from_: float, to: float) -> None:
+    def set_bounds(self, /, from_: float, to: float) -> None:
         from_ = float(from_)
         to = float(to)
         if to <= from_:
@@ -148,45 +178,47 @@ class ProgressBar(RectangleShape):
         self.__end = to
         self.value = from_
 
-    def show_value(self, side: str, round_n: int = 0, **kwargs: Any) -> None:
+    def show_value(self, /, side: str, round_n: int = 0, **kwargs: Any) -> None:
         self.__value_text.config(**kwargs)
         self.__value_text_side = ProgressBar.Side(side).value
         self.__value_text_round_n = int(round_n)
         self.__value_text_type = "value"
         self.__value_text.show()
 
-    def hide_value(self) -> None:
+    def hide_value(self, /) -> None:
         self.__value_text.hide()
         self.__value_text_side = str()
         self.__value_text_round_n = 0
         self.__value_text_type = str()
 
-    def show_percent(self, side: str, round_n: int = 0, **kwargs: Any) -> None:
+    def show_percent(self, /, side: str, round_n: int = 0, **kwargs: Any) -> None:
         self.show_value(side, round_n, **kwargs)
         self.__value_text_type = "percent"
 
-    def hide_percent(self) -> None:
+    def hide_percent(self, /) -> None:
         self.hide_value()
 
-    def config_value_text(self, **kwargs: Any) -> None:
+    def config_value_text(self, /, **kwargs: Any) -> None:
         kwargs.pop("message", None)
         self.__value_text.config(**kwargs)
 
-    def show_label(self, label: str, side: str, **kwargs: Any) -> None:
+    def show_label(self, /, label: str, side: str, **kwargs: Any) -> None:
         self.__label_text.config(message=label, **kwargs)
         self.__label_text_side = ProgressBar.Side(side).value
         self.__label_text.show()
 
-    def hide_label(self) -> None:
+    def hide_label(self, /) -> None:
         self.__label_text.hide()
         self.__label_text_side = str()
 
-    def config_label_text(self, message: Optional[str] = None, **kwargs: Any) -> None:
+    def config_label_text(
+        self, /, message: Optional[str] = None, **kwargs: Any
+    ) -> None:
         if message is not None:
             kwargs["message"] = message
         self.__label_text.config(**kwargs)
 
-    def _apply_rotation_scale(self) -> None:
+    def _apply_rotation_scale(self, /) -> None:
         if self.angle != 0:
             raise NotImplementedError
         super()._apply_rotation_scale()
@@ -194,42 +226,46 @@ class ProgressBar(RectangleShape):
         outline_rect: RectangleShape = self.__outline_rect
         outline_rect.scale = scale_rect.scale = self.scale
 
-    config = Configuration("value", "percent", "scale_color", parent=RectangleShape.config)
+    config = Configuration(
+        "value", "percent", "scale_color", parent=RectangleShape.config
+    )
 
     value: ConfigAttribute[float] = ConfigAttribute()
     percent: ConfigAttribute[float] = ConfigAttribute()
     scale_color: ConfigAttribute[Color] = ConfigAttribute()
 
     @config.validator("value")
-    def __valid_value(self, value: Any) -> float:
+    def __valid_value(self, /, value: Any) -> float:
         value_validator = valid_float(min_value=self.__start, max_value=self.__end)
         return value_validator(value)
 
     config.validator("percent", no_object(valid_float(min_value=0, max_value=1)))
 
-    config.getter_property("scale_color", lambda self: self.__scale_rect.config.get("color"))
-    config.setter_property("scale_color", lambda self, color: self.__scale_rect.config.set("color", color))
+    config.getter("scale_color", lambda self: self.__scale_rect.config.get("color"))
+    config.setter_property(
+        "scale_color", lambda self, color: self.__scale_rect.config.set("color", color)
+    )
 
     @config.value_updater_property("value")
-    def __update_percent(self, value: float) -> None:
+    def __update_percent(self, /, value: float) -> None:
         start: float = self.__start
         end: float = self.__end
         self.__percent = (value - start) / (end - start) if end > start else 0
 
     @config.value_updater_property("percent")
-    def __update_value(self, percent: float) -> None:
+    def __update_value(self, /, percent: float) -> None:
         start: float = self.__start
         end: float = self.__end
         self.__value = start + (percent * (end - start)) if end > start else 0
 
-    @config.getter("outline")
-    @config.getter("outline_color")
-    def __outline_getter(self, option: str) -> Any:
+    @config.getter_key("outline")
+    @config.getter_key("outline_color")
+    def __outline_getter(self, /, option: str) -> Any:
         return self.__outline_rect.config.get(option)
 
     @config.setter("outline")
     @config.setter("outline_color")
-    def __outline_setter(self, option: str, value: Any) -> None:
+    def __outline_setter(self, /, option: str, value: Any) -> None:
         self.__outline_rect.config.set(option, value)
 
     @config.value_updater("local_height")
@@ -238,14 +274,14 @@ class ProgressBar(RectangleShape):
     @config.value_updater("border_top_right_radius")
     @config.value_updater("border_bottom_left_radius")
     @config.value_updater("border_bottom_right_radius")
-    def __update_all_shapes(self, option: str, value: Any) -> None:
+    def __update_all_shapes(self, /, option: str, value: Any) -> None:
         self.__scale_rect.config.set(option, value)
         self.__outline_rect.config.set(option, value)
 
     @config.updater("value")
     @config.updater("percent")
     @config.updater("local_width")
-    def __update_scale(self) -> None:
+    def __update_scale(self, /) -> None:
         width: float = self.local_width
         scale_rect: RectangleShape = self.__scale_rect
         outline_rect: RectangleShape = self.__outline_rect
@@ -253,9 +289,9 @@ class ProgressBar(RectangleShape):
         outline_rect.local_width = width
 
     @property
-    def from_value(self) -> float:
+    def from_value(self, /) -> float:
         return self.__start
 
     @property
-    def to_value(self) -> float:
+    def to_value(self, /) -> float:
         return self.__end
