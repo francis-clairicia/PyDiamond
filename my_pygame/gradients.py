@@ -1,7 +1,7 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
-from typing import List, Tuple
+from typing import Any, List, Tuple
 
 from pygame.color import Color
 from pygame.math import Vector2
@@ -24,10 +24,10 @@ __all__ = ["GradientShape", "HorizontalGradientShape", "VerticalGradientShape", 
 
 class GradientShape(AbstractShape):
     @initializer
-    def __init__(self, first_color: Color, second_color: Color) -> None:
-        super().__init__()
+    def __init__(self, *, first_color: Color, second_color: Color, **kwargs: Any) -> None:
         self.first_color = first_color
         self.second_color = second_color
+        super().__init__(**kwargs)
 
     config = Configuration("first_color", "second_color", parent=AbstractShape.config)
 
@@ -41,8 +41,7 @@ class GradientShape(AbstractShape):
 class HorizontalGradientShape(AbstractRectangleShape, GradientShape):
     @initializer
     def __init__(self, width: float, height: float, first_color: Color, second_color: Color) -> None:
-        AbstractRectangleShape.__init__(self, width, height)
-        GradientShape.__init__(self, first_color, second_color)
+        super().__init__(width=width, height=height, first_color=first_color, second_color=second_color)
 
     def _make(self) -> Surface:
         size: Tuple[int, int] = (int(self.local_width), int(self.local_height))
@@ -56,8 +55,7 @@ class HorizontalGradientShape(AbstractRectangleShape, GradientShape):
 class VerticalGradientShape(AbstractRectangleShape, GradientShape):
     @initializer
     def __init__(self, width: float, height: float, first_color: Color, second_color: Color) -> None:
-        AbstractRectangleShape.__init__(self, width, height)
-        GradientShape.__init__(self, first_color, second_color)
+        super().__init__(width=width, height=height, first_color=first_color, second_color=second_color)
 
     def _make(self) -> Surface:
         size: Tuple[int, int] = (int(self.local_width), int(self.local_height))
@@ -72,7 +70,7 @@ class VerticalGradientShape(AbstractRectangleShape, GradientShape):
 class SquaredGradientShape(GradientShape):
     @initializer
     def __init__(self, width: float, first_color: Color, second_color: Color) -> None:
-        super().__init__(first_color, second_color)
+        super().__init__(first_color=first_color, second_color=second_color)
         self.local_width = width
 
     def _make(self) -> Surface:
@@ -101,8 +99,7 @@ class SquaredGradientShape(GradientShape):
 class RadialGradientShape(AbstractCircleShape, GradientShape):
     @initializer
     def __init__(self, radius: float, first_color: Color, second_color: Color) -> None:
-        AbstractCircleShape.__init__(self, radius)
-        GradientShape.__init__(self, first_color, second_color)
+        super().__init__(radius=radius, first_color=first_color, second_color=second_color)
 
     def _make(self) -> Surface:
         radius: int = int(self.radius)

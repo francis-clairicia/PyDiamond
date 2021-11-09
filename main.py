@@ -200,7 +200,7 @@ class Rainbow(AbstractRectangleShape):
         for shape in self.__colors:
             shape.first_color = set_brightness(shape.first_color, brightness)
             shape.second_color = set_brightness(shape.second_color, brightness)
-        super().__init__(width, height)
+        super().__init__(width=width, height=height)
 
     def _make(self) -> Surface:
         width, height = self.local_size

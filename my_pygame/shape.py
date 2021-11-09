@@ -3,7 +3,7 @@
 from __future__ import annotations
 from abc import abstractmethod
 from operator import truth
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from math import sin, tan, radians
 from enum import Enum, unique
 
@@ -15,7 +15,7 @@ from pygame.surface import Surface
 
 from .drawable import TDrawable, MetaTDrawable
 from .renderer import Renderer, SurfaceRenderer
-from .theme import MetaThemedObject, ThemeType, abstract_theme_class
+from .theme import MetaThemedObject, ThemeType
 from .colors import BLACK
 from .surface import create_surface
 from .configuration import ConfigAttribute, ConfigTemplate, Configuration, initializer, no_object
@@ -47,7 +47,7 @@ class MetaThemedShape(MetaShape, MetaThemedObject):
 
 class AbstractShape(TDrawable, metaclass=MetaShape):
     def __init__(self) -> None:
-        super().__init__()
+        TDrawable.__init__(self)
         self.__image: Surface = create_surface((0, 0))
         self.__shape_image: Surface = self.__image.copy()
         self.__local_size: Tuple[float, float] = (0, 0)
@@ -138,9 +138,9 @@ class AbstractShape(TDrawable, metaclass=MetaShape):
 
 class Shape(AbstractShape):
     @initializer
-    def __init__(self, color: Color) -> None:
-        super().__init__()
+    def __init__(self, *, color: Color, **kwargs: Any) -> None:
         self.color = color
+        super().__init__(**kwargs)
 
     config = Configuration("color", parent=AbstractShape.config)
 
@@ -149,17 +149,12 @@ class Shape(AbstractShape):
     color: ConfigAttribute[Color] = ConfigAttribute()
 
 
-@abstract_theme_class
-class ThemedShape(AbstractShape, metaclass=MetaThemedShape):
-    pass
-
-
 class OutlinedShape(Shape):
     @initializer
-    def __init__(self, color: Color, outline: int, outline_color: Color) -> None:
-        super().__init__(color)
+    def __init__(self, *, outline: int, outline_color: Color, **kwargs: Any) -> None:
         self.outline = outline
         self.outline_color = outline_color
+        super().__init__(**kwargs)
 
     def get_local_size(self) -> Tuple[float, float]:
         w, h = super().get_local_size()
@@ -176,7 +171,7 @@ class OutlinedShape(Shape):
     outline_color: ConfigAttribute[Color] = ConfigAttribute()
 
 
-class PolygonShape(OutlinedShape, ThemedShape):
+class PolygonShape(OutlinedShape, metaclass=MetaThemedShape):
     PointList = Union[List[Vector2], List[Tuple[float, float]], List[Tuple[int, int]]]
 
     @initializer
@@ -189,7 +184,7 @@ class PolygonShape(OutlinedShape, ThemedShape):
         points: List[Vector2] = [],
         theme: Optional[ThemeType] = None,
     ) -> None:
-        super().__init__(color, outline, outline_color)
+        super().__init__(color=color, outline=outline, outline_color=outline_color)
         self.__center: Vector2 = Vector2(0, 0)
         self.points = points
 
@@ -256,9 +251,9 @@ class PolygonShape(OutlinedShape, ThemedShape):
 
 class AbstractRectangleShape(AbstractShape):
     @initializer
-    def __init__(self, width: float, height: float) -> None:
-        AbstractShape.__init__(self)
+    def __init__(self, *, width: float, height: float, **kwargs: Any) -> None:
         self.local_size = width, height
+        super().__init__(**kwargs)
 
     def get_local_vertices(self) -> List[Vector2]:
         w, h = self.local_size
@@ -278,7 +273,7 @@ class AbstractRectangleShape(AbstractShape):
     local_size: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
 
 
-class RectangleShape(AbstractRectangleShape, OutlinedShape, ThemedShape):
+class RectangleShape(AbstractRectangleShape, OutlinedShape, metaclass=MetaThemedShape):
     @initializer
     def __init__(
         self,
@@ -295,8 +290,7 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, ThemedShape):
         border_bottom_right_radius: int = -1,
         theme: Optional[ThemeType] = None,
     ) -> None:
-        AbstractRectangleShape.__init__(self, width, height)
-        OutlinedShape.__init__(self, color, outline, outline_color)
+        super().__init__(width=width, height=height, color=color, outline=outline, outline_color=outline_color)
         self.__draw_params: Dict[str, int] = dict()
         self.border_radius = border_radius
         self.border_top_left_radius = border_top_left_radius
@@ -361,9 +355,9 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, ThemedShape):
 
 class AbstractCircleShape(AbstractShape):
     @initializer
-    def __init__(self, radius: float) -> None:
-        AbstractShape.__init__(self)
+    def __init__(self, *, radius: float, **kwargs: Any) -> None:
         self.radius = radius
+        super().__init__(**kwargs)
 
     def get_local_vertices(self) -> List[Vector2]:
         r: float = self.radius
@@ -378,7 +372,7 @@ class AbstractCircleShape(AbstractShape):
     radius: ConfigAttribute[float] = ConfigAttribute()
 
 
-class CircleShape(AbstractCircleShape, OutlinedShape, ThemedShape):
+class CircleShape(AbstractCircleShape, OutlinedShape, metaclass=MetaThemedShape):
     @initializer
     def __init__(
         self,
@@ -393,8 +387,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, ThemedShape):
         draw_bottom_right: bool = True,
         theme: Optional[ThemeType] = None,
     ) -> None:
-        AbstractCircleShape.__init__(self, radius)
-        OutlinedShape.__init__(self, color, outline, outline_color)
+        super().__init__(radius=radius, color=color, outline=outline, outline_color=outline_color)
         self.__draw_params: Dict[str, bool] = dict()
         self.__points: List[Vector2] = []
         self.radius = radius
@@ -486,7 +479,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, ThemedShape):
     draw_bottom_right: ConfigAttribute[bool] = ConfigAttribute()
 
 
-class CrossShape(OutlinedShape, ThemedShape):
+class CrossShape(OutlinedShape, metaclass=MetaThemedShape):
     @unique
     class Type(str, Enum):
         DIAGONAL = "diagonal"
@@ -505,7 +498,7 @@ class CrossShape(OutlinedShape, ThemedShape):
         outline: int = 0,
         theme: Optional[ThemeType] = None,
     ) -> None:
-        super().__init__(color, outline, outline_color)
+        super().__init__(color=color, outline=outline, outline_color=outline_color)
         self.__type: CrossShape.Type = CrossShape.Type(type)
         self.__points: List[Vector2] = []
         self.local_size = width, height
