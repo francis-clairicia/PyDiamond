@@ -1,7 +1,7 @@
 # -*- coding: Utf-8 -*
 
-from abc import abstractmethod
-from typing import Any, List, Optional, Protocol, Sequence, Tuple, Union, overload, runtime_checkable
+from abc import ABCMeta, abstractmethod
+from typing import Any, List, Optional, Protocol, Sequence, Tuple, Union, overload
 
 from pygame.draw import (
     rect as _draw_rect,
@@ -21,6 +21,8 @@ from pygame.surface import Surface
 from pygame.math import Vector2
 
 from .surface import create_surface
+
+__ignore_imports__: Tuple[str, ...] = tuple(globals())
 
 
 _Coordinate = Union[Tuple[float, float], Sequence[float], Vector2]
@@ -42,8 +44,7 @@ class _HasRectAttribute(Protocol):
 _RectValue = Union[_CanBeRect, _HasRectAttribute]
 
 
-@runtime_checkable
-class Renderer(Protocol):
+class Renderer(metaclass=ABCMeta):
     @abstractmethod
     def get_rect(self, /, **kwargs: Union[float, Sequence[float]]) -> Rect:
         raise NotImplementedError
@@ -328,3 +329,6 @@ class SurfaceRenderer(Renderer):
     @property
     def surface(self, /) -> Surface:
         return self.__target
+
+
+__all__ = [n for n in globals() if not n.startswith("_") and n not in __ignore_imports__]

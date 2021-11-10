@@ -11,38 +11,8 @@ from pygame.event import Event as _PygameEvent
 from .mouse import Mouse
 from .keyboard import Keyboard
 
-__all__ = [
-    "EventManager",
-    "UnknownEventTypeError",
-    "MetaEvent",
-    "Event",
-    "QuitEvent",
-    "ActiveEvent",
-    "KeyDownEvent",
-    "KeyUpEvent",
-    "KeyEvent",
-    "MouseButtonDownEvent",
-    "MouseButtonUpEvent",
-    "MouseButtonEvent",
-    "MouseMotionEvent",
-    "MouseWheelEvent",
-    "MouseEvent",
-    "JoyAxisMotionEvent",
-    "JoyBallMotionEvent",
-    "JoyHatMotionEvent",
-    "JoyButtonUpEvent",
-    "JoyButtonDownEvent",
-    "JoyButtonEvent",
-    "ControllerDeviceAddedEvent",
-    "ControllerDeviceRemovedEvent",
-    "ControllerDeviceRemappedEvent",
-    "TextEditingEvent",
-    "TextInputEvent",
-    "TextEvent",
-    "VideoResizeEvent",
-    "VideoExposeEvent",
-    "UserEvent",
-]
+__ignore_imports__: Tuple[str, ...] = tuple(globals())
+
 
 _T = TypeVar("_T")
 
@@ -394,3 +364,6 @@ class EventManager:
         mouse_pos: _MousePosition = Mouse.get_pos()
         for callback in self.__mouse_pos_handler_list:
             callback(mouse_pos)
+
+
+__all__ = [n for n in globals() if not n.startswith("_") and n not in __ignore_imports__]

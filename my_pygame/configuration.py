@@ -26,18 +26,7 @@ from enum import Enum
 from copy import deepcopy
 from contextlib import ExitStack, contextmanager, suppress
 
-__all__ = [
-    "Configuration",
-    "ConfigTemplate",
-    "ConfigAttribute",
-    "no_object",
-    "initializer",
-    "OptionError",
-    "UnknownOptionError",
-    "UnregisteredOptionError",
-    "EmptyOptionNameError",
-    "InvalidAliasError",
-]
+__ignore_imports__: Tuple[str, ...] = tuple(globals())
 
 
 _T = TypeVar("_T")
@@ -1260,14 +1249,14 @@ class _BoundConfiguration:
             self.__references[bound_obj] = self
             yield
             infos: Configuration.Infos = self.__infos
-            getter_key: Dict[str, Callable[[object, str], Any]] = infos.value_getter
+            getter: Dict[str, Callable[[object, str], Any]] = infos.value_getter
             get_attribute = self.__get_attribute
             if update_register:
                 for option in (opt for opt in update_register if opt in infos.value_update):
                     value_updater_func: Callable[[object, str, Any], None] = infos.value_update[option]
                     value: Any
-                    if option in getter_key:
-                        value = getter_key[option](bound_obj, option)
+                    if option in getter:
+                        value = getter[option](bound_obj, option)
                     else:
                         try:
                             value = getattr(bound_obj, get_attribute(option))
@@ -1320,11 +1309,11 @@ class _BoundConfiguration:
         obj: object = self.__obj
         if option not in infos.options:
             raise UnknownOptionError(option)
-        getter_key: Dict[str, Callable[[object, str], Any]] = infos.value_getter
+        getter: Dict[str, Callable[[object, str], Any]] = infos.value_getter
         value: Any
-        if option in getter_key:
+        if option in getter:
             with self.no_updater():
-                value = getter_key[option](obj, infos.getter_alias.get(option, option))
+                value = getter[option](obj, infos.getter_alias.get(option, option))
         else:
             if infos.has_getter_setter_deleter(option):
                 raise OptionError(option, "Cannot be get")
@@ -1375,7 +1364,7 @@ class _BoundConfiguration:
         converter: Optional[Callable[[object, Any], Any]] = infos.value_converter.get(option)
         update_register: Optional[Dict[str, None]] = self.__update_register
         attribute: str = self.__get_attribute(option)
-        getter_key: Dict[str, Callable[[object, str], Any]] = infos.value_getter
+        getter: Dict[str, Callable[[object, str], Any]] = infos.value_getter
         setter: Dict[str, Callable[[object, str, Any], None]] = infos.value_setter
 
         if option in infos.readonly or (option not in setter and infos.has_getter_setter_deleter(option)):
@@ -1395,8 +1384,8 @@ class _BoundConfiguration:
             value = converter(obj, value)
         actual_value: Any
         try:
-            if option in getter_key:
-                actual_value = getter_key[option](obj, infos.getter_alias.get(option, option))
+            if option in getter:
+                actual_value = getter[option](obj, infos.getter_alias.get(option, option))
             else:
                 if infos.has_getter_setter_deleter(option):
                     raise AttributeError
@@ -1464,11 +1453,11 @@ class _BoundConfiguration:
             return
         infos: Configuration.Infos = self.__infos
         main_update: Optional[Callable[[object], None]] = infos.main_update
-        getter_key: Dict[str, Callable[[object, str], Any]] = infos.value_getter
+        getter: Dict[str, Callable[[object, str], Any]] = infos.value_getter
         get_attribute: Callable[[str], str] = self.__get_attribute
         for option, value_updater in infos.value_update.items():
-            if option in getter_key:
-                value_updater(obj, option, getter_key[option](obj, option))
+            if option in getter:
+                value_updater(obj, option, getter[option](obj, option))
             else:
                 try:
                     value_updater(obj, option, getattr(obj, get_attribute(option)))
@@ -1496,7 +1485,7 @@ class _BoundConfiguration:
         get_attribute: Callable[[str], str] = self.__get_attribute
         update_register: Optional[Dict[str, None]] = self.__update_register
         aliases: Dict[str, str] = infos.aliases
-        getter_key: Dict[str, Callable[[object, str], Any]] = infos.value_getter
+        getter: Dict[str, Callable[[object, str], Any]] = infos.value_getter
         setter: Dict[str, Callable[[object, str, Any], None]] = infos.value_setter
         readonly_option: Set[str] = infos.readonly
 
@@ -1533,8 +1522,8 @@ class _BoundConfiguration:
             attribute: str = get_attribute(option)
             try:
                 actual_value: Any
-                if option in getter_key:
-                    actual_value = getter_key[option](obj, infos.getter_alias.get(option, option))
+                if option in getter:
+                    actual_value = getter[option](obj, infos.getter_alias.get(option, option))
                 else:
                     if infos.has_getter_setter_deleter(option):
                         raise AttributeError
@@ -1670,3 +1659,6 @@ class _ConfigInitializer:
                 return func(*args, **kwargs)
 
         return config_initializer_method
+
+
+__all__ = [n for n in globals() if not n.startswith("_") and n not in __ignore_imports__]

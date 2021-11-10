@@ -2,9 +2,9 @@
 
 import os.path
 from sys import argv
-from typing import Callable, Optional, overload
+from typing import Callable, Optional, Tuple, overload
 
-__all__ = ["set_constant_directory", "set_constant_file"]
+__ignore_imports__: Tuple[str, ...] = tuple(globals())
 
 
 def __set_path(path_exists: Callable[[str], bool], *paths: str, raise_error: bool, special_msg: Optional[str]) -> str:
@@ -55,3 +55,6 @@ def set_constant_file(path: str, *paths: str, special_msg: str) -> str:
 
 def set_constant_file(path: str, *paths: str, raise_error: bool = True, special_msg: Optional[str] = None) -> str:
     return __set_path(os.path.isfile, path, *paths, raise_error=raise_error, special_msg=special_msg)
+
+
+__all__ = [n for n in globals() if not n.startswith("_") and n not in __ignore_imports__]

@@ -1,35 +1,10 @@
 # -*- coding: Utf-8 -*
 
+from typing import Tuple
 from pygame.color import Color
 
-__all__ = [
-    "Color",
-    "WHITE",
-    "BLACK",
-    "GRAY",
-    "GRAY_DARK",
-    "GRAY_LIGHT",
-    "RED",
-    "RED_DARK",
-    "RED_LIGHT",
-    "ORANGE",
-    "YELLOW",
-    "GREEN",
-    "GREEN_DARK",
-    "GREEN_LIGHT",
-    "CYAN",
-    "BLUE",
-    "BLUE_DARK",
-    "BLUE_LIGHT",
-    "MAGENTA",
-    "PURPLE",
-    "TRANSPARENT",
-    "set_brightness",
-    "change_brightness",
-    "set_saturation",
-    "change_saturation",
-    "set_color_alpha",
-]
+__ignore_imports__: Tuple[str, ...] = tuple(globals())
+
 
 WHITE = Color(255, 255, 255)
 BLACK = Color(0, 0, 0)
@@ -103,3 +78,6 @@ def change_saturation(color: Color, value: int) -> Color:
 
 def set_color_alpha(color: Color, value: int) -> Color:
     return Color(color.r, color.g, color.b, value)
+
+
+__all__ = [n for n in globals() if not n.startswith("_") and n not in __ignore_imports__]

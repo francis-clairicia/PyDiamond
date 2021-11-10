@@ -25,7 +25,7 @@ from .image import Image
 from .configuration import ConfigAttribute, Configuration, initializer, no_object
 from .utils import valid_float, valid_integer
 
-__all__ = ["Text", "TextImage"]
+__ignore_imports__: Tuple[str, ...] = tuple(globals())
 
 _TextFont = Union[Font, Tuple[Optional[str], int]]
 
@@ -493,3 +493,6 @@ class _BoundImage(Image):
     def set(self, /, image: Surface) -> None:
         super().set(image)
         self.__text.config.update()
+
+
+__all__ = [n for n in globals() if not n.startswith("_") and n not in __ignore_imports__]

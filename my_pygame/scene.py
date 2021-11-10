@@ -17,17 +17,8 @@ from .utils import MethodWrapper
 if TYPE_CHECKING:
     from .window import Window
 
-__all__ = [
-    "MetaScene",
-    "Scene",
-    "SceneTransition",
-    "MetaMainScene",
-    "MainScene",
-    "set_default_theme_namespace",
-    "closed_namespace",
-]
+__ignore_imports__: Tuple[str, ...] = tuple(globals())
 
-_T = TypeVar("_T")
 _S = TypeVar("_S", bound="MetaScene")
 
 
@@ -305,3 +296,6 @@ class _WindowCallbackList(List[WindowCallback]):
             return
         for callback in tuple(self):
             callback()
+
+
+__all__ = [n for n in globals() if not n.startswith("_") and n not in __ignore_imports__]

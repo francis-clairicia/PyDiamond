@@ -19,7 +19,7 @@ from ._gradients import (  # type: ignore[attr-defined]
     squared as _gradient_squared,
 )
 
-__all__ = ["GradientShape", "HorizontalGradientShape", "VerticalGradientShape", "SquaredGradientShape", "RadialGradientShape"]
+__ignore_imports__: Tuple[str, ...] = tuple(globals())
 
 
 class GradientShape(AbstractShape):
@@ -108,3 +108,6 @@ class RadialGradientShape(AbstractCircleShape, GradientShape):
         return _gradient_radial(radius, tuple(self.first_color), tuple(self.second_color))  # type: ignore
 
     config = Configuration(parent=[AbstractCircleShape.config, GradientShape.config])
+
+
+__all__ = [n for n in globals() if not n.startswith("_") and n not in __ignore_imports__]

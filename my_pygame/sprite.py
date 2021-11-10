@@ -16,7 +16,7 @@ from .renderer import Renderer
 from .surface import create_surface
 from .clock import Clock
 
-__all__ = ["Sprite", "AnimatedSprite"]
+__ignore_imports__: Tuple[str, ...] = tuple(globals())
 
 
 class Sprite(TDrawable, _PygameSprite):
@@ -181,3 +181,6 @@ class AnimatedSprite(Sprite):
     @ratio.setter
     def ratio(self, /, value: float) -> None:
         self.__wait_time = max(float(value), 0)
+
+
+__all__ = [n for n in globals() if not n.startswith("_") and n not in __ignore_imports__]

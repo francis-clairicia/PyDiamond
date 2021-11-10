@@ -15,7 +15,7 @@ from pygame.cursors import Cursor as _Cursor
 
 from .utils import MethodWrapper
 
-__all__ = ["MetaCursor", "Cursor", "CustomCursor", "SystemCursor"]
+__ignore_imports__: Tuple[str, ...] = tuple(globals())
 
 
 def _set_decorator(func: Callable[[Cursor], None], /) -> Callable[[Cursor], None]:
@@ -137,3 +137,5 @@ SystemCursor.CURSOR_SIZENS = SystemCursor(SystemCursor.Type.SIZENS)
 SystemCursor.CURSOR_SIZEALL = SystemCursor(SystemCursor.Type.SIZEALL)
 SystemCursor.CURSOR_NO = SystemCursor(SystemCursor.Type.NO)
 SystemCursor.CURSOR_HAND = SystemCursor(SystemCursor.Type.HAND)
+
+__all__ = [n for n in globals() if not n.startswith("_") and n not in __ignore_imports__]

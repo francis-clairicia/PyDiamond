@@ -6,7 +6,7 @@ from enum import IntEnum
 
 import pygame.key
 
-__all__ = ["Keyboard"]
+__ignore_imports__: Tuple[str, ...] = tuple(globals())
 
 _KEY_STATES: Sequence[bool] = []
 _KEY_REPEAT: Tuple[int, int] = (0, 0)
@@ -251,3 +251,6 @@ class Keyboard:
         CAPS = pygame.KMOD_CAPS
         NUM = pygame.KMOD_NUM
         MODE = pygame.KMOD_MODE
+
+
+__all__ = [n for n in globals() if not n.startswith("_") and n not in __ignore_imports__]

@@ -47,7 +47,7 @@ from .keyboard import Keyboard
 from .cursor import Cursor, SystemCursor
 from .theme import NoTheme
 
-__all__ = ["Window", "WindowError", "WindowCallback"]
+__ignore_imports__: Tuple[str, ...] = tuple(globals())
 
 _EventType = int
 
@@ -576,3 +576,6 @@ class _SceneManager:
         if any(type(stacked_scene) is type(scene) for stacked_scene in self):
             raise TypeError(f"A scene with the same type is stacked: {type(scene).__name__}")
         self.__stack.insert(0, scene)
+
+
+__all__ = [n for n in globals() if not n.startswith("_") and n not in __ignore_imports__]

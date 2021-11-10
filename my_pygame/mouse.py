@@ -5,10 +5,9 @@ from enum import IntEnum
 from operator import truth
 
 import pygame.mouse
-
 from pygame.constants import BUTTON_LEFT, BUTTON_MIDDLE, BUTTON_RIGHT, BUTTON_WHEELDOWN, BUTTON_WHEELUP
 
-__all__ = ["Mouse"]
+__ignore_imports__: Tuple[str, ...] = tuple(globals())
 
 _MOUSE_BUTTON_STATE: Tuple[bool, bool, bool] = (False, False, False)
 
@@ -60,3 +59,6 @@ class Mouse:
     class Wheel(IntEnum):
         UP = BUTTON_WHEELUP
         DOWN = BUTTON_WHEELDOWN
+
+
+__all__ = [n for n in globals() if not n.startswith("_") and n not in __ignore_imports__]

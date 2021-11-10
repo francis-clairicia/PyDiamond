@@ -25,6 +25,8 @@ from .colors import WHITE, BLACK  # , GRAY
 from .configuration import ConfigAttribute, Configuration, initializer, no_object
 from .utils import valid_float, valid_integer
 
+__ignore_imports__: Tuple[str, ...] = tuple(globals())
+
 
 class MetaEntry(MetaTDrawable, MetaThemedObject):
     pass
@@ -378,3 +380,6 @@ class _TextEntry(Text):
     config.validator("max_width", no_object(valid_integer(min_value=0)), accept_none=True)
 
     max_width: ConfigAttribute[Optional[int]] = ConfigAttribute()
+
+
+__all__ = [n for n in globals() if not n.startswith("_") and n not in __ignore_imports__]

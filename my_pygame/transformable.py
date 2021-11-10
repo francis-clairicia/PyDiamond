@@ -9,7 +9,7 @@ from pygame.rect import Rect
 from pygame import error as PygameError
 from pygame.math import Vector2
 
-__all__ = ["MetaTransformable", "Transformable"]
+__ignore_imports__: Tuple[str, ...] = tuple(globals())
 
 
 _ALL_VALID_POSITIONS: Tuple[str, ...] = (
@@ -48,11 +48,11 @@ def _position_decorator(position: property, /) -> property:
 
         return position.setter(setter_wrapper)
 
-    getter_key: Callable[[Any], Any] = position.fget
+    getter: Callable[[Any], Any] = position.fget
 
     @wraps(setter)  # type: ignore
     def setter_wrapper(self: Transformable, /, _value: Any) -> None:
-        if getter_key(self) != _value:
+        if getter(self) != _value:
             setter(self, _value)
             self._on_move()
 
@@ -60,7 +60,14 @@ def _position_decorator(position: property, /) -> property:
 
 
 class MetaTransformable(ABCMeta):
-    def __new__(metacls, /, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaTransformable:
+    def __new__(
+        metacls,
+        /,
+        name: str,
+        bases: Tuple[type, ...],
+        namespace: Dict[str, Any],
+        **kwargs: Any,
+    ) -> MetaTransformable:
         if "Transformable" in globals() and not any(issubclass(cls, Transformable) for cls in bases):
             raise TypeError(
                 f"{name!r} must be inherits from a {Transformable.__name__} class in order to use {MetaTransformable.__name__} metaclass"
@@ -106,10 +113,20 @@ class Transformable(metaclass=MetaTransformable):
         self.__y += vector[1]
         self._on_move()
 
-    def rotate(self, /, angle_offset: float, pivot: Optional[Union[Tuple[float, float], Vector2, str]] = None) -> None:
+    def rotate(
+        self,
+        /,
+        angle_offset: float,
+        pivot: Optional[Union[Tuple[float, float], Vector2, str]] = None,
+    ) -> None:
         self.set_rotation(self.__angle + angle_offset, pivot=pivot)
 
-    def set_rotation(self, /, angle: float, pivot: Optional[Union[Tuple[float, float], Vector2, str]] = None) -> None:
+    def set_rotation(
+        self,
+        /,
+        angle: float,
+        pivot: Optional[Union[Tuple[float, float], Vector2, str]] = None,
+    ) -> None:
         angle = float(angle)
         angle %= 360
         if angle < 0:
@@ -272,7 +289,12 @@ class Transformable(metaclass=MetaTransformable):
             return (h, w)
 
         center: Vector2 = Vector2(w / 2, h / 2)
-        corners: List[Vector2] = [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
+        corners: List[Vector2] = [
+            Vector2(0, 0),
+            Vector2(w, 0),
+            Vector2(w, h),
+            Vector2(0, h),
+        ]
         all_points: List[Vector2] = [center + (point - center).rotate(-angle) for point in corners]
         left: float = min((point.x for point in all_points), default=0)
         right: float = max((point.x for point in all_points), default=0)
@@ -501,3 +523,6 @@ class Transformable(metaclass=MetaTransformable):
         w, h = self.get_size()
         self.__x = midright[0] - w
         self.__y = midright[1] - (h / 2)
+
+
+__all__ = [n for n in globals() if not n.startswith("_") and n not in __ignore_imports__]

@@ -7,11 +7,13 @@ from typing import TYPE_CHECKING, Callable, Dict, Iterator, List, Optional, Tupl
 from pygame.math import Vector2
 
 from .clock import Clock
-from .scene import Scene
+from .scene import Scene, WindowCallback
 
 if TYPE_CHECKING:
     from .transformable import Transformable
-    from .window import Window, WindowCallback
+    from .window import Window
+
+__ignore_imports__: Tuple[str, ...] = tuple(globals())
 
 
 class _AbstractAnimationClass(metaclass=ABCMeta):
@@ -371,3 +373,6 @@ class Animation:
                 continue
         if callable(at_every_frame):
             at_every_frame()
+
+
+__all__ = [n for n in globals() if not n.startswith("_") and n not in __ignore_imports__]

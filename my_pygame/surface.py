@@ -10,7 +10,7 @@ import pygame.image
 
 from pygame.surface import Surface
 
-__all__ = ["Surface", "create_surface", "load_image", "save_image"]
+__ignore_imports__: Tuple[str, ...] = tuple(globals())
 
 
 def create_surface(size: Tuple[float, float], *, convert_alpha: bool = True) -> Surface:
@@ -51,3 +51,6 @@ def save_image(image: Surface, file: str, *, format: Literal["p", "RGB", "RGBX",
     buffer_dict: _BufferDict = {"string": pygame.image.tostring(image, format), "size": image.get_size(), "format": format}
     with bz2.open(file, mode="wb", compresslevel=9) as f:
         f.write(pickle.dumps(buffer_dict))
+
+
+__all__ = [n for n in globals() if not n.startswith("_") and n not in __ignore_imports__]

@@ -10,7 +10,7 @@ from .drawable import TDrawable
 from .renderer import Renderer
 from .surface import load_image, save_image
 
-__all__ = ["Image"]
+__ignore_imports__: Tuple[str, ...] = tuple(globals())
 
 
 class Image(TDrawable):
@@ -112,3 +112,6 @@ class Image(TDrawable):
                 w = round(w * scale)
                 h = round(h * scale)
                 image = pygame.transform.smoothscale(image, (w, h))
+
+
+__all__ = [n for n in globals() if not n.startswith("_") and n not in __ignore_imports__]

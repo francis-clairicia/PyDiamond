@@ -27,20 +27,7 @@ from .configuration import (
 )
 from .utils import valid_float, valid_integer
 
-__all__ = [
-    "AbstractShape",
-    "Shape",
-    "ThemedShape",
-    "OutlinedShape",
-    "PolygonShape",
-    "AbstractRectangleShape",
-    "RectangleShape",
-    "AbstractCircleShape",
-    "CircleShape",
-    "CrossShape",
-    "DiagonalCrossShape",
-    "PlusCrossShape",
-]
+__ignore_imports__: Tuple[str, ...] = tuple(globals())
 
 
 class MetaShape(MetaTDrawable):
@@ -709,3 +696,6 @@ class PlusCrossShape(CrossShape):
             outline=outline,
             theme=theme,
         )
+
+
+__all__ = [n for n in globals() if not n.startswith("_") and n not in __ignore_imports__]
