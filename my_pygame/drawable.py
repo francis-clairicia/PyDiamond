@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from abc import ABCMeta, abstractmethod
-from typing import Any, Callable, Dict, Optional, Protocol, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 from functools import wraps
 
 
@@ -20,12 +20,6 @@ def _draw_decorator(func: Callable[[Drawable, Renderer], None], /) -> Callable[[
             func(self, target)
 
     return MethodWrapper(wrapper)
-
-
-class SupportsDrawing(Protocol):
-    @abstractmethod
-    def draw_onto(self, /, target: Renderer) -> None:
-        raise NotImplementedError
 
 
 class MetaDrawable(ABCMeta):

@@ -33,9 +33,7 @@ class MetaCheckBox(MetaTDrawable, MetaThemedObject):
 
 
 @RectangleShape.register
-class CheckBox(
-    TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=MetaCheckBox
-):
+class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=MetaCheckBox):
     def __init__(
         self,
         /,
@@ -93,16 +91,15 @@ class CheckBox(
             border_bottom_right_radius=border_bottom_right_radius,
             theme=NoTheme,
         )
+        self.__cross_aspect_ratio: float = 0.7
         self.__cross: DiagonalCrossShape = DiagonalCrossShape(
-            width=0.7 * width,
-            height=0.7 * height,
+            width=self.__cross_aspect_ratio * width,
+            height=self.__cross_aspect_ratio * height,
             color=outline_color,
             line_width=0.2,
             theme=NoTheme,
         )
-        self.__on_changed_value: Optional[
-            Callable[[Union[_OnValue, _OffValue]], None]
-        ] = callback
+        self.__on_changed_value: Optional[Callable[[Union[_OnValue, _OffValue]], None]] = callback
         self.__active_img: Optional[Image] = Image(img) if img is not None else None
         self.__on_value: _OnValue = on_value
         self.__off_value: _OffValue = off_value
@@ -137,18 +134,14 @@ class CheckBox(
         return self.__shape.get_size()
 
     def __invoke__(self, /) -> None:
-        self.value = (
-            self.__on_value if self.value == self.__off_value else self.__off_value
-        )
+        self.value = self.__on_value if self.value == self.__off_value else self.__off_value
 
     def get_value(self, /) -> Union[_OnValue, _OffValue]:
         return self.__value
 
     def set_value(self, /, value: Union[_OnValue, _OffValue]) -> None:
         if value not in [self.__on_value, self.__off_value]:
-            raise ValueError(
-                f"{value!r} is not {self.__on_value!r} or {self.__off_value!r}"
-            )
+            raise ValueError(f"{value!r} is not {self.__on_value!r} or {self.__off_value!r}")
         if value == self.__value:
             return
         self.__value = value
@@ -159,7 +152,7 @@ class CheckBox(
     def _mouse_in_hitbox(self, /, mouse_pos: Tuple[float, float]) -> bool:
         return truth(self.__shape.rect.collidepoint(mouse_pos))
 
-    def _apply_rotation_scale(self, /) -> None:
+    def _apply_both_rotation_and_scale(self, /) -> None:
         angle: float = self.angle
         scale: float = self.scale
         self.__shape.set_rotation(angle)
@@ -167,8 +160,22 @@ class CheckBox(
         if self.__active_img is not None:
             self.__active_img.set_rotation(angle)
             self.__active_img.set_scale(scale)
-        w, h = self.__shape.get_size()
-        self.__cross.local_size = (0.7 * w), (0.7 * h)
+        self.__cross.set_rotation(angle)
+        self.__cross.set_scale(scale)
+
+    def _apply_only_rotation(self, /) -> None:
+        angle: float = self.angle
+        self.__shape.set_rotation(angle)
+        if self.__active_img is not None:
+            self.__active_img.set_rotation(angle)
+        self.__cross.set_rotation(angle)
+
+    def _apply_only_scale(self, /) -> None:
+        scale: float = self.scale
+        self.__shape.set_scale(scale)
+        if self.__active_img is not None:
+            self.__active_img.set_scale(scale)
+        self.__cross.set_scale(scale)
 
     config: Configuration = Configuration(
         "value",

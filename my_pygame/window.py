@@ -1,6 +1,7 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
+from abc import abstractmethod
 from functools import wraps
 from inspect import isgeneratorfunction
 from types import MethodType
@@ -13,6 +14,7 @@ from typing import (
     List,
     NoReturn,
     Optional,
+    Protocol,
     Tuple,
     TypeVar,
     Union,
@@ -33,8 +35,7 @@ from pygame.rect import Rect
 from pygame.color import Color
 from pygame.time import get_ticks
 
-from .drawable import SupportsDrawing
-from .renderer import SurfaceRenderer
+from .renderer import Renderer, SurfaceRenderer
 from .event import EventManager, Event, MetaEvent, UnknownEventTypeError
 from .text import Text
 from .colors import BLACK, WHITE
@@ -53,6 +54,12 @@ _EventType = int
 _ColorInput = Union[Color, str, List[int], Tuple[int, int, int], Tuple[int, int, int, int]]
 
 _ScheduledFunc = TypeVar("_ScheduledFunc", bound=Callable[..., None])
+
+
+class _SupportsDrawing(Protocol):
+    @abstractmethod
+    def draw_onto(self, /, target: Renderer) -> None:
+        raise NotImplementedError
 
 
 class WindowError(pygame.error):
@@ -229,11 +236,11 @@ class Window(EventManager):
         self.draw_screen()
         self.refresh()
 
-    def draw(self, /, target: SupportsDrawing, *targets: SupportsDrawing) -> None:
+    def draw(self, /, target: _SupportsDrawing, *targets: _SupportsDrawing) -> None:
         surface: Surface = self.__surface
         renderer: SurfaceRenderer = SurfaceRenderer(surface)
 
-        def draw_target(target: SupportsDrawing) -> None:
+        def draw_target(target: _SupportsDrawing) -> None:
             try:
                 target.draw_onto(renderer)
             except pygame.error:

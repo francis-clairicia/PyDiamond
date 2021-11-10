@@ -69,10 +69,18 @@ class AbstractShape(TDrawable, metaclass=MetaShape):
     def get_size(self, /) -> Tuple[float, float]:
         return self.__image.get_size()
 
-    def _apply_rotation_scale(self, /) -> None:
+    def _apply_both_rotation_and_scale(self, /) -> None:
         angle: float = self.angle
         scale: float = self.scale
         self.__image = pygame.transform.rotozoom(self.__shape_image, angle, scale)
+
+    def _apply_only_rotation(self, /) -> None:
+        angle: float = self.angle
+        self.__image = pygame.transform.rotate(self.__shape_image, angle)
+
+    def _apply_only_scale(self, /) -> None:
+        scale: float = self.scale
+        self.__image = pygame.transform.rotozoom(self.__shape_image, 0, scale)
 
     def __compute_shape_size(self, /) -> None:
         all_points: List[Vector2] = self.get_local_vertices()
@@ -266,9 +274,7 @@ class AbstractRectangleShape(AbstractShape):
         w, h = self.local_size
         return [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
 
-    config = Configuration(
-        "local_width", "local_height", "local_size", parent=AbstractShape.config
-    )
+    config = Configuration("local_width", "local_height", "local_size", parent=AbstractShape.config)
 
     config.validator("local_width", no_object(valid_float(min_value=0)))
     config.validator("local_height", no_object(valid_float(min_value=0)))
@@ -343,12 +349,8 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, metaclass=MetaThemed
     config.validator("border_radius", no_object(valid_integer(min_value=-1)))
     config.validator("border_top_left_radius", no_object(valid_integer(min_value=-1)))
     config.validator("border_top_right_radius", no_object(valid_integer(min_value=-1)))
-    config.validator(
-        "border_bottom_left_radius", no_object(valid_integer(min_value=-1))
-    )
-    config.validator(
-        "border_bottom_right_radius", no_object(valid_integer(min_value=-1))
-    )
+    config.validator("border_bottom_left_radius", no_object(valid_integer(min_value=-1)))
+    config.validator("border_bottom_right_radius", no_object(valid_integer(min_value=-1)))
 
     @config.getter_key("border_radius")
     @config.getter_key("border_top_left_radius")
@@ -411,9 +413,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, metaclass=MetaThemedShape)
         draw_bottom_right: bool = True,
         theme: Optional[ThemeType] = None,
     ) -> None:
-        super().__init__(
-            radius=radius, color=color, outline=outline, outline_color=outline_color
-        )
+        super().__init__(radius=radius, color=color, outline=outline, outline_color=outline_color)
         self.__draw_params: Dict[str, bool] = dict()
         self.__points: List[Vector2] = []
         self.radius = radius
@@ -433,9 +433,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, metaclass=MetaThemedShape)
         draw_params = self.__draw_params
         image.draw_circle(self.color, center, radius, **draw_params)
         if outline > 0:
-            image.draw_circle(
-                self.outline_color, center, radius, width=outline, **draw_params
-            )
+            image.draw_circle(self.outline_color, center, radius, width=outline, **draw_params)
         return image.surface
 
     def get_local_vertices(self, /) -> List[Vector2]:
@@ -553,9 +551,7 @@ class CrossShape(OutlinedShape, metaclass=MetaThemedShape):
             return []
 
         if line_width < 1:
-            line_width = min(
-                self.local_width * line_width, self.local_height * line_width
-            )
+            line_width = min(self.local_width * line_width, self.local_height * line_width)
             if line_width == 0:
                 return []
 
@@ -606,9 +602,7 @@ class CrossShape(OutlinedShape, metaclass=MetaThemedShape):
             return []
 
         if line_width < 1:
-            line_width = min(
-                self.local_width * line_width, self.local_height * line_width
-            )
+            line_width = min(self.local_width * line_width, self.local_height * line_width)
 
         line_width /= 2
 

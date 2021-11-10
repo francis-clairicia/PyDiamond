@@ -385,8 +385,16 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         self.__shape.set_visibility(truth(status))
         return None
 
-    def _apply_rotation_scale(self, /) -> None:
+    def _apply_both_rotation_and_scale(self, /) -> None:
         self.__shape.scale = self.__text.scale = self.scale
+        self.__shape.angle = self.__text.angle = self.angle
+        self.__update_shape_size()
+
+    def _apply_only_scale(self, /) -> None:
+        self.__shape.scale = self.__text.scale = self.scale
+        self.__update_shape_size()
+
+    def _apply_only_rotation(self, /) -> None:
         self.__shape.angle = self.__text.angle = self.angle
         self.__update_shape_size()
 
@@ -931,9 +939,13 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
         if callable(callback):
             callback()
 
-    def _apply_rotation_scale(self, /) -> None:
-        if self.angle != 0:
-            raise NotImplementedError
+    def _apply_both_rotation_and_scale(self, /) -> None:
+        raise NotImplementedError
+
+    def _apply_only_rotation(self, /) -> None:
+        raise NotImplementedError
+
+    def _apply_only_scale(self, /) -> None:
         self.__shape.scale = self.__image.scale = self.scale
         self.__update_shape_size()
 

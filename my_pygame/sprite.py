@@ -41,7 +41,7 @@ class Sprite(TDrawable, _PygameSprite):
     def get_local_size(self, /) -> Tuple[float, float]:
         return self.__default_image.get_size()
 
-    def _apply_rotation_scale(self, /) -> None:
+    def _apply_both_rotation_and_scale(self, /) -> None:
         angle: float = self.angle
         scale: float = self.scale
         image: Surface = self.__default_image
@@ -55,6 +55,26 @@ class Sprite(TDrawable, _PygameSprite):
                 h = round(h * scale)
                 image = pygame.transform.smoothscale(image, (w, h))
             self.__image = pygame.transform.rotate(image, angle)
+        self.__update_mask()
+
+    def _apply_only_rotation(self, /) -> None:
+        angle: float = self.angle
+        image: Surface = self.__default_image
+        self.__image = pygame.transform.rotate(image, angle)
+        self.__update_mask()
+
+    def _apply_only_scale(self, /) -> None:
+        scale: float = self.scale
+        image: Surface = self.__default_image
+
+        if not self.__smooth_scale:
+            self.__image = pygame.transform.rotozoom(image, 0, scale)
+        else:
+            if scale != 1:
+                w, h = self.get_local_size()
+                w = round(w * scale)
+                h = round(h * scale)
+                image = pygame.transform.smoothscale(image, (w, h))
         self.__update_mask()
 
     def __update_mask(self, /) -> None:

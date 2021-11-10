@@ -140,9 +140,7 @@ class ProgressBar(RectangleShape):
                     self.__value_text.message = f"{round(self.value, round_n) if round_n > 0 else round(self.value)}"
                 elif self.__value_text_type == "percent":
                     value = self.percent * 100
-                    self.__value_text.message = (
-                        f"{round(value, round_n) if round_n > 0 else round(value)}%"
-                    )
+                    self.__value_text.message = f"{round(value, round_n) if round_n > 0 else round(value)}%"
                 self.__value_text.set_position(**movements[side])
                 self.__value_text.draw_onto(target)
         if self.__label_text.is_shown():
@@ -211,24 +209,24 @@ class ProgressBar(RectangleShape):
         self.__label_text.hide()
         self.__label_text_side = str()
 
-    def config_label_text(
-        self, /, message: Optional[str] = None, **kwargs: Any
-    ) -> None:
+    def config_label_text(self, /, message: Optional[str] = None, **kwargs: Any) -> None:
         if message is not None:
             kwargs["message"] = message
         self.__label_text.config(**kwargs)
 
-    def _apply_rotation_scale(self, /) -> None:
-        if self.angle != 0:
-            raise NotImplementedError
-        super()._apply_rotation_scale()
+    def _apply_both_rotation_and_scale(self, /) -> None:
+        raise NotImplementedError
+
+    def _apply_only_rotation(self, /) -> None:
+        raise NotImplementedError
+
+    def _apply_only_scale(self, /) -> None:
         scale_rect: RectangleShape = self.__scale_rect
         outline_rect: RectangleShape = self.__outline_rect
         outline_rect.scale = scale_rect.scale = self.scale
+        return super()._apply_only_scale()
 
-    config = Configuration(
-        "value", "percent", "scale_color", parent=RectangleShape.config
-    )
+    config = Configuration("value", "percent", "scale_color", parent=RectangleShape.config)
 
     value: ConfigAttribute[float] = ConfigAttribute()
     percent: ConfigAttribute[float] = ConfigAttribute()
@@ -242,9 +240,7 @@ class ProgressBar(RectangleShape):
     config.validator("percent", no_object(valid_float(min_value=0, max_value=1)))
 
     config.getter("scale_color", lambda self: self.__scale_rect.config.get("color"))
-    config.setter_property(
-        "scale_color", lambda self, color: self.__scale_rect.config.set("color", color)
-    )
+    config.setter_property("scale_color", lambda self, color: self.__scale_rect.config.set("color", color))
 
     @config.value_updater_property("value")
     def __update_percent(self, /, value: float) -> None:

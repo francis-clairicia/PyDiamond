@@ -111,9 +111,7 @@ class Text(TDrawable, metaclass=MetaText):
                 if italic is not None:
                     obj.set_italic(italic)
             else:
-                obj = SysFont(
-                    font_family, font_size, bold=truth(bold), italic=truth(italic)
-                )
+                obj = SysFont(font_family, font_size, bold=truth(bold), italic=truth(italic))
         elif isinstance(font, Font):
             obj = font
             if bold is not None:
@@ -167,10 +165,14 @@ class Text(TDrawable, metaclass=MetaText):
         self.__custom_font.pop(index, None)
         self.config.update()
 
-    def _apply_rotation_scale(self, /) -> None:
-        self.__image = pygame.transform.rotozoom(
-            self.__default_image, self.angle, self.scale
-        )
+    def _apply_both_rotation_and_scale(self, /) -> None:
+        self.__image = pygame.transform.rotozoom(self.__default_image, self.angle, self.scale)
+
+    def _apply_only_scale(self, /) -> None:
+        self.__image = pygame.transform.rotozoom(self.__default_image, 0, self.scale)
+
+    def _apply_only_rotation(self, /) -> None:
+        self.__image = pygame.transform.rotate(self.__default_image, self.angle)
 
     def __render_text(self, /, color: Color) -> Surface:
         render_lines: List[Surface] = list()
@@ -209,9 +211,7 @@ class Text(TDrawable, metaclass=MetaText):
         if shadow_x == 0 and shadow_y == 0:
             return text
         shadow_text: Surface = self.__render_text(self.shadow_color)
-        render = create_surface(
-            (text.get_width() + abs(shadow_x), text.get_height() + abs(shadow_y))
-        )
+        render = create_surface((text.get_width() + abs(shadow_x), text.get_height() + abs(shadow_y)))
 
         text_x: float = 0
         text_y: float = 0
@@ -278,9 +278,7 @@ class Text(TDrawable, metaclass=MetaText):
     shadow_color: ConfigAttribute[Color] = ConfigAttribute()
 
     config.getter("shadow", lambda self: (self.shadow_x, self.shadow_y))
-    config.setter_property(
-        "shadow", lambda self, pos: self.config(shadow_x=pos[0], shadow_y=pos[1])
-    )
+    config.setter_property("shadow", lambda self, pos: self.config(shadow_x=pos[0], shadow_y=pos[1]))
 
 
 class TextImage(Text):
@@ -456,9 +454,7 @@ class TextImage(Text):
     config.validator("img", Surface, accept_none=True)
     config.validator("distance", no_object(valid_float(min_value=0)))
 
-    config.register_copy_func(
-        Surface, lambda surface: surface.copy(), allow_subclass=True
-    )
+    config.register_copy_func(Surface, lambda surface: surface.copy(), allow_subclass=True)
 
     @config.getter("img")
     def __get_img_surface(self, /) -> Optional[Surface]:

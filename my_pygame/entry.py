@@ -171,9 +171,13 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
     def _mouse_in_hitbox(self, /, mouse_pos: Tuple[float, float]) -> bool:
         return self.__shape.rect.collidepoint(mouse_pos)
 
-    def _apply_rotation_scale(self, /) -> None:
-        if self.angle != 0:
-            raise NotImplementedError
+    def _apply_both_rotation_and_scale(self, /) -> None:
+        raise NotImplementedError
+
+    def _apply_only_rotation(self, /) -> None:
+        raise NotImplementedError
+
+    def _apply_only_scale(self, /) -> None:
         scale: float = self.scale
         self.__shape.scale = self.__text.scale = scale
         self.__cursor_width_offset = 15 * scale

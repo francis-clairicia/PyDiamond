@@ -120,7 +120,10 @@ class Transformable(metaclass=MetaTransformable):
         former_angle: float = self.__angle
         self.__angle = angle
         try:
-            self._apply_rotation_scale()
+            try:
+                self._apply_both_rotation_and_scale()
+            except NotImplementedError:
+                self._apply_only_rotation()
         except NotImplementedError:
             self.__angle = 0
             raise
@@ -158,7 +161,10 @@ class Transformable(metaclass=MetaTransformable):
         center: Tuple[float, float] = self.center
         self.__scale = scale
         try:
-            self._apply_rotation_scale()
+            try:
+                self._apply_both_rotation_and_scale()
+            except NotImplementedError:
+                self._apply_only_scale()
         except NotImplementedError:
             self.__scale = 1
             raise
@@ -205,6 +211,36 @@ class Transformable(metaclass=MetaTransformable):
             self.scale_to_size(size)
 
     def _apply_rotation_scale(self, /) -> None:
+        try:
+            self._apply_both_rotation_and_scale()
+        except NotImplementedError:
+            try:
+                only_scale_exc: Optional[BaseException] = None
+                only_rotation_exc: Optional[BaseException] = None
+                try:
+                    self._apply_only_scale()
+                except NotImplementedError as exc:
+                    only_scale_exc = exc
+                try:
+                    self._apply_only_rotation()
+                except NotImplementedError as exc:
+                    only_rotation_exc = exc
+                if only_scale_exc is not None and only_rotation_exc is not None:
+                    raise NotImplementedError
+            finally:
+                only_scale_exc = None
+                only_rotation_exc = None
+
+    @abstractmethod
+    def _apply_both_rotation_and_scale(self, /) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def _apply_only_rotation(self, /) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def _apply_only_scale(self, /) -> None:
         raise NotImplementedError
 
     @abstractmethod
