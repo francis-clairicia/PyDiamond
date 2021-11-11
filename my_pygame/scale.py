@@ -7,9 +7,8 @@ from operator import truth
 from pygame.color import Color
 from pygame.mixer import Sound
 
-from my_pygame.event import MouseButtonDownEvent, MouseMotionEvent
-
 from .colors import BLACK, GRAY, WHITE
+from .event import MouseButtonDownEvent, MouseMotionEvent
 from .cursor import Cursor
 from .clickable import Clickable
 from .progress import ProgressBar
@@ -86,7 +85,7 @@ class Scale(ProgressBar, Clickable):
         self.__percent_callback: Optional[Callable[[float], None]] = percent_callback
         self.set_active_only_on_hover(False)
 
-    def __invoke__(self, /) -> None:
+    def invoke(self, /) -> None:
         callback: Optional[Callable[[float], None]]
 
         callback = self.__value_callback
@@ -112,8 +111,8 @@ class Scale(ProgressBar, Clickable):
 
     config = Configuration(parent=ProgressBar.config)
 
-    config.updater("value", __invoke__)
-    config.updater("percent", __invoke__)
+    config.updater("value", invoke)
+    config.updater("percent", invoke)
 
 
 __all__ = [n for n in globals() if not n.startswith("_") and n not in __ignore_imports__]

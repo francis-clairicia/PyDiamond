@@ -31,7 +31,7 @@ class Sprite(TDrawable, _PygameSprite):
         self.set_mask_threshold(mask_threshold)
 
     def update(self, /, *args: Any, **kwargs: Any) -> None:
-        pass
+        super().update(*args, **kwargs)
 
     def draw_onto(self, /, target: Renderer) -> None:
         image: Surface = self.__image

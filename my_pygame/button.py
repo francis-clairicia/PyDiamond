@@ -299,7 +299,7 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     def get_size(self, /) -> Tuple[float, float]:
         return self.__shape.get_size()
 
-    def __invoke__(self, /) -> None:
+    def invoke(self, /) -> None:
         callback: Optional[Callable[[], None]] = self.callback
         if callable(callback):
             callback()
@@ -517,9 +517,6 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     config.set_alias("disabled_hover_foreground", "disabled_hover_fg")
     config.set_alias("disabled_active_background", "disabled_active_bg")
     config.set_alias("disabled_active_foreground", "disabled_active_fg")
-
-    config.register_copy_func(Color, _copy_color)
-    config.register_copy_func(Surface, _copy_img, allow_subclass=True)
 
     text: ConfigAttribute[str] = ConfigAttribute()
     text_font: ConfigAttribute[Font] = ConfigAttribute()
@@ -934,7 +931,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     def get_size(self, /) -> Tuple[float, float]:
         return self.__shape.get_size()
 
-    def __invoke__(self, /) -> None:
+    def invoke(self, /) -> None:
         callback: Optional[Callable[[], None]] = self.callback
         if callable(callback):
             callback()
@@ -1026,9 +1023,6 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     config.set_alias("disabled_background", "disabled_bg")
     config.set_alias("disabled_hover_background", "disabled_hover_bg")
     config.set_alias("disabled_active_background", "disabled_active_bg")
-
-    config.register_copy_func(Color, _copy_color)
-    config.register_copy_func(Surface, _copy_img, allow_subclass=True)
 
     img: ConfigAttribute[Surface] = ConfigAttribute()
     x_add_size: ConfigAttribute[float] = ConfigAttribute()

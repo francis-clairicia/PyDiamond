@@ -167,7 +167,7 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
         Keyboard.IME.stop_text_input()
         self.__cursor_animated = False
 
-    def __invoke__(self, /) -> None:
+    def invoke(self, /) -> None:
         self.start_edit()
 
     def _mouse_in_hitbox(self, /, mouse_pos: Tuple[float, float]) -> bool:

@@ -253,8 +253,6 @@ class Text(TDrawable, metaclass=MetaText):
 
     config.set_autocopy("font", copy_on_get=False, copy_on_set=False)
 
-    config.register_copy_func(Color, lambda obj: Color(obj))
-
     @config.updater
     def __update_surface(self, /) -> None:
         if self.config.has_initialization_context():
@@ -452,8 +450,6 @@ class TextImage(Text):
 
     config.validator("img", Surface, accept_none=True)
     config.validator("distance", no_object(valid_float(min_value=0)))
-
-    config.register_copy_func(Surface, lambda surface: surface.copy(), allow_subclass=True)
 
     @config.getter("img")
     def __get_img_surface(self, /) -> Optional[Surface]:

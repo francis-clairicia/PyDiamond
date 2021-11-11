@@ -121,8 +121,6 @@ class AbstractShape(TDrawable, metaclass=MetaShape):
 
     config: Configuration = ConfigTemplate(autocopy=True)
 
-    config.register_copy_func(Color, lambda obj: Color(obj))
-
     @config.updater
     def __update_shape(self, /) -> None:
         if self.config.has_initialization_context():

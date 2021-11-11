@@ -134,7 +134,7 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
     def get_size(self, /) -> Tuple[float, float]:
         return self.__shape.get_size()
 
-    def __invoke__(self, /) -> None:
+    def invoke(self, /) -> None:
         self.value = self.__on_value if self.value == self.__off_value else self.__off_value
 
     def get_value(self, /) -> Union[_OnValue, _OffValue]:
