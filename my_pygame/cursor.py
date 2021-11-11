@@ -4,7 +4,6 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from enum import IntEnum
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, overload
-from functools import cache, wraps
 
 import pygame
 import pygame.mouse
@@ -13,7 +12,7 @@ import pygame.cursors
 from pygame.surface import Surface
 from pygame.cursors import Cursor as _Cursor
 
-from .utils import MethodWrapper
+from .utils import cache, wraps
 
 __ignore_imports__: Tuple[str, ...] = tuple(globals())
 
@@ -28,7 +27,7 @@ def _set_decorator(func: Callable[[Cursor], None], /) -> Callable[[Cursor], None
             func(self)
             actual_cursor = self
 
-    return MethodWrapper(wrapper)
+    return wrapper
 
 
 class MetaCursor(ABCMeta):

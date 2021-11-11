@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 from abc import abstractmethod
-from functools import wraps
 from inspect import isgeneratorfunction
 from types import MethodType
 from typing import (
@@ -46,6 +45,7 @@ from .mouse import Mouse
 from .keyboard import Keyboard
 from .cursor import Cursor, SystemCursor
 from .theme import NoTheme
+from .utils import wraps
 
 __ignore_imports__: Tuple[str, ...] = tuple(globals())
 

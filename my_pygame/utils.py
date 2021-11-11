@@ -1,7 +1,7 @@
 # -*- coding: Utf-8 -*
 
 from typing import Any, Callable, Optional, Tuple, Type, TypeVar, Union, cast, overload
-from functools import cache as _cache
+from functools import cache as _cache, wraps as _wraps
 
 __ignore_imports__: Tuple[str, ...] = tuple(globals())
 
@@ -13,11 +13,23 @@ def cache(func: _Func) -> _Func:
     return cast(_Func, _cache(func))
 
 
-class MethodWrapper:
-    def __init__(self, /, wrapper: Callable[..., Any], call_wrapped: bool = False) -> None:
+def wraps(wrapped_func: _Func) -> Callable[[_Func], _Func]:
+    def decorator(wrapper: _Func) -> _Func:
+        wrapper = _wraps(wrapped_func)(wrapper)
+        return cast(_Func, FunctionWrapperProxy(wrapper))
+
+    return decorator
+
+
+class FunctionWrapperProxy:
+    def __init__(self, /, wrapper: Callable[..., Any]) -> None:
+        if not callable(getattr(wrapper, "__wrapped__")):
+            raise AttributeError("Not a valid wrapper object: __wrapped__ attribute must be callable")
         self.__func__: Callable[..., Any] = wrapper
-        self.__wrapped__: Callable[..., Any] = getattr(wrapper, "__wrapped__")
-        self.__call_wrapped: bool = bool(call_wrapped)
+
+    def __repr__(self) -> str:
+        func: Callable[..., Any] = self.__wrapped__
+        return f"<function wrapper proxy {func.__name__} at {id(self):#x}>"
 
     def __getattr__(self, /, name: str) -> Any:
         func: Any = self.__wrapped__
@@ -25,17 +37,25 @@ class MethodWrapper:
 
     def __setattr__(self, /, name: str, value: Any) -> None:
         if name in ("__func__", "__wrapped__"):
+            if name == "__func__" and "__func__" in self.__dict__:
+                raise AttributeError("__func__ is a read-only attribute")
             return super().__setattr__(name, value)
         func: Any = self.__wrapped__
-        setattr(func, name, value)
+        return setattr(func, name, value)
 
     def __call__(self, /, *args: Any, **kwargs: Any) -> Any:
-        func: Callable[..., Any] = self.__wrapped__ if self.__call_wrapped else self.__func__
+        func: Callable[..., Any] = self.__func__
         return func(*args, **kwargs)
 
     def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Callable[..., Any]:
-        func: Callable[..., Any] = self.__wrapped__ if obj is None else self.__func__
+        func: Callable[..., Any] = self.__func__
         func = getattr(func, "__get__")(obj, objtype)
+        return func
+
+    @property
+    def __wrapped__(self, /) -> Callable[..., Any]:
+        func: Callable[..., Any] = self.__func__
+        func = getattr(func, "__wrapped__")
         return func
 
 
@@ -54,7 +74,22 @@ def valid_integer(*, min_value: int, max_value: int) -> Callable[[Any], int]:
     ...
 
 
-def valid_integer(**kwargs: Any) -> Callable[[Any], int]:
+@overload
+def valid_integer(*, value: Any, min_value: int) -> int:
+    ...
+
+
+@overload
+def valid_integer(*, value: Any, max_value: int) -> int:
+    ...
+
+
+@overload
+def valid_integer(*, value: Any, min_value: int, max_value: int) -> int:
+    ...
+
+
+def valid_integer(**kwargs: Any) -> Union[int, Callable[[Any], int]]:
     return __valid_number(int, **kwargs)
 
 
@@ -73,16 +108,31 @@ def valid_float(*, min_value: float, max_value: float) -> Callable[[Any], float]
     ...
 
 
-def valid_float(**kwargs: Any) -> Callable[[Any], float]:
+@overload
+def valid_float(*, value: Any, min_value: float) -> float:
+    ...
+
+
+@overload
+def valid_float(*, value: Any, max_value: float) -> float:
+    ...
+
+
+@overload
+def valid_float(*, value: Any, min_value: float, max_value: float) -> float:
+    ...
+
+
+def valid_float(**kwargs: Any) -> Union[float, Callable[[Any], float]]:
     return __valid_number(float, **kwargs)
 
 
 @cache
-def __valid_number(value_type: Union[Type[int], Type[float]], **kwargs: Any) -> Callable[[Any], Any]:
+def __valid_number(value_type: Union[Type[int], Type[float]], /, **kwargs: Any) -> Union[Any, Callable[[Any], Any]]:
     _min: Union[int, float]
     _max: Union[int, float]
 
-    if any(param not in ["min_value", "max_value"] for param in kwargs):
+    if any(param not in ["value", "min_value", "max_value"] for param in kwargs):
         raise TypeError("Invalid arguments")
 
     null = object()
@@ -114,6 +164,9 @@ def __valid_number(value_type: Union[Type[int], Type[float]], **kwargs: Any) -> 
     else:
         raise TypeError("Invalid arguments")
 
+    if "value" in kwargs:
+        value: Any = kwargs["value"]
+        return valid_number(value)
     return valid_number
 
 

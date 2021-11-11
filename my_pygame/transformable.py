@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 from abc import ABCMeta, abstractmethod
-from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from pygame.rect import Rect
 from pygame import error as PygameError
 from pygame.math import Vector2
+
+from .utils import wraps
 
 __ignore_imports__: Tuple[str, ...] = tuple(globals())
 

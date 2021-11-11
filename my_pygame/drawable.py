@@ -3,12 +3,11 @@
 from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import Any, Callable, Dict, Optional, Tuple
-from functools import wraps
 
 
 from .transformable import MetaTransformable, Transformable
 from .renderer import Renderer
-from .utils import MethodWrapper
+from .utils import wraps
 
 __ignore_imports__: Tuple[str, ...] = tuple(globals())
 
@@ -19,7 +18,7 @@ def _draw_decorator(func: Callable[[Drawable, Renderer], None], /) -> Callable[[
         if self.is_shown():
             func(self, target)
 
-    return MethodWrapper(wrapper)
+    return wrapper
 
 
 class MetaDrawable(ABCMeta):

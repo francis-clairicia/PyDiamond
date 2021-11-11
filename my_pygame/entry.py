@@ -245,8 +245,7 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
 
     @config.validator("cursor")
     def __cursor_validator(self, /, cursor: Any) -> int:
-        value_validator = valid_integer(min_value=0, max_value=len(self.get()))
-        return value_validator(cursor)
+        return valid_integer(value=cursor, min_value=0, max_value=len(self.get()))
 
     config.validator("interval", no_object(valid_integer(min_value=0)))
     config.validator("fixed_width", no_object(valid_float(min_value=0)), accept_none=True)
@@ -260,12 +259,12 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
     def __get_text_option(self, /, option: str) -> Any:
         return self.__text.config.get(option)
 
-    @config.setter("fg", use="color")
-    @config.setter("font")
-    @config.setter("shadow_x")
-    @config.setter("shadow_y")
-    @config.setter("shadow")
-    @config.setter("shadow_color")
+    @config.setter_key("fg", use="color")
+    @config.setter_key("font")
+    @config.setter_key("shadow_x")
+    @config.setter_key("shadow_y")
+    @config.setter_key("shadow")
+    @config.setter_key("shadow_color")
     def __set_text_option(self, /, option: str, value: Any) -> None:
         return self.__text.config.set(option, value)
 
@@ -283,14 +282,14 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
     def __get_shape_option(self, /, option: str) -> Any:
         return self.__shape.config.get(option)
 
-    @config.setter("bg", use="color")
-    @config.setter("outline")
-    @config.setter("outline_color")
-    @config.setter("border_radius")
-    @config.setter("border_top_left_radius")
-    @config.setter("border_top_right_radius")
-    @config.setter("border_bottom_left_radius")
-    @config.setter("border_bottom_right_radius")
+    @config.setter_key("bg", use="color")
+    @config.setter_key("outline")
+    @config.setter_key("outline_color")
+    @config.setter_key("border_radius")
+    @config.setter_key("border_top_left_radius")
+    @config.setter_key("border_top_right_radius")
+    @config.setter_key("border_bottom_left_radius")
+    @config.setter_key("border_bottom_right_radius")
     def __set_shape_option(self, /, option: str, value: Any) -> None:
         return self.__shape.config.set(option, value)
 

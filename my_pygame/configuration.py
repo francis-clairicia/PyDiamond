@@ -448,18 +448,18 @@ class Configuration:
         return infos.value_setter.get(option)
 
     @overload
-    def setter(self, option: str, /, *, use: Optional[str] = None) -> Callable[[_Setter], _Setter]:
+    def setter_key(self, option: str, /, *, use: Optional[str] = None) -> Callable[[_Setter], _Setter]:
         ...
 
     @overload
-    def setter(self, option: str, func: _Setter, /, *, use: Optional[str] = None) -> _Setter:
+    def setter_key(self, option: str, func: _Setter, /, *, use: Optional[str] = None) -> _Setter:
         ...
 
     @overload
-    def setter(self, option: str, func: None, /) -> None:
+    def setter_key(self, option: str, func: None, /) -> None:
         ...
 
-    def setter(
+    def setter_key(
         self,
         option: str,
         func: Union[_Setter, None] = _MISSING,
@@ -492,14 +492,14 @@ class Configuration:
         return func
 
     @overload
-    def setter_property(self, option: str, /) -> Callable[[_PropertySetter], _PropertySetter]:
+    def setter(self, option: str, /) -> Callable[[_PropertySetter], _PropertySetter]:
         ...
 
     @overload
-    def setter_property(self, option: str, func: _PropertySetter, /) -> _PropertySetter:
+    def setter(self, option: str, func: _PropertySetter, /) -> _PropertySetter:
         ...
 
-    def setter_property(
+    def setter(
         self, option: str, func: Optional[_PropertySetter] = None, /
     ) -> Union[_PropertySetter, Callable[[_PropertySetter], _PropertySetter]]:
         infos: Configuration.Infos = self.__infos
@@ -515,7 +515,7 @@ class Configuration:
             def wrapper(self: object, /, name: str, value: Any) -> Any:
                 return _func(self, value)
 
-            self.setter(option, _make_function_wrapper(wrapper, already_wrapper=True))
+            self.setter_key(option, _make_function_wrapper(wrapper, already_wrapper=True))
             return func
 
         if func is None:
@@ -531,18 +531,18 @@ class Configuration:
         return infos.value_deleter.get(option)
 
     @overload
-    def deleter(self, option: str, /, *, use: Optional[str] = None) -> Callable[[_Deleter], _Deleter]:
+    def deleter_key(self, option: str, /, *, use: Optional[str] = None) -> Callable[[_Deleter], _Deleter]:
         ...
 
     @overload
-    def deleter(self, option: str, func: _Deleter, /, *, use: Optional[str] = None) -> _Deleter:
+    def deleter_key(self, option: str, func: _Deleter, /, *, use: Optional[str] = None) -> _Deleter:
         ...
 
     @overload
-    def deleter(self, option: str, func: None, /) -> None:
+    def deleter_key(self, option: str, func: None, /) -> None:
         ...
 
-    def deleter(
+    def deleter_key(
         self,
         option: str,
         func: Union[_Deleter, None] = _MISSING,
@@ -571,14 +571,14 @@ class Configuration:
         return func
 
     @overload
-    def deleter_property(self, option: str, /) -> Callable[[_PropertyDeleter], _PropertyDeleter]:
+    def deleter(self, option: str, /) -> Callable[[_PropertyDeleter], _PropertyDeleter]:
         ...
 
     @overload
-    def deleter_property(self, option: str, func: _PropertyDeleter, /) -> _PropertyDeleter:
+    def deleter(self, option: str, func: _PropertyDeleter, /) -> _PropertyDeleter:
         ...
 
-    def deleter_property(
+    def deleter(
         self, option: str, func: Optional[_PropertyDeleter] = None, /
     ) -> Union[_PropertyDeleter, Callable[[_PropertyDeleter], _PropertyDeleter]]:
         infos: Configuration.Infos = self.__infos
@@ -594,7 +594,7 @@ class Configuration:
             def wrapper(self: object, /, name: str) -> None:
                 _func(self)
 
-            self.deleter(option, _make_function_wrapper(wrapper, already_wrapper=True))
+            self.deleter_key(option, _make_function_wrapper(wrapper, already_wrapper=True))
             return func
 
         if func is None:

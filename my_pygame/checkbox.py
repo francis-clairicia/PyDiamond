@@ -207,7 +207,7 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
     border_bottom_right_radius: ConfigAttribute[int] = ConfigAttribute()
 
     config.getter("value", get_value)
-    config.setter_property("value", set_value)
+    config.setter("value", set_value)
 
     @config.getter_key("local_width")
     @config.getter_key("local_height")
@@ -223,17 +223,17 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
     def __get_shape_option(self, /, option: str) -> Any:
         return self.__shape.config.get(option)
 
-    @config.setter("local_width")
-    @config.setter("local_height")
-    @config.setter("local_size")
-    @config.setter("color")
-    @config.setter("outline")
-    @config.setter("outline_color")
-    @config.setter("border_radius")
-    @config.setter("border_top_left_radius")
-    @config.setter("border_top_right_radius")
-    @config.setter("border_bottom_left_radius")
-    @config.setter("border_bottom_right_radius")
+    @config.setter_key("local_width")
+    @config.setter_key("local_height")
+    @config.setter_key("local_size")
+    @config.setter_key("color")
+    @config.setter_key("outline")
+    @config.setter_key("outline_color")
+    @config.setter_key("border_radius")
+    @config.setter_key("border_top_left_radius")
+    @config.setter_key("border_top_right_radius")
+    @config.setter_key("border_bottom_left_radius")
+    @config.setter_key("border_bottom_right_radius")
     def __set_shape_option(self, /, option: str, value: Any) -> Any:
         return self.__shape.config.set(option, value)
 

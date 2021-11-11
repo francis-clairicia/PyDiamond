@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 from abc import ABCMeta, abstractmethod
-from functools import wraps
 from inspect import isgeneratorfunction
 from operator import truth
 from typing import TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Iterator, List, Optional, Tuple, Type, TypeVar, Union, overload
@@ -12,7 +11,7 @@ from pygame.color import Color
 from .clock import Clock
 from .event import EventManager
 from .theme import ThemeNamespace
-from .utils import MethodWrapper
+from .utils import wraps, cache
 
 if TYPE_CHECKING:
     from .window import Window
@@ -26,23 +25,25 @@ class MetaScene(ABCMeta):
 
     __abstractmethods__: FrozenSet[str]
     __namespaces: Dict[type, str] = dict()
-    __instances: Dict[Type[Any], Any] = dict()
 
     def __new__(metacls, /, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **extra: Any) -> MetaScene:
+        if "Scene" not in globals():
+            return super().__new__(metacls, name, bases, namespace, **extra)
+
+        if len(bases) > 1:
+            raise TypeError("Multiple inheritance not supported")
+
+        if not any(issubclass(cls, Scene) for cls in bases):
+            raise TypeError(
+                f"{name!r} must be inherits from a {Scene.__name__} class in order to use {MetaScene.__name__} metaclass"
+            )
+
         for attr_name, attr_obj in namespace.items():
+            if attr_name == "__new__":
+                raise TypeError("__new__ method must not be overridden")
             namespace[attr_name] = metacls.__apply_theme_namespace_decorator(attr_obj)
 
         return super().__new__(metacls, name, bases, namespace, **extra)
-
-    def __call__(cls, /, *args: Any, **kwargs: Any) -> Any:
-        instance: object
-        dict_instances: Dict[Type[Any], Any] = cls.__instances
-        try:
-            instance = dict_instances[cls]
-            getattr(instance, "__init__")(*args, **kwargs)
-        except KeyError:
-            dict_instances[cls] = instance = super().__call__(*args, **kwargs)
-        return instance
 
     def set_theme_namespace(cls, /, namespace: str) -> None:
         if cls.__abstractmethods__:
@@ -69,7 +70,7 @@ class MetaScene(ABCMeta):
                     output = func(self, *args, **kwargs)
             return output
 
-        return MethodWrapper(wrapper)
+        return wrapper
 
     @staticmethod
     def __apply_theme_namespace_decorator(obj: Any) -> Any:
@@ -98,6 +99,12 @@ class SceneTransition(metaclass=ABCMeta):
 
 
 class Scene(EventManager, metaclass=MetaScene):
+    __T = TypeVar("__T", bound="Scene")
+
+    @cache
+    def __new__(cls: Type[__T], *args: Any, **kwargs: Any) -> __T:
+        return super().__new__(cls)
+
     def __init__(self, /, master: Union[Window, Scene], framerate: int = 0, busy_loop: bool = False) -> None:
         super().__init__()
         self.__master: Optional[Scene]
@@ -217,10 +224,19 @@ class Scene(EventManager, metaclass=MetaScene):
 
 
 class MetaMainScene(MetaScene):
-    def __init__(cls, /, name: str, bases: Tuple[type, ...], namespace: dict[str, Any]) -> None:
-        super().__init__(name, bases, namespace)
+    def __new__(metacls, /, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **extra: Any) -> MetaScene:
+        if "MainScene" not in globals():
+            return super().__new__(metacls, name, bases, namespace, **extra)
+
+        if not any(issubclass(cls, MainScene) for cls in bases):
+            raise TypeError(
+                f"{name!r} must be inherits from a {MainScene.__name__} class in order to use {MetaMainScene.__name__} metaclass"
+            )
+
+        cls = super().__new__(metacls, name, bases, namespace, **extra)
         if not cls.__abstractmethods__:
             closed_namespace(cls)
+        return cls
 
 
 class MainScene(Scene, metaclass=MetaMainScene):

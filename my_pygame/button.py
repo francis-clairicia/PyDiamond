@@ -591,16 +591,16 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     def __get_text_option(self, /, option: str) -> Any:
         return self.__text.config.get(option)
 
-    @config.setter("text", use="message")
-    @config.setter("text_font", use="font")
-    @config.setter("text_justify", use="justify")
-    @config.setter("text_wrap", use="wrap")
-    @config.setter("text_shadow", use="shadow")
-    @config.setter("text_shadow_x", use="shadow_x")
-    @config.setter("text_shadow_y", use="shadow_y")
-    @config.setter("text_shadow_color", use="shadow_color")
-    @config.setter("compound")
-    @config.setter("distance_text_img", use="distance")
+    @config.setter_key("text", use="message")
+    @config.setter_key("text_font", use="font")
+    @config.setter_key("text_justify", use="justify")
+    @config.setter_key("text_wrap", use="wrap")
+    @config.setter_key("text_shadow", use="shadow")
+    @config.setter_key("text_shadow_x", use="shadow_x")
+    @config.setter_key("text_shadow_y", use="shadow_y")
+    @config.setter_key("text_shadow_color", use="shadow_color")
+    @config.setter_key("compound")
+    @config.setter_key("distance_text_img", use="distance")
     def __set_text_option(self, /, option: str, value: Any) -> None:
         return self.__text.config.set(option, value)
 
@@ -664,12 +664,12 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         clickable_state, button_state = Button.__STATE[option]
         return self.__bg_dict[clickable_state][button_state]
 
-    @config.setter("background")
-    @config.setter("hover_background")
-    @config.setter("active_background")
-    @config.setter("disabled_background")
-    @config.setter("disabled_hover_background")
-    @config.setter("disabled_active_background")
+    @config.setter_key("background")
+    @config.setter_key("hover_background")
+    @config.setter_key("active_background")
+    @config.setter_key("disabled_background")
+    @config.setter_key("disabled_hover_background")
+    @config.setter_key("disabled_active_background")
     def __set_background(self, /, option: str, color: Optional[Color]) -> None:
         clickable_state, button_state = Button.__STATE[option]
         self.__bg_dict[clickable_state][button_state] = color
@@ -705,12 +705,12 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         clickable_state, button_state = Button.__STATE[option]
         return self.__fg_dict[clickable_state][button_state]
 
-    @config.setter("foreground")
-    @config.setter("hover_foreground")
-    @config.setter("active_foreground")
-    @config.setter("disabled_foreground")
-    @config.setter("disabled_hover_foreground")
-    @config.setter("disabled_active_foreground")
+    @config.setter_key("foreground")
+    @config.setter_key("hover_foreground")
+    @config.setter_key("active_foreground")
+    @config.setter_key("disabled_foreground")
+    @config.setter_key("disabled_hover_foreground")
+    @config.setter_key("disabled_active_foreground")
     def __set_foreground(self, /, option: str, color: Optional[Color]) -> None:
         clickable_state, button_state = Button.__STATE[option]
         self.__fg_dict[clickable_state][button_state] = color
@@ -746,12 +746,12 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         clickable_state, button_state = Button.__STATE[option]
         return self.__img_dict[clickable_state][button_state]
 
-    @config.setter("img")
-    @config.setter("hover_img")
-    @config.setter("active_img")
-    @config.setter("disabled_img")
-    @config.setter("disabled_hover_img")
-    @config.setter("disabled_active_img")
+    @config.setter_key("img")
+    @config.setter_key("hover_img")
+    @config.setter_key("active_img")
+    @config.setter_key("disabled_img")
+    @config.setter_key("disabled_hover_img")
+    @config.setter_key("disabled_active_img")
     def __set_img(self, /, option: str, img: Optional[Surface]) -> None:
         clickable_state, button_state = Button.__STATE[option]
         self.__img_dict[clickable_state][button_state] = img
@@ -790,13 +790,13 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     def __get_shape_option(self, /, option: str) -> Any:
         return self.__shape.config.get(option)
 
-    @config.setter("outline")
-    @config.setter("outline_color")
-    @config.setter("border_radius")
-    @config.setter("border_top_left_radius")
-    @config.setter("border_top_right_radius")
-    @config.setter("border_bottom_left_radius")
-    @config.setter("border_bottom_right_radius")
+    @config.setter_key("outline")
+    @config.setter_key("outline_color")
+    @config.setter_key("border_radius")
+    @config.setter_key("border_top_left_radius")
+    @config.setter_key("border_top_right_radius")
+    @config.setter_key("border_bottom_left_radius")
+    @config.setter_key("border_bottom_right_radius")
     def __set_shape_option(self, /, option: str, value: Any) -> Any:
         return self.__shape.config.set(option, value)
 
@@ -1103,12 +1103,12 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
         clickable_state, button_state = ImageButton.__STATE[option]
         return self.__bg_dict[clickable_state][button_state]
 
-    @config.setter("background")
-    @config.setter("hover_background")
-    @config.setter("active_background")
-    @config.setter("disabled_background")
-    @config.setter("disabled_hover_background")
-    @config.setter("disabled_active_background")
+    @config.setter_key("background")
+    @config.setter_key("hover_background")
+    @config.setter_key("active_background")
+    @config.setter_key("disabled_background")
+    @config.setter_key("disabled_hover_background")
+    @config.setter_key("disabled_active_background")
     def __set_background(self, /, option: str, color: Optional[Color]) -> None:
         clickable_state, button_state = ImageButton.__STATE[option]
         self.__bg_dict[clickable_state][button_state] = color
@@ -1144,12 +1144,12 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
         clickable_state, button_state = ImageButton.__STATE[option]
         return self.__img_dict[clickable_state][button_state]
 
-    @config.setter("img")
-    @config.setter("hover_img")
-    @config.setter("active_img")
-    @config.setter("disabled_img")
-    @config.setter("disabled_hover_img")
-    @config.setter("disabled_active_img")
+    @config.setter_key("img")
+    @config.setter_key("hover_img")
+    @config.setter_key("active_img")
+    @config.setter_key("disabled_img")
+    @config.setter_key("disabled_hover_img")
+    @config.setter_key("disabled_active_img")
     def __set_img(self, /, option: str, img: Optional[Surface]) -> None:
         clickable_state, button_state = ImageButton.__STATE[option]
         self.__img_dict[clickable_state][button_state] = img
@@ -1178,13 +1178,13 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     def __get_shape_option(self, /, option: str) -> Any:
         return self.__shape.config.get(option)
 
-    @config.setter("outline")
-    @config.setter("outline_color")
-    @config.setter("border_radius")
-    @config.setter("border_top_left_radius")
-    @config.setter("border_top_right_radius")
-    @config.setter("border_bottom_left_radius")
-    @config.setter("border_bottom_right_radius")
+    @config.setter_key("outline")
+    @config.setter_key("outline_color")
+    @config.setter_key("border_radius")
+    @config.setter_key("border_top_left_radius")
+    @config.setter_key("border_top_right_radius")
+    @config.setter_key("border_bottom_left_radius")
+    @config.setter_key("border_bottom_right_radius")
     def __set_shape_option(self, /, option: str, value: Any) -> Any:
         return self.__shape.config.set(option, value)
 

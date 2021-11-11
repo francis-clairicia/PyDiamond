@@ -335,8 +335,9 @@ class TextImageScene(MainScene):
     def __init__(self, window: Window) -> None:
         super().__init__(window)
         self.background_color = BLUE_DARK
-        self.text: TextImage = TextImage("I'm a text", font=(None, 50), color=WHITE, shadow_x=-5, shadow_y=-5, wrap=5)
-        self.text.img = ImagesResources.cactus
+        self.text: TextImage = TextImage(
+            "I'm a text", img=ImagesResources.cactus, font=(None, 50), color=WHITE, shadow_x=-5, shadow_y=-5, wrap=5
+        )
         self.text.img_scale_to_size((100, 100))
         self.text.center = window.center
         self.text_animation = Animation(self.text)

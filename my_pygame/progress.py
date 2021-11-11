@@ -236,13 +236,12 @@ class ProgressBar(RectangleShape):
 
     @config.validator("value")
     def __valid_value(self, /, value: Any) -> float:
-        value_validator = valid_float(min_value=self.__start, max_value=self.__end)
-        return value_validator(value)
+        return valid_float(value=value, min_value=self.__start, max_value=self.__end)
 
     config.validator("percent", no_object(valid_float(min_value=0, max_value=1)))
 
     config.getter("scale_color", lambda self: self.__scale_rect.config.get("color"))
-    config.setter_property("scale_color", lambda self, color: self.__scale_rect.config.set("color", color))
+    config.setter("scale_color", lambda self, color: self.__scale_rect.config.set("color", color))
 
     @config.value_updater_property("value")
     def __update_percent(self, /, value: float) -> None:
@@ -261,8 +260,8 @@ class ProgressBar(RectangleShape):
     def __outline_getter(self, /, option: str) -> Any:
         return self.__outline_rect.config.get(option)
 
-    @config.setter("outline")
-    @config.setter("outline_color")
+    @config.setter_key("outline")
+    @config.setter_key("outline_color")
     def __outline_setter(self, /, option: str, value: Any) -> None:
         self.__outline_rect.config.set(option, value)
 

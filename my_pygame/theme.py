@@ -121,9 +121,6 @@ class MetaThemedObject(ABCMeta):
                 if param.default is not None:
                     raise TypeError(f"{func.__qualname__}: 'theme' parameter must have None as default value")
 
-        if "ThemedObject" in globals() and not any(issubclass(cls, ThemedObject) for cls in bases):
-            bases += (ThemedObject,)
-
         if all(not getattr(attr, "__isabstractmethod__", False) for attr in namespace.values()):
             new_method: Optional[Callable[..., Any]] = namespace.get("__new__")
             init_method: Optional[Callable[..., None]] = namespace.get("__init__")

@@ -278,7 +278,7 @@ class Text(TDrawable, metaclass=MetaText):
     shadow_color: ConfigAttribute[Color] = ConfigAttribute()
 
     config.getter("shadow", lambda self: (self.shadow_x, self.shadow_y))
-    config.setter_property("shadow", lambda self, pos: self.config(shadow_x=pos[0], shadow_y=pos[1]))
+    config.setter("shadow", lambda self, pos: self.config(shadow_x=pos[0], shadow_y=pos[1]))
 
 
 class TextImage(Text):
@@ -463,7 +463,7 @@ class TextImage(Text):
             return None
         return img.get()
 
-    @config.setter_property("img")
+    @config.setter("img")
     def __update_img(self, /, surface: Optional[Surface]) -> None:
         if surface is None:
             self.__img = None
@@ -486,8 +486,8 @@ class _BoundImage(Image):
         super().__init__(image)
         self.__text: TextImage = text
 
-    def _apply_rotation_scale(self, /) -> None:
-        super()._apply_rotation_scale()
+    def _apply_both_rotation_and_scale(self, /) -> None:
+        super()._apply_both_rotation_and_scale()
         self.__text.config.update()
 
     def set(self, /, image: Surface) -> None:

@@ -268,10 +268,7 @@ class AbstractRectangleShape(AbstractShape):
     config.validator("local_size", tuple, convert=True)
 
     config.getter("local_size", lambda self: (self.local_width, self.local_height))
-    config.setter_property(
-        "local_size",
-        lambda self, size: self.config(local_width=size[0], local_height=size[1]),
-    )
+    config.setter("local_size", lambda self, size: self.config(local_width=size[0], local_height=size[1]))
 
     local_width: ConfigAttribute[float] = ConfigAttribute()
     local_height: ConfigAttribute[float] = ConfigAttribute()
@@ -350,11 +347,11 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, metaclass=MetaThemed
         except KeyError as exc:
             raise AttributeError from exc
 
-    @config.setter("border_radius")
-    @config.setter("border_top_left_radius")
-    @config.setter("border_top_right_radius")
-    @config.setter("border_bottom_left_radius")
-    @config.setter("border_bottom_right_radius")
+    @config.setter_key("border_radius")
+    @config.setter_key("border_top_left_radius")
+    @config.setter_key("border_top_right_radius")
+    @config.setter_key("border_bottom_left_radius")
+    @config.setter_key("border_bottom_right_radius")
     def __set_border_radius(self, /, border: str, radius: int) -> None:
         self.__draw_params[border] = radius
 
@@ -449,10 +446,10 @@ class CircleShape(AbstractCircleShape, OutlinedShape, metaclass=MetaThemedShape)
         except KeyError as exc:
             raise AttributeError from exc
 
-    @config.setter("draw_top_left")
-    @config.setter("draw_top_right")
-    @config.setter("draw_bottom_left")
-    @config.setter("draw_bottom_right")
+    @config.setter_key("draw_top_left")
+    @config.setter_key("draw_top_right")
+    @config.setter_key("draw_bottom_left")
+    @config.setter_key("draw_bottom_right")
     def __set_draw_arc(self, /, side: str, status: bool) -> None:
         self.__draw_params[side] = status
 
@@ -631,10 +628,7 @@ class CrossShape(OutlinedShape, metaclass=MetaThemedShape):
         return str(self.__type.value)
 
     config.getter("local_size", lambda self: (self.local_width, self.local_height))
-    config.setter_property(
-        "local_size",
-        lambda self, size: self.config(local_width=size[0], local_height=size[1]),
-    )
+    config.setter("local_size", lambda self, size: self.config(local_width=size[0], local_height=size[1]))
 
     @config.updater("local_width")
     @config.updater("local_height")
