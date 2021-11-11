@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from abc import ABCMeta
+from contextlib import suppress
 from typing import (
     Any,
     Callable,
@@ -274,10 +275,8 @@ class MetaThemedObject(ABCMeta):
 
         def get_theme_options(cls: type, theme: str) -> None:
             nonlocal theme_kwargs
-            try:
+            with suppress(KeyError):
                 theme_kwargs |= _THEMES[cls][theme]
-            except KeyError:
-                pass
 
         get_all_parents_class = MetaThemedObject.__get_all_parent_class
         for t in dict.fromkeys(themes):
@@ -323,10 +322,8 @@ class MetaThemedObject(ABCMeta):
 
         def add_default_themes(cls: MetaThemedObject) -> None:
             nonlocal default_theme
-            try:
+            with suppress(KeyError):
                 default_theme |= dict.fromkeys(_DEFAULT_THEME[cls])
-            except KeyError:
-                pass
 
         if parent_default_themes:
             get_all_parents_class = MetaThemedObject.__get_all_parent_class

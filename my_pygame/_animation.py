@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from abc import ABCMeta, abstractmethod
+from contextlib import suppress
 from typing import TYPE_CHECKING, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 from pygame.math import Vector2
@@ -28,10 +29,8 @@ class _AbstractAnimationClass(metaclass=ABCMeta):
 
     def stop(self, /) -> None:
         self.__animation_started = False
-        try:
+        with suppress(NotImplementedError):
             self.default()
-        except NotImplementedError:
-            pass
 
     def ready(self, /) -> bool:
         if not self.started():

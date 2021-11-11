@@ -1,6 +1,7 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
+from contextlib import suppress
 
 import os.path
 
@@ -132,10 +133,8 @@ class Text(TDrawable, metaclass=MetaText):
     @staticmethod
     def set_default_font(font: Union[str, None]) -> None:
         if font is None:
-            try:
+            with suppress(AttributeError):
                 delattr(Text, "__default_font__")
-            except AttributeError:
-                pass
         else:
             setattr(Text, "__default_font__", str(font))
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from abc import abstractmethod
+from contextlib import suppress
 from inspect import isgeneratorfunction
 from types import MethodType
 from typing import (
@@ -257,10 +258,8 @@ class Window(EventManager):
         self.__callback_after.process()
         actual_scene: Optional[Scene] = self.__update_actual_scene()
         if actual_scene:
-            try:
+            with suppress(KeyError):
                 self.__callback_after_scenes[actual_scene].process()
-            except KeyError:
-                pass
 
         self.handle_mouse_pos()
         if actual_scene:
@@ -341,17 +340,13 @@ class Window(EventManager):
             scene_callback_after: Optional[_WindowCallbackList] = self.__callback_after_scenes.get(scene)
             if scene_callback_after is None:
                 return
-            try:
+            with suppress(ValueError):
                 scene_callback_after.remove(window_callback)
-            except ValueError:
-                pass
             if not scene_callback_after:
                 self.__callback_after_scenes.pop(scene)
         else:
-            try:
+            with suppress(ValueError):
                 self.__callback_after.remove(window_callback)
-            except ValueError:
-                pass
 
     def get_actual_scene(self, /) -> Optional[Scene]:
         return self.__scenes.top()
@@ -564,10 +559,8 @@ class _SceneManager:
     def remove(self, /, scene: Scene) -> None:
         if scene.window is not self.__window:
             raise WindowError("Trying to remove a scene bound to an another window")
-        try:
+        with suppress(ValueError):
             self.__stack.remove(scene)
-        except ValueError:
-            pass
 
     def push(self, /, scene: Scene) -> None:
         if scene.window is not self.__window:

@@ -1,6 +1,7 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
+from contextlib import suppress
 from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union, cast
@@ -320,10 +321,8 @@ class EventManager:
 
     def unbind_mouse_position(self, /, callback_to_remove: _MousePositionCallback) -> None:
         mouse_pos_handler_list: List[_MousePositionCallback] = self.__mouse_pos_handler_list
-        try:
+        with suppress(ValueError):
             mouse_pos_handler_list.remove(callback_to_remove)
-        except ValueError:
-            pass
 
     def process_event(self, /, event: Event) -> None:
         event_dict: Dict[Event.Type, List[_EventCallback]] = self.__event_handler_dict

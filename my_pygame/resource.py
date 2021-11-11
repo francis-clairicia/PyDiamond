@@ -1,6 +1,7 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
+from contextlib import suppress
 from os.path import join
 from typing import Any, Callable, Dict, Generic, List, Optional, Tuple, Type, TypeVar, Union, cast, get_args
 from abc import ABCMeta, abstractmethod
@@ -116,10 +117,8 @@ class _ResourceDescriptor:
         return resource
 
     def unload(self, /) -> None:
-        try:
+        with suppress(AttributeError):
             del self.__resource
-        except AttributeError:
-            pass
 
     @property
     def nb_resources(self, /) -> int:
