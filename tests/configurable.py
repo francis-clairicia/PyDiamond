@@ -3,15 +3,10 @@
 from sys import path as SYS_PATH
 from os.path import dirname
 from typing import Any, Dict, Tuple
-from time import time
 
 SYS_PATH.append(dirname(dirname(__file__)))
 
-entrypoint: float = time()
-
 from my_pygame.configuration import ConfigAttribute, Configuration, initializer
-
-print(f"Module imported in {time() - entrypoint:3f}s")
 
 
 class Configurable:

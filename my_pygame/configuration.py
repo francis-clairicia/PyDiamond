@@ -47,6 +47,7 @@ _ValueValidator = TypeVar("_ValueValidator", bound=Callable[[Any, Any], None])
 _StaticValueValidator = TypeVar("_StaticValueValidator", bound=Callable[[Any], None])
 _ValueConverter = TypeVar("_ValueConverter", bound=Callable[[Any, Any], Any])
 _StaticValueConverter = TypeVar("_StaticValueConverter", bound=Callable[[Any], Any])
+_T = TypeVar("_T")
 
 
 class ConfigError(Exception):
@@ -97,7 +98,7 @@ class Configuration:
         /,
         *known_options: str,
         autocopy: Optional[bool] = None,
-        parent: Union[Configuration, Sequence[Configuration], None] = None,
+        parent: Optional[Union[Configuration, Sequence[Configuration]]] = None,
     ) -> None:
         if any(not option for option in known_options):
             raise ValueError("Configuration option must not be empty")
@@ -122,7 +123,7 @@ class Configuration:
             if autocopy is not None:
                 info.autocopy = autocopy
 
-        self.__parents__: Tuple[Configuration, ...] = tuple(__parents__)
+        self.__all_parents: Tuple[Configuration, ...] = tuple(__parents__)
         self.__info: _ConfigInfo = info
         self.__no_parent_ownership: Set[str] = set()
         self.__bound_class: Optional[type] = None
@@ -139,6 +140,9 @@ class Configuration:
                 attribute_class_owner[option] = owner
             else:
                 attribute_class_owner[option] = attribute_class_owner.get(option, owner)
+            descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
+            if hasattr(descriptor, "__set_name__"):
+                getattr(descriptor, "__set_name__")(attribute_class_owner[option], option)
         _register_configuration(owner, self)
         for obj in _all_members(owner).values():
             if isinstance(obj, ConfigAttribute):
@@ -214,16 +218,19 @@ class Configuration:
         self.__no_parent_ownership.add(option)
         if self.__bound_class is not None:
             info.attribute_class_owner[option] = self.__bound_class
+            descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
+            if hasattr(descriptor, "__set_name__"):
+                getattr(descriptor, "__set_name__")(self.__bound_class, option)
 
     @overload
     def __get__(self, obj: None, objtype: Optional[type] = None, /) -> Configuration:
         ...
 
     @overload
-    def __get__(self, obj: object, objtype: Optional[type] = None, /) -> _BoundConfiguration:
+    def __get__(self, obj: _T, objtype: Optional[type] = None, /) -> _BoundConfiguration[_T]:
         ...
 
-    def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Union[Configuration, _BoundConfiguration]:
+    def __get__(self, obj: Optional[_T], objtype: Optional[type] = None, /) -> Union[Configuration, _BoundConfiguration[_T]]:
         if obj is None:
             return self
         if objtype is not None and objtype is not type(obj):
@@ -374,7 +381,7 @@ class Configuration:
         if not update_stack and callable(main_update):
             main_update(__obj)
 
-    def update(self, /, obj: object, option: Optional[str] = None) -> None:
+    def update(self, /, obj: object) -> None:
         if self.has_initialization_context(obj):
             return
 
@@ -409,7 +416,7 @@ class Configuration:
         update_stack = Configuration.__update_stack.get(obj, [])
         get_private_attribute = self.__get_option_private_attribute
 
-        option = self.check_option_validity(option)
+        self.check_option_validity(option)
         if option in update_stack:
             return
         actual_descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
@@ -658,6 +665,8 @@ class Configuration:
             if not isinstance(descriptor, property) or descriptor.fset is not None or descriptor.fdel is not None:
                 raise OptionError(option, "Read-only option")
         info.value_descriptors[option] = descriptor
+        if self.__bound_class is not None and hasattr(descriptor, "__set_name__"):
+            getattr(descriptor, "__set_name__")(info.attribute_class_owner[option], option)
 
     @overload
     def on_update(self, func: _Updater, /, *, use_override: bool = True) -> _Updater:
@@ -1040,6 +1049,10 @@ class Configuration:
             update_stack.append(option)
             yield
 
+    @property
+    def __parents__(self) -> Tuple[Configuration, ...]:
+        return self.__all_parents
+
 
 class ConfigTemplate(Configuration):
     def __init_subclass__(cls, /) -> None:
@@ -1050,16 +1063,13 @@ class ConfigTemplate(Configuration):
         ...
 
     @overload
-    def __get__(self, obj: object, objtype: Optional[type] = None, /) -> _BoundConfiguration:
+    def __get__(self, obj: _T, objtype: Optional[type] = None, /) -> _BoundConfiguration[_T]:
         ...
 
-    def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Union[ConfigTemplate, _BoundConfiguration]:
+    def __get__(self, obj: Optional[_T], objtype: Optional[type] = None, /) -> Union[ConfigTemplate, _BoundConfiguration[_T]]:
         if obj is None:
             return self
         raise TypeError("Cannot use configuration template as descriptor")
-
-
-_T = TypeVar("_T")
 
 
 class ConfigAttribute(Generic[_T]):
@@ -1123,10 +1133,11 @@ class _ValueUpdateRegister(TypedDict):
     on_update: Callable[[object, Any], None]
 
 
-class _BoundConfiguration:
-    def __init__(self, /, config: Configuration, obj: object) -> None:
+class _BoundConfiguration(Generic[_T]):
+    def __init__(self, /, config: Configuration, obj: _T) -> None:
+        super().__init__()
         self.__config: Callable[[], Configuration] = lambda: config
-        self.__obj: object = obj
+        self.__obj: _T = obj
 
     def known_options(self, /) -> FrozenSet[str]:
         config = self.__config()
@@ -1193,6 +1204,10 @@ class _BoundConfiguration:
     def has_initialization_context(self, /) -> bool:
         obj = self.__obj
         return Configuration.has_initialization_context(obj)
+
+    @property
+    def __self__(self, /) -> _T:
+        return self.__obj
 
 
 def _no_type_check_cache(func: _Func) -> _Func:
