@@ -6,7 +6,7 @@ from typing import Any, Dict, Tuple
 
 SYS_PATH.append(dirname(dirname(__file__)))
 
-from my_pygame.system.configuration import ConfigAttribute, Configuration, initializer
+from py_diamond.system.configuration import ConfigAttribute, Configuration, initializer
 
 
 class Configurable:

@@ -2,27 +2,27 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
-from my_pygame.graphics.animation import Animation
-from my_pygame.graphics.entry import Entry
-from my_pygame.window.event import Event, MouseButtonEvent
-from my_pygame.graphics.renderer import SurfaceRenderer
-from my_pygame.graphics.scale import Scale
-from my_pygame.graphics.progress import ProgressBar
-from my_pygame.graphics.checkbox import CheckBox
-from my_pygame.graphics.button import Button, ImageButton
-from my_pygame.window.mouse import Mouse
+from py_diamond.graphics.animation import Animation
+from py_diamond.graphics.entry import Entry
+from py_diamond.window.event import Event, MouseButtonEvent
+from py_diamond.graphics.renderer import SurfaceRenderer
+from py_diamond.graphics.scale import Scale
+from py_diamond.graphics.progress import ProgressBar
+from py_diamond.graphics.checkbox import CheckBox
+from py_diamond.graphics.button import Button, ImageButton
+from py_diamond.window.mouse import Mouse
 from typing import Callable, List
-from my_pygame.graphics.surface import Surface
-from my_pygame.graphics.text import Text, TextImage
-from my_pygame.window.display import Window, scheduled
-from my_pygame.window.scene import Scene, MainScene
+from py_diamond.graphics.surface import Surface
+from py_diamond.graphics.text import Text, TextImage
+from py_diamond.window.display import Window, scheduled
+from py_diamond.window.scene import Scene, MainScene
 
-from my_pygame.resource import FontLoader, ImageLoader, ResourceManager
+from py_diamond.resource import FontLoader, ImageLoader, ResourceManager
 
-from my_pygame.graphics.shape import AbstractRectangleShape, RectangleShape, PolygonShape, CircleShape, CrossShape
-from my_pygame.graphics.gradients import HorizontalGradientShape, RadialGradientShape, SquaredGradientShape, VerticalGradientShape
-from my_pygame.graphics.sprite import AnimatedSprite, Sprite
-from my_pygame.graphics.color import (
+from py_diamond.graphics.shape import AbstractRectangleShape, RectangleShape, PolygonShape, CircleShape, CrossShape
+from py_diamond.graphics.gradients import HorizontalGradientShape, RadialGradientShape, SquaredGradientShape, VerticalGradientShape
+from py_diamond.graphics.sprite import AnimatedSprite, Sprite
+from py_diamond.graphics.color import (
     BLACK,
     BLUE,
     BLUE_DARK,
