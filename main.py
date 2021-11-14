@@ -2,27 +2,27 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
-from my_pygame.animation import Animation
-from my_pygame.entry import Entry
-from my_pygame.event import Event, MouseButtonEvent
-from my_pygame.renderer import SurfaceRenderer
-from my_pygame.scale import Scale
-from my_pygame.progress import ProgressBar
-from my_pygame.checkbox import CheckBox
-from my_pygame.button import Button, ImageButton
-from my_pygame.mouse import Mouse
+from my_pygame.graphics.animation import Animation
+from my_pygame.graphics.entry import Entry
+from my_pygame.window.event import Event, MouseButtonEvent
+from my_pygame.graphics.renderer import SurfaceRenderer
+from my_pygame.graphics.scale import Scale
+from my_pygame.graphics.progress import ProgressBar
+from my_pygame.graphics.checkbox import CheckBox
+from my_pygame.graphics.button import Button, ImageButton
+from my_pygame.window.mouse import Mouse
 from typing import Callable, List
-from pygame.surface import Surface
-from my_pygame.text import Text, TextImage
-from my_pygame.window import Window, scheduled
-from my_pygame.scene import Scene, MainScene
+from my_pygame.graphics.surface import Surface
+from my_pygame.graphics.text import Text, TextImage
+from my_pygame.window.display import Window, scheduled
+from my_pygame.window.scene import Scene, MainScene
 
 from my_pygame.resource import FontLoader, ImageLoader, ResourceManager
 
-from my_pygame.shape import AbstractRectangleShape, RectangleShape, PolygonShape, CircleShape, CrossShape
-from my_pygame.gradients import HorizontalGradientShape, RadialGradientShape, SquaredGradientShape, VerticalGradientShape
-from my_pygame.sprite import AnimatedSprite, Sprite
-from my_pygame.colors import (
+from my_pygame.graphics.shape import AbstractRectangleShape, RectangleShape, PolygonShape, CircleShape, CrossShape
+from my_pygame.graphics.gradients import HorizontalGradientShape, RadialGradientShape, SquaredGradientShape, VerticalGradientShape
+from my_pygame.graphics.sprite import AnimatedSprite, Sprite
+from my_pygame.graphics.color import (
     BLACK,
     BLUE,
     BLUE_DARK,
