@@ -23,8 +23,8 @@ from .colors import TRANSPARENT, WHITE, GRAY, GRAY_LIGHT, GRAY_DARK, BLACK
 from .theme import MetaThemedObject, NoTheme, ThemeType
 from .cursor import Cursor
 from .image import Image
-from .configuration import ConfigAttribute, Configuration, initializer, no_object
-from .utils import valid_float
+from .configuration import ConfigAttribute, Configuration, initializer
+from .utils import valid_float, valid_optional_float
 
 __ignore_imports__: Tuple[str, ...] = tuple(globals())
 
@@ -575,53 +575,53 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     border_bottom_left_radius: ConfigAttribute[int] = ConfigAttribute()
     border_bottom_right_radius: ConfigAttribute[int] = ConfigAttribute()
 
-    @config.getter_key("text", use="message")
-    @config.getter_key("text_font", use="font")
-    @config.getter_key("text_justify", use="justify")
-    @config.getter_key("text_wrap", use="wrap")
-    @config.getter_key("text_shadow", use="shadow")
-    @config.getter_key("text_shadow_x", use="shadow_x")
-    @config.getter_key("text_shadow_y", use="shadow_y")
-    @config.getter_key("text_shadow_color", use="shadow_color")
+    @config.getter_key("text", use_key="message")
+    @config.getter_key("text_font", use_key="font")
+    @config.getter_key("text_justify", use_key="justify")
+    @config.getter_key("text_wrap", use_key="wrap")
+    @config.getter_key("text_shadow", use_key="shadow")
+    @config.getter_key("text_shadow_x", use_key="shadow_x")
+    @config.getter_key("text_shadow_y", use_key="shadow_y")
+    @config.getter_key("text_shadow_color", use_key="shadow_color")
     @config.getter_key("compound")
-    @config.getter_key("distance_text_img", use="distance")
+    @config.getter_key("distance_text_img", use_key="distance")
     def __get_text_option(self, /, option: str) -> Any:
         return self.__text.config.get(option)
 
-    @config.setter_key("text", use="message")
-    @config.setter_key("text_font", use="font")
-    @config.setter_key("text_justify", use="justify")
-    @config.setter_key("text_wrap", use="wrap")
-    @config.setter_key("text_shadow", use="shadow")
-    @config.setter_key("text_shadow_x", use="shadow_x")
-    @config.setter_key("text_shadow_y", use="shadow_y")
-    @config.setter_key("text_shadow_color", use="shadow_color")
+    @config.setter_key("text", use_key="message")
+    @config.setter_key("text_font", use_key="font")
+    @config.setter_key("text_justify", use_key="justify")
+    @config.setter_key("text_wrap", use_key="wrap")
+    @config.setter_key("text_shadow", use_key="shadow")
+    @config.setter_key("text_shadow_x", use_key="shadow_x")
+    @config.setter_key("text_shadow_y", use_key="shadow_y")
+    @config.setter_key("text_shadow_color", use_key="shadow_color")
     @config.setter_key("compound")
-    @config.setter_key("distance_text_img", use="distance")
+    @config.setter_key("distance_text_img", use_key="distance")
     def __set_text_option(self, /, option: str, value: Any) -> None:
         return self.__text.config.set(option, value)
 
-    config.updater("text", __update_shape_size)
-    config.updater("text_font", __update_shape_size)
-    config.updater("text_justify", __update_shape_size)
-    config.updater("text_wrap", __update_shape_size)
-    config.updater("text_shadow", __update_shape_size)
-    config.updater("text_shadow_x", __update_shape_size)
-    config.updater("text_shadow_y", __update_shape_size)
-    config.updater("text_shadow_color", __update_shape_size)
-    config.updater("compound", __update_shape_size)
-    config.updater("distance_text_img", __update_shape_size)
+    config.on_update("text", __update_shape_size)
+    config.on_update("text_font", __update_shape_size)
+    config.on_update("text_justify", __update_shape_size)
+    config.on_update("text_wrap", __update_shape_size)
+    config.on_update("text_shadow", __update_shape_size)
+    config.on_update("text_shadow_x", __update_shape_size)
+    config.on_update("text_shadow_y", __update_shape_size)
+    config.on_update("text_shadow_color", __update_shape_size)
+    config.on_update("compound", __update_shape_size)
+    config.on_update("distance_text_img", __update_shape_size)
 
-    config.validator("fixed_width", no_object(valid_float(min_value=0)), accept_none=True)
-    config.validator("fixed_height", no_object(valid_float(min_value=0)), accept_none=True)
+    config.value_converter_static("fixed_width", valid_optional_float(min_value=0))
+    config.value_converter_static("fixed_height", valid_optional_float(min_value=0))
 
-    config.updater("fixed_width", __update_shape_size)
-    config.updater("fixed_height", __update_shape_size)
+    config.on_update("fixed_width", __update_shape_size)
+    config.on_update("fixed_height", __update_shape_size)
 
-    config.validator("x_add_size", no_object(valid_float(min_value=0)))
-    config.validator("y_add_size", no_object(valid_float(min_value=0)))
-    config.updater("x_add_size", __update_shape_size)
-    config.updater("y_add_size", __update_shape_size)
+    config.value_converter_static("x_add_size", valid_float(min_value=0))
+    config.value_converter_static("y_add_size", valid_float(min_value=0))
+    config.on_update("x_add_size", __update_shape_size)
+    config.on_update("y_add_size", __update_shape_size)
 
     __STATE: Dict[str, Tuple[Clickable.State, Literal["normal", "hover", "active"]]] = {
         "background": (Clickable.State.NORMAL, "normal"),
@@ -671,19 +671,19 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         clickable_state, button_state = Button.__STATE[option]
         self.__bg_dict[clickable_state][button_state] = color
 
-    config.validator("background", Color)
-    config.validator("hover_background", Color, accept_none=True)
-    config.validator("active_background", Color, accept_none=True)
-    config.validator("disabled_background", Color)
-    config.validator("disabled_hover_background", Color, accept_none=True)
-    config.validator("disabled_active_background", Color, accept_none=True)
+    config.value_validator("background", Color)
+    config.value_validator("hover_background", Color, accept_none=True)
+    config.value_validator("active_background", Color, accept_none=True)
+    config.value_validator("disabled_background", Color)
+    config.value_validator("disabled_hover_background", Color, accept_none=True)
+    config.value_validator("disabled_active_background", Color, accept_none=True)
 
-    config.updater("background", __update_state)
-    config.updater("hover_background", __update_state)
-    config.updater("active_background", __update_state)
-    config.updater("disabled_background", __update_state)
-    config.updater("disabled_hover_background", __update_state)
-    config.updater("disabled_active_background", __update_state)
+    config.on_update("background", __update_state)
+    config.on_update("hover_background", __update_state)
+    config.on_update("active_background", __update_state)
+    config.on_update("disabled_background", __update_state)
+    config.on_update("disabled_hover_background", __update_state)
+    config.on_update("disabled_active_background", __update_state)
 
     config.set_autocopy("foreground", copy_on_get=True, copy_on_set=True)
     config.set_autocopy("hover_foreground", copy_on_get=True, copy_on_set=True)
@@ -712,19 +712,19 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         clickable_state, button_state = Button.__STATE[option]
         self.__fg_dict[clickable_state][button_state] = color
 
-    config.validator("foreground", Color)
-    config.validator("hover_foreground", Color, accept_none=True)
-    config.validator("active_foreground", Color, accept_none=True)
-    config.validator("disabled_foreground", Color)
-    config.validator("disabled_hover_foreground", Color, accept_none=True)
-    config.validator("disabled_active_foreground", Color, accept_none=True)
+    config.value_validator("foreground", Color)
+    config.value_validator("hover_foreground", Color, accept_none=True)
+    config.value_validator("active_foreground", Color, accept_none=True)
+    config.value_validator("disabled_foreground", Color)
+    config.value_validator("disabled_hover_foreground", Color, accept_none=True)
+    config.value_validator("disabled_active_foreground", Color, accept_none=True)
 
-    config.updater("foreground", __update_state)
-    config.updater("hover_foreground", __update_state)
-    config.updater("active_foreground", __update_state)
-    config.updater("disabled_foreground", __update_state)
-    config.updater("disabled_hover_foreground", __update_state)
-    config.updater("disabled_active_foreground", __update_state)
+    config.on_update("foreground", __update_state)
+    config.on_update("hover_foreground", __update_state)
+    config.on_update("active_foreground", __update_state)
+    config.on_update("disabled_foreground", __update_state)
+    config.on_update("disabled_hover_foreground", __update_state)
+    config.on_update("disabled_active_foreground", __update_state)
 
     config.set_autocopy("img", copy_on_get=True, copy_on_set=True)
     config.set_autocopy("hover_img", copy_on_get=True, copy_on_set=True)
@@ -753,26 +753,26 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         clickable_state, button_state = Button.__STATE[option]
         self.__img_dict[clickable_state][button_state] = img
 
-    config.validator("img", Surface, accept_none=True)
-    config.validator("hover_img", Surface, accept_none=True)
-    config.validator("active_img", Surface, accept_none=True)
-    config.validator("disabled_img", Surface, accept_none=True)
-    config.validator("disabled_hover_img", Surface, accept_none=True)
-    config.validator("disabled_active_img", Surface, accept_none=True)
+    config.value_validator("img", Surface, accept_none=True)
+    config.value_validator("hover_img", Surface, accept_none=True)
+    config.value_validator("active_img", Surface, accept_none=True)
+    config.value_validator("disabled_img", Surface, accept_none=True)
+    config.value_validator("disabled_hover_img", Surface, accept_none=True)
+    config.value_validator("disabled_active_img", Surface, accept_none=True)
 
-    config.updater("img", __update_state)
-    config.updater("hover_img", __update_state)
-    config.updater("active_img", __update_state)
-    config.updater("disabled_img", __update_state)
-    config.updater("disabled_hover_img", __update_state)
-    config.updater("disabled_active_img", __update_state)
+    config.on_update("img", __update_state)
+    config.on_update("hover_img", __update_state)
+    config.on_update("active_img", __update_state)
+    config.on_update("disabled_img", __update_state)
+    config.on_update("disabled_hover_img", __update_state)
+    config.on_update("disabled_active_img", __update_state)
 
     config.enum("text_align_x", HorizontalAlign, return_value=True)
     config.enum("text_align_y", VerticalAlign, return_value=True)
 
-    @config.validator("text_offset")
-    @config.validator("text_hover_offset")
-    @config.validator("text_active_offset")
+    @config.value_converter_static("text_offset")
+    @config.value_converter_static("text_hover_offset")
+    @config.value_converter_static("text_active_offset")
     @staticmethod
     def __text_offset_validator(offset: Tuple[float, float]) -> Tuple[float, float]:
         return (float(offset[0]), float(offset[1]))
@@ -1054,16 +1054,16 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     border_bottom_left_radius: ConfigAttribute[int] = ConfigAttribute()
     border_bottom_right_radius: ConfigAttribute[int] = ConfigAttribute()
 
-    @config.validator("hover_offset")
-    @config.validator("active_offset")
+    @config.value_converter_static("hover_offset")
+    @config.value_converter_static("active_offset")
     @staticmethod
     def __img_offset_validator(offset: Tuple[float, float]) -> Tuple[float, float]:
         return (float(offset[0]), float(offset[1]))
 
-    config.validator("x_add_size", no_object(valid_float(min_value=0)))
-    config.validator("y_add_size", no_object(valid_float(min_value=0)))
-    config.updater("x_add_size", __update_shape_size)
-    config.updater("y_add_size", __update_shape_size)
+    config.value_converter_static("x_add_size", valid_float(min_value=0))
+    config.value_converter_static("y_add_size", valid_float(min_value=0))
+    config.on_update("x_add_size", __update_shape_size)
+    config.on_update("y_add_size", __update_shape_size)
 
     __STATE: Dict[str, Tuple[Clickable.State, Literal["normal", "hover", "active"]]] = {
         "background": (Clickable.State.NORMAL, "normal"),
@@ -1107,19 +1107,19 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
         clickable_state, button_state = ImageButton.__STATE[option]
         self.__bg_dict[clickable_state][button_state] = color
 
-    config.validator("background", Color)
-    config.validator("hover_background", Color, accept_none=True)
-    config.validator("active_background", Color, accept_none=True)
-    config.validator("disabled_background", Color)
-    config.validator("disabled_hover_background", Color, accept_none=True)
-    config.validator("disabled_active_background", Color, accept_none=True)
+    config.value_validator("background", Color)
+    config.value_validator("hover_background", Color, accept_none=True)
+    config.value_validator("active_background", Color, accept_none=True)
+    config.value_validator("disabled_background", Color)
+    config.value_validator("disabled_hover_background", Color, accept_none=True)
+    config.value_validator("disabled_active_background", Color, accept_none=True)
 
-    config.updater("background", __update_state)
-    config.updater("hover_background", __update_state)
-    config.updater("active_background", __update_state)
-    config.updater("disabled_background", __update_state)
-    config.updater("disabled_hover_background", __update_state)
-    config.updater("disabled_active_background", __update_state)
+    config.on_update("background", __update_state)
+    config.on_update("hover_background", __update_state)
+    config.on_update("active_background", __update_state)
+    config.on_update("disabled_background", __update_state)
+    config.on_update("disabled_hover_background", __update_state)
+    config.on_update("disabled_active_background", __update_state)
 
     config.set_autocopy("img", copy_on_get=True, copy_on_set=True)
     config.set_autocopy("hover_img", copy_on_get=True, copy_on_set=True)
@@ -1148,19 +1148,19 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
         clickable_state, button_state = ImageButton.__STATE[option]
         self.__img_dict[clickable_state][button_state] = img
 
-    config.validator("img", Surface)
-    config.validator("hover_img", Surface, accept_none=True)
-    config.validator("active_img", Surface, accept_none=True)
-    config.validator("disabled_img", Surface, accept_none=True)
-    config.validator("disabled_hover_img", Surface, accept_none=True)
-    config.validator("disabled_active_img", Surface, accept_none=True)
+    config.value_validator("img", Surface)
+    config.value_validator("hover_img", Surface, accept_none=True)
+    config.value_validator("active_img", Surface, accept_none=True)
+    config.value_validator("disabled_img", Surface, accept_none=True)
+    config.value_validator("disabled_hover_img", Surface, accept_none=True)
+    config.value_validator("disabled_active_img", Surface, accept_none=True)
 
-    config.updater("img", __update_state)
-    config.updater("hover_img", __update_state)
-    config.updater("active_img", __update_state)
-    config.updater("disabled_img", __update_state)
-    config.updater("disabled_hover_img", __update_state)
-    config.updater("disabled_active_img", __update_state)
+    config.on_update("img", __update_state)
+    config.on_update("hover_img", __update_state)
+    config.on_update("active_img", __update_state)
+    config.on_update("disabled_img", __update_state)
+    config.on_update("disabled_hover_img", __update_state)
+    config.on_update("disabled_active_img", __update_state)
 
     @config.getter_key("outline")
     @config.getter_key("outline_color")

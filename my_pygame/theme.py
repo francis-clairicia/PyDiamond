@@ -17,7 +17,6 @@ from typing import (
     Type,
     TypeVar,
     Union,
-    cast,
     overload,
 )
 from operator import truth
@@ -352,7 +351,7 @@ class MetaThemedObject(ABCMeta):
 
         super().register(subclass)
         if isinstance(subclass, MetaThemedObject):
-            register_themed_subclass(cast(MetaThemedObject, subclass))  # type: ignore
+            register_themed_subclass(subclass)  # type: ignore
         return subclass
 
     @staticmethod

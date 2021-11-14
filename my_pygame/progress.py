@@ -12,7 +12,7 @@ from .renderer import Renderer
 from .text import Text
 from .colors import BLACK, GRAY, TRANSPARENT, WHITE
 from .theme import NoTheme, ThemeType
-from .configuration import ConfigAttribute, Configuration, initializer, no_object
+from .configuration import ConfigAttribute, Configuration, initializer
 from .utils import valid_float
 
 __ignore_imports__: Tuple[str, ...] = tuple(globals())
@@ -234,22 +234,22 @@ class ProgressBar(RectangleShape):
     percent: ConfigAttribute[float] = ConfigAttribute()
     scale_color: ConfigAttribute[Color] = ConfigAttribute()
 
-    @config.validator("value")
+    @config.value_converter("value")
     def __valid_value(self, /, value: Any) -> float:
         return valid_float(value=value, min_value=self.__start, max_value=self.__end)
 
-    config.validator("percent", no_object(valid_float(min_value=0, max_value=1)))
+    config.value_converter_static("percent", valid_float(min_value=0, max_value=1))
 
     config.getter("scale_color", lambda self: self.__scale_rect.config.get("color"))
     config.setter("scale_color", lambda self, color: self.__scale_rect.config.set("color", color))
 
-    @config.value_updater_property("value")
+    @config.on_update_value("value")
     def __update_percent(self, /, value: float) -> None:
         start: float = self.__start
         end: float = self.__end
         self.__percent = (value - start) / (end - start) if end > start else 0
 
-    @config.value_updater_property("percent")
+    @config.on_update_value("percent")
     def __update_value(self, /, percent: float) -> None:
         start: float = self.__start
         end: float = self.__end
@@ -265,19 +265,19 @@ class ProgressBar(RectangleShape):
     def __outline_setter(self, /, option: str, value: Any) -> None:
         self.__outline_rect.config.set(option, value)
 
-    @config.value_updater("local_height")
-    @config.value_updater("border_radius")
-    @config.value_updater("border_top_left_radius")
-    @config.value_updater("border_top_right_radius")
-    @config.value_updater("border_bottom_left_radius")
-    @config.value_updater("border_bottom_right_radius")
+    @config.on_update_key_value("local_height")
+    @config.on_update_key_value("border_radius")
+    @config.on_update_key_value("border_top_left_radius")
+    @config.on_update_key_value("border_top_right_radius")
+    @config.on_update_key_value("border_bottom_left_radius")
+    @config.on_update_key_value("border_bottom_right_radius")
     def __update_all_shapes(self, /, option: str, value: Any) -> None:
         self.__scale_rect.config.set(option, value)
         self.__outline_rect.config.set(option, value)
 
-    @config.updater("value")
-    @config.updater("percent")
-    @config.updater("local_width")
+    @config.on_update("value")
+    @config.on_update("percent")
+    @config.on_update("local_width")
     def __update_scale(self, /) -> None:
         width: float = self.local_width
         scale_rect: RectangleShape = self.__scale_rect

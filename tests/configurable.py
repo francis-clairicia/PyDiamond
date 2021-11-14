@@ -3,10 +3,15 @@
 from sys import path as SYS_PATH
 from os.path import dirname
 from typing import Any, Dict, Tuple
+from time import time
 
 SYS_PATH.append(dirname(dirname(__file__)))
 
+entrypoint: float = time()
+
 from my_pygame.configuration import ConfigAttribute, Configuration, initializer
+
+print(f"Module imported in {time() - entrypoint:3f}s")
 
 
 class Configurable:
@@ -25,31 +30,30 @@ class Configurable:
         self.c = 98
         print("END")
 
-    @config.value_updater("a")
-    @config.value_updater("b")
-    @config.value_updater("c")
+    @config.on_update_key_value("a")
+    @config.on_update_key_value("b")
+    @config.on_update_key_value("c")
     def _on_update_field(self, name: str, val: int) -> None:
         print(f"{self}: {name} set to {val}")
 
-    config.value_updater("d", lambda self, name, val: print((self, name, val)))
+    config.on_update_key_value("d", lambda self, name, val: print((self, name, val)))
 
-    @config.validator("a")
-    @config.validator("b")
-    @config.validator("c")
+    @config.value_converter_static("a")
+    @config.value_converter_static("b")
+    @config.value_converter_static("c")
     @staticmethod
     def __valid_int(val: Any) -> int:
         return max(int(val), 0)
 
-    @config.updater("a")
-    @config.updater("b")
-    @config.updater("c")
-    @staticmethod
-    def __update() -> None:
+    @config.on_update("a")
+    @config.on_update("b")
+    @config.on_update("c")
+    def __update(self) -> None:
         print("UPDATE CALL")
 
-    config.validator("d", dict)
+    config.value_validator("d", dict)
 
-    @config.updater
+    @config.on_update
     def _update(self) -> None:
         if self.config.has_initialization_context():
             print("Init object")
@@ -62,14 +66,14 @@ class SubConfigurable(Configurable):
     config.remove_parent_ownership("b")
     e: ConfigAttribute[int] = ConfigAttribute()
 
-    config.validator("e", int, convert=True)
+    config.value_converter("e", int)
 
-    @config.updater
+    @config.on_update
     def _custom_update(self) -> None:
         print("After parent update")
         print("-----")
 
-    @config.updater("a")
+    @config.on_update("a")
     def _custom_a_updater(self) -> None:
         print("AAAAAAAAA")
         print("----------")
@@ -78,9 +82,9 @@ class SubConfigurable(Configurable):
         print("BBBBBBBBBBB")
         print("----------")
 
-    config.updater("b", _custom_b_updater)
+    config.on_update("b", _custom_b_updater)
 
-    @config.value_updater("a")
+    @config.on_update_key_value("a")
     def __special_case_a(self, name: str, val: int) -> None:
         print(f"----------Special case for {name}--------")
         # self._on_update_field(name, val)
@@ -120,7 +124,7 @@ class Rect:
 
     config = Configuration("width", "height", "size")
 
-    @config.updater
+    @config.on_update
     def update(self) -> None:
         print("UPDATE")
 

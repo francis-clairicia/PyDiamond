@@ -9,7 +9,7 @@ from pygame.surface import Surface
 
 from .shape import AbstractCircleShape, AbstractShape, AbstractRectangleShape
 from .surface import create_surface
-from .configuration import ConfigAttribute, Configuration, initializer, no_object
+from .configuration import ConfigAttribute, Configuration, initializer
 from .utils import valid_float
 
 from ._gradients import (  # type: ignore[attr-defined]
@@ -31,8 +31,8 @@ class GradientShape(AbstractShape):
 
     config = Configuration("first_color", "second_color", parent=AbstractShape.config)
 
-    config.validator("first_color", Color)
-    config.validator("second_color", Color)
+    config.value_validator("first_color", Color)
+    config.value_validator("second_color", Color)
 
     first_color: ConfigAttribute[Color] = ConfigAttribute()
     second_color: ConfigAttribute[Color] = ConfigAttribute()
@@ -86,7 +86,7 @@ class SquaredGradientShape(GradientShape):
     config = Configuration("local_width", parent=GradientShape.config)
     config.set_alias("local_width", "local_height")
 
-    config.validator("local_width", no_object(valid_float(min_value=0)))
+    config.value_converter_static("local_width", valid_float(min_value=0))
 
     local_width: ConfigAttribute[float] = ConfigAttribute()
     local_height: ConfigAttribute[float] = ConfigAttribute()

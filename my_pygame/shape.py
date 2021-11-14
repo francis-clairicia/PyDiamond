@@ -22,8 +22,8 @@ from .configuration import (
     ConfigAttribute,
     ConfigTemplate,
     Configuration,
+    UnregisteredOptionError,
     initializer,
-    no_object,
 )
 from .utils import valid_float, valid_integer
 
@@ -121,7 +121,7 @@ class AbstractShape(TDrawable, metaclass=MetaShape):
 
     config: Configuration = ConfigTemplate(autocopy=True)
 
-    @config.updater
+    @config.on_update
     def __update_shape(self, /) -> None:
         if self.config.has_initialization_context():
             self.__compute_shape_size()
@@ -143,7 +143,7 @@ class Shape(AbstractShape):
 
     config = Configuration("color", parent=AbstractShape.config)
 
-    config.validator("color", Color)
+    config.value_validator("color", Color)
 
     color: ConfigAttribute[Color] = ConfigAttribute()
 
@@ -163,8 +163,8 @@ class OutlinedShape(Shape):
 
     config = Configuration("outline", "outline_color", parent=Shape.config)
 
-    config.validator("outline", no_object(valid_integer(min_value=0)))
-    config.validator("outline_color", Color)
+    config.value_converter_static("outline", valid_integer(min_value=0))
+    config.value_validator("outline_color", Color)
 
     outline: ConfigAttribute[int] = ConfigAttribute()
     outline_color: ConfigAttribute[Color] = ConfigAttribute()
@@ -224,7 +224,7 @@ class PolygonShape(OutlinedShape, metaclass=MetaThemedShape):
 
     config.set_autocopy("points", copy_on_set=False)
 
-    @config.validator("points")
+    @config.value_converter_static("points")
     @staticmethod
     def __valid_points(points: PointList) -> List[Vector2]:
         points = [Vector2(p) for p in points]
@@ -235,7 +235,7 @@ class PolygonShape(OutlinedShape, metaclass=MetaThemedShape):
             p.y -= top
         return points
 
-    @config.value_updater_property("points")
+    @config.on_update_value("points")
     def __on_update_points(self, /, points: List[Vector2]) -> None:
         left: float = 0
         top: float = 0
@@ -261,9 +261,9 @@ class AbstractRectangleShape(AbstractShape):
 
     config = Configuration("local_width", "local_height", "local_size", parent=AbstractShape.config)
 
-    config.validator("local_width", no_object(valid_float(min_value=0)))
-    config.validator("local_height", no_object(valid_float(min_value=0)))
-    config.validator("local_size", tuple, convert=True)
+    config.value_converter_static("local_width", valid_float(min_value=0))
+    config.value_converter_static("local_height", valid_float(min_value=0))
+    config.value_converter("local_size", tuple)
 
     config.getter("local_size", lambda self: (self.local_width, self.local_height))
     config.setter("local_size", lambda self, size: self.config(local_width=size[0], local_height=size[1]))
@@ -328,11 +328,11 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, metaclass=MetaThemed
         parent=[AbstractRectangleShape.config, OutlinedShape.config],
     )
 
-    config.validator("border_radius", no_object(valid_integer(min_value=-1)))
-    config.validator("border_top_left_radius", no_object(valid_integer(min_value=-1)))
-    config.validator("border_top_right_radius", no_object(valid_integer(min_value=-1)))
-    config.validator("border_bottom_left_radius", no_object(valid_integer(min_value=-1)))
-    config.validator("border_bottom_right_radius", no_object(valid_integer(min_value=-1)))
+    config.value_converter_static("border_radius", valid_integer(min_value=-1))
+    config.value_converter_static("border_top_left_radius", valid_integer(min_value=-1))
+    config.value_converter_static("border_top_right_radius", valid_integer(min_value=-1))
+    config.value_converter_static("border_bottom_left_radius", valid_integer(min_value=-1))
+    config.value_converter_static("border_bottom_right_radius", valid_integer(min_value=-1))
 
     @config.getter_key("border_radius")
     @config.getter_key("border_top_left_radius")
@@ -343,7 +343,7 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, metaclass=MetaThemed
         try:
             return self.__draw_params[border]
         except KeyError as exc:
-            raise AttributeError from exc
+            raise UnregisteredOptionError(border) from exc
 
     @config.setter_key("border_radius")
     @config.setter_key("border_top_left_radius")
@@ -374,7 +374,7 @@ class AbstractCircleShape(AbstractShape):
 
     config = Configuration("radius", parent=AbstractShape.config)
 
-    config.validator("radius", valid_float(min_value=0))
+    config.value_converter_static("radius", valid_float(min_value=0))
 
     radius: ConfigAttribute[float] = ConfigAttribute()
 
@@ -429,10 +429,10 @@ class CircleShape(AbstractCircleShape, OutlinedShape, metaclass=MetaThemedShape)
         parent=[AbstractCircleShape.config, OutlinedShape.config],
     )
 
-    config.validator("draw_top_left", truth)
-    config.validator("draw_top_right", truth)
-    config.validator("draw_bottom_left", truth)
-    config.validator("draw_bottom_right", truth)
+    config.value_converter_static("draw_top_left", truth)
+    config.value_converter_static("draw_top_right", truth)
+    config.value_converter_static("draw_bottom_left", truth)
+    config.value_converter_static("draw_bottom_right", truth)
 
     @config.getter_key("draw_top_left")
     @config.getter_key("draw_top_right")
@@ -442,7 +442,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, metaclass=MetaThemedShape)
         try:
             return self.__draw_params[side]
         except KeyError as exc:
-            raise AttributeError from exc
+            raise UnregisteredOptionError(side) from exc
 
     @config.setter_key("draw_top_left")
     @config.setter_key("draw_top_right")
@@ -451,10 +451,10 @@ class CircleShape(AbstractCircleShape, OutlinedShape, metaclass=MetaThemedShape)
     def __set_draw_arc(self, /, side: str, status: bool) -> None:
         self.__draw_params[side] = status
 
-    @config.updater("draw_top_left")
-    @config.updater("draw_top_right")
-    @config.updater("draw_bottom_left")
-    @config.updater("draw_bottom_right")
+    @config.on_update("draw_top_left")
+    @config.on_update("draw_top_right")
+    @config.on_update("draw_bottom_left")
+    @config.on_update("draw_bottom_right")
     def __compute_vertices(self, /) -> None:
         draw_params = self.__draw_params
         if all(not drawn for drawn in draw_params.values()):
@@ -611,10 +611,10 @@ class CrossShape(OutlinedShape, metaclass=MetaThemedShape):
         parent=OutlinedShape.config,
     )
 
-    config.validator("local_width", no_object(valid_float(min_value=0)))
-    config.validator("local_height", no_object(valid_float(min_value=0)))
-    config.validator("local_size", tuple, convert=True)
-    config.validator("line_width", no_object(valid_float(min_value=0)))
+    config.value_converter_static("local_width", valid_float(min_value=0))
+    config.value_converter_static("local_height", valid_float(min_value=0))
+    config.value_converter("local_size", tuple)
+    config.value_converter_static("line_width", valid_float(min_value=0))
 
     local_width: ConfigAttribute[float] = ConfigAttribute()
     local_height: ConfigAttribute[float] = ConfigAttribute()
@@ -628,10 +628,10 @@ class CrossShape(OutlinedShape, metaclass=MetaThemedShape):
     config.getter("local_size", lambda self: (self.local_width, self.local_height))
     config.setter("local_size", lambda self, size: self.config(local_width=size[0], local_height=size[1]))
 
-    @config.updater("local_width")
-    @config.updater("local_height")
-    @config.updater("local_size")
-    @config.updater("line_width")
+    @config.on_update("local_width")
+    @config.on_update("local_height")
+    @config.on_update("local_size")
+    @config.on_update("line_width")
     def __compute_vertices(self, /) -> None:
         compute_vertices = {
             CrossShape.Type.DIAGONAL: self.__get_diagonal_cross_points,

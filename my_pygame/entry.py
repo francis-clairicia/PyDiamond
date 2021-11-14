@@ -22,8 +22,8 @@ from .clock import Clock
 from .cursor import SystemCursor
 from .theme import MetaThemedObject, NoTheme, ThemeType
 from .colors import WHITE, BLACK  # , GRAY
-from .configuration import ConfigAttribute, Configuration, initializer, no_object
-from .utils import valid_float, valid_integer
+from .configuration import ConfigAttribute, Configuration, initializer
+from .utils import valid_integer, valid_optional_float, valid_optional_integer
 
 __ignore_imports__: Tuple[str, ...] = tuple(globals())
 
@@ -243,14 +243,14 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
         "border_bottom_right_radius",
     )
 
-    @config.validator("cursor")
+    @config.value_converter("cursor")
     def __cursor_validator(self, /, cursor: Any) -> int:
         return valid_integer(value=cursor, min_value=0, max_value=len(self.get()))
 
-    config.validator("interval", no_object(valid_integer(min_value=0)))
-    config.validator("fixed_width", no_object(valid_float(min_value=0)), accept_none=True)
+    config.value_converter_static("interval", valid_integer(min_value=0))
+    config.value_converter_static("fixed_width", valid_optional_float(min_value=0))
 
-    @config.getter_key("fg", use="color")
+    @config.getter_key("fg", use_key="color")
     @config.getter_key("font")
     @config.getter_key("shadow_x")
     @config.getter_key("shadow_y")
@@ -259,7 +259,7 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
     def __get_text_option(self, /, option: str) -> Any:
         return self.__text.config.get(option)
 
-    @config.setter_key("fg", use="color")
+    @config.setter_key("fg", use_key="color")
     @config.setter_key("font")
     @config.setter_key("shadow_x")
     @config.setter_key("shadow_y")
@@ -268,7 +268,7 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
     def __set_text_option(self, /, option: str, value: Any) -> None:
         return self.__text.config.set(option, value)
 
-    @config.getter_key("bg", use="color")
+    @config.getter_key("bg", use_key="color")
     @config.getter_key("local_width")
     @config.getter_key("local_height")
     @config.getter_key("local_size")
@@ -282,7 +282,7 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
     def __get_shape_option(self, /, option: str) -> Any:
         return self.__shape.config.get(option)
 
-    @config.setter_key("bg", use="color")
+    @config.setter_key("bg", use_key="color")
     @config.setter_key("outline")
     @config.setter_key("outline_color")
     @config.setter_key("border_radius")
@@ -295,8 +295,8 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
 
     config.readonly("local_width", "local_height", "local_size")
 
-    @config.updater("font")
-    @config.updater("fixed_width")
+    @config.on_update("font")
+    @config.on_update("fixed_width")
     def __update_shape_using_font(self, /) -> None:
         max_nb_chars: int = self.__nb_chars
         fixed_width: Optional[float] = self.__fixed_width
@@ -376,7 +376,7 @@ class _TextEntry(Text):
 
     config = Configuration("max_width", parent=Text.config)
 
-    config.validator("max_width", no_object(valid_integer(min_value=0)), accept_none=True)
+    config.value_converter_static("max_width", valid_optional_integer(min_value=0))
 
     max_width: ConfigAttribute[Optional[int]] = ConfigAttribute()
 

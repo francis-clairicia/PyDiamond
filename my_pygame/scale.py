@@ -111,8 +111,11 @@ class Scale(ProgressBar, Clickable):
 
     config = Configuration(parent=ProgressBar.config)
 
-    config.updater("value", invoke)
-    config.updater("percent", invoke)
+    @config.on_update_key("value")
+    @config.on_update_key("percent")
+    def __update_scale(self, option: str) -> None:
+        super().config.update_option(option)
+        self.invoke()
 
 
 __all__ = [n for n in globals() if not n.startswith("_") and n not in __ignore_imports__]

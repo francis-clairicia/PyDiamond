@@ -23,7 +23,7 @@ from .colors import BLACK
 from .theme import MetaThemedObject, ThemeType
 from .surface import create_surface
 from .image import Image
-from .configuration import ConfigAttribute, Configuration, initializer, no_object
+from .configuration import ConfigAttribute, Configuration, initializer
 from .utils import valid_float, valid_integer
 
 __ignore_imports__: Tuple[str, ...] = tuple(globals())
@@ -149,7 +149,6 @@ class Text(TDrawable, metaclass=MetaText):
         self.config.set(
             "font",
             Text.create_font(font, bold=bold, italic=italic, underline=underline),
-            copy=False,
         )
 
     def set_custom_line_font(self, /, index: int, font: Font) -> None:
@@ -242,18 +241,18 @@ class Text(TDrawable, metaclass=MetaText):
 
     config.enum("justify", Justify, return_value=True)
 
-    config.validator("message", str)
-    config.validator("font", create_font)
-    config.validator("wrap", no_object(valid_integer(min_value=0)))
-    config.validator("color", Color)
-    config.validator("shadow_x", float, convert=True)
-    config.validator("shadow_y", float, convert=True)
-    config.validator("shadow", tuple, convert=True)
-    config.validator("shadow_color", Color)
+    config.value_validator("message", str)
+    config.value_converter_static("font", create_font)
+    config.value_converter_static("wrap", valid_integer(min_value=0))
+    config.value_validator("color", Color)
+    config.value_converter("shadow_x", float)
+    config.value_converter("shadow_y", float)
+    config.value_converter("shadow", tuple)
+    config.value_validator("shadow_color", Color)
 
     config.set_autocopy("font", copy_on_get=False, copy_on_set=False)
 
-    @config.updater
+    @config.on_update
     def __update_surface(self, /) -> None:
         if self.config.has_initialization_context():
             self.__default_image = self._render()
@@ -448,8 +447,8 @@ class TextImage(Text):
 
     config.enum("compound", Compound, return_value=True)
 
-    config.validator("img", Surface, accept_none=True)
-    config.validator("distance", no_object(valid_float(min_value=0)))
+    config.value_validator("img", Surface, accept_none=True)
+    config.value_converter_static("distance", valid_float(min_value=0))
 
     @config.getter("img")
     def __get_img_surface(self, /) -> Optional[Surface]:
