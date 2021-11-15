@@ -5,18 +5,18 @@ import typing
 import copyreg
 
 import pygame
-from pygame.image import fromstring as _surface_deserialization, tostring as _surface_serialization
 
 if pygame.version.vernum < (2, 1):
     raise pygame.error(f"Your pygame version is too old: {pygame.version.ver!r} < '2.1.0'")
 
 ############ Surface pickling register ############
-def _pickle_surface(s: pygame.surface.Surface) -> typing.Any:
-    return (_surface_deserialization, (_surface_serialization(s, "ARGB"), s.get_size(), "ARGB"))
-
-
-copyreg.pickle(pygame.surface.Surface, _pickle_surface)  # type: ignore
+copyreg.pickle(
+    pygame.surface.Surface,
+    lambda s, serializer=pygame.image.tostring, deserializer=pygame.image.fromstring: (  # type: ignore
+        deserializer,
+        (serializer(s, "ARGB"), s.get_size(), "ARGB"),
+    ),
+)
 
 ############ Cleanup ############
-del _pickle_surface
 del os, typing, pygame, copyreg
