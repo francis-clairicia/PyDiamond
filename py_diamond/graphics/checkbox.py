@@ -14,9 +14,9 @@ from .shape import RectangleShape, DiagonalCrossShape
 from .surface import Surface
 from ..system.configuration import ConfigAttribute, Configuration
 from .theme import MetaThemedObject, NoTheme, ThemeType
-from ..window import Window
 from ..window.clickable import Clickable
 from ..window.cursor import Cursor
+from ..window.display import Window
 from ..window.scene import Scene
 
 

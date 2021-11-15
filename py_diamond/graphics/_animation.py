@@ -14,7 +14,7 @@ from ..window.scene import Scene, WindowCallback
 
 if TYPE_CHECKING:
     from .transformable import Transformable
-    from ..window import Window
+    from ..window.display import Window
 
 
 class _AbstractAnimationClass(metaclass=ABCMeta):

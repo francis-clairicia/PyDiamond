@@ -10,11 +10,11 @@ from .color import Color, BLACK, GRAY, WHITE
 from .progress import ProgressBar
 from ..system.configuration import Configuration, initializer
 from .theme import ThemeType
-from ..window import Window
-from ..window.cursor import Cursor
 from ..window.clickable import Clickable
-from ..window.scene import Scene
+from ..window.cursor import Cursor
+from ..window.display import Window
 from ..window.event import MouseButtonDownEvent, MouseMotionEvent
+from ..window.scene import Scene
 
 
 class Scale(ProgressBar, Clickable):

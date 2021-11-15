@@ -20,10 +20,10 @@ from ..system.configuration import ConfigAttribute, Configuration, initializer
 from ..system.utils import valid_float, valid_optional_float
 from .text import TextImage, _TextFont
 from .theme import MetaThemedObject, NoTheme, ThemeType
-from ..window import Window
-from ..window.cursor import Cursor
-from ..window.scene import Scene
 from ..window.clickable import Clickable
+from ..window.cursor import Cursor
+from ..window.display import Window
+from ..window.scene import Scene
 
 
 class _ButtonColor(TypedDict):

@@ -114,6 +114,10 @@ class Window(EventManager):
     def __init__(self, /, title: Optional[str] = None, size: Tuple[int, int] = (0, 0), fullscreen: bool = False) -> None:
         super().__init__()
         self.set_title(title)
+
+        ############ pygame.display initialization ############
+        pygame.display.init()
+
         size = (max(size[0], 0), max(size[1], 0))
         flags: int = 0
         if fullscreen:
@@ -142,6 +146,7 @@ class Window(EventManager):
 
     def __del__(self, /) -> None:
         Window.__main_window = True
+        pygame.display.quit()
 
     def __contains__(self, /, scene: Scene) -> bool:
         return scene in self.__scenes

@@ -17,9 +17,9 @@ from ..system.clock import Clock
 from ..system.configuration import ConfigAttribute, Configuration, initializer
 from ..system.utils import valid_integer, valid_optional_float, valid_optional_integer
 from .theme import MetaThemedObject, NoTheme, ThemeType
-from ..window import Window
 from ..window.clickable import Clickable
 from ..window.cursor import SystemCursor
+from ..window.display import Window
 from ..window.event import Event, KeyDownEvent, TextInputEvent
 from ..window.keyboard import Keyboard
 from ..window.scene import Scene

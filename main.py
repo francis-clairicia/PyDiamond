@@ -20,7 +20,12 @@ from py_diamond.window.scene import Scene, MainScene
 from py_diamond.resource import FontLoader, ImageLoader, ResourceManager
 
 from py_diamond.graphics.shape import AbstractRectangleShape, RectangleShape, PolygonShape, CircleShape, CrossShape
-from py_diamond.graphics.gradients import HorizontalGradientShape, RadialGradientShape, SquaredGradientShape, VerticalGradientShape
+from py_diamond.graphics.gradients import (
+    HorizontalGradientShape,
+    RadialGradientShape,
+    SquaredGradientShape,
+    VerticalGradientShape,
+)
 from py_diamond.graphics.sprite import AnimatedSprite, Sprite
 from py_diamond.graphics.color import (
     BLACK,
