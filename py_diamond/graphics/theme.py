@@ -11,6 +11,7 @@ from operator import truth
 from typing import (
     Any,
     Callable,
+    ClassVar,
     ContextManager,
     Dict,
     Iterator,
@@ -36,9 +37,9 @@ _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES: Set[type] = set()
 
 class ThemeNamespace(ContextManager["ThemeNamespace"]):
 
-    __DEFAULT: _ClassThemeDict = _THEMES
-    __NAMESPACE: Dict[str, _ClassThemeDict] = {}
-    __actual_namespace: Optional[str] = None
+    __DEFAULT: ClassVar[_ClassThemeDict] = _THEMES
+    __NAMESPACE: ClassVar[Dict[str, _ClassThemeDict]] = {}
+    __actual_namespace: ClassVar[Optional[str]] = None
 
     def __init__(self, /, namespace: str) -> None:
         self.__namespace: str = str(namespace)
