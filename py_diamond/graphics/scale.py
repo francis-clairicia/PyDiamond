@@ -111,5 +111,4 @@ class Scale(ProgressBar, Clickable):
     @config.on_update_key("value")
     @config.on_update_key("percent")
     def __update_scale(self, option: str) -> None:
-        super().config.update_option(option)
         self.invoke()
