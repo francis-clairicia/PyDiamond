@@ -61,7 +61,7 @@ class SubConfigurable(Configurable):
     config.remove_parent_ownership("b")
     e: ConfigAttribute[int] = ConfigAttribute()
 
-    config.value_converter("e", int)
+    config.value_converter_static("e", int)
 
     @config.on_update
     def _custom_update(self) -> None:

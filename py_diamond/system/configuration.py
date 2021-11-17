@@ -823,6 +823,9 @@ class Configuration:
         info: _ConfigInfo = self.__info
         self.check_option_validity(option)
 
+        if isinstance(func, type):
+            raise TypeError("Use value_validator_static() to check types")
+
         def decorator(func: _ValueValidator, /) -> _ValueValidator:
             info.value_validator[option] = _make_function_wrapper(func, check_override=bool(use_override))
             return func
@@ -911,6 +914,9 @@ class Configuration:
         info: _ConfigInfo = self.__info
         self.check_option_validity(option)
 
+        if isinstance(func, type):
+            raise TypeError("Use value_converter_static() to convert value using type")
+
         def decorator(func: _ValueConverter) -> _ValueConverter:
             info.value_converter[option] = _make_function_wrapper(func, check_override=bool(use_override))
             return func
@@ -959,7 +965,7 @@ class Configuration:
         return None
 
     def enum(self, /, option: str, enum: Type[Enum], *, return_value: bool = False) -> None:
-        self.value_converter(option, enum)
+        self.value_converter_static(option, enum)
         self.__info.enum_return_value[option] = bool(return_value)
 
     def set_alias(self, /, option: str, alias: str) -> None:
