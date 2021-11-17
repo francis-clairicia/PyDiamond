@@ -34,8 +34,8 @@ class GradientShape(AbstractShape):
 
     config = Configuration("first_color", "second_color", parent=AbstractShape.config)
 
-    config.value_validator("first_color", Color)
-    config.value_validator("second_color", Color)
+    config.value_validator_static("first_color", Color)
+    config.value_validator_static("second_color", Color)
 
     first_color: ConfigAttribute[Color] = ConfigAttribute()
     second_color: ConfigAttribute[Color] = ConfigAttribute()

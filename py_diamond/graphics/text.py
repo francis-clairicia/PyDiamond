@@ -235,14 +235,14 @@ class Text(TDrawable, metaclass=MetaText):
 
     config.enum("justify", Justify, return_value=True)
 
-    config.value_validator("message", str)
+    config.value_validator_static("message", str)
     config.value_converter_static("font", create_font)
     config.value_converter_static("wrap", valid_integer(min_value=0))
-    config.value_validator("color", Color)
-    config.value_converter("shadow_x", float)
-    config.value_converter("shadow_y", float)
-    config.value_converter("shadow", tuple)
-    config.value_validator("shadow_color", Color)
+    config.value_validator_static("color", Color)
+    config.value_converter_static("shadow_x", float)
+    config.value_converter_static("shadow_y", float)
+    config.value_converter_static("shadow", tuple)
+    config.value_validator_static("shadow_color", Color)
 
     config.set_autocopy("font", copy_on_get=False, copy_on_set=False)
 
@@ -441,7 +441,7 @@ class TextImage(Text):
 
     config.enum("compound", Compound, return_value=True)
 
-    config.value_validator("img", Surface, accept_none=True)
+    config.value_validator_static("img", Surface, accept_none=True)
     config.value_converter_static("distance", valid_float(min_value=0))
 
     @config.getter("img")

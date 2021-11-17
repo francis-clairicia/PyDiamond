@@ -46,7 +46,7 @@ class Configurable:
     def __update(self) -> None:
         print("UPDATE CALL")
 
-    config.value_validator("d", dict)
+    config.value_validator_static("d", dict)
 
     @config.on_update
     def _update(self) -> None:

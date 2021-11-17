@@ -668,12 +668,12 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         clickable_state, button_state = Button.__STATE[option]
         self.__bg_dict[clickable_state][button_state] = color
 
-    config.value_validator("background", Color)
-    config.value_validator("hover_background", Color, accept_none=True)
-    config.value_validator("active_background", Color, accept_none=True)
-    config.value_validator("disabled_background", Color)
-    config.value_validator("disabled_hover_background", Color, accept_none=True)
-    config.value_validator("disabled_active_background", Color, accept_none=True)
+    config.value_validator_static("background", Color)
+    config.value_validator_static("hover_background", Color, accept_none=True)
+    config.value_validator_static("active_background", Color, accept_none=True)
+    config.value_validator_static("disabled_background", Color)
+    config.value_validator_static("disabled_hover_background", Color, accept_none=True)
+    config.value_validator_static("disabled_active_background", Color, accept_none=True)
 
     config.on_update("background", __update_state)
     config.on_update("hover_background", __update_state)
@@ -709,12 +709,12 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         clickable_state, button_state = Button.__STATE[option]
         self.__fg_dict[clickable_state][button_state] = color
 
-    config.value_validator("foreground", Color)
-    config.value_validator("hover_foreground", Color, accept_none=True)
-    config.value_validator("active_foreground", Color, accept_none=True)
-    config.value_validator("disabled_foreground", Color)
-    config.value_validator("disabled_hover_foreground", Color, accept_none=True)
-    config.value_validator("disabled_active_foreground", Color, accept_none=True)
+    config.value_validator_static("foreground", Color)
+    config.value_validator_static("hover_foreground", Color, accept_none=True)
+    config.value_validator_static("active_foreground", Color, accept_none=True)
+    config.value_validator_static("disabled_foreground", Color)
+    config.value_validator_static("disabled_hover_foreground", Color, accept_none=True)
+    config.value_validator_static("disabled_active_foreground", Color, accept_none=True)
 
     config.on_update("foreground", __update_state)
     config.on_update("hover_foreground", __update_state)
@@ -750,12 +750,12 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         clickable_state, button_state = Button.__STATE[option]
         self.__img_dict[clickable_state][button_state] = img
 
-    config.value_validator("img", Surface, accept_none=True)
-    config.value_validator("hover_img", Surface, accept_none=True)
-    config.value_validator("active_img", Surface, accept_none=True)
-    config.value_validator("disabled_img", Surface, accept_none=True)
-    config.value_validator("disabled_hover_img", Surface, accept_none=True)
-    config.value_validator("disabled_active_img", Surface, accept_none=True)
+    config.value_validator_static("img", Surface, accept_none=True)
+    config.value_validator_static("hover_img", Surface, accept_none=True)
+    config.value_validator_static("active_img", Surface, accept_none=True)
+    config.value_validator_static("disabled_img", Surface, accept_none=True)
+    config.value_validator_static("disabled_hover_img", Surface, accept_none=True)
+    config.value_validator_static("disabled_active_img", Surface, accept_none=True)
 
     config.on_update("img", __update_state)
     config.on_update("hover_img", __update_state)
@@ -1104,12 +1104,12 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
         clickable_state, button_state = ImageButton.__STATE[option]
         self.__bg_dict[clickable_state][button_state] = color
 
-    config.value_validator("background", Color)
-    config.value_validator("hover_background", Color, accept_none=True)
-    config.value_validator("active_background", Color, accept_none=True)
-    config.value_validator("disabled_background", Color)
-    config.value_validator("disabled_hover_background", Color, accept_none=True)
-    config.value_validator("disabled_active_background", Color, accept_none=True)
+    config.value_validator_static("background", Color)
+    config.value_validator_static("hover_background", Color, accept_none=True)
+    config.value_validator_static("active_background", Color, accept_none=True)
+    config.value_validator_static("disabled_background", Color)
+    config.value_validator_static("disabled_hover_background", Color, accept_none=True)
+    config.value_validator_static("disabled_active_background", Color, accept_none=True)
 
     config.on_update("background", __update_state)
     config.on_update("hover_background", __update_state)
@@ -1145,12 +1145,12 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
         clickable_state, button_state = ImageButton.__STATE[option]
         self.__img_dict[clickable_state][button_state] = img
 
-    config.value_validator("img", Surface)
-    config.value_validator("hover_img", Surface, accept_none=True)
-    config.value_validator("active_img", Surface, accept_none=True)
-    config.value_validator("disabled_img", Surface, accept_none=True)
-    config.value_validator("disabled_hover_img", Surface, accept_none=True)
-    config.value_validator("disabled_active_img", Surface, accept_none=True)
+    config.value_validator_static("img", Surface)
+    config.value_validator_static("hover_img", Surface, accept_none=True)
+    config.value_validator_static("active_img", Surface, accept_none=True)
+    config.value_validator_static("disabled_img", Surface, accept_none=True)
+    config.value_validator_static("disabled_hover_img", Surface, accept_none=True)
+    config.value_validator_static("disabled_active_img", Surface, accept_none=True)
 
     config.on_update("img", __update_state)
     config.on_update("hover_img", __update_state)

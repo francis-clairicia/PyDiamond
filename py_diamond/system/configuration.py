@@ -448,7 +448,7 @@ class Configuration:
             yield
             return
 
-        if Configuration.__update_stack.get(obj):
+        if obj in Configuration.__update_stack:
             raise InitializationError("Cannot use initialization context while updating an option value")
 
         def cleanup() -> None:
@@ -809,31 +809,62 @@ class Configuration:
         ...
 
     @overload
-    def value_validator(self, option: str, objtype: type, /, *, accept_none: bool = False) -> None:
-        ...
-
-    @overload
-    def value_validator(self, option: str, objtypes: Sequence[type], /, *, accept_none: bool = False) -> None:
-        ...
-
-    @overload
     def value_validator(self, option: str, func: _ValueValidator, /, *, use_override: bool = True) -> None:
         ...
 
     def value_validator(
         self,
         option: str,
-        arg2: Optional[Union[_ValueValidator, type, Sequence[type]]] = None,
+        func: Optional[_ValueValidator] = None,
         /,
         *,
-        accept_none: bool = False,
         use_override: bool = True,
     ) -> Optional[Callable[[_ValueValidator], _ValueValidator]]:
         info: _ConfigInfo = self.__info
         self.check_option_validity(option)
 
-        if isinstance(arg2, (type, Sequence)):
-            _type: Union[type, Tuple[type, ...]] = arg2 if isinstance(arg2, type) else tuple(arg2)
+        def decorator(func: _ValueValidator, /) -> _ValueValidator:
+            info.value_validator[option] = _make_function_wrapper(func, check_override=bool(use_override))
+            return func
+
+        if func is None:
+            return decorator
+        decorator(func)
+        return None
+
+    @overload
+    def value_validator_static(self, option: str, /) -> Callable[[_StaticValueValidator], _StaticValueValidator]:
+        ...
+
+    @overload
+    def value_validator_static(self, option: str, objtype: type, /, *, accept_none: bool = False) -> None:
+        ...
+
+    @overload
+    def value_validator_static(self, option: str, objtypes: Sequence[type], /, *, accept_none: bool = False) -> None:
+        ...
+
+    @overload
+    def value_validator_static(self, option: str, func: _StaticValueValidator, /) -> None:
+        ...
+
+    def value_validator_static(
+        self,
+        option: str,
+        func: Optional[Union[_StaticValueValidator, type, Sequence[type]]] = None,
+        /,
+        *,
+        accept_none: bool = False,
+    ) -> Optional[Callable[[_StaticValueValidator], _StaticValueValidator]]:
+        info: _ConfigInfo = self.__info
+        self.check_option_validity(option)
+
+        def decorator(func: _StaticValueValidator, /) -> _StaticValueValidator:
+            info.value_validator[option] = _make_function_wrapper(func, check_override=False, no_object=True)
+            return func
+
+        if isinstance(func, (type, Sequence)):
+            _type: Union[type, Tuple[type, ...]] = func if isinstance(func, type) else tuple(func)
 
             if isinstance(_type, tuple):
                 if not _type or any(not isinstance(t, type) for t in _type):
@@ -853,38 +884,8 @@ class Configuration:
                 got: str = cls.__qualname__ if cls.__module__ != object.__module__ else str(val)
                 raise TypeError(f"Invalid value type. expected {expected}, got {got!r}")
 
-            info.value_validator[option] = _make_function_wrapper(type_checker, check_override=False, no_object=True)
+            decorator(cast(_StaticValueValidator, type_checker))
             return None
-
-        def decorator(func: _ValueValidator, /) -> _ValueValidator:
-            info.value_validator[option] = _make_function_wrapper(func, check_override=bool(use_override))
-            return func
-
-        if arg2 is None:
-            return decorator
-        decorator(arg2)
-        return None
-
-    @overload
-    def value_validator_static(self, option: str, /) -> Callable[[_StaticValueValidator], _StaticValueValidator]:
-        ...
-
-    @overload
-    def value_validator_static(self, option: str, func: _StaticValueValidator, /) -> None:
-        ...
-
-    def value_validator_static(
-        self,
-        option: str,
-        func: Optional[_StaticValueValidator] = None,
-        /,
-    ) -> Optional[Callable[[_StaticValueValidator], _StaticValueValidator]]:
-        info: _ConfigInfo = self.__info
-        self.check_option_validity(option)
-
-        def decorator(func: _StaticValueValidator, /) -> _StaticValueValidator:
-            info.value_validator[option] = _make_function_wrapper(func, check_override=False, no_object=True)
-            return func
 
         if func is None:
             return decorator
@@ -896,35 +897,19 @@ class Configuration:
         ...
 
     @overload
-    def value_converter(self, option: str, convert_to_type: Type[Any], /, *, accept_none: bool = False) -> None:
-        ...
-
-    @overload
     def value_converter(self, option: str, func: _ValueConverter, /, *, use_override: bool = True) -> None:
         ...
 
     def value_converter(
         self,
         option: str,
-        func: Optional[Union[_ValueConverter, type]] = None,
+        func: Optional[_ValueConverter] = None,
         /,
         *,
         use_override: bool = True,
-        accept_none: bool = False,
     ) -> Optional[Callable[[_ValueConverter], _ValueConverter]]:
         info: _ConfigInfo = self.__info
         self.check_option_validity(option)
-
-        if isinstance(func, type):
-            _type: Callable[[Any], Any] = func
-
-            def value_converter(val: Any) -> Any:
-                if accept_none and val is None:
-                    return None
-                return _type(val)
-
-            info.value_converter[option] = _make_function_wrapper(value_converter, check_override=False, no_object=True)
-            return None
 
         def decorator(func: _ValueConverter) -> _ValueConverter:
             info.value_converter[option] = _make_function_wrapper(func, check_override=bool(use_override))
@@ -940,14 +925,15 @@ class Configuration:
         ...
 
     @overload
+    def value_converter_static(self, option: str, convert_to_type: Type[Any], /, *, accept_none: bool = False) -> None:
+        ...
+
+    @overload
     def value_converter_static(self, option: str, func: _StaticValueConverter, /) -> None:
         ...
 
     def value_converter_static(
-        self,
-        option: str,
-        func: Optional[_StaticValueConverter] = None,
-        /,
+        self, option: str, func: Optional[Union[_StaticValueConverter, type]] = None, /, *, accept_none: bool = False
     ) -> Optional[Callable[[_StaticValueConverter], _StaticValueConverter]]:
         info: _ConfigInfo = self.__info
         self.check_option_validity(option)
@@ -955,6 +941,17 @@ class Configuration:
         def decorator(func: _StaticValueConverter, /) -> _StaticValueConverter:
             info.value_converter[option] = _make_function_wrapper(func, check_override=False, no_object=True)
             return func
+
+        if isinstance(func, type):
+            _type: Callable[[Any], Any] = func
+
+            def value_converter(val: Any) -> Any:
+                if accept_none and val is None:
+                    return None
+                return _type(val)
+
+            decorator(cast(_StaticValueConverter, value_converter))
+            return None
 
         if func is None:
             return decorator

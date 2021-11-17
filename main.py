@@ -420,15 +420,17 @@ class ProgressScene(MainScene):
         self.background_color = BLUE_DARK
         self.progress = progress = ProgressBar(500, 75, from_=10, to=90)
         self.restart = restart = ImageButton(
-            self, img=ImagesResources.cross, active_img=ImagesResources.cross_hover, callback=self.on_start_loop
+            self,
+            img=ImagesResources.cross,
+            active_img=ImagesResources.cross_hover,
+            callback=lambda: progress.config.set("percent", 0),
         )
 
         progress.show_label("Loading...", "top", font=(None, 60), color=WHITE)
         progress.show_percent("inside", font=(None, 60))
         progress.center = self.window.center
         restart.midtop = progress.centerx, progress.bottom + 20
-
-        self.every(20, lambda: progress.config(value=progress.value + 1))
+        self.every(20, lambda: self.progress.config(value=self.progress.value + 1))
 
     def on_start_loop(self) -> None:
         self.progress.percent = 0

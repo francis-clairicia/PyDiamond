@@ -154,7 +154,7 @@ class Shape(AbstractShape):
 
     config = Configuration("color", parent=AbstractShape.config)
 
-    config.value_validator("color", Color)
+    config.value_validator_static("color", Color)
 
     color: ConfigAttribute[Color] = ConfigAttribute()
 
@@ -175,7 +175,7 @@ class OutlinedShape(Shape):
     config = Configuration("outline", "outline_color", parent=Shape.config)
 
     config.value_converter_static("outline", valid_integer(min_value=0))
-    config.value_validator("outline_color", Color)
+    config.value_validator_static("outline_color", Color)
 
     outline: ConfigAttribute[int] = ConfigAttribute()
     outline_color: ConfigAttribute[Color] = ConfigAttribute()
@@ -274,7 +274,7 @@ class AbstractRectangleShape(AbstractShape):
 
     config.value_converter_static("local_width", valid_float(min_value=0))
     config.value_converter_static("local_height", valid_float(min_value=0))
-    config.value_converter("local_size", tuple)
+    config.value_converter_static("local_size", tuple)
 
     config.getter("local_size", lambda self: (self.local_width, self.local_height))
     config.setter("local_size", lambda self, size: self.config(local_width=size[0], local_height=size[1]))
@@ -624,7 +624,7 @@ class CrossShape(OutlinedShape, metaclass=MetaThemedShape):
 
     config.value_converter_static("local_width", valid_float(min_value=0))
     config.value_converter_static("local_height", valid_float(min_value=0))
-    config.value_converter("local_size", tuple)
+    config.value_converter_static("local_size", tuple)
     config.value_converter_static("line_width", valid_float(min_value=0))
 
     local_width: ConfigAttribute[float] = ConfigAttribute()
