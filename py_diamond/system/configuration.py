@@ -29,9 +29,12 @@ from typing import (
     Dict,
     FrozenSet,
     Generic,
+    Iterable,
     Iterator,
     List,
     Literal,
+    Mapping,
+    MutableMapping,
     Optional,
     Protocol,
     Sequence,
@@ -383,7 +386,7 @@ class Configuration:
             for main_update in main_update_list:
                 main_update(__obj)
 
-    def update(self, /, obj: object) -> None:
+    def update_all_options(self, /, obj: object) -> None:
         if self.has_initialization_context(obj):
             return
 
@@ -1131,13 +1134,21 @@ class ConfigAttribute(Generic[_T]):
 
 
 _InitializationRegister = Dict[str, Any]
+_DT = TypeVar("_DT")
+_NoDefault: Any = object()
 
 
-class _BoundConfiguration(Generic[_T]):
+class _BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
     def __init__(self, /, config: Configuration, obj: _T) -> None:
         super().__init__()
         self.__config: Callable[[], Configuration] = lambda: config
         self.__obj: _T = obj
+
+    def __iter__(self, /) -> Iterator[str]:
+        return iter(self.known_options())
+
+    def __len__(self, /) -> int:
+        return len(self.known_options())
 
     def known_options(self, /) -> FrozenSet[str]:
         config = self.__config()
@@ -1156,15 +1167,34 @@ class _BoundConfiguration(Generic[_T]):
         return config.is_option_valid(option, use_alias=use_alias)
 
     def __getitem__(self, option: str, /) -> Any:
-        return self.get(option)
+        try:
+            return self.get(option)
+        except OptionError as exc:
+            raise KeyError from exc
 
-    def get(self, /, option: str) -> Any:
-        config = self.__config()
-        obj = self.__obj
-        return config.get(obj, option)
+    @overload
+    def get(self, option: str, /) -> Any:
+        ...
+
+    @overload
+    def get(self, option: str, default: _DT, /) -> Union[Any, _DT]:
+        ...
+
+    def get(self, option: str, default: _DT = _NoDefault, /) -> Union[Any, _DT]:
+        try:
+            config = self.__config()
+            obj = self.__obj
+            return config.get(obj, option)
+        except OptionError:
+            if default is _NoDefault:
+                raise
+            return default
 
     def __setitem__(self, option: str, value: Any, /) -> None:
-        return self.set(option, value)
+        try:
+            self.set(option, value)
+        except OptionError as exc:
+            raise KeyError from exc
 
     def set(self, /, option: str, value: Any) -> None:
         config = self.__config()
@@ -1172,7 +1202,10 @@ class _BoundConfiguration(Generic[_T]):
         return config.set(obj, option, value)
 
     def __delitem__(self, option: str, /) -> None:
-        return self.delete(option)
+        try:
+            return self.delete(option)
+        except OptionError as exc:
+            raise KeyError from exc
 
     def delete(self, /, option: str) -> None:
         config = self.__config()
@@ -1184,10 +1217,37 @@ class _BoundConfiguration(Generic[_T]):
         obj = self.__obj
         return config(obj, **kwargs)
 
-    def update(self, /) -> None:
+    @overload
+    def update(self, __m: Mapping[str, Any], /, **kwargs: Any) -> None:
+        ...
+
+    @overload
+    def update(self, __m: Iterable[Tuple[str, Any]], /, **kwargs: Any) -> None:
+        ...
+
+    @overload
+    def update(self, /, **kwargs: Any) -> None:
+        ...
+
+    def update(self, __m: Union[Mapping[str, Any], Iterable[Tuple[str, Any]]] = (), /, **kwargs: Any) -> None:
+        options: Dict[str, Any] = {}
+        if isinstance(__m, Mapping):
+            for key in __m:
+                options[key] = __m[key]
+        else:
+            for key, value in __m:
+                options[key] = value
+        options.update(kwargs)
         config = self.__config()
         obj = self.__obj
-        return config.update(obj)
+        if not options:
+            return config.update_all_options(obj)
+        return config(obj, **options)
+
+    def update_all_options(self, /) -> None:
+        config = self.__config()
+        obj = self.__obj
+        return config.update_all_options(obj)
 
     def update_option(self, /, option: str) -> None:
         config = self.__config()
@@ -1198,8 +1258,8 @@ class _BoundConfiguration(Generic[_T]):
     def initialization(self, /) -> Iterator[None]:
         config = self.__config()
         obj = self.__obj
-        with config.initialization(obj) as init:
-            yield init
+        with config.initialization(obj) as out:
+            yield out
 
     def has_initialization_context(self, /) -> bool:
         obj = self.__obj

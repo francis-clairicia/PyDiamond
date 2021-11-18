@@ -149,13 +149,13 @@ class Text(TDrawable, metaclass=MetaText):
         if index < 0:
             raise ValueError(f"Negative index: {index}")
         self.__custom_font[index] = Text.create_font(font)
-        self.config.update()
+        self.config.update_all_options()
 
     def remove_custom_line_font(self, /, index: int) -> None:
         if index < 0:
             raise ValueError(f"Negative index: {index}")
         self.__custom_font.pop(index, None)
-        self.config.update()
+        self.config.update_all_options()
 
     def _apply_both_rotation_and_scale(self, /) -> None:
         self.__image = pygame.transform.rotozoom(self.__default_image, self.angle, self.scale)
@@ -476,8 +476,8 @@ class _BoundImage(Image):
 
     def _apply_both_rotation_and_scale(self, /) -> None:
         super()._apply_both_rotation_and_scale()
-        self.__text.config.update()
+        self.__text.config.update_all_options()
 
     def set(self, /, image: Surface) -> None:
         super().set(image)
-        self.__text.config.update()
+        self.__text.config.update_all_options()
