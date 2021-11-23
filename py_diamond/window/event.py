@@ -37,7 +37,7 @@ __all__ = [
 from contextlib import suppress
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union, cast
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Type, TypeVar, Union, cast, overload
 
 import pygame
 from pygame.event import Event as _PygameEvent
@@ -262,8 +262,6 @@ class UserEvent(Event, event_type=Event.Type.USEREVENT):
 
 _EventCallback = Callable[[Event], None]
 _TE = TypeVar("_TE", bound=Event)
-_TKE = TypeVar("_TKE", bound=KeyEvent)
-_TME = TypeVar("_TME", bound=MouseButtonEvent)
 
 _MousePosition = Tuple[float, float]
 _MousePositionCallback = Callable[[_MousePosition], None]
@@ -299,58 +297,165 @@ class EventManager:
         except (KeyError, ValueError):
             pass
 
+    @overload
+    def bind_event(self, /, event_type: Literal[Event.Type.QUIT], callback: Callable[[QuitEvent], None]) -> None:
+        ...
+
+    @overload
+    def bind_event(self, /, event_type: Literal[Event.Type.ACTIVEEVENT], callback: Callable[[ActiveEvent], None]) -> None:
+        ...
+
+    @overload
+    def bind_event(self, /, event_type: Literal[Event.Type.KEYDOWN], callback: Callable[[KeyDownEvent], None]) -> None:
+        ...
+
+    @overload
+    def bind_event(self, /, event_type: Literal[Event.Type.KEYUP], callback: Callable[[KeyUpEvent], None]) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self, /, event_type: Literal[Event.Type.MOUSEBUTTONDOWN], callback: Callable[[MouseButtonDownEvent], None]
+    ) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self, /, event_type: Literal[Event.Type.MOUSEBUTTONUP], callback: Callable[[MouseButtonUpEvent], None]
+    ) -> None:
+        ...
+
+    @overload
+    def bind_event(self, /, event_type: Literal[Event.Type.MOUSEMOTION], callback: Callable[[MouseMotionEvent], None]) -> None:
+        ...
+
+    @overload
+    def bind_event(self, /, event_type: Literal[Event.Type.MOUSEWHEEL], callback: Callable[[MouseWheelEvent], None]) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self, /, event_type: Literal[Event.Type.JOYAXISMOTION], callback: Callable[[JoyAxisMotionEvent], None]
+    ) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self, /, event_type: Literal[Event.Type.JOYBALLMOTION], callback: Callable[[JoyBallMotionEvent], None]
+    ) -> None:
+        ...
+
+    @overload
+    def bind_event(self, /, event_type: Literal[Event.Type.JOYHATMOTION], callback: Callable[[JoyHatMotionEvent], None]) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self, /, event_type: Literal[Event.Type.JOYBUTTONDOWN], callback: Callable[[JoyButtonDownEvent], None]
+    ) -> None:
+        ...
+
+    @overload
+    def bind_event(self, /, event_type: Literal[Event.Type.JOYBUTTONUP], callback: Callable[[JoyButtonUpEvent], None]) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self, /, event_type: Literal[Event.Type.CONTROLLERDEVICEADDED], callback: Callable[[ControllerDeviceAddedEvent], None]
+    ) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self, /, event_type: Literal[Event.Type.CONTROLLERDEVICEREMOVED], callback: Callable[[ControllerDeviceRemovedEvent], None]
+    ) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self,
+        /,
+        event_type: Literal[Event.Type.CONTROLLERDEVICEREMAPPED],
+        callback: Callable[[ControllerDeviceRemappedEvent], None],
+    ) -> None:
+        ...
+
+    @overload
+    def bind_event(self, /, event_type: Literal[Event.Type.TEXTEDITING], callback: Callable[[TextEditingEvent], None]) -> None:
+        ...
+
+    @overload
+    def bind_event(self, /, event_type: Literal[Event.Type.TEXTINPUT], callback: Callable[[TextInputEvent], None]) -> None:
+        ...
+
+    @overload
+    def bind_event(self, /, event_type: Literal[Event.Type.VIDEORESIZE], callback: Callable[[VideoResizeEvent], None]) -> None:
+        ...
+
+    @overload
+    def bind_event(self, /, event_type: Literal[Event.Type.VIDEOEXPOSE], callback: Callable[[VideoExposeEvent], None]) -> None:
+        ...
+
+    @overload
+    def bind_event(self, /, event_type: Literal[Event.Type.USEREVENT], callback: Callable[[UserEvent], None]) -> None:
+        ...
+
     def bind_event(self, /, event_type: Event.Type, callback: Callable[[_TE], None]) -> None:
         EventManager.__bind(self.__event_handler_dict, Event.Type(event_type), callback)
 
     def unbind_event(self, /, event_type: Event.Type, callback_to_remove: Callable[[_TE], None]) -> None:
         EventManager.__unbind(self.__event_handler_dict, Event.Type(event_type), callback_to_remove)
 
-    def bind_key(self, /, key: Keyboard.Key, callback: Callable[[_TKE], None]) -> None:
+    def bind_key(self, /, key: Keyboard.Key, callback: Callable[[KeyEvent], None]) -> None:
         self.bind_key_press(key, callback)
         self.bind_key_release(key, callback)
 
-    def bind_key_press(self, /, key: Keyboard.Key, callback: Callable[[_TKE], None]) -> None:
+    def bind_key_press(self, /, key: Keyboard.Key, callback: Callable[[KeyDownEvent], None]) -> None:
         EventManager.__bind(self.__key_pressed_handler_dict, Keyboard.Key(key), callback)
 
-    def bind_key_release(self, /, key: Keyboard.Key, callback: Callable[[_TKE], None]) -> None:
+    def bind_key_release(self, /, key: Keyboard.Key, callback: Callable[[KeyUpEvent], None]) -> None:
         EventManager.__bind(self.__key_released_handler_dict, Keyboard.Key(key), callback)
 
-    def unbind_key(self, /, key: Keyboard.Key, callback_to_remove: Callable[[_TKE], None]) -> None:
+    def unbind_key(self, /, key: Keyboard.Key, callback_to_remove: Callable[[KeyEvent], None]) -> None:
         self.unbind_key_press(key, callback_to_remove)
         self.unbind_key_release(key, callback_to_remove)
 
-    def unbind_key_press(self, /, key: Keyboard.Key, callback_to_remove: Callable[[_TKE], None]) -> None:
+    def unbind_key_press(self, /, key: Keyboard.Key, callback_to_remove: Callable[[KeyDownEvent], None]) -> None:
         EventManager.__unbind(self.__key_pressed_handler_dict, Keyboard.Key(key), callback_to_remove)
 
-    def unbind_key_release(self, /, key: Keyboard.Key, callback_to_remove: Callable[[_TKE], None]) -> None:
+    def unbind_key_release(self, /, key: Keyboard.Key, callback_to_remove: Callable[[KeyUpEvent], None]) -> None:
         EventManager.__unbind(self.__key_released_handler_dict, Keyboard.Key(key), callback_to_remove)
 
-    def bind_mouse_button(self, /, button: Mouse.Button, callback: Callable[[_TME], None]) -> None:
+    def bind_mouse_button(self, /, button: Mouse.Button, callback: Callable[[MouseButtonEvent], None]) -> None:
         self.bind_mouse_button_press(button, callback)
         self.bind_mouse_button_release(button, callback)
 
-    def bind_mouse_button_press(self, /, button: Mouse.Button, callback: Callable[[_TME], None]) -> None:
+    def bind_mouse_button_press(self, /, button: Mouse.Button, callback: Callable[[MouseButtonDownEvent], None]) -> None:
         EventManager.__bind(self.__mouse_button_pressed_handler_dict, Mouse.Button(button), callback)
 
-    def bind_mouse_button_release(self, /, button: Mouse.Button, callback: Callable[[_TME], None]) -> None:
+    def bind_mouse_button_release(self, /, button: Mouse.Button, callback: Callable[[MouseButtonUpEvent], None]) -> None:
         EventManager.__bind(self.__mouse_button_released_handler_dict, Mouse.Button(button), callback)
 
-    def unbind_mouse_button(self, /, button: Mouse.Button, callback_to_remove: Callable[[_TME], None]) -> None:
+    def unbind_mouse_button(self, /, button: Mouse.Button, callback_to_remove: Callable[[MouseButtonEvent], None]) -> None:
         self.unbind_mouse_button_press(button, callback_to_remove)
         self.unbind_mouse_button_release(button, callback_to_remove)
 
-    def unbind_mouse_button_press(self, /, button: Mouse.Button, callback_to_remove: Callable[[_TME], None]) -> None:
+    def unbind_mouse_button_press(
+        self, /, button: Mouse.Button, callback_to_remove: Callable[[MouseButtonDownEvent], None]
+    ) -> None:
         EventManager.__unbind(self.__mouse_button_pressed_handler_dict, Mouse.Button(button), callback_to_remove)
 
-    def unbind_mouse_button_release(self, /, button: Mouse.Button, callback_to_remove: Callable[[_TME], None]) -> None:
+    def unbind_mouse_button_release(
+        self, /, button: Mouse.Button, callback_to_remove: Callable[[MouseButtonUpEvent], None]
+    ) -> None:
         EventManager.__unbind(self.__mouse_button_released_handler_dict, Mouse.Button(button), callback_to_remove)
 
-    def bind_mouse_position(self, /, callback: _MousePositionCallback) -> None:
+    def bind_mouse_position(self, /, callback: Callable[[Tuple[float, float]], None]) -> None:
         mouse_pos_handler_list: List[_MousePositionCallback] = self.__mouse_pos_handler_list
         if callback not in mouse_pos_handler_list:
             mouse_pos_handler_list.append(callback)
 
-    def unbind_mouse_position(self, /, callback_to_remove: _MousePositionCallback) -> None:
+    def unbind_mouse_position(self, /, callback_to_remove: Callable[[Tuple[float, float]], None]) -> None:
         mouse_pos_handler_list: List[_MousePositionCallback] = self.__mouse_pos_handler_list
         with suppress(ValueError):
             mouse_pos_handler_list.remove(callback_to_remove)
@@ -359,6 +464,11 @@ class EventManager:
         event_dict: Dict[Event.Type, List[_EventCallback]] = self.__event_handler_dict
         for callback in event_dict.get(event.type, []):
             callback(event)
+
+    def handle_mouse_position(self, /) -> None:
+        mouse_pos: _MousePosition = Mouse.get_pos()
+        for callback in self.__mouse_pos_handler_list:
+            callback(mouse_pos)
 
     def __handle_key_event(self, /, event: KeyEvent) -> None:
         key_handler_dict: Optional[Dict[Keyboard.Key, List[_EventCallback]]] = None
@@ -381,8 +491,3 @@ class EventManager:
             mouse_button = Mouse.Button(event.button)
             for callback in mouse_handler_dict.get(mouse_button, []):
                 callback(event)
-
-    def handle_mouse_pos(self, /) -> None:
-        mouse_pos: _MousePosition = Mouse.get_pos()
-        for callback in self.__mouse_pos_handler_list:
-            callback(mouse_pos)

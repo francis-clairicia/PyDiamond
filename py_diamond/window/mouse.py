@@ -1,5 +1,7 @@
 # -*- coding: Utf-8 -*
 
+from __future__ import annotations
+
 __all__ = ["Mouse"]
 
 from typing import Tuple
@@ -28,7 +30,7 @@ class Mouse:
         _MOUSE_BUTTON_STATE = (truth(button_states[0]), truth(button_states[1]), truth(button_states[2]))
 
     @staticmethod
-    def is_pressed(button: int) -> bool:
+    def is_pressed(button: Button) -> bool:
         return _MOUSE_BUTTON_STATE[button]
 
     @staticmethod

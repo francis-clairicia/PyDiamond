@@ -11,6 +11,7 @@ from types import MethodType
 from typing import (
     Any,
     Callable,
+    ClassVar,
     Dict,
     Generic,
     Iterator,
@@ -98,12 +99,12 @@ class Window(EventManager):
 
     Config = Dict[str, Any]
 
-    DEFAULT_TITLE = "pygame window"
-    DEFAULT_FRAMERATE = 60
+    DEFAULT_TITLE: ClassVar[str] = "pygame window"
+    DEFAULT_FRAMERATE: ClassVar[int] = 60
 
-    __main_window: bool = True
-    __default_cursor: Cursor = SystemCursor.CURSOR_ARROW
-    __cursor: Cursor = __default_cursor
+    __main_window: ClassVar[bool] = True
+    __default_cursor: ClassVar[Cursor] = SystemCursor.CURSOR_ARROW
+    __cursor: ClassVar[Cursor] = __default_cursor
 
     def __new__(cls, /, *args: Any, **kwargs: Any) -> Any:
         if not Window.__main_window:
@@ -261,9 +262,9 @@ class Window(EventManager):
             with suppress(KeyError):
                 self.__callback_after_scenes[actual_scene].process()
 
-        self.handle_mouse_pos()
+        self.handle_mouse_position()
         if actual_scene:
-            actual_scene.handle_mouse_pos()
+            actual_scene.handle_mouse_position()
         self.__handle_all_events(actual_scene)
 
     def __handle_all_events(self, /, actual_scene: Optional[Scene]) -> None:

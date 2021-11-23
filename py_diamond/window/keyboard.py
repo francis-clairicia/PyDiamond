@@ -1,5 +1,7 @@
 # -*- coding: Utf-8 -*
 
+from __future__ import annotations
+
 __all__ = ["Keyboard"]
 
 from typing import Optional, Sequence, Tuple, Union, overload
@@ -20,27 +22,29 @@ class Keyboard:
 
     @overload
     @staticmethod
-    def get(key: int) -> str:
+    def get(key: Key) -> str:
         ...
 
     @overload
     @staticmethod
-    def get(key: str) -> int:
+    def get(key: str) -> Key:
         ...
 
     @staticmethod
-    def get(key: Union[str, int]) -> Union[str, int]:
+    def get(key: Union[str, Key]) -> Union[str, Key]:
         if isinstance(key, str):
-            return pygame.key.key_code(key)
+            return Keyboard.Key(pygame.key.key_code(key))
         if isinstance(key, int):
             return pygame.key.name(Keyboard.Key(key).value)
         raise TypeError("Bad argument type")
 
     @staticmethod
-    def is_pressed(key: Union[int, str]) -> bool:
+    def is_pressed(key: Union[Key, str]) -> bool:
         if isinstance(key, str):
-            key = pygame.key.key_code(key)
-        return truth(_KEY_STATES[Keyboard.Key(key).value])
+            key = Keyboard.get(key)
+        else:
+            key = Keyboard.Key(key)
+        return truth(_KEY_STATES[key.value])
 
     @staticmethod
     def get_repeat() -> Tuple[int, int]:
