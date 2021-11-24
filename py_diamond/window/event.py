@@ -23,8 +23,8 @@ __all__ = [
     "JoyButtonDownEvent",
     "JoyButtonUpEvent",
     "JoyButtonEvent",
-    "ControllerDeviceRemovedEvent",
-    "ControllerDeviceRemappedEvent",
+    "JoyDeviceAddedEvent",
+    "JoyDeviceRemovedEvent",
     "TextEditingEvent",
     "TextInputEvent",
     "TextEvent",
@@ -98,17 +98,14 @@ class Event(metaclass=MetaEvent, event_type=-1):
         JOYHATMOTION = pygame.JOYHATMOTION
         JOYBUTTONUP = pygame.JOYBUTTONUP
         JOYBUTTONDOWN = pygame.JOYBUTTONDOWN
-        CONTROLLERDEVICEADDED = pygame.CONTROLLERDEVICEADDED
-        CONTROLLERDEVICEREMOVED = pygame.CONTROLLERDEVICEREMOVED
-        CONTROLLERDEVICEREMAPPED = pygame.CONTROLLERDEVICEREMAPPED
+        JOYDEVICEADDED = pygame.JOYDEVICEADDED
+        JOYDEVICEREMOVED = pygame.JOYDEVICEREMOVED
         VIDEORESIZE = pygame.VIDEORESIZE
         VIDEOEXPOSE = pygame.VIDEOEXPOSE
         USEREVENT = pygame.USEREVENT
         MOUSEWHEEL = pygame.MOUSEWHEEL
         TEXTEDITING = pygame.TEXTEDITING
         TEXTINPUT = pygame.TEXTINPUT
-        if hasattr(pygame, "WINDOWEVENT"):
-            WINDOWEVENT = pygame.WINDOWEVENT
 
     type: Type = field(init=False)
 
@@ -206,17 +203,12 @@ JoyButtonEvent = Union[JoyButtonDownEvent, JoyButtonUpEvent]
 
 
 @dataclass(frozen=True)
-class ControllerDeviceAddedEvent(Event, event_type=Event.Type.CONTROLLERDEVICEADDED):
+class JoyDeviceAddedEvent(Event, event_type=Event.Type.JOYDEVICEADDED):
     device_index: int
 
 
 @dataclass(frozen=True)
-class ControllerDeviceRemovedEvent(Event, event_type=Event.Type.CONTROLLERDEVICEREMOVED):
-    instance_id: int
-
-
-@dataclass(frozen=True)
-class ControllerDeviceRemappedEvent(Event, event_type=Event.Type.CONTROLLERDEVICEREMAPPED):
+class JoyDeviceRemovedEvent(Event, event_type=Event.Type.JOYDEVICEREMOVED):
     instance_id: int
 
 
@@ -347,22 +339,13 @@ class EventManager:
 
     @overload
     def bind_event(
-        self, /, event_type: Literal[Event.Type.CONTROLLERDEVICEADDED], callback: Callable[[ControllerDeviceAddedEvent], None]
+        self, /, event_type: Literal[Event.Type.JOYDEVICEADDED], callback: Callable[[JoyDeviceAddedEvent], None]
     ) -> None:
         ...
 
     @overload
     def bind_event(
-        self, /, event_type: Literal[Event.Type.CONTROLLERDEVICEREMOVED], callback: Callable[[ControllerDeviceRemovedEvent], None]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self,
-        /,
-        event_type: Literal[Event.Type.CONTROLLERDEVICEREMAPPED],
-        callback: Callable[[ControllerDeviceRemappedEvent], None],
+        self, /, event_type: Literal[Event.Type.JOYDEVICEREMOVED], callback: Callable[[JoyDeviceRemovedEvent], None]
     ) -> None:
         ...
 
