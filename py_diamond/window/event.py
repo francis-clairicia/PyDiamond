@@ -7,7 +7,6 @@ __all__ = [
     "MetaEvent",
     "Event",
     "EventManager",
-    "QuitEvent",
     "ActiveEvent",
     "KeyDownEvent",
     "KeyUpEvent",
@@ -67,7 +66,6 @@ class MetaEvent(type):
             annotations = namespace["__annotations__"] = namespace.get("__annotations__", {})
             annotations["type"] = Event.Type
             namespace["type"] = field(default=event_type, init=False)
-            namespace["__event_type__"] = event_type
             cls: MetaEvent = super().__new__(metacls, name, bases, namespace, **kwargs)
             metacls.__associations[event_type] = cast(Type[Event], cls)
             return cls
@@ -89,7 +87,6 @@ class MetaEvent(type):
 @dataclass(frozen=True)
 class Event(metaclass=MetaEvent, event_type=-1):
     class Type(IntEnum):
-        QUIT = pygame.QUIT
         ACTIVEEVENT = pygame.ACTIVEEVENT
         KEYDOWN = pygame.KEYDOWN
         KEYUP = pygame.KEYUP
@@ -114,11 +111,6 @@ class Event(metaclass=MetaEvent, event_type=-1):
             WINDOWEVENT = pygame.WINDOWEVENT
 
     type: Type = field(init=False)
-
-
-@dataclass(frozen=True)
-class QuitEvent(Event, event_type=Event.Type.QUIT):
-    pass
 
 
 @dataclass(frozen=True)
@@ -292,14 +284,8 @@ class EventManager:
 
     @staticmethod
     def __unbind(handler_dict: Dict[_T, List[_EventCallback]], key: _T, callback: Callable[[_TE], None]) -> None:
-        try:
+        with suppress(KeyError, ValueError):
             handler_dict[key].remove(cast(_EventCallback, callback))
-        except (KeyError, ValueError):
-            pass
-
-    @overload
-    def bind_event(self, /, event_type: Literal[Event.Type.QUIT], callback: Callable[[QuitEvent], None]) -> None:
-        ...
 
     @overload
     def bind_event(self, /, event_type: Literal[Event.Type.ACTIVEEVENT], callback: Callable[[ActiveEvent], None]) -> None:

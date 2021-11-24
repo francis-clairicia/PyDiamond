@@ -6,15 +6,13 @@ __all__ = ["Animation"]
 
 from abc import ABCMeta, abstractmethod
 from contextlib import suppress
-from typing import TYPE_CHECKING, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Callable, Dict, Iterator, List, Optional, Tuple, Union, cast
 
 from ..math import Vector2
 from ..system.clock import Clock
-from ..window.scene import Scene, WindowCallback
-
-if TYPE_CHECKING:
-    from .transformable import Transformable
-    from ..window.display import Window
+from .transformable import Transformable
+from ..window.display import WindowCallback
+from ..window.scene import Scene, SceneWindow
 
 
 class _AbstractAnimationClass(metaclass=ABCMeta):
@@ -272,27 +270,26 @@ class Animation:
         self.__animations["scale_height"] = _AnimationScaleHeight(self.__transformable, milliseconds, height, offset)
         return self
 
-    def start(self, /, master: Union[Window, Scene], at_every_frame: Optional[Callable[[], None]] = None) -> None:
-        scene: Optional[Scene] = None
-        if isinstance(master, Scene):
-            scene = master
-            if not scene.looping():
-                return
-            master = master.window
+    def start(self, /, master: Scene, at_every_frame: Optional[Callable[[], None]] = None) -> None:
+        if not master.looping():
+            return
+        window: SceneWindow = cast(SceneWindow, master.window)
         while self.started():
             self.__animate(at_every_frame)
-            if scene is not None and not scene.looping():
+            if not master.looping():
                 break
-            master.handle_events()
-            master.draw_and_refresh()
+            window.handle_events()
+            window.render_scene()
+            window.refresh()
         self.__animate(at_every_frame)
-        master.draw_and_refresh()
+        window.render_scene()
+        window.refresh()
         self.__clear()
 
     def start_in_background(
         self,
         /,
-        master: Union[Window, Scene],
+        master: Scene,
         at_every_frame: Optional[Callable[[], None]] = None,
         after_animation: Optional[Callable[[], None]] = None,
     ) -> None:
@@ -300,24 +297,20 @@ class Animation:
             self.__window_callback.kill()
             self.__window_callback = None
 
-        scene: Optional[Scene] = None
-        window: Window
-        if isinstance(master, Scene):
-            scene = master
-            window = master.window
-        else:
-            window = master
+        window: SceneWindow = cast(SceneWindow, master.window)
 
         def animate() -> Iterator[None]:
             while self.started():
                 self.__animate(at_every_frame)
                 yield
-                if scene is not None and not scene.looping():
+                if not master.looping():
                     break
                 window.handle_events()
-                window.draw_and_refresh()
+                window.render_scene()
+                window.refresh()
             self.__animate(at_every_frame)
-            window.draw_and_refresh()
+            window.render_scene()
+            window.refresh()
             self.__clear()
             window_callback.kill()
             self.__window_callback = None

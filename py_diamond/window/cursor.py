@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-__all__ = ["Cursor", "CustomCursor", "MetaCursor", "SystemCursor"]
+__all__ = ["Cursor", "CustomCursor", "SystemCursor"]
 
 from abc import ABCMeta, abstractmethod
 from enum import IntEnum
-from typing import Any, Callable, Dict, Optional, Sequence, Tuple, overload
+from types import MethodType
+from typing import Any, Callable, ClassVar, Dict, Optional, Sequence, Tuple, overload
 
 import pygame
 import pygame.mouse
@@ -17,21 +18,23 @@ from ..graphics.surface import Surface
 from ..system.utils import cache, wraps
 
 
-def _set_decorator(func: Callable[[Cursor], None], /) -> Callable[[Cursor], None]:
-    actual_cursor: Optional[Cursor] = None
+class _MetaCursor(ABCMeta):
+    __cursor_setter: ClassVar[Optional[Callable[[], None]]] = None
+    __default_cursor: ClassVar[Optional[Cursor]] = None
 
-    @wraps(func)
-    def wrapper(self: Cursor, /) -> None:
-        nonlocal actual_cursor
-        if actual_cursor is not self:
-            func(self)
-            actual_cursor = self
+    def __new__(metacls, /, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> _MetaCursor:
+        def _set_decorator(func: Callable[[Cursor], None], /) -> Callable[[Cursor], None]:
+            actual_cursor: Optional[Cursor] = None
 
-    return wrapper
+            @wraps(func)
+            def wrapper(self: Cursor, /) -> None:
+                nonlocal actual_cursor
+                if actual_cursor is not self:
+                    _MetaCursor.__cursor_setter = MethodType(func, self)
+                    actual_cursor = self
 
+            return wrapper
 
-class MetaCursor(ABCMeta):
-    def __new__(metacls, /, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaCursor:
         set_method: Optional[Callable[[Cursor], None]] = namespace.get("set")
         if callable(set_method):
             namespace["set"] = _set_decorator(set_method)
@@ -42,8 +45,24 @@ class MetaCursor(ABCMeta):
     def __call__(cls, /, *args: Any, **kwargs: Any) -> Any:
         return super().__call__(*args, **kwargs)
 
+    @staticmethod
+    def update() -> None:
+        cursor_setter = _MetaCursor.__cursor_setter
+        if not callable(cursor_setter):
+            default_cursor = (
+                _MetaCursor.__default_cursor if isinstance(_MetaCursor.__default_cursor, Cursor) else SystemCursor.CURSOR_ARROW
+            )
+            default_cursor.set()
+        if callable(cursor_setter):
+            cursor_setter()
+            _MetaCursor.__cursor_setter = None
 
-class Cursor(metaclass=MetaCursor):
+    @staticmethod
+    def set_default(cursor: Optional[Cursor]) -> None:
+        _MetaCursor.__default_cursor = cursor
+
+
+class Cursor(metaclass=_MetaCursor):
     @abstractmethod
     def set(self, /) -> None:
         raise NotImplementedError

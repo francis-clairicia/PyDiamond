@@ -2,31 +2,10 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
+from typing import List, Type
 from py_diamond.graphics.animation import Animation
-from py_diamond.graphics.entry import Entry
-from py_diamond.window.event import Event, MouseButtonEvent
-from py_diamond.graphics.renderer import SurfaceRenderer
-from py_diamond.graphics.scale import Scale
-from py_diamond.graphics.progress import ProgressBar
-from py_diamond.graphics.checkbox import CheckBox
 from py_diamond.graphics.button import Button, ImageButton
-from py_diamond.window.mouse import Mouse
-from typing import Callable, List
-from py_diamond.graphics.surface import Surface
-from py_diamond.graphics.text import Text, TextImage
-from py_diamond.window.display import Window, scheduled
-from py_diamond.window.scene import Scene, MainScene
-
-from py_diamond.resource import FontLoader, ImageLoader, ResourceManager
-
-from py_diamond.graphics.shape import AbstractRectangleShape, RectangleShape, PolygonShape, CircleShape, CrossShape
-from py_diamond.graphics.gradients import (
-    HorizontalGradientShape,
-    RadialGradientShape,
-    SquaredGradientShape,
-    VerticalGradientShape,
-)
-from py_diamond.graphics.sprite import AnimatedSprite, Sprite
+from py_diamond.graphics.checkbox import CheckBox
 from py_diamond.graphics.color import (
     BLACK,
     BLUE,
@@ -37,17 +16,37 @@ from py_diamond.graphics.color import (
     MAGENTA,
     ORANGE,
     PURPLE,
+    RED,
     TRANSPARENT,
     WHITE,
-    RED,
     YELLOW,
     set_brightness,
 )
+from py_diamond.graphics.entry import Entry
+from py_diamond.graphics.gradients import (
+    HorizontalGradientShape,
+    RadialGradientShape,
+    SquaredGradientShape,
+    VerticalGradientShape,
+)
+from py_diamond.graphics.progress import ProgressBar
+from py_diamond.graphics.renderer import SurfaceRenderer
+from py_diamond.graphics.scale import Scale
+from py_diamond.graphics.shape import AbstractRectangleShape, CircleShape, CrossShape, PolygonShape, RectangleShape
+from py_diamond.graphics.sprite import AnimatedSprite, Sprite
+from py_diamond.graphics.surface import Surface
+from py_diamond.graphics.text import Text, TextImage
+from py_diamond.resource.loader import FontLoader, ImageLoader
+from py_diamond.resource.manager import ResourceManager
+from py_diamond.window.display import Window, scheduled
+from py_diamond.window.event import Event, MouseButtonEvent
+from py_diamond.window.mouse import Mouse
+from py_diamond.window.scene import MainScene, Scene, SceneWindow
 
 
 class ShapeScene(MainScene):
-    def __init__(self, window: Window) -> None:
-        super().__init__(window)
+    def __init__(self) -> None:
+        super().__init__()
         self.background_color = BLUE_DARK
         # self.__r: RectangleShape = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
         # self.__p: PolygonShape = PolygonShape(WHITE, outline=3, outline_color=RED)
@@ -83,12 +82,12 @@ class ShapeScene(MainScene):
             ]
         )
         self.__shape_copy: PolygonShape = PolygonShape(TRANSPARENT, outline_color=WHITE)
-        self.__r.center = window.center
-        self.__r.set_position(center=window.center)
-        self.__p.center = self.__r.centerx - window.centery / 4, window.centery
-        self.__x.center = self.__r.centerx - window.centery / 2, window.centery
+        self.__r.center = self.window.center
+        self.__r.set_position(center=self.window.center)
+        self.__p.center = self.__r.centerx - self.window.centery / 4, self.window.centery
+        self.__x.center = self.__r.centerx - self.window.centery / 2, self.window.centery
         # self.__x.topleft = (50, 50)
-        self.__c.center = self.__r.centerx - window.centery * 3 / 4, window.centery
+        self.__c.center = self.__r.centerx - self.window.centery * 3 / 4, self.window.centery
 
         self.__x_trajectory: CircleShape = CircleShape(
             abs(self.__x.centerx - self.__r.centerx), TRANSPARENT, outline_color=YELLOW, outline=1
@@ -104,7 +103,7 @@ class ShapeScene(MainScene):
 
         self.__scale: float = 1
         self.__scale_growth: int = 1
-        self.__shape_copy.center = window.width / 4, window.height * 3 / 4
+        self.__shape_copy.center = self.window.width / 4, self.window.height * 3 / 4
         # self.__r.hide()
         # self.window.after(3000, self.window.close)
 
@@ -130,7 +129,7 @@ class ShapeScene(MainScene):
         self.__c_center.center = self.__c.center
         # self.__shape_copy.set_points(self.__c.get_vertices())
 
-    def draw(self) -> None:
+    def render(self) -> None:
         self.window.draw(
             self.__r,
             self.__p,
@@ -145,8 +144,8 @@ class ShapeScene(MainScene):
 
 
 class AnimationScene(MainScene):
-    def __init__(self, window: Window) -> None:
-        super().__init__(window)
+    def __init__(self) -> None:
+        super().__init__()
         self.rectangle = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
         self.animation = Animation(self.rectangle)
 
@@ -160,7 +159,7 @@ class AnimationScene(MainScene):
         self.animation.register_rotation(360, offset=2)
         self.animation.start_in_background(self, after_animation=self.move_to_left)
 
-    def draw(self) -> None:
+    def render(self) -> None:
         self.window.draw(self.rectangle)
 
     def move_to_left(self) -> None:
@@ -171,8 +170,8 @@ class AnimationScene(MainScene):
 
 
 class GradientScene(Scene):
-    def __init__(self, window: Window) -> None:
-        super().__init__(window)
+    def __init__(self) -> None:
+        super().__init__()
         self.background_color = BLUE_DARK
         self.horizontal: HorizontalGradientShape = HorizontalGradientShape(100, 100, RED, YELLOW)
         self.vertical: VerticalGradientShape = VerticalGradientShape(100, 100, RED, YELLOW)
@@ -185,7 +184,7 @@ class GradientScene(Scene):
         self.radial.center = self.window.center
         self.squared.midbottom = self.window.midbottom
 
-    def draw(self) -> None:
+    def render(self) -> None:
         self.window.draw(self.horizontal, self.vertical, self.squared, self.radial)
 
 
@@ -220,9 +219,9 @@ class Rainbow(AbstractRectangleShape):
 
 
 class RainbowScene(MainScene):
-    def __init__(self, window: Window) -> None:
-        super().__init__(window)
-        self.rainbow = Rainbow(*window.size)
+    def __init__(self) -> None:
+        super().__init__()
+        self.rainbow = Rainbow(*self.window.size)
 
     def on_start_loop(self) -> None:
         self.window.text_framerate.color = BLACK
@@ -230,13 +229,13 @@ class RainbowScene(MainScene):
     def on_quit(self) -> None:
         self.window.text_framerate.color = WHITE
 
-    def draw(self) -> None:
+    def render(self) -> None:
         self.window.draw(self.rainbow)
 
 
 class TextScene(Scene):
-    def __init__(self, window: Window) -> None:
-        super().__init__(window)
+    def __init__(self) -> None:
+        super().__init__()
         self.background_color = BLUE_DARK
         self.text = Text(
             "I'm a text", font=(None, 300), italic=True, color=WHITE, shadow_x=-25, shadow_y=-25, wrap=5, justify="center"
@@ -248,7 +247,7 @@ class TextScene(Scene):
         self.text.center = self.window.center
         self.text_animation.register_rotation(360).start_in_background(self)
 
-    def draw(self) -> None:
+    def render(self) -> None:
         self.window.draw(self.text)
 
 
@@ -275,21 +274,21 @@ class FontResources(ResourceManager):
 
 
 class ResourceScene(MainScene):
-    def __init__(self, window: Window) -> None:
-        super().__init__(window)
+    def __init__(self) -> None:
+        super().__init__()
         self.cactus = Sprite(image=ImagesResources.cactus)
         self.cactus.size = 100, 100
         self.cactus.topleft = 20, 20
         self.text = Text("I'm a text", font=(FontResources.cooperblack, 300), italic=True, color=WHITE, wrap=5, justify="center")
-        self.text.center = window.center
+        self.text.center = self.window.center
 
-    def draw(self) -> None:
+    def render(self) -> None:
         self.window.draw(self.cactus, self.text)
 
 
 class AnimatedSpriteScene(MainScene):
-    def __init__(self, window: Window) -> None:
-        super().__init__(window)
+    def __init__(self) -> None:
+        super().__init__()
         self.background_color = BLUE_DARK
         self.sprite: AnimatedSprite = AnimatedSprite(*ImagesResources.car)
         self.sprite.start_sprite_animation(loop=True)
@@ -304,18 +303,18 @@ class AnimatedSpriteScene(MainScene):
     def update(self) -> None:
         self.sprite.update()
 
-    def draw(self) -> None:
+    def render(self) -> None:
         self.window.draw(self.sprite)
 
 
 class EventScene(MainScene):
-    def __init__(self, window: Window) -> None:
-        super().__init__(window)
+    def __init__(self) -> None:
+        super().__init__()
         self.background_color = BLUE_DARK
         self.cross: CrossShape = CrossShape(50, 50, type="diagonal", color=RED, outline_color=WHITE, outline=3)
         self.circle: CircleShape = CircleShape(4, color=YELLOW)
-        self.bind_mouse_position(lambda pos: self.cross.set_position(center=pos))
-        self.bind_mouse_button(Mouse.Button.LEFT, self.__switch_color)
+        self.event.bind_mouse_position(lambda pos: self.cross.set_position(center=pos))
+        self.event.bind_mouse_button(Mouse.Button.LEFT, self.__switch_color)
 
     def on_start_loop(self) -> None:
         Mouse.hide_cursor()
@@ -326,7 +325,7 @@ class EventScene(MainScene):
     def update(self) -> None:
         self.circle.center = self.cross.center
 
-    def draw(self) -> None:
+    def render(self) -> None:
         self.window.draw(self.cross, self.circle)
 
     def __switch_color(self, event: MouseButtonEvent) -> None:
@@ -337,14 +336,14 @@ class EventScene(MainScene):
 
 
 class TextImageScene(MainScene):
-    def __init__(self, window: Window) -> None:
-        super().__init__(window)
+    def __init__(self) -> None:
+        super().__init__()
         self.background_color = BLUE_DARK
         self.text: TextImage = TextImage(
             "I'm a text", img=ImagesResources.cactus, font=(None, 50), color=WHITE, shadow_x=-5, shadow_y=-5, wrap=5
         )
         self.text.img_scale_to_size((100, 100))
-        self.text.center = window.center
+        self.text.center = self.window.center
         self.text_animation = Animation(self.text)
 
     def on_start_loop(self) -> None:
@@ -352,13 +351,13 @@ class TextImageScene(MainScene):
         self.text.scale = 1
         self.text_animation.register_rotation(360).register_width_offset(100).start_in_background(self)
 
-    def draw(self) -> None:
+    def render(self) -> None:
         self.window.draw(self.text)
 
 
 class ButtonScene(MainScene):
-    def __init__(self, window: Window) -> None:
-        super().__init__(window)
+    def __init__(self) -> None:
+        super().__init__()
         self.background_color = BLUE_DARK
         self.button = Button(
             self,
@@ -369,12 +368,12 @@ class ButtonScene(MainScene):
             text_hover_offset=(0, -3),
         )
         self.button.img_scale_to_size((100, 100))
-        self.button.center = window.center
+        self.button.center = self.window.center
 
         self.cancel = ImageButton(
             self, img=ImagesResources.cross, active_img=ImagesResources.cross_hover, callback=self.on_start_loop
         )
-        self.cancel.center = window.center
+        self.cancel.center = self.window.center
         self.cancel.move(450, 0)
         self.button_animation = Animation(self.button)
 
@@ -389,13 +388,13 @@ class ButtonScene(MainScene):
         self.counter += 1
         self.button.text = str(self.counter)
 
-    def draw(self) -> None:
+    def render(self) -> None:
         self.window.draw(self.button, self.cancel)
 
 
 class CheckBoxScene(MainScene):
-    def __init__(self, window: Window) -> None:
-        super().__init__(window)
+    def __init__(self) -> None:
+        super().__init__()
         self.background_color = BLUE_DARK
         self.text = Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
         self.box: CheckBox[int, int] = CheckBox(self, 50, 50, BLUE_LIGHT, off_value=0, on_value=10, callback=self.__set_text)
@@ -407,7 +406,7 @@ class CheckBoxScene(MainScene):
     def update(self) -> None:
         self.text.midtop = (self.box.centerx, self.box.bottom + 10)
 
-    def draw(self) -> None:
+    def render(self) -> None:
         self.window.draw(self.box, self.text)
 
     def __set_text(self, value: int) -> None:
@@ -415,8 +414,8 @@ class CheckBoxScene(MainScene):
 
 
 class ProgressScene(MainScene):
-    def __init__(self, master: Window) -> None:
-        super().__init__(master)
+    def __init__(self) -> None:
+        super().__init__()
         self.background_color = BLUE_DARK
         self.progress = progress = ProgressBar(500, 75, from_=10, to=90)
         self.restart = restart = ImageButton(
@@ -435,13 +434,13 @@ class ProgressScene(MainScene):
     def on_start_loop(self) -> None:
         self.progress.percent = 0
 
-    def draw(self) -> None:
+    def render(self) -> None:
         self.window.draw(self.progress, self.restart)
 
 
 class ScaleScene(MainScene):
-    def __init__(self, master: Window) -> None:
-        super().__init__(master)
+    def __init__(self) -> None:
+        super().__init__()
         self.background_color = BLUE_DARK
         self.text = text = Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
         self.scale = scale = Scale(
@@ -454,28 +453,27 @@ class ScaleScene(MainScene):
     def on_start_loop(self) -> None:
         self.scale.value = self.scale.from_value
 
-    def draw(self) -> None:
+    def render(self) -> None:
         self.window.draw(self.scale, self.text)
 
 
 class EntryScene(MainScene):
-    def __init__(self, master: Window) -> None:
-        super().__init__(master)
+    def __init__(self) -> None:
+        super().__init__()
         self.background_color = BLUE_DARK
         self.entry = entry = Entry(self, font=(None, 70))
-
-        entry.center = master.center
+        entry.center = self.window.center
 
     def on_start_loop(self) -> None:
         self.entry.clear()
 
-    def draw(self) -> None:
+    def render(self) -> None:
         self.window.draw(self.entry)
 
 
-class MainWindow(Window):
+class MainWindow(SceneWindow):
 
-    __SCENES: List[Callable[[Window], Scene]] = [
+    all_scenes: List[Type[Scene]] = [
         ShapeScene,
         AnimationScene,
         GradientScene,
@@ -496,43 +494,42 @@ class MainWindow(Window):
         # super().__init__("my window", (0, 0))
         super().__init__("my window", (1366, 768))
         self.text_framerate.show()
-        self.all_scenes: List[Scene] = []
         self.set_busy_loop(True)
         self.set_default_framerate(120)
 
         # Text.set_default_font(FontResources.cooperblack)
 
-        for cls in MainWindow.__SCENES:
-            self.all_scenes.append(cls(self))
-
         Button.set_default_theme("default")
         Button.set_theme("default", {"font": (FontResources.cooperblack, 20), "border_radius": 5})
 
         self.index: int = 0
-        self.all_scenes[0].start()
         self.prev_button: Button = Button(self, "Previous", callback=self.__previous_scene)
-        self.prev_button.topleft = self.left + 10, self.top + 10
         self.next_button: Button = Button(self, "Next", callback=self.__next_scene)
+
+    def __window_init__(self) -> None:
+        super().__window_init__()
+        self.prev_button.topleft = self.left + 10, self.top + 10
         self.next_button.topright = self.right - 10, self.top + 10
 
-    def draw_screen(self) -> None:
-        super().draw_screen()
+    def mainloop(self) -> None:
+        self.run(self.all_scenes[self.index])
+
+    def render_scene(self) -> None:
+        super().render_scene()
         self.draw(self.prev_button, self.next_button)
 
     def __next_scene(self) -> None:
-        self.all_scenes[self.index].stop()
         self.index = (self.index + 1) % len(self.all_scenes)
-        self.all_scenes[self.index].start()
+        self.start_scene(self.all_scenes[self.index], remove_actual=True)
 
     def __previous_scene(self) -> None:
-        self.all_scenes[self.index].stop()
         self.index = len(self.all_scenes) - 1 if self.index == 0 else self.index - 1
-        self.all_scenes[self.index].start()
+        self.start_scene(self.all_scenes[self.index], remove_actual=True)
 
 
 def main() -> None:
-    w: Window = MainWindow()
-    w.mainloop()
+    with MainWindow().open() as window:
+        window.mainloop()
 
 
 if __name__ == "__main__":

@@ -118,8 +118,8 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
         self.__cursor_animation_clock = Clock()
 
         key_press_event = self.__key_press
-        master.bind_event(Event.Type.KEYDOWN, key_press_event)
-        master.bind_event(Event.Type.TEXTINPUT, key_press_event)
+        master.event.bind_event(Event.Type.KEYDOWN, key_press_event)
+        master.event.bind_event(Event.Type.TEXTINPUT, key_press_event)
 
     def get_local_size(self, /) -> Tuple[float, float]:
         return self.__shape.get_local_size()

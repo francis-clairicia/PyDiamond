@@ -2,6 +2,7 @@
 
 __all__ = [
     "Color",
+    "ImmutableColor",
     "WHITE",
     "BLACK",
     "GRAY",
@@ -29,29 +30,57 @@ __all__ = [
     "set_saturation",
 ]
 
+from dataclasses import dataclass
 from pygame.color import Color
+from typing import Any, List, Tuple, Union, overload
 
 
-WHITE = Color(255, 255, 255)
-BLACK = Color(0, 0, 0)
-GRAY = Color(127, 127, 127)
-GRAY_DARK = Color(95, 95, 95)
-GRAY_LIGHT = Color(175, 175, 175)
-RED = Color(255, 0, 0)
-RED_DARK = Color(128, 0, 0)
-RED_LIGHT = Color(255, 128, 128)
-ORANGE = Color(255, 175, 0)
-YELLOW = Color(255, 255, 0)
-GREEN = Color(0, 255, 0)
-GREEN_DARK = Color(0, 128, 0)
-GREEN_LIGHT = Color(128, 255, 128)
-CYAN = Color(0, 255, 255)
-BLUE = Color(0, 0, 255)
-BLUE_DARK = Color(0, 0, 128)
-BLUE_LIGHT = Color(128, 128, 255)
-MAGENTA = Color(255, 0, 255)
-PURPLE = Color(165, 0, 255)
-TRANSPARENT = Color(0, 0, 0, 0)
+_ColorValue = Union[Color, str, Tuple[int, int, int], List[int], int, Tuple[int, int, int, int]]
+
+
+@dataclass(init=False, frozen=True)
+class ImmutableColor(Color):
+    r: int
+    g: int
+    b: int
+    a: int
+    cmy: Tuple[float, float, float]
+    hsva: Tuple[float, float, float, float]
+    hsla: Tuple[float, float, float, float]
+    i1i2i3: Tuple[float, float, float]
+
+    @overload
+    def __init__(self, r: int, g: int, b: int, a: int = 255, /) -> None:
+        ...
+
+    @overload
+    def __init__(self, rgbvalue: _ColorValue, /) -> None:
+        ...
+
+    def __init__(self, /, *args: Any) -> None:
+        super().__init__(*args)
+
+
+WHITE = ImmutableColor(255, 255, 255)
+BLACK = ImmutableColor(0, 0, 0)
+GRAY = ImmutableColor(127, 127, 127)
+GRAY_DARK = ImmutableColor(95, 95, 95)
+GRAY_LIGHT = ImmutableColor(175, 175, 175)
+RED = ImmutableColor(255, 0, 0)
+RED_DARK = ImmutableColor(128, 0, 0)
+RED_LIGHT = ImmutableColor(255, 128, 128)
+ORANGE = ImmutableColor(255, 175, 0)
+YELLOW = ImmutableColor(255, 255, 0)
+GREEN = ImmutableColor(0, 255, 0)
+GREEN_DARK = ImmutableColor(0, 128, 0)
+GREEN_LIGHT = ImmutableColor(128, 255, 128)
+CYAN = ImmutableColor(0, 255, 255)
+BLUE = ImmutableColor(0, 0, 255)
+BLUE_DARK = ImmutableColor(0, 0, 128)
+BLUE_LIGHT = ImmutableColor(128, 128, 255)
+MAGENTA = ImmutableColor(255, 0, 255)
+PURPLE = ImmutableColor(165, 0, 255)
+TRANSPARENT = ImmutableColor(0, 0, 0, 0)
 
 
 def set_brightness(color: Color, value: int) -> Color:

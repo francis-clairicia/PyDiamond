@@ -85,7 +85,7 @@ class _ResourceDescriptor:
 
 
 class MetaResourceManager(type):
-    def __new__(metacls, /, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **extra: Any) -> MetaResourceManager:
+    def __new__(metacls, /, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaResourceManager:
         namespace["__resources_files__"] = resources = namespace.get("__resources_files__", dict())
 
         annotations: Dict[str, Union[type, str]] = namespace.get("__annotations__", dict())
@@ -103,10 +103,10 @@ class MetaResourceManager(type):
         for resource_name, resource_path in resources.items():
             namespace[resource_name] = _ResourceDescriptor(resource_path, namespace["__resource_loader__"], directory)
 
-        return super().__new__(metacls, name, bases, namespace, **extra)
+        return super().__new__(metacls, name, bases, namespace, **kwargs)
 
-    def __init__(cls, /, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **extra: Any) -> None:
-        super().__init__(name, bases, namespace, **extra)
+    def __init__(cls, /, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> None:
+        super().__init__(name, bases, namespace, **kwargs)
 
         cls.__resources_directory__: Optional[str]
         cls.__resources_files__: Dict[str, _ResourceDescriptor]

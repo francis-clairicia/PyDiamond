@@ -41,13 +41,11 @@ class Clickable:
         disabled_cursor: Optional[Cursor] = None,
     ) -> None:
         self.__master: Union[Scene, Window] = master
-        self.__window: Window
+        # self.__window: Window
         self.__scene: Optional[Scene]
         if isinstance(master, Scene):
-            self.__window = master.window
             self.__scene = master
         else:
-            self.__window = master
             self.__scene = None
         self.__state: Clickable.State = Clickable.State.NORMAL
         self.__hover: bool = False
@@ -69,10 +67,10 @@ class Clickable:
         self.hover_sound = hover_sound
         self.click_sound = click_sound
         self.disabled_sound = disabled_sound
-        master.bind_event(Event.Type.MOUSEBUTTONDOWN, self.__handle_click_event)
-        master.bind_event(Event.Type.MOUSEBUTTONUP, self.__handle_click_event)
-        master.bind_event(Event.Type.MOUSEMOTION, self._on_mouse_motion)
-        master.bind_mouse_position(self.__handle_mouse_position)
+        master.event.bind_event(Event.Type.MOUSEBUTTONDOWN, self.__handle_click_event)
+        master.event.bind_event(Event.Type.MOUSEBUTTONUP, self.__handle_click_event)
+        master.event.bind_event(Event.Type.MOUSEMOTION, self._on_mouse_motion)
+        master.event.bind_mouse_position(self.__handle_mouse_position)
 
     @abstractmethod
     def invoke(self, /) -> None:
@@ -129,7 +127,7 @@ class Clickable:
             return
         self.hover = hover = self._mouse_in_hitbox(mouse_pos)
         if hover or (self.active and not self.__active_only_on_hover):
-            self.__window.set_temporary_window_cursor(self.__hover_cursor[self.__state])
+            self.__hover_cursor[self.__state].set()
 
     @abstractmethod
     def _mouse_in_hitbox(self, /, mouse_pos: Tuple[float, float]) -> bool:
@@ -159,10 +157,6 @@ class Clickable:
     @property
     def master(self, /) -> Union[Scene, Window]:
         return self.__master
-
-    @property
-    def window(self, /) -> Window:
-        return self.__window
 
     @property
     def scene(self, /) -> Optional[Scene]:
