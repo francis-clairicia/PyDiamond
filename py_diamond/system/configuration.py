@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 __all__ = [
+    "BoundConfiguration",
     "ConfigAttribute",
     "ConfigError",
     "ConfigTemplate",
@@ -53,9 +54,9 @@ _Updater = TypeVar("_Updater", bound=Callable[[Any], None])
 _KeyUpdater = TypeVar("_KeyUpdater", bound=Callable[[Any, str], None])
 _ValueUpdater = TypeVar("_ValueUpdater", bound=Callable[[Any, Any], None])
 _KeyValueUpdater = TypeVar("_KeyValueUpdater", bound=Callable[[Any, str, Any], None])
-_PropertyGetter = TypeVar("_PropertyGetter", bound=Callable[[Any], Any])
-_PropertySetter = TypeVar("_PropertySetter", bound=Callable[[Any, Any], None])
-_PropertyDeleter = TypeVar("_PropertyDeleter", bound=Callable[[Any], None])
+_Getter = TypeVar("_Getter", bound=Callable[[Any], Any])
+_Setter = TypeVar("_Setter", bound=Callable[[Any, Any], None])
+_Deleter = TypeVar("_Deleter", bound=Callable[[Any], None])
 _KeyGetter = TypeVar("_KeyGetter", bound=Callable[[Any, str], Any])
 _KeySetter = TypeVar("_KeySetter", bound=Callable[[Any, str, Any], None])
 _KeyDeleter = TypeVar("_KeyDeleter", bound=Callable[[Any, str], None])
@@ -133,6 +134,8 @@ class Configuration:
     def __set_name__(self, owner: type, name: str, /) -> None:
         if self.__bound_class is not None:
             raise TypeError(f"This configuration object is bound to an another class: {self.__bound_class.__name__!r}")
+        if getattr(owner, name) is not self:
+            raise AttributeError("The attribute name does not correspond")
         self.__bound_class = owner
         info: _ConfigInfo = self.__info
         attribute_class_owner: Dict[str, type] = info.attribute_class_owner
@@ -229,17 +232,17 @@ class Configuration:
         ...
 
     @overload
-    def __get__(self, obj: _T, objtype: Optional[type] = None, /) -> _BoundConfiguration[_T]:
+    def __get__(self, obj: _T, objtype: Optional[type] = None, /) -> BoundConfiguration[_T]:
         ...
 
-    def __get__(self, obj: Optional[_T], objtype: Optional[type] = None, /) -> Union[Configuration, _BoundConfiguration[_T]]:
+    def __get__(self, obj: Optional[_T], objtype: Optional[type] = None, /) -> Union[Configuration, BoundConfiguration[_T]]:
         if obj is None:
             return self
         if objtype is not None and objtype is not type(obj):
             config = _retrieve_configuration(objtype)
         else:
             config = self
-        return _BoundConfiguration(config, obj)
+        return BoundConfiguration(config, obj)
 
     def get(self, /, obj: object, option: str) -> Any:
         option = self.check_option_validity(option, use_alias=True)
@@ -480,16 +483,16 @@ class Configuration:
         return obj in Configuration.__init_context
 
     @overload
-    def getter(self, option: str, /, *, use_override: bool = True) -> Callable[[_PropertyGetter], _PropertyGetter]:
+    def getter(self, option: str, /, *, use_override: bool = True) -> Callable[[_Getter], _Getter]:
         ...
 
     @overload
-    def getter(self, option: str, func: _PropertyGetter, /, *, use_override: bool = True) -> None:
+    def getter(self, option: str, func: _Getter, /, *, use_override: bool = True) -> None:
         ...
 
     def getter(
-        self, option: str, func: Optional[_PropertyGetter] = None, /, *, use_override: bool = True
-    ) -> Optional[Callable[[_PropertyGetter], _PropertyGetter]]:
+        self, option: str, func: Optional[_Getter] = None, /, *, use_override: bool = True
+    ) -> Optional[Callable[[_Getter], _Getter]]:
         self.check_option_validity(option)
         info: _ConfigInfo = self.__info
         actual_descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
@@ -497,7 +500,7 @@ class Configuration:
             raise OptionError(option, f"{option!r} option already bound to a descriptor: {type(actual_descriptor).__name__}")
         actual_property: Optional[_ConfigProperty] = actual_descriptor
 
-        def decorator(func: _PropertyGetter, /) -> _PropertyGetter:
+        def decorator(func: _Getter, /) -> _Getter:
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             if actual_property is None:
                 info.value_descriptors[option] = _ConfigProperty(wrapper)
@@ -541,16 +544,16 @@ class Configuration:
         return None
 
     @overload
-    def setter(self, option: str, /, *, use_override: bool = True) -> Callable[[_PropertySetter], _PropertySetter]:
+    def setter(self, option: str, /, *, use_override: bool = True) -> Callable[[_Setter], _Setter]:
         ...
 
     @overload
-    def setter(self, option: str, func: _PropertySetter, /, *, use_override: bool = True) -> None:
+    def setter(self, option: str, func: _Setter, /, *, use_override: bool = True) -> None:
         ...
 
     def setter(
-        self, option: str, func: Optional[_PropertySetter] = None, /, *, use_override: bool = True
-    ) -> Optional[Callable[[_PropertySetter], _PropertySetter]]:
+        self, option: str, func: Optional[_Setter] = None, /, *, use_override: bool = True
+    ) -> Optional[Callable[[_Setter], _Setter]]:
         self.check_option_validity(option)
         info: _ConfigInfo = self.__info
         if option in info.readonly:
@@ -562,7 +565,7 @@ class Configuration:
             raise OptionError(option, f"{option!r} option already bound to a descriptor: {type(actual_descriptor).__name__}")
         actual_property: _ConfigProperty = actual_descriptor
 
-        def decorator(func: _PropertySetter, /) -> _PropertySetter:
+        def decorator(func: _Setter, /) -> _Setter:
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             info.value_descriptors[option] = actual_property.setter(wrapper)
             return func
@@ -603,16 +606,16 @@ class Configuration:
         return None
 
     @overload
-    def deleter(self, option: str, /, *, use_override: bool = True) -> Callable[[_PropertyDeleter], _PropertyDeleter]:
+    def deleter(self, option: str, /, *, use_override: bool = True) -> Callable[[_Deleter], _Deleter]:
         ...
 
     @overload
-    def deleter(self, option: str, func: _PropertyDeleter, /, *, use_override: bool = True) -> None:
+    def deleter(self, option: str, func: _Deleter, /, *, use_override: bool = True) -> None:
         ...
 
     def deleter(
-        self, option: str, func: Optional[_PropertyDeleter] = None, /, *, use_override: bool = True
-    ) -> Optional[Callable[[_PropertyDeleter], _PropertyDeleter]]:
+        self, option: str, func: Optional[_Deleter] = None, /, *, use_override: bool = True
+    ) -> Optional[Callable[[_Deleter], _Deleter]]:
         self.check_option_validity(option)
         info: _ConfigInfo = self.__info
         if option in info.readonly:
@@ -624,7 +627,7 @@ class Configuration:
             raise OptionError(option, f"{option!r} option already bound to a descriptor: {type(actual_descriptor).__name__}")
         actual_property: _ConfigProperty = actual_descriptor
 
-        def decorator(func: _PropertyDeleter, /) -> _PropertyDeleter:
+        def decorator(func: _Deleter, /) -> _Deleter:
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             info.value_descriptors[option] = actual_property.deleter(wrapper)
             return func
@@ -1073,10 +1076,10 @@ class ConfigTemplate(Configuration):
         ...
 
     @overload
-    def __get__(self, obj: _T, objtype: Optional[type] = None, /) -> _BoundConfiguration[_T]:
+    def __get__(self, obj: _T, objtype: Optional[type] = None, /) -> BoundConfiguration[_T]:
         ...
 
-    def __get__(self, obj: Optional[_T], objtype: Optional[type] = None, /) -> Union[ConfigTemplate, _BoundConfiguration[_T]]:
+    def __get__(self, obj: Optional[_T], objtype: Optional[type] = None, /) -> Union[ConfigTemplate, BoundConfiguration[_T]]:
         if obj is None:
             return self
         raise TypeError("Cannot use configuration template as descriptor")
@@ -1138,7 +1141,7 @@ _DT = TypeVar("_DT")
 _NoDefault: Any = object()
 
 
-class _BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
+class BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
     def __init__(self, /, config: Configuration, obj: _T) -> None:
         super().__init__()
         self.__config: Callable[[], Configuration] = lambda: config
