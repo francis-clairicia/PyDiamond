@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from py_diamond.graphics.renderer import Renderer, SurfaceRenderer
+
 __all__ = [
     "MainScene",
     "MetaScene",
@@ -151,13 +153,15 @@ class MetaScene(ABCMeta):
 
 class SceneTransition(metaclass=ABCMeta):
     @abstractmethod
-    def show_new_scene(self, /, window: Window, previous_scene_image: Surface, actual_scene_image: Surface) -> Iterator[None]:
+    def show_new_scene(self, /, target: Renderer, previous_scene_image: Surface, actual_scene_image: Surface) -> Iterator[None]:
         raise NotImplementedError
 
 
 class ReturningSceneTransition(SceneTransition):
     @abstractmethod
-    def hide_actual_scene(self, /, window: Window, previous_scene_image: Surface, actual_scene_image: Surface) -> Iterator[None]:
+    def hide_actual_scene(
+        self, /, target: Renderer, previous_scene_image: Surface, actual_scene_image: Surface
+    ) -> Iterator[None]:
         raise NotImplementedError
 
 
@@ -381,10 +385,12 @@ class SceneWindow(Window):
             with self.capture(draw_on_default_at_end=False) as actual_scene_surface:
                 self.clear(event.actual_scene.background_color)
                 event.actual_scene.render()
-            transition = event.transition(self, previous_scene_surface, actual_scene_surface)
-            with self.block_all_events_context(), self.no_window_callback_processing():
+            with self.capture() as window_surface, self.block_all_events_context(), self.no_window_callback_processing():
+                self.clear()
+                transition = event.transition(SurfaceRenderer(window_surface), previous_scene_surface, actual_scene_surface)
                 while self.is_open():
                     self.handle_events()
+                    self.clear()
                     try:
                         next(transition)
                     except StopIteration:
@@ -464,7 +470,7 @@ class _SceneManager:
             self,
             previous_scene: Optional[Scene],
             actual_scene: Scene,
-            transition: Optional[Callable[[Window, Surface, Surface], Iterator[None]]],
+            transition: Optional[Callable[[Renderer, Surface, Surface], Iterator[None]]],
             closing_scenes: List[Scene],
         ) -> None:
             super().__init__(
@@ -535,7 +541,7 @@ class _SceneManager:
         actual_scene = stack[0] if stack else None
         if actual_scene is next_scene:
             raise _SceneManager.SameScene(actual_scene)
-        scene_transition: Optional[Callable[[Window, Surface, Surface], Iterator[None]]] = None
+        scene_transition: Optional[Callable[[Renderer, Surface, Surface], Iterator[None]]] = None
         closing_scenes: List[Scene] = []
         if actual_scene is None or next_scene not in stack:
             stack.insert(0, next_scene)

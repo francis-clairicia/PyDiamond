@@ -32,7 +32,7 @@ from py_diamond.graphics.gradients import (
 )
 from py_diamond.graphics.image import Image
 from py_diamond.graphics.progress import ProgressBar
-from py_diamond.graphics.renderer import SurfaceRenderer
+from py_diamond.graphics.renderer import Renderer, SurfaceRenderer
 from py_diamond.graphics.scale import Scale
 from py_diamond.graphics.shape import AbstractRectangleShape, CircleShape, CrossShape, PolygonShape, RectangleShape
 from py_diamond.graphics.sprite import AnimatedSprite, Sprite
@@ -96,12 +96,14 @@ class ShapeScene(MainScene):
         )
         self.__x_trajectory.center = self.__r.center
         self.__x_center: CircleShape = CircleShape(5, YELLOW, outline=0)
+        self.__x_center.center = self.__x.center
 
         self.__c_trajectory: CircleShape = CircleShape(
             abs(self.__c.centerx - self.__r.centerx), TRANSPARENT, outline_color=YELLOW, outline=2
         )
         self.__c_trajectory.center = self.__r.center
         self.__c_center: CircleShape = CircleShape(5, YELLOW, outline=0)
+        self.__c_center.center = self.__c.center
 
         self.__scale: float = 1
         self.__scale_growth: int = 1
@@ -475,28 +477,30 @@ class EntryScene(MainScene):
 
 
 class SceneTransitionLeft(SceneTransition):
-    def show_new_scene(self, /, window: Window, previous_scene_image: Surface, actual_scene_image: Surface) -> Iterator[None]:
+    def show_new_scene(self, /, target: Renderer, previous_scene_image: Surface, actual_scene_image: Surface) -> Iterator[None]:
         previous_scene = Image(previous_scene_image)
         actual_scene = Image(actual_scene_image)
-        previous_scene.center = actual_scene.center = window.center
+        target_rect = target.get_rect()
+        previous_scene.center = actual_scene.center = target_rect.center
         previous_scene.fill(set_color_alpha(BLACK, 100))
-        while previous_scene.right >= window.left:
+        while previous_scene.right >= target_rect.left:
             previous_scene.move(-25, 0)
-            window.draw(actual_scene)
-            window.draw(previous_scene)
+            actual_scene.draw_onto(target)
+            previous_scene.draw_onto(target)
             yield
 
 
 class SceneTransitionRight(SceneTransition):
-    def show_new_scene(self, /, window: Window, previous_scene_image: Surface, actual_scene_image: Surface) -> Iterator[None]:
+    def show_new_scene(self, /, target: Renderer, previous_scene_image: Surface, actual_scene_image: Surface) -> Iterator[None]:
         previous_scene = Image(previous_scene_image)
         actual_scene = Image(actual_scene_image)
-        previous_scene.center = actual_scene.center = window.center
+        target_rect = target.get_rect()
+        previous_scene.center = actual_scene.center = target_rect.center
         previous_scene.fill(set_color_alpha(BLACK, 100))
-        while previous_scene.left <= window.right:
+        while previous_scene.left <= target_rect.right:
             previous_scene.move(25, 0)
-            window.draw(actual_scene)
-            window.draw(previous_scene)
+            actual_scene.draw_onto(target)
+            previous_scene.draw_onto(target)
             yield
 
 
