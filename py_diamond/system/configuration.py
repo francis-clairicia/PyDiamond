@@ -1089,6 +1089,9 @@ class ConfigAttribute(Generic[_T]):
     def __set_name__(self, owner: type, name: str, /) -> None:
         if len(name) == 0:
             raise ValueError(f"Attribute name must not be empty")
+        with suppress(AttributeError):
+            if self.__name != name:
+                raise ValueError(f"Assigning {self.__name!r} config attribute to {name}")
         self.__name: str = name
         config: Configuration = _retrieve_configuration(owner)
         config.check_option_validity(name, use_alias=True)
@@ -1512,11 +1515,11 @@ class _ConfigInitializer:
             return func
         config: Configuration = _retrieve_configuration(objtype if objtype is not None else type(obj))
 
-        def config_initializer_method(*args: Any, **kwargs: Any) -> Any:
+        def config_initializer(obj: object, /, *args: Any, **kwargs: Any) -> Any:
             with config.initialization(obj):
                 return func(*args, **kwargs)
 
-        return config_initializer_method
+        return MethodType(config_initializer, obj)
 
     @property
     def __wrapped__(self) -> Callable[..., Any]:
