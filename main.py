@@ -2,7 +2,7 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
-from typing import List, Type
+from typing import Any, List, Type
 from py_diamond.graphics.animation import Animation
 from py_diamond.graphics.button import Button, ImageButton
 from py_diamond.graphics.checkbox import CheckBox
@@ -45,8 +45,8 @@ from py_diamond.window.scene import MainScene, Scene, SceneWindow
 
 
 class ShapeScene(MainScene):
-    def __init__(self) -> None:
-        super().__init__()
+    def awake(self, /, **kwargs: Any) -> None:
+        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         # self.__r: RectangleShape = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
         # self.__p: PolygonShape = PolygonShape(WHITE, outline=3, outline_color=RED)
@@ -144,8 +144,8 @@ class ShapeScene(MainScene):
 
 
 class AnimationScene(MainScene):
-    def __init__(self) -> None:
-        super().__init__()
+    def awake(self, /, **kwargs: Any) -> None:
+        super().awake(**kwargs)
         self.rectangle = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
         self.animation = Animation(self.rectangle)
 
@@ -170,8 +170,8 @@ class AnimationScene(MainScene):
 
 
 class GradientScene(Scene):
-    def __init__(self) -> None:
-        super().__init__()
+    def awake(self, /, **kwargs: Any) -> None:
+        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.horizontal: HorizontalGradientShape = HorizontalGradientShape(100, 100, RED, YELLOW)
         self.vertical: VerticalGradientShape = VerticalGradientShape(100, 100, RED, YELLOW)
@@ -219,8 +219,8 @@ class Rainbow(AbstractRectangleShape):
 
 
 class RainbowScene(MainScene):
-    def __init__(self) -> None:
-        super().__init__()
+    def awake(self, /, **kwargs: Any) -> None:
+        super().awake(**kwargs)
         self.rainbow = Rainbow(*self.window.size)
 
     def on_start_loop(self) -> None:
@@ -234,8 +234,8 @@ class RainbowScene(MainScene):
 
 
 class TextScene(Scene):
-    def __init__(self) -> None:
-        super().__init__()
+    def awake(self, /, **kwargs: Any) -> None:
+        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.text = Text(
             "I'm a text", font=(None, 300), italic=True, color=WHITE, shadow_x=-25, shadow_y=-25, wrap=5, justify="center"
@@ -274,8 +274,8 @@ class FontResources(ResourceManager):
 
 
 class ResourceScene(MainScene):
-    def __init__(self) -> None:
-        super().__init__()
+    def awake(self, /, **kwargs: Any) -> None:
+        super().awake(**kwargs)
         self.cactus = Sprite(image=ImagesResources.cactus)
         self.cactus.size = 100, 100
         self.cactus.topleft = 20, 20
@@ -287,8 +287,8 @@ class ResourceScene(MainScene):
 
 
 class AnimatedSpriteScene(MainScene):
-    def __init__(self) -> None:
-        super().__init__()
+    def awake(self, /, **kwargs: Any) -> None:
+        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.sprite: AnimatedSprite = AnimatedSprite(*ImagesResources.car)
         self.sprite.start_sprite_animation(loop=True)
@@ -308,8 +308,8 @@ class AnimatedSpriteScene(MainScene):
 
 
 class EventScene(MainScene):
-    def __init__(self) -> None:
-        super().__init__()
+    def awake(self, /, **kwargs: Any) -> None:
+        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.cross: CrossShape = CrossShape(50, 50, type="diagonal", color=RED, outline_color=WHITE, outline=3)
         self.circle: CircleShape = CircleShape(4, color=YELLOW)
@@ -336,8 +336,8 @@ class EventScene(MainScene):
 
 
 class TextImageScene(MainScene):
-    def __init__(self) -> None:
-        super().__init__()
+    def awake(self, /, **kwargs: Any) -> None:
+        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.text: TextImage = TextImage(
             "I'm a text", img=ImagesResources.cactus, font=(None, 50), color=WHITE, shadow_x=-5, shadow_y=-5, wrap=5
@@ -356,8 +356,8 @@ class TextImageScene(MainScene):
 
 
 class ButtonScene(MainScene):
-    def __init__(self) -> None:
-        super().__init__()
+    def awake(self, /, **kwargs: Any) -> None:
+        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.button = Button(
             self,
@@ -393,8 +393,8 @@ class ButtonScene(MainScene):
 
 
 class CheckBoxScene(MainScene):
-    def __init__(self) -> None:
-        super().__init__()
+    def awake(self, /, **kwargs: Any) -> None:
+        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.text = Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
         self.box: CheckBox[int, int] = CheckBox(self, 50, 50, BLUE_LIGHT, off_value=0, on_value=10, callback=self.__set_text)
@@ -414,8 +414,8 @@ class CheckBoxScene(MainScene):
 
 
 class ProgressScene(MainScene):
-    def __init__(self) -> None:
-        super().__init__()
+    def awake(self, /, **kwargs: Any) -> None:
+        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.progress = progress = ProgressBar(500, 75, from_=10, to=90)
         self.restart = restart = ImageButton(
@@ -439,8 +439,8 @@ class ProgressScene(MainScene):
 
 
 class ScaleScene(MainScene):
-    def __init__(self) -> None:
-        super().__init__()
+    def awake(self, /, **kwargs: Any) -> None:
+        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.text = text = Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
         self.scale = scale = Scale(
@@ -458,8 +458,8 @@ class ScaleScene(MainScene):
 
 
 class EntryScene(MainScene):
-    def __init__(self) -> None:
-        super().__init__()
+    def awake(self, /, *args: Any, **kwargs: Any) -> None:
+        super().awake(*args, **kwargs)
         self.background_color = BLUE_DARK
         self.entry = entry = Entry(self, font=(None, 70))
         entry.center = self.window.center

@@ -399,22 +399,24 @@ class _FramerateManager:
         self.__last_tick: int = self.__fps_tick
 
     def __tick_impl(self, /, framerate: int, use_accurate_delay: bool) -> None:
+        actual_tick: int = Time.get_ticks()
+        last_tick, self.__last_tick = self.__last_tick, actual_tick
+
+        self.__fps_count += 1
+        if self.__fps_count >= 10:
+            self.__fps = self.__fps_count / ((actual_tick - self.__fps_tick) / 1000.0)
+            self.__fps_count = 0
+            self.__fps_tick = actual_tick
+
         if framerate > 0:
             tick_time: int = round(1000 / framerate)
-            elapsed: int = Time.get_ticks() - self.__last_tick
+            elapsed: int = actual_tick - last_tick
             if elapsed < tick_time:
                 delay: int = tick_time - elapsed
                 if use_accurate_delay:
                     Time.delay(delay)
                 else:
                     Time.wait(delay)
-
-        self.__last_tick = Time.get_ticks()
-        self.__fps_count += 1
-        if self.__fps_count >= 10:
-            self.__fps = self.__fps_count / ((Time.get_ticks() - self.__fps_tick) / 1000.0)
-            self.__fps_count = 0
-            self.__fps_tick = Time.get_ticks()
 
     def tick(self, /, framerate: int = 0) -> None:
         return self.__tick_impl(framerate, False)

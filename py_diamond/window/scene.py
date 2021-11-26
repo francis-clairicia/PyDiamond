@@ -55,7 +55,16 @@ class MetaScene(ABCMeta):
     __abstractmethods__: FrozenSet[str]
     __namespaces: ClassVar[Dict[type, str]] = dict()
 
-    def __new__(metacls, /, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaScene:
+    def __new__(
+        metacls,
+        /,
+        name: str,
+        bases: Tuple[type, ...],
+        namespace: Dict[str, Any],
+        framerate: int = 0,
+        busy_loop: bool = False,
+        **kwargs: Any,
+    ) -> MetaScene:
         if "Scene" not in globals():
             return super().__new__(metacls, name, bases, namespace, **kwargs)
 
@@ -70,26 +79,16 @@ class MetaScene(ABCMeta):
         for attr_name, attr_obj in namespace.items():
             if attr_name == "__new__":
                 raise TypeError("__new__ method must not be overridden")
+            if attr_name == "__init__":
+                raise TypeError("Do not override __init__ method, use awake() method instead")
             namespace[attr_name] = metacls.__apply_theme_namespace_decorator(attr_obj)
 
         cls = super().__new__(metacls, name, bases, namespace, **kwargs)
         if not cls.__abstractmethods__:
             _ALL_SCENES.append(cast(Type[Scene], cls))
+            cls.__framerate = max(int(framerate), 0)
+            cls.__busy_loop = truth(busy_loop)
         return cls
-
-    def __init__(
-        cls,
-        /,
-        name: str,
-        bases: Tuple[type, ...],
-        namespace: Dict[str, Any],
-        framerate: int = 0,
-        busy_loop: bool = False,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(name, bases, namespace, **kwargs)
-        cls.__framerate: int = max(int(framerate), 0)
-        cls.__busy_loop: bool = truth(busy_loop)
 
     def __setattr__(cls, name: str, value: Any, /) -> None:
         if name == "__new__":
@@ -109,12 +108,12 @@ class MetaScene(ABCMeta):
     def get_required_framerate(cls, /) -> int:
         if cls.__abstractmethods__:
             raise TypeError(f"{cls.__name__} is an abstract class")
-        return cls.__framerate
+        return cls.__framerate  # type: ignore[no-any-return, attr-defined]
 
     def require_busy_loop(cls, /) -> bool:
         if cls.__abstractmethods__:
             raise TypeError(f"{cls.__name__} is an abstract class")
-        return cls.__busy_loop
+        return cls.__busy_loop  # type: ignore[no-any-return, attr-defined]
 
     @staticmethod
     def __theme_namespace_decorator(func: Callable[..., Any], /) -> Callable[..., Any]:
@@ -165,9 +164,6 @@ class Scene(metaclass=MetaScene):
     __T = TypeVar("__T", bound="Scene")
     __instances: ClassVar[Set[Type[Scene]]] = set()
 
-    def __init_subclass__(cls, /, **kwargs: Any) -> None:
-        super().__init_subclass__()
-
     def __new__(cls: Type[__T], /) -> __T:
         instances: Set[Type[Scene.__T]] = Scene.__instances  # type: ignore
         if cls in instances:
@@ -198,7 +194,7 @@ class Scene(metaclass=MetaScene):
         with suppress(KeyError):
             Scene.__instances.remove(type(self))
 
-    def awake(self, /, *args: Any, **kwargs: Any) -> None:
+    def awake(self, /, **kwargs: Any) -> None:
         pass
 
     def on_start_loop(self, /) -> None:
@@ -362,6 +358,7 @@ class SceneWindow(Window):
         while self.is_open():
             try:
                 self.handle_events()
+                self.update_scene()
                 self.render_scene()
                 self.refresh()
             except _SceneManager.NewScene as exc:
@@ -371,10 +368,14 @@ class SceneWindow(Window):
                 print(f"{type(exc).__name__}: {exc}")
                 continue
 
-    def render_scene(self, /) -> None:
+    def update_scene(self, /) -> None:
         scene: Optional[Scene] = self.__scenes.top()
         if scene:
             scene.update()
+
+    def render_scene(self, /) -> None:
+        scene: Optional[Scene] = self.__scenes.top()
+        if scene:
             self.clear(scene.background_color)
             scene.render()
 
@@ -505,6 +506,7 @@ class _SceneManager:
             if actual_scene is not None:
                 if isinstance(transition, ReturningSceneTransition):
                     self.__returning_transitions[actual_scene.__class__] = transition
+                next_scene.on_start_loop()
                 if transition is not None:
                     transition.show_new_scene(self.window, actual_scene, next_scene)
                 actual_scene.on_quit()
@@ -517,11 +519,11 @@ class _SceneManager:
                 closed_scene = stack.pop(0)
                 closing_scenes.append(closed_scene)
                 self.__returning_transitions.pop(closed_scene.__class__, None)
+            next_scene.on_start_loop()
             if returning_transition is not None:
                 returning_transition.hide_actual_scene(self.window, actual_scene, next_scene)
             for closed_scene in closing_scenes:
                 closed_scene.on_quit()
-        next_scene.on_start_loop()
         raise _SceneManager.NewScene(actual_scene, next_scene)
 
     def go_back(self) -> NoReturn:
