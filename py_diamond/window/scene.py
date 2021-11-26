@@ -42,6 +42,7 @@ from typing import (
 from .display import Window, WindowCallback, _WindowCallbackList
 from .event import Event, EventManager
 from ..graphics.color import Color
+from ..graphics.surface import Surface
 from ..graphics.theme import ThemeNamespace
 from ..system.utils import wraps
 
@@ -150,13 +151,13 @@ class MetaScene(ABCMeta):
 
 class SceneTransition(metaclass=ABCMeta):
     @abstractmethod
-    def show_new_scene(self, /, window: Window, actual_scene: Scene, next_scene: Scene) -> None:
+    def show_new_scene(self, /, window: Window, previous_scene_image: Surface, actual_scene_image: Surface) -> Iterator[None]:
         raise NotImplementedError
 
 
 class ReturningSceneTransition(SceneTransition):
     @abstractmethod
-    def hide_actual_scene(self, /, window: Window, scene_to_hide: Scene, scene_to_show: Scene) -> None:
+    def hide_actual_scene(self, /, window: Window, previous_scene_image: Surface, actual_scene_image: Surface) -> Iterator[None]:
         raise NotImplementedError
 
 
@@ -362,11 +363,37 @@ class SceneWindow(Window):
                 self.render_scene()
                 self.refresh()
             except _SceneManager.NewScene as exc:
-                if exc.previous_scene is not None:
-                    self.__callback_after_scenes.pop(exc.previous_scene, None)
+                self.__scene_transition(exc)
             except _SceneManager.SameScene as exc:
                 print(f"{type(exc).__name__}: {exc}")
                 continue
+
+    def __scene_transition(self, event: _SceneManager.NewScene) -> None:
+        event.actual_scene.on_start_loop()
+        if event.previous_scene is None:
+            for scene in event.closing_scenes:
+                scene.on_quit()
+            return
+        if event.transition is not None:
+            with self.capture(draw_on_default_at_end=False) as previous_scene_surface:
+                self.clear(event.previous_scene.background_color)
+                event.previous_scene.render()
+            with self.capture(draw_on_default_at_end=False) as actual_scene_surface:
+                self.clear(event.actual_scene.background_color)
+                event.actual_scene.render()
+            transition = event.transition(self, previous_scene_surface, actual_scene_surface)
+            with self.block_all_events_context(), self.no_window_callback_processing():
+                while self.is_open():
+                    self.handle_events()
+                    try:
+                        next(transition)
+                    except StopIteration:
+                        break
+                    self.refresh()
+        event.previous_scene.on_quit()
+        for scene in event.closing_scenes:
+            scene.on_quit()
+        self.__callback_after_scenes.pop(event.previous_scene, None)
 
     def update_scene(self, /) -> None:
         scene: Optional[Scene] = self.__scenes.top()
@@ -433,12 +460,20 @@ class _SceneManager:
         pass
 
     class NewScene(SceneException):
-        def __init__(self, previous_scene: Optional[Scene], actual_scene: Scene) -> None:
+        def __init__(
+            self,
+            previous_scene: Optional[Scene],
+            actual_scene: Scene,
+            transition: Optional[Callable[[Window, Surface, Surface], Iterator[None]]],
+            closing_scenes: List[Scene],
+        ) -> None:
             super().__init__(
                 f"New scene open, from {type(previous_scene).__name__ if previous_scene else None} to {type(actual_scene).__name__}"
             )
             self.previous_scene: Optional[Scene] = previous_scene
             self.actual_scene: Scene = actual_scene
+            self.transition = transition
+            self.closing_scenes = closing_scenes
 
     class SameScene(SceneException):
         def __init__(self, scene: Scene) -> None:
@@ -500,31 +535,28 @@ class _SceneManager:
         actual_scene = stack[0] if stack else None
         if actual_scene is next_scene:
             raise _SceneManager.SameScene(actual_scene)
+        scene_transition: Optional[Callable[[Window, Surface, Surface], Iterator[None]]] = None
+        closing_scenes: List[Scene] = []
         if actual_scene is None or next_scene not in stack:
             stack.insert(0, next_scene)
             next_scene.awake()
             if actual_scene is not None:
                 if isinstance(transition, ReturningSceneTransition):
                     self.__returning_transitions[actual_scene.__class__] = transition
-                next_scene.on_start_loop()
                 if transition is not None:
-                    transition.show_new_scene(self.window, actual_scene, next_scene)
-                actual_scene.on_quit()
+                    scene_transition = transition.show_new_scene
                 if remove_actual:
                     stack.remove(actual_scene)
         else:
             returning_transition = self.__returning_transitions.pop(scene, None)
-            closing_scenes: List[Scene] = []
             while stack[0] is not next_scene:
                 closed_scene = stack.pop(0)
-                closing_scenes.append(closed_scene)
+                if closed_scene is not actual_scene:
+                    closing_scenes.append(closed_scene)
                 self.__returning_transitions.pop(closed_scene.__class__, None)
-            next_scene.on_start_loop()
             if returning_transition is not None:
-                returning_transition.hide_actual_scene(self.window, actual_scene, next_scene)
-            for closed_scene in closing_scenes:
-                closed_scene.on_quit()
-        raise _SceneManager.NewScene(actual_scene, next_scene)
+                scene_transition = returning_transition.hide_actual_scene
+        raise _SceneManager.NewScene(actual_scene, next_scene, scene_transition, closing_scenes)
 
     def go_back(self) -> NoReturn:
         if len(self.__stack) <= 1:

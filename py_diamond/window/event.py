@@ -107,6 +107,9 @@ class Event(metaclass=MetaEvent, event_type=-1):
         TEXTEDITING = pygame.TEXTEDITING
         TEXTINPUT = pygame.TEXTINPUT
 
+        def is_allowed(self) -> bool:
+            return not pygame.event.get_blocked(self)
+
     type: Type = field(init=False)
 
 

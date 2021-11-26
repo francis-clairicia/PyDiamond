@@ -48,8 +48,6 @@ from ..system.clock import Clock
 from ..system.time import Time
 from ..system.utils import wraps
 
-_EventType = int
-
 _ColorInput = Union[Color, str, List[int], Tuple[int, int, int], Tuple[int, int, int, int]]
 
 _ScheduledFunc = TypeVar("_ScheduledFunc", bound=Callable[..., None])
@@ -127,14 +125,16 @@ class Window:
         self.__framerate_update_clock: Clock = Clock(start=True)
         self.__default_framerate: int = Window.DEFAULT_FRAMERATE
         self.__busy_loop: bool = False
-        self.__text_framerate: Text = Text(color=WHITE, theme=NoTheme)
-        self.__text_framerate.hide()
 
         self.__loop: bool = False
         self.__callback_after: _WindowCallbackList = _WindowCallbackList()
+        self.__process_callbacks: bool = True
 
     def __window_init__(self, /) -> None:
-        self.__text_framerate.midtop = (self.centerx, self.top + 10)
+        pass
+
+    def __window_quit__(self, /) -> None:
+        pass
 
     def __del__(self, /) -> None:
         Window.__main_window = True
@@ -143,7 +143,9 @@ class Window:
 
     @contextmanager
     def open(self: __W, /) -> Iterator[__W]:
-        def clear_window_callbacks() -> None:
+        def cleanup() -> None:
+            self.__window_quit__()
+            del self.__text_framerate
             self.__loop = False
             self.__callback_after.clear()
             self.__event_buffer.clear()
@@ -158,7 +160,10 @@ class Window:
             screen: Surface = pygame.display.set_mode(size, flags=flags)
             self.__surface = create_surface(screen.get_size())
             self.__rect = self.__surface.get_rect()
-            stack.callback(clear_window_callbacks)
+            stack.callback(cleanup)
+            self.__text_framerate: Text = Text(color=WHITE, theme=NoTheme)
+            self.__text_framerate.hide()
+            self.__text_framerate.midtop = (self.centerx, self.top + 10)
             self.__window_init__()
             self.__loop = True
             with suppress(Window.Exit):
@@ -225,8 +230,30 @@ class Window:
             with suppress(pygame.error):
                 target.draw_onto(renderer)
 
+    @contextmanager
+    def capture(self, /, draw_on_default_at_end: bool = True) -> Iterator[Surface]:
+        default_surface = self.__surface
+        self.__surface = captured_surface = self.__surface.copy()
+        try:
+            yield captured_surface
+        finally:
+            if draw_on_default_at_end:
+                default_surface.blit(captured_surface, (0, 0))
+            self.__surface = default_surface
+
+    def get_screen_copy(self, /) -> Surface:
+        return self.__surface.copy()
+
     def handle_events(self, /) -> List[Event]:
         return [event for event in self.process_events()]
+
+    @contextmanager
+    def no_window_callback_processing(self, /) -> Iterator[None]:
+        self.__process_callbacks = False
+        try:
+            yield
+        finally:
+            self.__process_callbacks = True
 
     def _process_callbacks(self, /) -> None:
         self.__callback_after.process()
@@ -234,7 +261,8 @@ class Window:
     def process_events(self, /) -> Iterator[Event]:
         Keyboard.update()
         Mouse.update()
-        self._process_callbacks()
+        if self.__process_callbacks:
+            self._process_callbacks()
 
         buffer = self.__event_buffer
         buffer.extend(pygame.event.get())
@@ -246,23 +274,67 @@ class Window:
                 event = MetaEvent.from_pygame_event(pg_event)
             except UnknownEventTypeError:
                 continue
+            if not event.type.is_allowed():
+                continue
             self.event.process_event(event)
             yield event
 
         self.event.handle_mouse_position()
 
-    def allow_only_event(self, /, *event_types: _EventType) -> None:
-        pygame.event.set_allowed(event_types)
+    def allow_only_event(self, /, *event_types: Event.Type) -> None:
+        # pygame.event.set_allowed(event_types)
+        self.block_only_event(*(event for event in Event.Type if event not in event_types))
+
+    @contextmanager
+    def allow_only_event_context(self, /, *event_types: Event.Type) -> Iterator[None]:
+        with self.__save_blocked_events():
+            self.allow_only_event(*event_types)
+            yield
 
     def allow_all_events(self, /) -> None:
         pygame.event.set_allowed(None)
+
+    @contextmanager
+    def allow_all_events_context(self, /) -> Iterator[None]:
+        with self.__save_blocked_events():
+            self.allow_all_events()
+            yield
 
     def clear_all_events(self, /) -> None:
         pygame.event.clear()
         self.__event_buffer.clear()
 
-    def block_only_event(self, /, *event_types: _EventType) -> None:
-        pygame.event.set_blocked(event_types)
+    def block_only_event(self, /, *event_types: Event.Type) -> None:
+        pygame.event.set_blocked([Event.Type(event) for event in event_types])
+
+    @contextmanager
+    def block_only_event_context(self, /, *event_types: Event.Type) -> Iterator[None]:
+        with self.__save_blocked_events():
+            self.block_only_event(*event_types)
+            yield
+
+    def block_all_events(self, /) -> None:
+        pygame.event.set_blocked(list(Event.Type))
+
+    @contextmanager
+    def block_all_events_context(self, /) -> Iterator[None]:
+        with self.__save_blocked_events():
+            self.block_all_events()
+            yield
+
+    @contextmanager
+    def __save_blocked_events(self, /) -> Iterator[None]:
+        all_blocked_events: List[Event.Type] = [event for event in Event.Type if not event.is_allowed()]
+
+        def set_blocked_events() -> None:
+            if not all_blocked_events:
+                self.allow_all_events()
+            else:
+                self.block_only_event(*all_blocked_events)
+
+        with ExitStack() as stack:
+            stack.callback(set_blocked_events)
+            yield
 
     def after(self, /, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
         window_callback: WindowCallback = WindowCallback(self, milliseconds, callback, args, kwargs)

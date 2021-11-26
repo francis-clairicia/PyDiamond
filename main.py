@@ -2,7 +2,7 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
-from typing import Any, List, Type
+from typing import Any, Iterator, List, Type
 from py_diamond.graphics.animation import Animation
 from py_diamond.graphics.button import Button, ImageButton
 from py_diamond.graphics.checkbox import CheckBox
@@ -21,6 +21,7 @@ from py_diamond.graphics.color import (
     WHITE,
     YELLOW,
     set_brightness,
+    set_color_alpha,
 )
 from py_diamond.graphics.entry import Entry
 from py_diamond.graphics.gradients import (
@@ -29,6 +30,7 @@ from py_diamond.graphics.gradients import (
     SquaredGradientShape,
     VerticalGradientShape,
 )
+from py_diamond.graphics.image import Image
 from py_diamond.graphics.progress import ProgressBar
 from py_diamond.graphics.renderer import SurfaceRenderer
 from py_diamond.graphics.scale import Scale
@@ -41,7 +43,7 @@ from py_diamond.resource.manager import ResourceManager
 from py_diamond.window.display import Window, scheduled
 from py_diamond.window.event import Event, MouseButtonEvent
 from py_diamond.window.mouse import Mouse
-from py_diamond.window.scene import MainScene, Scene, SceneWindow
+from py_diamond.window.scene import MainScene, Scene, SceneTransition, SceneWindow
 
 
 class ShapeScene(MainScene):
@@ -178,7 +180,7 @@ class GradientScene(Scene):
         self.squared: SquaredGradientShape = SquaredGradientShape(100, RED, YELLOW)
         self.radial: RadialGradientShape = RadialGradientShape(50, RED, YELLOW)
 
-    def update(self) -> None:
+    def on_start_loop(self) -> None:
         self.horizontal.midleft = self.window.midleft
         self.vertical.midright = self.window.midright
         self.radial.center = self.window.center
@@ -397,20 +399,21 @@ class CheckBoxScene(MainScene):
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.text = Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
-        self.box: CheckBox[int, int] = CheckBox(self, 50, 50, BLUE_LIGHT, off_value=0, on_value=10, callback=self.__set_text)
+        self.box: CheckBox[int, int] = CheckBox(
+            self, 50, 50, BLUE_LIGHT, off_value=0, on_value=10, callback=self.__set_text, callback_at_init=False
+        )
 
     def on_start_loop(self) -> None:
-        self.box.value = self.box.off_value
         self.box.center = self.window.center
-
-    def update(self) -> None:
-        self.text.midtop = (self.box.centerx, self.box.bottom + 10)
+        self.box.value = self.box.off_value
+        self.__set_text(self.box.value)
 
     def render(self) -> None:
         self.window.draw(self.box, self.text)
 
     def __set_text(self, value: int) -> None:
         self.text.message = f"Value: {value}"
+        self.text.midtop = (self.box.centerx, self.box.bottom + 10)
 
 
 class ProgressScene(MainScene):
@@ -471,6 +474,32 @@ class EntryScene(MainScene):
         self.window.draw(self.entry)
 
 
+class SceneTransitionLeft(SceneTransition):
+    def show_new_scene(self, /, window: Window, previous_scene_image: Surface, actual_scene_image: Surface) -> Iterator[None]:
+        previous_scene = Image(previous_scene_image)
+        actual_scene = Image(actual_scene_image)
+        previous_scene.center = actual_scene.center = window.center
+        previous_scene.fill(set_color_alpha(BLACK, 100))
+        while previous_scene.right >= window.left:
+            previous_scene.move(-25, 0)
+            window.draw(actual_scene)
+            window.draw(previous_scene)
+            yield
+
+
+class SceneTransitionRight(SceneTransition):
+    def show_new_scene(self, /, window: Window, previous_scene_image: Surface, actual_scene_image: Surface) -> Iterator[None]:
+        previous_scene = Image(previous_scene_image)
+        actual_scene = Image(actual_scene_image)
+        previous_scene.center = actual_scene.center = window.center
+        previous_scene.fill(set_color_alpha(BLACK, 100))
+        while previous_scene.left <= window.right:
+            previous_scene.move(25, 0)
+            window.draw(actual_scene)
+            window.draw(previous_scene)
+            yield
+
+
 class MainWindow(SceneWindow):
 
     all_scenes: List[Type[Scene]] = [
@@ -493,23 +522,26 @@ class MainWindow(SceneWindow):
     def __init__(self) -> None:
         # super().__init__("my window", (0, 0))
         super().__init__("my window", (1366, 768))
-        self.text_framerate.show()
-        self.set_busy_loop(True)
-        self.set_default_framerate(120)
 
         # Text.set_default_font(FontResources.cooperblack)
 
         Button.set_default_theme("default")
         Button.set_theme("default", {"font": (FontResources.cooperblack, 20), "border_radius": 5})
 
+    def __window_init__(self) -> None:
+        super().__window_init__()
+        self.text_framerate.show()
+        self.set_busy_loop(True)
+        self.set_default_framerate(120)
         self.index: int = 0
         self.prev_button: Button = Button(self, "Previous", callback=self.__previous_scene)
         self.next_button: Button = Button(self, "Next", callback=self.__next_scene)
-
-    def __window_init__(self) -> None:
-        super().__window_init__()
         self.prev_button.topleft = self.left + 10, self.top + 10
         self.next_button.topright = self.right - 10, self.top + 10
+
+    def __window_quit__(self, /) -> None:
+        super().__window_quit__()
+        del self.prev_button, self.next_button
 
     def mainloop(self) -> None:
         self.run(self.all_scenes[self.index])
@@ -520,11 +552,11 @@ class MainWindow(SceneWindow):
 
     def __next_scene(self) -> None:
         self.index = (self.index + 1) % len(self.all_scenes)
-        self.start_scene(self.all_scenes[self.index], remove_actual=True)
+        self.start_scene(self.all_scenes[self.index], remove_actual=True, transition=SceneTransitionLeft())
 
     def __previous_scene(self) -> None:
         self.index = len(self.all_scenes) - 1 if self.index == 0 else self.index - 1
-        self.start_scene(self.all_scenes[self.index], remove_actual=True)
+        self.start_scene(self.all_scenes[self.index], remove_actual=True, transition=SceneTransitionRight())
 
 
 def main() -> None:

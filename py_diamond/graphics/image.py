@@ -6,28 +6,47 @@ from typing import Optional, Tuple, Union, overload
 
 import pygame.transform
 
+from .color import Color
 from .drawable import TDrawable
+from .rect import Rect
 from .renderer import Renderer
-from .surface import Surface, load_image, save_image
+from .surface import Surface, create_surface, load_image, save_image
 
 
 class Image(TDrawable):
     @overload
-    def __init__(self, /, image: Surface, *, width: Optional[float] = None, height: Optional[float] = None) -> None:
+    def __init__(self, /) -> None:
+        ...
+
+    @overload
+    def __init__(
+        self, /, image: Surface, *, copy: bool = True, width: Optional[float] = None, height: Optional[float] = None
+    ) -> None:
         ...
 
     @overload
     def __init__(self, /, image: str, *, width: Optional[float] = None, height: Optional[float] = None) -> None:
         ...
 
-    def __init__(self, /, image: Union[Surface, str], *, width: Optional[float] = None, height: Optional[float] = None) -> None:
+    def __init__(
+        self,
+        /,
+        image: Optional[Union[Surface, str]] = None,
+        *,
+        copy: bool = True,
+        width: Optional[float] = None,
+        height: Optional[float] = None,
+    ) -> None:
         super().__init__()
+        if image is None:
+            image = create_surface((0, 0))
+
         self.__default_image: Surface
         self.__image: Surface
         self.__smooth_scale: bool = False
 
         if isinstance(image, Surface):
-            self.__default_image = image.copy()
+            self.__default_image = image.copy() if copy else image
             self.__image = self.__default_image.copy()
         else:
             self.__default_image = Surface((0, 0))
@@ -51,11 +70,17 @@ class Image(TDrawable):
             return self.__image.copy()
         return self.__default_image.copy()
 
-    def set(self, /, image: Surface) -> None:
+    def set(self, /, image: Surface, copy: bool = True) -> None:
         center: Tuple[float, float] = self.center
-        self.__default_image = image.copy()
+        self.__default_image = image.copy() if copy else image
         self._apply_rotation_scale()
         self.center = center
+
+    def fill(self, /, color: Color, rect: Optional[Rect] = None) -> None:
+        mask = create_surface(self.__default_image.get_size() if rect is None else rect.size)
+        mask.fill(color)
+        self.__default_image.blit(mask, rect or (0, 0))
+        self._apply_rotation_scale()
 
     def load(self, /, file: str) -> None:
         center: Tuple[float, float] = self.center

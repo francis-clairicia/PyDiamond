@@ -5,11 +5,14 @@ from __future__ import annotations
 __all__ = ["Drawable", "TDrawable", "MetaDrawable", "MetaTDrawable"]
 
 from abc import ABCMeta, abstractmethod
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple
 
-from .renderer import Renderer
+from .rect import Rect
 from ..system.utils import wraps
 from .transformable import MetaTransformable, Transformable
+
+if TYPE_CHECKING:
+    from .renderer import Renderer
 
 
 def _draw_decorator(func: Callable[[Drawable, Renderer], None], /) -> Callable[[Drawable, Renderer], None]:
@@ -64,3 +67,27 @@ class TDrawable(Drawable, Transformable, metaclass=MetaTDrawable):
     def __init__(self, /) -> None:
         Drawable.__init__(self)
         Transformable.__init__(self)
+
+    angle: float
+    scale: float
+    rect: Rect
+    x: float
+    y: float
+    size: Tuple[float, float]
+    width: float
+    height: float
+    left: float
+    right: float
+    top: float
+    bottom: float
+    center: Tuple[float, float]
+    centerx: float
+    centery: float
+    topleft: Tuple[float, float]
+    topright: Tuple[float, float]
+    bottomleft: Tuple[float, float]
+    bottomright: Tuple[float, float]
+    midtop: Tuple[float, float]
+    midbottom: Tuple[float, float]
+    midleft: Tuple[float, float]
+    midright: Tuple[float, float]

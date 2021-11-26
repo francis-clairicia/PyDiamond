@@ -21,20 +21,12 @@ from pygame.surface import Surface
 
 def create_surface(size: Tuple[float, float], *, convert_alpha: bool = True) -> Surface:
     size = (max(size[0], 0), max(size[1], 0))
-    s: Surface
-    if not pygame.display.get_init():
-        if convert_alpha:
-            s = Surface(size, flags=pygame.SRCALPHA)
-            s.fill((0, 0, 0, 0))
-        else:
-            s = Surface(size)
+    s: Surface = Surface(size)
+    if convert_alpha:
+        s = s.convert_alpha()
+        s.fill((0, 0, 0, 0))
     else:
-        s = Surface(size)
-        if convert_alpha:
-            s = s.convert_alpha()
-            s.fill((0, 0, 0, 0))
-        else:
-            s = s.convert()
+        s = s.convert()
     return s
 
 

@@ -44,20 +44,28 @@ class ThemeNamespace(ContextManager["ThemeNamespace"]):
     def __init__(self, /, namespace: str) -> None:
         self.__namespace: str = str(namespace)
         self.__save_namespace: Optional[str] = None
+        self.__entered: int = 0
 
     def __enter__(self, /) -> ThemeNamespace:
         global _THEMES
-        self.__save_namespace = ThemeNamespace.__actual_namespace
-        ThemeNamespace.__actual_namespace = namespace = self.__namespace
-        NAMESPACE: Dict[str, _ClassThemeDict] = ThemeNamespace.__NAMESPACE
-        try:
-            _THEMES = NAMESPACE[namespace]
-        except KeyError:
-            NAMESPACE[namespace] = _THEMES = dict()
+        if self.__entered == 0:
+            self.__save_namespace = ThemeNamespace.__actual_namespace
+            ThemeNamespace.__actual_namespace = namespace = self.__namespace
+            NAMESPACE: Dict[str, _ClassThemeDict] = ThemeNamespace.__NAMESPACE
+            try:
+                _THEMES = NAMESPACE[namespace]
+            except KeyError:
+                NAMESPACE[namespace] = _THEMES = dict()
+        self.__entered += 1
         return self
 
     def __exit__(self, /, *args: Any) -> None:
         global _THEMES
+        if self.__entered == 0:
+            return
+        self.__entered -= 1
+        if self.__entered > 0:
+            return
         namespace: Optional[str] = self.__save_namespace
         self.__save_namespace = None
         NAMESPACE: Dict[str, _ClassThemeDict] = ThemeNamespace.__NAMESPACE

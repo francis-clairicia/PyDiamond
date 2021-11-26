@@ -478,6 +478,6 @@ class _BoundImage(Image):
         super()._apply_both_rotation_and_scale()
         self.__text.config.update_all_options()
 
-    def set(self, /, image: Surface) -> None:
-        super().set(image)
+    def set(self, /, image: Surface, copy: bool = True) -> None:
+        super().set(image, copy=copy)
         self.__text.config.update_all_options()
