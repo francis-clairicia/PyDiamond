@@ -143,6 +143,9 @@ class Window:
 
     @contextmanager
     def open(self: __W, /) -> Iterator[__W]:
+        if self.__loop:
+            raise WindowError("Trying to open already open window")
+
         def cleanup() -> None:
             self.__window_quit__()
             del self.__text_framerate
@@ -245,7 +248,7 @@ class Window:
         return self.__surface.copy()
 
     def handle_events(self, /) -> List[Event]:
-        return [event for event in self.process_events()]
+        return list(self.process_events())
 
     @contextmanager
     def no_window_callback_processing(self, /) -> Iterator[None]:
