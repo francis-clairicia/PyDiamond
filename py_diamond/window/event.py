@@ -87,7 +87,7 @@ class MetaEvent(type):
 @dataclass(frozen=True)
 class Event(metaclass=MetaEvent, event_type=-1):
     class Type(IntEnum):
-        ACTIVEEVENT = pygame.ACTIVEEVENT
+        ACTIVE = pygame.ACTIVEEVENT
         KEYDOWN = pygame.KEYDOWN
         KEYUP = pygame.KEYUP
         MOUSEMOTION = pygame.MOUSEMOTION
@@ -114,7 +114,7 @@ class Event(metaclass=MetaEvent, event_type=-1):
 
 
 @dataclass(frozen=True)
-class ActiveEvent(Event, event_type=Event.Type.ACTIVEEVENT):
+class ActiveEvent(Event, event_type=Event.Type.ACTIVE):
     gain: bool
     state: bool
 
@@ -283,7 +283,7 @@ class EventManager:
             handler_dict[key].remove(cast(_EventCallback, callback))
 
     @overload
-    def bind_event(self, /, event_type: Literal[Event.Type.ACTIVEEVENT], callback: Callable[[ActiveEvent], None]) -> None:
+    def bind_event(self, /, event_type: Literal[Event.Type.ACTIVE], callback: Callable[[ActiveEvent], None]) -> None:
         ...
 
     @overload
