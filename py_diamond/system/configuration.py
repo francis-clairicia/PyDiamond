@@ -326,7 +326,8 @@ class Configuration:
             for update in info.get_option_update_funcs(option):
                 if update in main_update_list:
                     continue
-                update(obj)
+                with self.__updating_option(obj, option):
+                    update(obj)
             if not update_stack:
                 for main_update in main_update_list:
                     main_update(obj)
@@ -361,7 +362,8 @@ class Configuration:
         for update in info.get_option_update_funcs(option):
             if update in main_update_list:
                 continue
-            update(obj)
+            with self.__updating_option(obj, option):
+                update(obj)
         if not update_stack:
             for main_update in main_update_list:
                 main_update(obj)
@@ -384,7 +386,8 @@ class Configuration:
             for update in info.get_option_update_funcs(option):
                 if update in main_update_list:
                     continue
-                update(__obj)
+                with self.__updating_option(__obj, option):
+                    update(__obj)
         if not update_stack:
             for main_update in main_update_list:
                 main_update(__obj)
@@ -413,7 +416,8 @@ class Configuration:
             for update in info.get_option_update_funcs(option):
                 if update in main_update_list:
                     continue
-                update(obj)
+                with self.__updating_option(obj, option):
+                    update(obj)
         if not update_stack:
             for main_update in main_update_list:
                 main_update(obj)
@@ -443,7 +447,8 @@ class Configuration:
         for update in info.get_option_update_funcs(option):
             if update in main_update_list:
                 continue
-            update(obj)
+            with self.__updating_option(obj, option):
+                update(obj)
         if not update_stack:
             for main_update in main_update_list:
                 main_update(obj)
@@ -461,9 +466,9 @@ class Configuration:
             Configuration.__init_context.pop(obj, None)
 
         with ExitStack() as stack:
-            stack.callback(cleanup)
             initialization_register: _InitializationRegister = {}
             Configuration.__init_context[obj] = initialization_register
+            stack.callback(cleanup)
             yield
             info: _ConfigInfo = self.__info
             for option, value in initialization_register.items():
@@ -474,7 +479,8 @@ class Configuration:
                 for update in info.get_option_update_funcs(option):
                     if update in main_update_list:
                         continue
-                    update(obj)
+                    with self.__updating_option(obj, option):
+                        update(obj)
             for main_update in main_update_list:
                 main_update(obj)
 
@@ -1507,8 +1513,7 @@ class _ConfigInitializer:
             func_get = getattr(func, "__get__")
         except AttributeError:
             if obj is not None:
-                _func = func
-                func = lambda *args, **kwargs: _func(obj, *args, **kwargs)
+                func = MethodType(func, obj) 
         else:
             func = func_get(obj, objtype)
         if obj is None:
