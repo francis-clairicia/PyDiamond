@@ -41,7 +41,6 @@ class Clickable:
         disabled_cursor: Optional[Cursor] = None,
     ) -> None:
         self.__master: Union[Scene, Window] = master
-        # self.__window: Window
         self.__scene: Optional[Scene]
         if isinstance(master, Scene):
             self.__scene = master

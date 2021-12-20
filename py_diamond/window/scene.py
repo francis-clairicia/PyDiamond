@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from py_diamond.graphics.renderer import Renderer, SurfaceRenderer
-
 __all__ = [
     "MainScene",
     "MetaScene",
@@ -11,15 +9,18 @@ __all__ = [
     "ReturningSceneTransition",
     "Scene",
     "SceneTransition",
+    "SceneTransitionCoroutine",
     "SceneWindow",
     "set_default_theme_namespace",
     "closed_namespace",
 ]
 
+import gc
 from abc import ABCMeta, abstractmethod
 from contextlib import ExitStack, contextmanager, suppress
 from inspect import isgeneratorfunction
 from operator import truth
+from sys import stderr
 from types import FunctionType
 from typing import (
     Any,
@@ -28,6 +29,7 @@ from typing import (
     Dict,
     Final,
     FrozenSet,
+    Generator,
     Iterator,
     List,
     NoReturn,
@@ -44,8 +46,11 @@ from typing import (
 from .display import Window, WindowCallback, _WindowCallbackList
 from .event import Event, EventManager
 from ..graphics.color import Color
+from ..graphics.renderer import Renderer, SurfaceRenderer
 from ..graphics.surface import Surface
 from ..graphics.theme import ThemeNamespace
+from ..system.mangling import mangle_private_attribute
+from ..system.time import Time
 from ..system.utils import wraps
 
 _S = TypeVar("_S", bound="MetaScene")
@@ -65,6 +70,7 @@ class MetaScene(ABCMeta):
         bases: Tuple[type, ...],
         namespace: Dict[str, Any],
         framerate: int = 0,
+        fixed_framerate: int = 0,
         busy_loop: bool = False,
         **kwargs: Any,
     ) -> MetaScene:
@@ -90,6 +96,7 @@ class MetaScene(ABCMeta):
         if not cls.__abstractmethods__:
             _ALL_SCENES.append(cast(Type[Scene], cls))
             cls.__framerate = max(int(framerate), 0)
+            cls.__fixed_framerate = max(int(fixed_framerate), 0)
             cls.__busy_loop = truth(busy_loop)
         return cls
 
@@ -112,6 +119,11 @@ class MetaScene(ABCMeta):
         if cls.__abstractmethods__:
             raise TypeError(f"{cls.__name__} is an abstract class")
         return cls.__framerate  # type: ignore[no-any-return, attr-defined]
+
+    def get_required_fixed_framerate(cls, /) -> int:
+        if cls.__abstractmethods__:
+            raise TypeError(f"{cls.__name__} is an abstract class")
+        return cls.__fixed_framerate  # type: ignore[no-any-return, attr-defined]
 
     def require_busy_loop(cls, /) -> bool:
         if cls.__abstractmethods__:
@@ -151,9 +163,14 @@ class MetaScene(ABCMeta):
         return obj
 
 
+SceneTransitionCoroutine = Generator[None, Optional[float], None]
+
+
 class SceneTransition(metaclass=ABCMeta):
     @abstractmethod
-    def show_new_scene(self, /, target: Renderer, previous_scene_image: Surface, actual_scene_image: Surface) -> Iterator[None]:
+    def show_new_scene(
+        self, /, target: Renderer, previous_scene_image: Surface, actual_scene_image: Surface
+    ) -> SceneTransitionCoroutine:
         raise NotImplementedError
 
 
@@ -161,7 +178,7 @@ class ReturningSceneTransition(SceneTransition):
     @abstractmethod
     def hide_actual_scene(
         self, /, target: Renderer, previous_scene_image: Surface, actual_scene_image: Surface
-    ) -> Iterator[None]:
+    ) -> SceneTransitionCoroutine:
         raise NotImplementedError
 
 
@@ -188,7 +205,7 @@ class Scene(metaclass=MetaScene):
         self.__bg_color: Color = Color(0, 0, 0)
         self.__callback_after: _WindowCallbackList = _WindowCallbackList()
         self.__callback_after_dict: Dict[Scene, _WindowCallbackList] = getattr(
-            manager.window, f"_{SceneWindow.__name__}__callback_after_scenes"
+            manager.window, mangle_private_attribute(SceneWindow, "callback_after_scenes")
         )
 
     def __del__(self, /) -> None:
@@ -202,7 +219,16 @@ class Scene(metaclass=MetaScene):
     def awake(self, /, **kwargs: Any) -> None:
         pass
 
+    def on_start_loop_before_transition(self, /) -> None:
+        pass
+
     def on_start_loop(self, /) -> None:
+        pass
+
+    def fixed_update(self, /) -> None:
+        pass
+
+    def update_alpha(self, /, interpolation: float) -> None:
         pass
 
     def update(self, /) -> None:
@@ -217,6 +243,10 @@ class Scene(metaclass=MetaScene):
 
     def draw_scene(self, /, scene: Type[Scene]) -> None:
         self.__manager.render(scene)
+
+    @final
+    def is_awaken(self, /) -> bool:
+        return self.__manager.started(self)
 
     @final
     def looping(self, /) -> bool:
@@ -273,7 +303,7 @@ class Scene(metaclass=MetaScene):
         return window_callback
 
     @property
-    def window(self, /) -> Window:
+    def window(self, /) -> SceneWindow:
         return self.__manager.window
 
     @property
@@ -340,6 +370,7 @@ class SceneWindow(Window):
         super().__init__(title=title, size=size, fullscreen=fullscreen)
         self.__callback_after_scenes: Dict[Scene, _WindowCallbackList] = dict()
         self.__scenes: _SceneManager
+        self.__accumulator: float = 0
 
     __W = TypeVar("__W", bound="SceneWindow")
 
@@ -358,8 +389,14 @@ class SceneWindow(Window):
 
     @final
     def run(self, /, default_scene: Type[Scene]) -> None:
-        with suppress(_SceneManager.NewScene):
+        self.__scenes.clear()
+        gc.collect()
+        try:
             self.__scenes.go_to(default_scene)
+        except _SceneManager.NewScene as exc:
+            exc.actual_scene.on_start_loop_before_transition()
+            exc.actual_scene.on_start_loop()
+        self.__accumulator = 0
         while self.is_open():
             try:
                 self.handle_events()
@@ -368,16 +405,13 @@ class SceneWindow(Window):
                 self.refresh()
             except _SceneManager.NewScene as exc:
                 self.__scene_transition(exc)
-            except _SceneManager.SameScene as exc:
-                print(f"{type(exc).__name__}: {exc}")
+            except _SceneManager.SceneException as exc:
+                print(f"{type(exc).__name__}: {exc}", file=stderr)
                 continue
 
     def __scene_transition(self, event: _SceneManager.NewScene) -> None:
-        event.actual_scene.on_start_loop()
-        if event.previous_scene is None:
-            for scene in event.closing_scenes:
-                scene.on_quit()
-            return
+        assert event.previous_scene is not None
+        event.actual_scene.on_start_loop_before_transition()
         if event.transition is not None:
             with self.capture(draw_on_default_at_end=False) as previous_scene_surface:
                 self.clear(event.previous_scene.background_color)
@@ -386,31 +420,66 @@ class SceneWindow(Window):
                 self.clear(event.actual_scene.background_color)
                 event.actual_scene.render()
             with self.capture() as window_surface, self.block_all_events_context(), self.no_window_callback_processing():
+                self.refresh()
                 self.clear()
+                transition: SceneTransitionCoroutine
                 transition = event.transition(SurfaceRenderer(window_surface), previous_scene_surface, actual_scene_surface)
-                while self.is_open():
+                animating = True
+                try:
+                    next(transition)
+                except StopIteration:
+                    animating = False
+                while self.is_open() and animating:
                     self.handle_events()
-                    self.clear()
-                    try:
-                        next(transition)
-                    except StopIteration:
-                        break
+                    dt: float = Time.fixed_delta()
+                    while self.__accumulator >= dt:
+                        try:
+                            transition.send(None)
+                        except StopIteration:
+                            animating = False
+                            break
+                        self.__accumulator -= dt
+                    if animating:
+                        alpha: float = self.__accumulator / dt
+                        try:
+                            transition.send(alpha)
+                        except StopIteration:
+                            animating = False
                     self.refresh()
         event.previous_scene.on_quit()
+        if not event.previous_scene.is_awaken():
+            _SceneManager._destroy_awaken_scene(event.previous_scene)
         for scene in event.closing_scenes:
             scene.on_quit()
+            _SceneManager._destroy_awaken_scene(scene)
         self.__callback_after_scenes.pop(event.previous_scene, None)
+        self.__accumulator = 0
+        gc.collect()
+        event.actual_scene.on_start_loop()
+
+    def refresh(self, /) -> float:
+        real_delta_time: float = super().refresh()
+        self.__accumulator += min(real_delta_time / 1000, 2 * Time.fixed_delta())
+        return real_delta_time
 
     def update_scene(self, /) -> None:
         scene: Optional[Scene] = self.__scenes.top()
-        if scene:
-            scene.update()
+        if scene is None:
+            return
+        dt: float = Time.fixed_delta()
+        while self.__accumulator >= dt:
+            scene.fixed_update()
+            self.__accumulator -= dt
+        alpha: float = self.__accumulator / dt
+        scene.update_alpha(alpha)
+        scene.update()
 
     def render_scene(self, /) -> None:
         scene: Optional[Scene] = self.__scenes.top()
-        if scene:
-            self.clear(scene.background_color)
-            scene.render()
+        if scene is None:
+            return
+        self.clear(scene.background_color)
+        scene.render()
 
     def start_scene(
         self, /, scene: Type[Scene], *, transition: Optional[SceneTransition] = None, remove_actual: bool = False
@@ -444,6 +513,15 @@ class SceneWindow(Window):
                 break
         return framerate
 
+    def used_fixed_framerate(self, /) -> int:
+        framerate = super().used_fixed_framerate()
+        for scene in self.__scenes.from_bottom_to_top():
+            f: int = scene.__class__.get_required_fixed_framerate()
+            if f > 0:
+                framerate = f
+                break
+        return framerate
+
     def get_busy_loop(self, /) -> bool:
         actual_scene: Optional[Scene] = self.__scenes.top()
         return super().get_busy_loop() or (actual_scene is not None and actual_scene.__class__.require_busy_loop())
@@ -470,7 +548,7 @@ class _SceneManager:
             self,
             previous_scene: Optional[Scene],
             actual_scene: Scene,
-            transition: Optional[Callable[[Renderer, Surface, Surface], Iterator[None]]],
+            transition: Optional[Callable[[Renderer, Surface, Surface], SceneTransitionCoroutine]],
             closing_scenes: List[Scene],
         ) -> None:
             super().__init__(
@@ -486,11 +564,14 @@ class _SceneManager:
             super().__init__(f"Trying to go to the same running scene: {type(scene).__name__!r}")
             self.scene: Scene = scene
 
+    __default_scene_attributes: ClassVar[Dict[Type[Scene], FrozenSet[str]]] = dict()
+
     def __init__(self, /, window: SceneWindow) -> None:
         def new_scene(cls: Type[Scene]) -> Scene:
             scene: Scene = cls.__new__(cls)
-            setattr(scene, f"_{Scene.__name__}__manager", self)
+            setattr(scene, mangle_private_attribute(Scene, "manager"), self)
             scene.__init__()  # type: ignore
+            _SceneManager.__default_scene_attributes[cls] = frozenset(scene.__dict__)
             return scene
 
         self.__window: SceneWindow = window
@@ -505,7 +586,15 @@ class _SceneManager:
 
     def __del_manager__(self, /) -> None:
         for scene in self.__all.values():
-            delattr(scene, f"_{Scene.__name__}__manager")
+            delattr(scene, mangle_private_attribute(Scene, "manager"))
+
+    @staticmethod
+    def _destroy_awaken_scene(scene: Scene) -> None:
+        all_attributes: List[str] = list(scene.__dict__)
+        default_attributes: FrozenSet[str] = _SceneManager.__default_scene_attributes[type(scene)]
+        scene.__init__()  # type: ignore
+        for attr in filter(lambda attr: attr not in default_attributes, all_attributes):
+            scene.__dict__.pop(attr)
 
     def __iter__(self, /) -> Iterator[Scene]:
         return self.from_top_to_bottom()
@@ -519,9 +608,15 @@ class _SceneManager:
     def top(self, /) -> Optional[Scene]:
         return self.__stack[0] if self.__stack else None
 
+    def started(self, /, scene: Scene) -> bool:
+        return scene in self.__stack
+
     def clear(self, /) -> None:
         while self.__stack:
-            self.__stack.pop(0).on_quit()
+            scene = self.__stack.pop(0)
+            scene.on_quit()
+            self._destroy_awaken_scene(scene)
+        gc.collect()
 
     def render(self, /, scene: Type[Scene]) -> None:
         if scene.__abstractmethods__:
@@ -532,7 +627,12 @@ class _SceneManager:
             obj.render()
 
     def go_to(
-        self, /, scene: Type[Scene], *, transition: Optional[SceneTransition] = None, remove_actual: bool = False
+        self,
+        /,
+        scene: Type[Scene],
+        *,
+        transition: Optional[SceneTransition] = None,
+        remove_actual: bool = False,
     ) -> NoReturn:
         if scene.__abstractmethods__:
             raise TypeError(f"{scene.__name__} is an abstract class")
@@ -541,7 +641,7 @@ class _SceneManager:
         actual_scene = stack[0] if stack else None
         if actual_scene is next_scene:
             raise _SceneManager.SameScene(actual_scene)
-        scene_transition: Optional[Callable[[Renderer, Surface, Surface], Iterator[None]]] = None
+        scene_transition: Optional[Callable[[Renderer, Surface, Surface], SceneTransitionCoroutine]] = None
         closing_scenes: List[Scene] = []
         if actual_scene is None or next_scene not in stack:
             stack.insert(0, next_scene)

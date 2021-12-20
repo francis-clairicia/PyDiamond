@@ -9,7 +9,7 @@ from .color import Color, BLACK, GRAY, TRANSPARENT, WHITE
 from .renderer import Renderer
 from .shape import RectangleShape
 from .text import Text
-from ..system.configuration import ConfigAttribute, Configuration, initializer
+from ..system.configuration import OptionAttribute, Configuration, initializer
 from ..system.utils import valid_float
 from .theme import NoTheme, ThemeType
 
@@ -108,15 +108,9 @@ class ProgressBar(RectangleShape):
 
         offset = 10
         movements: Dict[str, Dict[str, Union[float, Tuple[float, float]]]]
-        if self.__value_text.is_shown() and self.__value_text_type in [
-            "value",
-            "percent",
-        ]:
+        if self.__value_text.is_shown() and self.__value_text_type in ["value", "percent"]:
             movements = {
-                ProgressBar.Side.TOP.value: {
-                    "bottom": self.top - offset,
-                    "centerx": self.centerx,
-                },
+                ProgressBar.Side.TOP.value: {"bottom": self.top - offset, "centerx": self.centerx},
                 ProgressBar.Side.BOTTOM.value: {
                     "top": self.bottom + offset,
                     "centerx": self.centerx,
@@ -135,9 +129,10 @@ class ProgressBar(RectangleShape):
             round_n = self.__value_text_round_n
             if side in movements:
                 if self.__value_text_type == "value":
-                    self.__value_text.message = f"{round(self.value, round_n) if round_n > 0 else round(self.value)}"
+                    value = self.__value
+                    self.__value_text.message = f"{round(value, round_n) if round_n > 0 else round(value)}"
                 elif self.__value_text_type == "percent":
-                    value = self.percent * 100
+                    value = self.__percent * 100
                     self.__value_text.message = f"{round(value, round_n) if round_n > 0 else round(value)}%"
                 self.__value_text.set_position(**movements[side])
                 self.__value_text.draw_onto(target)
@@ -219,16 +214,16 @@ class ProgressBar(RectangleShape):
         raise NotImplementedError
 
     def _apply_only_scale(self, /) -> None:
+        super()._apply_only_scale()
         scale_rect: RectangleShape = self.__scale_rect
         outline_rect: RectangleShape = self.__outline_rect
         outline_rect.scale = scale_rect.scale = self.scale
-        return super()._apply_only_scale()
 
     config = Configuration("value", "percent", "scale_color", parent=RectangleShape.config)
 
-    value: ConfigAttribute[float] = ConfigAttribute()
-    percent: ConfigAttribute[float] = ConfigAttribute()
-    scale_color: ConfigAttribute[Color] = ConfigAttribute()
+    value: OptionAttribute[float] = OptionAttribute()
+    percent: OptionAttribute[float] = OptionAttribute()
+    scale_color: OptionAttribute[Color] = OptionAttribute()
 
     @config.value_converter("value")
     def __valid_value(self, /, value: Any) -> float:

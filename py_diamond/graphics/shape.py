@@ -31,12 +31,13 @@ from .renderer import Renderer, SurfaceRenderer
 from .rect import Rect
 from .surface import Surface, create_surface
 from ..system.configuration import (
-    ConfigAttribute,
+    OptionAttribute,
     ConfigTemplate,
     Configuration,
     UnregisteredOptionError,
     initializer,
 )
+from ..system.mangling import mangle_private_attribute
 from ..system.utils import valid_float, valid_integer
 from .theme import MetaThemedObject, ThemeType
 
@@ -132,17 +133,17 @@ class AbstractShape(TDrawable, metaclass=MetaShape):
 
     config: Configuration = ConfigTemplate(autocopy=True)
 
-    @config.on_update
+    @config.main_update
     def __update_shape(self, /) -> None:
         if self.config.has_initialization_context():
             self.__compute_shape_size()
             self.__shape_image = self._make()
-            self._apply_rotation_scale()
+            self.apply_rotation_scale()
         else:
             center: Tuple[float, float] = self.center
             self.__compute_shape_size()
             self.__shape_image = self._make()
-            self._apply_rotation_scale()
+            self.apply_rotation_scale()
             self.center = center
 
 
@@ -156,7 +157,7 @@ class Shape(AbstractShape):
 
     config.value_validator_static("color", Color)
 
-    color: ConfigAttribute[Color] = ConfigAttribute()
+    color: OptionAttribute[Color] = OptionAttribute()
 
 
 class OutlinedShape(Shape):
@@ -177,8 +178,8 @@ class OutlinedShape(Shape):
     config.value_converter_static("outline", valid_integer(min_value=0))
     config.value_validator_static("outline_color", Color)
 
-    outline: ConfigAttribute[int] = ConfigAttribute()
-    outline_color: ConfigAttribute[Color] = ConfigAttribute()
+    outline: OptionAttribute[int] = OptionAttribute()
+    outline_color: OptionAttribute[Color] = OptionAttribute()
 
 
 class PolygonShape(OutlinedShape, metaclass=MetaThemedShape):
@@ -257,7 +258,7 @@ class PolygonShape(OutlinedShape, metaclass=MetaThemedShape):
 
         self.__center = Vector2(left + w / 2, top + h / 2)
 
-    points: ConfigAttribute[List[Vector2]] = ConfigAttribute()
+    points: OptionAttribute[List[Vector2]] = OptionAttribute()
 
 
 class AbstractRectangleShape(AbstractShape):
@@ -279,9 +280,9 @@ class AbstractRectangleShape(AbstractShape):
     config.getter("local_size", lambda self: (self.local_width, self.local_height))
     config.setter("local_size", lambda self, size: self.config(local_width=size[0], local_height=size[1]))
 
-    local_width: ConfigAttribute[float] = ConfigAttribute()
-    local_height: ConfigAttribute[float] = ConfigAttribute()
-    local_size: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
+    local_width: OptionAttribute[float] = OptionAttribute()
+    local_height: OptionAttribute[float] = OptionAttribute()
+    local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
 
 
 class RectangleShape(AbstractRectangleShape, OutlinedShape, metaclass=MetaThemedShape):
@@ -364,11 +365,11 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, metaclass=MetaThemed
     def __set_border_radius(self, /, border: str, radius: int) -> None:
         self.__draw_params[border] = radius
 
-    border_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_top_left_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_top_right_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_bottom_left_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_bottom_right_radius: ConfigAttribute[int] = ConfigAttribute()
+    border_radius: OptionAttribute[int] = OptionAttribute()
+    border_top_left_radius: OptionAttribute[int] = OptionAttribute()
+    border_top_right_radius: OptionAttribute[int] = OptionAttribute()
+    border_bottom_left_radius: OptionAttribute[int] = OptionAttribute()
+    border_bottom_right_radius: OptionAttribute[int] = OptionAttribute()
 
 
 class AbstractCircleShape(AbstractShape):
@@ -387,7 +388,7 @@ class AbstractCircleShape(AbstractShape):
 
     config.value_converter_static("radius", valid_float(min_value=0))
 
-    radius: ConfigAttribute[float] = ConfigAttribute()
+    radius: OptionAttribute[float] = OptionAttribute()
 
 
 class CircleShape(AbstractCircleShape, OutlinedShape, metaclass=MetaThemedShape):
@@ -492,10 +493,10 @@ class CircleShape(AbstractCircleShape, OutlinedShape, metaclass=MetaThemedShape)
 
         self.__points = all_points
 
-    draw_top_left: ConfigAttribute[bool] = ConfigAttribute()
-    draw_top_right: ConfigAttribute[bool] = ConfigAttribute()
-    draw_bottom_left: ConfigAttribute[bool] = ConfigAttribute()
-    draw_bottom_right: ConfigAttribute[bool] = ConfigAttribute()
+    draw_top_left: OptionAttribute[bool] = OptionAttribute()
+    draw_top_right: OptionAttribute[bool] = OptionAttribute()
+    draw_bottom_left: OptionAttribute[bool] = OptionAttribute()
+    draw_bottom_right: OptionAttribute[bool] = OptionAttribute()
 
 
 class CrossShape(OutlinedShape, metaclass=MetaThemedShape):
@@ -531,7 +532,7 @@ class CrossShape(OutlinedShape, metaclass=MetaThemedShape):
             outline_color=self.outline_color,
             points=self.__points,
         )
-        image: Surface = getattr(p, f"_{AbstractShape.__name__}__image")
+        image: Surface = getattr(p, mangle_private_attribute(AbstractShape, "image"))
         return image
 
     def get_local_vertices(self, /) -> List[Vector2]:
@@ -627,10 +628,10 @@ class CrossShape(OutlinedShape, metaclass=MetaThemedShape):
     config.value_converter_static("local_size", tuple)
     config.value_converter_static("line_width", valid_float(min_value=0))
 
-    local_width: ConfigAttribute[float] = ConfigAttribute()
-    local_height: ConfigAttribute[float] = ConfigAttribute()
-    local_size: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
-    line_width: ConfigAttribute[float] = ConfigAttribute()
+    local_width: OptionAttribute[float] = OptionAttribute()
+    local_height: OptionAttribute[float] = OptionAttribute()
+    local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    line_width: OptionAttribute[float] = OptionAttribute()
 
     @property
     def type(self, /) -> str:

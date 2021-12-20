@@ -81,27 +81,27 @@ class Keyboard:
     class IME:
         __start: bool = False
 
-        @staticmethod
-        def text_input_enabled() -> bool:
-            return Keyboard.IME.__start
+        @classmethod
+        def text_input_enabled(cls) -> bool:
+            return cls.__start
 
-        @staticmethod
-        def start_text_input() -> None:
+        @classmethod
+        def start_text_input(cls) -> None:
             global _KEY_REPEAT
-            if not Keyboard.IME.__start:
+            if not cls.__start:
                 pygame.key.start_text_input()
                 _KEY_REPEAT = pygame.key.get_repeat()
                 pygame.key.set_repeat(500, 50)
-                Keyboard.IME.__start = True
+                cls.__start = True
 
-        @staticmethod
-        def stop_text_input() -> None:
+        @classmethod
+        def stop_text_input(cls) -> None:
             global _KEY_REPEAT
-            if Keyboard.IME.__start:
+            if cls.__start:
                 pygame.key.stop_text_input()
                 pygame.key.set_repeat(*_KEY_REPEAT)
                 _KEY_REPEAT = (0, 0)
-                Keyboard.IME.__start = False
+                cls.__start = False
 
     class Key(IntEnum):
         BACKSPACE = pygame.K_BACKSPACE
@@ -148,32 +148,32 @@ class Keyboard:
         CARET = pygame.K_CARET
         UNDERSCORE = pygame.K_UNDERSCORE
         BACKQUOTE = pygame.K_BACKQUOTE
-        a = pygame.K_a
-        b = pygame.K_b
-        c = pygame.K_c
-        d = pygame.K_d
-        e = pygame.K_e
-        f = pygame.K_f
-        g = pygame.K_g
-        h = pygame.K_h
-        i = pygame.K_i
-        j = pygame.K_j
-        k = pygame.K_k
-        l = pygame.K_l
-        m = pygame.K_m
-        n = pygame.K_n
-        o = pygame.K_o
-        p = pygame.K_p
-        q = pygame.K_q
-        r = pygame.K_r
-        s = pygame.K_s
-        t = pygame.K_t
-        u = pygame.K_u
-        v = pygame.K_v
-        w = pygame.K_w
-        x = pygame.K_x
-        y = pygame.K_y
-        z = pygame.K_z
+        A = pygame.K_a
+        B = pygame.K_b
+        C = pygame.K_c
+        D = pygame.K_d
+        E = pygame.K_e
+        F = pygame.K_f
+        G = pygame.K_g
+        H = pygame.K_h
+        I = pygame.K_i
+        J = pygame.K_j
+        K = pygame.K_k
+        L = pygame.K_l
+        M = pygame.K_m
+        N = pygame.K_n
+        O = pygame.K_o
+        P = pygame.K_p
+        Q = pygame.K_q
+        R = pygame.K_r
+        S = pygame.K_s
+        T = pygame.K_t
+        U = pygame.K_u
+        V = pygame.K_v
+        W = pygame.K_w
+        X = pygame.K_x
+        Y = pygame.K_y
+        Z = pygame.K_z
         DELETE = pygame.K_DELETE
         KP0 = pygame.K_KP0
         KP1 = pygame.K_KP1

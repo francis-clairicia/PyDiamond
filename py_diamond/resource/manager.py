@@ -6,14 +6,14 @@ __all__ = ["MetaResourceManager", "ResourceManager"]
 
 from contextlib import suppress
 from os.path import join
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Union
 
 from ..system.path import set_constant_directory
 from .loader import ResourceLoader
 
 
-_ResourcePath = Union[str, List[Any], Tuple[Any, ...], Dict[Any, Any]]
-_ResourceLoader = Union[ResourceLoader[Any], List[Any], Tuple[Any, ...], Dict[Any, Any]]
+_ResourcePath = Union[str, Sequence["_ResourcePath"], Mapping[Any, "_ResourcePath"]]  # type: ignore
+_ResourceLoader = Union[ResourceLoader[Any], Tuple["_ResourceLoader", ...], Dict[Any, "_ResourceLoader"]]  # type: ignore
 
 
 class _ResourceDescriptor:
@@ -27,11 +27,9 @@ class _ResourceDescriptor:
                 resource_loader: ResourceLoader[Any] = loader(path)
                 self.__nb_resources += 1
                 return resource_loader
-            if isinstance(path, list):
-                return [get_resources_loader(p) for p in path]
-            if isinstance(path, tuple):
+            if isinstance(path, (list, tuple, set, frozenset, Sequence)):
                 return tuple(get_resources_loader(p) for p in path)
-            if isinstance(path, dict):
+            if isinstance(path, (dict, Mapping)):
                 return {key: get_resources_loader(value) for key, value in path.items()}
             raise TypeError(f"Unexpected path type: {type(path).__name__!r} ({path!r})")
 
@@ -52,8 +50,6 @@ class _ResourceDescriptor:
         def load_all_resources(resource_loader: _ResourceLoader) -> Any:
             if isinstance(resource_loader, ResourceLoader):
                 return resource_loader.load()
-            if isinstance(resource_loader, list):
-                return [load_all_resources(loader) for loader in resource_loader]
             if isinstance(resource_loader, tuple):
                 return tuple(load_all_resources(loader) for loader in resource_loader)
             if isinstance(resource_loader, dict):
@@ -86,7 +82,7 @@ class _ResourceDescriptor:
 
 class MetaResourceManager(type):
     def __new__(metacls, /, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaResourceManager:
-        namespace["__resources_files__"] = resources = namespace.get("__resources_files__", dict())
+        resources: Dict[str, Any] = namespace.setdefault("__resources_files__", dict())
 
         annotations: Dict[str, Union[type, str]] = namespace.get("__annotations__", dict())
         for attr_name in ["__resources_files__", "__resources_directory__", "__resource_loader__"]:

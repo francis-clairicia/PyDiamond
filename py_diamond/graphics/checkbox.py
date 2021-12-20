@@ -12,7 +12,7 @@ from .image import Image
 from .renderer import Renderer
 from .shape import RectangleShape, DiagonalCrossShape
 from .surface import Surface
-from ..system.configuration import ConfigAttribute, Configuration
+from ..system.configuration import OptionAttribute, Configuration
 from .theme import MetaThemedObject, NoTheme, ThemeType
 from ..window.clickable import Clickable
 from ..window.cursor import Cursor
@@ -190,18 +190,18 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
         "border_bottom_right_radius",
     )
 
-    value: ConfigAttribute[Union[_OnValue, _OffValue]] = ConfigAttribute()
-    local_width: ConfigAttribute[float] = ConfigAttribute()
-    local_height: ConfigAttribute[float] = ConfigAttribute()
-    local_size: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
-    color: ConfigAttribute[Color] = ConfigAttribute()
-    outline: ConfigAttribute[int] = ConfigAttribute()
-    outline_color: ConfigAttribute[Color] = ConfigAttribute()
-    border_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_top_left_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_top_right_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_bottom_left_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_bottom_right_radius: ConfigAttribute[int] = ConfigAttribute()
+    value: OptionAttribute[Union[_OnValue, _OffValue]] = OptionAttribute()
+    local_width: OptionAttribute[float] = OptionAttribute()
+    local_height: OptionAttribute[float] = OptionAttribute()
+    local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    color: OptionAttribute[Color] = OptionAttribute()
+    outline: OptionAttribute[int] = OptionAttribute()
+    outline_color: OptionAttribute[Color] = OptionAttribute()
+    border_radius: OptionAttribute[int] = OptionAttribute()
+    border_top_left_radius: OptionAttribute[int] = OptionAttribute()
+    border_top_right_radius: OptionAttribute[int] = OptionAttribute()
+    border_bottom_left_radius: OptionAttribute[int] = OptionAttribute()
+    border_bottom_right_radius: OptionAttribute[int] = OptionAttribute()
 
     config.getter("value", get_value)
     config.setter("value", set_value)

@@ -6,17 +6,17 @@ from typing import Any, Dict, Tuple
 
 SYS_PATH.append(dirname(dirname(__file__)))
 
-from py_diamond.system.configuration import ConfigAttribute, Configuration, initializer
+from py_diamond.system.configuration import OptionAttribute, Configuration, initializer
 
 
 class Configurable:
     config = Configuration("a", "b", "c", "d", autocopy=True)
     config.set_autocopy("d", copy_on_get=False, copy_on_set=False)
 
-    a: ConfigAttribute[int] = ConfigAttribute()
-    b: ConfigAttribute[int] = ConfigAttribute()
-    c: ConfigAttribute[int] = ConfigAttribute()
-    d: ConfigAttribute[Dict[str, int]] = ConfigAttribute()
+    a: OptionAttribute[int] = OptionAttribute()
+    b: OptionAttribute[int] = OptionAttribute()
+    c: OptionAttribute[int] = OptionAttribute()
+    d: OptionAttribute[Dict[str, int]] = OptionAttribute()
 
     @initializer
     def __init__(self) -> None:
@@ -48,7 +48,7 @@ class Configurable:
 
     config.value_validator_static("d", dict)
 
-    @config.on_update
+    @config.main_update
     def _update(self) -> None:
         if self.config.has_initialization_context():
             print("Init object")
@@ -59,11 +59,11 @@ class Configurable:
 class SubConfigurable(Configurable):
     config = Configuration("e", parent=Configurable.config)
     config.remove_parent_ownership("b")
-    e: ConfigAttribute[int] = ConfigAttribute()
+    e: OptionAttribute[int] = OptionAttribute()
 
     config.value_converter_static("e", int)
 
-    @config.on_update
+    @config.main_update
     def _custom_update(self) -> None:
         print("After parent update")
         print("-----")
@@ -103,7 +103,7 @@ class C:
 class A:
     __config: Configuration = Configuration("a")
 
-    a: ConfigAttribute[int] = ConfigAttribute()
+    a: OptionAttribute[int] = OptionAttribute()
 
     @initializer
     def __init__(self) -> None:
@@ -119,7 +119,7 @@ class Rect:
 
     config = Configuration("width", "height", "size")
 
-    @config.on_update
+    @config.main_update
     def update(self) -> None:
         print("UPDATE")
 
@@ -136,26 +136,50 @@ class SubRect(Rect):
     config = Configuration(parent=Rect.config)
 
 
+class Klass:
+    config = Configuration("a", "b", "c")
+
+    @config.main_update
+    def update(self) -> None:
+        print("UPDATE")
+
+    @config.on_update_key("a")
+    @config.on_update_key("b")
+    @config.on_update_key("c")
+    def __update_field(self, option: str) -> None:
+        print(f"{option!r} modified")
+
+    @config.on_update_key_value("a")
+    @config.on_update_key_value("b")
+    @config.on_update_key_value("c")
+    def __update_field_v(self, option: str, value: Any) -> None:
+        print(f"{option!r} set to {value}")
+
+
 def main() -> None:
-    rect = SubRect()
-    c = SubConfigurable()
-    print("--------")
-    c.config["a"] = 4
+    # rect = SubRect()
+    c = Klass()
+    # print("--------")
+    # c.config["a"] = 4
     c.config(a=6, b=5, c=-9)
-    print(c.config.known_options())
-    print(c.config["a"])
-    c.config.set("a", 6)
-    c.config(a=6, b=5, c=-12)
+    print("After")
+    c.config(a=6, b=5, c=-9)
+    print("Close")
+    c.config(a=6, b=5, c=-5)
+    # print(c.config.known_options())
+    # print(c.config["a"])
+    # c.config.set("a", 6)
+    # c.config(a=6, b=5, c=-12)
 
-    c.a += 2
-    print(c.a)
+    # c.a += 2
+    # print(c.a)
 
-    c.config.set("e", "4")
-    assert isinstance(c.e, int)
+    # c.config.set("e", "4")
+    # assert isinstance(c.e, int)
 
-    c.d = d = {"a": 5}
-    print(c.d is d)
-    print(vars(c))
+    # c.d = d = {"a": 5}
+    # print(c.d is d)
+    # print(vars(c))
 
 
 if __name__ == "__main__":

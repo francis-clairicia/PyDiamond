@@ -18,7 +18,7 @@ from .image import Image
 from .rect import Rect
 from .renderer import Renderer, SurfaceRenderer
 from .surface import Surface, create_surface
-from ..system.configuration import ConfigAttribute, Configuration, initializer
+from ..system.configuration import OptionAttribute, Configuration, initializer
 from ..system.utils import valid_float, valid_integer
 from .theme import MetaThemedObject, ThemeType
 
@@ -246,26 +246,26 @@ class Text(TDrawable, metaclass=MetaText):
 
     config.set_autocopy("font", copy_on_get=False, copy_on_set=False)
 
-    @config.on_update
+    @config.main_update
     def __update_surface(self, /) -> None:
         if self.config.has_initialization_context():
             self.__default_image = self._render()
-            self._apply_rotation_scale()
+            self.apply_rotation_scale()
         else:
             center: Tuple[float, float] = self.center
             self.__default_image = self._render()
-            self._apply_rotation_scale()
+            self.apply_rotation_scale()
             self.center = center
 
-    message: ConfigAttribute[str] = ConfigAttribute()
-    font: ConfigAttribute[Font] = ConfigAttribute()
-    color: ConfigAttribute[Color] = ConfigAttribute()
-    wrap: ConfigAttribute[int] = ConfigAttribute()
-    justify: ConfigAttribute[str] = ConfigAttribute()
-    shadow_x: ConfigAttribute[float] = ConfigAttribute()
-    shadow_y: ConfigAttribute[float] = ConfigAttribute()
-    shadow: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
-    shadow_color: ConfigAttribute[Color] = ConfigAttribute()
+    message: OptionAttribute[str] = OptionAttribute()
+    font: OptionAttribute[Font] = OptionAttribute()
+    color: OptionAttribute[Color] = OptionAttribute()
+    wrap: OptionAttribute[int] = OptionAttribute()
+    justify: OptionAttribute[str] = OptionAttribute()
+    shadow_x: OptionAttribute[float] = OptionAttribute()
+    shadow_y: OptionAttribute[float] = OptionAttribute()
+    shadow: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    shadow_color: OptionAttribute[Color] = OptionAttribute()
 
     config.getter("shadow", lambda self: (self.shadow_x, self.shadow_y))
     config.setter("shadow", lambda self, pos: self.config(shadow_x=pos[0], shadow_y=pos[1]))
@@ -464,9 +464,9 @@ class TextImage(Text):
         else:
             img.set(surface)
 
-    img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
-    compound: ConfigAttribute[str] = ConfigAttribute()
-    distance: ConfigAttribute[float] = ConfigAttribute()
+    img: OptionAttribute[Optional[Surface]] = OptionAttribute()
+    compound: OptionAttribute[str] = OptionAttribute()
+    distance: OptionAttribute[float] = OptionAttribute()
 
 
 class _BoundImage(Image):

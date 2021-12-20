@@ -14,7 +14,7 @@ from .color import Color
 from ..math import Vector2
 from .shape import AbstractCircleShape, AbstractShape, AbstractRectangleShape
 from .surface import Surface, create_surface
-from ..system.configuration import ConfigAttribute, Configuration, initializer
+from ..system.configuration import OptionAttribute, Configuration, initializer
 from ..system.utils import valid_float
 
 from ._gradients import (  # type: ignore[attr-defined]
@@ -37,8 +37,8 @@ class GradientShape(AbstractShape):
     config.value_validator_static("first_color", Color)
     config.value_validator_static("second_color", Color)
 
-    first_color: ConfigAttribute[Color] = ConfigAttribute()
-    second_color: ConfigAttribute[Color] = ConfigAttribute()
+    first_color: OptionAttribute[Color] = OptionAttribute()
+    second_color: OptionAttribute[Color] = OptionAttribute()
 
 
 class HorizontalGradientShape(AbstractRectangleShape, GradientShape):
@@ -91,8 +91,8 @@ class SquaredGradientShape(GradientShape):
 
     config.value_converter_static("local_width", valid_float(min_value=0))
 
-    local_width: ConfigAttribute[float] = ConfigAttribute()
-    local_height: ConfigAttribute[float] = ConfigAttribute()
+    local_width: OptionAttribute[float] = OptionAttribute()
+    local_height: OptionAttribute[float] = OptionAttribute()
 
     @property
     def local_size(self, /) -> Tuple[float, float]:

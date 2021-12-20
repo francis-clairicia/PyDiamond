@@ -5,13 +5,12 @@ from __future__ import annotations
 __all__ = ["MetaTransformable", "Transformable"]
 
 from abc import ABCMeta, abstractmethod
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-
-from pygame import error as _error
-
-from ..graphics.rect import Rect
+from functools import cached_property
+from typing import Any, Dict, List, Optional, Tuple, Union
+from pygame import error as _pygame_error
+from .animation import TransformAnimation
+from .rect import Rect
 from ..math import Vector2
-from ..system.utils import wraps
 
 
 _ALL_VALID_POSITIONS: Tuple[str, ...] = (
@@ -34,31 +33,17 @@ _ALL_VALID_POSITIONS: Tuple[str, ...] = (
     "midbottom",
 )
 
-
-def _position_decorator(position: property, /) -> property:
-    if position.fset is None:
-        return position
-
-    setter: Callable[[Any, Any], None] = position.fset
-
-    if position.fget is None:
-
-        @wraps(setter)
-        def setter_wrapper(self: Transformable, /, _value: Any) -> None:
-            setter(self, _value)
-            self._on_move()
-
-        return position.setter(setter_wrapper)
-
-    getter: Callable[[Any], Any] = position.fget
-
-    @wraps(setter)  # type: ignore
-    def setter_wrapper(self: Transformable, /, _value: Any) -> None:
-        if getter(self) != _value:
-            setter(self, _value)
-            self._on_move()
-
-    return position.setter(setter_wrapper)
+_ALL_VALID_ROTATION_PIVOTS: Tuple[str, ...] = (
+    "center",
+    "topleft",
+    "topright",
+    "bottomleft",
+    "bottomright",
+    "midleft",
+    "midright",
+    "midtop",
+    "midbottom",
+)
 
 
 class MetaTransformable(ABCMeta):
@@ -79,11 +64,6 @@ class MetaTransformable(ABCMeta):
             if position in namespace and any(hasattr(cls, position) for cls in bases):
                 raise TypeError("Override of position attributes is not allowed")
 
-        for position in filter(lambda pos: pos in namespace, _ALL_VALID_POSITIONS):
-            obj: Any = namespace[position]
-            if isinstance(obj, property):
-                namespace[position] = _position_decorator(obj)
-
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
 
@@ -102,60 +82,51 @@ class Transformable(metaclass=MetaTransformable):
             setattr(self, name, value)
 
     def move(self, /, dx: float, dy: float) -> None:
-        if dx == 0 and dy == 0:
-            return
         self.__x += dx
         self.__y += dy
-        self._on_move()
 
     def translate(self, /, vector: Union[Vector2, Tuple[float, float]]) -> None:
-        if vector[0] == 0 and vector[1] == 0:
-            return
         self.__x += vector[0]
         self.__y += vector[1]
-        self._on_move()
 
     def rotate(
-        self,
-        /,
-        angle_offset: float,
-        pivot: Optional[Union[Tuple[float, float], Vector2, str]] = None,
+        self, /, angle_offset: float, pivot: Optional[Union[Tuple[float, float], Vector2, str]] = None, *, apply: bool = True
     ) -> None:
-        self.set_rotation(self.__angle + angle_offset, pivot=pivot)
+        self.set_rotation(self.__angle + angle_offset, pivot=pivot, apply=apply)
 
     def set_rotation(
         self,
         /,
         angle: float,
         pivot: Optional[Union[Tuple[float, float], Vector2, str]] = None,
+        *,
+        apply: bool = True,
     ) -> None:
         angle = float(angle)
         angle %= 360
         if angle < 0:
             angle += 360
-        if self.angle == angle:
+        if self.__angle == angle:
             return
         center: Vector2 = Vector2(self.center)
         former_angle: float = self.__angle
         self.__angle = angle
-        try:
+        if apply:
             try:
-                self._apply_both_rotation_and_scale()
+                try:
+                    self._apply_both_rotation_and_scale()
+                except NotImplementedError:
+                    self._apply_only_rotation()
             except NotImplementedError:
-                self._apply_only_rotation()
-        except NotImplementedError:
-            self.__angle = 0
-            raise
-        except _error:
-            pass
-        if pivot is None:
-            pivot = center
-        elif isinstance(pivot, str):
-            pivot = getattr(self, pivot)
-            if not isinstance(pivot, tuple) or len(pivot) != 2:
-                raise AttributeError(f"Bad pivot attribute: {pivot}")
-        pivot = Vector2(pivot)
-        if pivot != center:
+                self.__angle = 0
+                raise
+            except _pygame_error:
+                pass
+        if pivot is not None and pivot != "center" and pivot != (center.x, center.y):
+            if isinstance(pivot, str):
+                pivot = self.get_pivot_from_attribute(pivot)
+            else:
+                pivot = Vector2(pivot)
             center = pivot + (center - pivot).rotate(-self.__angle + former_angle)
         self.center = center.x, center.y
 
@@ -163,22 +134,30 @@ class Transformable(metaclass=MetaTransformable):
         if angle_offset == 0:
             return
         if isinstance(pivot, str):
-            pivot = getattr(self, pivot)
-            if not isinstance(pivot, tuple) or len(pivot) != 2:
-                raise AttributeError(f"Bad pivot attribute: {pivot}")
-        pivot = Vector2(pivot)
+            if pivot == "center":
+                return
+            pivot = self.get_pivot_from_attribute(pivot)
+        else:
+            pivot = Vector2(pivot)
         center: Vector2 = Vector2(self.center)
         if pivot == center:
             return
         center = pivot + (center - pivot).rotate(-angle_offset)
         self.center = center.x, center.y
 
-    def set_scale(self, /, scale: float) -> None:
+    def get_pivot_from_attribute(self, pivot: str) -> Vector2:
+        if pivot not in _ALL_VALID_ROTATION_PIVOTS:
+            raise AttributeError(f"Bad pivot attribute: {pivot!r}")
+        return Vector2(getattr(self, pivot))
+
+    def set_scale(self, /, scale: float, *, apply: bool = True) -> None:
         scale = max(float(scale), 0)
         if self.scale == scale:
             return
-        center: Tuple[float, float] = self.center
         self.__scale = scale
+        if not apply:
+            return
+        center: Tuple[float, float] = self.center
         try:
             try:
                 self._apply_both_rotation_and_scale()
@@ -187,17 +166,17 @@ class Transformable(metaclass=MetaTransformable):
         except NotImplementedError:
             self.__scale = 1
             raise
-        except _error:
+        except _pygame_error:
             pass
         self.center = center
 
-    def scale_to_width(self, /, width: float) -> None:
+    def scale_to_width(self, /, width: float, *, apply: bool = True) -> None:
         w: float = self.get_local_size()[0]
-        self.set_scale(width / w)
+        self.set_scale(width / w, apply=apply)
 
-    def scale_to_height(self, /, height: float) -> None:
+    def scale_to_height(self, /, height: float, *, apply: bool = True) -> None:
         h: float = self.get_local_size()[1]
-        self.set_scale(height / h)
+        self.set_scale(height / h, apply=apply)
 
     def scale_to_size(self, /, size: Tuple[float, float]) -> None:
         w, h = self.get_local_size()
@@ -229,7 +208,7 @@ class Transformable(metaclass=MetaTransformable):
         if self.width > size[0] or self.height > size[1]:
             self.scale_to_size(size)
 
-    def _apply_rotation_scale(self, /) -> None:
+    def apply_rotation_scale(self, /) -> None:
         try:
             self._apply_both_rotation_and_scale()
         except NotImplementedError:
@@ -273,9 +252,9 @@ class Transformable(metaclass=MetaTransformable):
         return self.get_local_size()[1]
 
     def get_size(self, /) -> Tuple[float, float]:
-        return self.get_area()
+        return self.get_area_size()
 
-    def get_area(self, /, *, apply_scale: bool = True, apply_rotation: bool = True) -> Tuple[float, float]:
+    def get_area_size(self, /, *, apply_scale: bool = True, apply_rotation: bool = True) -> Tuple[float, float]:
         if not apply_scale and not apply_rotation:
             return self.get_local_size()
 
@@ -304,6 +283,9 @@ class Transformable(metaclass=MetaTransformable):
         bottom: float = max((point.y for point in all_points), default=0)
         return (right - left, bottom - top)
 
+    def get_area(self, /, *, apply_scale: bool = True, apply_rotation: bool = True) -> Rect:
+        return Rect((0, 0), self.get_area_size(apply_scale=apply_scale, apply_rotation=apply_rotation))
+
     def get_width(self, /) -> float:
         return self.get_size()[0]
 
@@ -326,9 +308,6 @@ class Transformable(metaclass=MetaTransformable):
             setattr(r, name, value)
         return r
 
-    def _on_move(self, /) -> None:
-        pass
-
     @property
     def angle(self, /) -> float:
         return self.__angle
@@ -348,6 +327,10 @@ class Transformable(metaclass=MetaTransformable):
     @property
     def rect(self, /) -> Rect:
         return Rect(self.topleft, self.get_size())
+
+    @cached_property
+    def animation(self, /) -> TransformAnimation:
+        return TransformAnimation(self)
 
     @property
     def x(self, /) -> float:

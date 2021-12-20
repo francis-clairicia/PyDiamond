@@ -34,7 +34,7 @@ class _FunctionWrapperProxy:
             raise AttributeError("Not a valid wrapper object: __wrapped__ attribute must be callable")
         self.__func__: Callable[..., Any] = wrapper
 
-    def __repr__(self) -> str:
+    def __repr__(self, /) -> str:
         func: Callable[..., Any] = self.__wrapped__
         return f"<function wrapper proxy {func.__name__} at {id(self):#x}>"
 

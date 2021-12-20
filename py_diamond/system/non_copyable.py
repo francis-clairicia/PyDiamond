@@ -34,3 +34,7 @@ class MetaNonCopyable(type):
         if name in ["__copy__", "__deepcopy__"]:
             raise TypeError(f"Cannot override {name!r} method")
         return super().__setattr__(name, value)
+
+
+class NonCopyable(metaclass=MetaNonCopyable):
+    pass

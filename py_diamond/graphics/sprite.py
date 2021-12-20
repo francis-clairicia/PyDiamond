@@ -1,5 +1,7 @@
 # -*- coding: Utf-8 -*
 
+from __future__ import annotations
+
 __all__ = ["Sprite", "AnimatedSprite"]
 
 from typing import Any, Iterable, List, Optional, Tuple, Type, TypeVar
@@ -7,7 +9,7 @@ from typing import Any, Iterable, List, Optional, Tuple, Type, TypeVar
 import pygame.mask
 import pygame.transform
 
-from pygame.sprite import Sprite as _PygameSprite
+from pygame.sprite import Sprite as _PygameSprite, collide_mask
 from pygame.mask import Mask
 
 from .drawable import TDrawable
@@ -67,12 +69,11 @@ class Sprite(TDrawable, _PygameSprite):
 
         if not self.__smooth_scale:
             self.__image = pygame.transform.rotozoom(image, 0, scale)
-        else:
-            if scale != 1:
-                w, h = self.get_local_size()
-                w = round(w * scale)
-                h = round(h * scale)
-                image = pygame.transform.smoothscale(image, (w, h))
+        elif scale != 1:
+            w, h = self.get_local_size()
+            w = round(w * scale)
+            h = round(h * scale)
+            image = pygame.transform.smoothscale(image, (w, h))
         self.__update_mask()
 
     def __update_mask(self, /) -> None:
@@ -85,15 +86,17 @@ class Sprite(TDrawable, _PygameSprite):
         return self.__mask_threshold
 
     def set_mask_threshold(self, /, threshold: int) -> None:
-        self.__mask_threshold = max(int(threshold), 0)
-        self.__mask_threshold = min(self.__mask_threshold, 255)
+        self.__mask_threshold = min(max(int(threshold), 0), 255)
         self.__update_mask()
 
     def use_smooth_scale(self, /, status: bool) -> None:
         former_state: bool = self.__smooth_scale
         self.__smooth_scale = actual_state = bool(status)
         if former_state != actual_state:
-            self._apply_rotation_scale()
+            self.apply_rotation_scale()
+
+    def is_colliding(self, /, other: Sprite) -> bool:
+        return collide_mask(self, other) is not None
 
     @property
     def default_image(self, /) -> Surface:
@@ -103,12 +106,12 @@ class Sprite(TDrawable, _PygameSprite):
     def default_image(self, /, new_image: Surface) -> None:
         center: Tuple[float, float] = self.center
         self.__default_image = new_image.copy()
-        self._apply_rotation_scale()
+        self.apply_rotation_scale()
         self.center = center
 
     @property
     def image(self, /) -> Surface:  # type: ignore[override]
-        return self.__image.copy()
+        return self.__image
 
     @property
     def rect(self, /) -> Rect:  # type: ignore[override]
@@ -137,7 +140,7 @@ class AnimatedSprite(Sprite):
 
     @classmethod
     def from_spritesheet(cls: Type[__T], img: Surface, rect_list: List[Rect], *, mask_threshold: int = 127) -> __T:
-        return cls.from_iterable((img.subsurface(rect).copy() for rect in rect_list), mask_threshold=mask_threshold)
+        return cls.from_iterable((img.subsurface(rect) for rect in rect_list), mask_threshold=mask_threshold)
 
     def update(self, /, *args: Any, **kwargs: Any) -> None:
         if self.is_sprite_animating() and self.__clock.elapsed_time(self.__wait_time):

@@ -7,7 +7,7 @@ __all__ = ["Cursor", "CustomCursor", "SystemCursor"]
 from abc import ABCMeta, abstractmethod
 from enum import IntEnum
 from types import MethodType
-from typing import Any, Callable, ClassVar, Dict, Optional, Sequence, Tuple, overload
+from typing import Any, Callable, ClassVar, Dict, Final, Optional, Sequence, Tuple, overload
 
 import pygame
 import pygame.mouse
@@ -129,29 +129,29 @@ class SystemCursor(Cursor):
         NO = pygame.SYSTEM_CURSOR_NO
         HAND = pygame.SYSTEM_CURSOR_HAND
 
-    CURSOR_ARROW: SystemCursor
-    CURSOR_IBEAM: SystemCursor
-    CURSOR_WAIT: SystemCursor
-    CURSOR_CROSSHAIR: SystemCursor
-    CURSOR_WAITARROW: SystemCursor
-    CURSOR_SIZENWSE: SystemCursor
-    CURSOR_SIZENESW: SystemCursor
-    CURSOR_SIZEWE: SystemCursor
-    CURSOR_SIZENS: SystemCursor
-    CURSOR_SIZEALL: SystemCursor
-    CURSOR_NO: SystemCursor
-    CURSOR_HAND: SystemCursor
+    CURSOR_ARROW: Final[SystemCursor]  # type: ignore
+    CURSOR_IBEAM: Final[SystemCursor]  # type: ignore
+    CURSOR_WAIT: Final[SystemCursor]  # type: ignore
+    CURSOR_CROSSHAIR: Final[SystemCursor]  # type: ignore
+    CURSOR_WAITARROW: Final[SystemCursor]  # type: ignore
+    CURSOR_SIZENWSE: Final[SystemCursor]  # type: ignore
+    CURSOR_SIZENESW: Final[SystemCursor]  # type: ignore
+    CURSOR_SIZEWE: Final[SystemCursor]  # type: ignore
+    CURSOR_SIZENS: Final[SystemCursor]  # type: ignore
+    CURSOR_SIZEALL: Final[SystemCursor]  # type: ignore
+    CURSOR_NO: Final[SystemCursor]  # type: ignore
+    CURSOR_HAND: Final[SystemCursor]  # type: ignore
 
 
-SystemCursor.CURSOR_ARROW = SystemCursor(SystemCursor.Type.ARROW)
-SystemCursor.CURSOR_IBEAM = SystemCursor(SystemCursor.Type.IBEAM)
-SystemCursor.CURSOR_WAIT = SystemCursor(SystemCursor.Type.WAIT)
-SystemCursor.CURSOR_CROSSHAIR = SystemCursor(SystemCursor.Type.CROSSHAIR)
-SystemCursor.CURSOR_WAITARROW = SystemCursor(SystemCursor.Type.WAITARROW)
-SystemCursor.CURSOR_SIZENWSE = SystemCursor(SystemCursor.Type.SIZENWSE)
-SystemCursor.CURSOR_SIZENESW = SystemCursor(SystemCursor.Type.SIZENESW)
-SystemCursor.CURSOR_SIZEWE = SystemCursor(SystemCursor.Type.SIZEWE)
-SystemCursor.CURSOR_SIZENS = SystemCursor(SystemCursor.Type.SIZENS)
-SystemCursor.CURSOR_SIZEALL = SystemCursor(SystemCursor.Type.SIZEALL)
-SystemCursor.CURSOR_NO = SystemCursor(SystemCursor.Type.NO)
-SystemCursor.CURSOR_HAND = SystemCursor(SystemCursor.Type.HAND)
+SystemCursor.CURSOR_ARROW = SystemCursor(SystemCursor.Type.ARROW)  # type: ignore
+SystemCursor.CURSOR_IBEAM = SystemCursor(SystemCursor.Type.IBEAM)  # type: ignore
+SystemCursor.CURSOR_WAIT = SystemCursor(SystemCursor.Type.WAIT)  # type: ignore
+SystemCursor.CURSOR_CROSSHAIR = SystemCursor(SystemCursor.Type.CROSSHAIR)  # type: ignore
+SystemCursor.CURSOR_WAITARROW = SystemCursor(SystemCursor.Type.WAITARROW)  # type: ignore
+SystemCursor.CURSOR_SIZENWSE = SystemCursor(SystemCursor.Type.SIZENWSE)  # type: ignore
+SystemCursor.CURSOR_SIZENESW = SystemCursor(SystemCursor.Type.SIZENESW)  # type: ignore
+SystemCursor.CURSOR_SIZEWE = SystemCursor(SystemCursor.Type.SIZEWE)  # type: ignore
+SystemCursor.CURSOR_SIZENS = SystemCursor(SystemCursor.Type.SIZENS)  # type: ignore
+SystemCursor.CURSOR_SIZEALL = SystemCursor(SystemCursor.Type.SIZEALL)  # type: ignore
+SystemCursor.CURSOR_NO = SystemCursor(SystemCursor.Type.NO)  # type: ignore
+SystemCursor.CURSOR_HAND = SystemCursor(SystemCursor.Type.HAND)  # type: ignore

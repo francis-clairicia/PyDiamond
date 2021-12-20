@@ -2,8 +2,7 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
-from typing import Any, Iterator, List, Type
-from py_diamond.graphics.animation import Animation
+from typing import Any, Callable, List, Literal, Optional, Tuple, Type
 from py_diamond.graphics.button import Button, ImageButton
 from py_diamond.graphics.checkbox import CheckBox
 from py_diamond.graphics.color import (
@@ -40,13 +39,15 @@ from py_diamond.graphics.surface import Surface
 from py_diamond.graphics.text import Text, TextImage
 from py_diamond.resource.loader import FontLoader, ImageLoader
 from py_diamond.resource.manager import ResourceManager
-from py_diamond.window.display import Window, scheduled
+from py_diamond.system.configuration import initializer
+from py_diamond.system.time import Time
+from py_diamond.window.display import Window
 from py_diamond.window.event import Event, MouseButtonEvent
 from py_diamond.window.mouse import Mouse
-from py_diamond.window.scene import MainScene, Scene, SceneTransition, SceneWindow
+from py_diamond.window.scene import MainScene, Scene, SceneTransition, SceneTransitionCoroutine, SceneWindow
 
 
-class ShapeScene(MainScene):
+class ShapeScene(MainScene, busy_loop=True):
     def awake(self, /, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
@@ -111,9 +112,9 @@ class ShapeScene(MainScene):
         # self.__r.hide()
         # self.window.after(3000, self.window.close)
 
-    @scheduled(15)
-    def update(self) -> None:
-        degrees: float = 1
+    def fixed_update(self) -> None:
+        degrees: float = 30 * Time.fixed_delta()
+
         self.__r.rotate(degrees)
         self.__p.rotate_around_point(-degrees, pivot=self.__r.center)
         self.__p.rotate(degrees * 3)
@@ -151,26 +152,32 @@ class AnimationScene(MainScene):
     def awake(self, /, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.rectangle = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
-        self.animation = Animation(self.rectangle)
+        self.animation = self.rectangle.animation
 
-    def on_start_loop(self) -> None:
+    def on_start_loop_before_transition(self) -> None:
         window: Window = self.window
         self.rectangle.angle = 0
         self.rectangle.scale = 1
         self.rectangle.midleft = window.midleft
-        self.animation.register_position(center=window.center, speed=3.7)
-        self.animation.register_rotation(360, offset=2, pivot=window.center)
-        self.animation.register_rotation(360, offset=2)
-        self.animation.start_in_background(self, after_animation=self.move_to_left)
+        self.animation.smooth_set_position(center=window.center, speed=370)
+        self.animation.smooth_rotation_around_point(360, window.center, speed=200)
+        self.animation.smooth_rotation(360 * 2, speed=410)
+        self.animation.on_stop(self.move_to_left)
+
+    def fixed_update(self, /) -> None:
+        self.animation.fixed_update(use_of_linear_interpolation=True)
+
+    def update_alpha(self, /, interpolation: float) -> None:
+        self.animation.set_interpolation(interpolation)
 
     def render(self) -> None:
         self.window.draw(self.rectangle)
 
     def move_to_left(self) -> None:
-        self.animation.register_rotation_set(270, offset=5)
-        self.animation.register_translation((-self.window.centerx / 2, -50), speed=5)
-        self.animation.register_width_set(100)
-        self.animation.start(self)
+        self.animation.smooth_set_angle(270, speed=500)
+        self.animation.smooth_translation((-self.window.centerx / 2, -50), speed=500)
+        self.animation.smooth_scale_to_width(100)
+        self.animation.wait_until_finish(self)
 
 
 class GradientScene(Scene):
@@ -182,7 +189,7 @@ class GradientScene(Scene):
         self.squared: SquaredGradientShape = SquaredGradientShape(100, RED, YELLOW)
         self.radial: RadialGradientShape = RadialGradientShape(50, RED, YELLOW)
 
-    def on_start_loop(self) -> None:
+    def on_start_loop_before_transition(self) -> None:
         self.horizontal.midleft = self.window.midleft
         self.vertical.midright = self.window.midright
         self.radial.center = self.window.center
@@ -193,7 +200,9 @@ class GradientScene(Scene):
 
 
 class Rainbow(AbstractRectangleShape):
+    @initializer
     def __init__(self, width: float, height: float) -> None:
+        super().__init__(width=width, height=height)
         self.__colors: List[HorizontalGradientShape] = [
             HorizontalGradientShape(0, 0, RED, ORANGE),
             HorizontalGradientShape(0, 0, ORANGE, YELLOW),
@@ -208,7 +217,6 @@ class Rainbow(AbstractRectangleShape):
         for shape in self.__colors:
             shape.first_color = set_brightness(shape.first_color, brightness)
             shape.second_color = set_brightness(shape.second_color, brightness)
-        super().__init__(width=width, height=height)
 
     def _make(self) -> Surface:
         width, height = self.local_size
@@ -227,7 +235,7 @@ class RainbowScene(MainScene):
         super().awake(**kwargs)
         self.rainbow = Rainbow(*self.window.size)
 
-    def on_start_loop(self) -> None:
+    def on_start_loop_before_transition(self) -> None:
         self.window.text_framerate.color = BLACK
 
     def on_quit(self) -> None:
@@ -244,12 +252,19 @@ class TextScene(Scene):
         self.text = Text(
             "I'm a text", font=(None, 300), italic=True, color=WHITE, shadow_x=-25, shadow_y=-25, wrap=5, justify="center"
         )
-        self.text_animation = Animation(self.text)
 
-    def on_start_loop(self) -> None:
+    def on_start_loop_before_transition(self) -> None:
         self.text.angle = 0
         self.text.center = self.window.center
-        self.text_animation.register_rotation(360).start_in_background(self)
+
+    def on_start_loop(self, /) -> None:
+        self.text.animation.smooth_rotation(360, speed=5)
+
+    def fixed_update(self, /) -> None:
+        self.text.animation.fixed_update(use_of_linear_interpolation=True)
+
+    def update_alpha(self, /, interpolation: float) -> None:
+        self.text.animation.set_interpolation(interpolation)
 
     def render(self) -> None:
         self.window.draw(self.text)
@@ -257,7 +272,7 @@ class TextScene(Scene):
 
 class ImagesResources(ResourceManager):
     cactus: Surface
-    car: List[Surface]
+    car: Tuple[Surface, ...]
     cross: Surface
     cross_hover: Surface
     __resource_loader__ = ImageLoader
@@ -295,17 +310,22 @@ class AnimatedSpriteScene(MainScene):
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.sprite: AnimatedSprite = AnimatedSprite(*ImagesResources.car)
-        self.sprite.start_sprite_animation(loop=True)
-        self.sprite.ratio = 20
-        self.sprite_move_animation = Animation(self.sprite)
 
-    def on_start_loop(self) -> None:
+    def on_start_loop_before_transition(self) -> None:
         self.sprite.angle = 0
         self.sprite.center = self.window.center
-        self.sprite_move_animation.register_rotation(360, offset=2).start_in_background(self)
 
-    def update(self) -> None:
+    def on_start_loop(self, /) -> None:
+        self.sprite.ratio = 20
+        self.sprite.start_sprite_animation(loop=True)
+        self.sprite.animation.smooth_rotation(360, speed=200)
+
+    def fixed_update(self) -> None:
+        self.sprite.animation.fixed_update(use_of_linear_interpolation=True)
         self.sprite.update()
+
+    def update_alpha(self, /, interpolation: float) -> None:
+        self.sprite.animation.set_interpolation(interpolation)
 
     def render(self) -> None:
         self.window.draw(self.sprite)
@@ -348,12 +368,20 @@ class TextImageScene(MainScene):
         )
         self.text.img_scale_to_size((100, 100))
         self.text.center = self.window.center
-        self.text_animation = Animation(self.text)
 
-    def on_start_loop(self) -> None:
+    def on_start_loop_before_transition(self) -> None:
         self.text.angle = 0
         self.text.scale = 1
-        self.text_animation.register_rotation(360).register_width_offset(100).start_in_background(self)
+
+    def on_start_loop(self, /) -> None:
+        self.text.animation.smooth_rotation(360)
+        self.text.animation.smooth_width_growth(100)
+
+    def fixed_update(self, /) -> None:
+        self.text.animation.fixed_update(use_of_linear_interpolation=True)
+
+    def update_alpha(self, /, interpolation: float) -> None:
+        self.text.animation.set_interpolation(interpolation)
 
     def render(self) -> None:
         self.window.draw(self.text)
@@ -374,19 +402,29 @@ class ButtonScene(MainScene):
         self.button.img_scale_to_size((100, 100))
         self.button.center = self.window.center
 
-        self.cancel = ImageButton(
-            self, img=ImagesResources.cross, active_img=ImagesResources.cross_hover, callback=self.on_start_loop
-        )
+        def restart() -> None:
+            self.on_start_loop_before_transition()
+            self.on_start_loop()
+
+        self.cancel = ImageButton(self, img=ImagesResources.cross, active_img=ImagesResources.cross_hover, callback=restart)
         self.cancel.center = self.window.center
         self.cancel.move(450, 0)
-        self.button_animation = Animation(self.button)
 
-    def on_start_loop(self) -> None:
+    def on_start_loop_before_transition(self) -> None:
         self.counter = 0
         self.button.text = "0"
         self.button.scale = 1
         self.button.angle = 0
-        self.button_animation.register_width_offset(100).register_rotation(360 + 30, offset=3).start_in_background(self)
+
+    def on_start_loop(self, /) -> None:
+        self.button.animation.smooth_width_growth(100)
+        self.button.animation.smooth_rotation(390, speed=300)
+
+    def fixed_update(self, /) -> None:
+        self.button.animation.fixed_update(use_of_linear_interpolation=True)
+
+    def update_alpha(self, /, interpolation: float) -> None:
+        self.button.animation.set_interpolation(interpolation)
 
     def __increase_counter(self) -> None:
         self.counter += 1
@@ -405,7 +443,7 @@ class CheckBoxScene(MainScene):
             self, 50, 50, BLUE_LIGHT, off_value=0, on_value=10, callback=self.__set_text, callback_at_init=False
         )
 
-    def on_start_loop(self) -> None:
+    def on_start_loop_before_transition(self) -> None:
         self.box.center = self.window.center
         self.box.value = self.box.off_value
         self.__set_text(self.box.value)
@@ -434,10 +472,15 @@ class ProgressScene(MainScene):
         progress.show_percent("inside", font=(None, 60))
         progress.center = self.window.center
         restart.midtop = progress.centerx, progress.bottom + 20
-        self.every(20, lambda: self.progress.config(value=self.progress.value + 1))
+
+    def on_start_loop_before_transition(self, /) -> None:
+        self.progress.percent = 0
 
     def on_start_loop(self) -> None:
-        self.progress.percent = 0
+        self.callback = self.every(20, lambda: self.progress.config(value=self.progress.value + 1))
+
+    def on_quit(self, /) -> None:
+        self.callback.kill()
 
     def render(self) -> None:
         self.window.draw(self.progress, self.restart)
@@ -455,7 +498,7 @@ class ScaleScene(MainScene):
         scale.center = self.window.center
         text.midtop = scale.centerx, scale.bottom + 20
 
-    def on_start_loop(self) -> None:
+    def on_start_loop_before_transition(self) -> None:
         self.scale.value = self.scale.from_value
 
     def render(self) -> None:
@@ -469,39 +512,41 @@ class EntryScene(MainScene):
         self.entry = entry = Entry(self, font=(None, 70))
         entry.center = self.window.center
 
-    def on_start_loop(self) -> None:
+    def on_start_loop_before_transition(self) -> None:
         self.entry.clear()
 
     def render(self) -> None:
         self.window.draw(self.entry)
 
 
-class SceneTransitionLeft(SceneTransition):
-    def show_new_scene(self, /, target: Renderer, previous_scene_image: Surface, actual_scene_image: Surface) -> Iterator[None]:
+class SceneTransitionTranslation(SceneTransition):
+    def __init__(self, /, side: Literal["left", "right"]) -> None:
+        super().__init__()
+        self.__side: Literal["left", "right"] = side
+
+    def show_new_scene(
+        self, /, target: Renderer, previous_scene_image: Surface, actual_scene_image: Surface
+    ) -> SceneTransitionCoroutine:
         previous_scene = Image(previous_scene_image)
         actual_scene = Image(actual_scene_image)
         target_rect = target.get_rect()
         previous_scene.center = actual_scene.center = target_rect.center
         previous_scene.fill(set_color_alpha(BLACK, 100))
-        while previous_scene.right >= target_rect.left:
-            previous_scene.move(-25, 0)
+        previous_scene_hidden: Callable[[], bool]
+        if self.__side == "left":
+            previous_scene.animation.infinite_translation((-1, 0), speed=3000)
+            previous_scene_hidden = lambda: previous_scene.right >= target_rect.left
+        else:
+            previous_scene.animation.infinite_translation((1, 0), speed=3000)
+            previous_scene_hidden = lambda: previous_scene.left <= target_rect.right
+        while previous_scene_hidden():
+            interpolation: Optional[float] = yield
+            if interpolation is None:
+                previous_scene.animation.fixed_update(use_of_linear_interpolation=True)
+                continue
+            previous_scene.animation.set_interpolation(interpolation)
             actual_scene.draw_onto(target)
             previous_scene.draw_onto(target)
-            yield
-
-
-class SceneTransitionRight(SceneTransition):
-    def show_new_scene(self, /, target: Renderer, previous_scene_image: Surface, actual_scene_image: Surface) -> Iterator[None]:
-        previous_scene = Image(previous_scene_image)
-        actual_scene = Image(actual_scene_image)
-        target_rect = target.get_rect()
-        previous_scene.center = actual_scene.center = target_rect.center
-        previous_scene.fill(set_color_alpha(BLACK, 100))
-        while previous_scene.left <= target_rect.right:
-            previous_scene.move(25, 0)
-            actual_scene.draw_onto(target)
-            previous_scene.draw_onto(target)
-            yield
 
 
 class MainWindow(SceneWindow):
@@ -535,8 +580,8 @@ class MainWindow(SceneWindow):
     def __window_init__(self) -> None:
         super().__window_init__()
         self.text_framerate.show()
-        self.set_busy_loop(True)
         self.set_default_framerate(120)
+        self.set_default_fixed_framerate(100)
         self.index: int = 0
         self.prev_button: Button = Button(self, "Previous", callback=self.__previous_scene)
         self.next_button: Button = Button(self, "Next", callback=self.__next_scene)
@@ -556,11 +601,11 @@ class MainWindow(SceneWindow):
 
     def __next_scene(self) -> None:
         self.index = (self.index + 1) % len(self.all_scenes)
-        self.start_scene(self.all_scenes[self.index], remove_actual=True, transition=SceneTransitionLeft())
+        self.start_scene(self.all_scenes[self.index], remove_actual=True, transition=SceneTransitionTranslation("left"))
 
     def __previous_scene(self) -> None:
         self.index = len(self.all_scenes) - 1 if self.index == 0 else self.index - 1
-        self.start_scene(self.all_scenes[self.index], remove_actual=True, transition=SceneTransitionRight())
+        self.start_scene(self.all_scenes[self.index], remove_actual=True, transition=SceneTransitionTranslation("right"))
 
 
 def main() -> None:

@@ -73,19 +73,19 @@ class Image(TDrawable):
     def set(self, /, image: Surface, copy: bool = True) -> None:
         center: Tuple[float, float] = self.center
         self.__default_image = image.copy() if copy else image
-        self._apply_rotation_scale()
+        self.apply_rotation_scale()
         self.center = center
 
     def fill(self, /, color: Color, rect: Optional[Rect] = None) -> None:
         mask = create_surface(self.__default_image.get_size() if rect is None else rect.size)
         mask.fill(color)
         self.__default_image.blit(mask, rect or (0, 0))
-        self._apply_rotation_scale()
+        self.apply_rotation_scale()
 
     def load(self, /, file: str) -> None:
         center: Tuple[float, float] = self.center
         self.__default_image = load_image(file)
-        self._apply_rotation_scale()
+        self.apply_rotation_scale()
         self.center = center
 
     def save(self, /, file: str) -> None:
@@ -101,7 +101,7 @@ class Image(TDrawable):
         former_state: bool = self.__smooth_scale
         self.__smooth_scale = actual_state = bool(status)
         if former_state != actual_state:
-            self._apply_rotation_scale()
+            self.apply_rotation_scale()
 
     def _apply_both_rotation_and_scale(self, /) -> None:
         angle: float = self.angle

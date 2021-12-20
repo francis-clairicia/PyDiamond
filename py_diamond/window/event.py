@@ -63,7 +63,7 @@ class MetaEvent(type):
                 raise TypeError(f"{name!r} must only inherits from Event without multiple inheritance")
             event_type = Event.Type(event_type)
 
-            annotations = namespace["__annotations__"] = namespace.get("__annotations__", {})
+            annotations = namespace.setdefault("__annotations__", {})
             annotations["type"] = Event.Type
             namespace["type"] = field(default=event_type, init=False)
             cls: MetaEvent = super().__new__(metacls, name, bases, namespace, **kwargs)
@@ -160,10 +160,10 @@ class MouseMotionEvent(Event, event_type=Event.Type.MOUSEMOTION):
 
 @dataclass(frozen=True)
 class MouseWheelEvent(Event, event_type=Event.Type.MOUSEWHEEL):
-    which: int
     flipped: bool
     x: int
     y: int
+    which: int = -1
 
 
 MouseEvent = Union[MouseButtonEvent, MouseWheelEvent, MouseMotionEvent]
@@ -262,11 +262,6 @@ class EventManager:
         self.__mouse_button_pressed_handler_dict: Dict[Mouse.Button, List[_EventCallback]] = dict()
         self.__mouse_button_released_handler_dict: Dict[Mouse.Button, List[_EventCallback]] = dict()
         self.__mouse_pos_handler_list: List[_MousePositionCallback] = list()
-
-        self.bind_event(Event.Type.KEYDOWN, self.__handle_key_event)
-        self.bind_event(Event.Type.KEYUP, self.__handle_key_event)
-        self.bind_event(Event.Type.MOUSEBUTTONDOWN, self.__handle_mouse_event)
-        self.bind_event(Event.Type.MOUSEBUTTONUP, self.__handle_mouse_event)
 
     @staticmethod
     def __bind(handler_dict: Dict[_T, List[_EventCallback]], key: _T, callback: Callable[[_TE], None]) -> None:
@@ -433,6 +428,10 @@ class EventManager:
             mouse_pos_handler_list.remove(callback_to_remove)
 
     def process_event(self, /, event: Event) -> None:
+        if isinstance(event, (KeyUpEvent, KeyDownEvent)):
+            self.__handle_key_event(event)
+        elif isinstance(event, (MouseButtonUpEvent, MouseButtonDownEvent)):
+            self.__handle_mouse_event(event)
         event_dict: Dict[Event.Type, List[_EventCallback]] = self.__event_handler_dict
         for callback in event_dict.get(event.type, []):
             callback(event)

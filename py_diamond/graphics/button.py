@@ -2,7 +2,7 @@
 
 __all__ = ["Button", "ImageButton", "MetaButton"]
 
-from typing import Any, Callable, Dict, Literal, Optional, Tuple, TypedDict, Union, overload
+from typing import Any, Callable, ClassVar, Dict, Literal, Optional, Tuple, TypedDict, Union, overload
 from enum import Enum, unique
 from operator import truth
 
@@ -16,7 +16,7 @@ from .rect import Rect
 from .renderer import Renderer
 from .shape import RectangleShape
 from .surface import Surface
-from ..system.configuration import ConfigAttribute, Configuration, initializer
+from ..system.configuration import OptionAttribute, Configuration, initializer
 from ..system.utils import valid_float, valid_optional_float
 from .text import TextImage, _TextFont
 from .theme import MetaThemedObject, NoTheme, ThemeType
@@ -24,52 +24,6 @@ from ..window.clickable import Clickable
 from ..window.cursor import Cursor
 from ..window.display import Window
 from ..window.scene import Scene
-
-
-class _ButtonColor(TypedDict):
-    normal: Color
-    hover: Optional[Color]
-    active: Optional[Color]
-
-
-class _ImageDict(TypedDict):
-    normal: Optional[Surface]
-    hover: Optional[Surface]
-    active: Optional[Surface]
-
-
-class _ImageButtonDict(TypedDict):
-    normal: Surface
-    hover: Optional[Surface]
-    active: Optional[Surface]
-
-
-@overload
-def _copy_color(c: Optional[Color]) -> Optional[Color]:
-    ...
-
-
-@overload
-def _copy_color(c: Optional[Color], default: Color) -> Color:
-    ...
-
-
-def _copy_color(c: Optional[Color], default: Optional[Color] = None) -> Optional[Color]:
-    return Color(c) if c is not None else (None if default is None else _copy_color(default))
-
-
-@overload
-def _copy_img(surface: Optional[Surface]) -> Optional[Surface]:
-    ...
-
-
-@overload
-def _copy_img(surface: Optional[Surface], default: Surface) -> Surface:
-    ...
-
-
-def _copy_img(surface: Optional[Surface], default: Optional[Surface] = None) -> Optional[Surface]:
-    return surface.copy() if surface is not None else (None if default is None else _copy_img(default))
 
 
 class MetaButton(MetaTDrawable, MetaThemedObject):
@@ -94,12 +48,12 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         BOTTOM = "bottom"
         CENTER = "center"
 
-    __HORIZONTAL_ALIGN_POS: Dict[str, str] = {
+    __HORIZONTAL_ALIGN_POS: ClassVar[Dict[str, str]] = {
         "left": "left",
         "right": "right",
         "center": "centerx",
     }
-    __VERTICAL_ALIGN_POS: Dict[str, str] = {
+    __VERTICAL_ALIGN_POS: ClassVar[Dict[str, str]] = {
         "top": "top",
         "bottom": "bottom",
         "center": "centery",
@@ -396,7 +350,7 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         self.__update_shape_size()
 
     def _mouse_in_hitbox(self, /, mouse_pos: Tuple[float, float]) -> bool:
-        rect: Rect = Rect((0, 0), self.get_area(apply_rotation=False))
+        rect: Rect = Rect((0, 0), self.get_area_size(apply_rotation=False))
         center: Tuple[float, float] = self.center
         rect.center = int(center[0]), int(center[1])
         pivot: Vector2 = Vector2(rect.center)
@@ -515,62 +469,62 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     config.set_alias("disabled_active_background", "disabled_active_bg")
     config.set_alias("disabled_active_foreground", "disabled_active_fg")
 
-    text: ConfigAttribute[str] = ConfigAttribute()
-    text_font: ConfigAttribute[Font] = ConfigAttribute()
-    text_justify: ConfigAttribute[str] = ConfigAttribute()
-    text_wrap: ConfigAttribute[int] = ConfigAttribute()
-    text_shadow: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
-    text_shadow_x: ConfigAttribute[float] = ConfigAttribute()
-    text_shadow_y: ConfigAttribute[float] = ConfigAttribute()
-    text_shadow_color: ConfigAttribute[Color] = ConfigAttribute()
-    img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
-    compound: ConfigAttribute[str] = ConfigAttribute()
-    distance_text_img: ConfigAttribute[float] = ConfigAttribute()
-    fixed_width: ConfigAttribute[Optional[float]] = ConfigAttribute()
-    fixed_height: ConfigAttribute[Optional[float]] = ConfigAttribute()
-    x_add_size: ConfigAttribute[float] = ConfigAttribute()
-    y_add_size: ConfigAttribute[float] = ConfigAttribute()
-    background: ConfigAttribute[Color] = ConfigAttribute()
-    foreground: ConfigAttribute[Color] = ConfigAttribute()
-    bg: ConfigAttribute[Color] = ConfigAttribute()
-    fg: ConfigAttribute[Color] = ConfigAttribute()
-    outline: ConfigAttribute[int] = ConfigAttribute()
-    outline_color: ConfigAttribute[Color] = ConfigAttribute()
-    hover_background: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    hover_foreground: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    hover_bg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    hover_fg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    active_background: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    active_foreground: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    active_bg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    active_fg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    disabled_background: ConfigAttribute[Color] = ConfigAttribute()
-    disabled_foreground: ConfigAttribute[Color] = ConfigAttribute()
-    disabled_bg: ConfigAttribute[Color] = ConfigAttribute()
-    disabled_fg: ConfigAttribute[Color] = ConfigAttribute()
-    disabled_hover_background: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    disabled_hover_foreground: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    disabled_hover_bg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    disabled_hover_fg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    disabled_active_background: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    disabled_active_foreground: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    disabled_active_bg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    disabled_active_fg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    hover_img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
-    active_img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
-    disabled_img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
-    disabled_hover_img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
-    disabled_active_img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
-    text_align_x: ConfigAttribute[str] = ConfigAttribute()
-    text_align_y: ConfigAttribute[str] = ConfigAttribute()
-    text_offset: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
-    text_hover_offset: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
-    text_active_offset: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
-    border_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_top_left_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_top_right_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_bottom_left_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_bottom_right_radius: ConfigAttribute[int] = ConfigAttribute()
+    text: OptionAttribute[str] = OptionAttribute()
+    text_font: OptionAttribute[Font] = OptionAttribute()
+    text_justify: OptionAttribute[str] = OptionAttribute()
+    text_wrap: OptionAttribute[int] = OptionAttribute()
+    text_shadow: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    text_shadow_x: OptionAttribute[float] = OptionAttribute()
+    text_shadow_y: OptionAttribute[float] = OptionAttribute()
+    text_shadow_color: OptionAttribute[Color] = OptionAttribute()
+    img: OptionAttribute[Optional[Surface]] = OptionAttribute()
+    compound: OptionAttribute[str] = OptionAttribute()
+    distance_text_img: OptionAttribute[float] = OptionAttribute()
+    fixed_width: OptionAttribute[Optional[float]] = OptionAttribute()
+    fixed_height: OptionAttribute[Optional[float]] = OptionAttribute()
+    x_add_size: OptionAttribute[float] = OptionAttribute()
+    y_add_size: OptionAttribute[float] = OptionAttribute()
+    background: OptionAttribute[Color] = OptionAttribute()
+    foreground: OptionAttribute[Color] = OptionAttribute()
+    bg: OptionAttribute[Color] = OptionAttribute()
+    fg: OptionAttribute[Color] = OptionAttribute()
+    outline: OptionAttribute[int] = OptionAttribute()
+    outline_color: OptionAttribute[Color] = OptionAttribute()
+    hover_background: OptionAttribute[Optional[Color]] = OptionAttribute()
+    hover_foreground: OptionAttribute[Optional[Color]] = OptionAttribute()
+    hover_bg: OptionAttribute[Optional[Color]] = OptionAttribute()
+    hover_fg: OptionAttribute[Optional[Color]] = OptionAttribute()
+    active_background: OptionAttribute[Optional[Color]] = OptionAttribute()
+    active_foreground: OptionAttribute[Optional[Color]] = OptionAttribute()
+    active_bg: OptionAttribute[Optional[Color]] = OptionAttribute()
+    active_fg: OptionAttribute[Optional[Color]] = OptionAttribute()
+    disabled_background: OptionAttribute[Color] = OptionAttribute()
+    disabled_foreground: OptionAttribute[Color] = OptionAttribute()
+    disabled_bg: OptionAttribute[Color] = OptionAttribute()
+    disabled_fg: OptionAttribute[Color] = OptionAttribute()
+    disabled_hover_background: OptionAttribute[Optional[Color]] = OptionAttribute()
+    disabled_hover_foreground: OptionAttribute[Optional[Color]] = OptionAttribute()
+    disabled_hover_bg: OptionAttribute[Optional[Color]] = OptionAttribute()
+    disabled_hover_fg: OptionAttribute[Optional[Color]] = OptionAttribute()
+    disabled_active_background: OptionAttribute[Optional[Color]] = OptionAttribute()
+    disabled_active_foreground: OptionAttribute[Optional[Color]] = OptionAttribute()
+    disabled_active_bg: OptionAttribute[Optional[Color]] = OptionAttribute()
+    disabled_active_fg: OptionAttribute[Optional[Color]] = OptionAttribute()
+    hover_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
+    active_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
+    disabled_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
+    disabled_hover_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
+    disabled_active_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
+    text_align_x: OptionAttribute[str] = OptionAttribute()
+    text_align_y: OptionAttribute[str] = OptionAttribute()
+    text_offset: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    text_hover_offset: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    text_active_offset: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    border_radius: OptionAttribute[int] = OptionAttribute()
+    border_top_left_radius: OptionAttribute[int] = OptionAttribute()
+    border_top_right_radius: OptionAttribute[int] = OptionAttribute()
+    border_bottom_left_radius: OptionAttribute[int] = OptionAttribute()
+    border_bottom_right_radius: OptionAttribute[int] = OptionAttribute()
 
     @config.getter_key("text", use_key="message")
     @config.getter_key("text_font", use_key="font")
@@ -620,7 +574,7 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     config.on_update("x_add_size", __update_shape_size)
     config.on_update("y_add_size", __update_shape_size)
 
-    __STATE: Dict[str, Tuple[Clickable.State, Literal["normal", "hover", "active"]]] = {
+    __STATE: ClassVar[Dict[str, Tuple[Clickable.State, Literal["normal", "hover", "active"]]]] = {
         "background": (Clickable.State.NORMAL, "normal"),
         "hover_background": (Clickable.State.NORMAL, "hover"),
         "active_background": (Clickable.State.NORMAL, "active"),
@@ -791,7 +745,7 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     @config.setter_key("border_top_right_radius")
     @config.setter_key("border_bottom_left_radius")
     @config.setter_key("border_bottom_right_radius")
-    def __set_shape_option(self, /, option: str, value: Any) -> Any:
+    def __set_shape_option(self, /, option: str, value: Any) -> None:
         return self.__shape.config.set(option, value)
 
     @property
@@ -1021,35 +975,35 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     config.set_alias("disabled_hover_background", "disabled_hover_bg")
     config.set_alias("disabled_active_background", "disabled_active_bg")
 
-    img: ConfigAttribute[Surface] = ConfigAttribute()
-    x_add_size: ConfigAttribute[float] = ConfigAttribute()
-    y_add_size: ConfigAttribute[float] = ConfigAttribute()
-    background: ConfigAttribute[Color] = ConfigAttribute()
-    bg: ConfigAttribute[Color] = ConfigAttribute()
-    outline: ConfigAttribute[int] = ConfigAttribute()
-    outline_color: ConfigAttribute[Color] = ConfigAttribute()
-    hover_background: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    hover_bg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    active_background: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    active_bg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    disabled_background: ConfigAttribute[Color] = ConfigAttribute()
-    disabled_bg: ConfigAttribute[Color] = ConfigAttribute()
-    disabled_hover_background: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    disabled_hover_bg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    disabled_active_background: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    disabled_active_bg: ConfigAttribute[Optional[Color]] = ConfigAttribute()
-    hover_img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
-    active_img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
-    disabled_img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
-    disabled_hover_img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
-    disabled_active_img: ConfigAttribute[Optional[Surface]] = ConfigAttribute()
-    hover_offset: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
-    active_offset: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
-    border_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_top_left_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_top_right_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_bottom_left_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_bottom_right_radius: ConfigAttribute[int] = ConfigAttribute()
+    img: OptionAttribute[Surface] = OptionAttribute()
+    x_add_size: OptionAttribute[float] = OptionAttribute()
+    y_add_size: OptionAttribute[float] = OptionAttribute()
+    background: OptionAttribute[Color] = OptionAttribute()
+    bg: OptionAttribute[Color] = OptionAttribute()
+    outline: OptionAttribute[int] = OptionAttribute()
+    outline_color: OptionAttribute[Color] = OptionAttribute()
+    hover_background: OptionAttribute[Optional[Color]] = OptionAttribute()
+    hover_bg: OptionAttribute[Optional[Color]] = OptionAttribute()
+    active_background: OptionAttribute[Optional[Color]] = OptionAttribute()
+    active_bg: OptionAttribute[Optional[Color]] = OptionAttribute()
+    disabled_background: OptionAttribute[Color] = OptionAttribute()
+    disabled_bg: OptionAttribute[Color] = OptionAttribute()
+    disabled_hover_background: OptionAttribute[Optional[Color]] = OptionAttribute()
+    disabled_hover_bg: OptionAttribute[Optional[Color]] = OptionAttribute()
+    disabled_active_background: OptionAttribute[Optional[Color]] = OptionAttribute()
+    disabled_active_bg: OptionAttribute[Optional[Color]] = OptionAttribute()
+    hover_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
+    active_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
+    disabled_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
+    disabled_hover_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
+    disabled_active_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
+    hover_offset: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    active_offset: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    border_radius: OptionAttribute[int] = OptionAttribute()
+    border_top_left_radius: OptionAttribute[int] = OptionAttribute()
+    border_top_right_radius: OptionAttribute[int] = OptionAttribute()
+    border_bottom_left_radius: OptionAttribute[int] = OptionAttribute()
+    border_bottom_right_radius: OptionAttribute[int] = OptionAttribute()
 
     @config.value_converter_static("hover_offset")
     @config.value_converter_static("active_offset")
@@ -1062,7 +1016,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     config.on_update("x_add_size", __update_shape_size)
     config.on_update("y_add_size", __update_shape_size)
 
-    __STATE: Dict[str, Tuple[Clickable.State, Literal["normal", "hover", "active"]]] = {
+    __STATE: ClassVar[Dict[str, Tuple[Clickable.State, Literal["normal", "hover", "active"]]]] = {
         "background": (Clickable.State.NORMAL, "normal"),
         "hover_background": (Clickable.State.NORMAL, "hover"),
         "active_background": (Clickable.State.NORMAL, "active"),
@@ -1176,7 +1130,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     @config.setter_key("border_top_right_radius")
     @config.setter_key("border_bottom_left_radius")
     @config.setter_key("border_bottom_right_radius")
-    def __set_shape_option(self, /, option: str, value: Any) -> Any:
+    def __set_shape_option(self, /, option: str, value: Any) -> None:
         return self.__shape.config.set(option, value)
 
     @property
@@ -1190,3 +1144,49 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
             self.__callback = callback
         else:
             self.__callback = None
+
+
+class _ButtonColor(TypedDict):
+    normal: Color
+    hover: Optional[Color]
+    active: Optional[Color]
+
+
+class _ImageDict(TypedDict):
+    normal: Optional[Surface]
+    hover: Optional[Surface]
+    active: Optional[Surface]
+
+
+class _ImageButtonDict(TypedDict):
+    normal: Surface
+    hover: Optional[Surface]
+    active: Optional[Surface]
+
+
+@overload
+def _copy_color(c: Optional[Color]) -> Optional[Color]:
+    ...
+
+
+@overload
+def _copy_color(c: Optional[Color], default: Color) -> Color:
+    ...
+
+
+def _copy_color(c: Optional[Color], default: Optional[Color] = None) -> Optional[Color]:
+    return Color(c) if c is not None else (None if default is None else _copy_color(default))
+
+
+@overload
+def _copy_img(surface: Optional[Surface]) -> Optional[Surface]:
+    ...
+
+
+@overload
+def _copy_img(surface: Optional[Surface], default: Surface) -> Surface:
+    ...
+
+
+def _copy_img(surface: Optional[Surface], default: Optional[Surface] = None) -> Optional[Surface]:
+    return surface.copy() if surface is not None else (None if default is None else _copy_img(default))

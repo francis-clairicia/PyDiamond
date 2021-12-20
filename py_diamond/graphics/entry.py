@@ -14,7 +14,7 @@ from .surface import Surface
 from .text import Text, _TextFont
 from .shape import RectangleShape
 from ..system.clock import Clock
-from ..system.configuration import ConfigAttribute, Configuration, initializer
+from ..system.configuration import OptionAttribute, Configuration, initializer
 from ..system.utils import valid_integer, valid_optional_float, valid_optional_integer
 from .theme import MetaThemedObject, NoTheme, ThemeType
 from ..window.clickable import Clickable
@@ -159,6 +159,7 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
     def start_edit(self, /) -> None:
         Keyboard.IME.start_text_input()
         self.__cursor_animated = True
+        self.__show_cursor = True
 
     def stop_edit(self, /) -> None:
         Keyboard.IME.stop_text_input()
@@ -306,27 +307,27 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
         height: float = entry_size[1] + self.__cursor_height_offset
         self.__shape.local_size = (width, height)
 
-    cursor: ConfigAttribute[int] = ConfigAttribute()
-    interval: ConfigAttribute[int] = ConfigAttribute()
-    bg: ConfigAttribute[Color] = ConfigAttribute()
-    fg: ConfigAttribute[Color] = ConfigAttribute()
+    cursor: OptionAttribute[int] = OptionAttribute()
+    interval: OptionAttribute[int] = OptionAttribute()
+    bg: OptionAttribute[Color] = OptionAttribute()
+    fg: OptionAttribute[Color] = OptionAttribute()
 
-    font: ConfigAttribute[Font] = ConfigAttribute()
-    shadow_x: ConfigAttribute[float] = ConfigAttribute()
-    shadow_y: ConfigAttribute[float] = ConfigAttribute()
-    shadow: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
-    shadow_color: ConfigAttribute[Color] = ConfigAttribute()
+    font: OptionAttribute[Font] = OptionAttribute()
+    shadow_x: OptionAttribute[float] = OptionAttribute()
+    shadow_y: OptionAttribute[float] = OptionAttribute()
+    shadow: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    shadow_color: OptionAttribute[Color] = OptionAttribute()
 
-    fixed_width: ConfigAttribute[Optional[float]] = ConfigAttribute()
-    local_width: ConfigAttribute[float] = ConfigAttribute()
-    local_height: ConfigAttribute[float] = ConfigAttribute()
-    local_size: ConfigAttribute[Tuple[float, float]] = ConfigAttribute()
+    fixed_width: OptionAttribute[Optional[float]] = OptionAttribute()
+    local_width: OptionAttribute[float] = OptionAttribute()
+    local_height: OptionAttribute[float] = OptionAttribute()
+    local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
 
-    border_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_top_left_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_top_right_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_bottom_left_radius: ConfigAttribute[int] = ConfigAttribute()
-    border_bottom_right_radius: ConfigAttribute[int] = ConfigAttribute()
+    border_radius: OptionAttribute[int] = OptionAttribute()
+    border_top_left_radius: OptionAttribute[int] = OptionAttribute()
+    border_top_right_radius: OptionAttribute[int] = OptionAttribute()
+    border_bottom_left_radius: OptionAttribute[int] = OptionAttribute()
+    border_bottom_right_radius: OptionAttribute[int] = OptionAttribute()
 
 
 def _get_entry_size(font: Font, nb_chars: int) -> Tuple[int, int]:
@@ -375,4 +376,4 @@ class _TextEntry(Text):
 
     config.value_converter_static("max_width", valid_optional_integer(min_value=0))
 
-    max_width: ConfigAttribute[Optional[int]] = ConfigAttribute()
+    max_width: OptionAttribute[Optional[int]] = OptionAttribute()
