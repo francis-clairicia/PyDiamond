@@ -20,7 +20,7 @@ __all__ = [
 from contextlib import ExitStack, contextmanager, suppress
 from copy import copy, deepcopy
 from enum import Enum
-from functools import lru_cache, wraps
+from functools import cache, wraps
 from types import BuiltinFunctionType, BuiltinMethodType, MethodType
 from typing import (
     Any,
@@ -1321,14 +1321,11 @@ class BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
         return self.__obj
 
 
-def _no_type_check_lru_cache(max_size: int) -> Callable[[_Func], _Func]:
-    def decorator(func: _Func, /) -> _Func:
-        return cast(_Func, lru_cache(maxsize=max_size)(func))
-
-    return decorator
+def _no_type_check_cache(func: _Func) -> _Func:
+    return cast(_Func, cache(func))
 
 
-@_no_type_check_lru_cache(max_size=256)
+@_no_type_check_cache
 def _make_function_wrapper(func: Any, *, check_override: bool = True, no_object: bool = False) -> Callable[..., Any]:
     if getattr(func, "__boundconfiguration_wrapper__", False):
         return cast(Callable[..., Any], func)
@@ -1361,7 +1358,7 @@ def _make_function_wrapper(func: Any, *, check_override: bool = True, no_object:
     return wrapper
 
 
-@_no_type_check_lru_cache(max_size=256)
+@_no_type_check_cache
 def _wrap_function_wrapper(func: Any, wrapper: Callable[..., Any]) -> Callable[..., Any]:
     wrap_decorator = wraps(func)
     wrapper = wrap_decorator(wrapper)
