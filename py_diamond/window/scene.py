@@ -133,16 +133,16 @@ class MetaScene(ABCMeta):
     @staticmethod
     def __theme_namespace_decorator(func: Callable[..., Any], /) -> Callable[..., Any]:
         @wraps(func)
-        def wrapper(__obj: Any, /, *args: Any, **kwargs: Any) -> Any:
-            cls: type = type(__obj) if not isinstance(__obj, type) else __obj
+        def wrapper(self: Any, /, *args: Any, **kwargs: Any) -> Any:
+            cls: type = type(self) if not isinstance(self, type) else self
             output: Any
             try:
                 theme_namespace: Any = MetaScene.__namespaces[cls]
             except KeyError:
-                output = func(__obj, *args, **kwargs)
+                output = func(self, *args, **kwargs)
             else:
                 with ThemeNamespace(theme_namespace):
-                    output = func(__obj, *args, **kwargs)
+                    output = func(self, *args, **kwargs)
             return output
 
         return wrapper
@@ -253,8 +253,10 @@ class Scene(metaclass=MetaScene):
         return self.__manager.top() is self
 
     @final
-    def start(self, /, scene: Type[Scene], *, transition: Optional[SceneTransition] = None, stop_self: bool = False) -> NoReturn:
-        self.__manager.go_to(scene, transition=transition, remove_actual=stop_self)
+    def start(
+        self, /, scene: Type[Scene], *, transition: Optional[SceneTransition] = None, stop_self: bool = False, **kwargs: Any
+    ) -> NoReturn:
+        self.__manager.go_to(scene, transition=transition, remove_actual=stop_self, **kwargs)
 
     @final
     def stop(self, /) -> NoReturn:
@@ -388,23 +390,34 @@ class SceneWindow(Window):
             yield self
 
     @final
-    def run(self, /, default_scene: Type[Scene]) -> None:
+    def run(self, /, default_scene: Type[Scene], **kwargs: Any) -> None:
         self.__scenes.clear()
         gc.collect()
         try:
-            self.__scenes.go_to(default_scene)
+            self.__scenes.go_to(default_scene, **kwargs)
         except _SceneManager.NewScene as exc:
             exc.actual_scene.on_start_loop_before_transition()
             exc.actual_scene.on_start_loop()
         self.__accumulator = 0
-        while self.is_open():
+        is_open = self.is_open
+        process_events = self.process_events
+        update_scene = self.update_scene
+        render_scene = self.render_scene
+        refresh_screen = self.refresh
+        scene_transition = self.__scene_transition
+
+        def handle_events() -> None:
+            for _ in process_events():
+                pass
+
+        while is_open():
             try:
-                self.handle_events()
-                self.update_scene()
-                self.render_scene()
-                self.refresh()
+                handle_events()
+                update_scene()
+                render_scene()
+                refresh_screen()
             except _SceneManager.NewScene as exc:
-                self.__scene_transition(exc)
+                scene_transition(exc)
             except _SceneManager.SceneException as exc:
                 print(f"{type(exc).__name__}: {exc}", file=stderr)
                 continue
@@ -429,12 +442,13 @@ class SceneWindow(Window):
                     next(transition)
                 except StopIteration:
                     animating = False
+                next_transition = transition.send
                 while self.is_open() and animating:
                     self.handle_events()
                     dt: float = Time.fixed_delta()
                     while self.__accumulator >= dt:
                         try:
-                            transition.send(None)
+                            next_transition(None)
                         except StopIteration:
                             animating = False
                             break
@@ -442,7 +456,7 @@ class SceneWindow(Window):
                     if animating:
                         alpha: float = self.__accumulator / dt
                         try:
-                            transition.send(alpha)
+                            next_transition(alpha)
                         except StopIteration:
                             animating = False
                     self.refresh()
@@ -467,8 +481,9 @@ class SceneWindow(Window):
         if scene is None:
             return
         dt: float = Time.fixed_delta()
+        scene_fixed_update = scene.fixed_update
         while self.__accumulator >= dt:
-            scene.fixed_update()
+            scene_fixed_update()
             self.__accumulator -= dt
         alpha: float = self.__accumulator / dt
         scene.update_alpha(alpha)
@@ -482,9 +497,9 @@ class SceneWindow(Window):
         scene.render()
 
     def start_scene(
-        self, /, scene: Type[Scene], *, transition: Optional[SceneTransition] = None, remove_actual: bool = False
+        self, /, scene: Type[Scene], *, transition: Optional[SceneTransition] = None, remove_actual: bool = False, **kwargs: Any
     ) -> NoReturn:
-        self.__scenes.go_to(scene, transition=transition, remove_actual=remove_actual)
+        self.__scenes.go_to(scene, transition=transition, remove_actual=remove_actual, **kwargs)
 
     def stop_actual_scene(self) -> NoReturn:
         self.__scenes.go_back()
@@ -633,6 +648,7 @@ class _SceneManager:
         *,
         transition: Optional[SceneTransition] = None,
         remove_actual: bool = False,
+        **kwargs: Any,
     ) -> NoReturn:
         if scene.__abstractmethods__:
             raise TypeError(f"{scene.__name__} is an abstract class")
@@ -645,7 +661,7 @@ class _SceneManager:
         closing_scenes: List[Scene] = []
         if actual_scene is None or next_scene not in stack:
             stack.insert(0, next_scene)
-            next_scene.awake()
+            next_scene.awake(**kwargs)
             if actual_scene is not None:
                 if isinstance(transition, ReturningSceneTransition):
                     self.__returning_transitions[actual_scene.__class__] = transition
