@@ -430,12 +430,8 @@ class Configuration:
                 main_update(__obj)
 
     def update_all_options(self, /, obj: object) -> None:
-        if self.has_initialization_context(obj):
-            return
-
         objtype: type = type(obj)
         info: _ConfigInfo = self.__info
-        update_stack = Configuration.__update_stack.get(obj, [])
         get_private_attribute = self.__get_option_private_attribute
 
         for option in info.options:
@@ -449,23 +445,17 @@ class Configuration:
                 for value_update in info.get_option_value_update_funcs(option):
                     value_update(obj, value)
         main_update_list: List[Callable[[object], None]] = list(info.get_main_update_funcs())
-        for option in filter(lambda opt: opt not in update_stack, info.options):
+        for option in info.options:
             for update in info.get_option_update_funcs(option):
                 if update in main_update_list:
                     continue
-                with self.__updating_option(obj, option):
-                    update(obj)
-        if not update_stack:
-            for main_update in main_update_list:
-                main_update(obj)
+                update(obj)
+        for main_update in main_update_list:
+            main_update(obj)
 
     def update_option(self, /, obj: object, option: str) -> None:
-        if self.has_initialization_context(obj):
-            return
-
         objtype: type = type(obj)
         info: _ConfigInfo = self.__info
-        update_stack = Configuration.__update_stack.get(obj, [])
         get_private_attribute = self.__get_option_private_attribute
 
         self.check_option_validity(option)
@@ -478,17 +468,13 @@ class Configuration:
                 value = getattr(obj, get_private_attribute(option, objtype))
             for value_update in info.get_option_value_update_funcs(option):
                 value_update(obj, value)
-        if option in update_stack:
-            return
         main_update_list: List[Callable[[object], None]] = list(info.get_main_update_funcs())
         for update in info.get_option_update_funcs(option):
             if update in main_update_list:
                 continue
-            with self.__updating_option(obj, option):
-                update(obj)
-        if not update_stack:
-            for main_update in main_update_list:
-                main_update(obj)
+            update(obj)
+        for main_update in main_update_list:
+            main_update(obj)
 
     @contextmanager
     def initialization(self, /, obj: object) -> Iterator[None]:
@@ -1104,10 +1090,10 @@ class Configuration:
             return
 
         def cleanup() -> None:
-            if not update_stack:
-                Configuration.__update_stack.pop(obj, None)
             with suppress(ValueError):
                 update_stack.remove(option)
+            if not update_stack:
+                Configuration.__update_stack.pop(obj, None)
 
         with ExitStack() as stack:
             stack.callback(cleanup)
