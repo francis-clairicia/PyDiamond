@@ -474,17 +474,25 @@ class SceneWindow(Window):
         self.__accumulator += min(real_delta_time / 1000, 2 * Time.fixed_delta())
         return real_delta_time
 
+    def _fixed_updates_call(self, *funcs: Callable[[], None]) -> None:
+        dt: float = Time.fixed_delta()
+        while self.__accumulator >= dt:
+            for func in funcs:
+                func()
+            self.__accumulator -= dt
+
+    def _interpolation_updates_call(self, *funcs: Callable[[float], None]) -> None:
+        alpha: float = self.__accumulator / Time.fixed_delta()
+        alpha = min(max(alpha, 0), 1)
+        for func in funcs:
+            func(alpha)
+
     def update_scene(self, /) -> None:
         scene: Optional[Scene] = self.__scenes.top()
         if scene is None:
             return
-        dt: float = Time.fixed_delta()
-        scene_fixed_update = scene.fixed_update
-        while self.__accumulator >= dt:
-            scene_fixed_update()
-            self.__accumulator -= dt
-        alpha: float = self.__accumulator / dt
-        scene.update_alpha(alpha)
+        self._fixed_updates_call(scene.fixed_update)
+        self._interpolation_updates_call(scene.update_alpha)
         scene.update()
 
     def render_scene(self, /) -> None:
