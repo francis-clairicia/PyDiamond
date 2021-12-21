@@ -33,7 +33,6 @@ from typing import (
 import pygame
 import pygame.display
 import pygame.event
-import pygame.mixer
 
 from .cursor import Cursor
 from .event import EventManager, Event, UnknownEventTypeError

@@ -433,8 +433,6 @@ class SceneWindow(Window):
                 self.clear(event.actual_scene.background_color)
                 event.actual_scene.render()
             with self.capture() as window_surface, self.block_all_events_context(), self.no_window_callback_processing():
-                self.refresh()
-                self.clear()
                 transition: SceneTransitionCoroutine
                 transition = event.transition(SurfaceRenderer(window_surface), previous_scene_surface, actual_scene_surface)
                 animating = True

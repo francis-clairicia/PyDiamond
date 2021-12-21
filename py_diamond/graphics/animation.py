@@ -52,6 +52,7 @@ class TransformAnimation:
         self.__actual_state: Optional[_TransformState] = None
         self.__previous_state: Optional[_TransformState] = None
         self.__on_stop: Optional[Callable[[], None]] = None
+        self.__wait: bool = True
 
     __Self = TypeVar("__Self", bound="TransformAnimation")
 
@@ -157,15 +158,18 @@ class TransformAnimation:
             return
         transformable: Transformable = self.__transformable
         self.__previous_state = state = self.__actual_state
-        if state is not None:
+        if use_of_linear_interpolation and state is not None:
             state.apply_on(transformable, apply_rotation_scale=False)
+        else:
+            self.__previous_state = self.__actual_state = None
         for animation in self.__iter_animations():
             if animation.started():
                 animation.fixed_update(apply_rotation_scale=not use_of_linear_interpolation)
             else:
                 animation.default()
-        if self.started():
-            self.__actual_state = _TransformState.from_transformable(transformable)
+        if self.has_animation_started():
+            if use_of_linear_interpolation:
+                self.__actual_state = _TransformState.from_transformable(transformable)
         else:
             on_stop = self.__on_stop
             if on_stop:
@@ -181,20 +185,36 @@ class TransformAnimation:
         actual: _TransformState = self.__actual_state
         previous.interpolate(actual, interpolation).apply_on(transformable)
 
-    def started(self) -> bool:
+    def has_animation_started(self, /) -> bool:
         return any(animation.started() for animation in self.__animations.values())
 
-    def on_stop(self, callback: Optional[Callable[[], None]]) -> None:
+    def started(self, /) -> bool:
+        return not self.__wait and self.has_animation_started()
+
+    def on_stop(self, /, callback: Optional[Callable[[], None]]) -> None:
         assert callback is None or callable(callback)
         self.__on_stop = callback
+
+    def start(self, /) -> None:
+        self.__wait = False
+
+    def pause(self, /) -> None:
+        self.__wait = True
+
+    def clear(self, /, *, pause: bool = False) -> None:
+        if pause:
+            self.pause()
+        self.__animations.clear()
+        self.__actual_state = self.__previous_state = None
 
     def wait_until_finish(self, /, scene: Scene) -> None:
         if not scene.looping():
             return
         window: SceneWindow = scene.window
         self.__on_stop = None
+        self.start()
         with window.block_all_events_context(), window.no_window_callback_processing():
-            while window.is_open() and self.started():
+            while window.is_open() and self.has_animation_started():
                 window.handle_events()
                 window.update_scene()
                 window.render_scene()
@@ -205,9 +225,8 @@ class TransformAnimation:
             animation: Optional[_AbstractAnimationClass] = self.__animations.get(animation_name)
             if animation is not None:
                 yield animation
-        if not self.started():
-            self.__animations.clear()
-            self.__actual_state = self.__previous_state = None
+        if not self.has_animation_started():
+            self.clear(pause=False)
 
 
 class _AbstractAnimationClass(metaclass=ABCMeta):

@@ -159,10 +159,15 @@ class AnimationScene(MainScene):
         self.rectangle.angle = 0
         self.rectangle.scale = 1
         self.rectangle.midleft = window.midleft
+
+    def on_start_loop(self, /) -> None:
+        window: Window = self.window
+        self.animation.clear()
         self.animation.smooth_set_position(center=window.center, speed=370)
         self.animation.smooth_rotation_around_point(360, window.center, speed=200)
         self.animation.smooth_rotation(360 * 2, speed=410)
         self.animation.on_stop(self.move_to_left)
+        self.animation.start()
 
     def fixed_update(self, /) -> None:
         self.animation.fixed_update(use_of_linear_interpolation=True)
@@ -258,7 +263,9 @@ class TextScene(Scene):
         self.text.center = self.window.center
 
     def on_start_loop(self, /) -> None:
+        self.text.animation.clear()
         self.text.animation.smooth_rotation(360, speed=5)
+        self.text.animation.start()
 
     def fixed_update(self, /) -> None:
         self.text.animation.fixed_update(use_of_linear_interpolation=True)
@@ -318,7 +325,9 @@ class AnimatedSpriteScene(MainScene):
     def on_start_loop(self, /) -> None:
         self.sprite.ratio = 20
         self.sprite.start_sprite_animation(loop=True)
+        self.sprite.animation.clear()
         self.sprite.animation.smooth_rotation(360, speed=200)
+        self.sprite.animation.start()
 
     def fixed_update(self) -> None:
         self.sprite.animation.fixed_update(use_of_linear_interpolation=True)
@@ -374,8 +383,10 @@ class TextImageScene(MainScene):
         self.text.scale = 1
 
     def on_start_loop(self, /) -> None:
+        self.text.animation.clear()
         self.text.animation.smooth_rotation(360)
         self.text.animation.smooth_width_growth(100)
+        self.text.animation.start()
 
     def fixed_update(self, /) -> None:
         self.text.animation.fixed_update(use_of_linear_interpolation=True)
@@ -417,8 +428,10 @@ class ButtonScene(MainScene):
         self.button.angle = 0
 
     def on_start_loop(self, /) -> None:
+        self.button.animation.clear()
         self.button.animation.smooth_width_growth(100)
         self.button.animation.smooth_rotation(390, speed=300)
+        self.button.animation.start()
 
     def fixed_update(self, /) -> None:
         self.button.animation.fixed_update(use_of_linear_interpolation=True)
@@ -539,6 +552,7 @@ class SceneTransitionTranslation(SceneTransition):
         else:
             previous_scene.animation.infinite_translation((1, 0), speed=3000)
             previous_scene_hidden = lambda: previous_scene.left <= target_rect.right
+        previous_scene.animation.start()
         while previous_scene_hidden():
             interpolation: Optional[float] = yield
             if interpolation is None:
