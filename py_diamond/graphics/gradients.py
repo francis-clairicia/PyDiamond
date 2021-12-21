@@ -8,7 +8,7 @@ __all__ = [
     "VerticalGradientShape",
 ]
 
-from typing import Any, List, Tuple
+from typing import Any, Sequence, Tuple
 
 from .color import Color
 from ..math import Vector2
@@ -82,9 +82,9 @@ class SquaredGradientShape(GradientShape):
             return create_surface((0, 0))
         return _gradient_squared(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore
 
-    def get_local_vertices(self, /) -> List[Vector2]:
+    def get_local_vertices(self, /) -> Sequence[Vector2]:
         w = h = self.local_width
-        return [Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]
+        return (Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h))
 
     config = Configuration("local_width", parent=GradientShape.config)
     config.set_alias("local_width", "local_height")

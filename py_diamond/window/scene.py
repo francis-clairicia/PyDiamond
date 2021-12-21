@@ -254,9 +254,9 @@ class Scene(metaclass=MetaScene):
 
     @final
     def start(
-        self, /, scene: Type[Scene], *, transition: Optional[SceneTransition] = None, stop_self: bool = False, **kwargs: Any
+        self, /, scene: Type[Scene], *, transition: Optional[SceneTransition] = None, stop_self: bool = False, **awake_kwargs: Any
     ) -> NoReturn:
-        self.__manager.go_to(scene, transition=transition, remove_actual=stop_self, **kwargs)
+        self.__manager.go_to(scene, transition=transition, remove_actual=stop_self, awake_kwargs=awake_kwargs)
 
     @final
     def stop(self, /) -> NoReturn:
@@ -390,11 +390,11 @@ class SceneWindow(Window):
             yield self
 
     @final
-    def run(self, /, default_scene: Type[Scene], **kwargs: Any) -> None:
+    def run(self, /, default_scene: Type[Scene], **scene_kwargs: Any) -> None:
         self.__scenes.clear()
         gc.collect()
         try:
-            self.__scenes.go_to(default_scene, **kwargs)
+            self.__scenes.go_to(default_scene, awake_kwargs=scene_kwargs)
         except _SceneManager.NewScene as exc:
             exc.actual_scene.on_start_loop_before_transition()
             exc.actual_scene.on_start_loop()
@@ -497,9 +497,15 @@ class SceneWindow(Window):
         scene.render()
 
     def start_scene(
-        self, /, scene: Type[Scene], *, transition: Optional[SceneTransition] = None, remove_actual: bool = False, **kwargs: Any
+        self,
+        /,
+        scene: Type[Scene],
+        *,
+        transition: Optional[SceneTransition] = None,
+        remove_actual: bool = False,
+        **awake_kwargs: Any,
     ) -> NoReturn:
-        self.__scenes.go_to(scene, transition=transition, remove_actual=remove_actual, **kwargs)
+        self.__scenes.go_to(scene, transition=transition, remove_actual=remove_actual, awake_kwargs=awake_kwargs)
 
     def stop_actual_scene(self) -> NoReturn:
         self.__scenes.go_back()
@@ -521,7 +527,7 @@ class SceneWindow(Window):
 
     def used_framerate(self, /) -> int:
         framerate = super().used_framerate()
-        for scene in self.__scenes.from_bottom_to_top():
+        for scene in self.__scenes.from_top_to_bottom():
             f: int = scene.__class__.get_required_framerate()
             if f > 0:
                 framerate = f
@@ -530,7 +536,7 @@ class SceneWindow(Window):
 
     def used_fixed_framerate(self, /) -> int:
         framerate = super().used_fixed_framerate()
-        for scene in self.__scenes.from_bottom_to_top():
+        for scene in self.__scenes.from_top_to_bottom():
             f: int = scene.__class__.get_required_fixed_framerate()
             if f > 0:
                 framerate = f
@@ -648,7 +654,7 @@ class _SceneManager:
         *,
         transition: Optional[SceneTransition] = None,
         remove_actual: bool = False,
-        **kwargs: Any,
+        awake_kwargs: Dict[str, Any] = {},
     ) -> NoReturn:
         if scene.__abstractmethods__:
             raise TypeError(f"{scene.__name__} is an abstract class")
@@ -661,7 +667,7 @@ class _SceneManager:
         closing_scenes: List[Scene] = []
         if actual_scene is None or next_scene not in stack:
             stack.insert(0, next_scene)
-            next_scene.awake(**kwargs)
+            next_scene.awake(**awake_kwargs)
             if actual_scene is not None:
                 if isinstance(transition, ReturningSceneTransition):
                     self.__returning_transitions[actual_scene.__class__] = transition
