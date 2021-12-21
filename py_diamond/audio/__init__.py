@@ -7,7 +7,7 @@ import pygame
 
 ############ pygame.mixer initialization ############
 if pygame.version.vernum < (2, 0):
-    raise pygame.error(f"Your pygame version is too old: {pygame.version.ver!r} < '2.0.0'")
+    raise ImportError(f"Your pygame version is too old: {pygame.version.ver!r} < '2.0.0'")
 
 MIXER_FREQUENCY: int = int(os.getenv("AUDIO_FREQUENCY", 44100))
 MIXER_SIZE: int = -abs(int(os.getenv("AUDIO_SIZE", 16)))
