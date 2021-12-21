@@ -289,7 +289,7 @@ class BooleanCheckBox(CheckBox[bool, bool]):
             color=color,
             off_value=truth(off_value),
             on_value=truth(on_value),
-            value=truth(value),
+            value=value,
             outline=outline,
             outline_color=outline_color,
             img=img,
