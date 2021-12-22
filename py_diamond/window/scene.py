@@ -88,7 +88,7 @@ class MetaScene(ABCMeta):
         for attr_name, attr_obj in namespace.items():
             if attr_name == "__new__":
                 raise TypeError("__new__ method must not be overridden")
-            if attr_name == "__init__":
+            if attr_name == "__init__" and not metacls.authorizes_init_override():
                 raise TypeError("Do not override __init__ method, use awake() method instead")
             namespace[attr_name] = metacls.__apply_theme_namespace_decorator(attr_obj)
 
@@ -99,6 +99,10 @@ class MetaScene(ABCMeta):
             cls.__fixed_framerate = max(int(fixed_framerate), 0)
             cls.__busy_loop = truth(busy_loop)
         return cls
+
+    @classmethod
+    def authorizes_init_override(metacls, /) -> bool:
+        return False
 
     def __setattr__(cls, name: str, value: Any, /) -> None:
         if name == "__new__":
