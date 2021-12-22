@@ -6,7 +6,7 @@ __all__ = ["MetaTransformable", "Transformable"]
 
 from abc import ABCMeta, abstractmethod
 from functools import cached_property
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, final
 from pygame import error as _pygame_error
 from .animation import TransformAnimation
 from .rect import Rect
@@ -243,15 +243,18 @@ class Transformable(metaclass=MetaTransformable):
     def get_local_size(self, /) -> Tuple[float, float]:
         raise NotImplementedError
 
+    @final
     def get_local_width(self, /) -> float:
         return self.get_local_size()[0]
 
+    @final
     def get_local_height(self, /) -> float:
         return self.get_local_size()[1]
 
     def get_size(self, /) -> Tuple[float, float]:
         return self.get_area_size()
 
+    @final
     def get_area_size(self, /, *, apply_scale: bool = True, apply_rotation: bool = True) -> Tuple[float, float]:
         if not apply_scale and not apply_rotation:
             return self.get_local_size()
@@ -281,12 +284,15 @@ class Transformable(metaclass=MetaTransformable):
         bottom: float = max((point.y for point in all_points), default=0)
         return (right - left, bottom - top)
 
+    @final
     def get_area(self, /, *, apply_scale: bool = True, apply_rotation: bool = True) -> Rect:
         return Rect((0, 0), self.get_area_size(apply_scale=apply_scale, apply_rotation=apply_rotation))
 
+    @final
     def get_width(self, /) -> float:
         return self.get_size()[0]
 
+    @final
     def get_height(self, /) -> float:
         return self.get_size()[1]
 
@@ -299,7 +305,7 @@ class Transformable(metaclass=MetaTransformable):
         return r
 
     def get_rect(self, /, **kwargs: Union[float, Tuple[float, float]]) -> Rect:
-        r: Rect = self.rect
+        r: Rect = Rect(self.topleft, self.get_size())
         for name, value in kwargs.items():
             if not hasattr(r, name):
                 raise AttributeError(f"{type(r).__name__!r} has no attribute {name!r}")
