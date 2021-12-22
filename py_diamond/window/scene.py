@@ -401,14 +401,15 @@ class SceneWindow(Window):
     def run(self, /, default_scene: Type[Scene], **scene_kwargs: Any) -> None:
         if self.__running:
             raise WindowError("SceneWindow already running")
+        self.__running = True
         self.__scenes.clear()
+        self.__accumulator = 0
         gc.collect()
         try:
             self.__scenes.go_to(default_scene, awake_kwargs=scene_kwargs)
         except _SceneManager.NewScene as exc:
             exc.actual_scene.on_start_loop_before_transition()
             exc.actual_scene.on_start_loop()
-        self.__accumulator = 0
         is_open = self.is_open
         process_events = self.process_events
         update_scene = self.update_scene
@@ -420,7 +421,6 @@ class SceneWindow(Window):
             for _ in process_events():
                 pass
 
-        self.__running = True
         try:
             while is_open():
                 try:
@@ -437,7 +437,8 @@ class SceneWindow(Window):
             self.__running = False
 
     def __scene_transition(self, event: _SceneManager.NewScene) -> None:
-        assert event.previous_scene is not None
+        if event.previous_scene is None:
+            raise TypeError("Previous scene must not be None")
         event.actual_scene.on_start_loop_before_transition()
         event.actual_scene.on_quit_before_transition()
         if event.transition is not None:
@@ -458,20 +459,11 @@ class SceneWindow(Window):
                 next_transition = transition.send
                 while self.is_open() and animating:
                     self.handle_events()
-                    dt: float = Time.fixed_delta()
-                    while self.__accumulator >= dt:
-                        try:
-                            next_transition(None)
-                        except StopIteration:
-                            animating = False
-                            break
-                        self.__accumulator -= dt
-                    if animating:
-                        alpha: float = self.__accumulator / dt
-                        try:
-                            next_transition(alpha)
-                        except StopIteration:
-                            animating = False
+                    try:
+                        self._fixed_updates_call(lambda: next_transition(None))
+                        self._interpolation_updates_call(next_transition)
+                    except StopIteration:
+                        animating = False
                     self.refresh()
         event.previous_scene.on_quit()
         if not event.previous_scene.is_awaken():

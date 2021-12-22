@@ -192,7 +192,8 @@ class TransformAnimation:
         return not self.__wait and self.has_animation_started()
 
     def on_stop(self, /, callback: Optional[Callable[[], None]]) -> None:
-        assert callback is None or callable(callback)
+        if not (callback is None or callable(callback)):
+            raise TypeError("Invalid arguments")
         self.__on_stop = callback
 
     def start(self, /) -> None:
@@ -511,7 +512,8 @@ class _AnimationInfiniteRotateAroundPoint(_AbstractAnimationClass):
 class _AbstractAnimationScale(_AbstractAnimationClass):
     def __init__(self, /, transformable: Transformable, speed: float, field: Literal["width", "height"]) -> None:
         super().__init__(transformable, speed)
-        assert field in ("width", "height")
+        if field not in ("width", "height"):
+            raise ValueError("Invalid arguments")
         self.__field: Literal["width", "height"] = field
 
     def get_transformable_size(self, /) -> float:
