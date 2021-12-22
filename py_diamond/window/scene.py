@@ -21,7 +21,7 @@ from contextlib import ExitStack, contextmanager, suppress
 from inspect import isgeneratorfunction
 from operator import truth
 from sys import stderr
-from types import FunctionType
+from types import FunctionType, LambdaType
 from typing import (
     Any,
     Callable,
@@ -137,16 +137,16 @@ class MetaScene(ABCMeta):
     @staticmethod
     def __theme_namespace_decorator(func: Callable[..., Any], /) -> Callable[..., Any]:
         @wraps(func)
-        def wrapper(self: Any, /, *args: Any, **kwargs: Any) -> Any:
-            cls: type = type(self) if not isinstance(self, type) else self
+        def wrapper(__cls_or_self: Any, /, *args: Any, **kwargs: Any) -> Any:
+            cls: type = type(__cls_or_self) if not isinstance(__cls_or_self, type) else __cls_or_self
             output: Any
             try:
                 theme_namespace: Any = MetaScene.__namespaces[cls]
             except KeyError:
-                output = func(self, *args, **kwargs)
+                output = func(__cls_or_self, *args, **kwargs)
             else:
                 with ThemeNamespace(theme_namespace):
-                    output = func(self, *args, **kwargs)
+                    output = func(__cls_or_self, *args, **kwargs)
             return output
 
         return wrapper
@@ -162,7 +162,7 @@ class MetaScene(ABCMeta):
                 obj = obj.deleter(MetaScene.__theme_namespace_decorator(obj.fdel))
         elif isinstance(obj, classmethod):
             obj = classmethod(MetaScene.__theme_namespace_decorator(obj.__func__))
-        elif isinstance(obj, FunctionType):
+        elif isinstance(obj, (FunctionType, LambdaType)):
             obj = MetaScene.__theme_namespace_decorator(obj)
         return obj
 
