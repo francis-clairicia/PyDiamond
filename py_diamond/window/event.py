@@ -373,6 +373,14 @@ class EventManager:
     def unbind_event(self, /, event_type: Event.Type, callback_to_remove: Callable[[_TE], None]) -> None:
         EventManager.__unbind(self.__event_handler_dict, Event.Type(event_type), callback_to_remove)
 
+    def unbind_all(self, /) -> None:
+        self.__event_handler_dict.clear()
+        self.__key_pressed_handler_dict.clear()
+        self.__key_released_handler_dict.clear()
+        self.__mouse_button_pressed_handler_dict.clear()
+        self.__mouse_button_released_handler_dict.clear()
+        self.__mouse_pos_handler_list.clear()
+
     def bind_key(self, /, key: Keyboard.Key, callback: Callable[[KeyEvent], None]) -> None:
         self.bind_key_press(key, callback)
         self.bind_key_release(key, callback)

@@ -160,7 +160,9 @@ class Window:
             self.__event_buffer.clear()
             self.__surface = Surface((0, 0))
             self.__rect = self.__surface.get_rect()
+            self.__event.unbind_all()
 
+        self.__event.unbind_all()
         with ExitStack() as stack, suppress(Window.Exit):
             pygame.display.init()
             stack.callback(pygame.display.quit)
