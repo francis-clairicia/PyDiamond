@@ -11,7 +11,7 @@ __all__ = [
 import bz2
 import pickle
 from os.path import splitext
-from typing import Final, Tuple
+from typing import Any, Final, Tuple
 
 import pygame
 import pygame.image
@@ -33,13 +33,20 @@ def create_surface(size: Tuple[float, float], *, convert_alpha: bool = True) -> 
 COMPILED_SURFACE_EXTENSION: Final[str] = ".surface"
 
 
+class SurfaceUnpickler(pickle.Unpickler):
+    def find_class(self, /, __module_name: str, __global_name: str) -> Any:
+        if __module_name != "pygame.image" or __global_name != "fromstring":
+            raise pickle.UnpicklingError(f"Trying to unpickle {__module_name}.{__global_name}")
+        return super().find_class(__module_name, __global_name)
+
+
 def load_image(file: str) -> Surface:
     image: Surface
     if splitext(file)[1] != COMPILED_SURFACE_EXTENSION:
         image = pygame.image.load(file)
     else:
         with bz2.open(file, mode="rb", compresslevel=9) as f:
-            image = pickle.loads(f.read())
+            image = SurfaceUnpickler(f).load()
     return image
 
 
