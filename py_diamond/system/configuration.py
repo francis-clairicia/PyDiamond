@@ -6,7 +6,6 @@ __all__ = [
     "BoundConfiguration",
     "OptionAttribute",
     "ConfigError",
-    "ConfigTemplate",
     "Configuration",
     "EmptyOptionNameError",
     "InitializationError",
@@ -1103,24 +1102,6 @@ class Configuration:
     @property
     def __parents__(self) -> Tuple[Configuration, ...]:
         return self.__all_parents
-
-
-class ConfigTemplate(Configuration):
-    def __init_subclass__(cls, /) -> None:
-        raise TypeError("No subclass are allowed")
-
-    @overload
-    def __get__(self, obj: None, objtype: Optional[type] = None, /) -> ConfigTemplate:
-        ...
-
-    @overload
-    def __get__(self, obj: _T, objtype: Optional[type] = None, /) -> BoundConfiguration[_T]:
-        ...
-
-    def __get__(self, obj: Optional[_T], objtype: Optional[type] = None, /) -> Union[ConfigTemplate, BoundConfiguration[_T]]:
-        if obj is None:
-            return self
-        raise TypeError("Cannot use configuration template as descriptor")
 
 
 class OptionAttribute(Generic[_T]):

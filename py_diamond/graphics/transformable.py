@@ -104,8 +104,6 @@ class Transformable(metaclass=MetaTransformable):
     ) -> None:
         angle = float(angle)
         angle %= 360
-        if angle < 0:
-            angle += 360
         if self.__angle == angle:
             return
         center: Vector2 = Vector2(self.center)

@@ -352,8 +352,6 @@ class _AnimationSetRotation(_AbstractAnimationClass):
     ) -> None:
         super().__init__(transformable, speed)
         angle %= 360
-        if angle < 0:
-            angle += 360
         self.__angle: float = angle
         self.__pivot: Optional[Vector2]
         if isinstance(pivot, str):

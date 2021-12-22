@@ -2,7 +2,7 @@
 
 __all__ = ["Button", "ImageButton", "MetaButton"]
 
-from typing import Any, Callable, ClassVar, Dict, Literal, Optional, Tuple, TypedDict, Union, overload
+from typing import Any, Callable, ClassVar, Dict, Final, Literal, Optional, Tuple, TypedDict, Union, overload
 from enum import Enum, unique
 from operator import truth
 
@@ -574,7 +574,7 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     config.on_update("x_add_size", __update_shape_size)
     config.on_update("y_add_size", __update_shape_size)
 
-    __STATE: ClassVar[Dict[str, Tuple[Clickable.State, Literal["normal", "hover", "active"]]]] = {
+    __STATE: Final[Dict[str, Tuple[Clickable.State, Literal["normal", "hover", "active"]]]] = {
         "background": (Clickable.State.NORMAL, "normal"),
         "hover_background": (Clickable.State.NORMAL, "hover"),
         "active_background": (Clickable.State.NORMAL, "active"),
@@ -1016,7 +1016,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     config.on_update("x_add_size", __update_shape_size)
     config.on_update("y_add_size", __update_shape_size)
 
-    __STATE: ClassVar[Dict[str, Tuple[Clickable.State, Literal["normal", "hover", "active"]]]] = {
+    __STATE: Final[Dict[str, Tuple[Clickable.State, Literal["normal", "hover", "active"]]]] = {
         "background": (Clickable.State.NORMAL, "normal"),
         "hover_background": (Clickable.State.NORMAL, "hover"),
         "active_background": (Clickable.State.NORMAL, "active"),

@@ -10,14 +10,18 @@ __all__ = [
 ]
 
 from typing import Any, Callable, Optional, Type, TypeVar, Union, cast, overload
-from functools import cache as _cache, wraps as _wraps
+from functools import lru_cache as _lru_cache, wraps as _wraps
 
 
 _Func = TypeVar("_Func", bound=Callable[..., Any])
 
 
+def lru_cache(maxsize: Optional[int] = 128, typed: bool = False) -> Callable[[_Func], _Func]:
+    return cast(Callable[[_Func], _Func], _lru_cache(maxsize=maxsize, typed=typed))
+
+
 def cache(func: _Func) -> _Func:
-    return cast(_Func, _cache(func))
+    return lru_cache(maxsize=None)(func)
 
 
 def wraps(wrapped_func: _Func) -> Callable[[_Func], _Func]:
@@ -43,8 +47,8 @@ class _FunctionWrapperProxy:
         return getattr(func, name)
 
     def __setattr__(self, /, name: str, value: Any) -> None:
-        if name in ("__func__", "__wrapped__"):
-            if name == "__func__" and "__func__" in self.__dict__:
+        if name == "__func__":
+            if "__func__" in self.__dict__:
                 raise AttributeError("__func__ is a read-only attribute")
             return super().__setattr__(name, value)
         func: Any = self.__wrapped__

@@ -319,9 +319,9 @@ class TextImage(Text):
         self.__compound: TextImage.Compound
         self.__img_angle: float = 0
         self.__img_scale: float = 1
-        self.img = img
-        self.compound = compound
         self.distance = distance
+        self.compound = compound
+        self.img = img
 
     def get_img_angle(self, /) -> float:
         return self.__img_angle
@@ -391,14 +391,15 @@ class TextImage(Text):
 
     def _render(self, /) -> Surface:
         text: Surface = super()._render()
-        if self.__img is None:
+        img: Optional[Image] = self.__img
+        if img is None:
             return text
         text_width, text_height = text.get_size()
-        img_width, img_height = self.__img.get_size()
+        img_width, img_height = img.get_size()
         if img_width == 0 or img_height == 0:
             return text
         if text_width == 0 or text_height == 0:
-            return self.__img.get(apply_rotation_scale=True)
+            return img.get(apply_rotation_scale=True)
 
         text_rect: Rect = text.get_rect()
         offset: float = self.distance
@@ -416,22 +417,23 @@ class TextImage(Text):
         render: Surface = create_surface((render_width, render_height))
         render_rect: Rect = render.get_rect()
 
-        if self.__compound == TextImage.Compound.LEFT:
+        compound: TextImage.Compound = self.__compound
+        if compound == TextImage.Compound.LEFT:
             text_rect.midleft = render_rect.midleft
-            self.__img.midright = render_rect.midright
-        elif self.__compound == TextImage.Compound.RIGHT:
+            img.midright = render_rect.midright
+        elif compound == TextImage.Compound.RIGHT:
             text_rect.midright = render_rect.midright
-            self.__img.midleft = render_rect.midleft
-        elif self.__compound == TextImage.Compound.TOP:
+            img.midleft = render_rect.midleft
+        elif compound == TextImage.Compound.TOP:
             text_rect.midtop = render_rect.midtop
-            self.__img.midbottom = render_rect.midbottom
-        elif self.__compound == TextImage.Compound.BOTTOM:
+            img.midbottom = render_rect.midbottom
+        elif compound == TextImage.Compound.BOTTOM:
             text_rect.midbottom = render_rect.midbottom
-            self.__img.midtop = render_rect.midtop
+            img.midtop = render_rect.midtop
         else:
-            self.__img.center = text_rect.center = render_rect.center
+            img.center = text_rect.center = render_rect.center
 
-        self.__img.draw_onto(SurfaceRenderer(render))
+        img.draw_onto(SurfaceRenderer(render))
         render.blit(text, text_rect)
 
         return render
@@ -459,8 +461,9 @@ class TextImage(Text):
         img: Optional[Image] = self.__img
         if img is None:
             self.__img = img = _BoundImage(self, surface)
-            img.set_scale(self.__img_scale)
-            img.set_rotation(self.__img_angle)
+            img.set_scale(self.__img_scale, apply=False)
+            img.set_rotation(self.__img_angle, apply=False)
+            img.apply_rotation_scale()
         else:
             img.set(surface)
 
@@ -476,6 +479,14 @@ class _BoundImage(Image):
 
     def _apply_both_rotation_and_scale(self, /) -> None:
         super()._apply_both_rotation_and_scale()
+        self.__text.config.update_all_options()
+
+    def _apply_only_rotation(self, /) -> None:
+        super()._apply_only_rotation()
+        self.__text.config.update_all_options()
+
+    def _apply_only_scale(self, /) -> None:
+        super()._apply_only_scale()
         self.__text.config.update_all_options()
 
     def set(self, /, image: Surface, copy: bool = True) -> None:

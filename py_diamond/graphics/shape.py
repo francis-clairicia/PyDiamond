@@ -30,13 +30,7 @@ from ..math import Vector2
 from .renderer import Renderer, SurfaceRenderer
 from .rect import Rect
 from .surface import Surface, create_surface
-from ..system.configuration import (
-    OptionAttribute,
-    ConfigTemplate,
-    Configuration,
-    UnregisteredOptionError,
-    initializer,
-)
+from ..system.configuration import OptionAttribute, Configuration, UnregisteredOptionError, initializer
 from ..system.mangling import mangle_private_attribute
 from ..system.utils import valid_float, valid_integer
 from .theme import MetaThemedObject, ThemeType
@@ -131,7 +125,7 @@ class AbstractShape(TDrawable, metaclass=MetaShape):
 
         return tuple(vertices)
 
-    config: Configuration = ConfigTemplate(autocopy=True)
+    config = Configuration(autocopy=True)
 
     @config.main_update
     def __update_shape(self, /) -> None:
@@ -283,6 +277,23 @@ class AbstractRectangleShape(AbstractShape):
     local_width: OptionAttribute[float] = OptionAttribute()
     local_height: OptionAttribute[float] = OptionAttribute()
     local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+
+
+class AbstractSquareShape(AbstractShape):
+    @initializer
+    def __init__(self, /, *, size: float, **kwargs: Any) -> None:
+        self.local_size = size
+        super().__init__(**kwargs)
+
+    def get_local_vertices(self, /) -> Sequence[Vector2]:
+        w = h = self.local_size
+        return (Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h))
+
+    config = Configuration("local_size", parent=AbstractShape.config)
+
+    config.value_converter_static("local_size", valid_float(min_value=0))
+
+    local_size: OptionAttribute[float] = OptionAttribute()
 
 
 class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):

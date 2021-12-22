@@ -43,7 +43,7 @@ from typing import (
     overload,
 )
 
-from .display import Window, WindowCallback, _WindowCallbackList
+from .display import Window, WindowCallback, _WindowCallbackList, WindowError
 from .event import Event, EventManager
 from ..graphics.color import Color
 from ..graphics.renderer import Renderer, SurfaceRenderer
@@ -234,6 +234,9 @@ class Scene(metaclass=MetaScene):
     def update(self, /) -> None:
         pass
 
+    def on_quit_before_transition(self, /) -> None:
+        pass
+
     def on_quit(self, /) -> None:
         pass
 
@@ -373,6 +376,7 @@ class SceneWindow(Window):
         self.__callback_after_scenes: Dict[Scene, _WindowCallbackList] = dict()
         self.__scenes: _SceneManager
         self.__accumulator: float = 0
+        self.__running: bool = False
 
     __W = TypeVar("__W", bound="SceneWindow")
 
@@ -391,6 +395,8 @@ class SceneWindow(Window):
 
     @final
     def run(self, /, default_scene: Type[Scene], **scene_kwargs: Any) -> None:
+        if self.__running:
+            raise WindowError("SceneWindow already running")
         self.__scenes.clear()
         gc.collect()
         try:
@@ -410,21 +416,26 @@ class SceneWindow(Window):
             for _ in process_events():
                 pass
 
-        while is_open():
-            try:
-                handle_events()
-                update_scene()
-                render_scene()
-                refresh_screen()
-            except _SceneManager.NewScene as exc:
-                scene_transition(exc)
-            except _SceneManager.SceneException as exc:
-                print(f"{type(exc).__name__}: {exc}", file=stderr)
-                continue
+        self.__running = True
+        try:
+            while is_open():
+                try:
+                    handle_events()
+                    update_scene()
+                    render_scene()
+                    refresh_screen()
+                except _SceneManager.NewScene as exc:
+                    scene_transition(exc)
+                except _SceneManager.SceneException as exc:
+                    print(f"{type(exc).__name__}: {exc}", file=stderr)
+                    continue
+        finally:
+            self.__running = False
 
     def __scene_transition(self, event: _SceneManager.NewScene) -> None:
         assert event.previous_scene is not None
         event.actual_scene.on_start_loop_before_transition()
+        event.actual_scene.on_quit_before_transition()
         if event.transition is not None:
             with self.capture(draw_on_default_at_end=False) as previous_scene_surface:
                 self.clear(event.previous_scene.background_color)
@@ -462,6 +473,7 @@ class SceneWindow(Window):
         if not event.previous_scene.is_awaken():
             _SceneManager._destroy_awaken_scene(event.previous_scene)
         for scene in event.closing_scenes:
+            scene.on_quit_before_transition()
             scene.on_quit()
             _SceneManager._destroy_awaken_scene(scene)
         self.__callback_after_scenes.pop(event.previous_scene, None)
@@ -641,6 +653,7 @@ class _SceneManager:
     def clear(self, /) -> None:
         while self.__stack:
             scene = self.__stack.pop(0)
+            scene.on_quit_before_transition()
             scene.on_quit()
             self._destroy_awaken_scene(scene)
         gc.collect()
@@ -690,6 +703,12 @@ class _SceneManager:
                 self.__returning_transitions.pop(closed_scene.__class__, None)
             if returning_transition is not None:
                 scene_transition = returning_transition.hide_actual_scene
+            elif transition is not None:
+                scene_transition = (
+                    transition.hide_actual_scene
+                    if isinstance(transition, ReturningSceneTransition)
+                    else transition.show_new_scene
+                )
         raise _SceneManager.NewScene(actual_scene, next_scene, scene_transition, closing_scenes)
 
     def go_back(self) -> NoReturn:

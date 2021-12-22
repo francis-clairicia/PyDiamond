@@ -2,10 +2,11 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
-from typing import Any, Callable, List, Literal, Optional, Tuple, Type
+from typing import Any, Callable, Final, List, Literal, Optional, Tuple, Type
 from py_diamond.graphics.button import Button, ImageButton
 from py_diamond.graphics.checkbox import CheckBox
 from py_diamond.graphics.color import (
+    Color,
     BLACK,
     BLUE,
     BLUE_DARK,
@@ -25,24 +26,27 @@ from py_diamond.graphics.color import (
 from py_diamond.graphics.entry import Entry
 from py_diamond.graphics.gradients import (
     HorizontalGradientShape,
+    HorizontalMultiColorShape,
+    MultiColorShape,
     RadialGradientShape,
     SquaredGradientShape,
     VerticalGradientShape,
+    VerticalMultiColorShape,
 )
 from py_diamond.graphics.image import Image
 from py_diamond.graphics.progress import ProgressBar
-from py_diamond.graphics.renderer import Renderer, SurfaceRenderer
+from py_diamond.graphics.renderer import Renderer
 from py_diamond.graphics.scale import Scale
-from py_diamond.graphics.shape import AbstractRectangleShape, CircleShape, CrossShape, PolygonShape, RectangleShape
+from py_diamond.graphics.shape import CircleShape, CrossShape, PolygonShape, RectangleShape
 from py_diamond.graphics.sprite import AnimatedSprite, Sprite
 from py_diamond.graphics.surface import Surface
 from py_diamond.graphics.text import Text, TextImage
 from py_diamond.resource.loader import FontLoader, ImageLoader
 from py_diamond.resource.manager import ResourceManager
-from py_diamond.system.configuration import initializer
 from py_diamond.system.time import Time
 from py_diamond.window.display import Window
-from py_diamond.window.event import Event, MouseButtonEvent
+from py_diamond.window.event import Event, KeyUpEvent, MouseButtonEvent
+from py_diamond.window.keyboard import Keyboard
 from py_diamond.window.mouse import Mouse
 from py_diamond.window.scene import MainScene, Scene, SceneTransition, SceneTransitionCoroutine, SceneWindow
 
@@ -204,41 +208,33 @@ class GradientScene(Scene):
         self.window.draw(self.horizontal, self.vertical, self.squared, self.radial)
 
 
-class Rainbow(AbstractRectangleShape):
-    @initializer
-    def __init__(self, width: float, height: float) -> None:
-        super().__init__(width=width, height=height)
-        self.__colors: List[HorizontalGradientShape] = [
-            HorizontalGradientShape(0, 0, RED, ORANGE),
-            HorizontalGradientShape(0, 0, ORANGE, YELLOW),
-            HorizontalGradientShape(0, 0, YELLOW, GREEN),
-            HorizontalGradientShape(0, 0, GREEN, CYAN),
-            HorizontalGradientShape(0, 0, CYAN, BLUE),
-            HorizontalGradientShape(0, 0, BLUE, MAGENTA),
-            HorizontalGradientShape(0, 0, MAGENTA, PURPLE),
-            HorizontalGradientShape(0, 0, PURPLE, RED),
-        ]
-        brightness: int = 75
-        for shape in self.__colors:
-            shape.first_color = set_brightness(shape.first_color, brightness)
-            shape.second_color = set_brightness(shape.second_color, brightness)
+RAINBOW_COLORS: Final[Tuple[Color, ...]] = tuple(
+    set_brightness(c, 75) for c in (RED, ORANGE, YELLOW, GREEN, CYAN, BLUE, MAGENTA, PURPLE, RED)
+)
 
-    def _make(self) -> Surface:
-        width, height = self.local_size
-        gradient_width: float = round(width / len(self.__colors))
-        gradient_height: float = height
-        renderer: SurfaceRenderer = SurfaceRenderer((width, height))
-        for i, gradient in enumerate(self.__colors):
-            gradient.local_size = (gradient_width, gradient_height)
-            gradient.topleft = (gradient_width * i, 0)
-            gradient.draw_onto(renderer)
-        return renderer.surface
+
+class HorizontalRainbow(HorizontalMultiColorShape):
+    def __init__(self, /, width: float, height: float) -> None:
+        super().__init__(width, height, RAINBOW_COLORS)
+
+
+class VerticalRainbow(VerticalMultiColorShape):
+    def __init__(self, /, width: float, height: float) -> None:
+        super().__init__(width, height, RAINBOW_COLORS)
 
 
 class RainbowScene(MainScene):
     def awake(self, /, **kwargs: Any) -> None:
         super().awake(**kwargs)
-        self.rainbow = Rainbow(*self.window.size)
+        self.all_rainbows: List[MultiColorShape] = [HorizontalRainbow(*self.window.size), VerticalRainbow(*self.window.size)]
+        self.rainbow: int = 0
+
+        def key_handler(event: KeyUpEvent) -> None:
+            self.rainbow += {Keyboard.Key.UP: -1, Keyboard.Key.DOWN: 1}[Keyboard.Key(event.key)]
+            self.rainbow %= len(self.all_rainbows)
+
+        self.event.bind_key_release(Keyboard.Key.UP, key_handler)
+        self.event.bind_key_release(Keyboard.Key.DOWN, key_handler)
 
     def on_start_loop_before_transition(self) -> None:
         self.window.text_framerate.color = BLACK
@@ -247,7 +243,7 @@ class RainbowScene(MainScene):
         self.window.text_framerate.color = WHITE
 
     def render(self) -> None:
-        self.window.draw(self.rainbow)
+        self.window.draw(self.all_rainbows[self.rainbow])
 
 
 class TextScene(Scene):
@@ -618,7 +614,7 @@ class MainWindow(SceneWindow):
         self.start_scene(self.all_scenes[self.index], remove_actual=True, transition=SceneTransitionTranslation("left"))
 
     def __previous_scene(self) -> None:
-        self.index = len(self.all_scenes) - 1 if self.index == 0 else self.index - 1
+        self.index = (self.index - 1) % len(self.all_scenes)
         self.start_scene(self.all_scenes[self.index], remove_actual=True, transition=SceneTransitionTranslation("right"))
 
 
