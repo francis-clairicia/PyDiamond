@@ -37,7 +37,7 @@ import pygame.event
 from .cursor import Cursor
 from .event import EventManager, Event, UnknownEventTypeError
 from ..graphics.color import Color, BLACK, WHITE
-from ..graphics.rect import Rect
+from ..graphics.rect import Rect, pg_rect_convert
 from ..graphics.renderer import Renderer, SurfaceRenderer
 from ..graphics.surface import Surface, create_surface
 from ..graphics.text import Text
@@ -121,7 +121,7 @@ class Window:
             self.__size = (0, 0)
         self.__vsync: bool = bool(vsync)
         self.__surface: Surface = Surface((0, 0))
-        self.__rect: Rect = self.__surface.get_rect()
+        self.__rect: Rect = pg_rect_convert(self.__surface.get_rect())
 
         self.__event_buffer: List[pygame.event.Event] = []
         self.__main_clock: _FramerateManager = _FramerateManager()
@@ -159,7 +159,7 @@ class Window:
             self.__callback_after.clear()
             self.__event_buffer.clear()
             self.__surface = Surface((0, 0))
-            self.__rect = self.__surface.get_rect()
+            self.__rect = pg_rect_convert(self.__surface.get_rect())
             self.__event.unbind_all()
 
         self.__event.unbind_all()
@@ -171,7 +171,7 @@ class Window:
             vsync = int(truth(self.__vsync))
             screen: Surface = pygame.display.set_mode(size, flags=flags, vsync=vsync)
             self.__surface = create_surface(screen.get_size())
-            self.__rect = self.__surface.get_rect()
+            self.__rect = pg_rect_convert(self.__surface.get_rect())
             stack.callback(cleanup)
             self.__text_framerate: Text = Text(color=WHITE, theme=NoTheme)
             self.__text_framerate.hide()
@@ -411,7 +411,8 @@ class Window:
 
     @property
     def rect(self, /) -> Rect:
-        return self.__rect.copy()
+        rect = self.__rect
+        return Rect((0, 0), rect.size)
 
     @property
     def left(self, /) -> int:

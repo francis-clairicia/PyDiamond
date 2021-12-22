@@ -16,10 +16,11 @@ from pygame.draw import (
     aaline as _draw_antialiased_line,
     aalines as _draw_multiple_antialiased_lines,
 )
+from pygame.rect import Rect as _PgRect
 
 from .color import Color
 from ..math import Vector2
-from .rect import Rect
+from .rect import Rect, pg_rect_convert
 from .surface import Surface, create_surface
 
 
@@ -27,7 +28,7 @@ _Coordinate = Union[Tuple[float, float], Sequence[float], Vector2]
 _ColorValue = Union[Color, str, Tuple[int, int, int], List[int], int, Tuple[int, int, int, int]]
 _ColorInput = Union[Color, str, List[int], Tuple[int, int, int], Tuple[int, int, int, int]]
 _CanBeRect = Union[
-    Rect,
+    _PgRect,
     Tuple[int, int, int, int],
     List[int],
     Tuple[_Coordinate, _Coordinate],
@@ -56,11 +57,11 @@ class Renderer(metaclass=ABCMeta):
         raise NotImplementedError
 
     @overload
-    def draw(self, obj: Surface, dest: Tuple[float, float], /, *, area: Optional[Rect] = None, special_flags: int = 0) -> Rect:
+    def draw(self, obj: Surface, dest: Tuple[float, float], /, *, area: Optional[_PgRect] = None, special_flags: int = 0) -> Rect:
         ...
 
     @overload
-    def draw(self, obj: Surface, dest: Rect, /, *, area: Optional[Rect] = None, special_flags: int = 0) -> Rect:
+    def draw(self, obj: Surface, dest: _PgRect, /, *, area: Optional[_PgRect] = None, special_flags: int = 0) -> Rect:
         ...
 
     @abstractmethod
@@ -146,7 +147,7 @@ class Renderer(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def aaline(
+    def draw_aaline(
         self,
         /,
         color: _ColorValue,
@@ -157,7 +158,7 @@ class Renderer(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def aalines(
+    def draw_aalines(
         self,
         /,
         color: _ColorValue,
@@ -182,7 +183,7 @@ class SurfaceRenderer(Renderer):
 
     def get_rect(self, /, **kwargs: Union[float, Sequence[float]]) -> Rect:
         target: Surface = self.__target
-        return target.get_rect(**kwargs)
+        return pg_rect_convert(target.get_rect(**kwargs))
 
     def get_size(self, /) -> Tuple[float, float]:
         target: Surface = self.__target
@@ -193,16 +194,16 @@ class SurfaceRenderer(Renderer):
         target.fill(color)
 
     @overload
-    def draw(self, obj: Surface, dest: Tuple[float, float], /, *, area: Optional[Rect] = None, special_flags: int = 0) -> Rect:
+    def draw(self, obj: Surface, dest: Tuple[float, float], /, *, area: Optional[_PgRect] = None, special_flags: int = 0) -> Rect:
         ...
 
     @overload
-    def draw(self, obj: Surface, dest: Rect, /, *, area: Optional[Rect] = None, special_flags: int = 0) -> Rect:
+    def draw(self, obj: Surface, dest: _PgRect, /, *, area: Optional[_PgRect] = None, special_flags: int = 0) -> Rect:
         ...
 
     def draw(self, obj: Surface, /, *args: Any, **kwargs: Any) -> Rect:
         target: Surface = self.__target
-        return target.blit(obj, *args, **kwargs)
+        return pg_rect_convert(target.blit(obj, *args, **kwargs))
 
     def draw_rect(
         self,
@@ -217,7 +218,7 @@ class SurfaceRenderer(Renderer):
         border_bottom_right_radius: int = -1,
     ) -> Rect:
         target: Surface = self.__target
-        return _draw_rect(
+        output_rect: _PgRect = _draw_rect(
             surface=target,
             color=color,
             rect=rect,
@@ -228,6 +229,7 @@ class SurfaceRenderer(Renderer):
             border_bottom_left_radius=border_bottom_left_radius,
             border_bottom_right_radius=border_bottom_right_radius,
         )
+        return pg_rect_convert(output_rect)
 
     def draw_polygon(
         self,
@@ -237,7 +239,8 @@ class SurfaceRenderer(Renderer):
         width: int = 0,
     ) -> Rect:
         target: Surface = self.__target
-        return _draw_polygon(surface=target, color=color, points=points, width=width)
+        output_rect: _PgRect = _draw_polygon(surface=target, color=color, points=points, width=width)
+        return pg_rect_convert(output_rect)
 
     def draw_circle(
         self,
@@ -252,7 +255,7 @@ class SurfaceRenderer(Renderer):
         draw_bottom_right: Optional[bool] = None,
     ) -> Rect:
         target: Surface = self.__target
-        return _draw_circle(
+        output_rect: _PgRect = _draw_circle(
             surface=target,
             color=color,
             center=center,
@@ -263,10 +266,12 @@ class SurfaceRenderer(Renderer):
             draw_bottom_left=draw_bottom_left,
             draw_bottom_right=draw_bottom_right,
         )
+        return pg_rect_convert(output_rect)
 
     def draw_ellipse(self, /, color: _ColorValue, rect: _RectValue, width: int = 0) -> Rect:
         target: Surface = self.__target
-        return _draw_ellipse(surface=target, color=color, rect=rect, width=width)
+        output_rect: _PgRect = _draw_ellipse(surface=target, color=color, rect=rect, width=width)
+        return pg_rect_convert(output_rect)
 
     def draw_arc(
         self,
@@ -278,7 +283,10 @@ class SurfaceRenderer(Renderer):
         width: int = 1,
     ) -> Rect:
         target: Surface = self.__target
-        return _draw_arc(surface=target, color=color, rect=rect, start_angle=start_angle, stop_angle=stop_angle, width=width)
+        output_rect: _PgRect = _draw_arc(
+            surface=target, color=color, rect=rect, start_angle=start_angle, stop_angle=stop_angle, width=width
+        )
+        return pg_rect_convert(output_rect)
 
     def draw_line(
         self,
@@ -289,7 +297,8 @@ class SurfaceRenderer(Renderer):
         width: int = 1,
     ) -> Rect:
         target: Surface = self.__target
-        return _draw_line(surface=target, color=color, start_pos=start_pos, end_pos=end_pos, width=width)
+        output_rect: _PgRect = _draw_line(surface=target, color=color, start_pos=start_pos, end_pos=end_pos, width=width)
+        return pg_rect_convert(output_rect)
 
     def draw_lines(
         self,
@@ -300,9 +309,10 @@ class SurfaceRenderer(Renderer):
         width: int = 1,
     ) -> Rect:
         target: Surface = self.__target
-        return _draw_multiple_lines(surface=target, color=color, closed=closed, points=points, width=width)
+        output_rect: _PgRect = _draw_multiple_lines(surface=target, color=color, closed=closed, points=points, width=width)
+        return pg_rect_convert(output_rect)
 
-    def aaline(
+    def draw_aaline(
         self,
         /,
         color: _ColorValue,
@@ -311,9 +321,12 @@ class SurfaceRenderer(Renderer):
         blend: int = 1,
     ) -> Rect:
         target: Surface = self.__target
-        return _draw_antialiased_line(surface=target, color=color, start_pos=start_pos, end_pos=end_pos, blend=blend)
+        output_rect: _PgRect = _draw_antialiased_line(
+            surface=target, color=color, start_pos=start_pos, end_pos=end_pos, blend=blend
+        )
+        return pg_rect_convert(output_rect)
 
-    def aalines(
+    def draw_aalines(
         self,
         /,
         color: _ColorValue,
@@ -322,7 +335,10 @@ class SurfaceRenderer(Renderer):
         blend: int = 1,
     ) -> Rect:
         target: Surface = self.__target
-        return _draw_multiple_antialiased_lines(surface=target, color=color, closed=closed, points=points, blend=blend)
+        output_rect: _PgRect = _draw_multiple_antialiased_lines(
+            surface=target, color=color, closed=closed, points=points, blend=blend
+        )
+        return pg_rect_convert(output_rect)
 
     @property
     def surface(self, /) -> Surface:

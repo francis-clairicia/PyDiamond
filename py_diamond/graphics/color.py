@@ -31,8 +31,12 @@ __all__ = [
 ]
 
 from dataclasses import dataclass
-from pygame.color import Color
+from pygame.color import Color as _Color
 from typing import Any, List, Tuple, Union, overload
+
+
+class Color(_Color):
+    pass
 
 
 _ColorValue = Union[Color, str, Tuple[int, int, int], List[int], int, Tuple[int, int, int, int]]

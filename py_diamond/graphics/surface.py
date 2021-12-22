@@ -11,7 +11,7 @@ __all__ = [
 import bz2
 import pickle
 from os.path import splitext
-from typing import Tuple
+from typing import Final, Tuple
 
 import pygame
 import pygame.image
@@ -30,7 +30,7 @@ def create_surface(size: Tuple[float, float], *, convert_alpha: bool = True) -> 
     return s
 
 
-COMPILED_SURFACE_EXTENSION: str = ".surface"
+COMPILED_SURFACE_EXTENSION: Final[str] = ".surface"
 
 
 def load_image(file: str) -> Surface:
