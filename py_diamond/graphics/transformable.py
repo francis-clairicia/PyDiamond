@@ -185,27 +185,27 @@ class Transformable(metaclass=MetaTransformable):
 
     def set_min_width(self, /, width: float) -> None:
         if self.width < width:
-            self.scale_to_width(width)
+            self.width = width
 
     def set_max_width(self, /, width: float) -> None:
         if self.width > width:
-            self.scale_to_width(width)
+            self.width = width
 
     def set_min_height(self, /, height: float) -> None:
         if self.height < height:
-            self.scale_to_height(height)
+            self.height = height
 
     def set_max_height(self, /, height: float) -> None:
         if self.height > height:
-            self.scale_to_height(height)
+            self.height = height
 
     def set_min_size(self, /, size: Tuple[float, float]) -> None:
         if self.width < size[0] or self.height < size[1]:
-            self.scale_to_size(size)
+            self.size = size
 
     def set_max_size(self, /, size: Tuple[float, float]) -> None:
         if self.width > size[0] or self.height > size[1]:
-            self.scale_to_size(size)
+            self.size = size
 
     def apply_rotation_scale(self, /) -> None:
         try:

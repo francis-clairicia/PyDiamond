@@ -17,34 +17,6 @@ if TYPE_CHECKING:
 _AnimationType = Literal["move", "rotate", "rotate_point", "scale"]
 
 
-class _TransformState(NamedTuple):
-    angle: float
-    scale: float
-    center: Tuple[float, float]
-
-    @classmethod
-    def from_transformable(cls, t: Transformable) -> _TransformState:
-        return cls(t.angle, t.scale, t.center)
-
-    def interpolate(self, other: _TransformState, alpha: float) -> _TransformState:
-        angle = self.angle_interpolation(self.angle, other.angle, alpha)
-        scale = self.scale * (1.0 - alpha) + other.scale * alpha
-        center = Vector2(self.center).lerp(Vector2(other.center), alpha)
-        return _TransformState(angle, scale, (center.x, center.y))
-
-    @staticmethod
-    def angle_interpolation(start: float, end: float, alpha: float) -> float:
-        shortest_angle = ((end - start) + 180) % 360 - 180
-        return (start + shortest_angle * alpha) % 360
-
-    def apply_on(self, t: Transformable, *, apply_rotation_scale: bool = True) -> None:
-        t.set_rotation(self.angle, apply=False)
-        t.set_scale(self.scale, apply=False)
-        if apply_rotation_scale:
-            t.apply_rotation_scale()
-        t.center = self.center
-
-
 class TransformAnimation:
     def __init__(self, /, transformable: Transformable) -> None:
         self.__transformable: Transformable = transformable
@@ -230,6 +202,34 @@ class TransformAnimation:
                 yield animation
         if not self.has_animation_started():
             self.clear(pause=False)
+
+
+class _TransformState(NamedTuple):
+    angle: float
+    scale: float
+    center: Tuple[float, float]
+
+    @classmethod
+    def from_transformable(cls, t: Transformable) -> _TransformState:
+        return cls(t.angle, t.scale, t.center)
+
+    def interpolate(self, other: _TransformState, alpha: float) -> _TransformState:
+        angle = self.angle_interpolation(self.angle, other.angle, alpha)
+        scale = self.scale * (1.0 - alpha) + other.scale * alpha
+        center = Vector2(self.center).lerp(Vector2(other.center), alpha)
+        return _TransformState(angle, scale, (center.x, center.y))
+
+    @staticmethod
+    def angle_interpolation(start: float, end: float, alpha: float) -> float:
+        shortest_angle = ((end - start) + 180) % 360 - 180
+        return (start + shortest_angle * alpha) % 360
+
+    def apply_on(self, t: Transformable, *, apply_rotation_scale: bool = True) -> None:
+        t.set_rotation(self.angle, apply=False)
+        t.set_scale(self.scale, apply=False)
+        if apply_rotation_scale:
+            t.apply_rotation_scale()
+        t.center = self.center
 
 
 class _AbstractAnimationClass(metaclass=ABCMeta):
