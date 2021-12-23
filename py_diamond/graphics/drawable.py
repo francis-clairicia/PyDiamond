@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Drawable", "TDrawable", "MetaDrawable", "MetaTDrawable"]
+__all__ = ["Drawable", "MetaDrawable", "MetaTDrawable", "TDrawable"]
 
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple

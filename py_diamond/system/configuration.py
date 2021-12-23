@@ -4,12 +4,12 @@ from __future__ import annotations
 
 __all__ = [
     "BoundConfiguration",
-    "OptionAttribute",
     "ConfigError",
     "Configuration",
     "EmptyOptionNameError",
     "InitializationError",
     "InvalidAliasError",
+    "OptionAttribute",
     "OptionError",
     "UnknownOptionError",
     "UnregisteredOptionError",

@@ -4,15 +4,15 @@ from __future__ import annotations
 
 __all__ = [
     "MainScene",
-    "MetaScene",
     "MetaMainScene",
+    "MetaScene",
     "ReturningSceneTransition",
     "Scene",
     "SceneTransition",
     "SceneTransitionCoroutine",
     "SceneWindow",
-    "set_default_theme_namespace",
     "closed_namespace",
+    "set_default_theme_namespace",
 ]
 
 import gc

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-__all__ = ["MetaThemedObject", "NoTheme", "ThemeNamespace", "ThemedObject", "ThemeType", "abstract_theme_class"]
+__all__ = ["MetaThemedObject", "NoTheme", "ThemeNamespace", "ThemeType", "ThemedObject", "abstract_theme_class"]
 
 from abc import ABCMeta
 from contextlib import suppress

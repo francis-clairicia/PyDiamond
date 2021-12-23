@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Sprite", "AnimatedSprite"]
+__all__ = ["AnimatedSprite", "Sprite"]
 
 from typing import Any, Iterable, List, Optional, Tuple, Type, TypeVar
 

@@ -1,6 +1,6 @@
 # -*- coding: Utf-8 -*
 
-__all__ = ["MetaEntry", "Entry"]
+__all__ = ["Entry", "MetaEntry"]
 
 from string import printable as ASCII_PRINTABLE
 from typing import Any, Optional, Tuple, Union

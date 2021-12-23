@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-__all__ = ["WindowError", "ScheduledFunction", "scheduled", "Window", "WindowCallback"]
+__all__ = ["ScheduledFunction", "Window", "WindowCallback", "WindowError", "scheduled"]
 
 from abc import abstractmethod
 from contextlib import ExitStack, contextmanager, suppress

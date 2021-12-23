@@ -1,6 +1,6 @@
 # -*- coding: Utf-8 -*
 
-__all__ = ["ResourceLoader", "ImageLoader", "SoundLoader", "FontLoader", "MusicLoader"]
+__all__ = ["FontLoader", "ImageLoader", "MusicLoader", "ResourceLoader", "SoundLoader"]
 
 from abc import ABCMeta, abstractmethod
 from typing import Generic, Type, TypeVar, cast, get_args

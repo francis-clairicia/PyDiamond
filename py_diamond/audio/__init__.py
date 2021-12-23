@@ -1,6 +1,6 @@
 # -*- coding: Utf-8 -*
 
-__all__ = ["MIXER_FREQUENCY", "MIXER_SIZE", "MIXER_CHANNELS", "MIXER_BUFFER"]
+__all__ = ["MIXER_BUFFER", "MIXER_CHANNELS", "MIXER_FREQUENCY", "MIXER_SIZE"]
 
 import os
 

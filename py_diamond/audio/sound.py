@@ -1,6 +1,6 @@
 # -*- coding: Utf-8 -*
 
-__all__ = ["Sound", "Music"]
+__all__ = ["Music", "Sound"]
 
 from pygame.mixer import Sound as _Sound
 
