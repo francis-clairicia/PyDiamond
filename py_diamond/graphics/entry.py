@@ -6,10 +6,10 @@ from string import printable as ASCII_PRINTABLE
 from typing import Any, Optional, Tuple, Union
 
 from ..audio.sound import Sound
-from ..system.clock import Clock
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.utils import valid_integer, valid_optional_float, valid_optional_integer
 from ..window.clickable import Clickable
+from ..window.clock import Clock
 from ..window.cursor import SystemCursor
 from ..window.display import Window
 from ..window.event import Event, KeyDownEvent, TextInputEvent

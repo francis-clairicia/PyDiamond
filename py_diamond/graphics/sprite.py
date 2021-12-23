@@ -11,7 +11,7 @@ import pygame.transform
 from pygame.mask import Mask
 from pygame.sprite import Sprite as _PygameSprite, collide_mask
 
-from ..system.clock import Clock
+from ..window.clock import Clock
 from .drawable import TDrawable
 from .rect import Rect
 from .renderer import Renderer

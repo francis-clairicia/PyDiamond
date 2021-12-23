@@ -48,10 +48,10 @@ from ..graphics.renderer import Renderer, SurfaceRenderer
 from ..graphics.surface import Surface
 from ..graphics.theme import ThemeNamespace
 from ..system.mangling import mangle_private_attribute
-from ..system.time import Time
 from ..system.utils import wraps
 from .display import Window, WindowCallback, WindowError, _WindowCallbackList
 from .event import Event, EventManager
+from .time import Time
 
 _S = TypeVar("_S", bound="MetaScene")
 

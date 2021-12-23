@@ -43,12 +43,12 @@ from py_diamond.graphics.surface import Surface
 from py_diamond.graphics.text import Text, TextImage
 from py_diamond.resource.loader import FontLoader, ImageLoader
 from py_diamond.resource.manager import ResourceManager
-from py_diamond.system.time import Time
 from py_diamond.window.display import Window
 from py_diamond.window.event import Event, KeyUpEvent, MouseButtonEvent
 from py_diamond.window.keyboard import Keyboard
 from py_diamond.window.mouse import Mouse
 from py_diamond.window.scene import MainScene, Scene, SceneTransition, SceneTransitionCoroutine, SceneWindow
+from py_diamond.window.time import Time
 
 
 class ShapeScene(MainScene, busy_loop=True):

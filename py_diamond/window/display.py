@@ -39,14 +39,14 @@ from ..graphics.renderer import Renderer, SurfaceRenderer
 from ..graphics.surface import Surface, create_surface
 from ..graphics.text import Text
 from ..graphics.theme import NoTheme
-from ..system.clock import Clock
 from ..system.mangling import mangle_private_attribute
-from ..system.time import Time
 from ..system.utils import wraps
+from .clock import Clock
 from .cursor import Cursor
 from .event import Event, EventManager, UnknownEventTypeError
 from .keyboard import Keyboard
 from .mouse import Mouse
+from .time import Time
 
 _ColorInput = Union[Color, str, List[int], Tuple[int, int, int], Tuple[int, int, int, int]]
 
