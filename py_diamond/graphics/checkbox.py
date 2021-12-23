@@ -2,23 +2,22 @@
 
 __all__ = ["BooleanCheckBox", "CheckBox", "MetaCheckBox"]
 
-from typing import Any, Callable, Generic, Optional, Tuple, TypeVar, Union
 from operator import truth
+from typing import Any, Callable, Generic, Optional, Tuple, TypeVar, Union
 
 from ..audio.sound import Sound
-from .color import Color, BLACK
-from .drawable import TDrawable, MetaTDrawable
-from .image import Image
-from .renderer import Renderer
-from .shape import RectangleShape, DiagonalCrossShape
-from .surface import Surface
-from ..system.configuration import OptionAttribute, Configuration
-from .theme import MetaThemedObject, NoTheme, ThemeType
+from ..system.configuration import Configuration, OptionAttribute
 from ..window.clickable import Clickable
 from ..window.cursor import Cursor
 from ..window.display import Window
 from ..window.scene import Scene
-
+from .color import BLACK, Color
+from .drawable import MetaTDrawable, TDrawable
+from .image import Image
+from .renderer import Renderer
+from .shape import DiagonalCrossShape, RectangleShape
+from .surface import Surface
+from .theme import MetaThemedObject, NoTheme, ThemeType
 
 _OnValue = TypeVar("_OnValue")
 _OffValue = TypeVar("_OffValue")

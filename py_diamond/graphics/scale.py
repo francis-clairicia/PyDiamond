@@ -2,19 +2,19 @@
 
 __all__ = ["Scale"]
 
-from typing import Callable, Optional, Tuple, Union
 from operator import truth
+from typing import Callable, Optional, Tuple, Union
 
 from ..audio.sound import Sound
-from .color import Color, BLACK, GRAY, WHITE
-from .progress import ProgressBar
 from ..system.configuration import Configuration, initializer
-from .theme import ThemeType
 from ..window.clickable import Clickable
 from ..window.cursor import Cursor
 from ..window.display import Window
 from ..window.event import MouseButtonDownEvent, MouseMotionEvent
 from ..window.scene import Scene
+from .color import BLACK, GRAY, WHITE, Color
+from .progress import ProgressBar
+from .theme import ThemeType
 
 
 class Scale(ProgressBar, Clickable):

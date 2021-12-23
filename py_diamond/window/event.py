@@ -41,9 +41,8 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Type, Ty
 import pygame
 from pygame.event import Event as _PygameEvent
 
-from .mouse import Mouse
 from .keyboard import Keyboard
-
+from .mouse import Mouse
 
 _T = TypeVar("_T")
 

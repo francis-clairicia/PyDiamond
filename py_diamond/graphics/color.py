@@ -31,8 +31,9 @@ __all__ = [
 ]
 
 from dataclasses import dataclass
-from pygame.color import Color as _Color
 from typing import Any, List, Tuple, Union, overload
+
+from pygame.color import Color as _Color
 
 
 class Color(_Color):

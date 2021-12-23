@@ -4,9 +4,9 @@ from __future__ import annotations
 
 __all__ = ["Mouse"]
 
-from typing import Tuple
 from enum import IntEnum
 from operator import truth
+from typing import Tuple
 
 import pygame.mouse
 from pygame.constants import BUTTON_LEFT, BUTTON_MIDDLE, BUTTON_RIGHT, BUTTON_WHEELDOWN, BUTTON_WHEELUP

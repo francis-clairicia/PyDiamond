@@ -8,15 +8,14 @@ from typing import Any, Iterable, List, Optional, Tuple, Type, TypeVar
 
 import pygame.mask
 import pygame.transform
-
-from pygame.sprite import Sprite as _PygameSprite, collide_mask
 from pygame.mask import Mask
+from pygame.sprite import Sprite as _PygameSprite, collide_mask
 
+from ..system.clock import Clock
 from .drawable import TDrawable
 from .rect import Rect
 from .renderer import Renderer
 from .surface import Surface, create_surface
-from ..system.clock import Clock
 
 
 class Sprite(TDrawable, _PygameSprite):

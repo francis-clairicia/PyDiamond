@@ -6,8 +6,8 @@ from abc import ABCMeta, abstractmethod
 from typing import Generic, Type, TypeVar, cast, get_args
 
 from ..audio.sound import Sound
-from ..graphics.surface import Surface, load_image
 from ..graphics.font import Font
+from ..graphics.surface import Surface, load_image
 from ..system.path import set_constant_file
 
 _T = TypeVar("_T")

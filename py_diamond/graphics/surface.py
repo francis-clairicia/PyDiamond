@@ -15,7 +15,6 @@ from typing import Any, Final, Tuple
 
 import pygame
 import pygame.image
-
 from pygame.surface import Surface
 
 
@@ -45,8 +44,11 @@ def load_image(file: str) -> Surface:
     if splitext(file)[1] != COMPILED_SURFACE_EXTENSION:
         image = pygame.image.load(file)
     else:
-        with bz2.open(file, mode="rb", compresslevel=9) as f:
-            image = SurfaceUnpickler(f).load()
+        try:
+            with bz2.open(file, mode="rb", compresslevel=9) as f:
+                image = SurfaceUnpickler(f).load()
+        except (IOError, pickle.UnpicklingError) as exc:
+            raise pygame.error(str(exc)) from exc
     return image
 
 

@@ -9,9 +9,8 @@ __all__ = [
     "wraps",
 ]
 
-from typing import Any, Callable, Optional, Type, TypeVar, Union, cast, overload
 from functools import lru_cache as _lru_cache, wraps as _wraps
-
+from typing import Any, Callable, Optional, Type, TypeVar, Union, cast, overload
 
 _Func = TypeVar("_Func", bound=Callable[..., Any])
 

@@ -2,27 +2,27 @@
 
 __all__ = ["MetaEntry", "Entry"]
 
-from typing import Any, Optional, Tuple, Union
 from string import printable as ASCII_PRINTABLE
+from typing import Any, Optional, Tuple, Union
 
 from ..audio.sound import Sound
-from .color import Color, WHITE, BLACK  # , GRAY
-from .drawable import TDrawable, MetaTDrawable
-from .font import Font
-from .renderer import Renderer
-from .surface import Surface
-from .text import Text, _TextFont
-from .shape import RectangleShape
 from ..system.clock import Clock
-from ..system.configuration import OptionAttribute, Configuration, initializer
+from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.utils import valid_integer, valid_optional_float, valid_optional_integer
-from .theme import MetaThemedObject, NoTheme, ThemeType
 from ..window.clickable import Clickable
 from ..window.cursor import SystemCursor
 from ..window.display import Window
 from ..window.event import Event, KeyDownEvent, TextInputEvent
 from ..window.keyboard import Keyboard
 from ..window.scene import Scene
+from .color import BLACK, WHITE, Color  # , GRAY
+from .drawable import MetaTDrawable, TDrawable
+from .font import Font
+from .renderer import Renderer
+from .shape import RectangleShape
+from .surface import Surface
+from .text import Text, _TextFont
+from .theme import MetaThemedObject, NoTheme, ThemeType
 
 
 class MetaEntry(MetaTDrawable, MetaThemedObject):

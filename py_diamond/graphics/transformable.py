@@ -7,11 +7,12 @@ __all__ = ["MetaTransformable", "Transformable"]
 from abc import ABCMeta, abstractmethod
 from functools import cached_property
 from typing import Any, Dict, List, Optional, Tuple, Union, final
+
 from pygame import error as _pygame_error
+
+from ..math import Vector2
 from .animation import TransformAnimation
 from .rect import Rect
-from ..math import Vector2
-
 
 _ALL_VALID_POSITIONS: Tuple[str, ...] = (
     "x",

@@ -1,8 +1,8 @@
 # -*- coding: Utf-8 -*
 
+import copyreg
 import os
 import typing
-import copyreg
 
 import pygame
 

@@ -5,12 +5,12 @@ __all__ = ["ProgressBar"]
 from enum import Enum, unique
 from typing import Any, Dict, Optional, Tuple, Union
 
-from .color import Color, BLACK, GRAY, TRANSPARENT, WHITE
+from ..system.configuration import Configuration, OptionAttribute, initializer
+from ..system.utils import valid_float
+from .color import BLACK, GRAY, TRANSPARENT, WHITE, Color
 from .renderer import Renderer
 from .shape import RectangleShape
 from .text import Text
-from ..system.configuration import OptionAttribute, Configuration, initializer
-from ..system.utils import valid_float
 from .theme import NoTheme, ThemeType
 
 

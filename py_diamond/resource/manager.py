@@ -11,7 +11,6 @@ from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Unio
 from ..system.path import set_constant_directory
 from .loader import ResourceLoader
 
-
 _ResourcePath = Union[str, Sequence["_ResourcePath"], Mapping[Any, "_ResourcePath"]]  # type: ignore
 _ResourceLoader = Union[ResourceLoader[Any], Tuple["_ResourceLoader", ...], Dict[Any, "_ResourceLoader"]]  # type: ignore
 

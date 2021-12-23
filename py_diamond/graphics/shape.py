@@ -17,22 +17,22 @@ __all__ = [
 ]
 
 from abc import abstractmethod
+from enum import Enum, unique
+from math import radians, sin, tan
 from operator import truth
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
-from math import sin, tan, radians
-from enum import Enum, unique
 
 import pygame.transform
 
-from .color import Color, BLACK
-from .drawable import TDrawable, MetaTDrawable
 from ..math import Vector2
-from .renderer import Renderer, SurfaceRenderer
-from .rect import Rect
-from .surface import Surface, create_surface
-from ..system.configuration import OptionAttribute, Configuration, UnregisteredOptionError, initializer
+from ..system.configuration import Configuration, OptionAttribute, UnregisteredOptionError, initializer
 from ..system.mangling import mangle_private_attribute
 from ..system.utils import valid_float, valid_integer
+from .color import BLACK, Color
+from .drawable import MetaTDrawable, TDrawable
+from .rect import Rect
+from .renderer import Renderer, SurfaceRenderer
+from .surface import Surface, create_surface
 from .theme import MetaThemedObject, ThemeType
 
 

@@ -6,23 +6,22 @@ from abc import ABCMeta, abstractmethod
 from typing import Any, List, Optional, Protocol, Sequence, Tuple, Union, overload
 
 from pygame.draw import (
-    rect as _draw_rect,
-    polygon as _draw_polygon,
-    circle as _draw_circle,
-    ellipse as _draw_ellipse,
-    arc as _draw_arc,
-    line as _draw_line,
-    lines as _draw_multiple_lines,
     aaline as _draw_antialiased_line,
     aalines as _draw_multiple_antialiased_lines,
+    arc as _draw_arc,
+    circle as _draw_circle,
+    ellipse as _draw_ellipse,
+    line as _draw_line,
+    lines as _draw_multiple_lines,
+    polygon as _draw_polygon,
+    rect as _draw_rect,
 )
 from pygame.rect import Rect as _PgRect
 
-from .color import Color
 from ..math import Vector2
+from .color import Color
 from .rect import Rect, pg_rect_convert
 from .surface import Surface, create_surface
-
 
 _Coordinate = Union[Tuple[float, float], Sequence[float], Vector2]
 _ColorValue = Union[Color, str, Tuple[int, int, int], List[int], int, Tuple[int, int, int, int]]

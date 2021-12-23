@@ -3,6 +3,7 @@
 __all__ = ["MIXER_FREQUENCY", "MIXER_SIZE", "MIXER_CHANNELS", "MIXER_BUFFER"]
 
 import os
+
 import pygame
 
 ############ pygame.mixer initialization ############

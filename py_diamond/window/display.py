@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 __all__ = ["WindowError", "ScheduledFunction", "scheduled", "Window", "WindowCallback"]
 
 from abc import abstractmethod
@@ -34,20 +33,20 @@ import pygame
 import pygame.display
 import pygame.event
 
-from .cursor import Cursor
-from .event import EventManager, Event, UnknownEventTypeError
-from ..graphics.color import Color, BLACK, WHITE
+from ..graphics.color import BLACK, WHITE, Color
 from ..graphics.rect import Rect, pg_rect_convert
 from ..graphics.renderer import Renderer, SurfaceRenderer
 from ..graphics.surface import Surface, create_surface
 from ..graphics.text import Text
 from ..graphics.theme import NoTheme
-from .keyboard import Keyboard
-from .mouse import Mouse
 from ..system.clock import Clock
 from ..system.mangling import mangle_private_attribute
 from ..system.time import Time
 from ..system.utils import wraps
+from .cursor import Cursor
+from .event import Event, EventManager, UnknownEventTypeError
+from .keyboard import Keyboard
+from .mouse import Mouse
 
 _ColorInput = Union[Color, str, List[int], Tuple[int, int, int], Tuple[int, int, int, int]]
 

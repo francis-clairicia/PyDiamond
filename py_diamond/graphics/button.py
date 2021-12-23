@@ -2,28 +2,28 @@
 
 __all__ = ["Button", "ImageButton", "MetaButton"]
 
-from typing import Any, Callable, ClassVar, Dict, Final, Literal, Optional, Tuple, TypedDict, Union, overload
 from enum import Enum, unique
 from operator import truth
+from typing import Any, Callable, ClassVar, Dict, Final, Literal, Optional, Tuple, TypedDict, Union, overload
 
 from ..audio.sound import Sound
-from .color import Color, TRANSPARENT, WHITE, GRAY, GRAY_LIGHT, GRAY_DARK, BLACK
-from .drawable import TDrawable, MetaTDrawable
-from .font import Font
-from .image import Image
 from ..math import Vector2
-from .rect import Rect
-from .renderer import Renderer
-from .shape import RectangleShape
-from .surface import Surface
-from ..system.configuration import OptionAttribute, Configuration, initializer
+from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.utils import valid_float, valid_optional_float
-from .text import TextImage, _TextFont
-from .theme import MetaThemedObject, NoTheme, ThemeType
 from ..window.clickable import Clickable
 from ..window.cursor import Cursor
 from ..window.display import Window
 from ..window.scene import Scene
+from .color import BLACK, GRAY, GRAY_DARK, GRAY_LIGHT, TRANSPARENT, WHITE, Color
+from .drawable import MetaTDrawable, TDrawable
+from .font import Font
+from .image import Image
+from .rect import Rect
+from .renderer import Renderer
+from .shape import RectangleShape
+from .surface import Surface
+from .text import TextImage, _TextFont
+from .theme import MetaThemedObject, NoTheme, ThemeType
 
 
 class MetaButton(MetaTDrawable, MetaThemedObject):

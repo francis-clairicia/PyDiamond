@@ -6,20 +6,20 @@ import os.path
 from contextlib import suppress
 from enum import Enum, unique
 from operator import truth
-from typing import Dict, List, Optional, Tuple, Union
 from textwrap import wrap as textwrap
+from typing import Dict, List, Optional, Tuple, Union
 
 import pygame.transform
 
-from .color import Color, BLACK
-from .drawable import TDrawable, MetaTDrawable
+from ..system.configuration import Configuration, OptionAttribute, initializer
+from ..system.utils import valid_float, valid_integer
+from .color import BLACK, Color
+from .drawable import MetaTDrawable, TDrawable
 from .font import Font, SysFont, get_default_font
 from .image import Image
 from .rect import Rect, pg_rect_convert
 from .renderer import Renderer, SurfaceRenderer
 from .surface import Surface, create_surface
-from ..system.configuration import OptionAttribute, Configuration, initializer
-from ..system.utils import valid_float, valid_integer
 from .theme import MetaThemedObject, ThemeType
 
 _TextFont = Union[Font, Tuple[Optional[str], int]]

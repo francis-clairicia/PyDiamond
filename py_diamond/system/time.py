@@ -2,9 +2,10 @@
 
 __all__ = ["Time"]
 
-import pygame.time
 from time import time_ns
 from typing import ClassVar
+
+import pygame.time
 
 
 class Time:

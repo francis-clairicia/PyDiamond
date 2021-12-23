@@ -3,21 +3,15 @@
 __all__ = ["Clickable"]
 
 from abc import abstractmethod
-from typing import Dict, Optional, Tuple, Union
 from enum import Enum, unique
 from operator import truth
+from typing import Dict, Optional, Tuple, Union
 
 from ..audio.sound import Sound
+from ..graphics.drawable import Drawable
 from .cursor import Cursor, SystemCursor
 from .display import Window
-from .event import (
-    Event,
-    MouseButtonDownEvent,
-    MouseButtonEvent,
-    MouseButtonUpEvent,
-    MouseMotionEvent,
-)
-from ..graphics.drawable import Drawable
+from .event import Event, MouseButtonDownEvent, MouseButtonEvent, MouseButtonUpEvent, MouseMotionEvent
 from .mouse import Mouse
 from .scene import Scene
 

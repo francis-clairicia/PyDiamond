@@ -4,9 +4,9 @@ from __future__ import annotations
 
 __all__ = ["Keyboard"]
 
-from typing import Optional, Sequence, Tuple, Union, overload
-from operator import truth
 from enum import IntEnum
+from operator import truth
+from typing import Optional, Sequence, Tuple, Union, overload
 
 import pygame.key
 

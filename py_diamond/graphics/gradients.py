@@ -13,18 +13,17 @@ __all__ = [
 
 from typing import Any, Sequence, Tuple
 
+from ..system.configuration import Configuration, OptionAttribute, initializer
+from ._gradients import (  # type: ignore[attr-defined]
+    horizontal as _gradient_horizontal,
+    radial as _gradient_radial,
+    squared as _gradient_squared,
+    vertical as _gradient_vertical,
+)
 from .color import Color
 from .renderer import SurfaceRenderer
 from .shape import AbstractCircleShape, AbstractRectangleShape, AbstractShape, AbstractSquareShape
 from .surface import Surface, create_surface
-from ..system.configuration import OptionAttribute, Configuration, initializer
-
-from ._gradients import (  # type: ignore[attr-defined]
-    horizontal as _gradient_horizontal,
-    vertical as _gradient_vertical,
-    radial as _gradient_radial,
-    squared as _gradient_squared,
-)
 
 
 class GradientShape(AbstractShape):

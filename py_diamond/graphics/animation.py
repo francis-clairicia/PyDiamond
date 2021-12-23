@@ -6,12 +6,13 @@ __all__ = ["TransformAnimation"]
 
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Callable, Dict, Iterator, List, Literal, NamedTuple, Optional, Tuple, TypeVar, Union
+
 from ..math import Vector2
 from ..system.time import Time
 
 if TYPE_CHECKING:
-    from .transformable import Transformable
     from ..window.scene import Scene, SceneWindow
+    from .transformable import Transformable
 
 _AnimationType = Literal["move", "rotate", "rotate_point", "scale"]
 

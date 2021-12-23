@@ -7,8 +7,8 @@ __all__ = ["Drawable", "TDrawable", "MetaDrawable", "MetaTDrawable"]
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple
 
-from .rect import Rect
 from ..system.utils import wraps
+from .rect import Rect
 from .transformable import MetaTransformable, Transformable
 
 if TYPE_CHECKING:

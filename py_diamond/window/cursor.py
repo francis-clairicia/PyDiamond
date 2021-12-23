@@ -10,8 +10,8 @@ from types import MethodType
 from typing import Any, Callable, ClassVar, Dict, Final, Optional, Sequence, Tuple, overload
 
 import pygame
-import pygame.mouse
 import pygame.cursors
+import pygame.mouse
 from pygame.cursors import Cursor as _Cursor
 
 from ..graphics.surface import Surface

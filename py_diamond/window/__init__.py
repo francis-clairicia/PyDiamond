@@ -1,6 +1,7 @@
 # -*- coding: Utf-8 -*
 
 import os
+
 import pygame
 
 ############ pygame.display initialization ############
