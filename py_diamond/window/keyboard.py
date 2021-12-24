@@ -4,10 +4,11 @@ from __future__ import annotations
 
 __all__ = ["Keyboard"]
 
-from enum import IntEnum, IntFlag
+from enum import IntEnum, IntFlag, unique
 from operator import truth
 from typing import Optional, Sequence, Tuple, Union, overload
 
+import pygame
 import pygame.key
 
 _KEY_STATES: Sequence[bool] = []
@@ -238,6 +239,7 @@ class Keyboard:
         POWER = pygame.K_POWER
         EURO = pygame.K_EURO
 
+    @unique
     class Modifiers(IntFlag):
         NONE = pygame.KMOD_NONE
         LSHIFT = pygame.KMOD_LSHIFT

@@ -162,7 +162,6 @@ class MouseWheelEvent(Event, event_type=Event.Type.MOUSEWHEEL):
     flipped: bool
     x: int
     y: int
-    which: int = -1
 
 
 MouseEvent = Union[MouseButtonEvent, MouseWheelEvent, MouseMotionEvent]

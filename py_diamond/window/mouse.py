@@ -9,7 +9,7 @@ from operator import truth
 from typing import Tuple
 
 import pygame.mouse
-from pygame.constants import BUTTON_LEFT, BUTTON_MIDDLE, BUTTON_RIGHT, BUTTON_WHEELDOWN, BUTTON_WHEELUP
+from pygame.constants import BUTTON_LEFT, BUTTON_MIDDLE, BUTTON_RIGHT
 
 _MOUSE_BUTTON_STATE: Tuple[bool, bool, bool] = (False, False, False)
 
@@ -57,7 +57,3 @@ class Mouse:
         LEFT = BUTTON_LEFT
         RIGHT = BUTTON_RIGHT
         MIDDLE = BUTTON_MIDDLE
-
-    class Wheel(IntEnum):
-        UP = BUTTON_WHEELUP
-        DOWN = BUTTON_WHEELDOWN
