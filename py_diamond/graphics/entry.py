@@ -12,7 +12,7 @@ from ..window.clickable import Clickable
 from ..window.clock import Clock
 from ..window.cursor import SystemCursor
 from ..window.display import Window
-from ..window.event import Event, KeyDownEvent, TextInputEvent
+from ..window.event import Event, KeyDownEvent, MouseButtonDownEvent, TextInputEvent
 from ..window.keyboard import Keyboard
 from ..window.scene import Scene
 from .color import BLACK, WHITE, Color  # , GRAY
@@ -21,8 +21,10 @@ from .font import Font
 from .renderer import Renderer
 from .shape import RectangleShape
 from .surface import Surface
-from .text import Text, _TextFont
+from .text import Text
 from .theme import MetaThemedObject, NoTheme, ThemeType
+
+_TextFont = Union[Font, Tuple[Optional[str], int]]
 
 
 class MetaEntry(MetaTDrawable, MetaThemedObject):
@@ -114,7 +116,6 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
 
         self.__cursor: int = 0
         self.__show_cursor: bool = False
-        self.__cursor_animated: bool = False
         self.__cursor_animation_clock = Clock()
 
         key_press_event = self.__key_press
@@ -136,7 +137,7 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
         text.draw_onto(target)
 
         show_cursor: bool = self.__show_cursor
-        if self.__edit() and self.__cursor_animated:
+        if self.__edit():
             if self.__cursor_animation_clock.elapsed_time(self.interval):
                 self.__show_cursor = show_cursor = not show_cursor
         else:
@@ -158,15 +159,16 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
 
     def start_edit(self, /) -> None:
         Keyboard.IME.start_text_input()
-        self.__cursor_animated = True
         self.__show_cursor = True
 
     def stop_edit(self, /) -> None:
         Keyboard.IME.stop_text_input()
-        self.__cursor_animated = False
 
     def invoke(self, /) -> None:
         self.start_edit()
+
+    def _on_click_out(self, /, event: MouseButtonDownEvent) -> None:
+        self.stop_edit()
 
     def _mouse_in_hitbox(self, /, mouse_pos: Tuple[float, float]) -> bool:
         return self.__shape.rect.collidepoint(mouse_pos)

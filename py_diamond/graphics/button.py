@@ -22,8 +22,10 @@ from .rect import Rect
 from .renderer import Renderer
 from .shape import RectangleShape
 from .surface import Surface
-from .text import TextImage, _TextFont
+from .text import TextImage
 from .theme import MetaThemedObject, NoTheme, ThemeType
+
+_TextFont = Union[Font, Tuple[Optional[str], int]]
 
 
 class MetaButton(MetaTDrawable, MetaThemedObject):

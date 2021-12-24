@@ -2,7 +2,7 @@
 
 __all__ = ["Clickable"]
 
-from abc import abstractmethod
+from abc import ABCMeta, abstractmethod
 from enum import Enum, unique
 from operator import truth
 from typing import Dict, Optional, Tuple, Union
@@ -16,7 +16,7 @@ from .mouse import Mouse
 from .scene import Scene
 
 
-class Clickable:
+class Clickable(metaclass=ABCMeta):
     @unique
     class State(str, Enum):
         NORMAL = "normal"
@@ -96,6 +96,7 @@ class Clickable:
 
     def __handle_click_event(self, /, event: MouseButtonEvent) -> bool:
         if isinstance(self, Drawable) and not self.is_shown():
+            self.active = self.hover = False
             return False
 
         valid_click: bool = truth(event.button == Mouse.Button.LEFT and self._mouse_in_hitbox(event.pos))
@@ -105,6 +106,7 @@ class Clickable:
                 self.active = True
                 self._on_click_down(event)
                 return True
+            self._on_click_out(event)
         elif isinstance(event, MouseButtonUpEvent):
             active, self.active = self.active, False
             if not active:
@@ -120,6 +122,7 @@ class Clickable:
 
     def __handle_mouse_position(self, /, mouse_pos: Tuple[float, float]) -> bool:
         if isinstance(self, Drawable) and not self.is_shown():
+            self.hover = False
             return False
         self.hover = hover = self._mouse_in_hitbox(mouse_pos)
         if hover or (self.active and not self.__active_only_on_hover):
@@ -140,6 +143,9 @@ class Clickable:
     def _on_click_up(self, /, event: MouseButtonUpEvent) -> None:
         pass
 
+    def _on_click_out(self, /, event: MouseButtonDownEvent) -> None:
+        pass
+
     def _on_mouse_motion(self, /, event: MouseMotionEvent) -> None:
         pass
 
@@ -155,6 +161,13 @@ class Clickable:
     @property
     def master(self, /) -> Union[Scene, Window]:
         return self.__master
+
+    @property
+    def window(self, /) -> Window:
+        master: Union[Scene, Window] = self.__master
+        if isinstance(master, Window):
+            return master
+        return master.window
 
     @property
     def scene(self, /) -> Optional[Scene]:
