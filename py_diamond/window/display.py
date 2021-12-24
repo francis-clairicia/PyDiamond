@@ -21,6 +21,7 @@ from typing import (
     NoReturn,
     Optional,
     Protocol,
+    Sequence,
     Tuple,
     TypeVar,
     Union,
@@ -267,8 +268,8 @@ class Window:
     def get_screen_copy(self, /) -> Surface:
         return self.__surface.copy()
 
-    def handle_events(self, /) -> List[Event]:
-        return list(self.process_events())
+    def handle_events(self, /) -> Sequence[Event]:
+        return tuple(self.process_events())
 
     @contextmanager
     def no_window_callback_processing(self, /) -> Iterator[None]:
@@ -336,7 +337,7 @@ class Window:
             yield
 
     def block_all_events(self, /) -> None:
-        pygame.event.set_blocked(list(Event.Type))
+        pygame.event.set_blocked(tuple(Event.Type))
 
     @contextmanager
     def block_all_events_context(self, /) -> Iterator[None]:
@@ -346,7 +347,7 @@ class Window:
 
     @contextmanager
     def __save_blocked_events(self, /) -> Iterator[None]:
-        all_blocked_events: List[Event.Type] = [event for event in Event.Type if not event.is_allowed()]
+        all_blocked_events: Sequence[Event.Type] = tuple(event for event in Event.Type if not event.is_allowed())
 
         def set_blocked_events() -> None:
             if not all_blocked_events:
@@ -411,7 +412,7 @@ class Window:
     @property
     def rect(self, /) -> Rect:
         rect = self.__rect
-        return Rect((0, 0), rect.size)
+        return Rect(rect.topleft, rect.size)
 
     @property
     def left(self, /) -> int:

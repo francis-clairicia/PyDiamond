@@ -94,9 +94,9 @@ class Clickable:
     def set_active_only_on_hover(self, /, status: bool) -> None:
         self.__active_only_on_hover = truth(status)
 
-    def __handle_click_event(self, /, event: MouseButtonEvent) -> None:
+    def __handle_click_event(self, /, event: MouseButtonEvent) -> bool:
         if isinstance(self, Drawable) and not self.is_shown():
-            return
+            return False
 
         valid_click: bool = truth(event.button == Mouse.Button.LEFT and self._mouse_in_hitbox(event.pos))
 
@@ -104,23 +104,28 @@ class Clickable:
             if valid_click:
                 self.active = True
                 self._on_click_down(event)
+                return True
         elif isinstance(event, MouseButtonUpEvent):
             active, self.active = self.active, False
             if not active:
-                return
+                return False
             self._on_click_up(event)
             if valid_click:
                 self.play_click_sound()
                 self._on_hover()
                 if self.__state != Clickable.State.DISABLED:
                     self.invoke()
+                return True
+        return False
 
-    def __handle_mouse_position(self, /, mouse_pos: Tuple[float, float]) -> None:
+    def __handle_mouse_position(self, /, mouse_pos: Tuple[float, float]) -> bool:
         if isinstance(self, Drawable) and not self.is_shown():
-            return
+            return False
         self.hover = hover = self._mouse_in_hitbox(mouse_pos)
         if hover or (self.active and not self.__active_only_on_hover):
             self.__hover_cursor[self.__state].set()
+            return True
+        return hover
 
     @abstractmethod
     def _mouse_in_hitbox(self, /, mouse_pos: Tuple[float, float]) -> bool:
@@ -161,9 +166,10 @@ class Clickable:
 
     @state.setter
     def state(self, /, state: str) -> None:
+        state = Clickable.State(state)
         if state == self.__state:
             return
-        self.__state = Clickable.State(state)
+        self.__state = state
         if self.hover:
             self._on_hover()
             if self.active:

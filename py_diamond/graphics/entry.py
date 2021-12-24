@@ -186,9 +186,9 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
     def __edit(self, /) -> bool:
         return Keyboard.IME.text_input_enabled()
 
-    def __key_press(self, /, event: Union[KeyDownEvent, TextInputEvent]) -> None:
-        if not self.__edit():
-            return
+    def __key_press(self, /, event: Union[KeyDownEvent, TextInputEvent]) -> bool:
+        if not self.__edit() or not isinstance(event, (KeyDownEvent, TextInputEvent)):
+            return False
         self.__show_cursor = True
         self.__cursor_animation_clock.restart()
         text: Text = self.__text
@@ -197,26 +197,35 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
         if isinstance(event, KeyDownEvent):
             if event.key == Keyboard.Key.ESCAPE:
                 self.stop_edit()
-            elif event.key == Keyboard.Key.BACKSPACE:
+                return True
+            if event.key == Keyboard.Key.BACKSPACE:
                 if cursor > 0:
                     text.message = text.message[: cursor - 1] + text.message[cursor:]
                     self.cursor = cursor - 1
-            elif event.key == Keyboard.Key.DELETE:
+                return True
+            if event.key == Keyboard.Key.DELETE:
                 text.message = text.message[:cursor] + text.message[cursor + 1 :]
-            elif event.key == Keyboard.Key.LEFT:
+                return True
+            if event.key == Keyboard.Key.LEFT:
                 self.cursor = cursor - 1
-            elif event.key == Keyboard.Key.RIGHT:
+                return True
+            if event.key == Keyboard.Key.RIGHT:
                 self.cursor = cursor + 1
-            elif event.key == Keyboard.Key.HOME:
+                return True
+            if event.key == Keyboard.Key.HOME:
                 self.cursor = 0
-            elif event.key == Keyboard.Key.END:
+                return True
+            if event.key == Keyboard.Key.END:
                 self.cursor = len(text.message)
-        elif isinstance(event, TextInputEvent):
-            entered_text: str = event.text
-            new_text: str = text.message[:cursor] + entered_text + text.message[cursor:]
-            if max_nb_char == 0 or len(new_text) <= max_nb_char:
-                text.message = new_text
-                self.cursor = cursor + len(entered_text)
+                return True
+            return False
+
+        entered_text: str = event.text
+        new_text: str = text.message[:cursor] + entered_text + text.message[cursor:]
+        if max_nb_char == 0 or len(new_text) <= max_nb_char:
+            text.message = new_text
+            self.cursor = cursor + len(entered_text)
+        return True
 
     config: Configuration = Configuration(
         "cursor",
