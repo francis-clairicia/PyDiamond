@@ -15,6 +15,18 @@ dependencies = [
     "pygame>=2.1.1",
     "typing_extensions>=4.0.1"
 ]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Software Development :: Libraries :: pygame",
+  "Typing :: Typed"
+]
 
 [tool.isort]
 profile = "black"
