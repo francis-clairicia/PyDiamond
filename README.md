@@ -24,5 +24,17 @@ if __name__ == "__main__":
 ```
 This code will open a small window.
 
+## Dependencies
+```sh
+python3 -m pip install -r requirements.txt
+```
+PyDiamond is dependent of pygame and Python (obviously). Some features of pygame needed in PyDiamond is available with a specific version of the SDL.
+
+Dependency version:
+- CPython >= 3.9
+- pygame >= 2.1.1
+- SDL >= 2.0.16
+- typing_extensions >= 4.0.1 (Will be removed when switching to Python 3.10)
+
 ## License
 This project is licensed under the terms of the [GNU General Public License v3.0](./LICENSE).
