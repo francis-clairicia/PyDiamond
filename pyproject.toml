@@ -1,0 +1,45 @@
+[build-system]
+# Minimum requirements for the build system to execute.
+requires = ["setuptools", "wheel"]
+
+[project]
+name = "PyDiamond"
+version = "1.0.0"
+description = "pygame-based game engine"
+# readme = "README.rst"
+requires-python = ">=3.9"
+authors = [
+  {name = "Francis Clairicia-Rose-Claire-Josephine", email = "clairicia.rcj.francis@gmail.com"},
+]
+dependencies = [
+    "pygame>=2.1.1",
+    "typing_extensions>=4.0.1"
+]
+
+[tool.isort]
+profile = "black"
+line_length = 130
+skip = [".gitignore", "_gradients.py"]
+skip_gitignore = true
+combine_as_imports = true
+
+[tool.black]
+line-length = 130
+
+[tool.mypy]
+warn_unused_configs = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_return_any = true
+warn_unreachable = true
+no_implicit_reexport = true
+strict_equality = true
