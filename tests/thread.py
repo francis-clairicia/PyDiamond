@@ -1,7 +1,7 @@
 # -*- coding: Utf-8 -*
 
-from sys import path as SYS_PATH
 from os.path import dirname
+from sys import path as SYS_PATH
 
 SYS_PATH.append(dirname(dirname(__file__)))
 

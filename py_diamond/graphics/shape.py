@@ -25,8 +25,8 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import pygame.transform
 
 from ..math import Vector2
+from ..system._mangling import mangle_private_attribute
 from ..system.configuration import Configuration, OptionAttribute, UnregisteredOptionError, initializer
-from ..system.mangling import mangle_private_attribute
 from ..system.utils import valid_float, valid_integer
 from .color import BLACK, Color
 from .drawable import MetaTDrawable, TDrawable

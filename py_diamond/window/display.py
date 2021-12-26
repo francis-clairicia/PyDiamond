@@ -40,7 +40,7 @@ from ..graphics.renderer import Renderer, SurfaceRenderer
 from ..graphics.surface import Surface, create_surface
 from ..graphics.text import Text
 from ..graphics.theme import NoTheme
-from ..system.mangling import mangle_private_attribute
+from ..system._mangling import mangle_private_attribute
 from ..system.utils import wraps
 from .clock import Clock
 from .cursor import Cursor

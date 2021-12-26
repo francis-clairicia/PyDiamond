@@ -1,12 +1,12 @@
 # -*- coding: Utf-8 -*
 
-from sys import path as SYS_PATH
 from os.path import dirname
+from sys import path as SYS_PATH
 from typing import Any, Dict, Tuple
 
 SYS_PATH.append(dirname(dirname(__file__)))
 
-from py_diamond.system.configuration import OptionAttribute, Configuration, initializer
+from py_diamond.system.configuration import Configuration, OptionAttribute, initializer
 
 
 class Configurable:

@@ -10,6 +10,9 @@ import pygame
 if pygame.version.vernum < (2, 0):
     raise ImportError(f"Your pygame version is too old: {pygame.version.ver!r} < '2.0.0'")
 
+if pygame.version.SDL < (2, 0, 16):
+    raise ImportError(f"Your SDL2 version is too old: {str(pygame.version.SDL)!r} < '2.0.16'")
+
 MIXER_FREQUENCY: int = int(os.getenv("AUDIO_FREQUENCY", 44100))
 MIXER_SIZE: int = -abs(int(os.getenv("AUDIO_SIZE", 16)))
 MIXER_CHANNELS: int = int(os.getenv("AUDIO_CHANNELS", 2))

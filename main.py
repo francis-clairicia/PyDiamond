@@ -2,11 +2,12 @@
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations
+
 from typing import Any, Callable, Final, List, Literal, Optional, Tuple, Type
+
 from py_diamond.graphics.button import Button, ImageButton
 from py_diamond.graphics.checkbox import CheckBox
 from py_diamond.graphics.color import (
-    Color,
     BLACK,
     BLUE,
     BLUE_DARK,
@@ -20,6 +21,7 @@ from py_diamond.graphics.color import (
     TRANSPARENT,
     WHITE,
     YELLOW,
+    Color,
     set_brightness,
     set_color_alpha,
 )
@@ -47,7 +49,7 @@ from py_diamond.window.display import Window
 from py_diamond.window.event import Event, KeyUpEvent, MouseButtonEvent
 from py_diamond.window.keyboard import Keyboard
 from py_diamond.window.mouse import Mouse
-from py_diamond.window.scene import MainScene, Scene, SceneTransition, SceneTransitionCoroutine, SceneWindow
+from py_diamond.window.scene import AutoLayeredMainScene, MainScene, Scene, SceneTransition, SceneTransitionCoroutine, SceneWindow
 from py_diamond.window.time import Time
 
 
@@ -299,8 +301,7 @@ class ResourceScene(MainScene):
     def awake(self, /, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.cactus = Sprite(image=ImagesResources.cactus)
-        self.cactus.size = 100, 100
-        self.cactus.topleft = 20, 20
+        self.cactus.center = self.window.center
         self.text = Text("I'm a text", font=(FontResources.cooperblack, 300), italic=True, color=WHITE, wrap=5, justify="center")
         self.text.center = self.window.center
 
@@ -515,8 +516,8 @@ class ScaleScene(MainScene):
 
 
 class EntryScene(MainScene):
-    def awake(self, /, *args: Any, **kwargs: Any) -> None:
-        super().awake(*args, **kwargs)
+    def awake(self, /, **kwargs: Any) -> None:
+        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.entry = entry = Entry(self, font=(None, 70))
         entry.center = self.window.center
@@ -526,6 +527,18 @@ class EntryScene(MainScene):
 
     def render(self) -> None:
         self.window.draw(self.entry)
+
+
+class CustomLayeredScene(AutoLayeredMainScene):
+    def awake(self, /, **kwargs: Any) -> None:
+        super().awake(**kwargs)
+        self.background_color = BLUE_DARK
+        self.cactus = Image(ImagesResources.cactus)
+        self.cactus.center = self.window.center
+        self.text = Text("I'm a text", font=(FontResources.cooperblack, 300), italic=True, color=WHITE, wrap=5, justify="center")
+        self.text.center = self.window.center
+        self.group.change_layer(self.text, -1)
+        self.text.add(self.group)
 
 
 class SceneTransitionTranslation(SceneTransition):
@@ -576,6 +589,7 @@ class MainWindow(SceneWindow):
         ProgressScene,
         ScaleScene,
         EntryScene,
+        CustomLayeredScene,
     ]
 
     def __init__(self) -> None:

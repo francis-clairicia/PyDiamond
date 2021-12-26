@@ -39,7 +39,7 @@ class SurfaceUnpickler(pickle.Unpickler):
         return super().find_class(__module_name, __global_name)
 
 
-def load_image(file: str) -> Surface:
+def load_image(file: str, convert: bool = True) -> Surface:
     image: Surface
     if splitext(file)[1] != COMPILED_SURFACE_EXTENSION:
         image = pygame.image.load(file)
@@ -49,6 +49,8 @@ def load_image(file: str) -> Surface:
                 image = SurfaceUnpickler(f).load()
         except (IOError, pickle.UnpicklingError) as exc:
             raise pygame.error(str(exc)) from exc
+    if convert:
+        return image.convert_alpha()
     return image
 
 

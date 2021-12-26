@@ -3,8 +3,23 @@
 __all__ = ["Renderer", "SurfaceRenderer"]
 
 from abc import ABCMeta, abstractmethod
+from enum import IntEnum, unique
 from typing import Any, List, Optional, Protocol, Sequence, Tuple, Union, overload
 
+from pygame.constants import (
+    BLEND_ALPHA_SDL2,
+    BLEND_PREMULTIPLIED,
+    BLEND_RGB_ADD,
+    BLEND_RGB_MAX,
+    BLEND_RGB_MIN,
+    BLEND_RGB_MULT,
+    BLEND_RGB_SUB,
+    BLEND_RGBA_ADD,
+    BLEND_RGBA_MAX,
+    BLEND_RGBA_MIN,
+    BLEND_RGBA_MULT,
+    BLEND_RGBA_SUB,
+)
 from pygame.draw import (
     aaline as _draw_antialiased_line,
     aalines as _draw_multiple_antialiased_lines,
@@ -42,6 +57,23 @@ class _HasRectAttribute(Protocol):
 _RectValue = Union[_CanBeRect, _HasRectAttribute]
 
 
+@unique
+class BlendMode(IntEnum):
+    NONE = 0
+    ADD = BLEND_RGB_ADD
+    SUB = BLEND_RGB_SUB
+    MULT = BLEND_RGB_MULT
+    MIN = BLEND_RGB_MIN
+    MAX = BLEND_RGB_MAX
+    RGBA_ADD = BLEND_RGBA_ADD
+    RGBA_SUB = BLEND_RGBA_SUB
+    RGBA_MULT = BLEND_RGBA_MULT
+    RGBA_MIN = BLEND_RGBA_MIN
+    RGBA_MAX = BLEND_RGBA_MAX
+    PREMULTIPLIED = BLEND_PREMULTIPLIED
+    ALPHA_SDL2 = BLEND_ALPHA_SDL2
+
+
 class Renderer(metaclass=ABCMeta):
     @abstractmethod
     def get_rect(self, /, **kwargs: Union[float, Sequence[float]]) -> Rect:
@@ -56,11 +88,21 @@ class Renderer(metaclass=ABCMeta):
         raise NotImplementedError
 
     @overload
-    def draw(self, obj: Surface, dest: Tuple[float, float], /, *, area: Optional[_PgRect] = None, special_flags: int = 0) -> Rect:
+    def draw(
+        self,
+        obj: Surface,
+        dest: Tuple[float, float],
+        /,
+        *,
+        area: Optional[_PgRect] = None,
+        special_flags: BlendMode = BlendMode.NONE,
+    ) -> Rect:
         ...
 
     @overload
-    def draw(self, obj: Surface, dest: _PgRect, /, *, area: Optional[_PgRect] = None, special_flags: int = 0) -> Rect:
+    def draw(
+        self, obj: Surface, dest: _PgRect, /, *, area: Optional[_PgRect] = None, special_flags: BlendMode = BlendMode.NONE
+    ) -> Rect:
         ...
 
     @abstractmethod
@@ -193,11 +235,21 @@ class SurfaceRenderer(Renderer):
         target.fill(color)
 
     @overload
-    def draw(self, obj: Surface, dest: Tuple[float, float], /, *, area: Optional[_PgRect] = None, special_flags: int = 0) -> Rect:
+    def draw(
+        self,
+        obj: Surface,
+        dest: Tuple[float, float],
+        /,
+        *,
+        area: Optional[_PgRect] = None,
+        special_flags: BlendMode = BlendMode.NONE,
+    ) -> Rect:
         ...
 
     @overload
-    def draw(self, obj: Surface, dest: _PgRect, /, *, area: Optional[_PgRect] = None, special_flags: int = 0) -> Rect:
+    def draw(
+        self, obj: Surface, dest: _PgRect, /, *, area: Optional[_PgRect] = None, special_flags: BlendMode = BlendMode.NONE
+    ) -> Rect:
         ...
 
     def draw(self, obj: Surface, /, *args: Any, **kwargs: Any) -> Rect:
