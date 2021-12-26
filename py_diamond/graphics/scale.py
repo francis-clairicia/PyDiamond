@@ -1,6 +1,14 @@
 # -*- coding: Utf-8 -*
+# Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine
+#
+#
+"""Scale module"""
 
 __all__ = ["Scale"]
+
+__author__ = "Francis Clairicia-Rose-Claire-Josephine"
+__copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
+__license__ = "GNU GPL v3.0"
 
 from operator import truth
 from typing import Callable, Optional, Tuple, Union

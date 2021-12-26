@@ -1,4 +1,8 @@
 # -*- coding: Utf-8 -*
+# Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine
+#
+#
+"""Scene module"""
 
 from __future__ import annotations
 
@@ -20,6 +24,10 @@ __all__ = [
     "closed_namespace",
     "set_default_theme_namespace",
 ]
+
+__author__ = "Francis Clairicia-Rose-Claire-Josephine"
+__copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
+__license__ = "GNU GPL v3.0"
 
 import gc
 from abc import ABCMeta, abstractmethod

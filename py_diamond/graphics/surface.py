@@ -1,4 +1,8 @@
 # -*- coding: Utf-8 -*
+# Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine
+#
+#
+"""Surface module"""
 
 __all__ = [
     "COMPILED_SURFACE_EXTENSION",
@@ -7,6 +11,10 @@ __all__ = [
     "load_image",
     "save_image",
 ]
+
+__author__ = "Francis Clairicia-Rose-Claire-Josephine"
+__copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
+__license__ = "GNU GPL v3.0"
 
 import bz2
 import pickle

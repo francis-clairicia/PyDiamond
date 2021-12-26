@@ -1,4 +1,8 @@
 # -*- coding: Utf-8 -*
+# Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine
+#
+#
+"""Configuration module"""
 
 from __future__ import annotations
 
@@ -15,6 +19,10 @@ __all__ = [
     "UnregisteredOptionError",
     "initializer",
 ]
+
+__author__ = "Francis Clairicia-Rose-Claire-Josephine"
+__copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
+__license__ = "GNU GPL v3.0"
 
 from contextlib import ExitStack, contextmanager, suppress
 from copy import copy, deepcopy

@@ -1,6 +1,14 @@
 # -*- coding: Utf-8 -*
+# Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine
+#
+#
+"""Progress bar module"""
 
 __all__ = ["ProgressBar"]
+
+__author__ = "Francis Clairicia-Rose-Claire-Josephine"
+__copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
+__license__ = "GNU GPL v3.0"
 
 from enum import Enum, unique
 from typing import Any, Dict, Optional, Tuple, Union

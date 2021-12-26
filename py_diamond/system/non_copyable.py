@@ -1,6 +1,14 @@
 # -*- coding: Utf-8 -*
+# Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine
+#
+#
+"""NonCopyable objects module"""
 
-__all__ = ["MetaNonCopyable"]
+__all__ = ["MetaNonCopyable", "NonCopyable"]
+
+__author__ = "Francis Clairicia-Rose-Claire-Josephine"
+__copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
+__license__ = "GNU GPL v3.0"
 
 from typing import Any, Dict, Tuple, Type, TypeVar
 

@@ -1,4 +1,8 @@
 # -*- coding: Utf-8 -*
+# Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine
+#
+#
+"""Shape module"""
 
 __all__ = [
     "AbstractCircleShape",
@@ -15,6 +19,10 @@ __all__ = [
     "RectangleShape",
     "SingleColorShape",
 ]
+
+__author__ = "Francis Clairicia-Rose-Claire-Josephine"
+__copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
+__license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
 from enum import Enum, unique

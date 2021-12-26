@@ -1,4 +1,8 @@
 # -*- coding: Utf-8 -*
+# Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine
+#
+#
+"""Color module"""
 
 __all__ = [
     "BLACK",
@@ -29,6 +33,10 @@ __all__ = [
     "set_color_alpha",
     "set_saturation",
 ]
+
+__author__ = "Francis Clairicia-Rose-Claire-Josephine"
+__copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
+__license__ = "GNU GPL v3.0"
 
 from dataclasses import dataclass
 from typing import Any, List, Tuple, Union, overload

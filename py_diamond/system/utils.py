@@ -1,4 +1,8 @@
 # -*- coding: Utf-8 -*
+# Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine
+#
+#
+"""Utility module"""
 
 __all__ = [
     "cache",
@@ -8,6 +12,10 @@ __all__ = [
     "valid_optional_integer",
     "wraps",
 ]
+
+__author__ = "Francis Clairicia-Rose-Claire-Josephine"
+__copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
+__license__ = "GNU GPL v3.0"
 
 from functools import lru_cache as _lru_cache, wraps as _wraps
 from typing import Any, Callable, Optional, Type, TypeVar, Union, cast, overload

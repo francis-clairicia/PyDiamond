@@ -1,8 +1,16 @@
 # -*- coding: Utf-8 -*
+# Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine
+#
+#
+"""Keyboard management module"""
 
 from __future__ import annotations
 
 __all__ = ["Keyboard"]
+
+__author__ = "Francis Clairicia-Rose-Claire-Josephine"
+__copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
+__license__ = "GNU GPL v3.0"
 
 from enum import IntEnum, IntFlag, unique
 from operator import truth

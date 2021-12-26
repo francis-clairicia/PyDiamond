@@ -1,8 +1,16 @@
 # -*- coding: Utf-8 -*
+# Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine
+#
+#
+"""Themed objects module"""
 
 from __future__ import annotations
 
 __all__ = ["MetaThemedObject", "NoTheme", "ThemeNamespace", "ThemeType", "ThemedObject", "abstract_theme_class"]
+
+__author__ = "Francis Clairicia-Rose-Claire-Josephine"
+__copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
+__license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta
 from contextlib import suppress

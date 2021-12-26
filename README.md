@@ -36,5 +36,8 @@ Dependency version:
 - SDL >= 2.0.16
 - typing_extensions >= 4.0.1 (Will be removed when switching to Python 3.10)
 
+## Credits
+- DR0ID for the gradient module
+
 ## License
 This project is licensed under the terms of the [GNU General Public License v3.0](./LICENSE).

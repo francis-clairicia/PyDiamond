@@ -1,6 +1,14 @@
 # -*- coding: Utf-8 -*
+# Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine
+#
+#
+"""Renderer module"""
 
 __all__ = ["Renderer", "SurfaceRenderer"]
+
+__author__ = "Francis Clairicia-Rose-Claire-Josephine"
+__copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
+__license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta, abstractmethod
 from enum import IntEnum, unique
