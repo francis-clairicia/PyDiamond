@@ -149,7 +149,7 @@ class JThread(Thread):
         self.join()
 
     @property
-    def daemon(self, /) -> bool:  # type: ignore
+    def daemon(self, /) -> bool:  # type: ignore[override]
         return super().daemon
 
 

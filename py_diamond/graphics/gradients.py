@@ -59,7 +59,7 @@ class HorizontalGradientShape(AbstractRectangleShape, GradientShape):
         size: Tuple[int, int] = (int(self.local_width), int(self.local_height))
         if size[0] == 0 or size[1] == 0:
             return create_surface(size)
-        return _gradient_horizontal(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore
+        return _gradient_horizontal(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore[no-any-return,arg-type]
 
     config = Configuration(parent=[AbstractRectangleShape.config, GradientShape.config])
 
@@ -73,7 +73,7 @@ class VerticalGradientShape(AbstractRectangleShape, GradientShape):
         size: Tuple[int, int] = (int(self.local_width), int(self.local_height))
         if size[0] == 0 or size[1] == 0:
             return create_surface(size)
-        return _gradient_vertical(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore
+        return _gradient_vertical(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore[no-any-return,arg-type]
 
     config = Configuration(parent=[AbstractRectangleShape.config, GradientShape.config])
 
@@ -87,7 +87,7 @@ class SquaredGradientShape(AbstractSquareShape, GradientShape):
         size: int = int(self.local_size)
         if size == 0:
             return create_surface((0, 0))
-        return _gradient_squared(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore
+        return _gradient_squared(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore[no-any-return,arg-type]
 
     config = Configuration(parent=[AbstractSquareShape.config, GradientShape.config])
 
@@ -101,7 +101,7 @@ class RadialGradientShape(AbstractCircleShape, GradientShape):
         radius: int = int(self.radius)
         if radius == 0:
             return create_surface((0, 0))
-        return _gradient_radial(radius, tuple(self.first_color), tuple(self.second_color))  # type: ignore
+        return _gradient_radial(radius, tuple(self.first_color), tuple(self.second_color))  # type: ignore[no-any-return,arg-type]
 
     config = Configuration(parent=[AbstractCircleShape.config, GradientShape.config])
 

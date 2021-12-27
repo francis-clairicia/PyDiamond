@@ -63,7 +63,9 @@ class MetaSingleton(ABCMeta):
             return self.__func__
 
         def __call__(self, __cls_or_self: Any, /, *args: Any, **kwargs: Any) -> Any:
-            cls: MetaSingleton = __cls_or_self if isinstance(__cls_or_self, MetaSingleton) else type(__cls_or_self)  # type: ignore
+            cls: type = __cls_or_self if isinstance(__cls_or_self, type) else type(__cls_or_self)
+            if not isinstance(cls, MetaSingleton):
+                raise TypeError("Called from a non-singleton class")
             if cls.__abstractsingleton__ and not cls.__abstractmethods__:
                 raise TypeError(f"{cls.__name__} cannot be instantiated")
             if "_singleton_instance_" in cls.__dict__:

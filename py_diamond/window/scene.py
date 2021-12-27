@@ -708,7 +708,7 @@ class _SceneManager:
         def new_scene(cls: Type[Scene]) -> Scene:
             scene: Scene = cls.__new__(cls)
             setattr(scene, self.__scene_manager_attribute, self)
-            scene.__init__()  # type: ignore
+            scene.__init__()  # type: ignore[misc]
             return scene
 
         self.__window: SceneWindow = window
@@ -736,7 +736,7 @@ class _SceneManager:
         for attr in all_attributes:
             if attr != self.__scene_manager_attribute:
                 delattr(scene, attr)
-        scene.__init__()  # type: ignore
+        scene.__init__()  # type: ignore[misc]
 
     def __iter__(self, /) -> Iterator[Scene]:
         return self.from_top_to_bottom()

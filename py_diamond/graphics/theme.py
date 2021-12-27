@@ -369,7 +369,7 @@ class MetaThemedObject(ABCMeta):
 
         super().register(subclass)
         if isinstance(subclass, MetaThemedObject):
-            register_themed_subclass(subclass)  # type: ignore
+            register_themed_subclass(subclass)  # type: ignore[unreachable]
         return subclass
 
     @staticmethod
