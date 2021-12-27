@@ -117,7 +117,7 @@ class Event(metaclass=MetaEvent, event_type=-1):
         def is_allowed(self) -> bool:
             return not pygame.event.get_blocked(self)
 
-    type: Type = field(init=False)
+    type: Event.Type = field(init=False)
 
 
 @dataclass(frozen=True)
@@ -462,17 +462,18 @@ class EventManager:
         with suppress(ValueError):
             mouse_pos_handler_list.remove(callback_to_remove)
 
-    def process_event(self, /, event: Event) -> None:
+    def process_event(self, /, event: Event) -> bool:
         if isinstance(event, (KeyUpEvent, KeyDownEvent)):
             if self.__handle_key_event(event):
-                return
+                return True
         elif isinstance(event, (MouseButtonUpEvent, MouseButtonDownEvent)):
             if self.__handle_mouse_event(event):
-                return
+                return True
         event_dict: Dict[Event.Type, List[_EventCallback]] = self.__event_handler_dict
         for callback in event_dict.get(event.type, ()):
             if callback(event):
-                return
+                return True
+        return False
 
     def handle_mouse_position(self, /) -> None:
         mouse_pos: Tuple[float, float] = Mouse.get_pos()

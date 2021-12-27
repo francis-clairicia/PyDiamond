@@ -293,25 +293,29 @@ class Window:
     def process_events(self, /) -> Iterator[Event]:
         Keyboard.update()
         Mouse.update()
-        if self.__process_callbacks:
-            self._process_callbacks()
+
+        manager: EventManager = self.event
 
         buffer = self.__event_buffer
         buffer.extend(pygame.event.get())
+        process_event = manager.process_event
+        buffer_pop = buffer.pop
+        make_event = Event.from_pygame_event
         while buffer:
-            pg_event = buffer.pop(0)
+            pg_event = buffer_pop(0)
             if pg_event.type == pygame.QUIT:
                 self.close()
             try:
-                event = Event.from_pygame_event(pg_event)
+                event = make_event(pg_event)
             except UnknownEventTypeError:
                 continue
             if not event.type.is_allowed():
                 continue
-            self.event.process_event(event)
-            yield event
-
-        self.event.handle_mouse_position()
+            if not process_event(event):
+                yield event
+        if self.__process_callbacks:
+            self._process_callbacks()
+        manager.handle_mouse_position()
 
     def allow_only_event(self, /, *event_types: Event.Type) -> None:
         self.block_only_event(*(event for event in Event.Type if event not in event_types))

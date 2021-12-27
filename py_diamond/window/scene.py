@@ -197,11 +197,10 @@ class ReturningSceneTransition(SceneTransition):
 
 
 class Scene(metaclass=MetaScene):
-    __T = TypeVar("__T", bound="Scene")
     __instances: ClassVar[Set[Type[Scene]]] = set()
 
-    def __new__(cls: Type[__T], /) -> __T:
-        instances: Set[Type[Scene.__T]] = Scene.__instances  # type: ignore
+    def __new__(cls, /) -> Any:
+        instances: Set[Type[Scene]] = Scene.__instances
         if cls in instances:
             raise TypeError(f"Trying to instantiate two scene of same type {f'{cls.__module__}.{cls.__name__}'!r}")
         scene = super().__new__(cls)
@@ -635,12 +634,13 @@ class SceneWindow(Window):
 
     def process_events(self, /) -> Iterator[Event]:
         actual_scene: Optional[Scene] = self.__scenes.top()
+        manager: Optional[EventManager] = actual_scene.event if actual_scene is not None else None
+        process_event = manager.process_event if manager is not None else None
         for event in super().process_events():
-            if actual_scene is not None:
-                actual_scene.event.process_event(event)
-            yield event
-        if actual_scene is not None:
-            actual_scene.event.handle_mouse_position()
+            if process_event is None or not process_event(event):
+                yield event
+        if manager is not None:
+            manager.handle_mouse_position()
 
     def used_framerate(self, /) -> int:
         framerate = super().used_framerate()

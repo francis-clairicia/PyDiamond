@@ -39,7 +39,7 @@ from py_diamond.graphics.image import Image
 from py_diamond.graphics.progress import ProgressBar
 from py_diamond.graphics.renderer import Renderer
 from py_diamond.graphics.scale import Scale
-from py_diamond.graphics.shape import CircleShape, CrossShape, PolygonShape, RectangleShape
+from py_diamond.graphics.shape import CircleShape, CrossShape, MetaThemedShape, PolygonShape, RectangleShape
 from py_diamond.graphics.sprite import AnimatedSprite, Sprite
 from py_diamond.graphics.surface import Surface
 from py_diamond.graphics.text import Text, TextImage
@@ -61,6 +61,7 @@ class ShapeScene(MainScene, busy_loop=True):
         # self.__p: PolygonShape = PolygonShape(WHITE, outline=3, outline_color=RED)
         # self.__c: CircleShape = CircleShape(30, WHITE, outline=3, outline_color=RED)
         # self.__x: CrossShape = CrossShape(*self.__r.get_local_size(), outline_color=RED, outline=20)
+        cls: MetaThemedShape
         for cls in [RectangleShape, PolygonShape, CircleShape, CrossShape]:
             cls.set_default_theme("default")
             cls.set_theme("default", {"outline_color": RED, "outline": 3})
@@ -541,7 +542,6 @@ class CustomLayeredScene(AutoLayeredMainScene):
         self.text = Text("I'm a text", font=(FontResources.cooperblack, 300), italic=True, color=WHITE, wrap=5, justify="center")
         self.text.center = self.window.center
         self.group.change_layer(self.text, -1)
-        self.text.add(self.group)
 
 
 class SceneTransitionTranslation(SceneTransition):
@@ -557,19 +557,19 @@ class SceneTransitionTranslation(SceneTransition):
         target_rect = target.get_rect()
         previous_scene.center = actual_scene.center = target_rect.center
         previous_scene.fill(set_color_alpha(BLACK, 100))
-        previous_scene_hidden: Callable[[], bool]
+        previous_scene_shown: Callable[[], bool]
         if self.__side == "left":
             previous_scene.animation.infinite_translation((-1, 0), speed=3000)
-            previous_scene_hidden = lambda: previous_scene.right >= target_rect.left
+            previous_scene_shown = lambda: previous_scene.right >= target_rect.left
         else:
             previous_scene.animation.infinite_translation((1, 0), speed=3000)
-            previous_scene_hidden = lambda: previous_scene.left <= target_rect.right
+            previous_scene_shown = lambda: previous_scene.left <= target_rect.right
         previous_scene.animation.start()
-        while previous_scene_hidden():
+        while previous_scene_shown():
             interpolation: Optional[float] = yield
-            if interpolation is None:
+            while interpolation is None:
                 previous_scene.animation.fixed_update(use_of_linear_interpolation=True)
-                continue
+                interpolation = yield
             previous_scene.animation.set_interpolation(interpolation)
             actual_scene.draw_onto(target)
             previous_scene.draw_onto(target)
