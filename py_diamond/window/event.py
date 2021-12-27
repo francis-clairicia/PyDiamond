@@ -488,7 +488,10 @@ class EventManager:
         elif event.type == Event.Type.KEYUP:
             key_handler_dict = self.__key_released_handler_dict
         if key_handler_dict:
-            key = Keyboard.Key(event.key)
+            try:
+                key = Keyboard.Key(event.key)
+            except ValueError:
+                return None
             for callback in key_handler_dict.get(key, ()):
                 output: Optional[bool] = callback(event)
                 if output:
@@ -502,7 +505,10 @@ class EventManager:
         elif event.type == Event.Type.MOUSEBUTTONUP:
             mouse_handler_dict = self.__mouse_button_released_handler_dict
         if mouse_handler_dict:
-            mouse_button = Mouse.Button(event.button)
+            try:
+                mouse_button = Mouse.Button(event.button)
+            except ValueError:
+                return None
             for callback in mouse_handler_dict.get(mouse_button, ()):
                 output: Optional[bool] = callback(event)
                 if output:

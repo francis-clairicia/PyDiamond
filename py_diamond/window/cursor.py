@@ -49,17 +49,11 @@ class _MetaCursor(ABCMeta):
 
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
-    @cache
-    def __call__(cls, /, *args: Any, **kwargs: Any) -> Any:
-        return super().__call__(*args, **kwargs)
-
     @staticmethod
     def update() -> None:
         cursor_setter = _MetaCursor.__cursor_setter
         if not callable(cursor_setter):
-            default_cursor = (
-                _MetaCursor.__default_cursor if isinstance(_MetaCursor.__default_cursor, Cursor) else SystemCursor.CURSOR_ARROW
-            )
+            default_cursor: Cursor = _MetaCursor.__default_cursor or SystemCursor.CURSOR_ARROW
             default_cursor.set()
         if callable(cursor_setter):
             cursor_setter()
@@ -79,7 +73,7 @@ class Cursor(metaclass=_MetaCursor):
 class CustomCursor(Cursor):
     @overload
     def __init__(
-        self, size: Tuple[int, int], hotspot: Tuple[int, int], xormasks: Tuple[int, ...], andmasks: Tuple[int, ...], /
+        self, size: Tuple[int, int], hotspot: Tuple[int, int], xormasks: Sequence[int], andmasks: Sequence[int], /
     ) -> None:
         ...
 
@@ -102,20 +96,26 @@ class CustomCursor(Cursor):
         data, mask = pygame.cursors.compile(strings, black=black, white=white, xor=xor)
         width = max(len(line) for line in strings)
         height = len(strings)
-        return CustomCursor((width, height), hotspot, tuple(data), tuple(mask))
+        return CustomCursor((width, height), hotspot, data, mask)
 
     @staticmethod
     def load_xbm(cursorfile: str, maskfile: str) -> CustomCursor:
         size, hotspot, xormasks, andmasks = pygame.cursors.load_xbm(cursorfile, maskfile)
         width, height = size
         x, y = hotspot
-        return CustomCursor((width, height), (x, y), tuple(xormasks), tuple(andmasks))
+        return CustomCursor((width, height), (x, y), xormasks, andmasks)
 
     def set(self, /) -> None:
         pygame.mouse.set_cursor(self.__cursor)
 
 
-class SystemCursor(Cursor):
+class _MetaSystemCursor(_MetaCursor):
+    @cache
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        return super().__call__(*args, **kwds)
+
+
+class SystemCursor(Cursor, metaclass=_MetaSystemCursor):
     def __init__(self, constant: int, /) -> None:
         super().__init__()
         self.__constant: int = SystemCursor.Type(constant).value

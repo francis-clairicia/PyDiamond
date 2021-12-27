@@ -318,6 +318,7 @@ class Window:
         manager.handle_mouse_position()
 
     def allow_only_event(self, /, *event_types: Event.Type) -> None:
+        event_types = tuple(Event.Type(e) for e in event_types)
         self.block_only_event(*(event for event in Event.Type if event not in event_types))
 
     @contextmanager
