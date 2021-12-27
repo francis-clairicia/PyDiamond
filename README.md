@@ -15,7 +15,7 @@ def main() -> int:
             for event in w.process_events():
                 # do some stuff
                 pass
-            # draw your object
+            # draw your objects
             w.refresh()
     return 0
 
