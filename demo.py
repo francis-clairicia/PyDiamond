@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Final, List, Literal, Optional, Tuple, Type
+from typing import Any, Callable, Final, List, Literal, Mapping, Optional, Sequence, Tuple, Type
 
 from py_diamond.graphics.button import Button, ImageButton
 from py_diamond.graphics.checkbox import CheckBox
@@ -277,16 +277,17 @@ class TextScene(Scene):
 
 class ImagesResources(ResourceManager):
     cactus: Surface
-    car: Tuple[Surface, ...]
-    cross: Surface
-    cross_hover: Surface
+    car: Sequence[Surface]
+    cross: Mapping[str, Surface]
     __resource_loader__ = ImageLoader
     __resources_directory__ = "./files/img"
     __resources_files__ = {
         "cactus": "cactus.png",
         "car": [f"gameplay/voiture_7/{i + 1}.png" for i in range(10)],
-        "cross": "croix_rouge.png",
-        "cross_hover": "croix_rouge_over.png",
+        "cross": {
+            "normal": "croix_rouge.png",
+            "hover": "croix_rouge_over.png",
+        },
     }
 
 
@@ -414,7 +415,9 @@ class ButtonScene(MainScene):
             self.on_start_loop_before_transition()
             self.on_start_loop()
 
-        self.cancel = ImageButton(self, img=ImagesResources.cross, active_img=ImagesResources.cross_hover, callback=restart)
+        self.cancel = ImageButton(
+            self, img=ImagesResources.cross["normal"], active_img=ImagesResources.cross["hover"], callback=restart
+        )
         self.cancel.center = self.window.center
         self.cancel.move(450, 0)
 
@@ -473,8 +476,8 @@ class ProgressScene(MainScene):
         self.progress = progress = ProgressBar(500, 75, from_=10, to=90)
         self.restart = restart = ImageButton(
             self,
-            img=ImagesResources.cross,
-            active_img=ImagesResources.cross_hover,
+            img=ImagesResources.cross["normal"],
+            active_img=ImagesResources.cross["hover"],
             callback=lambda: progress.config.set("percent", 0),
         )
 

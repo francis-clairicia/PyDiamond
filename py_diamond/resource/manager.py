@@ -14,6 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from contextlib import suppress
 from os.path import join
+from types import MappingProxyType
 from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Union
 
 from ..system.path import set_constant_directory
@@ -60,7 +61,7 @@ class _ResourceDescriptor:
             if isinstance(resource_loader, tuple):
                 return tuple(load_all_resources(loader) for loader in resource_loader)
             if isinstance(resource_loader, dict):
-                return {key: load_all_resources(value) for key, value in resource_loader.items()}
+                return MappingProxyType({key: load_all_resources(value) for key, value in resource_loader.items()})
             raise TypeError(f"Unexpected resource loader type: {type(resource_loader).__name__!r} ({resource_loader!r})")
 
         resource: Any
@@ -104,6 +105,8 @@ class MetaResourceManager(type):
         namespace["__resources_directory__"] = directory
 
         for resource_name, resource_path in resources.items():
+            if resource_name not in annotations:
+                raise TypeError(f"Missing type annotation for {resource_name!r}")
             namespace[resource_name] = _ResourceDescriptor(resource_path, namespace["__resource_loader__"], directory)
 
         return super().__new__(metacls, name, bases, namespace, **kwargs)
