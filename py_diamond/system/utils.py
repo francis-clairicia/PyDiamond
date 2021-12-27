@@ -220,7 +220,7 @@ def __valid_number(
     _min: Union[int, float]
     _max: Union[int, float]
 
-    if any(param not in ["value", "min_value", "max_value"] for param in kwargs):
+    if any(param not in ("value", "min_value", "max_value") for param in kwargs):
         raise TypeError("Invalid arguments")
 
     null = object()
