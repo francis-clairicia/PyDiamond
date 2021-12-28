@@ -37,7 +37,7 @@ from py_diamond.graphics.gradients import (
 from py_diamond.graphics.image import Image
 from py_diamond.graphics.progress import ProgressBar
 from py_diamond.graphics.renderer import Renderer
-from py_diamond.graphics.scale import Scale
+from py_diamond.graphics.scale import ScaleBar
 from py_diamond.graphics.shape import CircleShape, CrossShape, MetaThemedShape, PolygonShape, RectangleShape
 from py_diamond.graphics.sprite import AnimatedSprite, Sprite
 from py_diamond.graphics.surface import Surface
@@ -511,15 +511,15 @@ class ProgressScene(MainScene):
         self.vprogress.percent = 0
 
 
-class ScaleScene(MainScene):
+class ScaleBarScene(MainScene):
     def awake(self, /, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.text = text = Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
-        self.scale = scale = Scale(
+        self.scale = scale = ScaleBar(
             self, 500, 75, from_=10, to=90, value_callback=lambda value: self.text.config(message=f"Value: {value:.2f}")
         )
-        self.vscale = vscale = Scale(self, 75, 500, from_=10, to=90, orient="vertical")
+        self.vscale = vscale = ScaleBar(self, 75, 500, from_=10, to=90, orient="vertical")
 
         scale.center = self.window.width / 4, self.window.centery
         text.midtop = scale.centerx, scale.bottom + 20
@@ -605,7 +605,7 @@ class MainWindow(SceneWindow):
         ButtonScene,
         CheckBoxScene,
         ProgressScene,
-        ScaleScene,
+        ScaleBarScene,
         EntryScene,
         CustomLayeredScene,
     ]

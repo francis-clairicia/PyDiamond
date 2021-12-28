@@ -67,7 +67,7 @@ __all__ = [
     "Rect",
     "RectangleShape",
     "Renderer",
-    "Scale",
+    "ScaleBar",
     "SingleColorShape",
     "Sprite",
     "SpriteGroup",
@@ -165,7 +165,7 @@ from .image import Image
 from .progress import ProgressBar
 from .rect import Rect
 from .renderer import Renderer, SurfaceRenderer
-from .scale import Scale
+from .scale import ScaleBar
 from .shape import (
     AbstractCircleShape,
     AbstractRectangleShape,

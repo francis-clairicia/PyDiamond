@@ -2,9 +2,9 @@
 # Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine
 #
 #
-"""Scale module"""
+"""ScaleBar module"""
 
-__all__ = ["Scale"]
+__all__ = ["ScaleBar"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
@@ -25,7 +25,7 @@ from .progress import ProgressBar
 from .theme import ThemeType
 
 
-class Scale(ProgressBar, Clickable):
+class ScaleBar(ProgressBar, Clickable):
     @initializer
     def __init__(
         self,
@@ -115,7 +115,7 @@ class Scale(ProgressBar, Clickable):
             self.__compute_scale_percent_by_mouse_pos(event.pos)
 
     def __compute_scale_percent_by_mouse_pos(self, /, mouse_pos: Tuple[float, float]) -> None:
-        if self.orient == Scale.Orient.HORIZONTAL:
+        if self.orient == ScaleBar.Orient.HORIZONTAL:
             self.percent = (mouse_pos[0] - self.left) / self.width
         else:
             self.percent = (self.bottom - mouse_pos[1]) / self.height
