@@ -1319,11 +1319,8 @@ def _make_function_wrapper(func: Any, *, check_override: bool = True, no_object:
                 _func = getattr(func, "__get__", lambda *args: func)(self, type(self))
                 if _func is func and not no_object:
                     _func = MethodType(func, self)
-            if check_override:
-                for attr_name, attr_obj in (item for cls in _get_cls_mro(type(self)) for item in vars(cls).items()):
-                    if attr_obj is func:
-                        _func = getattr(self, attr_name, _func)
-                        break
+            if check_override and _can_be_overriden(_func):
+                _func = getattr(self, _func.__name__, _func)
             return _func(*args, **kwargs)
 
     else:
@@ -1334,6 +1331,18 @@ def _make_function_wrapper(func: Any, *, check_override: bool = True, no_object:
 
     setattr(wrapper, "__boundconfiguration_wrapper__", True)
     return wrapper
+
+
+_LAMBDA_FUNC_NAME = (lambda: None).__name__
+
+
+def _can_be_overriden(func: Callable[..., Any]) -> bool:
+    name: str = func.__name__
+    if name == _LAMBDA_FUNC_NAME:
+        return False
+    if name.startswith("__"):
+        return name.endswith("__")
+    return True
 
 
 @_no_type_check_cache

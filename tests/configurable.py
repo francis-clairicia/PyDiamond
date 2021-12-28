@@ -63,6 +63,10 @@ class SubConfigurable(Configurable):
 
     config.value_converter_static("e", int)
 
+    def _update(self) -> None:
+        super()._update()
+        print("Override")
+
     @config.main_update
     def _custom_update(self) -> None:
         print("After parent update")
@@ -157,29 +161,30 @@ class Klass:
 
 
 def main() -> None:
-    # rect = SubRect()
-    c = Klass()
-    # print("--------")
-    # c.config["a"] = 4
+    rect = SubRect()
+    # c = Klass()
+    c = SubConfigurable()
+    print("--------")
+    c.config["a"] = 4
     c.config(a=6, b=5, c=-9)
     print("After")
     c.config(a=6, b=5, c=-9)
     print("Close")
     c.config(a=6, b=5, c=-5)
-    # print(c.config.known_options())
-    # print(c.config["a"])
-    # c.config.set("a", 6)
-    # c.config(a=6, b=5, c=-12)
+    print(c.config.known_options())
+    print(c.config["a"])
+    c.config.set("a", 6)
+    c.config(a=6, b=5, c=-12)
 
-    # c.a += 2
-    # print(c.a)
+    c.a += 2
+    print(c.a)
 
-    # c.config.set("e", "4")
-    # assert isinstance(c.e, int)
+    c.config.set("e", "4")
+    assert isinstance(c.e, int)
 
-    # c.d = d = {"a": 5}
-    # print(c.d is d)
-    # print(vars(c))
+    c.d = d = {"a": 5}
+    print(c.d is d)
+    print(vars(c))
 
 
 if __name__ == "__main__":
