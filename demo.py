@@ -3,7 +3,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Final, List, Literal, Mapping, Optional, Sequence, Tuple, Type
+from argparse import ArgumentParser
+from typing import Any, Callable, ClassVar, Final, List, Literal, Mapping, Optional, Sequence, Tuple, Type
 
 from py_diamond.graphics.button import Button, ImageButton
 from py_diamond.graphics.checkbox import CheckBox
@@ -474,30 +475,42 @@ class ProgressScene(MainScene):
     def awake(self, /, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
-        self.progress = progress = ProgressBar(500, 75, from_=10, to=90)
+        self.hprogress = hprogress = ProgressBar(500, 75, from_=10, to=90, orient="horizontal")
+        self.vprogress = vprogress = ProgressBar(125, 500, from_=10, to=90, orient="vertical")
         self.restart = restart = ImageButton(
             self,
             img=ImagesResources.cross["normal"],
             active_img=ImagesResources.cross["hover"],
-            callback=lambda: progress.config.set("percent", 0),
+            callback=self.__restart,
         )
 
-        progress.show_label("Loading...", "top", font=(None, 60), color=WHITE)
-        progress.show_percent("inside", font=(None, 60))
-        progress.center = self.window.center
-        restart.midtop = progress.centerx, progress.bottom + 20
+        hprogress.show_label("Loading...", "top", font=(None, 60), color=WHITE)
+        hprogress.show_percent("inside", font=(None, 60))
+        hprogress.center = self.window.width / 4, self.window.centery
+        vprogress.show_label("Loading...", "right", font=(None, 60), color=WHITE)
+        vprogress.show_percent("inside", font=(None, 60))
+        vprogress.center = self.window.width * 3 / 4, self.window.centery
+        restart.midtop = self.window.centerx, self.window.height * 3 / 4
 
     def on_start_loop_before_transition(self, /) -> None:
-        self.progress.percent = 0
+        self.__restart()
 
     def on_start_loop(self) -> None:
-        self.callback = self.every(20, lambda: self.progress.config(value=self.progress.value + 1))
+        def increment() -> None:
+            self.hprogress.value += 1
+            self.vprogress.value += 1
+
+        self.callback = self.every(20, increment)
 
     def on_quit(self, /) -> None:
         self.callback.kill()
 
     def render(self) -> None:
-        self.window.draw(self.progress, self.restart)
+        self.window.draw(self.hprogress, self.vprogress, self.restart)
+
+    def __restart(self) -> None:
+        self.hprogress.percent = 0
+        self.vprogress.percent = 0
 
 
 class ScaleScene(MainScene):
@@ -508,15 +521,19 @@ class ScaleScene(MainScene):
         self.scale = scale = Scale(
             self, 500, 75, from_=10, to=90, value_callback=lambda value: self.text.config(message=f"Value: {value:.2f}")
         )
+        self.vscale = vscale = Scale(self, 75, 500, from_=10, to=90, orient="vertical")
 
-        scale.center = self.window.center
+        scale.center = self.window.width / 4, self.window.centery
         text.midtop = scale.centerx, scale.bottom + 20
+        vscale.show_value("right", round_n=2, font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
+        vscale.center = self.window.width * 3 / 4, self.window.centery
 
     def on_start_loop_before_transition(self) -> None:
         self.scale.value = self.scale.from_value
+        self.vscale.value = self.vscale.from_value
 
     def render(self) -> None:
-        self.window.draw(self.scale, self.text)
+        self.window.draw(self.scale, self.vscale, self.text)
 
 
 class EntryScene(MainScene):
@@ -577,7 +594,7 @@ class SceneTransitionTranslation(SceneTransition):
 
 class MainWindow(SceneWindow):
 
-    all_scenes: List[Type[Scene]] = [
+    all_scenes: ClassVar[List[Type[Scene]]] = [
         ShapeScene,
         AnimationScene,
         GradientScene,
@@ -619,7 +636,8 @@ class MainWindow(SceneWindow):
         super().__window_quit__()
         del self.prev_button, self.next_button
 
-    def mainloop(self) -> None:
+    def mainloop(self, index: int = 0) -> None:
+        self.index = index % len(self.all_scenes)
         self.run(self.all_scenes[self.index])
 
     def render_scene(self) -> None:
@@ -636,8 +654,12 @@ class MainWindow(SceneWindow):
 
 
 def main() -> None:
+    parser = ArgumentParser()
+    parser.add_argument("-i", "--index", type=int, default=0)
+    args = parser.parse_args()
+
     with MainWindow().open() as window:
-        window.mainloop()
+        window.mainloop(args.index)
 
 
 if __name__ == "__main__":

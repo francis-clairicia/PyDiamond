@@ -31,6 +31,11 @@ class ProgressBar(RectangleShape):
         RIGHT = "right"
         INSIDE = "inside"
 
+    @unique
+    class Orient(str, Enum):
+        HORIZONTAL = "horizontal"
+        VERTICAL = "vertical"
+
     @initializer
     def __init__(
         self,
@@ -40,6 +45,7 @@ class ProgressBar(RectangleShape):
         from_: float = 0,
         to: float = 1,
         default: Optional[float] = None,
+        orient: str = "horizontal",
         *,
         color: Color = WHITE,
         scale_color: Color = GRAY,
@@ -91,6 +97,8 @@ class ProgressBar(RectangleShape):
         else:
             self.value = from_
 
+        self.orient = orient
+
         self.__label_text = Text()
         self.__label_text_side = str()
         self.__value_text = Text()
@@ -106,9 +114,13 @@ class ProgressBar(RectangleShape):
         outline_rect: RectangleShape = self.__outline_rect
 
         outline_rect.center = self.center
-        midleft: Tuple[float, float] = self.midleft
         outline: int = self.outline
-        scale_rect.midleft = (midleft[0] + outline / 2, midleft[1])
+        if self.orient == ProgressBar.Orient.HORIZONTAL:
+            midleft: Tuple[float, float] = self.midleft
+            scale_rect.midleft = (midleft[0] + outline / 2, midleft[1])
+        else:
+            midbottom: Tuple[float, float] = self.midbottom
+            scale_rect.midbottom = (midbottom[0], midbottom[1] - outline / 2)
 
         super().draw_onto(target)
         scale_rect.draw_onto(target)
@@ -227,11 +239,14 @@ class ProgressBar(RectangleShape):
         outline_rect: RectangleShape = self.__outline_rect
         outline_rect.scale = scale_rect.scale = self.scale
 
-    config = Configuration("value", "percent", "scale_color", parent=RectangleShape.config)
+    config = Configuration("value", "percent", "scale_color", "orient", parent=RectangleShape.config)
 
     value: OptionAttribute[float] = OptionAttribute()
     percent: OptionAttribute[float] = OptionAttribute()
     scale_color: OptionAttribute[Color] = OptionAttribute()
+    orient: OptionAttribute[str] = OptionAttribute()
+
+    config.enum("orient", Orient, return_value=True)
 
     @config.value_converter("value")
     def __valid_value(self, /, value: Any) -> float:
@@ -264,7 +279,6 @@ class ProgressBar(RectangleShape):
     def __outline_setter(self, /, option: str, value: Any) -> None:
         self.__outline_rect.config.set(option, value)
 
-    @config.on_update_key_value("local_height")
     @config.on_update_key_value("border_radius")
     @config.on_update_key_value("border_top_left_radius")
     @config.on_update_key_value("border_top_right_radius")
@@ -276,13 +290,19 @@ class ProgressBar(RectangleShape):
 
     @config.on_update("value")
     @config.on_update("percent")
+    @config.on_update("orient")
     @config.on_update("local_width")
+    @config.on_update("local_height")
     def __update_scale(self, /) -> None:
-        width: float = self.local_width
+        width, height = self.local_size
         scale_rect: RectangleShape = self.__scale_rect
         outline_rect: RectangleShape = self.__outline_rect
-        scale_rect.local_width = width * self.__percent
-        outline_rect.local_width = width
+        percent: float = self.__percent
+        if self.orient == ProgressBar.Orient.HORIZONTAL:
+            scale_rect.config(local_width=width * percent, local_height=height)
+        else:
+            scale_rect.config(local_width=width, local_height=height * percent)
+        outline_rect.config(local_width=width, local_height=height)
 
     @property
     def from_value(self, /) -> float:

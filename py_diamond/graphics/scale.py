@@ -36,6 +36,7 @@ class Scale(ProgressBar, Clickable):
         from_: float = 0,
         to: float = 1,
         default: Optional[float] = None,
+        orient: str = "horizontal",
         value_callback: Optional[Callable[[float], None]] = None,
         percent_callback: Optional[Callable[[float], None]] = None,
         *,
@@ -65,6 +66,7 @@ class Scale(ProgressBar, Clickable):
             from_=from_,
             to=to,
             default=default,
+            orient=orient,
             color=color,
             scale_color=scale_color,
             outline=outline,
@@ -106,13 +108,17 @@ class Scale(ProgressBar, Clickable):
 
     def _on_click_down(self, /, event: MouseButtonDownEvent) -> None:
         if self.active:
-            mouse_pos: Tuple[float, float] = event.pos
-            self.percent = (mouse_pos[0] - self.x) / self.width
+            self.__compute_scale_percent_by_mouse_pos(event.pos)
 
     def _on_mouse_motion(self, /, event: MouseMotionEvent) -> None:
-        mouse_pos: Tuple[float, float] = event.pos
         if self.active:
-            self.percent = (mouse_pos[0] - self.x) / self.width
+            self.__compute_scale_percent_by_mouse_pos(event.pos)
+
+    def __compute_scale_percent_by_mouse_pos(self, /, mouse_pos: Tuple[float, float]) -> None:
+        if self.orient == Scale.Orient.HORIZONTAL:
+            self.percent = (mouse_pos[0] - self.left) / self.width
+        else:
+            self.percent = (self.bottom - mouse_pos[1]) / self.height
 
     config = Configuration(parent=ProgressBar.config)
 
