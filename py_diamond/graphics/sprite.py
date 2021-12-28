@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["AnimatedSprite", "Sprite"]
+__all__ = ["AnimatedSprite", "LayeredSpriteGroup", "Sprite", "SpriteGroup"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"

@@ -6,6 +6,8 @@
 The framework uses the popular pygame library (https://github.com/pygame/pygame/).
 """
 
+__all__ = []  # type: list[str]
+
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __credits__ = ["Francis Clairicia-Rose-Claire-Josephine"]
@@ -30,3 +32,8 @@ if os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] == "0":
 
 ############ Cleanup ############
 del os, sys
+
+
+############ Package initialization ############
+from . import audio, graphics, math, resource, system, window
+del audio, graphics, math, resource, system, window

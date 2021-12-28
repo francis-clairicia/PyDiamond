@@ -4,7 +4,7 @@
 #
 """PyDiamond's audio module"""
 
-__all__ = ["MIXER_BUFFER", "MIXER_CHANNELS", "MIXER_FREQUENCY", "MIXER_SIZE"]
+__all__ = ["AUDIO_BUFFER", "AUDIO_CHANNELS", "AUDIO_FREQUENCY", "AUDIO_SIZE", "Music", "Sound"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
@@ -21,15 +21,19 @@ if pygame.version.vernum < (2, 0):
 if pygame.version.SDL < (2, 0, 16):
     raise ImportError(f"Your SDL2 version is too old: {str(pygame.version.SDL)!r} < '2.0.16'")
 
-MIXER_FREQUENCY = int(os.getenv("AUDIO_FREQUENCY", 44100))
-MIXER_SIZE = -abs(int(os.getenv("AUDIO_SIZE", 16)))
-MIXER_CHANNELS = int(os.getenv("AUDIO_CHANNELS", 2))
-MIXER_BUFFER = int(os.getenv("AUDIO_BUFFER", 512))
+AUDIO_FREQUENCY = int(os.environ.setdefault("AUDIO_FREQUENCY", "44100"))
+AUDIO_SIZE = -abs(int(os.environ.setdefault("AUDIO_SIZE", "16")))
+AUDIO_CHANNELS = int(os.environ.setdefault("AUDIO_CHANNELS", "2"))
+AUDIO_BUFFER = int(os.environ.setdefault("AUDIO_BUFFER", "512"))
 
 if pygame.mixer.get_init() is not None:
     pygame.mixer.quit()
 
-pygame.mixer.init(MIXER_FREQUENCY, MIXER_SIZE, MIXER_CHANNELS, MIXER_BUFFER)
+pygame.mixer.init(AUDIO_FREQUENCY, AUDIO_SIZE, AUDIO_CHANNELS, AUDIO_BUFFER)
 
 ############ Cleanup ############
 del os, pygame
+
+
+############ Package initialization ############
+from .sound import Music, Sound
