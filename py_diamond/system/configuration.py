@@ -161,13 +161,13 @@ class Configuration:
             descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
             if hasattr(descriptor, "__set_name__"):
                 getattr(descriptor, "__set_name__")(attribute_class_owner[option], option)
-        _register_configuration(owner, self)
+        former_config: Optional[Configuration] = _register_configuration(owner, self)
         for obj in _all_members(owner).values():
             if isinstance(obj, OptionAttribute):
                 with suppress(AttributeError):
                     self.check_option_validity(obj.name)
             elif isinstance(obj, Configuration) and obj is not self:
-                _register_configuration(owner, obj)
+                _register_configuration(owner, former_config)
                 raise TypeError(f"A class can't have several {Configuration.__name__!r} objects")
 
     def known_options(self, /) -> FrozenSet[str]:
@@ -1377,8 +1377,18 @@ def _all_members(cls: type) -> Dict[str, Any]:
     return members
 
 
-def _register_configuration(cls: type, config: Configuration) -> None:
-    setattr(cls, "_bound_configuration_", config)
+def _register_configuration(cls: type, config: Optional[Configuration]) -> Optional[Configuration]:
+    if not isinstance(cls, type):
+        raise TypeError(f"{cls} is not a type")
+    former_config: Optional[Configuration] = None
+    with suppress(TypeError):
+        former_config = _retrieve_configuration(cls)
+    if isinstance(config, Configuration):
+        setattr(cls, "_bound_configuration_", config)
+    else:
+        with suppress(AttributeError):
+            delattr(cls, "_bound_configuration_")
+    return former_config
 
 
 def _retrieve_configuration(cls: type) -> Configuration:
