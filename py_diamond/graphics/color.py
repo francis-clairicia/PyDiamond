@@ -4,6 +4,8 @@
 #
 """Color module"""
 
+from __future__ import annotations
+
 __all__ = [
     "BLACK",
     "BLUE",
@@ -27,11 +29,6 @@ __all__ = [
     "TRANSPARENT",
     "WHITE",
     "YELLOW",
-    "change_brightness",
-    "change_saturation",
-    "set_brightness",
-    "set_color_alpha",
-    "set_saturation",
 ]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -45,7 +42,56 @@ from pygame.color import Color as _Color
 
 
 class Color(_Color):
-    pass
+    @property
+    def h(self, /) -> float:
+        return self.hsva[0]
+
+    @h.setter
+    def h(self, /, value: float) -> None:
+        _, S, V, A = self.hsva
+        H = value % 360
+        self.hsva = (H, S, V, A)
+
+    @property
+    def s(self, /) -> float:
+        return self.hsva[1]
+
+    @s.setter
+    def s(self, /, value: float) -> None:
+        H, _, V, A = self.hsva
+        S = value
+        if S > 100:
+            S = 100
+        elif S < 0:
+            S = 0
+        self.hsva = (H, S, V, A)
+
+    @property
+    def v(self, /) -> float:
+        return self.hsva[2]
+
+    @v.setter
+    def v(self, /, value: float) -> None:
+        H, S, _, A = self.hsva
+        V = value
+        if V > 100:
+            V = 100
+        elif V < 0:
+            V = 0
+        self.hsva = (H, S, V, A)
+
+    def with_brightness(self, /, value: float) -> Color:
+        c = Color(self)
+        c.v = value
+        return c
+
+    def with_saturation(self, /, value: float) -> Color:
+        c = Color(self)
+        c.s = value
+        return c
+
+    def with_alpha(self, /, value: int) -> Color:
+        return Color(self.r, self.g, self.b, value)
 
 
 _ColorValue = Union[Color, str, Tuple[int, int, int], List[int], int, Tuple[int, int, int, int]]
@@ -57,6 +103,9 @@ class ImmutableColor(Color):
     g: int
     b: int
     a: int
+    h: float
+    s: float
+    v: float
     cmy: Tuple[float, float, float]
     hsva: Tuple[float, float, float, float]
     hsla: Tuple[float, float, float, float]
@@ -74,75 +123,23 @@ class ImmutableColor(Color):
         super().__init__(*args)
 
 
-WHITE = ImmutableColor(255, 255, 255)
-BLACK = ImmutableColor(0, 0, 0)
-GRAY = ImmutableColor(127, 127, 127)
-GRAY_DARK = ImmutableColor(95, 95, 95)
-GRAY_LIGHT = ImmutableColor(175, 175, 175)
-RED = ImmutableColor(255, 0, 0)
-RED_DARK = ImmutableColor(128, 0, 0)
-RED_LIGHT = ImmutableColor(255, 128, 128)
-ORANGE = ImmutableColor(255, 175, 0)
-YELLOW = ImmutableColor(255, 255, 0)
-GREEN = ImmutableColor(0, 255, 0)
-GREEN_DARK = ImmutableColor(0, 128, 0)
-GREEN_LIGHT = ImmutableColor(128, 255, 128)
-CYAN = ImmutableColor(0, 255, 255)
-BLUE = ImmutableColor(0, 0, 255)
-BLUE_DARK = ImmutableColor(0, 0, 128)
-BLUE_LIGHT = ImmutableColor(128, 128, 255)
-MAGENTA = ImmutableColor(255, 0, 255)
-PURPLE = ImmutableColor(165, 0, 255)
-TRANSPARENT = ImmutableColor(0, 0, 0, 0)
-
-
-def set_brightness(color: Color, value: int) -> Color:
-    c = Color(color)
-    H, S, V, A = c.hsva
-    V = value
-    if V > 100:
-        V = 100
-    elif V < 0:
-        V = 0
-    c.hsva = (H, S, V, A)
-    return c
-
-
-def change_brightness(color: Color, offset: int) -> Color:
-    c = Color(color)
-    H, S, V, A = c.hsva
-    V += offset
-    if V > 100:
-        V = 100
-    elif V < 0:
-        V = 0
-    c.hsva = (H, S, V, A)
-    return c
-
-
-def set_saturation(color: Color, value: int) -> Color:
-    c = Color(color)
-    H, S, V, A = c.hsva
-    S = value
-    if S > 100:
-        S = 100
-    elif S < 0:
-        S = 0
-    c.hsva = (H, S, V, A)
-    return c
-
-
-def change_saturation(color: Color, offset: int) -> Color:
-    c = Color(color)
-    H, S, V, A = c.hsva
-    S += offset
-    if S > 100:
-        S = 100
-    elif S < 0:
-        S = 0
-    c.hsva = (H, S, V, A)
-    return c
-
-
-def set_color_alpha(color: Color, value: int) -> Color:
-    return Color(color.r, color.g, color.b, value)
+WHITE: Color = ImmutableColor(255, 255, 255)
+BLACK: Color = ImmutableColor(0, 0, 0)
+GRAY: Color = ImmutableColor(127, 127, 127)
+GRAY_DARK: Color = ImmutableColor(95, 95, 95)
+GRAY_LIGHT: Color = ImmutableColor(175, 175, 175)
+RED: Color = ImmutableColor(255, 0, 0)
+RED_DARK: Color = ImmutableColor(128, 0, 0)
+RED_LIGHT: Color = ImmutableColor(255, 128, 128)
+ORANGE: Color = ImmutableColor(255, 175, 0)
+YELLOW: Color = ImmutableColor(255, 255, 0)
+GREEN: Color = ImmutableColor(0, 255, 0)
+GREEN_DARK: Color = ImmutableColor(0, 128, 0)
+GREEN_LIGHT: Color = ImmutableColor(128, 255, 128)
+CYAN: Color = ImmutableColor(0, 255, 255)
+BLUE: Color = ImmutableColor(0, 0, 255)
+BLUE_DARK: Color = ImmutableColor(0, 0, 128)
+BLUE_LIGHT: Color = ImmutableColor(128, 128, 255)
+MAGENTA: Color = ImmutableColor(255, 0, 255)
+PURPLE: Color = ImmutableColor(165, 0, 255)
+TRANSPARENT: Color = ImmutableColor(0, 0, 0, 0)

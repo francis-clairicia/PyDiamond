@@ -4,7 +4,9 @@
 #
 """Rect module"""
 
-__all__ = ["Rect", "pg_rect_convert"]
+from __future__ import annotations
+
+__all__ = ["Rect"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
@@ -14,8 +16,6 @@ from pygame.rect import Rect as _Rect
 
 
 class Rect(_Rect):
-    pass
-
-
-def pg_rect_convert(rect: _Rect) -> Rect:
-    return Rect(rect.topleft, rect.size)
+    @staticmethod
+    def convert(pygame_rect: _Rect) -> Rect:
+        return Rect(pygame_rect.topleft, pygame_rect.size)

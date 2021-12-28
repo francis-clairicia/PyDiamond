@@ -88,16 +88,9 @@ __all__ = [
     "WHITE",
     "YELLOW",
     "abstract_theme_class",
-    "change_brightness",
-    "change_saturation",
     "create_surface",
-    "get_default_font",
     "load_image",
-    "pg_rect_convert",
     "save_image",
-    "set_brightness",
-    "set_color_alpha",
-    "set_saturation",
 ]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -152,15 +145,10 @@ from .color import (
     YELLOW,
     Color,
     ImmutableColor,
-    change_brightness,
-    change_saturation,
-    set_brightness,
-    set_color_alpha,
-    set_saturation,
 )
 from .drawable import Drawable, DrawableGroup, LayeredGroup, MetaDrawable, MetaTDrawable, TDrawable
 from .entry import Entry, MetaEntry
-from .font import Font, SysFont, get_default_font
+from .font import Font, SysFont
 from .gradients import (
     GradientShape,
     HorizontalGradientShape,
@@ -173,7 +161,7 @@ from .gradients import (
 )
 from .image import Image
 from .progress import ProgressBar
-from .rect import Rect, pg_rect_convert
+from .rect import Rect
 from .renderer import Renderer, SurfaceRenderer
 from .scale import Scale
 from .shape import (

@@ -23,8 +23,6 @@ from py_diamond.graphics.color import (
     WHITE,
     YELLOW,
     Color,
-    set_brightness,
-    set_color_alpha,
 )
 from py_diamond.graphics.entry import Entry
 from py_diamond.graphics.gradients import (
@@ -213,7 +211,7 @@ class GradientScene(Scene):
 
 
 RAINBOW_COLORS: Final[Tuple[Color, ...]] = tuple(
-    set_brightness(c, 75) for c in (RED, ORANGE, YELLOW, GREEN, CYAN, BLUE, MAGENTA, PURPLE, RED)
+    c.with_brightness(75) for c in (RED, ORANGE, YELLOW, GREEN, CYAN, BLUE, MAGENTA, PURPLE, RED)
 )
 
 
@@ -573,7 +571,7 @@ class SceneTransitionTranslation(SceneTransition):
         actual_scene = Image(actual_scene_image)
         target_rect = target.get_rect()
         previous_scene.center = actual_scene.center = target_rect.center
-        previous_scene.fill(set_color_alpha(BLACK, 100))
+        previous_scene.fill(BLACK.with_alpha(100))
         previous_scene_shown: Callable[[], bool]
         if self.__side == "left":
             previous_scene.animation.infinite_translation((-1, 0), speed=3000)

@@ -23,9 +23,9 @@ from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.utils import valid_float, valid_integer
 from .color import BLACK, Color
 from .drawable import MetaTDrawable, TDrawable
-from .font import Font, SysFont, get_default_font
+from .font import Font, SysFont
 from .image import Image
-from .rect import Rect, pg_rect_convert
+from .rect import Rect
 from .renderer import Renderer, SurfaceRenderer
 from .surface import Surface, create_surface
 from .theme import MetaThemedObject, ThemeType
@@ -129,7 +129,7 @@ class Text(TDrawable, metaclass=MetaText):
 
     @staticmethod
     def get_default_font() -> str:
-        font: str = getattr(Text, "__default_font__", get_default_font())
+        font: str = getattr(Text, "__default_font__", Font.get_default_font())
         return font
 
     @staticmethod
@@ -191,7 +191,7 @@ class Text(TDrawable, metaclass=MetaText):
         if len(render_lines) == 1:
             return render_lines[0]
         text: Surface = create_surface((render_width, render_height))
-        text_rect: Rect = pg_rect_convert(text.get_rect())
+        text_rect: Rect = Rect.convert(text.get_rect())
         top: int = 0
         params: Dict[str, int] = {
             Text.Justify.LEFT: {"left": text_rect.left},
@@ -409,7 +409,7 @@ class TextImage(Text):
         if text_width == 0 or text_height == 0:
             return img.get(apply_rotation_scale=True)
 
-        text_rect: Rect = pg_rect_convert(text.get_rect())
+        text_rect: Rect = Rect.convert(text.get_rect())
         offset: float = self.distance
         render_width: float
         render_height: float
@@ -423,7 +423,7 @@ class TextImage(Text):
             render_width = max(text_width, img_width)
             render_height = max(text_height, img_height)
         render: Surface = create_surface((render_width, render_height))
-        render_rect: Rect = pg_rect_convert(render.get_rect())
+        render_rect: Rect = Rect.convert(render.get_rect())
 
         compound: TextImage.Compound = self.__compound
         if compound == TextImage.Compound.LEFT:
