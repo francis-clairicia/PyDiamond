@@ -61,3 +61,4 @@ warn_return_any = true
 warn_unreachable = true
 no_implicit_reexport = true
 strict_equality = true
+enable_error_code = ["truthy-bool"]

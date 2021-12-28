@@ -219,9 +219,9 @@ class Transformable(metaclass=MetaTransformable):
         try:
             self._apply_both_rotation_and_scale()
         except NotImplementedError:
+            only_scale_exc: Optional[NotImplementedError] = None
+            only_rotation_exc: Optional[NotImplementedError] = None
             try:
-                only_scale_exc: Optional[BaseException] = None
-                only_rotation_exc: Optional[BaseException] = None
                 try:
                     self._apply_only_scale()
                 except NotImplementedError as exc:
@@ -232,9 +232,12 @@ class Transformable(metaclass=MetaTransformable):
                     only_rotation_exc = exc
                 if only_scale_exc is not None and only_rotation_exc is not None:
                     raise NotImplementedError
+                if only_scale_exc is None and only_rotation_exc is None:
+                    raise TypeError(
+                        "_apply_only_scale and _apply_only_rotation are implemented, but not _apply_both_rotation_and_scale"
+                    )
             finally:
-                only_scale_exc = None
-                only_rotation_exc = None
+                del only_scale_exc, only_rotation_exc
 
     @abstractmethod
     def _apply_both_rotation_and_scale(self, /) -> None:
