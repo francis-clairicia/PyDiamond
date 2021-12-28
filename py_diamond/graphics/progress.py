@@ -119,8 +119,8 @@ class ProgressBar(RectangleShape):
             midleft: Tuple[float, float] = self.midleft
             scale_rect.midleft = (midleft[0] + outline / 2, midleft[1])
         else:
-            midbottom: Tuple[float, float] = self.midbottom
-            scale_rect.midbottom = (midbottom[0], midbottom[1] - outline / 2)
+            midtop: Tuple[float, float] = self.midtop
+            scale_rect.midtop = (midtop[0], midtop[1] + outline / 2)
 
         super().draw_onto(target)
         scale_rect.draw_onto(target)

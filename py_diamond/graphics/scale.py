@@ -118,7 +118,7 @@ class ScaleBar(ProgressBar, Clickable):
         if self.orient == ScaleBar.Orient.HORIZONTAL:
             self.percent = (mouse_pos[0] - self.left) / self.width
         else:
-            self.percent = (self.bottom - mouse_pos[1]) / self.height
+            self.percent = (mouse_pos[1] - self.top) / self.height
 
     config = Configuration(parent=ProgressBar.config)
 
