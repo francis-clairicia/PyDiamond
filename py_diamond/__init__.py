@@ -6,7 +6,7 @@
 The framework uses the popular pygame library (https://github.com/pygame/pygame/).
 """
 
-__all__ = []  # type: list[str]
+__all__ = []  # type: ignore
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
@@ -30,10 +30,13 @@ if os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] not in ("0", "1"):
 if os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] == "0":
     os.environ.pop("PYGAME_HIDE_SUPPORT_PROMPT")
 
-############ Cleanup ############
-del os, sys
-
-
 ############ Package initialization ############
-from . import audio, graphics, math, resource, system, window
-del audio, graphics, math, resource, system, window
+import py_diamond.audio
+import py_diamond.graphics
+import py_diamond.math
+import py_diamond.resource
+import py_diamond.system
+import py_diamond.window
+
+############ Cleanup ############
+del os, sys, py_diamond

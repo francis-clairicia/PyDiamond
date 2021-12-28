@@ -141,6 +141,9 @@ class Configuration:
         self.__no_parent_ownership: Set[str] = set()
         self.__bound_class: Optional[type] = None
 
+    def __repr__(self, /) -> str:
+        return f"{type(self).__name__}({{{', '.join(repr(s) for s in sorted(self.known_options()))}}})"
+
     def __set_name__(self, owner: type, name: str, /) -> None:
         if self.__bound_class is not None:
             raise TypeError(f"This configuration object is bound to an another class: {self.__bound_class.__name__!r}")
@@ -1366,14 +1369,14 @@ def _all_members(cls: type) -> Dict[str, Any]:
 
 
 def _register_configuration(cls: type, config: Configuration) -> None:
-    setattr(cls, "__bound_configuration__", config)
+    setattr(cls, "_bound_configuration_", config)
 
 
 def _retrieve_configuration(cls: type) -> Configuration:
     try:
         if not isinstance(cls, type):
             raise TypeError(f"{cls} is not a type")
-        config: Configuration = getattr(cls, "__bound_configuration__")
+        config: Configuration = getattr(cls, "_bound_configuration_")
         if not isinstance(config, Configuration):
             raise AttributeError
     except AttributeError:

@@ -150,12 +150,12 @@ class MetaThemedObject(ABCMeta):
         cls = super().__new__(metacls, name, bases, namespace, **kwargs)
         if not use_parent_theme:
             _CLASSES_NOT_USING_PARENT_THEMES.add(cls)
-            setattr(cls, "__no_parent_theme__", True)
+            setattr(cls, "_no_parent_theme_", True)
             use_parent_default_theme = False
         if not use_parent_default_theme:
             _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.add(cls)
-            setattr(cls, "__no_parent_default_theme__", True)
-        setattr(cls, "__is_abstract_theme_class__", False)
+            setattr(cls, "_no_parent_default_theme_", True)
+        setattr(cls, "_is_abstract_theme_class_", False)
         cls.__virtual_themed_class_bases__ = ()
         if all(not isinstance(b, MetaThemedObject) or b.is_abstract_theme_class() for b in bases):
             _CLASSES_NOT_USING_PARENT_THEMES.add(cls)
@@ -351,17 +351,17 @@ class MetaThemedObject(ABCMeta):
         return tuple(default_theme)
 
     def is_abstract_theme_class(cls, /) -> bool:
-        return truth(getattr(cls, "__is_abstract_theme_class__", False))
+        return truth(getattr(cls, "_is_abstract_theme_class_", False))
 
     def register(cls, /, subclass: Type[_T]) -> Type[_T]:
         def register_themed_subclass(subclass: MetaThemedObject) -> None:
             subclass.__virtual_themed_class_bases__ = (*subclass.__virtual_themed_class_bases__, cls)
-            if not getattr(subclass, "__no_parent_theme__", False):
+            if not getattr(subclass, "_no_parent_theme_", False):
                 try:
                     _CLASSES_NOT_USING_PARENT_THEMES.remove(subclass)
                 except (ValueError, KeyError):
                     pass
-            if not getattr(subclass, "__no_parent_default_theme__", False):
+            if not getattr(subclass, "_no_parent_default_theme_", False):
                 try:
                     _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.remove(subclass)
                 except (ValueError, KeyError):
@@ -396,7 +396,7 @@ _ThemedObjectClass = TypeVar("_ThemedObjectClass")
 
 
 def abstract_theme_class(cls: _ThemedObjectClass) -> _ThemedObjectClass:
-    setattr(cls, "__is_abstract_theme_class__", True)
+    setattr(cls, "_is_abstract_theme_class_", True)
     return cls
 
 

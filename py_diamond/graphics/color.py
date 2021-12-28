@@ -51,7 +51,7 @@ class Color(_Color):
 _ColorValue = Union[Color, str, Tuple[int, int, int], List[int], int, Tuple[int, int, int, int]]
 
 
-@dataclass(init=False, frozen=True)
+@dataclass(init=False, repr=False, frozen=True)
 class ImmutableColor(Color):
     r: int
     g: int
