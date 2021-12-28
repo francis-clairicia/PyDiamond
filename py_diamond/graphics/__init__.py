@@ -121,13 +121,6 @@ copyreg.pickle(
         (serializer(s, "ARGB"), s.get_size(), "ARGB"),
     ),
 )
-copyreg.pickle(
-    pygame.Surface,
-    lambda s, serializer=pygame.image.tostring, deserializer=pygame.image.fromstring: (  # type: ignore
-        deserializer,
-        (serializer(s, "ARGB"), s.get_size(), "ARGB"),
-    ),
-)
 
 ############ Cleanup ############
 del os, typing, pygame, copyreg
