@@ -221,6 +221,9 @@ class Scene(metaclass=MetaScene):
             manager.window, mangle_private_attribute(SceneWindow, "callback_after_scenes")
         )
 
+    def __theme_init__(self, /) -> None:
+        pass
+
     def __quit__(self, /) -> None:
         pass
 
@@ -477,8 +480,17 @@ class AutoLayeredMainScene(LayeredMainScene, add_drawable_attributes=True):
 
 
 class SceneWindow(Window):
-    def __init__(self, /, title: Optional[str] = None, size: Tuple[int, int] = (0, 0), fullscreen: bool = False) -> None:
-        super().__init__(title=title, size=size, fullscreen=fullscreen)
+    def __init__(
+        self,
+        /,
+        title: Optional[str] = None,
+        size: Tuple[int, int] = (0, 0),
+        *,
+        resizable: bool = False,
+        fullscreen: bool = False,
+        vsync: bool = True,
+    ) -> None:
+        super().__init__(title=title, size=size, resizable=resizable, fullscreen=fullscreen, vsync=vsync)
         self.__callback_after_scenes: Dict[Scene, _WindowCallbackList] = dict()
         self.__scenes: _SceneManager
         self.__accumulator: float = 0
@@ -709,6 +721,7 @@ class _SceneManager:
             scene: Scene = cls.__new__(cls)
             setattr(scene, self.__scene_manager_attribute, self)
             scene.__init__()  # type: ignore[misc]
+            scene.__theme_init__()
             return scene
 
         self.__window: SceneWindow = window

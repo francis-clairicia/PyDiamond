@@ -128,15 +128,13 @@ class Clickable(metaclass=ABCMeta):
                 return True
         return False
 
-    def __handle_mouse_position(self, /, mouse_pos: Tuple[float, float]) -> bool:
+    def __handle_mouse_position(self, /, mouse_pos: Tuple[float, float]) -> None:
         if isinstance(self, Drawable) and not self.is_shown():
             self.hover = False
-            return False
+            return
         self.hover = hover = self._mouse_in_hitbox(mouse_pos)
         if hover or (self.active and not self.__active_only_on_hover):
             self.__hover_cursor[self.__state].set()
-            return True
-        return hover
 
     @abstractmethod
     def _mouse_in_hitbox(self, /, mouse_pos: Tuple[float, float]) -> bool:

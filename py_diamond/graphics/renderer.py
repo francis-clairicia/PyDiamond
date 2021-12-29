@@ -236,7 +236,7 @@ class SurfaceRenderer(Renderer):
         target: Surface = self.__target
         return Rect.convert(target.get_rect(**kwargs))
 
-    def get_size(self, /) -> Tuple[float, float]:
+    def get_size(self, /) -> Tuple[int, int]:
         target: Surface = self.__target
         return target.get_size()
 

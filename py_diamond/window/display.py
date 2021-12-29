@@ -41,6 +41,7 @@ from typing import (
 import pygame
 import pygame.display
 import pygame.event
+from pygame.constants import QUIT, WINDOWCLOSE
 
 from ..graphics.color import BLACK, WHITE, Color
 from ..graphics.rect import Rect
@@ -52,7 +53,7 @@ from ..system._mangling import mangle_private_attribute
 from ..system.utils import wraps
 from .clock import Clock
 from .cursor import Cursor
-from .event import Event, EventManager, UnknownEventTypeError
+from .event import Event, EventManager, UnknownEventTypeError, WindowSizeChangedEvent
 from .keyboard import Keyboard
 from .mouse import Mouse
 from .time import Time
@@ -118,13 +119,21 @@ class Window:
         return super().__new__(cls)
 
     def __init__(
-        self, /, title: Optional[str] = None, size: Tuple[int, int] = (0, 0), fullscreen: bool = False, vsync: bool = True
+        self,
+        /,
+        title: Optional[str] = None,
+        size: Tuple[int, int] = (0, 0),
+        *,
+        resizable: bool = False,
+        fullscreen: bool = False,
+        vsync: bool = True,
     ) -> None:
-        super().__init__()
         self.set_title(title)
         self.__size: Tuple[int, int] = (max(size[0], 0), max(size[1], 0))
         self.__flags: int = 0
-        if fullscreen:
+        if resizable:
+            self.__flags |= pygame.RESIZABLE
+        elif fullscreen:
             self.__flags |= pygame.FULLSCREEN
             self.__size = (0, 0)
         self.__vsync: bool = bool(vsync)
@@ -142,6 +151,8 @@ class Window:
         self.__loop: bool = False
         self.__callback_after: _WindowCallbackList = _WindowCallbackList()
         self.__process_callbacks: bool = True
+
+        self.__text_framerate: Text
 
     def __window_init__(self, /) -> None:
         pass
@@ -172,17 +183,19 @@ class Window:
         with ExitStack() as stack, suppress(Window.Exit):
             pygame.display.init()
             stack.callback(pygame.display.quit)
-            size = self.__size
-            flags = self.__flags
+            size: Tuple[int, int] = self.__size
+            flags: int = self.__flags
             vsync = int(truth(self.__vsync))
             screen: Surface = pygame.display.set_mode(size, flags=flags, vsync=vsync)
-            self.__surface = create_surface(screen.get_size())
+            size = screen.get_size()
+            self.__surface = create_surface(size)
             self.__rect = Rect.convert(self.__surface.get_rect())
             stack.callback(cleanup)
-            self.__text_framerate: Text = Text(color=WHITE, theme=NoTheme)
+            self.__text_framerate = Text(color=WHITE, theme=NoTheme)
             self.__text_framerate.hide()
             self.__text_framerate.midtop = (self.centerx, self.top + 10)
             self.__window_init__()
+            self.clear_all_events()
             self.__main_clock.tick()
             self.__loop = True
             yield self
@@ -297,12 +310,20 @@ class Window:
         process_event = manager.process_event
         make_event = Event.from_pygame_event
         for pg_event in pygame.event.get():
-            if pg_event.type == pygame.QUIT:
-                self.close()
+            if pg_event.type in (QUIT, WINDOWCLOSE):
+                self.handle_close_event()
+                continue
             try:
                 event = make_event(pg_event)
             except UnknownEventTypeError:
                 continue
+            if isinstance(event, WindowSizeChangedEvent):
+                former_surface = self.__surface
+                new_surface = create_surface((event.x, event.y))
+                new_surface.blit(former_surface, (0, 0))
+                self.__surface = new_surface
+                del former_surface
+                self.__rect = Rect.convert(new_surface.get_rect())
             if not event.type.is_allowed():
                 continue
             if not process_event(event):
@@ -310,6 +331,38 @@ class Window:
         if self.__process_callbacks:
             self._process_callbacks()
         manager.handle_mouse_position()
+
+    def handle_close_event(self, /) -> None:
+        self.close()
+
+    @final
+    def set_size(self, /, size: Tuple[int, int]) -> None:
+        width, height = size
+        width = int(width)
+        height = int(height)
+        if width <= 0 or height <= 0:
+            raise ValueError("Invalid window size")
+        if not self.__loop:
+            raise WindowError("Trying to resize not opened window")
+        if not self.resizable:
+            raise WindowError("Trying to resize not resizable window")
+        size = (width, height)
+        screen: Surface = pygame.display.get_surface()
+        if size == screen.get_size():
+            return
+        flags: int = self.__flags
+        vsync = int(truth(self.__vsync))
+        pygame.display.set_mode(size, flags=flags, vsync=vsync)
+
+    @final
+    def set_width(self, /, width: int) -> None:
+        height = self.__surface.get_size()[1]
+        return self.set_size((width, height))
+
+    @final
+    def set_height(self, /, height: int) -> None:
+        width = self.__surface.get_size()[0]
+        return self.set_size((width, height))
 
     def allow_only_event(self, /, *event_types: Event.Type) -> None:
         event_types = tuple(Event.Type(e) for e in event_types)
@@ -414,6 +467,11 @@ class Window:
     @property
     def event(self, /) -> EventManager:
         return self.__event
+
+    @property
+    def resizable(self, /) -> bool:
+        out: int = self.__flags & pygame.RESIZABLE
+        return out != 0
 
     @property
     def rect(self, /) -> Rect:

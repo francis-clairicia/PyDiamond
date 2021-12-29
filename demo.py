@@ -53,6 +53,13 @@ from py_diamond.window.time import Time
 
 
 class ShapeScene(MainScene, busy_loop=True):
+    def __theme_init__(self, /) -> None:
+        super().__theme_init__()
+        cls: MetaThemedShape
+        for cls in [RectangleShape, PolygonShape, CircleShape, CrossShape]:
+            cls.set_default_theme("default")
+            cls.set_theme("default", {"outline_color": RED, "outline": 3})
+
     def awake(self, /, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
@@ -60,10 +67,6 @@ class ShapeScene(MainScene, busy_loop=True):
         # self.__p: PolygonShape = PolygonShape(WHITE, outline=3, outline_color=RED)
         # self.__c: CircleShape = CircleShape(30, WHITE, outline=3, outline_color=RED)
         # self.__x: CrossShape = CrossShape(*self.__r.get_local_size(), outline_color=RED, outline=20)
-        cls: MetaThemedShape
-        for cls in [RectangleShape, PolygonShape, CircleShape, CrossShape]:
-            cls.set_default_theme("default")
-            cls.set_theme("default", {"outline_color": RED, "outline": 3})
         self.__r: RectangleShape = RectangleShape(50, 50, WHITE)
         self.__p: PolygonShape = PolygonShape(WHITE)
         self.__c: CircleShape = CircleShape(30, WHITE, outline=4)

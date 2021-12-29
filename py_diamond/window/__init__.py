@@ -5,7 +5,6 @@
 """PyDiamond's window module"""
 
 __all__ = [
-    "ActiveEvent",
     "AutoLayeredMainScene",
     "AutoLayeredScene",
     "Clickable",
@@ -54,11 +53,23 @@ __all__ = [
     "Time",
     "UnknownEventTypeError",
     "UserEvent",
-    "VideoExposeEvent",
-    "VideoResizeEvent",
     "Window",
     "WindowCallback",
+    "WindowEnterEvent",
     "WindowError",
+    "WindowExposedEvent",
+    "WindowFocusGainedEvent",
+    "WindowFocusLostEvent",
+    "WindowHiddenEvent",
+    "WindowLeaveEvent",
+    "WindowMaximizedEvent",
+    "WindowMinimizedEvent",
+    "WindowMovedEvent",
+    "WindowResizedEvent",
+    "WindowRestoredEvent",
+    "WindowShownEvent",
+    "WindowSizeChangedEvent",
+    "WindowTakeFocusEvent",
     "closed_namespace",
     "scheduled",
     "set_default_theme_namespace",
@@ -91,7 +102,6 @@ from .clock import Clock
 from .cursor import Cursor, CustomCursor, SystemCursor
 from .display import ScheduledFunction, Window, WindowCallback, WindowError, scheduled
 from .event import (
-    ActiveEvent,
     Event,
     EventManager,
     JoyAxisMotionEvent,
@@ -117,8 +127,20 @@ from .event import (
     TextInputEvent,
     UnknownEventTypeError,
     UserEvent,
-    VideoExposeEvent,
-    VideoResizeEvent,
+    WindowEnterEvent,
+    WindowExposedEvent,
+    WindowFocusGainedEvent,
+    WindowFocusLostEvent,
+    WindowHiddenEvent,
+    WindowLeaveEvent,
+    WindowMaximizedEvent,
+    WindowMinimizedEvent,
+    WindowMovedEvent,
+    WindowResizedEvent,
+    WindowRestoredEvent,
+    WindowShownEvent,
+    WindowSizeChangedEvent,
+    WindowTakeFocusEvent,
 )
 from .keyboard import Keyboard
 from .mouse import Mouse

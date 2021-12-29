@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 __all__ = [
-    "ActiveEvent",
     "Event",
     "EventManager",
     "JoyAxisMotionEvent",
@@ -33,8 +32,20 @@ __all__ = [
     "TextInputEvent",
     "UnknownEventTypeError",
     "UserEvent",
-    "VideoExposeEvent",
-    "VideoResizeEvent",
+    "WindowEnterEvent",
+    "WindowExposedEvent",
+    "WindowFocusGainedEvent",
+    "WindowFocusLostEvent",
+    "WindowHiddenEvent",
+    "WindowLeaveEvent",
+    "WindowMaximizedEvent",
+    "WindowMinimizedEvent",
+    "WindowMovedEvent",
+    "WindowResizedEvent",
+    "WindowRestoredEvent",
+    "WindowShownEvent",
+    "WindowSizeChangedEvent",
+    "WindowTakeFocusEvent",
 ]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -69,7 +80,8 @@ class MetaEvent(type):
             if bases != (Event,):
                 raise TypeError(f"{name!r} must only inherits from Event without multiple inheritance")
             event_type = Event.Type(event_type)
-
+            if event_type in metacls.__associations:
+                raise TypeError(f"There is already a class with this type: {event_type}")
             annotations = namespace.setdefault("__annotations__", {})
             annotations["type"] = Event.Type
             namespace["type"] = field(default=event_type, init=False)
@@ -77,6 +89,11 @@ class MetaEvent(type):
             metacls.__associations[event_type] = cast(Type[Event], cls)
             return cls
         return super().__new__(metacls, name, bases, namespace, **kwargs)
+
+    def __call__(cls, /, *args: Any, **kwargs: Any) -> Any:
+        if cls is Event:
+            raise TypeError("Cannot instantiate base class Event")
+        return super().__call__(*args, **kwargs)
 
     @staticmethod
     def from_pygame_event(event: _PygameEvent) -> Event:
@@ -94,12 +111,12 @@ class MetaEvent(type):
 @dataclass(frozen=True)
 class Event(metaclass=MetaEvent, event_type=-1):
     class Type(IntEnum):
-        ACTIVE = pygame.ACTIVEEVENT
         KEYDOWN = pygame.KEYDOWN
         KEYUP = pygame.KEYUP
         MOUSEMOTION = pygame.MOUSEMOTION
         MOUSEBUTTONUP = pygame.MOUSEBUTTONUP
         MOUSEBUTTONDOWN = pygame.MOUSEBUTTONDOWN
+        MOUSEWHEEL = pygame.MOUSEWHEEL
         JOYAXISMOTION = pygame.JOYAXISMOTION
         JOYBALLMOTION = pygame.JOYBALLMOTION
         JOYHATMOTION = pygame.JOYHATMOTION
@@ -107,23 +124,32 @@ class Event(metaclass=MetaEvent, event_type=-1):
         JOYBUTTONDOWN = pygame.JOYBUTTONDOWN
         JOYDEVICEADDED = pygame.JOYDEVICEADDED
         JOYDEVICEREMOVED = pygame.JOYDEVICEREMOVED
-        VIDEORESIZE = pygame.VIDEORESIZE
-        VIDEOEXPOSE = pygame.VIDEOEXPOSE
         USEREVENT = pygame.USEREVENT
-        MOUSEWHEEL = pygame.MOUSEWHEEL
         TEXTEDITING = pygame.TEXTEDITING
         TEXTINPUT = pygame.TEXTINPUT
+        WINDOWSHOWN = pygame.WINDOWSHOWN
+        WINDOWHIDDEN = pygame.WINDOWHIDDEN
+        WINDOWEXPOSED = pygame.WINDOWEXPOSED
+        WINDOWMOVED = pygame.WINDOWMOVED
+        WINDOWRESIZED = pygame.WINDOWRESIZED
+        WINDOWSIZECHANGED = pygame.WINDOWSIZECHANGED
+        WINDOWMINIMIZED = pygame.WINDOWMINIMIZED
+        WINDOWMAXIMIZED = pygame.WINDOWMAXIMIZED
+        WINDOWRESTORED = pygame.WINDOWRESTORED
+        WINDOWENTER = pygame.WINDOWENTER
+        WINDOWLEAVE = pygame.WINDOWLEAVE
+        WINDOWFOCUSGAINED = pygame.WINDOWFOCUSGAINED
+        WINDOWFOCUSLOST = pygame.WINDOWFOCUSLOST
+        WINDOWTAKEFOCUS = pygame.WINDOWTAKEFOCUS
 
-        def is_allowed(self) -> bool:
+        def is_allowed(self, /) -> bool:
             return not pygame.event.get_blocked(self)
 
+        @property
+        def real_name(self, /) -> str:
+            return pygame.event.event_name(self)
+
     type: Event.Type = field(init=False)
-
-
-@dataclass(frozen=True)
-class ActiveEvent(Event, event_type=Event.Type.ACTIVE):
-    gain: bool
-    state: bool
 
 
 @dataclass(frozen=True)
@@ -237,26 +263,87 @@ TextEvent = Union[TextEditingEvent, TextInputEvent]
 
 
 @dataclass(frozen=True)
-class VideoResizeEvent(Event, event_type=Event.Type.VIDEORESIZE):
-    size: Tuple[int, int]
-    w: int
-    h: int
+class UserEvent(Event, event_type=Event.Type.USEREVENT):
+    code: int
 
 
 @dataclass(frozen=True)
-class VideoExposeEvent(Event, event_type=Event.Type.VIDEOEXPOSE):
+class WindowShownEvent(Event, event_type=Event.Type.WINDOWSHOWN):
     pass
 
 
 @dataclass(frozen=True)
-class UserEvent(Event, event_type=Event.Type.USEREVENT):
-    code: int
+class WindowHiddenEvent(Event, event_type=Event.Type.WINDOWHIDDEN):
+    pass
+
+
+@dataclass(frozen=True)
+class WindowExposedEvent(Event, event_type=Event.Type.WINDOWEXPOSED):
+    pass
+
+
+@dataclass(frozen=True)
+class WindowMovedEvent(Event, event_type=Event.Type.WINDOWMOVED):
+    x: int
+    y: int
+
+
+@dataclass(frozen=True)
+class WindowResizedEvent(Event, event_type=Event.Type.WINDOWRESIZED):
+    x: int
+    y: int
+
+
+@dataclass(frozen=True)
+class WindowSizeChangedEvent(Event, event_type=Event.Type.WINDOWSIZECHANGED):
+    x: int
+    y: int
+
+
+@dataclass(frozen=True)
+class WindowMinimizedEvent(Event, event_type=Event.Type.WINDOWMINIMIZED):
+    pass
+
+
+@dataclass(frozen=True)
+class WindowMaximizedEvent(Event, event_type=Event.Type.WINDOWMAXIMIZED):
+    pass
+
+
+@dataclass(frozen=True)
+class WindowRestoredEvent(Event, event_type=Event.Type.WINDOWRESTORED):
+    pass
+
+
+@dataclass(frozen=True)
+class WindowEnterEvent(Event, event_type=Event.Type.WINDOWENTER):
+    pass
+
+
+@dataclass(frozen=True)
+class WindowLeaveEvent(Event, event_type=Event.Type.WINDOWLEAVE):
+    pass
+
+
+@dataclass(frozen=True)
+class WindowFocusGainedEvent(Event, event_type=Event.Type.WINDOWFOCUSGAINED):
+    pass
+
+
+@dataclass(frozen=True)
+class WindowFocusLostEvent(Event, event_type=Event.Type.WINDOWFOCUSLOST):
+    pass
+
+
+@dataclass(frozen=True)
+class WindowTakeFocusEvent(Event, event_type=Event.Type.WINDOWTAKEFOCUS):
+    pass
 
 
 _EventCallback = Callable[[Event], Optional[bool]]
 _TE = TypeVar("_TE", bound=Event)
 
-_MousePositionCallback = Callable[[Tuple[float, float]], Optional[bool]]
+_MousePositionCallback = Callable[[Tuple[float, float]], None]
 
 
 class EventManager:
@@ -281,10 +368,6 @@ class EventManager:
     def __unbind(handler_dict: Dict[_T, List[_EventCallback]], key: _T, callback: Callable[[_TE], Optional[bool]]) -> None:
         with suppress(KeyError, ValueError):
             handler_dict[key].remove(cast(_EventCallback, callback))
-
-    @overload
-    def bind_event(self, /, event_type: Literal[Event.Type.ACTIVE], callback: Callable[[ActiveEvent], Optional[bool]]) -> None:
-        ...
 
     @overload
     def bind_event(self, /, event_type: Literal[Event.Type.KEYDOWN], callback: Callable[[KeyDownEvent], Optional[bool]]) -> None:
@@ -373,19 +456,91 @@ class EventManager:
         ...
 
     @overload
-    def bind_event(
-        self, /, event_type: Literal[Event.Type.VIDEORESIZE], callback: Callable[[VideoResizeEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, /, event_type: Literal[Event.Type.VIDEOEXPOSE], callback: Callable[[VideoExposeEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
     def bind_event(self, /, event_type: Literal[Event.Type.USEREVENT], callback: Callable[[UserEvent], Optional[bool]]) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self, /, event_type: Literal[Event.Type.WINDOWSHOWN], callback: Callable[[WindowShownEvent], Optional[bool]]
+    ) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self, /, event_type: Literal[Event.Type.WINDOWHIDDEN], callback: Callable[[WindowHiddenEvent], Optional[bool]]
+    ) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self, /, event_type: Literal[Event.Type.WINDOWEXPOSED], callback: Callable[[WindowExposedEvent], Optional[bool]]
+    ) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self, /, event_type: Literal[Event.Type.WINDOWMOVED], callback: Callable[[WindowMovedEvent], Optional[bool]]
+    ) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self, /, event_type: Literal[Event.Type.WINDOWRESIZED], callback: Callable[[WindowResizedEvent], Optional[bool]]
+    ) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self, /, event_type: Literal[Event.Type.WINDOWSIZECHANGED], callback: Callable[[WindowSizeChangedEvent], Optional[bool]]
+    ) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self, /, event_type: Literal[Event.Type.WINDOWMINIMIZED], callback: Callable[[WindowMinimizedEvent], Optional[bool]]
+    ) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self, /, event_type: Literal[Event.Type.WINDOWMAXIMIZED], callback: Callable[[WindowMaximizedEvent], Optional[bool]]
+    ) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self, /, event_type: Literal[Event.Type.WINDOWRESTORED], callback: Callable[[WindowRestoredEvent], Optional[bool]]
+    ) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self, /, event_type: Literal[Event.Type.WINDOWENTER], callback: Callable[[WindowEnterEvent], Optional[bool]]
+    ) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self, /, event_type: Literal[Event.Type.WINDOWLEAVE], callback: Callable[[WindowLeaveEvent], Optional[bool]]
+    ) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self, /, event_type: Literal[Event.Type.WINDOWFOCUSGAINED], callback: Callable[[WindowFocusGainedEvent], Optional[bool]]
+    ) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self, /, event_type: Literal[Event.Type.WINDOWFOCUSLOST], callback: Callable[[WindowFocusLostEvent], Optional[bool]]
+    ) -> None:
+        ...
+
+    @overload
+    def bind_event(
+        self, /, event_type: Literal[Event.Type.WINDOWTAKEFOCUS], callback: Callable[[WindowTakeFocusEvent], Optional[bool]]
+    ) -> None:
         ...
 
     def bind_event(self, /, event_type: Event.Type, callback: Callable[[_TE], Optional[bool]]) -> None:
@@ -478,8 +633,7 @@ class EventManager:
     def handle_mouse_position(self, /) -> None:
         mouse_pos: Tuple[float, float] = Mouse.get_pos()
         for callback in self.__mouse_pos_handler_list:
-            if callback(mouse_pos):
-                return
+            callback(mouse_pos)
 
     def __handle_key_event(self, /, event: KeyEvent) -> Optional[bool]:
         key_handler_dict: Optional[Dict[Keyboard.Key, List[_EventCallback]]] = None
