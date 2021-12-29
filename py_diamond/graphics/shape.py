@@ -53,6 +53,8 @@ class MetaThemedShape(MetaShape, MetaThemedObject):
 
 
 class AbstractShape(TDrawable, metaclass=MetaShape):
+    config = Configuration(autocopy=True)
+
     def __init__(self, /) -> None:
         TDrawable.__init__(self)
         self.__image: Surface = create_surface((0, 0))
@@ -133,8 +135,6 @@ class AbstractShape(TDrawable, metaclass=MetaShape):
 
         return tuple(vertices)
 
-    config = Configuration(autocopy=True)
-
     @config.main_update
     def __update_shape(self, /) -> None:
         if self.config.has_initialization_context():
@@ -150,19 +150,24 @@ class AbstractShape(TDrawable, metaclass=MetaShape):
 
 
 class SingleColorShape(AbstractShape):
+    config = Configuration("color", parent=AbstractShape.config)
+
+    color: OptionAttribute[Color] = OptionAttribute()
+
     @initializer
     def __init__(self, /, *, color: Color, **kwargs: Any) -> None:
         self.color = color
         super().__init__(**kwargs)
 
-    config = Configuration("color", parent=AbstractShape.config)
-
     config.value_validator_static("color", Color)
-
-    color: OptionAttribute[Color] = OptionAttribute()
 
 
 class OutlinedShape(AbstractShape):
+    config = Configuration("outline", "outline_color", parent=AbstractShape.config)
+
+    outline: OptionAttribute[int] = OptionAttribute()
+    outline_color: OptionAttribute[Color] = OptionAttribute()
+
     @initializer
     def __init__(self, /, *, outline: int, outline_color: Color, **kwargs: Any) -> None:
         self.outline = outline
@@ -175,17 +180,16 @@ class OutlinedShape(AbstractShape):
         offset: float = outline / 2 + 1
         return (w + offset * 2, h + offset * 2)
 
-    config = Configuration("outline", "outline_color", parent=AbstractShape.config)
-
     config.value_converter_static("outline", valid_integer(min_value=0))
     config.value_validator_static("outline_color", Color)
-
-    outline: OptionAttribute[int] = OptionAttribute()
-    outline_color: OptionAttribute[Color] = OptionAttribute()
 
 
 class PolygonShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
     PointList = Union[Sequence[Vector2], Sequence[Tuple[float, float]], Sequence[Tuple[int, int]]]
+
+    config = Configuration("points", parent=[OutlinedShape.config, SingleColorShape.config])
+
+    points: OptionAttribute[Sequence[Vector2]] = OptionAttribute()
 
     @initializer
     def __init__(
@@ -234,8 +238,6 @@ class PolygonShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
     def set_points(self, /, points: PointList) -> None:
         self.config.set("points", points)
 
-    config = Configuration("points", parent=[OutlinedShape.config, SingleColorShape.config])
-
     config.set_autocopy("points", copy_on_set=False)
 
     @config.value_converter_static("points")
@@ -260,10 +262,14 @@ class PolygonShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
 
         self.__center = Vector2(left + w / 2, top + h / 2)
 
-    points: OptionAttribute[Sequence[Vector2]] = OptionAttribute()
-
 
 class AbstractRectangleShape(AbstractShape):
+    config = Configuration("local_width", "local_height", "local_size", parent=AbstractShape.config)
+
+    local_width: OptionAttribute[float] = OptionAttribute()
+    local_height: OptionAttribute[float] = OptionAttribute()
+    local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+
     @initializer
     def __init__(self, /, *, width: float, height: float, **kwargs: Any) -> None:
         self.local_size = width, height
@@ -273,8 +279,6 @@ class AbstractRectangleShape(AbstractShape):
         w, h = self.local_size
         return (Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h))
 
-    config = Configuration("local_width", "local_height", "local_size", parent=AbstractShape.config)
-
     config.value_converter_static("local_width", valid_float(min_value=0))
     config.value_converter_static("local_height", valid_float(min_value=0))
     config.value_converter_static("local_size", tuple)
@@ -282,12 +286,12 @@ class AbstractRectangleShape(AbstractShape):
     config.getter("local_size", lambda self: (self.local_width, self.local_height))
     config.setter("local_size", lambda self, size: self.config(local_width=size[0], local_height=size[1]))
 
-    local_width: OptionAttribute[float] = OptionAttribute()
-    local_height: OptionAttribute[float] = OptionAttribute()
-    local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
-
 
 class AbstractSquareShape(AbstractShape):
+    config = Configuration("local_size", parent=AbstractShape.config)
+
+    local_size: OptionAttribute[float] = OptionAttribute()
+
     @initializer
     def __init__(self, /, *, size: float, **kwargs: Any) -> None:
         self.local_size = size
@@ -297,14 +301,25 @@ class AbstractSquareShape(AbstractShape):
         w = h = self.local_size
         return (Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h))
 
-    config = Configuration("local_size", parent=AbstractShape.config)
-
     config.value_converter_static("local_size", valid_float(min_value=0))
-
-    local_size: OptionAttribute[float] = OptionAttribute()
 
 
 class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
+    config = Configuration(
+        "border_radius",
+        "border_top_left_radius",
+        "border_top_right_radius",
+        "border_bottom_left_radius",
+        "border_bottom_right_radius",
+        parent=[AbstractRectangleShape.config, OutlinedShape.config, SingleColorShape.config],
+    )
+
+    border_radius: OptionAttribute[int] = OptionAttribute()
+    border_top_left_radius: OptionAttribute[int] = OptionAttribute()
+    border_top_right_radius: OptionAttribute[int] = OptionAttribute()
+    border_bottom_left_radius: OptionAttribute[int] = OptionAttribute()
+    border_bottom_right_radius: OptionAttribute[int] = OptionAttribute()
+
     @initializer
     def __init__(
         self,
@@ -350,15 +365,6 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape, me
             image.draw_rect(self.outline_color, rect, width=outline, **draw_params)
         return image.surface
 
-    config = Configuration(
-        "border_radius",
-        "border_top_left_radius",
-        "border_top_right_radius",
-        "border_bottom_left_radius",
-        "border_bottom_right_radius",
-        parent=[AbstractRectangleShape.config, OutlinedShape.config, SingleColorShape.config],
-    )
-
     config.value_converter_static("border_radius", valid_integer(min_value=-1))
     config.value_converter_static("border_top_left_radius", valid_integer(min_value=-1))
     config.value_converter_static("border_top_right_radius", valid_integer(min_value=-1))
@@ -384,14 +390,12 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape, me
     def __set_border_radius(self, /, border: str, radius: int) -> None:
         self.__draw_params[border] = radius
 
-    border_radius: OptionAttribute[int] = OptionAttribute()
-    border_top_left_radius: OptionAttribute[int] = OptionAttribute()
-    border_top_right_radius: OptionAttribute[int] = OptionAttribute()
-    border_bottom_left_radius: OptionAttribute[int] = OptionAttribute()
-    border_bottom_right_radius: OptionAttribute[int] = OptionAttribute()
-
 
 class AbstractCircleShape(AbstractShape):
+    config = Configuration("radius", parent=AbstractShape.config)
+
+    radius: OptionAttribute[float] = OptionAttribute()
+
     @initializer
     def __init__(self, /, *, radius: float, **kwargs: Any) -> None:
         self.radius = radius
@@ -403,14 +407,23 @@ class AbstractCircleShape(AbstractShape):
         radius: Vector2 = Vector2(r, 0)
         return tuple(center + radius.rotate(-i) for i in range(360))
 
-    config = Configuration("radius", parent=AbstractShape.config)
-
     config.value_converter_static("radius", valid_float(min_value=0))
-
-    radius: OptionAttribute[float] = OptionAttribute()
 
 
 class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
+    config = Configuration(
+        "draw_top_left",
+        "draw_top_right",
+        "draw_bottom_left",
+        "draw_bottom_right",
+        parent=[AbstractCircleShape.config, OutlinedShape.config, SingleColorShape.config],
+    )
+
+    draw_top_left: OptionAttribute[bool] = OptionAttribute()
+    draw_top_right: OptionAttribute[bool] = OptionAttribute()
+    draw_bottom_left: OptionAttribute[bool] = OptionAttribute()
+    draw_bottom_right: OptionAttribute[bool] = OptionAttribute()
+
     @initializer
     def __init__(
         self,
@@ -451,14 +464,6 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclas
 
     def get_local_vertices(self, /) -> Sequence[Vector2]:
         return self.__points
-
-    config = Configuration(
-        "draw_top_left",
-        "draw_top_right",
-        "draw_bottom_left",
-        "draw_bottom_right",
-        parent=[AbstractCircleShape.config, OutlinedShape.config, SingleColorShape.config],
-    )
 
     config.value_converter_static("draw_top_left", truth)
     config.value_converter_static("draw_top_right", truth)
@@ -512,13 +517,21 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclas
 
         self.__points = tuple(all_points)
 
-    draw_top_left: OptionAttribute[bool] = OptionAttribute()
-    draw_top_right: OptionAttribute[bool] = OptionAttribute()
-    draw_bottom_left: OptionAttribute[bool] = OptionAttribute()
-    draw_bottom_right: OptionAttribute[bool] = OptionAttribute()
-
 
 class CrossShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
+    config = Configuration(
+        "local_width",
+        "local_height",
+        "local_size",
+        "line_width",
+        parent=[OutlinedShape.config, SingleColorShape.config],
+    )
+
+    local_width: OptionAttribute[float] = OptionAttribute()
+    local_height: OptionAttribute[float] = OptionAttribute()
+    local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    line_width: OptionAttribute[float] = OptionAttribute()
+
     @unique
     class Type(str, Enum):
         DIAGONAL = "diagonal"
@@ -626,23 +639,10 @@ class CrossShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
             Vector2(rect.centerx - line_width, rect.centery - line_width),
         )
 
-    config = Configuration(
-        "local_width",
-        "local_height",
-        "local_size",
-        "line_width",
-        parent=[OutlinedShape.config, SingleColorShape.config],
-    )
-
     config.value_converter_static("local_width", valid_float(min_value=0))
     config.value_converter_static("local_height", valid_float(min_value=0))
     config.value_converter_static("local_size", tuple)
     config.value_converter_static("line_width", valid_float(min_value=0))
-
-    local_width: OptionAttribute[float] = OptionAttribute()
-    local_height: OptionAttribute[float] = OptionAttribute()
-    local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
-    line_width: OptionAttribute[float] = OptionAttribute()
 
     @property
     def type(self, /) -> str:

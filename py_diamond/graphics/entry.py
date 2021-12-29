@@ -46,6 +46,51 @@ class MetaEntry(MetaTDrawable, MetaThemedObject):
 @Text.register
 @RectangleShape.register
 class Entry(TDrawable, Clickable, metaclass=MetaEntry):
+    config: Configuration = Configuration(
+        "cursor",
+        "interval",
+        "bg",
+        "fg",
+        "font",
+        "shadow_x",
+        "shadow_y",
+        "shadow",
+        "shadow_color",
+        "fixed_width",
+        "local_width",
+        "local_height",
+        "local_size",
+        "outline",
+        "outline_color",
+        "border_radius",
+        "border_top_left_radius",
+        "border_top_right_radius",
+        "border_bottom_left_radius",
+        "border_bottom_right_radius",
+    )
+
+    cursor: OptionAttribute[int] = OptionAttribute()
+    interval: OptionAttribute[int] = OptionAttribute()
+    bg: OptionAttribute[Color] = OptionAttribute()
+    fg: OptionAttribute[Color] = OptionAttribute()
+
+    font: OptionAttribute[Font] = OptionAttribute()
+    shadow_x: OptionAttribute[float] = OptionAttribute()
+    shadow_y: OptionAttribute[float] = OptionAttribute()
+    shadow: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    shadow_color: OptionAttribute[Color] = OptionAttribute()
+
+    fixed_width: OptionAttribute[Optional[float]] = OptionAttribute()
+    local_width: OptionAttribute[float] = OptionAttribute()
+    local_height: OptionAttribute[float] = OptionAttribute()
+    local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+
+    border_radius: OptionAttribute[int] = OptionAttribute()
+    border_top_left_radius: OptionAttribute[int] = OptionAttribute()
+    border_top_right_radius: OptionAttribute[int] = OptionAttribute()
+    border_bottom_left_radius: OptionAttribute[int] = OptionAttribute()
+    border_bottom_right_radius: OptionAttribute[int] = OptionAttribute()
+
     @initializer
     def __init__(
         self,
@@ -241,29 +286,6 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
             self.cursor = cursor + len(entered_text)
         return True
 
-    config: Configuration = Configuration(
-        "cursor",
-        "interval",
-        "bg",
-        "fg",
-        "font",
-        "shadow_x",
-        "shadow_y",
-        "shadow",
-        "shadow_color",
-        "fixed_width",
-        "local_width",
-        "local_height",
-        "local_size",
-        "outline",
-        "outline_color",
-        "border_radius",
-        "border_top_left_radius",
-        "border_top_right_radius",
-        "border_bottom_left_radius",
-        "border_bottom_right_radius",
-    )
-
     @config.value_converter("cursor")
     def __cursor_validator(self, /, cursor: Any) -> int:
         return valid_integer(value=cursor, min_value=0, max_value=len(self.get()))
@@ -329,28 +351,6 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
             width = entry_size[0] + self.__cursor_width_offset
         height: float = entry_size[1] + self.__cursor_height_offset
         self.__shape.local_size = (width, height)
-
-    cursor: OptionAttribute[int] = OptionAttribute()
-    interval: OptionAttribute[int] = OptionAttribute()
-    bg: OptionAttribute[Color] = OptionAttribute()
-    fg: OptionAttribute[Color] = OptionAttribute()
-
-    font: OptionAttribute[Font] = OptionAttribute()
-    shadow_x: OptionAttribute[float] = OptionAttribute()
-    shadow_y: OptionAttribute[float] = OptionAttribute()
-    shadow: OptionAttribute[Tuple[float, float]] = OptionAttribute()
-    shadow_color: OptionAttribute[Color] = OptionAttribute()
-
-    fixed_width: OptionAttribute[Optional[float]] = OptionAttribute()
-    local_width: OptionAttribute[float] = OptionAttribute()
-    local_height: OptionAttribute[float] = OptionAttribute()
-    local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
-
-    border_radius: OptionAttribute[int] = OptionAttribute()
-    border_top_left_radius: OptionAttribute[int] = OptionAttribute()
-    border_top_right_radius: OptionAttribute[int] = OptionAttribute()
-    border_bottom_left_radius: OptionAttribute[int] = OptionAttribute()
-    border_bottom_right_radius: OptionAttribute[int] = OptionAttribute()
 
 
 def _get_entry_size(font: Font, nb_chars: int) -> Tuple[int, int]:

@@ -44,6 +44,29 @@ class Text(TDrawable, metaclass=MetaText):
         RIGHT = "right"
         CENTER = "center"
 
+    config: Configuration = Configuration(
+        "message",
+        "font",
+        "color",
+        "wrap",
+        "justify",
+        "shadow_x",
+        "shadow_y",
+        "shadow",
+        "shadow_color",
+        autocopy=True,
+    )
+
+    message: OptionAttribute[str] = OptionAttribute()
+    font: OptionAttribute[Font] = OptionAttribute()
+    color: OptionAttribute[Color] = OptionAttribute()
+    wrap: OptionAttribute[int] = OptionAttribute()
+    justify: OptionAttribute[str] = OptionAttribute()
+    shadow_x: OptionAttribute[float] = OptionAttribute()
+    shadow_y: OptionAttribute[float] = OptionAttribute()
+    shadow: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    shadow_color: OptionAttribute[Color] = OptionAttribute()
+
     @initializer
     def __init__(
         self,
@@ -228,19 +251,6 @@ class Text(TDrawable, metaclass=MetaText):
 
         return render
 
-    config: Configuration = Configuration(
-        "message",
-        "font",
-        "color",
-        "wrap",
-        "justify",
-        "shadow_x",
-        "shadow_y",
-        "shadow",
-        "shadow_color",
-        autocopy=True,
-    )
-
     config.enum("justify", Justify, return_value=True)
 
     config.value_validator_static("message", str)
@@ -265,16 +275,6 @@ class Text(TDrawable, metaclass=MetaText):
             self.apply_rotation_scale()
             self.center = center
 
-    message: OptionAttribute[str] = OptionAttribute()
-    font: OptionAttribute[Font] = OptionAttribute()
-    color: OptionAttribute[Color] = OptionAttribute()
-    wrap: OptionAttribute[int] = OptionAttribute()
-    justify: OptionAttribute[str] = OptionAttribute()
-    shadow_x: OptionAttribute[float] = OptionAttribute()
-    shadow_y: OptionAttribute[float] = OptionAttribute()
-    shadow: OptionAttribute[Tuple[float, float]] = OptionAttribute()
-    shadow_color: OptionAttribute[Color] = OptionAttribute()
-
     config.getter("shadow", lambda self: (self.shadow_x, self.shadow_y))
     config.setter("shadow", lambda self, pos: self.config(shadow_x=pos[0], shadow_y=pos[1]))
 
@@ -287,6 +287,12 @@ class TextImage(Text):
         TOP = "top"
         BOTTOM = "bottom"
         CENTER = "center"
+
+    config = Configuration("img", "compound", "distance", parent=Text.config)
+
+    img: OptionAttribute[Optional[Surface]] = OptionAttribute()
+    compound: OptionAttribute[str] = OptionAttribute()
+    distance: OptionAttribute[float] = OptionAttribute()
 
     @initializer
     def __init__(
@@ -446,7 +452,6 @@ class TextImage(Text):
 
         return render
 
-    config = Configuration("img", "compound", "distance", parent=Text.config)
     config.set_autocopy("img", copy_on_get=False, copy_on_set=False)
 
     config.enum("compound", Compound, return_value=True)
@@ -474,10 +479,6 @@ class TextImage(Text):
             img.apply_rotation_scale()
         else:
             img.set(surface)
-
-    img: OptionAttribute[Optional[Surface]] = OptionAttribute()
-    compound: OptionAttribute[str] = OptionAttribute()
-    distance: OptionAttribute[float] = OptionAttribute()
 
 
 class _BoundImage(Image):

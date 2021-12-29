@@ -43,6 +43,34 @@ class MetaCheckBox(MetaTDrawable, MetaThemedObject):
 
 @RectangleShape.register
 class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=MetaCheckBox):
+    config: Configuration = Configuration(
+        "value",
+        "local_width",
+        "local_height",
+        "local_size",
+        "color",
+        "outline",
+        "outline_color",
+        "border_radius",
+        "border_top_left_radius",
+        "border_top_right_radius",
+        "border_bottom_left_radius",
+        "border_bottom_right_radius",
+    )
+
+    value: OptionAttribute[Union[_OnValue, _OffValue]] = OptionAttribute()
+    local_width: OptionAttribute[float] = OptionAttribute()
+    local_height: OptionAttribute[float] = OptionAttribute()
+    local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    color: OptionAttribute[Color] = OptionAttribute()
+    outline: OptionAttribute[int] = OptionAttribute()
+    outline_color: OptionAttribute[Color] = OptionAttribute()
+    border_radius: OptionAttribute[int] = OptionAttribute()
+    border_top_left_radius: OptionAttribute[int] = OptionAttribute()
+    border_top_right_radius: OptionAttribute[int] = OptionAttribute()
+    border_bottom_left_radius: OptionAttribute[int] = OptionAttribute()
+    border_bottom_right_radius: OptionAttribute[int] = OptionAttribute()
+
     def __init__(
         self,
         /,
@@ -185,34 +213,6 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
         if self.__active_img is not None:
             self.__active_img.set_scale(scale)
         self.__cross.set_scale(scale)
-
-    config: Configuration = Configuration(
-        "value",
-        "local_width",
-        "local_height",
-        "local_size",
-        "color",
-        "outline",
-        "outline_color",
-        "border_radius",
-        "border_top_left_radius",
-        "border_top_right_radius",
-        "border_bottom_left_radius",
-        "border_bottom_right_radius",
-    )
-
-    value: OptionAttribute[Union[_OnValue, _OffValue]] = OptionAttribute()
-    local_width: OptionAttribute[float] = OptionAttribute()
-    local_height: OptionAttribute[float] = OptionAttribute()
-    local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
-    color: OptionAttribute[Color] = OptionAttribute()
-    outline: OptionAttribute[int] = OptionAttribute()
-    outline_color: OptionAttribute[Color] = OptionAttribute()
-    border_radius: OptionAttribute[int] = OptionAttribute()
-    border_top_left_radius: OptionAttribute[int] = OptionAttribute()
-    border_top_right_radius: OptionAttribute[int] = OptionAttribute()
-    border_bottom_left_radius: OptionAttribute[int] = OptionAttribute()
-    border_bottom_right_radius: OptionAttribute[int] = OptionAttribute()
 
     config.getter("value", get_value)
     config.setter("value", set_value)

@@ -30,6 +30,8 @@ if TYPE_CHECKING:
 
 
 class ScaleBar(ProgressBar, Clickable):
+    config = Configuration(parent=ProgressBar.config)
+
     @initializer
     def __init__(
         self,
@@ -123,8 +125,6 @@ class ScaleBar(ProgressBar, Clickable):
             self.percent = (mouse_pos[0] - self.left) / self.width
         else:
             self.percent = (mouse_pos[1] - self.top) / self.height
-
-    config = Configuration(parent=ProgressBar.config)
 
     config.on_update("value", invoke)
     config.on_update("percent", invoke)

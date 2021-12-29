@@ -40,6 +40,13 @@ class ProgressBar(RectangleShape):
         HORIZONTAL = "horizontal"
         VERTICAL = "vertical"
 
+    config = Configuration("value", "percent", "scale_color", "orient", parent=RectangleShape.config)
+
+    value: OptionAttribute[float] = OptionAttribute()
+    percent: OptionAttribute[float] = OptionAttribute()
+    scale_color: OptionAttribute[Color] = OptionAttribute()
+    orient: OptionAttribute[str] = OptionAttribute()
+
     @initializer
     def __init__(
         self,
@@ -242,13 +249,6 @@ class ProgressBar(RectangleShape):
         scale_rect: RectangleShape = self.__scale_rect
         outline_rect: RectangleShape = self.__outline_rect
         outline_rect.scale = scale_rect.scale = self.scale
-
-    config = Configuration("value", "percent", "scale_color", "orient", parent=RectangleShape.config)
-
-    value: OptionAttribute[float] = OptionAttribute()
-    percent: OptionAttribute[float] = OptionAttribute()
-    scale_color: OptionAttribute[Color] = OptionAttribute()
-    orient: OptionAttribute[str] = OptionAttribute()
 
     config.enum("orient", Orient, return_value=True)
 

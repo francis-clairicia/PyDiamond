@@ -35,22 +35,24 @@ from .surface import Surface, create_surface
 
 
 class GradientShape(AbstractShape):
+    config = Configuration("first_color", "second_color", parent=AbstractShape.config)
+
+    first_color: OptionAttribute[Color] = OptionAttribute()
+    second_color: OptionAttribute[Color] = OptionAttribute()
+
     @initializer
     def __init__(self, /, *, first_color: Color, second_color: Color, **kwargs: Any) -> None:
         self.first_color = first_color
         self.second_color = second_color
         super().__init__(**kwargs)
 
-    config = Configuration("first_color", "second_color", parent=AbstractShape.config)
-
     config.value_validator_static("first_color", Color)
     config.value_validator_static("second_color", Color)
 
-    first_color: OptionAttribute[Color] = OptionAttribute()
-    second_color: OptionAttribute[Color] = OptionAttribute()
-
 
 class HorizontalGradientShape(AbstractRectangleShape, GradientShape):
+    config = Configuration(parent=[AbstractRectangleShape.config, GradientShape.config])
+
     @initializer
     def __init__(self, /, width: float, height: float, first_color: Color, second_color: Color) -> None:
         super().__init__(width=width, height=height, first_color=first_color, second_color=second_color)
@@ -61,10 +63,10 @@ class HorizontalGradientShape(AbstractRectangleShape, GradientShape):
             return create_surface(size)
         return _gradient_horizontal(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore[no-any-return,arg-type]
 
-    config = Configuration(parent=[AbstractRectangleShape.config, GradientShape.config])
-
 
 class VerticalGradientShape(AbstractRectangleShape, GradientShape):
+    config = Configuration(parent=[AbstractRectangleShape.config, GradientShape.config])
+
     @initializer
     def __init__(self, /, width: float, height: float, first_color: Color, second_color: Color) -> None:
         super().__init__(width=width, height=height, first_color=first_color, second_color=second_color)
@@ -75,10 +77,10 @@ class VerticalGradientShape(AbstractRectangleShape, GradientShape):
             return create_surface(size)
         return _gradient_vertical(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore[no-any-return,arg-type]
 
-    config = Configuration(parent=[AbstractRectangleShape.config, GradientShape.config])
-
 
 class SquaredGradientShape(AbstractSquareShape, GradientShape):
+    config = Configuration(parent=[AbstractSquareShape.config, GradientShape.config])
+
     @initializer
     def __init__(self, /, size: float, first_color: Color, second_color: Color) -> None:
         super().__init__(size=size, first_color=first_color, second_color=second_color)
@@ -89,10 +91,10 @@ class SquaredGradientShape(AbstractSquareShape, GradientShape):
             return create_surface((0, 0))
         return _gradient_squared(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore[no-any-return,arg-type]
 
-    config = Configuration(parent=[AbstractSquareShape.config, GradientShape.config])
-
 
 class RadialGradientShape(AbstractCircleShape, GradientShape):
+    config = Configuration(parent=[AbstractCircleShape.config, GradientShape.config])
+
     @initializer
     def __init__(self, /, radius: float, first_color: Color, second_color: Color) -> None:
         super().__init__(radius=radius, first_color=first_color, second_color=second_color)
@@ -103,18 +105,16 @@ class RadialGradientShape(AbstractCircleShape, GradientShape):
             return create_surface((0, 0))
         return _gradient_radial(radius, tuple(self.first_color), tuple(self.second_color))  # type: ignore[no-any-return,arg-type]
 
-    config = Configuration(parent=[AbstractCircleShape.config, GradientShape.config])
-
 
 class MultiColorShape(AbstractShape):
+    config = Configuration("colors", parent=AbstractShape.config)
+
+    colors: OptionAttribute[Tuple[Color, ...]] = OptionAttribute()
+
     @initializer
     def __init__(self, /, *, colors: Tuple[Color, ...], **kwargs: Any) -> None:
         self.colors = colors
         super().__init__(**kwargs)
-
-    config = Configuration("colors", parent=AbstractShape.config)
-
-    colors: OptionAttribute[Tuple[Color, ...]] = OptionAttribute()
 
     @config.value_validator_static("colors")
     @staticmethod
@@ -127,6 +127,8 @@ class MultiColorShape(AbstractShape):
 
 
 class HorizontalMultiColorShape(AbstractRectangleShape, MultiColorShape):
+    config = Configuration(parent=[AbstractRectangleShape.config, MultiColorShape.config])
+
     @initializer
     def __init__(self, /, width: float, height: float, colors: Tuple[Color, ...]) -> None:
         super().__init__(width=width, height=height, colors=colors)
@@ -140,8 +142,6 @@ class HorizontalMultiColorShape(AbstractRectangleShape, MultiColorShape):
             gradient.draw_onto(renderer)
         return renderer.surface
 
-    config = Configuration(parent=[AbstractRectangleShape.config, MultiColorShape.config])
-
     @config.on_update_value("colors")
     def __update_shape(self, /, colors: Tuple[Color, ...]) -> None:
         width, height = self.local_size
@@ -154,6 +154,8 @@ class HorizontalMultiColorShape(AbstractRectangleShape, MultiColorShape):
 
 
 class VerticalMultiColorShape(AbstractRectangleShape, MultiColorShape):
+    config = Configuration(parent=[AbstractRectangleShape.config, MultiColorShape.config])
+
     @initializer
     def __init__(self, /, width: float, height: float, colors: Tuple[Color, ...]) -> None:
         super().__init__(width=width, height=height, colors=colors)
@@ -166,8 +168,6 @@ class VerticalMultiColorShape(AbstractRectangleShape, MultiColorShape):
             gradient.topleft = (0, gradient.height * i)
             gradient.draw_onto(renderer)
         return renderer.surface
-
-    config = Configuration(parent=[AbstractRectangleShape.config, MultiColorShape.config])
 
     @config.on_update_value("colors")
     def __update_shape(self, /, colors: Tuple[Color, ...]) -> None:

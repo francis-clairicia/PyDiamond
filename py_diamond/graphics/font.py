@@ -21,12 +21,7 @@ from pygame.sysfont import SysFont as _SysFont
 pygame.font.init()
 
 
-def SysFont(
-    name: Union[str, bytes, Iterable[Union[str, bytes]]],
-    size: int,
-    bold: bool = False,
-    italic: bool = False,
-) -> Font:
+def SysFont(name: Union[str, bytes, Iterable[Union[str, bytes]]], size: int, bold: bool = False, italic: bool = False) -> Font:
     font: Font = _SysFont(name, size, bold=bold, italic=italic, constructor=_font_constructor)  # type: ignore[no-untyped-call]
     return font
 
