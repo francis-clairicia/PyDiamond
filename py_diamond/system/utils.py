@@ -6,6 +6,8 @@
 
 __all__ = [
     "cache",
+    "lru_cache",
+    "tp_cache",
     "valid_float",
     "valid_integer",
     "valid_optional_float",
@@ -23,12 +25,54 @@ from typing import Any, Callable, Optional, Type, TypeVar, Union, cast, overload
 _Func = TypeVar("_Func", bound=Callable[..., Any])
 
 
-def lru_cache(maxsize: Optional[int] = 128, typed: bool = False) -> Callable[[_Func], _Func]:
-    return cast(Callable[[_Func], _Func], _lru_cache(maxsize=maxsize, typed=typed))
+@overload
+def lru_cache(func: _Func, /) -> _Func:
+    ...
 
 
-def cache(func: _Func) -> _Func:
+@overload
+def lru_cache(*, maxsize: Optional[int] = 128, typed: bool = False) -> Callable[[_Func], _Func]:
+    ...
+
+
+def lru_cache(func: Optional[_Func] = None, /, *, maxsize: Optional[int] = 128, typed: bool = False) -> Callable[..., Any]:
+    decorator = cast(Callable[[_Func], _Func], _lru_cache(maxsize=maxsize, typed=typed))
+    if func is not None:
+        return decorator(func)
+    return decorator
+
+
+def cache(func: _Func, /) -> _Func:
     return lru_cache(maxsize=None)(func)
+
+
+@overload
+def tp_cache(func: _Func, /) -> _Func:
+    ...
+
+
+@overload
+def tp_cache(*, maxsize: Optional[int] = 128, typed: bool = False) -> Callable[[_Func], _Func]:
+    ...
+
+
+def tp_cache(func: Optional[_Func] = None, /, *, maxsize: Optional[int] = 128, typed: bool = False) -> Callable[..., Any]:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        cached: Callable[..., Any] = lru_cache(maxsize=maxsize, typed=typed)(func)
+
+        @wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            try:
+                return cached(*args, **kwargs)
+            except TypeError:
+                pass
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    if func is not None:
+        return decorator(func)
+    return decorator
 
 
 def wraps(wrapped_func: _Func) -> Callable[[_Func], _Func]:
@@ -60,6 +104,11 @@ class _FunctionWrapperProxy:
             return super().__setattr__(name, value)
         func: Any = self.__wrapped__
         return setattr(func, name, value)
+
+    def __delattr__(self, /, name: str) -> None:
+        if name == "__func__":
+            raise AttributeError("__func__ is a read-only attribute")
+        return super().__delattr__(name)
 
     def __call__(self, /, *args: Any, **kwargs: Any) -> Any:
         func: Callable[..., Any] = self.__func__

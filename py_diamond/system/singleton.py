@@ -40,11 +40,20 @@ class MetaSingleton(ABCMeta):
             )
 
     def __setattr__(cls, /, __name: str, __value: Any) -> None:
-        if __name == "_singleton_instance_" and __name in cls.__dict__:
-            raise TypeError("Cannot modify singleton instance")
+        if __name in ("_singleton_instance_", "__abstractsingleton__") and __name in cls.__dict__:
+            if __name == "_singleton_instance_":
+                raise TypeError("Cannot modify singleton instance")
+            raise AttributeError(f"{__name} is a read-only attribute")
         if __name in ("__new__", "__init__") and not isinstance(__value, cls.__call_twice_error_wrapper):
             raise TypeError("Cannot modify singleton constructors")
         return super().__setattr__(__name, __value)
+
+    def __delattr__(cls, /, __name: str) -> None:
+        if __name in ("_singleton_instance_", "__abstractsingleton__") and __name in cls.__dict__:
+            if __name == "_singleton_instance_":
+                raise TypeError("Cannot modify singleton instance")
+            raise AttributeError(f"{__name} is a read-only attribute")
+        return super().__delattr__(__name)
 
     @property
     def instance(cls: Type[_T]) -> _T:
