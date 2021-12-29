@@ -13,9 +13,9 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta, abstractmethod
-from enum import IntEnum
+from enum import Enum, EnumMeta
 from types import MethodType
-from typing import Any, Callable, ClassVar, Dict, Final, Optional, Sequence, Tuple, overload
+from typing import Any, Callable, ClassVar, Dict, Optional, Sequence, Tuple, overload
 
 import pygame
 import pygame.cursors
@@ -23,7 +23,7 @@ import pygame.mouse
 from pygame.cursors import Cursor as _Cursor
 
 from ..graphics.surface import Surface
-from ..system.utils import cache, wraps
+from ..system.utils import wraps
 
 
 class _MetaCursor(ABCMeta):
@@ -53,7 +53,7 @@ class _MetaCursor(ABCMeta):
     def update() -> None:
         cursor_setter = _MetaCursor.__cursor_setter
         if not callable(cursor_setter):
-            default_cursor: Cursor = _MetaCursor.__default_cursor or SystemCursor.CURSOR_ARROW
+            default_cursor: Cursor = _MetaCursor.__default_cursor or SystemCursor.ARROW
             default_cursor.set()
         if callable(cursor_setter):
             cursor_setter()
@@ -109,57 +109,23 @@ class CustomCursor(Cursor):
         pygame.mouse.set_cursor(self.__cursor)
 
 
-class _MetaSystemCursor(_MetaCursor):
-    @cache
-    def __call__(self, *args: Any, **kwds: Any) -> Any:
-        return super().__call__(*args, **kwds)
+class _MetaSystemCursor(_MetaCursor, EnumMeta):
+    pass
 
 
-class SystemCursor(Cursor, metaclass=_MetaSystemCursor):
-    def __init__(self, constant: int, /) -> None:
-        super().__init__()
-        self.__constant: int = SystemCursor.Type(constant).value
+class SystemCursor(Cursor, Enum, metaclass=_MetaSystemCursor):
+    ARROW = pygame.SYSTEM_CURSOR_ARROW
+    IBEAM = pygame.SYSTEM_CURSOR_IBEAM
+    WAIT = pygame.SYSTEM_CURSOR_WAIT
+    CROSSHAIR = pygame.SYSTEM_CURSOR_CROSSHAIR
+    WAITARROW = pygame.SYSTEM_CURSOR_WAITARROW
+    SIZENWSE = pygame.SYSTEM_CURSOR_SIZENWSE
+    SIZENESW = pygame.SYSTEM_CURSOR_SIZENESW
+    SIZEWE = pygame.SYSTEM_CURSOR_SIZEWE
+    SIZENS = pygame.SYSTEM_CURSOR_SIZENS
+    SIZEALL = pygame.SYSTEM_CURSOR_SIZEALL
+    NO = pygame.SYSTEM_CURSOR_NO
+    HAND = pygame.SYSTEM_CURSOR_HAND
 
     def set(self, /) -> None:
-        pygame.mouse.set_system_cursor(self.__constant)
-
-    class Type(IntEnum):
-        ARROW = pygame.SYSTEM_CURSOR_ARROW
-        IBEAM = pygame.SYSTEM_CURSOR_IBEAM
-        WAIT = pygame.SYSTEM_CURSOR_WAIT
-        CROSSHAIR = pygame.SYSTEM_CURSOR_CROSSHAIR
-        WAITARROW = pygame.SYSTEM_CURSOR_WAITARROW
-        SIZENWSE = pygame.SYSTEM_CURSOR_SIZENWSE
-        SIZENESW = pygame.SYSTEM_CURSOR_SIZENESW
-        SIZEWE = pygame.SYSTEM_CURSOR_SIZEWE
-        SIZENS = pygame.SYSTEM_CURSOR_SIZENS
-        SIZEALL = pygame.SYSTEM_CURSOR_SIZEALL
-        NO = pygame.SYSTEM_CURSOR_NO
-        HAND = pygame.SYSTEM_CURSOR_HAND
-
-    CURSOR_ARROW: Final[SystemCursor]  # type: ignore[misc]
-    CURSOR_IBEAM: Final[SystemCursor]  # type: ignore[misc]
-    CURSOR_WAIT: Final[SystemCursor]  # type: ignore[misc]
-    CURSOR_CROSSHAIR: Final[SystemCursor]  # type: ignore[misc]
-    CURSOR_WAITARROW: Final[SystemCursor]  # type: ignore[misc]
-    CURSOR_SIZENWSE: Final[SystemCursor]  # type: ignore[misc]
-    CURSOR_SIZENESW: Final[SystemCursor]  # type: ignore[misc]
-    CURSOR_SIZEWE: Final[SystemCursor]  # type: ignore[misc]
-    CURSOR_SIZENS: Final[SystemCursor]  # type: ignore[misc]
-    CURSOR_SIZEALL: Final[SystemCursor]  # type: ignore[misc]
-    CURSOR_NO: Final[SystemCursor]  # type: ignore[misc]
-    CURSOR_HAND: Final[SystemCursor]  # type: ignore[misc]
-
-
-SystemCursor.CURSOR_ARROW = SystemCursor(SystemCursor.Type.ARROW)  # type: ignore[misc]
-SystemCursor.CURSOR_IBEAM = SystemCursor(SystemCursor.Type.IBEAM)  # type: ignore[misc]
-SystemCursor.CURSOR_WAIT = SystemCursor(SystemCursor.Type.WAIT)  # type: ignore[misc]
-SystemCursor.CURSOR_CROSSHAIR = SystemCursor(SystemCursor.Type.CROSSHAIR)  # type: ignore[misc]
-SystemCursor.CURSOR_WAITARROW = SystemCursor(SystemCursor.Type.WAITARROW)  # type: ignore[misc]
-SystemCursor.CURSOR_SIZENWSE = SystemCursor(SystemCursor.Type.SIZENWSE)  # type: ignore[misc]
-SystemCursor.CURSOR_SIZENESW = SystemCursor(SystemCursor.Type.SIZENESW)  # type: ignore[misc]
-SystemCursor.CURSOR_SIZEWE = SystemCursor(SystemCursor.Type.SIZEWE)  # type: ignore[misc]
-SystemCursor.CURSOR_SIZENS = SystemCursor(SystemCursor.Type.SIZENS)  # type: ignore[misc]
-SystemCursor.CURSOR_SIZEALL = SystemCursor(SystemCursor.Type.SIZEALL)  # type: ignore[misc]
-SystemCursor.CURSOR_NO = SystemCursor(SystemCursor.Type.NO)  # type: ignore[misc]
-SystemCursor.CURSOR_HAND = SystemCursor(SystemCursor.Type.HAND)  # type: ignore[misc]
+        pygame.mouse.set_system_cursor(self.value)

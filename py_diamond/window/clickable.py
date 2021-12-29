@@ -55,8 +55,8 @@ class Clickable(metaclass=ABCMeta):
         self.__hover_sound: Optional[Sound] = None
         self.__click_sound: Dict[Clickable.State, Optional[Sound]] = dict.fromkeys(Clickable.State)
         self.__default_hover_cursor: Dict[Clickable.State, Cursor] = {
-            Clickable.State.NORMAL: SystemCursor.CURSOR_HAND,
-            Clickable.State.DISABLED: SystemCursor.CURSOR_NO,
+            Clickable.State.NORMAL: SystemCursor.HAND,
+            Clickable.State.DISABLED: SystemCursor.NO,
         }
         self.__hover_cursor: Dict[Clickable.State, Cursor] = self.__default_hover_cursor.copy()
         if isinstance(hover_cursor, Cursor):

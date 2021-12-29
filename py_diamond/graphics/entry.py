@@ -167,7 +167,7 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
             hover_sound=hover_sound,
             click_sound=click_sound,
             disabled_sound=disabled_sound,
-            hover_cursor=SystemCursor.CURSOR_IBEAM,
+            hover_cursor=SystemCursor.IBEAM,
         )
         self.interval = interval
 
