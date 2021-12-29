@@ -37,6 +37,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Any, Final, List, Mapping, Tuple, Union, overload
 
 from pygame.color import Color as _Color
@@ -125,7 +126,7 @@ class ImmutableColor(Color):
         super().__init__(*args, **kwargs)
 
 
-COLOR_DICT: Final[Mapping[str, Color]] = {c: ImmutableColor(c) for c in _ALL_COLORS}
+COLOR_DICT: Final[Mapping[str, Color]] = MappingProxyType({c: ImmutableColor(c) for c in _ALL_COLORS})
 
 WHITE: Final[Color] = COLOR_DICT.get("white", ImmutableColor(255, 255, 255, 255))
 BLACK: Final[Color] = COLOR_DICT.get("black", ImmutableColor(0, 0, 0, 255))
