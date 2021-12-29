@@ -4,6 +4,8 @@
 #
 """Checkbox module"""
 
+from __future__ import annotations
+
 __all__ = ["BooleanCheckBox", "CheckBox", "MetaCheckBox"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -11,21 +13,23 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from operator import truth
-from typing import Any, Callable, Generic, Optional, Tuple, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, Tuple, TypeVar, Union
 
-from ..audio.sound import Sound
 from ..system.configuration import Configuration, OptionAttribute
 from ..window.clickable import Clickable
-from ..window.cursor import Cursor
-from ..window.display import Window
-from ..window.scene import Scene
 from .color import BLACK, Color
 from .drawable import MetaTDrawable, TDrawable
 from .image import Image
-from .renderer import Renderer
 from .shape import DiagonalCrossShape, RectangleShape
 from .surface import Surface
 from .theme import MetaThemedObject, NoTheme, ThemeType
+
+if TYPE_CHECKING:
+    from ..audio.sound import Sound
+    from ..window.cursor import Cursor
+    from ..window.display import Window
+    from ..window.scene import Scene
+    from .renderer import Renderer
 
 _OnValue = TypeVar("_OnValue")
 _OffValue = TypeVar("_OffValue")

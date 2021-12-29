@@ -4,6 +4,8 @@
 #
 """ScaleBar module"""
 
+from __future__ import annotations
+
 __all__ = ["ScaleBar"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -11,18 +13,20 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from operator import truth
-from typing import Callable, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Optional, Tuple, Union
 
-from ..audio.sound import Sound
 from ..system.configuration import Configuration, initializer
 from ..window.clickable import Clickable
-from ..window.cursor import Cursor
-from ..window.display import Window
 from ..window.event import MouseButtonDownEvent, MouseMotionEvent
-from ..window.scene import Scene
 from .color import BLACK, GRAY, WHITE, Color
 from .progress import ProgressBar
-from .theme import ThemeType
+
+if TYPE_CHECKING:
+    from ..audio.sound import Sound
+    from ..window.cursor import Cursor
+    from ..window.display import Window
+    from ..window.scene import Scene
+    from .theme import ThemeType
 
 
 class ScaleBar(ProgressBar, Clickable):

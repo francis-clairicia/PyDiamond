@@ -4,6 +4,8 @@
 #
 """Renderer module"""
 
+from __future__ import annotations
+
 __all__ = ["Renderer", "SurfaceRenderer"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -12,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta, abstractmethod
 from enum import IntEnum, unique
-from typing import Any, List, Optional, Protocol, Sequence, Tuple, Union, overload
+from typing import TYPE_CHECKING, Any, List, Optional, Protocol, Sequence, Tuple, Union, overload
 
 from pygame.constants import (
     BLEND_ALPHA_SDL2,
@@ -41,28 +43,28 @@ from pygame.draw import (
 )
 from pygame.rect import Rect as _PgRect
 
-from ..math import Vector2
-from .color import Color
 from .rect import Rect
 from .surface import Surface, create_surface
 
-_Coordinate = Union[Tuple[float, float], Sequence[float], Vector2]
-_ColorValue = Union[Color, str, Tuple[int, int, int], List[int], int, Tuple[int, int, int, int]]
-_ColorInput = Union[Color, str, List[int], Tuple[int, int, int], Tuple[int, int, int, int]]
-_CanBeRect = Union[
-    _PgRect,
-    Tuple[int, int, int, int],
-    List[int],
-    Tuple[_Coordinate, _Coordinate],
-    List[_Coordinate],
-]
+if TYPE_CHECKING:
+    from ..math import Vector2
+    from .color import Color
 
+    _Coordinate = Union[Tuple[float, float], Sequence[float], Vector2]
+    _ColorValue = Union[Color, str, Tuple[int, int, int], List[int], int, Tuple[int, int, int, int]]
+    _ColorInput = Union[Color, str, List[int], Tuple[int, int, int], Tuple[int, int, int, int]]
+    _CanBeRect = Union[
+        _PgRect,
+        Tuple[int, int, int, int],
+        List[int],
+        Tuple[_Coordinate, _Coordinate],
+        List[_Coordinate],
+    ]
 
-class _HasRectAttribute(Protocol):
-    rect: _CanBeRect
+    class _HasRectAttribute(Protocol):
+        rect: _CanBeRect
 
-
-_RectValue = Union[_CanBeRect, _HasRectAttribute]
+    _RectValue = Union[_CanBeRect, _HasRectAttribute]
 
 
 @unique

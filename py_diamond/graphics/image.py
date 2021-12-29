@@ -4,21 +4,25 @@
 #
 """Image module"""
 
+from __future__ import annotations
+
 __all__ = ["Image"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import Optional, Tuple, Union, overload
+from typing import TYPE_CHECKING, Optional, Tuple, Union, overload
 
 import pygame.transform
 
 from .color import Color
 from .drawable import TDrawable
 from .rect import Rect
-from .renderer import Renderer
 from .surface import Surface, create_surface, load_image, save_image
+
+if TYPE_CHECKING:
+    from .renderer import Renderer
 
 
 class Image(TDrawable):

@@ -4,6 +4,8 @@
 #
 """Entry module"""
 
+from __future__ import annotations
+
 __all__ = ["Entry", "MetaEntry"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -11,28 +13,30 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from string import printable as ASCII_PRINTABLE
-from typing import Any, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 
-from ..audio.sound import Sound
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.utils import valid_integer, valid_optional_float, valid_optional_integer
 from ..window.clickable import Clickable
 from ..window.clock import Clock
 from ..window.cursor import SystemCursor
-from ..window.display import Window
 from ..window.event import Event, KeyDownEvent, MouseButtonDownEvent, TextInputEvent
 from ..window.keyboard import Keyboard
-from ..window.scene import Scene
 from .color import BLACK, WHITE, Color  # , GRAY
 from .drawable import MetaTDrawable, TDrawable
-from .font import Font
-from .renderer import Renderer
 from .shape import RectangleShape
 from .surface import Surface
 from .text import Text
 from .theme import MetaThemedObject, NoTheme, ThemeType
 
-_TextFont = Union[Font, Tuple[Optional[str], int]]
+if TYPE_CHECKING:
+    from ..audio.sound import Sound
+    from ..window.display import Window
+    from ..window.scene import Scene
+    from .font import Font
+    from .renderer import Renderer
+
+    _TextFont = Union[Font, Tuple[Optional[str], int]]
 
 
 class MetaEntry(MetaTDrawable, MetaThemedObject):

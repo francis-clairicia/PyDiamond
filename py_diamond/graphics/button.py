@@ -4,6 +4,8 @@
 #
 """Button module"""
 
+from __future__ import annotations
+
 __all__ = ["Button", "ImageButton", "MetaButton"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -12,28 +14,30 @@ __license__ = "GNU GPL v3.0"
 
 from enum import Enum, unique
 from operator import truth
-from typing import Any, Callable, ClassVar, Dict, Final, Literal, Optional, Tuple, TypedDict, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Dict, Final, Literal, Optional, Tuple, TypedDict, Union, overload
 
-from ..audio.sound import Sound
 from ..math import Vector2
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.utils import valid_float, valid_optional_float
 from ..window.clickable import Clickable
-from ..window.cursor import Cursor
-from ..window.display import Window
-from ..window.scene import Scene
 from .color import BLACK, GRAY, GRAY_DARK, GRAY_LIGHT, TRANSPARENT, WHITE, Color
 from .drawable import MetaTDrawable, TDrawable
-from .font import Font
 from .image import Image
 from .rect import Rect
-from .renderer import Renderer
 from .shape import RectangleShape
 from .surface import Surface
 from .text import TextImage
 from .theme import MetaThemedObject, NoTheme, ThemeType
 
-_TextFont = Union[Font, Tuple[Optional[str], int]]
+if TYPE_CHECKING:
+    from ..audio.sound import Sound
+    from ..window.cursor import Cursor
+    from ..window.display import Window
+    from ..window.scene import Scene
+    from .font import Font
+    from .renderer import Renderer
+
+    _TextFont = Union[Font, Tuple[Optional[str], int]]
 
 
 class MetaButton(MetaTDrawable, MetaThemedObject):

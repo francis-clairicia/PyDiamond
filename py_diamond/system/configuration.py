@@ -157,7 +157,7 @@ class Configuration:
             if option in no_parent_ownership:
                 attribute_class_owner[option] = owner
             else:
-                attribute_class_owner[option] = attribute_class_owner.get(option, owner)
+                attribute_class_owner.setdefault(option, owner)
             descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
             if hasattr(descriptor, "__set_name__"):
                 getattr(descriptor, "__set_name__")(attribute_class_owner[option], option)
@@ -1022,6 +1022,12 @@ class Configuration:
         self.value_converter_static(option, enum)
         self.__info.enum_return_value[option] = bool(return_value)
 
+    def attribute(self, /, func: Callable[..., _T]) -> OptionAttribute[_T]:
+        self.check_option_validity(func.__name__, use_alias=True)
+        attr: OptionAttribute[_T] = OptionAttribute()
+        attr.__doc__ = func.__doc__
+        return attr
+
     def set_alias(self, /, option: str, alias: str) -> None:
         info: _ConfigInfo = self.__info
         self.check_option_validity(option)
@@ -1204,7 +1210,7 @@ class BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
         try:
             return self.get(option)
         except OptionError as exc:
-            raise KeyError from exc
+            raise KeyError(option) from exc
 
     @overload
     def get(self, option: str, /) -> Any:
@@ -1223,7 +1229,7 @@ class BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
         try:
             self.set(option, value)
         except OptionError as exc:
-            raise KeyError from exc
+            raise KeyError(option) from exc
 
     def set(self, /, option: str, value: Any) -> None:
         config = self.__config()
@@ -1234,7 +1240,7 @@ class BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
         try:
             return self.delete(option)
         except OptionError as exc:
-            raise KeyError from exc
+            raise KeyError(option) from exc
 
     def delete(self, /, option: str) -> None:
         config = self.__config()
@@ -1258,18 +1264,18 @@ class BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
     def update(self, /, **kwargs: Any) -> None:
         ...
 
-    def update(self, __m: Union[Mapping[str, Any], Iterable[Tuple[str, Any]]] = (), /, **kwargs: Any) -> None:
+    def update(self, __m: Optional[Union[Mapping[str, Any], Iterable[Tuple[str, Any]]]] = None, /, **kwargs: Any) -> None:
         options: Dict[str, Any] = {}
         if isinstance(__m, Mapping):
             for key in __m:
                 options[key] = __m[key]
-        else:
+        elif __m is not None:
             for key, value in __m:
                 options[key] = value
         options.update(kwargs)
         config = self.__config()
         obj = self.__obj
-        if not options:
+        if not options and __m is not None:
             return config.update_all_options(obj)
         return config(obj, **options)
 
@@ -1337,7 +1343,10 @@ _LAMBDA_FUNC_NAME = (lambda: None).__name__
 
 
 def _can_be_overriden(func: Callable[..., Any]) -> bool:
-    name: str = func.__name__
+    try:
+        name: str = func.__name__
+    except AttributeError:
+        return False
     if name == _LAMBDA_FUNC_NAME:
         return False
     if name.startswith("__"):
@@ -1392,9 +1401,9 @@ def _register_configuration(cls: type, config: Optional[Configuration]) -> Optio
 
 
 def _retrieve_configuration(cls: type) -> Configuration:
+    if not isinstance(cls, type):
+        raise TypeError(f"{cls} is not a type")
     try:
-        if not isinstance(cls, type):
-            raise TypeError(f"{cls} is not a type")
         config: Configuration = getattr(cls, "_bound_configuration_")
         if not isinstance(config, Configuration):
             raise AttributeError

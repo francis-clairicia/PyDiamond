@@ -488,11 +488,11 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclas
     @config.on_update("draw_bottom_right")
     def __compute_vertices(self, /) -> None:
         draw_params = self.__draw_params
+        center: Vector2 = Vector2(self.radius, self.radius)
         if all(not drawn for drawn in draw_params.values()):
-            self.__points = ()
+            self.__points = (center,)
             return
 
-        center: Vector2 = Vector2(self.radius, self.radius)
         radius: Vector2 = Vector2(self.radius, 0)
 
         angle_ranges: Dict[str, range] = {

@@ -4,6 +4,8 @@
 #
 """Progress bar module"""
 
+from __future__ import annotations
+
 __all__ = ["ProgressBar"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -11,15 +13,17 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from enum import Enum, unique
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
 
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.utils import valid_float
 from .color import BLACK, GRAY, TRANSPARENT, WHITE, Color
-from .renderer import Renderer
 from .shape import RectangleShape
 from .text import Text
 from .theme import NoTheme, ThemeType
+
+if TYPE_CHECKING:
+    from .renderer import Renderer
 
 
 class ProgressBar(RectangleShape):
