@@ -131,7 +131,6 @@ class Window:
         self.__surface: Surface = Surface((0, 0))
         self.__rect: Rect = Rect.convert(self.__surface.get_rect())
 
-        self.__event_buffer: List[pygame.event.Event] = []
         self.__main_clock: _FramerateManager = _FramerateManager()
         self.__event: EventManager = EventManager()
 
@@ -165,7 +164,6 @@ class Window:
             del self.__text_framerate
             self.__loop = False
             self.__callback_after.clear()
-            self.__event_buffer.clear()
             self.__surface = Surface((0, 0))
             self.__rect = Rect.convert(self.__surface.get_rect())
             self.__event.unbind_all()
@@ -296,13 +294,9 @@ class Window:
 
         manager: EventManager = self.event
 
-        buffer = self.__event_buffer
-        buffer.extend(pygame.event.get())
         process_event = manager.process_event
-        buffer_pop = buffer.pop
         make_event = Event.from_pygame_event
-        while buffer:
-            pg_event = buffer_pop(0)
+        for pg_event in pygame.event.get():
             if pg_event.type == pygame.QUIT:
                 self.close()
             try:
@@ -338,7 +332,6 @@ class Window:
 
     def clear_all_events(self, /) -> None:
         pygame.event.clear()
-        self.__event_buffer.clear()
 
     def block_only_event(self, /, *event_types: Event.Type) -> None:
         pygame.event.set_blocked([Event.Type(event) for event in event_types])
