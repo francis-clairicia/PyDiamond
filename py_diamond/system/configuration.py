@@ -1099,8 +1099,7 @@ class Configuration:
             yield
             return
 
-        update_stack: List[str]
-        Configuration.__update_stack[obj] = update_stack = Configuration.__update_stack.get(obj, [])
+        update_stack: List[str] = Configuration.__update_stack.setdefault(obj, [])
         if option in update_stack:
             yield
             return
@@ -1325,6 +1324,8 @@ def _make_function_wrapper(func: Any, *, check_override: bool = True, no_object:
                 _func = getattr(func, "__get__", lambda *args: func)(self, type(self))
                 if _func is func and not no_object:
                     _func = MethodType(func, self)
+                if not callable(_func):
+                    raise TypeError("Not callable")
             if check_override and _can_be_overriden(_func):
                 _func = getattr(self, _func.__name__, _func)
             return _func(*args, **kwargs)

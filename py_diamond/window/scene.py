@@ -539,14 +539,11 @@ class SceneWindow(Window):
         refresh_screen = self.refresh
         scene_transition = self.__scene_transition
 
-        def handle_events() -> None:
-            for _ in process_events():
-                pass
-
         try:
             while is_open():
                 try:
-                    handle_events()
+                    for _ in process_events():
+                        pass
                     update_scene()
                     render_scene()
                     refresh_screen()
@@ -579,14 +576,17 @@ class SceneWindow(Window):
                 except StopIteration:
                     animating = False
                 next_transition = transition.send
+                next_fixed_transition = lambda: next_transition(None)
                 while self.is_open() and animating:
-                    self.handle_events()
+                    for _ in self.process_events():
+                        pass
                     try:
-                        self._fixed_updates_call(lambda: next_transition(None))
+                        self._fixed_updates_call(next_fixed_transition)
                         self._interpolation_updates_call(next_transition)
                     except StopIteration:
                         animating = False
                     self.refresh()
+                del next_fixed_transition, next_transition, transition
         event.previous_scene.on_quit()
         if not self.__scenes.started(event.previous_scene):
             self.__scenes._destroy_awaken_scene(event.previous_scene)

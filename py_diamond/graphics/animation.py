@@ -197,7 +197,8 @@ class TransformAnimation:
         self.start()
         with window.block_all_events_context(), window.no_window_callback_processing():
             while window.is_open() and self.has_animation_started():
-                window.handle_events()
+                for _ in window.process_events():
+                    pass
                 window._fixed_updates_call(lambda: self.fixed_update(use_of_linear_interpolation=True))
                 window._interpolation_updates_call(self.set_interpolation)
                 window.render_scene()
