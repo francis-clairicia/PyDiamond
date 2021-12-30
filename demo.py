@@ -38,6 +38,7 @@ from py_diamond.graphics.image import Image
 from py_diamond.graphics.progress import ProgressBar
 from py_diamond.graphics.renderer import Renderer
 from py_diamond.graphics.scale import ScaleBar
+from py_diamond.graphics.scroll import ScrollArea, ScrollBar
 from py_diamond.graphics.shape import CircleShape, CrossShape, MetaThemedShape, PolygonShape, RectangleShape
 from py_diamond.graphics.sprite import AnimatedSprite, Sprite
 from py_diamond.graphics.surface import Surface
@@ -541,7 +542,7 @@ class EntryScene(MainScene):
     def awake(self, /, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
-        self.entry = entry = Entry(self, font=(None, 70))
+        self.entry = entry = Entry(self, font=(None, 70), fg=BLUE, outline=5)
         entry.center = self.window.center
 
     def on_start_loop_before_transition(self) -> None:
@@ -551,15 +552,39 @@ class EntryScene(MainScene):
         self.window.draw(self.entry)
 
 
-class CustomLayeredScene(AutoLayeredMainScene):
+LOREN_IPSUM: Final[
+    str
+] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin euismod justo ac pharetra fermentum. Duis neque massa, commodo eu est vel, dignissim interdum eros. Nulla augue ex, blandit ac magna dapibus, dignissim venenatis massa. Donec tempus laoreet eros tristique rhoncus. Sed eget metus vitae purus ultricies semper. Suspendisse sodales rhoncus quam ac aliquam. Duis quis elit rhoncus, condimentum dolor nec, elementum lorem. Integer placerat dui orci, in ultricies nulla viverra ac. Morbi at justo eu libero rutrum dignissim a in velit. Suspendisse magna odio, fermentum vel tortor eget, condimentum sagittis ex. Vivamus tristique venenatis purus, at pharetra erat lobortis id. Pellentesque tincidunt bibendum erat, ac faucibus ligula semper vitae. Vestibulum ac quam in nulla tristique congue id quis lectus. Sed fermentum hendrerit velit."
+
+
+class ScrollBarScene(AutoLayeredMainScene, framerate=60, fixed_framerate=50):
     def awake(self, /, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
-        self.cactus = Image(ImagesResources.cactus)
-        self.cactus.center = self.window.center
-        self.text = Text("I'm a text", font=(FontResources.cooperblack, 300), italic=True, color=WHITE, wrap=5, justify="center")
-        self.text.center = self.window.center
-        self.group.change_layer(self.text, -1)
+        self.area = ScrollArea(master=self, width=self.window.width - 25, height=self.window.height - 25)
+        self.hscroll = ScrollBar(self.area, self.window.width, 25, outline=3, orient="horizontal")
+        self.hscroll.midbottom = self.window.midbottom
+        next_button: Button = getattr(self.window, "next_button")
+        self.vscroll = ScrollBar(
+            self.area, 25, self.window.height - self.hscroll.height - (next_button.bottom + 10), outline=3, orient="vertical"
+        )
+        self.vscroll.bottomright = self.window.right, self.hscroll.top
+        self.vscroll.border_radius = 25
+        Text(LOREN_IPSUM, font=(None, 100), wrap=50).add(self.area)
+
+    def on_start_loop(self, /) -> None:
+        super().on_start_loop()
+        ScrollArea.set_vertical_flip(True)
+        ScrollArea.set_horizontal_flip(True)
+
+    def on_quit(self, /) -> None:
+        super().on_quit()
+        ScrollArea.set_vertical_flip(False)
+        ScrollArea.set_horizontal_flip(False)
+
+    def render_before(self, /) -> None:
+        super().render_before()
+        self.window.draw(self.area)
 
 
 class SceneTransitionTranslation(SceneTransition):
@@ -610,7 +635,7 @@ class MainWindow(SceneWindow):
         ProgressScene,
         ScaleBarScene,
         EntryScene,
-        CustomLayeredScene,
+        ScrollBarScene,
     ]
 
     def __init__(self) -> None:

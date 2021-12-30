@@ -22,7 +22,7 @@ from ..window.clock import Clock
 from ..window.cursor import SystemCursor
 from ..window.event import Event, KeyDownEvent, MouseButtonDownEvent, TextInputEvent
 from ..window.keyboard import Keyboard
-from .color import BLACK, WHITE, Color  # , GRAY
+from .color import BLACK, TRANSPARENT, WHITE, Color  # , GRAY
 from .drawable import MetaTDrawable, TDrawable
 from .shape import RectangleShape
 from .surface import Surface
@@ -84,6 +84,9 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
     local_width: OptionAttribute[float] = OptionAttribute()
     local_height: OptionAttribute[float] = OptionAttribute()
     local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+
+    outline: OptionAttribute[int] = OptionAttribute()
+    outline_color: OptionAttribute[Color] = OptionAttribute()
 
     border_radius: OptionAttribute[int] = OptionAttribute()
     border_top_left_radius: OptionAttribute[int] = OptionAttribute()
@@ -151,6 +154,18 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
             width=width,
             height=height,
             color=bg,
+            outline=0,
+            border_radius=border_radius,
+            border_top_left_radius=border_top_left_radius,
+            border_top_right_radius=border_top_right_radius,
+            border_bottom_left_radius=border_bottom_left_radius,
+            border_bottom_right_radius=border_bottom_right_radius,
+            theme=NoTheme,
+        )
+        self.__outline_shape: RectangleShape = RectangleShape(
+            width=width,
+            height=height,
+            color=TRANSPARENT,
             outline=outline,
             outline_color=outline_color,
             border_radius=border_radius,
@@ -184,10 +199,11 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
 
     def draw_onto(self, /, target: Renderer) -> None:
         shape: RectangleShape = self.__shape
+        outline_shape: RectangleShape = self.__outline_shape
         text: Text = self.__text
         cursor: int = self.__cursor
 
-        shape.center = self.center
+        outline_shape.center = shape.center = self.center
         shape.draw_onto(target)
 
         text.midleft = (self.left + self.__cursor_width_offset, self.centery)
@@ -199,14 +215,14 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
                 self.__show_cursor = show_cursor = not show_cursor
         else:
             self.__show_cursor = show_cursor = False
-        if not show_cursor:
-            return
+        if show_cursor:
+            width: float = text.font.size(text.message[:cursor])[0] + 1
+            height: float = self.height - self.__cursor_height_offset
+            cursor_start: Tuple[float, float] = (text.left + width, text.centery - height // 2)
+            cursor_end: Tuple[float, float] = (text.left + width, text.centery + height // 2)
+            target.draw_line(text.color, cursor_start, cursor_end, width=2)
 
-        width: float = text.font.size(text.message[:cursor])[0] + 1
-        height: float = self.height - self.__cursor_height_offset
-        cursor_start: Tuple[float, float] = (text.left + width, text.centery - height // 2)
-        cursor_end: Tuple[float, float] = (text.left + width, text.centery + height // 2)
-        target.draw_line(text.color, cursor_start, cursor_end, width=2)
+        outline_shape.draw_onto(target)
 
     def get(self, /) -> str:
         return self.__text.message
@@ -226,6 +242,7 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
 
     def _on_click_out(self, /, event: MouseButtonDownEvent) -> None:
         self.stop_edit()
+        return super()._on_click_out(event)
 
     def _mouse_in_hitbox(self, /, mouse_pos: Tuple[float, float]) -> bool:
         return self.__shape.rect.collidepoint(mouse_pos)
@@ -238,7 +255,7 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
 
     def _apply_only_scale(self, /) -> None:
         scale: float = self.scale
-        self.__shape.scale = self.__text.scale = scale
+        self.__outline_shape.scale = self.__shape.scale = self.__text.scale = scale
         self.__cursor_width_offset = 15 * scale
         self.__cursor_height_offset = 10 * scale
 
@@ -311,12 +328,20 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
     def __set_text_option(self, /, option: str, value: Any) -> None:
         return self.__text.config.set(option, value)
 
+    @config.getter_key("outline")
+    @config.getter_key("outline_color")
+    def __outline_getter(self, /, option: str) -> Any:
+        return self.__outline_shape.config.get(option)
+
+    @config.setter_key("outline")
+    @config.setter_key("outline_color")
+    def __outline_setter(self, /, option: str, value: Any) -> None:
+        self.__outline_shape.config.set(option, value)
+
     @config.getter_key("bg", use_key="color")
     @config.getter_key("local_width")
     @config.getter_key("local_height")
     @config.getter_key("local_size")
-    @config.getter_key("outline")
-    @config.getter_key("outline_color")
     @config.getter_key("border_radius")
     @config.getter_key("border_top_left_radius")
     @config.getter_key("border_top_right_radius")
@@ -326,15 +351,15 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
         return self.__shape.config.get(option)
 
     @config.setter_key("bg", use_key="color")
-    @config.setter_key("outline")
-    @config.setter_key("outline_color")
     @config.setter_key("border_radius")
     @config.setter_key("border_top_left_radius")
     @config.setter_key("border_top_right_radius")
     @config.setter_key("border_bottom_left_radius")
     @config.setter_key("border_bottom_right_radius")
     def __set_shape_option(self, /, option: str, value: Any) -> None:
-        return self.__shape.config.set(option, value)
+        self.__shape.config.set(option, value)
+        if option != "color":
+            self.__outline_shape.config.set(option, value)
 
     config.readonly("local_width", "local_height", "local_size")
 
@@ -350,7 +375,7 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
         else:
             width = entry_size[0] + self.__cursor_width_offset
         height: float = entry_size[1] + self.__cursor_height_offset
-        self.__shape.local_size = (width, height)
+        self.__outline_shape.local_size = self.__shape.local_size = (width, height)
 
 
 def _get_entry_size(font: Font, nb_chars: int) -> Tuple[int, int]:

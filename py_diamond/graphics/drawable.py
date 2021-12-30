@@ -74,7 +74,11 @@ class Drawable(metaclass=MetaDrawable):
         for g in filter(lambda g: g not in actual_groups, groups):
             actual_groups.add(g)
             if self not in g:
-                g.add(self)
+                try:
+                    g.add(self)
+                except:
+                    actual_groups.remove(g)
+                    raise
 
     def remove(self, /, *groups: DrawableGroup) -> None:
         if not groups:
@@ -118,7 +122,7 @@ class TDrawable(Drawable, Transformable, metaclass=MetaTDrawable):
 
 class DrawableGroup(Sequence[Drawable]):
     def __init__(self, /, *objects: Drawable, **kwargs: Any) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self.__list: List[Drawable] = []
         self.add(*objects)
 
@@ -152,7 +156,11 @@ class DrawableGroup(Sequence[Drawable]):
         for d in filter(lambda d: d not in drawable_list, objects):
             drawable_list.append(d)
             if self not in d.groups:
-                d.add(self)
+                try:
+                    d.add(self)
+                except:
+                    drawable_list.remove(d)
+                    raise
 
     def remove(self, /, *objects: Drawable) -> None:
         if not objects:
@@ -208,7 +216,11 @@ class LayeredGroup(DrawableGroup):
             layers_list.insert(index, new_layer)
             drawable_list.insert(index, d)
             if self not in d.groups:
-                d.add(self)
+                try:
+                    d.add(self)
+                except:
+                    drawable_list.remove(d)
+                    raise
 
     def remove(self, /, *objects: Drawable) -> None:
         if not objects:

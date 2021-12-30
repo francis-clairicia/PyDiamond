@@ -491,12 +491,15 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
 
     def _on_hover(self, /) -> None:
         self.__set_state("hover")
+        return super()._on_hover()
 
     def _on_leave(self, /) -> None:
         self.__set_state("normal")
+        return super()._on_leave()
 
     def _on_active_set(self, /) -> None:
         self.__set_state("active")
+        return super()._on_active_set()
 
     def __set_state(self, /, button_state: Literal["normal", "hover", "active"]) -> None:
         clickable_state: Clickable.State = Clickable.State(self.state)

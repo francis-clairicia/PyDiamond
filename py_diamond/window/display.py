@@ -44,7 +44,7 @@ import pygame.event
 from pygame.constants import QUIT, WINDOWCLOSE
 
 from ..graphics.color import BLACK, WHITE, Color
-from ..graphics.rect import Rect
+from ..graphics.rect import ImmutableRect
 from ..graphics.renderer import Renderer, SurfaceRenderer
 from ..graphics.surface import Surface, create_surface
 from ..graphics.text import Text
@@ -138,7 +138,7 @@ class Window:
             self.__size = (0, 0)
         self.__vsync: bool = bool(vsync)
         self.__surface: Surface = Surface((0, 0))
-        self.__rect: Rect = Rect.convert(self.__surface.get_rect())
+        self.__rect: ImmutableRect = ImmutableRect.convert(self.__surface.get_rect())
 
         self.__main_clock: _FramerateManager = _FramerateManager()
         self.__event: EventManager = EventManager()
@@ -176,7 +176,7 @@ class Window:
             self.__loop = False
             self.__callback_after.clear()
             self.__surface = Surface((0, 0))
-            self.__rect = Rect.convert(self.__surface.get_rect())
+            self.__rect = ImmutableRect.convert(self.__surface.get_rect())
             self.__event.unbind_all()
 
         self.__event.unbind_all()
@@ -189,7 +189,7 @@ class Window:
             screen: Surface = pygame.display.set_mode(size, flags=flags, vsync=vsync)
             size = screen.get_size()
             self.__surface = create_surface(size)
-            self.__rect = Rect.convert(self.__surface.get_rect())
+            self.__rect = ImmutableRect.convert(self.__surface.get_rect())
             stack.callback(cleanup)
             self.__text_framerate = Text(color=WHITE, theme=NoTheme)
             self.__text_framerate.hide()
@@ -322,7 +322,7 @@ class Window:
                 new_surface = create_surface((event.x, event.y))
                 new_surface.blit(former_surface, (0, 0))
                 self.__surface = new_surface
-                self.__rect = Rect.convert(new_surface.get_rect())
+                self.__rect = ImmutableRect.convert(new_surface.get_rect())
                 del former_surface, new_surface
             if not event.type.is_allowed():
                 continue
@@ -474,9 +474,8 @@ class Window:
         return out != 0
 
     @property
-    def rect(self, /) -> Rect:
-        rect = self.__rect
-        return Rect(rect.topleft, rect.size)
+    def rect(self, /) -> ImmutableRect:
+        return self.__rect
 
     @property
     def left(self, /) -> int:

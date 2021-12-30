@@ -115,10 +115,12 @@ class ScaleBar(ProgressBar, Clickable):
     def _on_click_down(self, /, event: MouseButtonDownEvent) -> None:
         if self.active:
             self.__compute_scale_percent_by_mouse_pos(event.pos)
+        return super()._on_click_down(event)
 
     def _on_mouse_motion(self, /, event: MouseMotionEvent) -> None:
         if self.active:
             self.__compute_scale_percent_by_mouse_pos(event.pos)
+        return super()._on_mouse_motion(event)
 
     def __compute_scale_percent_by_mouse_pos(self, /, mouse_pos: Tuple[float, float]) -> None:
         if self.orient == ScaleBar.Orient.HORIZONTAL:

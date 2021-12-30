@@ -142,6 +142,12 @@ class Event(metaclass=MetaEvent, event_type=-1):
         WINDOWFOCUSLOST = pygame.WINDOWFOCUSLOST
         WINDOWTAKEFOCUS = pygame.WINDOWTAKEFOCUS
 
+        def __repr__(self) -> str:
+            return f"<{self.real_name}: {self.value}>"
+
+        def __str__(self) -> str:
+            return self.real_name
+
         def is_allowed(self, /) -> bool:
             return not pygame.event.get_blocked(self)
 

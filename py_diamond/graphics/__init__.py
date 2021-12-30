@@ -39,6 +39,7 @@ __all__ = [
     "Image",
     "ImageButton",
     "ImmutableColor",
+    "ImmutableRect",
     "LayeredGroup",
     "LayeredSpriteGroup",
     "MAGENTA",
@@ -46,12 +47,15 @@ __all__ = [
     "MetaCheckBox",
     "MetaDrawable",
     "MetaEntry",
+    "MetaMovable",
+    "MetaScrollBar",
     "MetaShape",
     "MetaTDrawable",
     "MetaText",
     "MetaThemedObject",
     "MetaThemedShape",
     "MetaTransformable",
+    "Movable",
     "MultiColorShape",
     "NoTheme",
     "ORANGE",
@@ -68,6 +72,8 @@ __all__ = [
     "RectangleShape",
     "Renderer",
     "ScaleBar",
+    "ScrollArea",
+    "ScrollBar",
     "SingleColorShape",
     "Sprite",
     "SpriteGroup",
@@ -162,10 +168,12 @@ from .gradients import (
     VerticalMultiColorShape,
 )
 from .image import Image
+from .movable import MetaMovable, Movable
 from .progress import ProgressBar
-from .rect import Rect
+from .rect import ImmutableRect, Rect
 from .renderer import Renderer, SurfaceRenderer
 from .scale import ScaleBar
+from .scroll import MetaScrollBar, ScrollArea, ScrollBar
 from .shape import (
     AbstractCircleShape,
     AbstractRectangleShape,

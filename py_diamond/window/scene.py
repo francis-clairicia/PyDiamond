@@ -453,10 +453,18 @@ class LayeredScene(Scene, metaclass=MetaLayeredScene):
         super().__quit__()
         self.__group.clear()
 
+    def render_before(self, /) -> None:
+        pass
+
+    def render_after(self, /) -> None:
+        pass
+
     @final
     def render(self, /) -> None:
         group: LayeredGroup = self.__group
+        self.render_before()
         self.window.draw(group)
+        self.render_after()
 
     @property
     def group(self, /) -> LayeredGroup:
