@@ -101,7 +101,7 @@ def scheduled(milliseconds: float) -> Callable[[_ScheduledFunc], _ScheduledFunc]
 
 
 class Window:
-    class Exit(BaseException):
+    class __Exit(BaseException):
         pass
 
     Config = Dict[str, Any]
@@ -180,7 +180,7 @@ class Window:
             self.__event.unbind_all()
 
         self.__event.unbind_all()
-        with ExitStack() as stack, suppress(Window.Exit):
+        with ExitStack() as stack, suppress(Window.__Exit):
             pygame.display.init()
             stack.callback(pygame.display.quit)
             size: Tuple[int, int] = self.__size
@@ -209,7 +209,7 @@ class Window:
     @final
     def close(self, /) -> NoReturn:
         self.__loop = False
-        raise Window.Exit
+        raise Window.__Exit
 
     @final
     def is_open(self, /) -> bool:
@@ -322,8 +322,8 @@ class Window:
                 new_surface = create_surface((event.x, event.y))
                 new_surface.blit(former_surface, (0, 0))
                 self.__surface = new_surface
-                del former_surface
                 self.__rect = Rect.convert(new_surface.get_rect())
+                del former_surface, new_surface
             if not event.type.is_allowed():
                 continue
             if not process_event(event):

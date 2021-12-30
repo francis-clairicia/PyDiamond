@@ -43,8 +43,8 @@ class MetaEntry(MetaTDrawable, MetaThemedObject):
     pass
 
 
-@Text.register
-@RectangleShape.register
+@Text.register_themed_subclass
+@RectangleShape.register_themed_subclass
 class Entry(TDrawable, Clickable, metaclass=MetaEntry):
     config: Configuration = Configuration(
         "cursor",

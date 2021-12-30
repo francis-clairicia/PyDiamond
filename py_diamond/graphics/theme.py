@@ -355,21 +355,31 @@ class MetaThemedObject(ABCMeta):
 
     def register(cls, /, subclass: Type[_T]) -> Type[_T]:
         def register_themed_subclass(subclass: MetaThemedObject) -> None:
-            subclass.__virtual_themed_class_bases__ = (*subclass.__virtual_themed_class_bases__, cls)
-            if not getattr(subclass, "_no_parent_theme_", False):
-                try:
-                    _CLASSES_NOT_USING_PARENT_THEMES.remove(subclass)
-                except (ValueError, KeyError):
-                    pass
-            if not getattr(subclass, "_no_parent_default_theme_", False):
-                try:
-                    _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.remove(subclass)
-                except (ValueError, KeyError):
-                    pass
+            if not subclass.is_abstract_theme_class():
+                cls.register_themed_subclass(subclass)
 
         super().register(subclass)
         if isinstance(subclass, MetaThemedObject):
             register_themed_subclass(subclass)  # type: ignore[unreachable]
+        return subclass
+
+    def register_themed_subclass(cls, /, subclass: _T) -> _T:
+        themed_subclass: Any = subclass
+        if not isinstance(themed_subclass, MetaThemedObject):
+            raise TypeError("Not a themed object")
+        if themed_subclass.is_abstract_theme_class():
+            raise TypeError("Abstract theme classes cannot have themes.")
+        themed_subclass.__virtual_themed_class_bases__ = (*themed_subclass.__virtual_themed_class_bases__, cls)
+        if not getattr(themed_subclass, "_no_parent_theme_", False):
+            try:
+                _CLASSES_NOT_USING_PARENT_THEMES.remove(themed_subclass)
+            except (ValueError, KeyError):
+                pass
+        if not getattr(themed_subclass, "_no_parent_default_theme_", False):
+            try:
+                _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.remove(themed_subclass)
+            except (ValueError, KeyError):
+                pass
         return subclass
 
     @staticmethod
@@ -382,8 +392,9 @@ class MetaThemedObject(ABCMeta):
                 mro = list(getattr(cls, "__mro__"))[1:]
             except AttributeError:
                 mro = list(cls.__bases__)
+            mro.extend(cls.__virtual_themed_class_bases__)
 
-            for base in (*mro, *cls.__virtual_themed_class_bases__):
+            for base in mro:
                 if not isinstance(base, MetaThemedObject) or base.is_abstract_theme_class():
                     continue
                 yield base

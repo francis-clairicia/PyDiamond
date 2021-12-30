@@ -41,7 +41,7 @@ class MetaCheckBox(MetaTDrawable, MetaThemedObject):
     pass
 
 
-@RectangleShape.register
+@RectangleShape.register_themed_subclass
 class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=MetaCheckBox):
     config: Configuration = Configuration(
         "value",

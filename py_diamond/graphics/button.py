@@ -44,8 +44,8 @@ class MetaButton(MetaTDrawable, MetaThemedObject):
     pass
 
 
-@TextImage.register
-@RectangleShape.register
+@TextImage.register_themed_subclass
+@RectangleShape.register_themed_subclass
 class Button(TDrawable, Clickable, metaclass=MetaButton):
     Justify: Type[TextImage.Justify] = TextImage.Justify
     Compound: Type[TextImage.Compound] = TextImage.Compound
