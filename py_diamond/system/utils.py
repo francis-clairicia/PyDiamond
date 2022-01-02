@@ -7,6 +7,7 @@
 __all__ = [
     "cache",
     "lru_cache",
+    "setdefaultattr",
     "tp_cache",
     "valid_float",
     "valid_integer",
@@ -22,6 +23,7 @@ __license__ = "GNU GPL v3.0"
 from functools import lru_cache as _lru_cache, wraps as _wraps
 from typing import Any, Callable, Optional, Type, TypeVar, Union, cast, overload
 
+_T = TypeVar("_T")
 _Func = TypeVar("_Func", bound=Callable[..., Any])
 
 
@@ -81,6 +83,14 @@ def wraps(wrapped_func: _Func) -> Callable[[_Func], _Func]:
         return cast(_Func, _FunctionWrapperProxy(wrapper))
 
     return decorator
+
+
+def setdefaultattr(obj: object, name: str, value: _T) -> _T:
+    try:
+        return getattr(obj, name)  # type: ignore[no-any-return]
+    except AttributeError:
+        setattr(obj, name, value)
+    return value
 
 
 class _FunctionWrapperProxy:

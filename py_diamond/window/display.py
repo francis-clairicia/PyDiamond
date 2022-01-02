@@ -305,6 +305,9 @@ class Window:
         Keyboard.update()
         Mouse.update()
 
+        if self.__process_callbacks:
+            self._process_callbacks()
+
         manager: EventManager = self.event
 
         process_event = manager.process_event
@@ -328,8 +331,6 @@ class Window:
                 continue
             if not process_event(event):
                 yield event
-        if self.__process_callbacks:
-            self._process_callbacks()
         manager.handle_mouse_position()
 
     def handle_close_event(self, /) -> None:

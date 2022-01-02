@@ -188,6 +188,7 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
 
         self.__cursor: int = 0
         self.__show_cursor: bool = False
+        self.__start_edit: bool = False
         self.__cursor_animation_clock = Clock()
 
         key_press_event = self.__key_press
@@ -232,10 +233,12 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
 
     def start_edit(self, /) -> None:
         Keyboard.IME.start_text_input()
+        self.__start_edit = True
         self.__show_cursor = True
 
     def stop_edit(self, /) -> None:
         Keyboard.IME.stop_text_input()
+        self.__start_edit = False
 
     def invoke(self, /) -> None:
         self.start_edit()
@@ -260,7 +263,7 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
         self.__cursor_height_offset = 10 * scale
 
     def __edit(self, /) -> bool:
-        return Keyboard.IME.text_input_enabled()
+        return self.__start_edit and Keyboard.IME.text_input_enabled()
 
     def __key_press(self, /, event: Union[KeyDownEvent, TextInputEvent]) -> bool:
         if not self.__edit() or not isinstance(event, (KeyDownEvent, TextInputEvent)):
@@ -268,25 +271,24 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
         self.__show_cursor = True
         self.__cursor_animation_clock.restart()
         text: Text = self.__text
-        cursor: int = self.__cursor
         max_nb_char: int = self.__nb_chars
         if isinstance(event, KeyDownEvent):
             if event.key == Keyboard.Key.ESCAPE:
                 self.stop_edit()
                 return True
             if event.key == Keyboard.Key.BACKSPACE:
-                if cursor > 0:
-                    text.message = text.message[: cursor - 1] + text.message[cursor:]
-                    self.cursor = cursor - 1
+                if self.cursor > 0:
+                    text.message = text.message[: self.cursor - 1] + text.message[self.cursor :]
+                    self.cursor -= 1
                 return True
             if event.key == Keyboard.Key.DELETE:
-                text.message = text.message[:cursor] + text.message[cursor + 1 :]
+                text.message = text.message[: self.cursor] + text.message[self.cursor + 1 :]
                 return True
             if event.key == Keyboard.Key.LEFT:
-                self.cursor = cursor - 1
+                self.cursor -= 1
                 return True
             if event.key == Keyboard.Key.RIGHT:
-                self.cursor = cursor + 1
+                self.cursor += 1
                 return True
             if event.key == Keyboard.Key.HOME:
                 self.cursor = 0
@@ -297,10 +299,10 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
             return False
 
         entered_text: str = event.text
-        new_text: str = text.message[:cursor] + entered_text + text.message[cursor:]
+        new_text: str = text.message[: self.cursor] + entered_text + text.message[self.cursor :]
         if max_nb_char == 0 or len(new_text) <= max_nb_char:
             text.message = new_text
-            self.cursor = cursor + len(entered_text)
+            self.cursor += len(entered_text)
         return True
 
     @config.value_converter("cursor")

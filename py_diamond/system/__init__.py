@@ -29,6 +29,7 @@ __all__ = [
     "rthread",
     "set_constant_directory",
     "set_constant_file",
+    "setdefaultattr",
     "thread",
     "tp_cache",
     "valid_float",
@@ -61,4 +62,14 @@ from .non_copyable import MetaNonCopyable, NonCopyable
 from .path import set_constant_directory, set_constant_file
 from .singleton import MetaSingleton, Singleton
 from .threading import JThread, RThread, Thread, jthread, rthread, thread
-from .utils import cache, lru_cache, tp_cache, valid_float, valid_integer, valid_optional_float, valid_optional_integer, wraps
+from .utils import (
+    cache,
+    lru_cache,
+    setdefaultattr,
+    tp_cache,
+    valid_float,
+    valid_integer,
+    valid_optional_float,
+    valid_optional_integer,
+    wraps,
+)

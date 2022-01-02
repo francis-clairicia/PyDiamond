@@ -254,7 +254,7 @@ class ScrollBar(TDrawable, Clickable, metaclass=MetaScrollBar):
         raise NotImplementedError
 
     def _apply_only_scale(self, /) -> None:
-        self.__outline_shape.scale = self.__bg_shape.scale = self.scale
+        self.__outline_shape.scale = self.__bg_shape.scale = self.__cursor_shape.scale = self.scale
 
     def __get_cursor_shape_rect(self, /) -> Rect:
         cursor_shape: RectangleShape = self.__cursor_shape

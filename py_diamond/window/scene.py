@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 __all__ = [
+    "AbstractLayeredScene",
     "AutoLayeredMainScene",
     "AutoLayeredScene",
     "LayeredMainScene",
@@ -48,6 +49,7 @@ from typing import (
     List,
     NoReturn,
     Optional,
+    Sequence,
     Set,
     Tuple,
     Type,
@@ -115,8 +117,8 @@ class MetaScene(ABCMeta):
         return cls
 
     def __setattr__(cls, name: str, value: Any, /) -> None:
-        if name == "__new__":
-            raise AttributeError("__new__ cannot be overriden")
+        if name in ("__new__", "__init__"):
+            raise AttributeError(f"{name} cannot be overriden")
         return super().__setattr__(name, value)
 
     def set_theme_namespace(cls, /, namespace: str) -> None:
@@ -220,6 +222,7 @@ class Scene(metaclass=MetaScene):
         self.__callback_after_dict: Dict[Scene, _WindowCallbackList] = getattr(
             manager.window, mangle_private_attribute(SceneWindow, "callback_after_scenes")
         )
+        self.__stack: ExitStack = ExitStack()
 
     def __theme_init__(self, /) -> None:
         pass
@@ -263,6 +266,9 @@ class Scene(metaclass=MetaScene):
 
     def draw_scene(self, /, scene: Type[Scene]) -> None:
         self.__manager.render(scene)
+
+    def handle_event(self, /, event: Event) -> bool:
+        return False
 
     @final
     def is_awaken(self, /) -> bool:
@@ -333,6 +339,10 @@ class Scene(metaclass=MetaScene):
         return self.__event
 
     @property
+    def exit_stack(self, /) -> ExitStack:
+        return self.__stack
+
+    @property
     def background_color(self, /) -> Color:
         return self.__bg_color
 
@@ -398,22 +408,22 @@ class MetaLayeredScene(MetaScene):
         add_drawable_attributes: bool = False,
         **kwargs: Any,
     ) -> MetaScene:
-        if "LayeredScene" not in globals():
+        if "AbstractLayeredScene" not in globals():
             return super().__new__(metacls, name, bases, namespace, **kwargs)
 
-        if not any(issubclass(cls, LayeredScene) for cls in bases):
+        if not any(issubclass(cls, AbstractLayeredScene) for cls in bases):
             raise TypeError(
-                f"{name!r} must be inherits from a {LayeredScene.__name__} class in order to use {MetaLayeredScene.__name__} metaclass"
+                f"{name!r} must be inherits from a {AbstractLayeredScene.__name__} class in order to use {MetaLayeredScene.__name__} metaclass"
             )
 
         if any(isinstance(getattr(cls, "__setattr__", None), metacls.__setattr_wrapper) for cls in bases):
             add_drawable_attributes = False
 
         if add_drawable_attributes:
-            setattr_func: Callable[[LayeredScene, str, Any], None] = namespace.get("__setattr__", object.__setattr__)
+            setattr_func: Callable[[AbstractLayeredScene, str, Any], None] = namespace.get("__setattr__", object.__setattr__)
 
             @wraps(setattr_func)
-            def setattr_wrapper(self: LayeredScene, __name: str, __value: Any) -> None:
+            def setattr_wrapper(self: AbstractLayeredScene, __name: str, __value: Any) -> None:
                 try:
                     group: LayeredGroup = self.group
                 except AttributeError:
@@ -444,14 +454,15 @@ class MetaLayeredScene(MetaScene):
             return self.__func__
 
 
-class LayeredScene(Scene, metaclass=MetaLayeredScene):
-    def __init__(self, /) -> None:
-        super().__init__()
-        self.__group: LayeredGroup = LayeredGroup()
+class AbstractLayeredScene(Scene, metaclass=MetaLayeredScene):
+    @property
+    @abstractmethod
+    def group(self, /) -> LayeredGroup:
+        raise NotImplementedError
 
     def __quit__(self, /) -> None:
         super().__quit__()
-        self.__group.clear()
+        self.group.clear()
 
     def render_before(self, /) -> None:
         pass
@@ -461,10 +472,16 @@ class LayeredScene(Scene, metaclass=MetaLayeredScene):
 
     @final
     def render(self, /) -> None:
-        group: LayeredGroup = self.__group
+        group: LayeredGroup = self.group
         self.render_before()
         self.window.draw(group)
         self.render_after()
+
+
+class LayeredScene(AbstractLayeredScene, metaclass=MetaLayeredScene):
+    def __init__(self, /) -> None:
+        super().__init__()
+        self.__group: LayeredGroup = LayeredGroup()
 
     @property
     def group(self, /) -> LayeredGroup:
@@ -548,28 +565,41 @@ class SceneWindow(Window):
                     render_scene()
                     refresh_screen()
                 except _SceneManager.NewScene as exc:
-                    scene_transition(exc)
+                    if exc.previous_scene is None:
+                        raise TypeError("Previous scene must not be None") from None
+                    with ExitStack() as all_scenes_stack:
+                        for scene in reversed(exc.closing_scenes):
+                            all_scenes_stack.enter_context(scene.exit_stack)
+                        all_scenes_stack.enter_context(exc.previous_scene.exit_stack)
+                        scene_transition(exc.previous_scene, exc.actual_scene, exc.closing_scenes, exc.transition)
                 except _SceneManager.SceneException as exc:
                     print(f"{type(exc).__name__}: {exc}", file=stderr)
                     continue
         finally:
+            self.__scenes.clear()
             self.__running = False
 
-    def __scene_transition(self, event: _SceneManager.NewScene) -> None:
-        if event.previous_scene is None:
+    def __scene_transition(
+        self,
+        previous_scene: Scene,
+        actual_scene: Scene,
+        closing_scenes: Sequence[Scene],
+        transition_factory: Optional[Callable[[Renderer, Surface, Surface], SceneTransitionCoroutine]],
+    ) -> None:
+        if previous_scene is None:
             raise TypeError("Previous scene must not be None")
-        event.previous_scene.on_quit_before_transition()
-        event.actual_scene.on_start_loop_before_transition()
-        if event.transition is not None:
+        previous_scene.on_quit_before_transition()
+        actual_scene.on_start_loop_before_transition()
+        if transition_factory is not None:
             with self.capture(draw_on_default_at_end=False) as previous_scene_surface:
-                self.clear(event.previous_scene.background_color)
-                event.previous_scene.render()
+                self.clear(previous_scene.background_color)
+                previous_scene.render()
             with self.capture(draw_on_default_at_end=False) as actual_scene_surface:
-                self.clear(event.actual_scene.background_color)
-                event.actual_scene.render()
+                self.clear(actual_scene.background_color)
+                actual_scene.render()
             with self.capture() as window_surface, self.block_all_events_context(), self.no_window_callback_processing():
                 transition: SceneTransitionCoroutine
-                transition = event.transition(SurfaceRenderer(window_surface), previous_scene_surface, actual_scene_surface)
+                transition = transition_factory(SurfaceRenderer(window_surface), previous_scene_surface, actual_scene_surface)
                 animating = True
                 try:
                     next(transition)
@@ -587,17 +617,18 @@ class SceneWindow(Window):
                         animating = False
                     self.refresh()
                 del next_fixed_transition, next_transition, transition
-        event.previous_scene.on_quit()
-        if not self.__scenes.started(event.previous_scene):
-            self.__scenes._destroy_awaken_scene(event.previous_scene)
-        for scene in event.closing_scenes:
-            scene.on_quit_before_transition()
-            scene.on_quit()
-            self.__scenes._destroy_awaken_scene(scene)
-        self.__callback_after_scenes.pop(event.previous_scene, None)
+        previous_scene.on_quit()
+        if not self.__scenes.started(previous_scene):
+            self.__scenes._destroy_awaken_scene(previous_scene)
+        for scene in closing_scenes:
+            with scene.exit_stack:
+                scene.on_quit_before_transition()
+                scene.on_quit()
+                self.__scenes._destroy_awaken_scene(scene)
+        self.__callback_after_scenes.pop(previous_scene, None)
         self.__accumulator = 0
         gc.collect()
-        event.actual_scene.on_start_loop()
+        actual_scene.on_start_loop()
 
     def refresh(self, /) -> float:
         real_delta_time: float = super().refresh()
@@ -655,9 +686,10 @@ class SceneWindow(Window):
     def process_events(self, /) -> Iterator[Event]:
         actual_scene: Optional[Scene] = self.__scenes.top()
         manager: Optional[EventManager] = actual_scene.event if actual_scene is not None else None
-        process_event = manager.process_event if manager is not None else None
+        manager_process_event: Callable[[Event], bool] = manager.process_event if manager is not None else lambda event: False
+        process_event: Callable[[Event], bool] = actual_scene.handle_event if actual_scene is not None else lambda event: False
         for event in super().process_events():
-            if process_event is None or not process_event(event):
+            if not manager_process_event(event) and not process_event(event):
                 yield event
         if manager is not None:
             manager.handle_mouse_position()
@@ -748,12 +780,13 @@ class _SceneManager:
             delattr(scene, self.__scene_manager_attribute)
 
     def _destroy_awaken_scene(self, /, scene: Scene) -> None:
-        try:
-            self.__awaken.remove(scene)
-        except KeyError:
-            return
-        all_attributes: List[str] = list(scene.__dict__)
-        scene.__quit__()
+        with scene.exit_stack:
+            try:
+                self.__awaken.remove(scene)
+            except KeyError:
+                return
+            all_attributes: List[str] = list(scene.__dict__)
+            scene.__quit__()
         for attr in all_attributes:
             if attr != self.__scene_manager_attribute:
                 delattr(scene, attr)
@@ -778,11 +811,14 @@ class _SceneManager:
         return scene in self.__awaken
 
     def clear(self, /) -> None:
-        while self.__stack:
-            scene = self.__stack.pop(0)
-            scene.on_quit_before_transition()
-            scene.on_quit()
-            self._destroy_awaken_scene(scene)
+        with ExitStack() as all_scenes_exit_stack:
+            for scene in reversed(self.__stack):
+                all_scenes_exit_stack.enter_context(scene.exit_stack)
+            while self.__stack:
+                scene = self.__stack.pop(0)
+                scene.on_quit_before_transition()
+                scene.on_quit()
+                self._destroy_awaken_scene(scene)
         gc.collect()
 
     def render(self, /, scene: Type[Scene]) -> None:

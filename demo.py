@@ -46,10 +46,19 @@ from py_diamond.graphics.text import Text, TextImage
 from py_diamond.resource.loader import FontLoader, ImageLoader
 from py_diamond.resource.manager import ResourceManager
 from py_diamond.window.display import Window
-from py_diamond.window.event import Event, KeyUpEvent, MouseButtonEvent
+from py_diamond.window.event import Event, KeyUpEvent, MouseButtonEventType
+from py_diamond.window.gui import GUIScene
 from py_diamond.window.keyboard import Keyboard
 from py_diamond.window.mouse import Mouse
-from py_diamond.window.scene import AutoLayeredMainScene, MainScene, Scene, SceneTransition, SceneTransitionCoroutine, SceneWindow
+from py_diamond.window.scene import (
+    AutoLayeredMainScene,
+    AutoLayeredScene,
+    MainScene,
+    Scene,
+    SceneTransition,
+    SceneTransitionCoroutine,
+    SceneWindow,
+)
 from py_diamond.window.time import Time
 
 
@@ -363,7 +372,7 @@ class EventScene(MainScene):
     def render(self) -> None:
         self.window.draw(self.cross, self.circle)
 
-    def __switch_color(self, event: MouseButtonEvent) -> None:
+    def __switch_color(self, event: MouseButtonEventType) -> None:
         if event.type == Event.Type.MOUSEBUTTONDOWN:
             self.cross.color = YELLOW
         elif event.type == Event.Type.MOUSEBUTTONUP:
@@ -587,6 +596,24 @@ class ScrollBarScene(AutoLayeredMainScene, framerate=60, fixed_framerate=50):
         self.window.draw(self.area)
 
 
+class TestGUIScene(GUIScene, AutoLayeredScene):
+    def awake(self, /, **kwargs: Any) -> None:
+        super().awake(**kwargs)
+        self.background_color = BLUE_DARK
+        Button.set_default_focus_on_hover(True)
+        self.first = Button(self, "First", callback=lambda: print("First"))
+        self.second = Button(self, "Second", callback=lambda: print("Second"))
+        self.third = Button(self, "Third", callback=lambda: print("Third"))
+
+        self.first.focus.set_obj_on_side(on_right=self.second)
+        self.second.focus.set_obj_on_side(on_left=self.first, on_right=self.third)
+        self.third.focus.set_obj_on_side(on_left=self.second)
+
+        self.second.center = self.window.center
+        self.first.midright = (self.second.left - 10, self.second.centery)
+        self.third.midleft = (self.second.right + 10, self.second.centery)
+
+
 class SceneTransitionTranslation(SceneTransition):
     def __init__(self, /, side: Literal["left", "right"]) -> None:
         super().__init__()
@@ -636,6 +663,7 @@ class MainWindow(SceneWindow):
         ScaleBarScene,
         EntryScene,
         ScrollBarScene,
+        TestGUIScene,
     ]
 
     def __init__(self) -> None:

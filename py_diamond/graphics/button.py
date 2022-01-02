@@ -13,14 +13,17 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from enum import Enum, unique
+from functools import cached_property
 from operator import truth
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Dict, Final, Literal, Optional, Tuple, Type, TypedDict, Union, overload
 
 from ..math import Vector2
 from ..system.configuration import Configuration, OptionAttribute, initializer
-from ..system.utils import valid_float, valid_optional_float
+from ..system.utils import valid_float, valid_integer, valid_optional_float
 from ..window.clickable import Clickable
-from .color import BLACK, GRAY, GRAY_DARK, GRAY_LIGHT, TRANSPARENT, WHITE, Color
+from ..window.gui import BoundFocus
+from ..window.pressable import Pressable
+from .color import BLACK, BLUE, GRAY, GRAY_DARK, GRAY_LIGHT, TRANSPARENT, WHITE, Color
 from .drawable import MetaTDrawable, TDrawable
 from .image import Image
 from .rect import Rect
@@ -46,7 +49,7 @@ class MetaButton(MetaTDrawable, MetaThemedObject):
 
 @TextImage.register_themed_subclass
 @RectangleShape.register_themed_subclass
-class Button(TDrawable, Clickable, metaclass=MetaButton):
+class Button(TDrawable, Pressable, metaclass=MetaButton):
     Justify: Type[TextImage.Justify] = TextImage.Justify
     Compound: Type[TextImage.Compound] = TextImage.Compound
 
@@ -103,6 +106,8 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         "disabled_hover_foreground",
         "disabled_active_background",
         "disabled_active_foreground",
+        "highlight_color",
+        "highlight_thickness",
         "hover_img",
         "active_img",
         "disabled_img",
@@ -179,6 +184,8 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     disabled_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
     disabled_hover_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
     disabled_active_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
+    highlight_color: OptionAttribute[Color] = OptionAttribute()
+    highlight_thickness: OptionAttribute[int] = OptionAttribute()
     text_align_x: OptionAttribute[str] = OptionAttribute()
     text_align_y: OptionAttribute[str] = OptionAttribute()
     text_offset: OptionAttribute[Tuple[float, float]] = OptionAttribute()
@@ -238,8 +245,9 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         disabled_img: Optional[Surface] = None,
         disabled_hover_img: Optional[Surface] = None,
         disabled_active_img: Optional[Surface] = None,
-        # highlight_color=BLUE,
-        # highlight_thickness=2,
+        highlight_color: Color = BLUE,
+        highlight_thickness: int = 2,
+        take_focus: bool = True,
         hover_cursor: Optional[Cursor] = None,
         disabled_cursor: Optional[Cursor] = None,
         text_align_x: str = "center",
@@ -255,7 +263,7 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         theme: Optional[ThemeType] = None,
     ) -> None:
         TDrawable.__init__(self)
-        Clickable.__init__(
+        Pressable.__init__(
             self,
             master=master,
             state=state,
@@ -264,6 +272,7 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
             disabled_sound=disabled_sound,
             hover_cursor=hover_cursor,
             disabled_cursor=disabled_cursor,
+            take_focus=take_focus,
         )
         self.__text: TextImage = TextImage(
             message=text,
@@ -300,6 +309,8 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
             border_bottom_right_radius=border_bottom_right_radius,
             theme=NoTheme,
         )
+        self.outline = outline
+        self.outline_color = outline_color
         self.__shape.set_visibility(show_bg)
         self.__bg_dict: Dict[Clickable.State, _ButtonColor] = {
             Clickable.State.NORMAL: {
@@ -337,6 +348,8 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
                 "active": _copy_img(disabled_active_img),
             },
         }
+        self.highlight_color = highlight_color
+        self.highlight_thickness = highlight_thickness
         self.__text_align_x: Button.HorizontalAlign
         self.__text_align_y: Button.VerticalAlign
         self.text_align_x = text_align_x
@@ -501,6 +514,20 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         self.__set_state("active")
         return super()._on_active_set()
 
+    def __update_shape_outline(self, /) -> None:
+        outline_color: Color
+        outline: int
+        if self.focus.has():
+            outline_color = self.highlight_color
+            outline = max(self.highlight_thickness, self.outline)
+        else:
+            outline_color = self.outline_color
+            outline = self.outline
+        self.__shape.config(outline=outline, outline_color=outline_color)
+
+    _on_focus_set = __update_shape_outline
+    _on_focus_leave = __update_shape_outline
+
     def __set_state(self, /, button_state: Literal["normal", "hover", "active"]) -> None:
         clickable_state: Clickable.State = Clickable.State(self.state)
         bg_color: Optional[Color] = self.__bg_dict[clickable_state][button_state]
@@ -518,11 +545,11 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
 
     def __update_state(self, /) -> None:
         if self.active:
-            self.__set_state("active")
+            self._on_active_set()
         elif self.hover:
-            self.__set_state("hover")
+            self._on_hover()
         else:
-            self.__set_state("normal")
+            self._on_leave()
 
     def __update_shape_size(self, /) -> None:
         text_width, text_height = self.__text.get_local_size()
@@ -745,8 +772,6 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     def __text_offset_validator(offset: Tuple[float, float]) -> Tuple[float, float]:
         return (float(offset[0]), float(offset[1]))
 
-    @config.getter_key("outline")
-    @config.getter_key("outline_color")
     @config.getter_key("border_radius")
     @config.getter_key("border_top_left_radius")
     @config.getter_key("border_top_right_radius")
@@ -755,8 +780,6 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     def __get_shape_option(self, /, option: str) -> Any:
         return self.__shape.config.get(option)
 
-    @config.setter_key("outline")
-    @config.setter_key("outline_color")
     @config.setter_key("border_radius")
     @config.setter_key("border_top_left_radius")
     @config.setter_key("border_top_right_radius")
@@ -764,6 +787,16 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
     @config.setter_key("border_bottom_right_radius")
     def __set_shape_option(self, /, option: str, value: Any) -> None:
         return self.__shape.config.set(option, value)
+
+    config.value_converter_static("outline", valid_integer(min_value=0))
+    config.value_validator_static("outline_color", Color)
+    config.value_validator_static("highlight_color", Color)
+    config.value_converter_static("highlight_thickness", valid_integer(min_value=0))
+
+    config.on_update("outline", __update_shape_outline)
+    config.on_update("outline_color", __update_shape_outline)
+    config.on_update("highlight_color", __update_shape_outline)
+    config.on_update("highlight_thickness", __update_shape_outline)
 
     @property
     def callback(self, /) -> Optional[Callable[[], None]]:
@@ -777,8 +810,12 @@ class Button(TDrawable, Clickable, metaclass=MetaButton):
         else:
             self.__callback = None
 
+    @cached_property
+    def focus(self, /) -> BoundFocus:
+        return BoundFocus(self, self.scene)
 
-@Button.register
+
+@Button.register_themed_subclass
 class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     config: Configuration = Configuration(
         "img",

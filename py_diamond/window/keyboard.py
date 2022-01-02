@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from enum import IntEnum, IntFlag, unique
 from operator import truth
-from typing import Optional, Sequence, Tuple, Union, overload
+from typing import ClassVar, Optional, Sequence, Tuple, Union, overload
 
 import pygame
 import pygame.key
@@ -88,7 +88,7 @@ class Keyboard:
         return former_params
 
     class IME:
-        __start: bool = False
+        __start: ClassVar[bool] = False
 
         @classmethod
         def text_input_enabled(cls) -> bool:

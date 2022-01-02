@@ -84,6 +84,10 @@ class ThemeNamespace(ContextManager["ThemeNamespace"]):
             _THEMES = NAMESPACE[namespace]
         ThemeNamespace.__actual_namespace = namespace
 
+    @staticmethod
+    def get_actual() -> Optional[str]:
+        return ThemeNamespace.__actual_namespace
+
     @property
     def namespace(self, /) -> str:
         return self.__namespace
