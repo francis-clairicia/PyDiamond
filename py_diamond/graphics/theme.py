@@ -387,7 +387,7 @@ class MetaThemedObject(ABCMeta):
         return subclass
 
     @staticmethod
-    def __get_all_parent_class(cls: MetaThemedObject, do_not_search_for: Set[type]) -> List[MetaThemedObject]:
+    def __get_all_parent_class(cls: MetaThemedObject, *, do_not_search_for: Set[type]) -> List[MetaThemedObject]:
         def get_all_parent_class(cls: MetaThemedObject) -> Iterator[MetaThemedObject]:
             if not isinstance(cls, MetaThemedObject) or cls in do_not_search_for or cls.is_abstract_theme_class():
                 return

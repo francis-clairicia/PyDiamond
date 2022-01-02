@@ -7,6 +7,7 @@
 __all__ = [
     "cache",
     "lru_cache",
+    "only_for_concrete_class",
     "setdefaultattr",
     "tp_cache",
     "valid_float",
@@ -77,8 +78,8 @@ def tp_cache(func: Optional[_Func] = None, /, *, maxsize: Optional[int] = 128, t
     return decorator
 
 
-def wraps(wrapped_func: _Func) -> Callable[[_Func], _Func]:
-    def decorator(wrapper: _Func) -> _Func:
+def wraps(wrapped_func: _Func) -> Callable[[Callable[..., Any]], _Func]:
+    def decorator(wrapper: Callable[..., Any]) -> _Func:
         wrapper = _wraps(wrapped_func)(wrapper)
         return cast(_Func, _FunctionWrapperProxy(wrapper))
 
@@ -93,47 +94,14 @@ def setdefaultattr(obj: object, name: str, value: _T) -> _T:
     return value
 
 
-class _FunctionWrapperProxy:
-    def __init__(self, /, wrapper: Callable[..., Any]) -> None:
-        if not callable(getattr(wrapper, "__wrapped__")):
-            raise AttributeError("Not a valid wrapper object: __wrapped__ attribute must be callable")
-        self.__func__: Callable[..., Any] = wrapper
+def only_for_concrete_class(func: _Func) -> _Func:
+    @wraps(func)
+    def wrapper(cls: Any, /, *args: Any, **kwargs: Any) -> Any:
+        if isinstance(cls, type) and getattr(cls, "__abstractmethods__", None):
+            raise TypeError(f"{cls.__name__} is an abstract class")
+        return func(cls, *args, **kwargs)
 
-    def __repr__(self, /) -> str:
-        func: Callable[..., Any] = self.__wrapped__
-        return f"<function wrapper proxy {func.__name__} at {id(self):#x}>"
-
-    def __getattr__(self, /, name: str) -> Any:
-        func: Any = self.__wrapped__
-        return getattr(func, name)
-
-    def __setattr__(self, /, name: str, value: Any) -> None:
-        if name == "__func__":
-            if "__func__" in self.__dict__:
-                raise AttributeError("__func__ is a read-only attribute")
-            return super().__setattr__(name, value)
-        func: Any = self.__wrapped__
-        return setattr(func, name, value)
-
-    def __delattr__(self, /, name: str) -> None:
-        if name == "__func__":
-            raise AttributeError("__func__ is a read-only attribute")
-        return super().__delattr__(name)
-
-    def __call__(self, /, *args: Any, **kwargs: Any) -> Any:
-        func: Callable[..., Any] = self.__func__
-        return func(*args, **kwargs)
-
-    def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Callable[..., Any]:
-        func: Callable[..., Any] = self.__func__
-        func = getattr(func, "__get__")(obj, objtype)
-        return func
-
-    @property
-    def __wrapped__(self, /) -> Callable[..., Any]:
-        func: Callable[..., Any] = self.__func__
-        func = getattr(func, "__wrapped__")
-        return func
+    return wrapper
 
 
 @overload
@@ -321,3 +289,46 @@ def __valid_number(
         value: Any = kwargs["value"]
         return valid_number(value)
     return valid_number
+
+
+class _FunctionWrapperProxy:
+    def __init__(self, /, wrapper: Callable[..., Any]) -> None:
+        if not callable(getattr(wrapper, "__wrapped__")):
+            raise AttributeError("Not a valid wrapper object: __wrapped__ attribute must be callable")
+        self.__func__: Callable[..., Any] = wrapper
+
+    def __repr__(self, /) -> str:
+        func: Callable[..., Any] = self.__wrapped__
+        return f"<function wrapper proxy {func.__name__} at {id(self):#x}>"
+
+    def __getattr__(self, /, name: str) -> Any:
+        func: Any = self.__wrapped__
+        return getattr(func, name)
+
+    def __setattr__(self, /, name: str, value: Any) -> None:
+        if name == "__func__":
+            if "__func__" in self.__dict__:
+                raise AttributeError("__func__ is a read-only attribute")
+            return super().__setattr__(name, value)
+        func: Any = self.__wrapped__
+        return setattr(func, name, value)
+
+    def __delattr__(self, /, name: str) -> None:
+        if name == "__func__":
+            raise AttributeError("__func__ is a read-only attribute")
+        return super().__delattr__(name)
+
+    def __call__(self, /, *args: Any, **kwargs: Any) -> Any:
+        func: Callable[..., Any] = self.__func__
+        return func(*args, **kwargs)
+
+    def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Callable[..., Any]:
+        func: Callable[..., Any] = self.__func__
+        func = getattr(func, "__get__")(obj, objtype)
+        return func
+
+    @property
+    def __wrapped__(self, /) -> Callable[..., Any]:
+        func: Callable[..., Any] = self.__func__
+        func = getattr(func, "__wrapped__")
+        return func

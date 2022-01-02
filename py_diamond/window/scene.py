@@ -43,7 +43,6 @@ from typing import (
     ClassVar,
     Dict,
     Final,
-    FrozenSet,
     Generator,
     Iterator,
     List,
@@ -65,7 +64,7 @@ from ..graphics.renderer import Renderer, SurfaceRenderer
 from ..graphics.surface import Surface
 from ..graphics.theme import ThemeNamespace
 from ..system._mangling import mangle_private_attribute
-from ..system.utils import wraps
+from ..system.utils import only_for_concrete_class, wraps
 from .display import Window, WindowCallback, WindowError, _WindowCallbackList
 from .event import Event, EventManager
 from .time import Time
@@ -76,8 +75,6 @@ _ALL_SCENES: Final[List[Type[Scene]]] = []
 
 
 class MetaScene(ABCMeta):
-
-    __abstractmethods__: FrozenSet[str]
     __namespaces: ClassVar[Dict[type, str]] = dict()
 
     def __new__(
@@ -121,29 +118,24 @@ class MetaScene(ABCMeta):
             raise AttributeError(f"{name} cannot be overriden")
         return super().__setattr__(name, value)
 
+    @only_for_concrete_class
     def set_theme_namespace(cls, /, namespace: str) -> None:
-        if cls.__abstractmethods__:
-            raise TypeError(f"{cls.__name__} is an abstract class")
         MetaScene.__namespaces[cls] = namespace
 
+    @only_for_concrete_class
     def remove_theme_namespace(cls, /) -> None:
-        if cls.__abstractmethods__:
-            raise TypeError(f"{cls.__name__} is an abstract class")
         MetaScene.__namespaces.pop(cls, None)
 
+    @only_for_concrete_class
     def get_required_framerate(cls, /) -> int:
-        if cls.__abstractmethods__:
-            raise TypeError(f"{cls.__name__} is an abstract class")
         return cls.__framerate  # type: ignore[no-any-return, attr-defined]
 
+    @only_for_concrete_class
     def get_required_fixed_framerate(cls, /) -> int:
-        if cls.__abstractmethods__:
-            raise TypeError(f"{cls.__name__} is an abstract class")
         return cls.__fixed_framerate  # type: ignore[no-any-return, attr-defined]
 
+    @only_for_concrete_class
     def require_busy_loop(cls, /) -> bool:
-        if cls.__abstractmethods__:
-            raise TypeError(f"{cls.__name__} is an abstract class")
         return cls.__busy_loop  # type: ignore[no-any-return, attr-defined]
 
     @staticmethod
@@ -416,21 +408,26 @@ class MetaLayeredScene(MetaScene):
                 f"{name!r} must be inherits from a {AbstractLayeredScene.__name__} class in order to use {MetaLayeredScene.__name__} metaclass"
             )
 
+        if "render" in namespace:
+            raise TypeError("render() method must not be overriden")
+
         if any(isinstance(getattr(cls, "__setattr__", None), metacls.__setattr_wrapper) for cls in bases):
             add_drawable_attributes = False
 
         if add_drawable_attributes:
-            setattr_func: Callable[[AbstractLayeredScene, str, Any], None] = namespace.get("__setattr__", object.__setattr__)
+            setattr_func: Callable[[AbstractLayeredScene, str, Any], Any]
+            setattr_func = namespace.get("__setattr__", bases[0].__setattr__)
 
             @wraps(setattr_func)
-            def setattr_wrapper(self: AbstractLayeredScene, __name: str, __value: Any) -> None:
+            def setattr_wrapper(self: AbstractLayeredScene, /, __name: str, __value: Any) -> Any:
                 try:
                     group: LayeredGroup = self.group
                 except AttributeError:
                     return setattr_func(self, __name, __value)
-                setattr_func(self, __name, __value)
+                output: Any = setattr_func(self, __name, __value)
                 if isinstance(__value, Drawable):
                     group.add(__value)
+                return output
 
             namespace["__setattr__"] = metacls.__setattr_wrapper(setattr_wrapper)
 
