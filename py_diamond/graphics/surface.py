@@ -25,15 +25,17 @@ import pygame
 import pygame.image
 from pygame.surface import Surface
 
+from .color import TRANSPARENT, Color
 
-def create_surface(size: Tuple[float, float], *, convert_alpha: bool = True) -> Surface:
+
+def create_surface(size: Tuple[float, float], *, convert_alpha: bool = True, default_color: Color = TRANSPARENT) -> Surface:
     size = (max(size[0], 0), max(size[1], 0))
     s: Surface = Surface(size)
     if convert_alpha:
         s = s.convert_alpha()
-        s.fill((0, 0, 0, 0))
     else:
         s = s.convert()
+    s.fill(default_color)
     return s
 
 

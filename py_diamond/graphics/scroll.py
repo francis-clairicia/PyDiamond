@@ -241,9 +241,9 @@ class ScrollBar(TDrawable, Clickable, metaclass=MetaScrollBar):
             cursor_rect: Rect = self.__get_cursor_shape_rect()
             cursor_click: float = self.__cursor_click
             if self.orient == ScrollBar.Orient.HORIZONTAL:
-                cursor_rect.left = round(event.pos[0] - cursor_click * cursor_rect.width)
+                cursor_rect.left = int(event.pos[0] - cursor_click * cursor_rect.width)
             else:
-                cursor_rect.top = round(event.pos[1] - cursor_click * cursor_rect.height)
+                cursor_rect.top = int(event.pos[1] - cursor_click * cursor_rect.height)
             self.__set_cursor_bounds(cursor_rect)
         return super()._on_mouse_motion(event)
 
@@ -262,9 +262,9 @@ class ScrollBar(TDrawable, Clickable, metaclass=MetaScrollBar):
 
         cursor_start: float = self.__start
         if self.orient == ScrollBar.Orient.HORIZONTAL:
-            cursor_rect.midleft = round(self.left + self.width * cursor_start), round(self.centery)
+            cursor_rect.midleft = int(self.left + self.width * cursor_start), int(self.centery)
         else:
-            cursor_rect.midtop = round(self.centerx), round(self.top + self.height * cursor_start)
+            cursor_rect.midtop = int(self.centerx), int(self.top + self.height * cursor_start)
         return cursor_rect
 
     def __set_cursor_bounds(self, /, cursor_rect: Rect) -> None:
@@ -377,7 +377,14 @@ class ScrollArea(LayeredGroup, Movable):
     __v_flip: ClassVar[bool] = False
 
     def __init__(
-        self, /, *objects: Drawable, master: Union[Scene, Window], width: float, height: float, default_layer: int = 0
+        self,
+        /,
+        *objects: Drawable,
+        master: Union[Scene, Window],
+        width: float,
+        height: float,
+        default_layer: int = 0,
+        bg_color: Color = TRANSPARENT,
     ) -> None:
         LayeredGroup.__init__(self, *objects, default_layer=default_layer)
         Movable.__init__(self)
@@ -387,6 +394,7 @@ class ScrollArea(LayeredGroup, Movable):
         self.__area_view: Surface = self.__whole_area.subsurface(0, 0, width, height)
         self.__h_scroll: Optional[ScrollBar] = None
         self.__v_scroll: Optional[ScrollBar] = None
+        self.__bg_color: Color = bg_color
         master.event.bind_event(Event.Type.MOUSEWHEEL, self.__handle_wheel_event)
 
     @classmethod
@@ -488,11 +496,9 @@ class ScrollArea(LayeredGroup, Movable):
         view_rect: Rect = self.__view_rect
         width: int = view_rect.width
         height: int = view_rect.height
-        for d in self:
-            m: Movable = d  # type: ignore
+        for m in self.find(Movable):  # type: ignore[misc]
             width = max(width, int(m.right))
             height = max(height, int(m.bottom))
-            del m
 
         if (width, height) != whole_area.get_size():
             self.__whole_area = whole_area = create_surface((width, height))
@@ -502,7 +508,7 @@ class ScrollArea(LayeredGroup, Movable):
             self.__area_view = area_view = whole_area.subsurface(view_rect)
             self.__update_scrollbars_cursor()
         else:
-            whole_area.fill(TRANSPARENT)
+            whole_area.fill(self.__bg_color)
         return whole_area, area_view
 
     def __update_scrollbars_cursor(self, /) -> None:

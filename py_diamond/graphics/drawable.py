@@ -15,7 +15,23 @@ __license__ = "GNU GPL v3.0"
 from abc import ABCMeta, abstractmethod
 from bisect import bisect_right
 from contextlib import suppress
-from typing import TYPE_CHECKING, Any, Callable, Dict, FrozenSet, List, Optional, Sequence, Set, Tuple, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    FrozenSet,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    overload,
+)
 
 from ..system._mangling import mangle_private_attribute
 from ..system.utils import wraps
@@ -23,6 +39,8 @@ from .transformable import MetaTransformable, Transformable
 
 if TYPE_CHECKING:
     from .renderer import Renderer
+
+_T = TypeVar("_T")
 
 
 def _draw_decorator(func: Callable[[Drawable, Renderer], None], /) -> Callable[[Drawable, Renderer], None]:
@@ -194,6 +212,11 @@ class DrawableGroup(Sequence[Drawable]):
 
     def empty(self, /) -> bool:
         return not self
+
+    def find(self, objtype: Type[_T]) -> Iterator[_T]:
+        for obj in self:
+            if isinstance(obj, objtype):
+                yield obj
 
 
 class LayeredGroup(DrawableGroup):

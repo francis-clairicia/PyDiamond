@@ -601,9 +601,11 @@ class TestGUIScene(GUIScene, AutoLayeredScene):
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         Button.set_default_focus_on_hover(True)
-        self.first = Button(self, "First", callback=lambda: print("First"))
-        self.second = Button(self, "Second", callback=lambda: print("Second"))
-        self.third = Button(self, "Third", callback=lambda: print("Third"))
+
+        self.text = Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
+        self.first = Button(self, "First", callback=lambda: self.text.config(message="First"))
+        self.second = Button(self, "Second", callback=lambda: self.text.config(message="Second"))
+        self.third = Button(self, "Third", callback=lambda: self.text.config(message="Third"))
 
         self.first.focus.set_obj_on_side(on_right=self.second)
         self.second.focus.set_obj_on_side(on_left=self.first, on_right=self.third)
@@ -612,6 +614,10 @@ class TestGUIScene(GUIScene, AutoLayeredScene):
         self.second.center = self.window.center
         self.first.midright = (self.second.left - 10, self.second.centery)
         self.third.midleft = (self.second.right + 10, self.second.centery)
+
+    def update(self, /) -> None:
+        self.text.midtop = (self.second.centerx, self.second.bottom + 10)
+        return super().update()
 
 
 class SceneTransitionTranslation(SceneTransition):

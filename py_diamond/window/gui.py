@@ -22,6 +22,7 @@ from typing import (
     Dict,
     Final,
     Iterator,
+    List,
     Mapping,
     Optional,
     Protocol,
@@ -128,7 +129,7 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
             focusable = self.focus_get()
             if focusable is not None:
                 self.__focus_index = -1
-                focusable._on_focus_leave()
+                self.__on_focus_leave(focusable)
             return None
         focusable_list: Sequence[SupportsFocus] = tuple(self.__group.iter_focusable())
         if focusable not in focusable_list or not focusable.focus.take():
@@ -143,9 +144,21 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
             else:
                 if actual_focusable is focusable:
                     return True
-                actual_focusable._on_focus_leave()
-        focusable._on_focus_set()
+                self.__on_focus_leave(actual_focusable)
+        self.__on_focus_set(focusable)
         return True
+
+    def __on_focus_set(self, focusable: SupportsFocus) -> None:
+        focusable._on_focus_set()
+        callback: Callable[[], None]
+        for callback in getattr(focusable, "_focus_set_callbacks_", ()):
+            callback()
+
+    def __on_focus_leave(self, focusable: SupportsFocus) -> None:
+        focusable._on_focus_leave()
+        callback: Callable[[], None]
+        for callback in getattr(focusable, "_focus_leave_callbacks_", ()):
+            callback()
 
     def __handle_key_event(self, /, event: KeyDownEvent) -> bool:
         if event.key == Keyboard.Key.TAB:
@@ -329,6 +342,28 @@ class BoundFocus:
         bound_object_dict: Dict[BoundFocus.Side, Optional[SupportsFocus]] = getattr(f, "_bound_focus_objects_", {})
         return bound_object_dict.get(side)
 
+    def register_focus_set_callback(self, /, callback: Callable[[], None]) -> None:
+        f: SupportsFocus = self.__f
+        list_callback: List[Callable[[], None]] = setdefaultattr(f, "_focus_set_callbacks_", [])
+        if callback not in list_callback:
+            list_callback.append(callback)
+
+    def unregister_focus_set_callback(self, /, callback: Callable[[], None]) -> None:
+        f: SupportsFocus = self.__f
+        list_callback: List[Callable[[], None]] = setdefaultattr(f, "_focus_set_callbacks_", [])
+        list_callback.remove(callback)
+
+    def register_focus_leave_callback(self, /, callback: Callable[[], None]) -> None:
+        f: SupportsFocus = self.__f
+        list_callback: List[Callable[[], None]] = setdefaultattr(f, "_focus_leave_callbacks_", [])
+        if callback not in list_callback:
+            list_callback.append(callback)
+
+    def unregister_focus_leave_callback(self, /, callback: Callable[[], None]) -> None:
+        f: SupportsFocus = self.__f
+        list_callback: List[Callable[[], None]] = setdefaultattr(f, "_focus_leave_callbacks_", [])
+        list_callback.remove(callback)
+
     @overload
     def _drawn_by_main_group(self, /, status: bool) -> None:
         ...
@@ -384,6 +419,4 @@ class _GUILayeredGroup(LayeredGroup):
 
     def iter_focusable(self, /) -> Iterator[SupportsFocus]:
         master: GUIScene = self.__master
-        for d in self:
-            if isinstance(d, SupportsFocus) and d.focus.is_bound_to(master):
-                yield d
+        yield from filter(lambda d: d.focus.is_bound_to(master), self.find(SupportsFocus))  # type: ignore[misc]
