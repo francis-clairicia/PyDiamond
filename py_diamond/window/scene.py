@@ -64,7 +64,7 @@ from ..graphics.renderer import Renderer, SurfaceRenderer
 from ..graphics.surface import Surface
 from ..graphics.theme import ThemeNamespace
 from ..system._mangling import mangle_private_attribute
-from ..system.utils import only_for_concrete_class, wraps
+from ..system.utils import concreteclassmethod, wraps
 from .display import Window, WindowCallback, WindowError, _WindowCallbackList
 from .event import Event, EventManager
 from .time import Time
@@ -118,23 +118,23 @@ class MetaScene(ABCMeta):
             raise AttributeError(f"{name} cannot be overriden")
         return super().__setattr__(name, value)
 
-    @only_for_concrete_class
+    @concreteclassmethod
     def set_theme_namespace(cls, /, namespace: str) -> None:
         MetaScene.__namespaces[cls] = namespace
 
-    @only_for_concrete_class
+    @concreteclassmethod
     def remove_theme_namespace(cls, /) -> None:
         MetaScene.__namespaces.pop(cls, None)
 
-    @only_for_concrete_class
+    @concreteclassmethod
     def get_required_framerate(cls, /) -> int:
         return cls.__framerate  # type: ignore[no-any-return, attr-defined]
 
-    @only_for_concrete_class
+    @concreteclassmethod
     def get_required_fixed_framerate(cls, /) -> int:
         return cls.__fixed_framerate  # type: ignore[no-any-return, attr-defined]
 
-    @only_for_concrete_class
+    @concreteclassmethod
     def require_busy_loop(cls, /) -> bool:
         return cls.__busy_loop  # type: ignore[no-any-return, attr-defined]
 

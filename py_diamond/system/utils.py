@@ -6,8 +6,8 @@
 
 __all__ = [
     "cache",
+    "concreteclassmethod",
     "lru_cache",
-    "only_for_concrete_class",
     "setdefaultattr",
     "tp_cache",
     "valid_float",
@@ -94,7 +94,7 @@ def setdefaultattr(obj: object, name: str, value: _T) -> _T:
     return value
 
 
-def only_for_concrete_class(func: _Func) -> _Func:
+def concreteclassmethod(func: _Func) -> _Func:
     @wraps(func)
     def wrapper(cls: Any, /, *args: Any, **kwargs: Any) -> Any:
         if isinstance(cls, type) and getattr(cls, "__abstractmethods__", None):

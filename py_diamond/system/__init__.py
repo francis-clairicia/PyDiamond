@@ -23,10 +23,10 @@ __all__ = [
     "UnknownOptionError",
     "UnregisteredOptionError",
     "cache",
+    "concreteclassmethod",
     "initializer",
     "jthread",
     "lru_cache",
-    "only_for_concrete_class",
     "rthread",
     "set_constant_directory",
     "set_constant_file",
@@ -65,8 +65,8 @@ from .singleton import MetaSingleton, Singleton
 from .threading import JThread, RThread, Thread, jthread, rthread, thread
 from .utils import (
     cache,
+    concreteclassmethod,
     lru_cache,
-    only_for_concrete_class,
     setdefaultattr,
     tp_cache,
     valid_float,
