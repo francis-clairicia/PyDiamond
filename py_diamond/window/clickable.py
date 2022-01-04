@@ -11,12 +11,13 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta, abstractmethod
-from enum import Enum, unique
+from enum import auto, unique
 from operator import truth
 from typing import ClassVar, Dict, Optional, Tuple, Union
 
 from ..audio.sound import Sound
 from ..graphics.drawable import Drawable
+from ..system.enum import AutoLowerNameEnum
 from .cursor import Cursor, SystemCursor
 from .display import Window
 from .event import Event, MouseButtonDownEvent, MouseButtonEventType, MouseButtonUpEvent, MouseMotionEvent
@@ -27,9 +28,9 @@ from .scene import Scene
 
 class Clickable(metaclass=ABCMeta):
     @unique
-    class State(str, Enum):
-        NORMAL = "normal"
-        DISABLED = "disabled"
+    class State(AutoLowerNameEnum):
+        NORMAL = auto()
+        DISABLED = auto()
 
     __default_focus_on_hover: ClassVar[bool] = False
 

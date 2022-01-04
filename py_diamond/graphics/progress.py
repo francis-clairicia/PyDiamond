@@ -12,10 +12,11 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from enum import Enum, unique
+from enum import auto, unique
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
 
 from ..system.configuration import Configuration, OptionAttribute, initializer
+from ..system.enum import AutoLowerNameEnum
 from ..system.utils import valid_float
 from .color import BLACK, GRAY, TRANSPARENT, WHITE, Color
 from .shape import RectangleShape
@@ -28,17 +29,17 @@ if TYPE_CHECKING:
 
 class ProgressBar(RectangleShape):
     @unique
-    class Side(str, Enum):
-        TOP = "top"
-        BOTTOM = "bottom"
-        LEFT = "left"
-        RIGHT = "right"
-        INSIDE = "inside"
+    class Side(AutoLowerNameEnum):
+        TOP = auto()
+        BOTTOM = auto()
+        LEFT = auto()
+        RIGHT = auto()
+        INSIDE = auto()
 
     @unique
-    class Orient(str, Enum):
-        HORIZONTAL = "horizontal"
-        VERTICAL = "vertical"
+    class Orient(AutoLowerNameEnum):
+        HORIZONTAL = auto()
+        VERTICAL = auto()
 
     config = Configuration("value", "percent", "scale_color", "orient", parent=RectangleShape.config)
 

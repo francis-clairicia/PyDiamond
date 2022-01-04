@@ -12,13 +12,14 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from enum import Enum, unique
+from enum import auto, unique
 from functools import cached_property
 from operator import truth
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Dict, Final, Literal, Optional, Tuple, Type, TypedDict, Union, overload
 
 from ..math import Vector2
 from ..system.configuration import Configuration, OptionAttribute, initializer
+from ..system.enum import AutoLowerNameEnum
 from ..system.utils import valid_float, valid_integer, valid_optional_float
 from ..window.clickable import Clickable
 from ..window.gui import BoundFocus
@@ -54,16 +55,16 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
     Compound: Type[TextImage.Compound] = TextImage.Compound
 
     @unique
-    class HorizontalAlign(str, Enum):
-        LEFT = "left"
-        RIGHT = "right"
-        CENTER = "center"
+    class HorizontalAlign(AutoLowerNameEnum):
+        LEFT = auto()
+        RIGHT = auto()
+        CENTER = auto()
 
     @unique
-    class VerticalAlign(str, Enum):
-        TOP = "top"
-        BOTTOM = "bottom"
-        CENTER = "center"
+    class VerticalAlign(AutoLowerNameEnum):
+        TOP = auto()
+        BOTTOM = auto()
+        CENTER = auto()
 
     __HORIZONTAL_ALIGN_POS: ClassVar[Dict[str, str]] = {
         "left": "left",

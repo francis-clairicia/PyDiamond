@@ -23,10 +23,9 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
-from enum import Enum, auto, unique
+from enum import auto, unique
 from operator import truth
 from typing import (
-    Any,
     Callable,
     ClassVar,
     Dict,
@@ -44,6 +43,7 @@ from typing import (
 
 from ..graphics.drawable import Drawable, LayeredGroup
 from ..graphics.renderer import Renderer
+from ..system.enum import AutoLowerNameEnum
 from ..system.utils import setdefaultattr
 from .event import Event, KeyDownEvent, MouseEventType
 from .keyboard import Keyboard
@@ -249,20 +249,14 @@ class NoFocusSupportError(AttributeError):
 
 class BoundFocus:
     @unique
-    class Side(str, Enum):
-        def _generate_next_value_(name: str, *args: Any) -> Any:  # type: ignore[override]
-            return name.lower()
-
+    class Side(AutoLowerNameEnum):
         ON_TOP = auto()
         ON_BOTTOM = auto()
         ON_LEFT = auto()
         ON_RIGHT = auto()
 
     @unique
-    class Mode(str, Enum):
-        def _generate_next_value_(name: str, *args: Any) -> Any:  # type: ignore[override]
-            return name.lower()
-
+    class Mode(AutoLowerNameEnum):
         KEY = auto()
         MOUSE = auto()
 

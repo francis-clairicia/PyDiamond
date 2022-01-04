@@ -13,12 +13,13 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from contextlib import suppress
-from enum import Enum, unique
+from enum import auto, unique
 from operator import truth
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Optional, Tuple, Union
 
 from ..system._mangling import mangle_private_attribute
 from ..system.configuration import Configuration, OptionAttribute, initializer
+from ..system.enum import AutoLowerNameEnum
 from ..window.clickable import Clickable
 from ..window.event import Event, MouseButtonDownEvent, MouseButtonUpEvent, MouseMotionEvent, MouseWheelEvent
 from ..window.mouse import Mouse
@@ -45,9 +46,9 @@ class MetaScrollBar(MetaTDrawable, MetaThemedObject):
 @RectangleShape.register_themed_subclass
 class ScrollBar(TDrawable, Clickable, metaclass=MetaScrollBar):
     @unique
-    class Orient(str, Enum):
-        HORIZONTAL = "horizontal"
-        VERTICAL = "vertical"
+    class Orient(AutoLowerNameEnum):
+        HORIZONTAL = auto()
+        VERTICAL = auto()
 
     config: Configuration = Configuration(
         "local_width",

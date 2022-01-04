@@ -25,7 +25,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
-from enum import Enum, unique
+from enum import auto, unique
 from math import radians, sin, tan
 from operator import truth
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
@@ -35,6 +35,7 @@ import pygame.transform
 from ..math import Vector2
 from ..system._mangling import mangle_private_attribute
 from ..system.configuration import Configuration, OptionAttribute, UnregisteredOptionError, initializer
+from ..system.enum import AutoLowerNameEnum
 from ..system.utils import valid_float, valid_integer
 from .color import BLACK, Color
 from .drawable import MetaTDrawable, TDrawable
@@ -533,9 +534,9 @@ class CrossShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
     line_width: OptionAttribute[float] = OptionAttribute()
 
     @unique
-    class Type(str, Enum):
-        DIAGONAL = "diagonal"
-        PLUS = "plus"
+    class Type(AutoLowerNameEnum):
+        DIAGONAL = auto()
+        PLUS = auto()
 
     @initializer
     def __init__(

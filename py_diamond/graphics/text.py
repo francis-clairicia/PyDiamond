@@ -12,7 +12,7 @@ __license__ = "GNU GPL v3.0"
 
 import os.path
 from contextlib import suppress
-from enum import Enum, unique
+from enum import auto, unique
 from operator import truth
 from textwrap import wrap as textwrap
 from typing import Dict, List, Optional, Tuple, Union
@@ -20,6 +20,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import pygame.transform
 
 from ..system.configuration import Configuration, OptionAttribute, initializer
+from ..system.enum import AutoLowerNameEnum
 from ..system.utils import valid_float, valid_integer
 from .color import BLACK, Color
 from .drawable import MetaTDrawable, TDrawable
@@ -39,10 +40,10 @@ class MetaText(MetaTDrawable, MetaThemedObject):
 
 class Text(TDrawable, metaclass=MetaText):
     @unique
-    class Justify(str, Enum):
-        LEFT = "left"
-        RIGHT = "right"
-        CENTER = "center"
+    class Justify(AutoLowerNameEnum):
+        LEFT = auto()
+        RIGHT = auto()
+        CENTER = auto()
 
     config: Configuration = Configuration(
         "message",
@@ -281,12 +282,12 @@ class Text(TDrawable, metaclass=MetaText):
 
 class TextImage(Text):
     @unique
-    class Compound(str, Enum):
-        LEFT = "left"
-        RIGHT = "right"
-        TOP = "top"
-        BOTTOM = "bottom"
-        CENTER = "center"
+    class Compound(AutoLowerNameEnum):
+        LEFT = auto()
+        RIGHT = auto()
+        TOP = auto()
+        BOTTOM = auto()
+        CENTER = auto()
 
     config = Configuration("img", "compound", "distance", parent=Text.config)
 

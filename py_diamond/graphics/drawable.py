@@ -87,7 +87,7 @@ class Drawable(metaclass=MetaDrawable):
     def is_shown(self, /) -> bool:
         return self.__shown
 
-    def add(self, /, *groups: DrawableGroup) -> None:
+    def add_to_group(self, /, *groups: DrawableGroup) -> None:
         actual_groups: Set[DrawableGroup] = self.__groups
         for g in filter(lambda g: g not in actual_groups, groups):
             actual_groups.add(g)
@@ -98,7 +98,7 @@ class Drawable(metaclass=MetaDrawable):
                     actual_groups.remove(g)
                     raise
 
-    def remove(self, /, *groups: DrawableGroup) -> None:
+    def remove_from_group(self, /, *groups: DrawableGroup) -> None:
         if not groups:
             return
         actual_groups: Set[DrawableGroup] = self.__groups
@@ -175,7 +175,7 @@ class DrawableGroup(Sequence[Drawable]):
             drawable_list.append(d)
             if self not in d.groups:
                 try:
-                    d.add(self)
+                    d.add_to_group(self)
                 except:
                     drawable_list.remove(d)
                     raise
@@ -191,14 +191,14 @@ class DrawableGroup(Sequence[Drawable]):
             drawable_list.remove(d)
             if self in d.groups:
                 with suppress(ValueError):
-                    d.remove(self)
+                    d.remove_from_group(self)
 
     def pop(self, /, index: int = -1) -> Drawable:
         drawable_list: List[Drawable] = self.__list
         d: Drawable = drawable_list.pop(index)
         if self in d.groups:
             with suppress(ValueError):
-                d.remove(self)
+                d.remove_from_group(self)
         return d
 
     def clear(self, /) -> None:
@@ -235,7 +235,7 @@ class LayeredGroup(DrawableGroup):
             drawable_list.insert(index, d)
             if self not in d.groups:
                 try:
-                    d.add(self)
+                    d.add_to_group(self)
                 except:
                     drawable_list.remove(d)
                     raise

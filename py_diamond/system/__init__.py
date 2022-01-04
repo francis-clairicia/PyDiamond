@@ -5,6 +5,8 @@
 """PyDiamond's system module"""
 
 __all__ = [
+    "AutoLowerNameEnum",
+    "AutoUpperNameEnum",
     "BoundConfiguration",
     "ConfigError",
     "Configuration",
@@ -19,6 +21,7 @@ __all__ = [
     "OptionError",
     "RThread",
     "Singleton",
+    "StrEnum",
     "Thread",
     "UnknownOptionError",
     "UnregisteredOptionError",
@@ -59,6 +62,7 @@ from .configuration import (
     UnregisteredOptionError,
     initializer,
 )
+from .enum import AutoLowerNameEnum, AutoUpperNameEnum, StrEnum
 from .non_copyable import MetaNonCopyable, NonCopyable
 from .path import set_constant_directory, set_constant_file
 from .singleton import MetaSingleton, Singleton
