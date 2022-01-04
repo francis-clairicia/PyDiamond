@@ -202,13 +202,8 @@ class DrawableGroup(Sequence[Drawable]):
         return d
 
     def clear(self, /) -> None:
-        drawable_list: List[Drawable] = self.__list.copy()
-        self.__list.clear()
-        for d in drawable_list:
-            if self in d.groups:
-                with suppress(ValueError):
-                    d.remove(self)
-        del drawable_list
+        while not self.empty():
+            self.pop()
 
     def empty(self, /) -> bool:
         return not self
@@ -256,10 +251,6 @@ class LayeredGroup(DrawableGroup):
         d: Drawable = super().pop(index=index)
         self.__layer_dict.pop(d, None)
         return d
-
-    def clear(self, /) -> None:
-        super().clear()
-        self.__layer_dict.clear()
 
     def get_layer(self, /, obj: Drawable) -> int:
         layer_dict: Dict[Drawable, int] = self.__layer_dict

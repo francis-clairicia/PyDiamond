@@ -15,8 +15,10 @@ __all__ = [
     "CustomCursor",
     "Event",
     "EventManager",
+    "FocusableContainer",
     "GUIMainScene",
     "GUIScene",
+    "HasFocusUpdate",
     "JoyAxisMotionEvent",
     "JoyBallMotionEvent",
     "JoyButtonDownEvent",
@@ -46,6 +48,7 @@ __all__ = [
     "MouseEventType",
     "MouseMotionEvent",
     "MouseWheelEvent",
+    "NoFocusSupportError",
     "Pressable",
     "ReturningSceneTransition",
     "Scene",
@@ -96,7 +99,7 @@ if pygame.version.vernum < (2, 1, 2):
     raise ImportError(f"Your pygame version is too old: {pygame.version.ver!r} < '2.1.2'")
 
 if pygame.version.SDL < (2, 0, 16):
-    raise ImportError(f"Your SDL2 version is too old: {str(pygame.version.SDL)!r} < '2.0.16'")
+    raise ImportError(f"Your SDL version is too old: {str(pygame.version.SDL)!r} < '2.0.16'")
 
 os.environ.setdefault("PYGAME_BLEND_ALPHA_SDL2", "1")
 os.environ.setdefault("SDL_VIDEO_CENTERED", "1")
@@ -150,7 +153,17 @@ from .event import (
     WindowSizeChangedEvent,
     WindowTakeFocusEvent,
 )
-from .gui import BoundFocus, GUIMainScene, GUIScene, MetaGUIMainScene, MetaGUIScene, SupportsFocus
+from .gui import (
+    BoundFocus,
+    FocusableContainer,
+    GUIMainScene,
+    GUIScene,
+    HasFocusUpdate,
+    MetaGUIMainScene,
+    MetaGUIScene,
+    NoFocusSupportError,
+    SupportsFocus,
+)
 from .keyboard import Keyboard
 from .mouse import Mouse
 from .pressable import Pressable

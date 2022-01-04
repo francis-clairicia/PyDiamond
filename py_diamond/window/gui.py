@@ -6,7 +6,17 @@
 
 from __future__ import annotations
 
-__all__ = ["BoundFocus", "GUIMainScene", "GUIScene", "MetaGUIMainScene", "MetaGUIScene", "SupportsFocus"]
+__all__ = [
+    "BoundFocus",
+    "FocusableContainer",
+    "GUIMainScene",
+    "GUIScene",
+    "HasFocusUpdate",
+    "MetaGUIMainScene",
+    "MetaGUIScene",
+    "NoFocusSupportError",
+    "SupportsFocus",
+]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
@@ -21,12 +31,12 @@ from typing import (
     ClassVar,
     Dict,
     Final,
-    Iterator,
     List,
     Mapping,
     Optional,
     Protocol,
     Sequence,
+    Union,
     final,
     overload,
     runtime_checkable,
@@ -47,6 +57,7 @@ class MetaGUIScene(MetaLayeredScene):
 class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
     def __init__(self, /) -> None:
         super().__init__()
+        self.__container: FocusableContainer = FocusableContainer(self)
         self.__group: _GUILayeredGroup = _GUILayeredGroup(self)
         self.__focus_index: int = -1
         handle_key_event = self.__handle_key_event
@@ -66,7 +77,7 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
         focus_index: int = self.__focus_index
         if focus_index < 0:
             return None
-        for index, focusable in enumerate(self.__group.iter_focusable()):
+        for index, focusable in enumerate(self.__container):
             if index == focus_index:
                 focus: BoundFocus = focusable.focus
                 if not focus.take():
@@ -79,7 +90,7 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
     def focus_next(self, /) -> Optional[SupportsFocus]:
         if not self.looping():
             return None
-        focusable_list: Sequence[SupportsFocus] = tuple(self.__group.iter_focusable())
+        focusable_list: Sequence[SupportsFocus] = self.__container
         if not focusable_list:
             self.__focus_index = -1
             return None
@@ -97,7 +108,7 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
     def focus_prev(self, /) -> Optional[SupportsFocus]:
         if not self.looping():
             return None
-        focusable_list: Sequence[SupportsFocus] = tuple(self.__group.iter_focusable())
+        focusable_list: Sequence[SupportsFocus] = self.__container
         if not focusable_list:
             self.__focus_index = -1
             return None
@@ -131,7 +142,7 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
                 self.__focus_index = -1
                 self.__on_focus_leave(focusable)
             return None
-        focusable_list: Sequence[SupportsFocus] = tuple(self.__group.iter_focusable())
+        focusable_list: Sequence[SupportsFocus] = self.__container
         if focusable not in focusable_list or not focusable.focus.take():
             return False
         focus_index: int = self.__focus_index
@@ -199,6 +210,10 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
     def group(self, /) -> LayeredGroup:
         return self.__group
 
+    @property
+    def focus_container(self, /) -> FocusableContainer:
+        return self.__container
+
 
 class MetaGUIMainScene(MetaGUIScene, MetaLayeredMainScene):
     pass
@@ -213,13 +228,23 @@ class SupportsFocus(Protocol):
     @property
     @abstractmethod
     def focus(self, /) -> BoundFocus:
-        raise NotImplementedError
+        raise NoFocusSupportError
 
     def _on_focus_set(self, /) -> None:
         pass
 
     def _on_focus_leave(self, /) -> None:
         pass
+
+
+@runtime_checkable
+class HasFocusUpdate(Protocol):
+    def _focus_update(self, /) -> None:
+        pass
+
+
+class NoFocusSupportError(AttributeError):
+    pass
 
 
 class BoundFocus:
@@ -364,22 +389,6 @@ class BoundFocus:
         list_callback: List[Callable[[], None]] = setdefaultattr(f, "_focus_leave_callbacks_", [])
         list_callback.remove(callback)
 
-    @overload
-    def _drawn_by_main_group(self, /, status: bool) -> None:
-        ...
-
-    @overload
-    def _drawn_by_main_group(self, /) -> bool:
-        ...
-
-    def _drawn_by_main_group(self, /, status: Optional[bool] = None) -> Optional[bool]:
-        f: SupportsFocus = self.__f
-        if status is not None:
-            status = bool(status)
-            setattr(f, "_drawn_by_main_group_", status)
-            return None
-        return truth(getattr(f, "_drawn_by_main_group_", True))
-
     @classmethod
     def get_mode(cls, /) -> Mode:
         return cls.__mode
@@ -403,20 +412,76 @@ _SIDE_WITH_KEY_EVENT: Final[Dict[int, BoundFocus.Side]] = {
 
 class _GUILayeredGroup(LayeredGroup):
     def __init__(self, /, master: GUIScene) -> None:
-        super().__init__()
         self.__master: GUIScene = master
+        super().__init__()
 
     def draw_onto(self, /, target: Renderer) -> None:
-        for d in self:
-            try:
-                focus_update: Callable[[], None] = getattr(d, "_focus_update")
-            except AttributeError:
-                pass
-            else:
-                focus_update()
-            if not isinstance(d, SupportsFocus) or d.focus._drawn_by_main_group():
-                d.draw_onto(target)
-
-    def iter_focusable(self, /) -> Iterator[SupportsFocus]:
         master: GUIScene = self.__master
-        yield from filter(lambda d: d.focus.is_bound_to(master), self.find(SupportsFocus))  # type: ignore[misc]
+        master.focus_container.update()
+        super().draw_onto(target)
+
+    def add(self, /, *objects: Drawable, layer: Optional[int] = None) -> None:
+        super().add(*objects, layer=layer)
+        master: GUIScene = self.__master
+        container: FocusableContainer = master.focus_container
+        for obj in objects:
+            if isinstance(obj, SupportsFocus) and obj.focus.is_bound_to(master):
+                container.add(obj)
+
+    def remove(self, /, *objects: Drawable) -> None:
+        super().remove(*objects)
+        container: FocusableContainer = self.__master.focus_container
+        for obj in objects:
+            if isinstance(obj, SupportsFocus) and obj in container:
+                container.remove(obj)
+
+    def pop(self, /, index: int = -1) -> Drawable:
+        obj: Drawable = super().pop(index=index)
+        container: FocusableContainer = self.__master.focus_container
+        if isinstance(obj, SupportsFocus) and obj in container:
+            container.remove(obj)
+        return obj
+
+
+class FocusableContainer(Sequence[SupportsFocus]):
+    def __init__(self, /, master: GUIScene) -> None:
+        super().__init__()
+        self.__master: GUIScene = master
+        self.__list: List[SupportsFocus] = []
+
+    def __len__(self, /) -> int:
+        list_length = self.__list.__len__
+        return list_length()
+
+    @overload
+    def __getitem__(self, /, index: int) -> SupportsFocus:
+        ...
+
+    @overload
+    def __getitem__(self, /, index: slice) -> Sequence[SupportsFocus]:
+        ...
+
+    def __getitem__(self, /, index: Union[int, slice]) -> Union[SupportsFocus, Sequence[SupportsFocus]]:
+        focusable_list: List[SupportsFocus] = self.__list
+        if isinstance(index, slice):
+            return tuple(focusable_list[index])
+        return focusable_list[index]
+
+    def add(self, /, focusable: SupportsFocus) -> None:
+        if focusable in self:
+            return
+        if not isinstance(focusable, SupportsFocus):
+            raise TypeError("'focusable' must be a SupportsFocus object")
+        master: GUIScene = self.__master
+        if not focusable.focus.is_bound_to(master):
+            raise ValueError("'focusable' is not bound to this scene")
+        self.__list.append(focusable)
+
+    def remove(self, /, focusable: SupportsFocus) -> None:
+        focusable_list: List[SupportsFocus] = self.__list
+        focusable_list.remove(focusable)
+
+    def update(self, /) -> None:
+        for f in self:
+            if isinstance(f, HasFocusUpdate):
+                f._focus_update()
