@@ -6,7 +6,16 @@
 
 from __future__ import annotations
 
-__all__ = ["Drawable", "DrawableGroup", "LayeredGroup", "MetaDrawable", "MetaTDrawable", "TDrawable"]
+__all__ = [
+    "Drawable",
+    "DrawableGroup",
+    "LayeredGroup",
+    "MDrawable",
+    "MetaDrawable",
+    "MetaMDrawable",
+    "MetaTDrawable",
+    "TDrawable",
+]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
@@ -35,6 +44,7 @@ from typing import (
 
 from ..system._mangling import mangle_private_attribute
 from ..system.utils import wraps
+from .movable import MetaMovable, Movable
 from .transformable import MetaTransformable, Transformable
 
 if TYPE_CHECKING:
@@ -136,6 +146,16 @@ class TDrawable(Drawable, Transformable, metaclass=MetaTDrawable):
     def __init__(self, /) -> None:
         Drawable.__init__(self)
         Transformable.__init__(self)
+
+
+class MetaMDrawable(MetaDrawable, MetaMovable):
+    pass
+
+
+class MDrawable(Drawable, Movable, metaclass=MetaMDrawable):
+    def __init__(self, /) -> None:
+        Drawable.__init__(self)
+        Movable.__init__(self)
 
 
 class DrawableGroup(Sequence[Drawable]):

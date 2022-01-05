@@ -34,6 +34,7 @@ __all__ = [
     "GREEN_DARK",
     "GREEN_LIGHT",
     "GradientShape",
+    "Grid",
     "HorizontalGradientShape",
     "HorizontalMultiColorShape",
     "Image",
@@ -43,10 +44,12 @@ __all__ = [
     "LayeredGroup",
     "LayeredSpriteGroup",
     "MAGENTA",
+    "MDrawable",
     "MetaButton",
     "MetaCheckBox",
     "MetaDrawable",
     "MetaEntry",
+    "MetaMDrawable",
     "MetaMovable",
     "MetaScrollBar",
     "MetaShape",
@@ -154,7 +157,7 @@ from .color import (
     Color,
     ImmutableColor,
 )
-from .drawable import Drawable, DrawableGroup, LayeredGroup, MetaDrawable, MetaTDrawable, TDrawable
+from .drawable import Drawable, DrawableGroup, LayeredGroup, MDrawable, MetaDrawable, MetaMDrawable, MetaTDrawable, TDrawable
 from .entry import Entry, MetaEntry
 from .font import Font, SysFont
 from .gradients import (
@@ -167,6 +170,7 @@ from .gradients import (
     VerticalGradientShape,
     VerticalMultiColorShape,
 )
+from .grid import Grid
 from .image import Image
 from .movable import MetaMovable, Movable
 from .progress import ProgressBar

@@ -35,6 +35,7 @@ from typing import (
     Optional,
     Protocol,
     Sequence,
+    TypedDict,
     Union,
     final,
     overload,
@@ -338,6 +339,9 @@ class BoundFocus:
         /,
         **kwargs: Optional[SupportsFocus],
     ) -> None:
+        if __m is None and not kwargs:
+            raise TypeError("Invalid arguments")
+
         f: SupportsFocus = self.__f
         bound_object_dict: Dict[BoundFocus.Side, Optional[SupportsFocus]] = setdefaultattr(f, "_bound_focus_objects_", {})
         if __m is not None:
@@ -355,10 +359,33 @@ class BoundFocus:
     def remove_all(self, /) -> None:
         self.remove_obj_on_side(*BoundFocus.Side)
 
+    class BoundObjectsDict(TypedDict):
+        on_top: Optional[SupportsFocus]
+        on_bottom: Optional[SupportsFocus]
+        on_left: Optional[SupportsFocus]
+        on_right: Optional[SupportsFocus]
+
+    @overload
+    def get_obj_on_side(self, /) -> BoundObjectsDict:
+        ...
+
+    @overload
     def get_obj_on_side(self, /, side: str) -> Optional[SupportsFocus]:
-        side = BoundFocus.Side(side)
+        ...
+
+    def get_obj_on_side(self, /, side: Optional[str] = None) -> Union[BoundObjectsDict, SupportsFocus, None]:
         f: SupportsFocus = self.__f
         bound_object_dict: Dict[BoundFocus.Side, Optional[SupportsFocus]] = getattr(f, "_bound_focus_objects_", {})
+
+        if side is None:
+            return {
+                "on_top": bound_object_dict.get(BoundFocus.Side.ON_TOP),
+                "on_bottom": bound_object_dict.get(BoundFocus.Side.ON_BOTTOM),
+                "on_left": bound_object_dict.get(BoundFocus.Side.ON_LEFT),
+                "on_right": bound_object_dict.get(BoundFocus.Side.ON_RIGHT),
+            }
+
+        side = BoundFocus.Side(side)
         return bound_object_dict.get(side)
 
     def register_focus_set_callback(self, /, callback: Callable[[], None]) -> None:

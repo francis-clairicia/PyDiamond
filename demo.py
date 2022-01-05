@@ -34,6 +34,7 @@ from py_diamond.graphics.gradients import (
     VerticalGradientShape,
     VerticalMultiColorShape,
 )
+from py_diamond.graphics.grid import Grid
 from py_diamond.graphics.image import Image
 from py_diamond.graphics.progress import ProgressBar
 from py_diamond.graphics.renderer import Renderer
@@ -579,7 +580,7 @@ class ScrollBarScene(AutoLayeredMainScene, framerate=60, fixed_framerate=50):
         )
         self.vscroll.bottomright = self.window.right, self.hscroll.top
         self.vscroll.border_radius = 25
-        Text(LOREN_IPSUM, font=(None, 100), wrap=50).add(self.area)
+        Text(LOREN_IPSUM, font=(None, 100), wrap=50).add_to_group(self.area)
 
     def on_start_loop(self, /) -> None:
         super().on_start_loop()
@@ -618,6 +619,44 @@ class TestGUIScene(GUIScene, AutoLayeredScene):
     def update(self, /) -> None:
         self.text.midtop = (self.second.centerx, self.second.bottom + 10)
         return super().update()
+
+
+class GridScene(GUIScene):
+    def awake(self, /, **kwargs: Any) -> None:
+        super().awake(**kwargs)
+        self.background_color = BLUE_DARK
+        Button.set_default_focus_on_hover(True)
+
+        self.text = Text("None", font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
+        self.grid = Grid(self, bg_color=YELLOW)
+
+        self.grid.padding.x = 20
+        self.grid.padding.y = 20
+
+        def create_button(text: str) -> Button:
+            return Button(self, text, callback=lambda: self.text.config(message=text))
+
+        self.grid.place(create_button("First"), 0, 0)
+        self.grid.place(create_button("Second"), 2, 1)
+        self.grid.place(create_button("Third"), 1, 2)
+        self.grid.place(create_button("Fourth"), 1, 1)
+
+        self.grid.outline = 2
+        self.grid.outline_color = PURPLE
+
+        self.grid.center = self.window.center
+        self.group.add(self.text, self.grid)
+
+    def on_start_loop_before_transition(self, /) -> None:
+        self.set_text_position()
+        return super().on_start_loop_before_transition()
+
+    def update(self, /) -> None:
+        self.set_text_position()
+        super().update()
+
+    def set_text_position(self, /) -> None:
+        self.text.midtop = (self.grid.centerx, self.grid.bottom + 10)
 
 
 class SceneTransitionTranslation(SceneTransition):
@@ -670,6 +709,7 @@ class MainWindow(SceneWindow):
         EntryScene,
         ScrollBarScene,
         TestGUIScene,
+        GridScene,
     ]
 
     def __init__(self) -> None:

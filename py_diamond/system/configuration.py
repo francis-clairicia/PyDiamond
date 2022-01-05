@@ -572,7 +572,7 @@ class Configuration:
         self, option: str, func: Optional[_KeyGetter] = None, /, *, use_key: Optional[str] = None, use_override: bool = True
     ) -> Optional[Callable[[_KeyGetter], _KeyGetter]]:
         def decorator(func: _KeyGetter, /) -> _KeyGetter:
-            key: str = use_key if use_key is not None else option
+            key: str = use_key or option
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             self.getter(option, _wrap_function_wrapper(func, lambda self: wrapper(self, key)))
             return func
@@ -634,7 +634,7 @@ class Configuration:
         self, option: str, func: Optional[_KeySetter] = None, /, *, use_key: Optional[str] = None, use_override: bool = True
     ) -> Optional[Callable[[_KeySetter], _KeySetter]]:
         def decorator(func: _KeySetter, /) -> _KeySetter:
-            key: str = use_key if use_key is not None else option
+            key: str = use_key or option
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             self.setter(option, _wrap_function_wrapper(func, lambda self, value: wrapper(self, key, value)))
             return func
@@ -696,7 +696,7 @@ class Configuration:
         self, option: str, func: Optional[_KeyDeleter] = None, /, *, use_key: Optional[str] = None, use_override: bool = True
     ) -> Optional[Callable[[_KeyDeleter], _KeyDeleter]]:
         def decorator(func: _KeyDeleter, /) -> _KeyDeleter:
-            key: str = use_key if use_key is not None else option
+            key: str = use_key or option
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             self.deleter(option, _wrap_function_wrapper(func, lambda self: wrapper(self, key)))
             return func
@@ -790,7 +790,7 @@ class Configuration:
         self, option: str, func: Optional[_KeyUpdater] = None, /, *, use_key: Optional[str] = None, use_override: bool = True
     ) -> Optional[Callable[[_KeyUpdater], _KeyUpdater]]:
         def decorator(func: _KeyUpdater, /) -> _KeyUpdater:
-            key: str = use_key if use_key is not None else option
+            key: str = use_key or option
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             self.on_update(option, _wrap_function_wrapper(func, lambda self: wrapper(self, key)))
             return func
@@ -848,7 +848,7 @@ class Configuration:
         self, option: str, func: Optional[_KeyValueUpdater] = None, /, *, use_key: Optional[str] = None, use_override: bool = True
     ) -> Optional[Callable[[_KeyValueUpdater], _KeyValueUpdater]]:
         def decorator(func: _KeyValueUpdater, /) -> _KeyValueUpdater:
-            key: str = use_key if use_key is not None else option
+            key: str = use_key or option
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             self.on_update_value(option, _wrap_function_wrapper(func, lambda self, value: wrapper(self, key, value)))
             return func

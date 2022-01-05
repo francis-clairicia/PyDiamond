@@ -13,9 +13,10 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, Tuple, Union, final
+from typing import Any, Callable, Dict, Tuple, Union, final
 
 from ..math import Vector2
+from ..system.utils import wraps
 from .rect import ImmutableRect, Rect
 
 _ALL_VALID_POSITIONS: Tuple[str, ...] = (
@@ -39,6 +40,17 @@ _ALL_VALID_POSITIONS: Tuple[str, ...] = (
 )
 
 
+def _position_decorator(func: Callable[[Movable, Any], None], position: str) -> Callable[[Movable, Any], None]:
+    @wraps(func)
+    def wrapper(self: Movable, /, value: Any) -> None:
+        actual_value: Any = getattr(self, position)
+        if actual_value != value:
+            func(self, value)
+            self._on_move()
+
+    return wrapper
+
+
 class MetaMovable(ABCMeta):
     def __new__(
         metacls,
@@ -54,8 +66,13 @@ class MetaMovable(ABCMeta):
             )
 
         for position in _ALL_VALID_POSITIONS:
-            if position in namespace and any(hasattr(cls, position) for cls in bases):
+            if position not in namespace:
+                continue
+            if any(hasattr(cls, position) for cls in bases):
                 raise TypeError("Override of position attributes is not allowed")
+            prop: property = namespace[position]
+            if prop.fset:
+                namespace[position] = prop.setter(_position_decorator(prop.fset, position))
 
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
@@ -99,6 +116,9 @@ class Movable(metaclass=MetaMovable):
                 raise AttributeError(f"{type(r).__name__!r} has no attribute {name!r}")
             setattr(r, name, value)
         return r
+
+    def _on_move(self, /) -> None:
+        pass
 
     @property
     def rect(self, /) -> ImmutableRect:

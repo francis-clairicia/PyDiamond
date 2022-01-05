@@ -178,8 +178,9 @@ class OutlinedShape(AbstractShape):
     def get_local_size(self, /) -> Tuple[float, float]:
         w, h = super().get_local_size()
         outline: int = self.outline
-        offset: float = outline / 2 + 1
-        return (w + offset * 2, h + offset * 2)
+        if outline == 0:
+            return (w, h)
+        return (w + 1, h + 1)
 
     config.value_converter_static("outline", valid_integer(min_value=0))
     config.value_validator_static("outline_color", Color)
@@ -357,9 +358,7 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape, me
         w: float = self.local_width
         h: float = self.local_height
         image: SurfaceRenderer = SurfaceRenderer(self.get_local_size())
-        default_rect: Rect = image.get_rect()
         rect: Rect = Rect(0, 0, w, h)
-        rect.center = default_rect.center
         draw_params = self.__draw_params
         image.draw_rect(self.color, rect, **draw_params)
         if outline > 0:
@@ -453,7 +452,6 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclas
         radius: float = self.radius
         outline: int = self.outline
         width, height = self.get_local_size()
-        radius += width % 2
         image: SurfaceRenderer = SurfaceRenderer((width, height))
         width, height = image.get_size()
         center: Tuple[float, float] = (width / 2, height / 2)
