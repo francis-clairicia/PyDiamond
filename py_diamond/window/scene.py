@@ -567,7 +567,8 @@ class SceneWindow(Window):
                     with ExitStack() as all_scenes_stack:
                         for scene in reversed(exc.closing_scenes):
                             all_scenes_stack.enter_context(scene.exit_stack)
-                        all_scenes_stack.enter_context(exc.previous_scene.exit_stack)
+                        if not self.__scenes.started(exc.previous_scene):
+                            all_scenes_stack.enter_context(exc.previous_scene.exit_stack)
                         scene_transition(exc.previous_scene, exc.actual_scene, exc.closing_scenes, exc.transition)
                 except _SceneManager.SceneException as exc:
                     print(f"{type(exc).__name__}: {exc}", file=stderr)
