@@ -4,7 +4,7 @@
 #
 """Enum utility module"""
 
-__all__ = ["AutoLowerNameEnum", "AutoUpperNameEnum"]
+__all__ = ["AutoLowerNameEnum", "AutoUpperNameEnum", "StrEnum"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
