@@ -9,6 +9,7 @@ __all__ = [
     "AutoLayeredMainScene",
     "AutoLayeredScene",
     "BoundFocus",
+    "BoundFocusProxy",
     "Clickable",
     "Clock",
     "Cursor",
@@ -155,6 +156,7 @@ from .event import (
 )
 from .gui import (
     BoundFocus,
+    BoundFocusProxy,
     FocusableContainer,
     GUIMainScene,
     GUIScene,

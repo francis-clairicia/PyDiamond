@@ -16,27 +16,12 @@ from contextlib import suppress
 from dataclasses import dataclass
 from enum import auto, unique
 from itertools import chain
-from typing import (
-    Any,
-    Callable,
-    Container,
-    Dict,
-    Iterator,
-    List,
-    Literal,
-    Optional,
-    Sequence,
-    Tuple,
-    TypeVar,
-    Union,
-    cast,
-    overload,
-)
+from typing import Any, Callable, Container, Dict, Iterator, List, Literal, Optional, Sequence, Tuple, TypeVar, Union, overload
 
-from ..system.configuration import Configuration, OptionAttribute
+from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
 from ..system.utils import valid_integer
-from ..window.gui import BoundFocus, GUIScene, SupportsFocus
+from ..window.gui import BoundFocus, BoundFocusProxy, GUIScene, SupportsFocus
 from .color import BLACK, TRANSPARENT, Color
 from .drawable import Drawable, MDrawable
 from .movable import Movable
@@ -68,6 +53,7 @@ class Grid(MDrawable, Container[Drawable]):
     outline_color: OptionAttribute[Color] = OptionAttribute()
     justify: OptionAttribute[Justify] = OptionAttribute()
 
+    @initializer
     def __init__(
         self,
         /,
@@ -80,6 +66,7 @@ class Grid(MDrawable, Container[Drawable]):
     ) -> None:
         super().__init__()
         self.__rows: Dict[int, _GridRow] = dict()
+        self.__columns: Dict[int, _GridColumnPlaceholder] = dict()
         self.__master: Optional[GUIScene] = master
         self.__max_width_columns: Dict[int, float] = dict()
         self.__max_height_rows: Dict[int, float] = dict()
@@ -116,6 +103,22 @@ class Grid(MDrawable, Container[Drawable]):
             cell.draw_onto(target)
         outline.draw_onto(target)
 
+    def rows(self, /) -> Iterator[int]:
+        all_rows: Dict[int, _GridRow] = self.__rows
+        yield from all_rows
+
+    def columns(self, /, row: int) -> Iterator[int]:
+        all_rows: Dict[int, _GridRow] = self.__rows
+        try:
+            grid_row: _GridRow = all_rows[row]
+        except KeyError as exc:
+            raise IndexError("'row' is undefined") from exc
+        for cell in grid_row.iter_cells():
+            yield cell.column
+
+    def cells(self, /) -> Iterator[Tuple[int, int]]:
+        return ((row, column) for row in self.rows() for column in self.columns(row))
+
     def place(
         self,
         /,
@@ -140,30 +143,80 @@ class Grid(MDrawable, Container[Drawable]):
         try:
             grid_row = self.__rows[row]
         except KeyError:
-            self.__rows[row] = grid_row = _GridRow(self, row)
+            self.__rows[row] = grid_row = _GridRow(self, row, self.__columns)
             self.__rows = dict(sorted(self.__rows.items(), key=lambda e: e[0]))
         grid_row.place(obj, column, padx=padx, pady=pady, justify=justify)
-        self._update()
         self.__set_obj_on_side_internal()
+        self._update()
         return obj
 
     def pop(self, /, row: int, column: int) -> Drawable:
-        for cell in chain.from_iterable(row.iter_cells() for row in self.__rows.values()):
-            if cell.row == row and cell.column == column:
-                drawable: Optional[Drawable] = cell.get_object()
-                cell.set_object(None)
-                self._update()
-                self.__set_obj_on_side_internal()
-                if drawable is None:
-                    break
-                return drawable
+        try:
+            grid_row: _GridRow = self.__rows[row]
+        except KeyError:
+            pass
+        else:
+            for cell in grid_row.iter_cells():
+                if cell.row == row and cell.column == column:
+                    drawable: Optional[Drawable] = cell.get_object()
+                    cell.set_object(None)
+                    self.__set_obj_on_side_internal()
+                    self._update()
+                    if drawable is None:
+                        break
+                    return drawable
         raise IndexError(f"{(row, column)} does not exists")
 
     def remove(self, /, obj: Drawable) -> None:
         cell: _GridCell = self.__find_cell(obj)
         cell.set_object(None)
-        self._update()
         self.__set_obj_on_side_internal()
+        self._update()
+
+    def clear(self, /) -> None:
+        for cell in chain.from_iterable(row.iter_cells() for row in self.__rows.values()):
+            cell.set_object(None)
+        self.__set_obj_on_side_internal()
+        self._update()
+
+    def modify(
+        self,
+        /,
+        row: int,
+        column: int,
+        *,
+        padx: Optional[int] = None,
+        pady: Optional[int] = None,
+        justify: Optional[str] = None,
+    ) -> None:
+        try:
+            grid_row: _GridRow = self.__rows[row]
+        except KeyError:
+            pass
+        else:
+            for cell in grid_row.iter_cells():
+                if cell.row == row and cell.column == column:
+                    cell.update_params(padx=padx, pady=pady, justify=justify)
+                    self._update()
+                    return
+        raise IndexError(f"{(row, column)} does not exists")
+
+    def unify(self, /) -> None:
+        all_grid_rows: Dict[int, _GridRow] = self.__rows
+        all_grid_columns: Dict[int, _GridColumnPlaceholder] = self.__columns
+        self.__remove_useless_cells()
+        new_grid_rows: Sequence[_GridRow] = sorted(all_grid_rows.values(), key=lambda r: r.row)
+        new_grid_columns: Sequence[_GridColumnPlaceholder] = sorted(all_grid_columns.values(), key=lambda c: c.column)
+        all_grid_rows.clear()
+        all_grid_columns.clear()
+        for column, grid_column in enumerate(new_grid_columns):
+            grid_column.move_to_column(column)
+            all_grid_columns[column] = grid_column
+        for row, grid_row in enumerate(new_grid_rows):
+            grid_row.move_to_row(row)
+            all_grid_rows[row] = grid_row
+            grid_row.reset()
+        self._update()
 
     def _update(self, /) -> None:
         max_width_columns: Dict[int, float] = self.__max_width_columns
@@ -174,7 +227,7 @@ class Grid(MDrawable, Container[Drawable]):
         max_width_columns.clear()
         max_height_rows.clear()
         for cell in chain.from_iterable(row.iter_cells() for row in all_rows.values()):
-            cell_w, cell_h = cell.get_local_size()
+            cell_w, cell_h = cell.get_local_size(from_grid=True)
             max_width_columns[cell.column] = max(max_width_columns.get(cell.column, 0), cell_w)
             max_height_rows[cell.row] = max(max_height_rows.get(cell.row, 0), cell_h)
         self.topleft = topleft
@@ -210,21 +263,12 @@ class Grid(MDrawable, Container[Drawable]):
         raise ValueError(f"'obj' not in grid")
 
     def __set_obj_on_side_internal(self, /) -> None:
-        if self.master is None:
-            return
-
-        all_grid_rows: Dict[int, _GridRow] = self.__rows
         all_rows: Dict[int, List[_GridCell]] = {}
         all_columns: Dict[int, List[_GridCell]] = {}
-        for grid_row in tuple(all_grid_rows.values()):
-            grid_row.remove_useless_cells()
-            cells: Sequence[_GridCell] = tuple(grid_row.iter_cells())
-            if not cells:
-                all_grid_rows.pop(grid_row.row, None)
-                continue
-            for cell in cells:
-                all_rows.setdefault(cell.row, []).append(cell)
-                all_columns.setdefault(cell.column, []).append(cell)
+        self.__remove_useless_cells(all_rows=all_rows, all_columns=all_columns)
+
+        if self.master is None:
+            return
 
         def find_closest(cells: Sequence[_GridCell], attr: Literal["row", "column"], cell_to_link: _GridCell) -> _GridCell:
             closest: _GridCell = cells[0]
@@ -268,6 +312,32 @@ class Grid(MDrawable, Container[Drawable]):
                 if bottom_cell is not None:
                     cell.focus.set_obj_on_side(on_bottom=bottom_cell)
 
+    def __remove_useless_cells(
+        self,
+        /,
+        *,
+        all_rows: Optional[Dict[int, List[_GridCell]]] = None,
+        all_columns: Optional[Dict[int, List[_GridCell]]] = None,
+    ) -> None:
+        if all_rows is None:
+            all_rows = {}
+        if all_columns is None:
+            all_columns = {}
+        all_grid_rows: Dict[int, _GridRow] = self.__rows
+        all_grid_columns: Dict[int, _GridColumnPlaceholder] = self.__columns
+        for grid_row in tuple(all_grid_rows.values()):
+            grid_row.remove_useless_cells()
+            cells: Sequence[_GridCell] = tuple(grid_row.iter_cells())
+            if not cells:
+                all_grid_rows.pop(grid_row.row, None)
+                continue
+            for cell in cells:
+                all_rows.setdefault(cell.row, []).append(cell)
+                all_columns.setdefault(cell.column, []).append(cell)
+        for column in tuple(all_grid_columns):
+            if column not in all_columns:
+                all_grid_columns.pop(column, None)
+
     @config.getter_key("bg_color", use_key="color")
     def __get_bg_option(self, /, option: str) -> Any:
         return self.__bg.config.get(option)
@@ -310,12 +380,11 @@ class Grid(MDrawable, Container[Drawable]):
 
 
 class _GridRow:
-    def __init__(self, /, master: Grid, row: int) -> None:
-        if row < 0:
-            raise ValueError(f"'row' value cannot be negative, got {row!r}")
+    def __init__(self, /, master: Grid, row: int, column_dict: Dict[int, _GridColumnPlaceholder]) -> None:
+        self.move_to_row(row)
         self.__master: Grid = master
-        self.__row: int = row
         self.__cells: Dict[int, _GridCell] = dict()
+        self.__columns: Dict[int, _GridColumnPlaceholder] = column_dict
 
     def __repr__(self, /) -> str:
         return f"<{self.__class__.__name__} row={self.row}>"
@@ -335,9 +404,15 @@ class _GridRow:
         try:
             cell = self.__cells[column]
         except KeyError:
-            self.__cells[column] = cell = _GridCell(self, column)
-            self.__cells = dict(sorted(self.__cells.items(), key=lambda e: e[0]))
+            grid_column: _GridColumnPlaceholder = self.__columns.setdefault(column, _GridColumnPlaceholder(column))
+            self.__cells[column] = cell = _GridCell(self, grid_column)
+            self.reset()
         cell.set_object(obj, padx=padx, pady=pady, justify=justify)
+
+    def move_to_row(self, /, row: int) -> None:
+        if row < 0:
+            raise ValueError(f"'row' value cannot be negative, got {row!r}")
+        self.__row: int = row
 
     def remove_useless_cells(self, /) -> None:
         master: Optional[GUIScene] = self.master
@@ -345,7 +420,10 @@ class _GridRow:
             for cell in filter(lambda c: c.get_object() is None, self.__cells.values()):
                 if cell in master.focus_container:
                     master.focus_container.remove(cell)
-        self.__cells = {k: v for k, v in self.__cells.items() if v.get_object() is not None}
+        self.__cells = {c.column: c for c in sorted(self.__cells.values(), key=lambda c: c.column) if c.get_object() is not None}
+
+    def reset(self, /) -> None:
+        self.__cells = {c.column: c for c in sorted(self.__cells.values(), key=lambda c: c.column)}
 
     @property
     def master(self, /) -> Optional[GUIScene]:
@@ -368,13 +446,28 @@ class _GridRow:
         return max(cells) + 1
 
 
-class _GridCell(MDrawable):
-    def __init__(self, /, master: _GridRow, column: int) -> None:
+class _GridColumnPlaceholder:
+    def __init__(self, /, column: int) -> None:
+        self.move_to_column(column)
+
+    def __repr__(self, /) -> str:
+        return f"<{self.__class__.__name__} column={self.column}>"
+
+    def move_to_column(self, /, column: int) -> None:
         if column < 0:
             raise ValueError(f"'column' value cannot be negative, got {column!r}")
+        self.__column: int = column
+
+    @property
+    def column(self, /) -> int:
+        return self.__column
+
+
+class _GridCell(MDrawable):
+    def __init__(self, /, master: _GridRow, column: _GridColumnPlaceholder) -> None:
         super().__init__()
         self.__master: _GridRow = master
-        self.__column: int = column
+        self.__column: _GridColumnPlaceholder = column
         self.__object: Optional[MDrawable] = None
         self.__padx: int = 0
         self.__pady: int = 0
@@ -382,7 +475,7 @@ class _GridCell(MDrawable):
         self.__obj_size: Tuple[float, float] = (0, 0)
         if self.master is not None:
             self.master.focus_container.add(self)
-            BoundFocus(self, self.master).take(False)
+        BoundFocus(self, self.master).take(False)
 
     def __repr__(self, /) -> str:
         return f"<{self.__class__.__name__} row={self.row}, column={self.column}>"
@@ -393,16 +486,19 @@ class _GridCell(MDrawable):
         local_w, local_h = self.get_local_size()
         return max(cell_w, local_w), max(cell_h, local_h)
 
-    def get_local_size(self, /) -> Tuple[float, float]:
+    def get_local_size(self, /, *, from_grid: bool = False) -> Tuple[float, float]:
         obj: Optional[MDrawable] = self.__object
         if obj is None:
+            if from_grid:
+                self.__obj_size = (0, 0)
             return (0, 0)
         width: float
         height: float
         width, height = obj.get_size()
-        self.__obj_size = (width, height)
         width += self.__padx * 2
         height += self.__pady * 2
+        if from_grid:
+            self.__obj_size = (width, height)
         return (width, height)
 
     def draw_onto(self, /, target: Renderer) -> None:
@@ -449,8 +545,8 @@ class _GridCell(MDrawable):
             ismovable: Callable[[object], bool] = lambda o: isinstance(o, Movable)
             if not ismovable(drawable):
                 raise TypeError("'drawable' must be Movable too")
-            obj = movable = cast(MDrawable, drawable)
-            if self.__object is not drawable:
+            obj = drawable
+            if self.__object is not obj:
                 self.set_object(None)
                 self.__object = obj
                 if master is not None and isinstance(obj, SupportsFocus):
@@ -461,10 +557,26 @@ class _GridCell(MDrawable):
                 pady = self.grid.padding.y
             if justify is None:
                 justify = self.grid.justify
+            self.update_params(padx=padx, pady=pady, justify=justify)
+
+    def update_params(
+        self,
+        *,
+        padx: Optional[int] = None,
+        pady: Optional[int] = None,
+        justify: Optional[str] = None,
+    ) -> None:
+        movable: Optional[Movable] = self.__object
+        if padx is not None:
             self.__padx = valid_integer(value=padx, min_value=0)
+        if pady is not None:
             self.__pady = valid_integer(value=pady, min_value=0)
+        if justify is not None:
             self.__justify = Grid.Justify(justify)
+        if movable is not None:
             self.__obj_size = movable.get_size()
+        else:
+            self.__obj_size = (0, 0)
 
     def _on_move(self, /) -> None:
         super()._on_move()
@@ -508,7 +620,8 @@ class _GridCell(MDrawable):
 
     @property
     def column(self, /) -> int:
-        return self.__column
+        grid_col: _GridColumnPlaceholder = self.__column
+        return grid_col.column
 
     @property
     def focus(self, /) -> BoundFocus:
@@ -518,4 +631,24 @@ class _GridCell(MDrawable):
         focus: Optional[BoundFocus] = getattr(self.__object, "focus", None)
         if not isinstance(focus, BoundFocus) or not focus.is_bound_to(master):
             return BoundFocus(self, master)
-        return focus
+        return _GridBoundFocusProxy(focus, self.grid)
+
+
+class _GridBoundFocusProxy(BoundFocusProxy):
+    def __init__(self, /, focus: BoundFocus, grid: Grid) -> None:
+        super().__init__(focus)
+        self.__grid: Grid = grid
+
+    @overload
+    def take(self, /, status: bool) -> None:
+        ...
+
+    @overload
+    def take(self, /) -> bool:
+        ...
+
+    def take(self, /, status: Optional[bool] = None) -> Optional[bool]:
+        if status is not None:
+            return super().take(status)
+        grid: Grid = self.__grid
+        return super().take() and grid.is_shown()

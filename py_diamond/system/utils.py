@@ -104,6 +104,9 @@ def concreteclassmethod(func: _Func) -> _Func:
     return wrapper
 
 
+_MISSING: Any = object()
+
+
 @overload
 def valid_integer(*, min_value: int) -> Callable[[Any], int]:
     ...
@@ -135,7 +138,11 @@ def valid_integer(*, value: Any, min_value: int, max_value: int) -> int:
 
 
 def valid_integer(**kwargs: Any) -> Union[int, Callable[[Any], int]]:
-    return __valid_number(int, False, **kwargs)
+    value: Any = kwargs.pop("value", _MISSING)
+    decorator: Callable[[Any], int] = __valid_number(int, False, **kwargs)
+    if value is not _MISSING:
+        return decorator(value)
+    return decorator
 
 
 @overload
@@ -169,7 +176,11 @@ def valid_optional_integer(*, value: Any, min_value: int, max_value: int) -> Opt
 
 
 def valid_optional_integer(**kwargs: Any) -> Union[Optional[int], Callable[[Any], Optional[int]]]:
-    return __valid_number(int, True, **kwargs)
+    value: Any = kwargs.pop("value", _MISSING)
+    decorator: Callable[[Any], Optional[int]] = __valid_number(int, True, **kwargs)
+    if value is not _MISSING:
+        return decorator(value)
+    return decorator
 
 
 @overload
@@ -203,7 +214,11 @@ def valid_float(*, value: Any, min_value: float, max_value: float) -> float:
 
 
 def valid_float(**kwargs: Any) -> Union[float, Callable[[Any], float]]:
-    return __valid_number(float, False, **kwargs)
+    value: Any = kwargs.pop("value", _MISSING)
+    decorator: Callable[[Any], float] = __valid_number(float, False, **kwargs)
+    if value is not _MISSING:
+        return decorator(value)
+    return decorator
 
 
 @overload
@@ -237,17 +252,19 @@ def valid_optional_float(*, value: Any, min_value: float, max_value: float) -> O
 
 
 def valid_optional_float(**kwargs: Any) -> Union[Optional[float], Callable[[Any], Optional[float]]]:
-    return __valid_number(float, True, **kwargs)
+    value: Any = kwargs.pop("value", _MISSING)
+    decorator: Callable[[Any], Optional[float]] = __valid_number(float, True, **kwargs)
+    if value is not _MISSING:
+        return decorator(value)
+    return decorator
 
 
 @cache
-def __valid_number(
-    value_type: Union[Type[int], Type[float]], optional: bool, /, **kwargs: Any
-) -> Union[Any, Callable[[Any], Any]]:
+def __valid_number(value_type: Union[Type[int], Type[float]], optional: bool, /, **kwargs: Any) -> Callable[[Any], Any]:
     _min: Union[int, float]
     _max: Union[int, float]
 
-    if any(param not in ("value", "min_value", "max_value") for param in kwargs):
+    if any(param not in ("min_value", "max_value") for param in kwargs):
         raise TypeError("Invalid arguments")
 
     null = object()
@@ -284,10 +301,6 @@ def __valid_number(
 
     else:
         raise TypeError("Invalid arguments")
-
-    if "value" in kwargs:
-        value: Any = kwargs["value"]
-        return valid_number(value)
     return valid_number
 
 

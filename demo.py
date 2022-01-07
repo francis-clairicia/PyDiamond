@@ -25,6 +25,7 @@ from py_diamond.graphics.color import (
     Color,
 )
 from py_diamond.graphics.entry import Entry
+from py_diamond.graphics.form import Form
 from py_diamond.graphics.gradients import (
     HorizontalGradientShape,
     HorizontalMultiColorShape,
@@ -641,6 +642,14 @@ class GridScene(GUIScene):
         self.grid.place(create_button("Third"), 1, 2)
         self.grid.place(create_button("Fourth"), 1, 1)
 
+        # self.grid.place(create_button("First"), 1, 1)
+        # self.grid.place(create_button("Second"), 7, 3)
+        # self.grid.place(create_button("Third"), 4, 12)
+        # self.grid.place(create_button("Fourth"), 4, 3)
+        # print(list(self.grid.cells()))
+        # self.grid.unify()
+        # print(list(self.grid.cells()))
+
         self.grid.outline = 2
         self.grid.outline_color = PURPLE
 
@@ -657,6 +666,44 @@ class GridScene(GUIScene):
 
     def set_text_position(self, /) -> None:
         self.text.midtop = (self.grid.centerx, self.grid.bottom + 10)
+
+
+class FormScene(GUIScene, AutoLayeredScene):
+    def __theme_init__(self, /) -> None:
+        super().__theme_init__()
+
+        Text.set_theme("text", {"font": (FontResources.cooperblack, 40), "color": WHITE, "shadow_x": 3, "shadow_y": 3})
+        Text.set_theme("response", {"font": (FontResources.cooperblack, 50)})
+
+        Entry.set_default_theme("default")
+        Entry.set_theme("default", {"font": (None, 40), "highlight_color": YELLOW})
+
+    def awake(self, /, **kwargs: Any) -> None:
+        super().awake(**kwargs)
+        self.background_color = BLUE_DARK
+
+        self.form = Form(self, on_submit=self.on_form_submit)
+        self.form.add_entry(
+            "first_name", Entry(self, on_validate=lambda: last_name.focus.set()), Text("First name", theme="text")
+        )
+        last_name = self.form.add_entry(
+            "last_name", Entry(self, on_validate=lambda: self.submit.focus.set()), Text("Last name", theme="text")
+        )
+
+        self.response = Text(theme=["text", "response"])
+        self.submit = Button(self, "Submit", callback=self.form.submit)
+        self.submit.focus.below(last_name)
+
+    def on_start_loop_before_transition(self, /) -> None:
+        super().on_start_loop_before_transition()
+        self.response.message = ""
+        self.response.topleft = (0, 0)
+        self.form.center = self.window.width / 4, self.window.centery
+        self.submit.midtop = (self.form.centerx, self.form.bottom + self.form.pady)
+
+    def on_form_submit(self, /, data: Mapping[str, str]) -> None:
+        self.response.message = "{first_name} {last_name}".format_map(data)
+        self.response.center = self.window.width * 3 / 4, self.window.centery
 
 
 class SceneTransitionTranslation(SceneTransition):
@@ -710,6 +757,7 @@ class MainWindow(SceneWindow):
         ScrollBarScene,
         TestGUIScene,
         GridScene,
+        FormScene,
     ]
 
     def __init__(self) -> None:

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 __all__ = [
     "BoundFocus",
+    "BoundFocusProxy",
     "FocusableContainer",
     "GUIMainScene",
     "GUIScene",
@@ -25,7 +26,9 @@ __license__ = "GNU GPL v3.0"
 from abc import abstractmethod
 from enum import auto, unique
 from operator import truth
+from types import FunctionType, LambdaType
 from typing import (
+    Any,
     Callable,
     ClassVar,
     Dict,
@@ -35,6 +38,7 @@ from typing import (
     Optional,
     Protocol,
     Sequence,
+    Tuple,
     TypedDict,
     Union,
     final,
@@ -44,9 +48,10 @@ from typing import (
 
 from ..graphics.drawable import Drawable, LayeredGroup
 from ..graphics.renderer import Renderer
+from ..system._mangling import mangle_private_attribute
 from ..system.enum import AutoLowerNameEnum
-from ..system.utils import setdefaultattr
-from .event import Event, KeyDownEvent, MouseEventType
+from ..system.utils import setdefaultattr, wraps
+from .event import Event, KeyDownEvent, KeyEventType, MouseEventType
 from .keyboard import Keyboard
 from .scene import AbstractLayeredScene, MainScene, MetaLayeredMainScene, MetaLayeredScene, Scene
 
@@ -62,15 +67,23 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
         self.__group: _GUILayeredGroup = _GUILayeredGroup(self)
         self.__focus_index: int = -1
         handle_key_event = self.__handle_key_event
-        handle_mouse_event = self.__handle_mouse_event
+        set_focus_mode_key: Callable[[KeyEventType], None] = lambda event: BoundFocus.set_mode(BoundFocus.Mode.KEY)
+        set_focus_mode_mouse: Callable[[MouseEventType], None] = lambda event: BoundFocus.set_mode(BoundFocus.Mode.MOUSE)
+        self.event.bind_event(Event.Type.KEYDOWN, set_focus_mode_key)
+        self.event.bind_event(Event.Type.KEYUP, set_focus_mode_key)
+        self.event.bind_event(Event.Type.MOUSEBUTTONDOWN, set_focus_mode_mouse)
+        self.event.bind_event(Event.Type.MOUSEBUTTONUP, set_focus_mode_mouse)
+        self.event.bind_event(Event.Type.MOUSEMOTION, set_focus_mode_mouse)
+        self.event.bind_event(Event.Type.MOUSEWHEEL, set_focus_mode_mouse)
         self.event.bind_key_press(Keyboard.Key.TAB, handle_key_event)
         self.event.bind_key_press(Keyboard.Key.ESCAPE, handle_key_event)
-        for key in _SIDE_WITH_KEY_EVENT:
-            self.event.bind_key_press(Keyboard.Key(key), handle_key_event)
-        self.event.bind_event(Event.Type.MOUSEBUTTONDOWN, handle_mouse_event)
-        self.event.bind_event(Event.Type.MOUSEBUTTONUP, handle_mouse_event)
-        self.event.bind_event(Event.Type.MOUSEMOTION, handle_mouse_event)
-        self.event.bind_event(Event.Type.MOUSEWHEEL, handle_mouse_event)
+
+    def handle_event(self, /, event: Event) -> bool:
+        if super().handle_event(event):
+            return True
+        if isinstance(event, KeyDownEvent) and self.__handle_key_event(event):
+            return True
+        return False
 
     def focus_get(self, /) -> Optional[SupportsFocus]:
         if not self.looping():
@@ -174,24 +187,16 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
 
     def __handle_key_event(self, /, event: KeyDownEvent) -> bool:
         if event.key == Keyboard.Key.TAB:
-            BoundFocus.set_mode(BoundFocus.Mode.KEY)
             self.focus_set(self.focus_next() if not event.mod & Keyboard.Modifiers.SHIFT else self.focus_prev())
             return True
         if event.key == Keyboard.Key.ESCAPE:
-            BoundFocus.set_mode(BoundFocus.Mode.KEY)
             self.focus_set(None)
             return True
-        if event.key in (Keyboard.Key.LEFT, Keyboard.Key.RIGHT) and Keyboard.IME.text_input_enabled():
-            return False
         if event.key in _SIDE_WITH_KEY_EVENT:
-            BoundFocus.set_mode(BoundFocus.Mode.KEY)
             side: BoundFocus.Side = _SIDE_WITH_KEY_EVENT[event.key]
             self.__focus_obj_on_side(side)
             return True
         return False
-
-    def __handle_mouse_event(self, /, event: MouseEventType) -> None:
-        BoundFocus.set_mode(BoundFocus.Mode.MOUSE)
 
     def __focus_obj_on_side(self, side: BoundFocus.Side) -> None:
         if not self.looping():
@@ -388,6 +393,26 @@ class BoundFocus:
         side = BoundFocus.Side(side)
         return bound_object_dict.get(side)
 
+    def left_to(self, /, right: SupportsFocus) -> None:
+        f: SupportsFocus = self.__f
+        right.focus.set_obj_on_side(on_left=f)
+        self.set_obj_on_side(on_right=right)
+
+    def right_to(self, /, left: SupportsFocus) -> None:
+        f: SupportsFocus = self.__f
+        left.focus.set_obj_on_side(on_right=f)
+        self.set_obj_on_side(on_left=left)
+
+    def above(self, /, bottom: SupportsFocus) -> None:
+        f: SupportsFocus = self.__f
+        bottom.focus.set_obj_on_side(on_top=f)
+        self.set_obj_on_side(on_bottom=bottom)
+
+    def below(self, /, top: SupportsFocus) -> None:
+        f: SupportsFocus = self.__f
+        top.focus.set_obj_on_side(on_bottom=f)
+        self.set_obj_on_side(on_top=top)
+
     def register_focus_set_callback(self, /, callback: Callable[[], None]) -> None:
         f: SupportsFocus = self.__f
         list_callback: List[Callable[[], None]] = setdefaultattr(f, "_focus_set_callbacks_", [])
@@ -421,6 +446,79 @@ class BoundFocus:
     @property
     def __self__(self, /) -> SupportsFocus:
         return self.__f
+
+
+class _MetaBoundFocusProxy(type):
+    def __new__(metacls, /, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> _MetaBoundFocusProxy:
+        if "BoundFocusProxy" in globals() and not any(issubclass(cls, BoundFocusProxy) for cls in bases):
+            raise TypeError(
+                f"{name!r} must be inherits from a {BoundFocusProxy.__name__} class in order to use {_MetaBoundFocusProxy.__name__} metaclass"
+            )
+
+        if "BoundFocusProxy" not in globals() and name == "BoundFocusProxy":
+
+            def proxy_method_wrapper(func: Callable[..., Any]) -> Callable[..., Any]:
+                method_name: str = func.__name__
+
+                @wraps(func)
+                def wrapper(self: BoundFocusProxy, /, *args: Any, **kwargs: Any) -> Any:
+                    focus: BoundFocus = self.original
+                    method: Callable[..., Any] = getattr(focus, method_name)
+                    return method(*args, **kwargs)
+
+                return wrapper
+
+            def proxy_property_wrapper(name: str, obj: property) -> property:
+                if callable(obj.fget):
+
+                    @wraps(obj.fget)
+                    def getter(self: BoundFocusProxy, /) -> Any:
+                        focus: BoundFocus = self.original
+                        return getattr(focus, name)
+
+                    obj = obj.getter(getter)
+
+                if callable(obj.fset):
+
+                    @wraps(obj.fset)
+                    def setter(self: BoundFocusProxy, /, value: Any) -> None:
+                        focus: BoundFocus = self.original
+                        return setattr(focus, name, value)
+
+                    obj = obj.setter(setter)
+
+                if callable(obj.fdel):
+
+                    @wraps(obj.fdel)
+                    def deleter(self: BoundFocusProxy, /) -> None:
+                        focus: BoundFocus = self.original
+                        return delattr(focus, name)
+
+                    obj = obj.deleter(deleter)
+
+                return obj
+
+            for attr_name, attr_obj in vars(BoundFocus).items():
+                if isinstance(attr_obj, property):
+                    namespace[attr_name] = proxy_property_wrapper(attr_name, attr_obj)
+                elif isinstance(attr_obj, (FunctionType, LambdaType)) and not attr_name.startswith("__"):
+                    namespace[attr_name] = proxy_method_wrapper(attr_obj)
+
+        return super().__new__(metacls, name, bases, namespace, **kwargs)
+
+
+class BoundFocusProxy(BoundFocus, metaclass=_MetaBoundFocusProxy):
+    def __init__(self, /, focus: BoundFocus) -> None:
+        super().__init__(focus.__self__, getattr(focus, mangle_private_attribute(BoundFocus, "scene"), None))
+        self.__focus: BoundFocus = focus
+
+    def __getattr__(self, __name: str) -> Any:
+        focus: BoundFocus = self.original
+        return getattr(focus, __name)
+
+    @property
+    def original(self, /) -> BoundFocus:
+        return self.__focus
 
 
 _SIDE_WITH_KEY_EVENT: Final[Dict[int, BoundFocus.Side]] = {

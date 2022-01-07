@@ -27,6 +27,7 @@ __all__ = [
     "DrawableGroup",
     "Entry",
     "Font",
+    "Form",
     "GRAY",
     "GRAY_DARK",
     "GRAY_LIGHT",
@@ -160,6 +161,7 @@ from .color import (
 from .drawable import Drawable, DrawableGroup, LayeredGroup, MDrawable, MetaDrawable, MetaMDrawable, MetaTDrawable, TDrawable
 from .entry import Entry, MetaEntry
 from .font import Font, SysFont
+from .form import Form
 from .gradients import (
     GradientShape,
     HorizontalGradientShape,

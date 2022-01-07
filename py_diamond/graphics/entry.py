@@ -12,17 +12,19 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
+from functools import cached_property
 from string import printable as ASCII_PRINTABLE
-from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple, Union
 
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.utils import valid_integer, valid_optional_float, valid_optional_integer
-from ..window.clickable import Clickable
 from ..window.clock import Clock
 from ..window.cursor import SystemCursor
-from ..window.event import Event, KeyDownEvent, MouseButtonDownEvent, TextInputEvent
+from ..window.event import Event, KeyDownEvent, TextInputEvent
+from ..window.gui import BoundFocus
 from ..window.keyboard import Keyboard
-from .color import BLACK, TRANSPARENT, WHITE, Color  # , GRAY
+from ..window.pressable import Pressable
+from .color import BLACK, BLUE, TRANSPARENT, WHITE, Color
 from .drawable import MetaTDrawable, TDrawable
 from .shape import RectangleShape
 from .surface import Surface
@@ -45,7 +47,7 @@ class MetaEntry(MetaTDrawable, MetaThemedObject):
 
 @Text.register_themed_subclass
 @RectangleShape.register_themed_subclass
-class Entry(TDrawable, Clickable, metaclass=MetaEntry):
+class Entry(TDrawable, Pressable, metaclass=MetaEntry):
     config: Configuration = Configuration(
         "cursor",
         "interval",
@@ -62,6 +64,8 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
         "local_size",
         "outline",
         "outline_color",
+        "highlight_color",
+        "highlight_thickness",
         "border_radius",
         "border_top_left_radius",
         "border_top_right_radius",
@@ -87,6 +91,8 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
 
     outline: OptionAttribute[int] = OptionAttribute()
     outline_color: OptionAttribute[Color] = OptionAttribute()
+    highlight_color: OptionAttribute[Color] = OptionAttribute()
+    highlight_thickness: OptionAttribute[int] = OptionAttribute()
 
     border_radius: OptionAttribute[int] = OptionAttribute()
     border_top_left_radius: OptionAttribute[int] = OptionAttribute()
@@ -99,6 +105,7 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
         self,
         /,
         master: Union[Scene, Window],
+        on_validate: Optional[Callable[[], Any]] = None,
         *,
         max_nb_chars: int = 10,
         width: Optional[float] = None,
@@ -115,8 +122,8 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
         outline_color: Color = BLACK,
         interval: int = 500,
         state: str = "normal",
-        # highlight_color=GRAY,
-        # highlight_thickness=2,
+        highlight_color: Color = BLUE,
+        highlight_thickness: int = 2,
         hover_sound: Optional[Sound] = None,
         click_sound: Optional[Sound] = None,
         disabled_sound: Optional[Sound] = None,
@@ -141,6 +148,7 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
         )
         max_nb_chars = max(int(max_nb_chars), 0)
         width = max(float(width), 0) if width is not None else None
+        self.__on_validate: Callable[[], None] = on_validate if callable(on_validate) else lambda: None
         self.__nb_chars: int = max_nb_chars
         self.__fixed_width: Optional[float] = width
         self.__cursor_width_offset: float = 15
@@ -175,7 +183,11 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
             border_bottom_right_radius=border_bottom_right_radius,
             theme=NoTheme,
         )
-        Clickable.__init__(
+        self.outline = outline
+        self.outline_color = outline_color
+        self.highlight_color = highlight_color
+        self.highlight_thickness = highlight_thickness
+        Pressable.__init__(
             self,
             master,
             state=state,
@@ -241,11 +253,19 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
         self.__start_edit = False
 
     def invoke(self, /) -> None:
-        self.start_edit()
+        if self.focus.get_mode() == BoundFocus.Mode.MOUSE:
+            self.start_edit()
+        else:
+            on_validate: Callable[[], None] = self.__on_validate
+            on_validate()
 
-    def _on_click_out(self, /, event: MouseButtonDownEvent) -> None:
+    def _on_focus_set(self, /) -> None:
+        self.start_edit()
+        self.__update_shape_outline()
+
+    def _on_focus_leave(self, /) -> None:
         self.stop_edit()
-        return super()._on_click_out(event)
+        self.__update_shape_outline()
 
     def _mouse_in_hitbox(self, /, mouse_pos: Tuple[float, float]) -> bool:
         return self.__shape.rect.collidepoint(mouse_pos)
@@ -263,7 +283,14 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
         self.__cursor_height_offset = 10 * scale
 
     def __edit(self, /) -> bool:
-        return self.__start_edit and Keyboard.IME.text_input_enabled()
+        if not self.__start_edit:
+            return False
+        if self.focus.get_mode() == BoundFocus.Mode.KEY:
+            if self.focus.has():
+                Keyboard.IME.start_text_input()
+            else:
+                Keyboard.IME.stop_text_input()
+        return Keyboard.IME.text_input_enabled()
 
     def __key_press(self, /, event: Union[KeyDownEvent, TextInputEvent]) -> bool:
         if not self.__edit() or not isinstance(event, (KeyDownEvent, TextInputEvent)):
@@ -305,6 +332,18 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
             self.cursor += len(entered_text)
         return True
 
+    def __update_shape_outline(self, /) -> None:
+        shape: RectangleShape = self.__outline_shape
+        outline: int
+        outline_color: Color
+        if self.focus.has():
+            outline_color = self.highlight_color
+            outline = max(self.highlight_thickness, self.outline)
+        else:
+            outline_color = self.outline_color
+            outline = self.outline
+        shape.config(outline=outline, outline_color=outline_color)
+
     @config.value_converter("cursor")
     def __cursor_validator(self, /, cursor: Any) -> int:
         return valid_integer(value=cursor, min_value=0, max_value=len(self.get()))
@@ -329,16 +368,6 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
     @config.setter_key("shadow_color")
     def __set_text_option(self, /, option: str, value: Any) -> None:
         return self.__text.config.set(option, value)
-
-    @config.getter_key("outline")
-    @config.getter_key("outline_color")
-    def __outline_getter(self, /, option: str) -> Any:
-        return self.__outline_shape.config.get(option)
-
-    @config.setter_key("outline")
-    @config.setter_key("outline_color")
-    def __outline_setter(self, /, option: str, value: Any) -> None:
-        self.__outline_shape.config.set(option, value)
 
     @config.getter_key("bg", use_key="color")
     @config.getter_key("local_width")
@@ -378,6 +407,20 @@ class Entry(TDrawable, Clickable, metaclass=MetaEntry):
             width = entry_size[0] + self.__cursor_width_offset
         height: float = entry_size[1] + self.__cursor_height_offset
         self.__outline_shape.local_size = self.__shape.local_size = (width, height)
+
+    config.value_converter_static("outline", valid_integer(min_value=0))
+    config.value_validator_static("outline_color", Color)
+    config.value_validator_static("highlight_color", Color)
+    config.value_converter_static("highlight_thickness", valid_integer(min_value=0))
+
+    config.on_update("outline", __update_shape_outline)
+    config.on_update("outline_color", __update_shape_outline)
+    config.on_update("highlight_color", __update_shape_outline)
+    config.on_update("highlight_thickness", __update_shape_outline)
+
+    @cached_property
+    def focus(self, /) -> BoundFocus:
+        return BoundFocus(self, self.scene)
 
 
 def _get_entry_size(font: Font, nb_chars: int) -> Tuple[int, int]:
