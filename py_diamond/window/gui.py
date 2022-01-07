@@ -283,7 +283,7 @@ class BoundFocus:
         return scene.focus_get()
 
     def has(self, /) -> bool:
-        f: SupportsFocus = self.__f
+        f: SupportsFocus = self.__self__
         return self.get() is f
 
     @overload
@@ -295,7 +295,7 @@ class BoundFocus:
         ...
 
     def take(self, /, status: Optional[bool] = None) -> Optional[bool]:
-        f: SupportsFocus = self.__f
+        f: SupportsFocus = self.__self__
         if status is not None:
             status = bool(status)
             setattr(f, "_take_focus_", status)
@@ -312,7 +312,7 @@ class BoundFocus:
         scene: Optional[GUIScene] = self.__scene
         if scene is None:
             return False
-        f: SupportsFocus = self.__f
+        f: SupportsFocus = self.__self__
         return scene.focus_set(f)
 
     def leave(self, /) -> None:
@@ -347,7 +347,7 @@ class BoundFocus:
         if __m is None and not kwargs:
             raise TypeError("Invalid arguments")
 
-        f: SupportsFocus = self.__f
+        f: SupportsFocus = self.__self__
         bound_object_dict: Dict[BoundFocus.Side, Optional[SupportsFocus]] = setdefaultattr(f, "_bound_focus_objects_", {})
         if __m is not None:
             kwargs = __m | kwargs
@@ -379,7 +379,7 @@ class BoundFocus:
         ...
 
     def get_obj_on_side(self, /, side: Optional[str] = None) -> Union[BoundObjectsDict, SupportsFocus, None]:
-        f: SupportsFocus = self.__f
+        f: SupportsFocus = self.__self__
         bound_object_dict: Dict[BoundFocus.Side, Optional[SupportsFocus]] = getattr(f, "_bound_focus_objects_", {})
 
         if side is None:
@@ -394,44 +394,44 @@ class BoundFocus:
         return bound_object_dict.get(side)
 
     def left_to(self, /, right: SupportsFocus) -> None:
-        f: SupportsFocus = self.__f
+        f: SupportsFocus = self.__self__
         right.focus.set_obj_on_side(on_left=f)
         self.set_obj_on_side(on_right=right)
 
     def right_to(self, /, left: SupportsFocus) -> None:
-        f: SupportsFocus = self.__f
+        f: SupportsFocus = self.__self__
         left.focus.set_obj_on_side(on_right=f)
         self.set_obj_on_side(on_left=left)
 
     def above(self, /, bottom: SupportsFocus) -> None:
-        f: SupportsFocus = self.__f
+        f: SupportsFocus = self.__self__
         bottom.focus.set_obj_on_side(on_top=f)
         self.set_obj_on_side(on_bottom=bottom)
 
     def below(self, /, top: SupportsFocus) -> None:
-        f: SupportsFocus = self.__f
+        f: SupportsFocus = self.__self__
         top.focus.set_obj_on_side(on_bottom=f)
         self.set_obj_on_side(on_top=top)
 
     def register_focus_set_callback(self, /, callback: Callable[[], None]) -> None:
-        f: SupportsFocus = self.__f
+        f: SupportsFocus = self.__self__
         list_callback: List[Callable[[], None]] = setdefaultattr(f, "_focus_set_callbacks_", [])
         if callback not in list_callback:
             list_callback.append(callback)
 
     def unregister_focus_set_callback(self, /, callback: Callable[[], None]) -> None:
-        f: SupportsFocus = self.__f
+        f: SupportsFocus = self.__self__
         list_callback: List[Callable[[], None]] = setdefaultattr(f, "_focus_set_callbacks_", [])
         list_callback.remove(callback)
 
     def register_focus_leave_callback(self, /, callback: Callable[[], None]) -> None:
-        f: SupportsFocus = self.__f
+        f: SupportsFocus = self.__self__
         list_callback: List[Callable[[], None]] = setdefaultattr(f, "_focus_leave_callbacks_", [])
         if callback not in list_callback:
             list_callback.append(callback)
 
     def unregister_focus_leave_callback(self, /, callback: Callable[[], None]) -> None:
-        f: SupportsFocus = self.__f
+        f: SupportsFocus = self.__self__
         list_callback: List[Callable[[], None]] = setdefaultattr(f, "_focus_leave_callbacks_", [])
         list_callback.remove(callback)
 
