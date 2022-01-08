@@ -117,6 +117,13 @@ import pygame
 if pygame.version.vernum < (2, 1):
     raise ImportError(f"Your pygame version is too old: {pygame.version.ver!r} < '2.1.0'")
 
+_SDL_image_ver = pygame.image.get_sdl_image_version()
+if _SDL_image_ver is None:
+    raise ImportError("SDL_image is not linked.")
+
+if _SDL_image_ver < (2, 0, 0):
+    raise ImportError("Your SDL_image version is too old: '{0}.{1}.{2}' < '2.0.0'".format(*_SDL_image_ver))
+
 ############ Surface pickling register ############
 copyreg.pickle(
     pygame.surface.Surface,
@@ -127,7 +134,7 @@ copyreg.pickle(
 )
 
 ############ Cleanup ############
-del os, typing, pygame, copyreg
+del os, typing, pygame, copyreg, _SDL_image_ver
 
 
 ############ Package initialization ############

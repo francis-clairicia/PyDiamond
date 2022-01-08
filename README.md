@@ -34,6 +34,8 @@ Dependency version:
 - CPython >= 3.9
 - pygame >= 2.1.2
 - SDL >= 2.0.16
+- SDL_image >= 2.0.0
+- SDL_mixer >= 2.0.0
 - typing_extensions >= 4.0.1 (Will be removed when switching to Python 3.10)
 
 ## Credits
