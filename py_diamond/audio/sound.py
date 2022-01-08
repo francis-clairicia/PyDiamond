@@ -10,11 +10,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from pygame.mixer import Sound as _Sound
-
-
-class Sound(_Sound):
-    pass
+from pygame.mixer import Sound
 
 
 class Music:

@@ -15,15 +15,9 @@ __license__ = "GNU GPL v3.0"
 from dataclasses import dataclass
 from typing import Any, List, Tuple, Union, overload
 
-from pygame.rect import Rect as _Rect
+from pygame.rect import Rect
 
 from ..math.vector2 import Vector2
-
-
-class Rect(_Rect):
-    @staticmethod
-    def convert(pygame_rect: _Rect) -> Rect:
-        return Rect(pygame_rect.topleft, pygame_rect.size)
 
 
 @dataclass(init=False, repr=False, frozen=True)
@@ -74,5 +68,5 @@ class ImmutableRect(Rect):
         super().__init__(*args, **kwargs)
 
     @staticmethod
-    def convert(pygame_rect: _Rect) -> ImmutableRect:
+    def convert(pygame_rect: Rect) -> ImmutableRect:
         return ImmutableRect(pygame_rect.topleft, pygame_rect.size)

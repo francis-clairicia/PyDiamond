@@ -215,7 +215,7 @@ class Text(TDrawable, metaclass=MetaText):
         if len(render_lines) == 1:
             return render_lines[0]
         text: Surface = create_surface((render_width, render_height))
-        text_rect: Rect = Rect.convert(text.get_rect())
+        text_rect: Rect = text.get_rect()
         top: int = 0
         params: Dict[str, int] = {
             Text.Justify.LEFT: {"left": text_rect.left},
@@ -416,7 +416,7 @@ class TextImage(Text):
         if text_width == 0 or text_height == 0:
             return img.get(apply_rotation_scale=True)
 
-        text_rect: Rect = Rect.convert(text.get_rect())
+        text_rect: Rect = text.get_rect()
         offset: float = self.distance
         render_width: float
         render_height: float
@@ -430,7 +430,7 @@ class TextImage(Text):
             render_width = max(text_width, img_width)
             render_height = max(text_height, img_height)
         render: Surface = create_surface((render_width, render_height))
-        render_rect: Rect = Rect.convert(render.get_rect())
+        render_rect: Rect = render.get_rect()
 
         compound: TextImage.Compound = self.__compound
         if compound == TextImage.Compound.LEFT:
