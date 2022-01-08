@@ -393,24 +393,24 @@ class BoundFocus:
         side = BoundFocus.Side(side)
         return bound_object_dict.get(side)
 
-    def left_to(self, /, right: SupportsFocus) -> None:
-        f: SupportsFocus = self.__self__
-        right.focus.set_obj_on_side(on_left=f)
+    def left_to(self, /, right: SupportsFocus, *, bind_other: bool = True) -> None:
+        if bind_other:
+            right.focus.set_obj_on_side(on_left=self.__self__)
         self.set_obj_on_side(on_right=right)
 
-    def right_to(self, /, left: SupportsFocus) -> None:
-        f: SupportsFocus = self.__self__
-        left.focus.set_obj_on_side(on_right=f)
+    def right_to(self, /, left: SupportsFocus, *, bind_other: bool = True) -> None:
+        if bind_other:
+            left.focus.set_obj_on_side(on_right=self.__self__)
         self.set_obj_on_side(on_left=left)
 
-    def above(self, /, bottom: SupportsFocus) -> None:
-        f: SupportsFocus = self.__self__
-        bottom.focus.set_obj_on_side(on_top=f)
+    def above(self, /, bottom: SupportsFocus, *, bind_other: bool = True) -> None:
+        if bind_other:
+            bottom.focus.set_obj_on_side(on_top=self.__self__)
         self.set_obj_on_side(on_bottom=bottom)
 
-    def below(self, /, top: SupportsFocus) -> None:
-        f: SupportsFocus = self.__self__
-        top.focus.set_obj_on_side(on_bottom=f)
+    def below(self, /, top: SupportsFocus, *, bind_other: bool = True) -> None:
+        if bind_other:
+            top.focus.set_obj_on_side(on_bottom=self.__self__)
         self.set_obj_on_side(on_top=top)
 
     def register_focus_set_callback(self, /, callback: Callable[[], None]) -> None:

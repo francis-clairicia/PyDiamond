@@ -107,7 +107,11 @@ class Grid(MDrawable, Container[Drawable]):
         all_rows: Dict[int, _GridRow] = self.__rows
         yield from all_rows
 
-    def columns(self, /, row: int) -> Iterator[int]:
+    def columns(self, /, row: Optional[int] = None) -> Iterator[int]:
+        if row is None:
+            all_columns: Dict[int, _GridColumnPlaceholder] = self.__columns
+            yield from all_columns
+            return
         all_rows: Dict[int, _GridRow] = self.__rows
         try:
             grid_row: _GridRow = all_rows[row]
@@ -135,7 +139,7 @@ class Grid(MDrawable, Container[Drawable]):
         except ValueError:
             pass
         else:
-            if cell.row == row and cell.column == 0:
+            if cell.row == row and cell.column == column:
                 return obj
             cell.set_object(None)
 
