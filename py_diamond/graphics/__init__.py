@@ -46,6 +46,7 @@ __all__ = [
     "LayeredSpriteGroup",
     "MAGENTA",
     "MDrawable",
+    "Mask",
     "MetaButton",
     "MetaCheckBox",
     "MetaDrawable",
@@ -117,11 +118,12 @@ import pygame
 if pygame.version.vernum < (2, 1):
     raise ImportError(f"Your pygame version is too old: {pygame.version.ver!r} < '2.1.0'")
 
-_SDL_image_ver = pygame.image.get_sdl_image_version()
-if _SDL_image_ver is None:
-    raise ImportError("SDL_image is not linked.")
-if _SDL_image_ver < (2, 0, 0):
-    raise ImportError("Your SDL_image version is too old: '{0}.{1}.{2}' < '2.0.0'".format(*_SDL_image_ver))
+if (pygame.image.get_sdl_image_version() or (0, 0)) < (2, 0, 0):
+    raise ImportError(
+        "Your SDL_image version is too old: '{0}.{1}.{2}' < '2.0.0'".format(*(pygame.image.get_sdl_image_version() or (0, 0, 0)))
+    )
+
+pygame.font.init()
 
 ############ Surface pickling register ############
 copyreg.pickle(
@@ -133,7 +135,7 @@ copyreg.pickle(
 )
 
 ############ Cleanup ############
-del os, typing, pygame, copyreg, _SDL_image_ver
+del os, typing, pygame, copyreg
 
 
 ############ Package initialization ############
@@ -201,7 +203,7 @@ from .shape import (
     RectangleShape,
     SingleColorShape,
 )
-from .sprite import AnimatedSprite, LayeredSpriteGroup, Sprite, SpriteGroup
+from .sprite import AnimatedSprite, LayeredSpriteGroup, Mask, Sprite, SpriteGroup
 from .surface import COMPILED_SURFACE_EXTENSION, Surface, create_surface, load_image, save_image
 from .text import MetaText, Text, TextImage
 from .theme import MetaThemedObject, NoTheme, ThemedObject, ThemeNamespace, ThemeType, abstract_theme_class

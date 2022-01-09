@@ -38,10 +38,15 @@ from typing import (
     overload,
 )
 
-import pygame
-import pygame.display
-import pygame.event
-from pygame.constants import QUIT, WINDOWCLOSE
+import pygame.display as _pg_display
+import pygame.event as _pg_event
+from pygame import error as _pg_error
+from pygame.constants import (
+    FULLSCREEN as _PG_FULLSCREEN,
+    QUIT as _PG_QUIT,
+    RESIZABLE as _PG_RESIZABLE,
+    WINDOWCLOSE as _PG_WINDOWCLOSE,
+)
 
 from ..graphics.color import BLACK, WHITE, Color
 from ..graphics.rect import ImmutableRect
@@ -69,7 +74,7 @@ class _SupportsDrawing(Protocol):
         raise NotImplementedError
 
 
-class WindowError(pygame.error):
+class WindowError(_pg_error):
     pass
 
 
@@ -132,9 +137,9 @@ class Window:
         self.__size: Tuple[int, int] = (max(size[0], 0), max(size[1], 0))
         self.__flags: int = 0
         if resizable:
-            self.__flags |= pygame.RESIZABLE
+            self.__flags |= _PG_RESIZABLE
         elif fullscreen:
-            self.__flags |= pygame.FULLSCREEN
+            self.__flags |= _PG_FULLSCREEN
             self.__size = (0, 0)
         self.__vsync: bool = bool(vsync)
         self.__surface: Surface = Surface((0, 0))
@@ -171,7 +176,8 @@ class Window:
 
         def cleanup() -> None:
             self.__window_quit__()
-            del self.__text_framerate
+            with suppress(AttributeError):
+                del self.__text_framerate
             self.__callback_after.clear()
             self.__surface = Surface((0, 0))
             self.__rect = ImmutableRect.convert(self.__surface.get_rect())
@@ -179,12 +185,12 @@ class Window:
 
         self.__event.unbind_all()
         with ExitStack() as stack, suppress(Window.__Exit):
-            pygame.display.init()
-            stack.callback(pygame.display.quit)
+            _pg_display.init()
+            stack.callback(_pg_display.quit)
             size: Tuple[int, int] = self.__size
             flags: int = self.__flags
             vsync = int(truth(self.__vsync))
-            screen: Surface = pygame.display.set_mode(size, flags=flags, vsync=vsync)
+            screen: Surface = _pg_display.set_mode(size, flags=flags, vsync=vsync)
             size = screen.get_size()
             self.__surface = create_surface(size)
             self.__rect = ImmutableRect.convert(self.__surface.get_rect())
@@ -198,19 +204,19 @@ class Window:
             yield self
 
     def set_title(self, /, title: Optional[str]) -> None:
-        pygame.display.set_caption(title or Window.DEFAULT_TITLE)
+        _pg_display.set_caption(title or Window.DEFAULT_TITLE)
 
     def iconify(self, /) -> bool:
-        return truth(pygame.display.iconify())
+        return truth(_pg_display.iconify())
 
     @final
     def close(self, /) -> NoReturn:
-        pygame.display.quit()
+        _pg_display.quit()
         raise Window.__Exit
 
     @final
     def is_open(self, /) -> bool:
-        return pygame.display.get_surface() is not None
+        return _pg_display.get_surface() is not None
 
     def clear(self, /, color: _ColorInput = BLACK) -> None:
         self.__surface.fill(color)
@@ -240,7 +246,7 @@ class Window:
         self.__busy_loop = truth(status)
 
     def refresh(self, /) -> float:
-        screen = SurfaceRenderer(pygame.display.get_surface())
+        screen = SurfaceRenderer(_pg_display.get_surface())
         text_framerate: Text = self.__text_framerate
         screen.draw(self.__surface, (0, 0))
         if text_framerate.is_shown():
@@ -248,7 +254,7 @@ class Window:
                 text_framerate.message = f"{round(self.framerate)} FPS"
             self.text_framerate.draw_onto(screen)
         Cursor.update()
-        pygame.display.flip()
+        _pg_display.flip()
 
         framerate: int = self.used_framerate()
         real_time: float
@@ -267,7 +273,7 @@ class Window:
         renderer: SurfaceRenderer = SurfaceRenderer(self.__surface)
 
         for target in targets:
-            with suppress(pygame.error):
+            with suppress(_pg_error):
                 target.draw_onto(renderer)
 
     @contextmanager
@@ -309,8 +315,8 @@ class Window:
 
         process_event = manager.process_event
         make_event = Event.from_pygame_event
-        for pg_event in pygame.event.get():
-            if pg_event.type in (QUIT, WINDOWCLOSE):
+        for pg_event in _pg_event.get():
+            if pg_event.type in (_PG_QUIT, _PG_WINDOWCLOSE):
                 self.handle_close_event()
                 continue
             try:
@@ -345,12 +351,12 @@ class Window:
         if not self.resizable:
             raise WindowError("Trying to resize not resizable window")
         size = (width, height)
-        screen: Surface = pygame.display.get_surface()
+        screen: Surface = _pg_display.get_surface()
         if size == screen.get_size():
             return
         flags: int = self.__flags
         vsync = int(truth(self.__vsync))
-        pygame.display.set_mode(size, flags=flags, vsync=vsync)
+        _pg_display.set_mode(size, flags=flags, vsync=vsync)
 
     @final
     def set_width(self, /, width: int) -> None:
@@ -373,7 +379,7 @@ class Window:
             yield
 
     def allow_all_events(self, /) -> None:
-        pygame.event.set_allowed(None)
+        _pg_event.set_allowed(None)
 
     @contextmanager
     def allow_all_events_context(self, /) -> Iterator[None]:
@@ -382,10 +388,10 @@ class Window:
             yield
 
     def clear_all_events(self, /) -> None:
-        pygame.event.clear()
+        _pg_event.clear()
 
     def block_only_event(self, /, *event_types: Event.Type) -> None:
-        pygame.event.set_blocked([Event.Type(event) for event in event_types])
+        _pg_event.set_blocked([Event.Type(event) for event in event_types])
 
     @contextmanager
     def block_only_event_context(self, /, *event_types: Event.Type) -> Iterator[None]:
@@ -394,7 +400,7 @@ class Window:
             yield
 
     def block_all_events(self, /) -> None:
-        pygame.event.set_blocked(tuple(Event.Type))
+        _pg_event.set_blocked(tuple(Event.Type))
 
     @contextmanager
     def block_all_events_context(self, /) -> Iterator[None]:
@@ -468,7 +474,7 @@ class Window:
 
     @property
     def resizable(self, /) -> bool:
-        out: int = self.__flags & pygame.RESIZABLE
+        out: int = self.__flags & _PG_RESIZABLE
         return out != 0
 
     @property

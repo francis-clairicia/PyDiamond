@@ -30,7 +30,7 @@ from math import radians, sin, tan
 from operator import truth
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
-import pygame.transform
+from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom
 
 from ..math import Vector2
 from ..system._mangling import mangle_private_attribute
@@ -76,15 +76,15 @@ class AbstractShape(TDrawable, metaclass=MetaShape):
     def _apply_both_rotation_and_scale(self, /) -> None:
         angle: float = self.angle
         scale: float = self.scale
-        self.__image = pygame.transform.rotozoom(self.__shape_image, angle, scale)
+        self.__image = _surface_rotozoom(self.__shape_image, angle, scale)
 
     def _apply_only_rotation(self, /) -> None:
         angle: float = self.angle
-        self.__image = pygame.transform.rotate(self.__shape_image, angle)
+        self.__image = _surface_rotate(self.__shape_image, angle)
 
     def _apply_only_scale(self, /) -> None:
         scale: float = self.scale
-        self.__image = pygame.transform.rotozoom(self.__shape_image, 0, scale)
+        self.__image = _surface_rotozoom(self.__shape_image, 0, scale)
 
     def __compute_shape_size(self, /) -> None:
         all_points: Sequence[Vector2] = self.get_local_vertices()

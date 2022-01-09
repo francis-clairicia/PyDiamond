@@ -21,8 +21,8 @@ import pickle
 from os.path import splitext
 from typing import Any, Final, Tuple
 
-import pygame
-import pygame.image
+from pygame import error as _pg_error
+from pygame.image import load as _pg_image_load, save as _pg_image_save
 from pygame.surface import Surface
 
 from .color import TRANSPARENT, Color
@@ -52,13 +52,13 @@ class SurfaceUnpickler(pickle.Unpickler):
 def load_image(file: str, convert: bool = True) -> Surface:
     image: Surface
     if splitext(file)[1] != COMPILED_SURFACE_EXTENSION:
-        image = pygame.image.load(file)
+        image = _pg_image_load(file)
     else:
         try:
             with bz2.open(file, mode="rb", compresslevel=9) as f:
                 image = SurfaceUnpickler(f).load()
         except (IOError, pickle.UnpicklingError) as exc:
-            raise pygame.error(str(exc)) from exc
+            raise _pg_error(str(exc)) from exc
     if convert:
         return image.convert_alpha()
     return image
@@ -66,7 +66,7 @@ def load_image(file: str, convert: bool = True) -> Surface:
 
 def save_image(image: Surface, file: str) -> None:
     if splitext(file)[1] != COMPILED_SURFACE_EXTENSION:
-        return pygame.image.save(image, file)
+        return _pg_image_save(image, file)
 
     with bz2.open(file, mode="wb", compresslevel=9) as f:
         f.write(pickle.dumps(image, protocol=pickle.HIGHEST_PROTOCOL))

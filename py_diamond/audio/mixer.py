@@ -13,8 +13,8 @@ __license__ = "GNU GPL v3.0"
 from contextlib import ExitStack, contextmanager
 from typing import Iterator, NamedTuple, Optional, Tuple
 
-import pygame.mixer
-from pygame import error as pygame_error
+import pygame.mixer as _pg_mixer
+from pygame import error as _pg_error
 
 
 class MixerParams(NamedTuple):
@@ -27,17 +27,17 @@ class Mixer:
     @staticmethod
     @contextmanager
     def init(frequency: int = 44100, size: int = -16, channels: int = 2, buffersize: int = 512) -> Iterator[None]:
-        if pygame.mixer.get_init() is not None:
-            raise pygame_error("Mixer module already initialized")
+        if _pg_mixer.get_init() is not None:
+            raise _pg_error("Mixer module already initialized")
 
         with ExitStack() as stack:
-            pygame.mixer.init(frequency=frequency, size=size, channels=channels, buffer=buffersize)
-            stack.callback(pygame.mixer.quit)
+            _pg_mixer.init(frequency=frequency, size=size, channels=channels, buffer=buffersize)
+            stack.callback(_pg_mixer.quit)
             yield
 
     @staticmethod
     def get_init() -> MixerParams:
-        init_params: Optional[Tuple[int, int, int]] = pygame.mixer.get_init()
+        init_params: Optional[Tuple[int, int, int]] = _pg_mixer.get_init()
         if init_params is None:
-            raise pygame_error("Mixer module not initialized")
+            raise _pg_error("Mixer module not initialized")
         return MixerParams(*init_params)

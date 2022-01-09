@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["AnimatedSprite", "LayeredSpriteGroup", "Sprite", "SpriteGroup"]
+__all__ = ["AnimatedSprite", "LayeredSpriteGroup", "Mask", "Sprite", "SpriteGroup"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
@@ -14,9 +14,8 @@ __license__ = "GNU GPL v3.0"
 
 from typing import Any, Final, Iterable, Iterator, List, Optional, Sequence, Tuple, Type, TypeVar, Union, overload
 
-import pygame.mask
-import pygame.transform
-from pygame.mask import Mask
+from pygame.mask import Mask, from_surface as _pg_mask_from_surface
+from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom, smoothscale as _surface_smoothscale
 
 from ..window.clock import Clock
 from .drawable import DrawableGroup, LayeredGroup, TDrawable
@@ -62,20 +61,20 @@ class Sprite(TDrawable):
         image: Surface = self.__default_image
 
         if not self.__smooth_scale:
-            self.__image = pygame.transform.rotozoom(image, angle, scale)
+            self.__image = _surface_rotozoom(image, angle, scale)
         else:
             if scale != 1:
                 w, h = self.get_local_size()
                 w = round(w * scale)
                 h = round(h * scale)
-                image = pygame.transform.smoothscale(image, (w, h))
-            self.__image = pygame.transform.rotate(image, angle)
+                image = _surface_smoothscale(image, (w, h))
+            self.__image = _surface_rotate(image, angle)
         self.__update_mask()
 
     def _apply_only_rotation(self, /) -> None:
         angle: float = self.angle
         image: Surface = self.__default_image
-        self.__image = pygame.transform.rotate(image, angle)
+        self.__image = _surface_rotate(image, angle)
         self.__update_mask()
 
     def _apply_only_scale(self, /) -> None:
@@ -83,16 +82,16 @@ class Sprite(TDrawable):
         image: Surface = self.__default_image
 
         if not self.__smooth_scale:
-            self.__image = pygame.transform.rotozoom(image, 0, scale)
+            self.__image = _surface_rotozoom(image, 0, scale)
         elif scale != 1:
             w, h = self.get_local_size()
             w = round(w * scale)
             h = round(h * scale)
-            image = pygame.transform.smoothscale(image, (w, h))
+            image = _surface_smoothscale(image, (w, h))
         self.__update_mask()
 
     def __update_mask(self, /) -> None:
-        self.__mask = pygame.mask.from_surface(self.__image, self.__mask_threshold)
+        self.__mask = _pg_mask_from_surface(self.__image, self.__mask_threshold)
 
     def get_size(self, /) -> Tuple[float, float]:
         return self.__image.get_size()

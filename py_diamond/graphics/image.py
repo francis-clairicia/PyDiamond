@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from typing import TYPE_CHECKING, Optional, Tuple, Union, overload
 
-import pygame.transform
+from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom, smoothscale as _surface_smoothscale
 
 from .color import Color
 from .drawable import TDrawable
@@ -121,29 +121,28 @@ class Image(TDrawable):
         image: Surface = self.__default_image
 
         if not self.__smooth_scale:
-            self.__image = pygame.transform.rotozoom(image, angle, scale)
+            self.__image = _surface_rotozoom(image, angle, scale)
         else:
             if scale != 1:
                 w, h = self.get_local_size()
                 w = round(w * scale)
                 h = round(h * scale)
-                image = pygame.transform.smoothscale(image, (w, h))
-            self.__image = pygame.transform.rotate(image, angle)
+                image = _surface_smoothscale(image, (w, h))
+            self.__image = _surface_rotate(image, angle)
 
     def _apply_only_rotation(self, /) -> None:
         angle: float = self.angle
         image: Surface = self.__default_image
-        self.__image = pygame.transform.rotate(image, angle)
+        self.__image = _surface_rotate(image, angle)
 
     def _apply_only_scale(self, /) -> None:
         scale: float = self.scale
         image: Surface = self.__default_image
 
         if not self.__smooth_scale:
-            self.__image = pygame.transform.rotozoom(image, 0, scale)
-        else:
-            if scale != 1:
-                w, h = self.get_local_size()
-                w = round(w * scale)
-                h = round(h * scale)
-                image = pygame.transform.smoothscale(image, (w, h))
+            self.__image = _surface_rotozoom(image, 0, scale)
+        elif scale != 1:
+            w, h = self.get_local_size()
+            w = round(w * scale)
+            h = round(h * scale)
+            image = _surface_smoothscale(image, (w, h))

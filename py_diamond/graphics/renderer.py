@@ -16,20 +16,7 @@ from abc import ABCMeta, abstractmethod
 from enum import IntEnum, unique
 from typing import TYPE_CHECKING, Any, List, Optional, Protocol, Sequence, Tuple, Union, overload
 
-from pygame.constants import (
-    BLEND_ALPHA_SDL2,
-    BLEND_PREMULTIPLIED,
-    BLEND_RGB_ADD,
-    BLEND_RGB_MAX,
-    BLEND_RGB_MIN,
-    BLEND_RGB_MULT,
-    BLEND_RGB_SUB,
-    BLEND_RGBA_ADD,
-    BLEND_RGBA_MAX,
-    BLEND_RGBA_MIN,
-    BLEND_RGBA_MULT,
-    BLEND_RGBA_SUB,
-)
+import pygame.constants as _pg_constants
 from pygame.draw import (
     aaline as _draw_antialiased_line,
     aalines as _draw_multiple_antialiased_lines,
@@ -69,18 +56,18 @@ if TYPE_CHECKING:
 @unique
 class BlendMode(IntEnum):
     NONE = 0
-    ADD = BLEND_RGB_ADD
-    SUB = BLEND_RGB_SUB
-    MULT = BLEND_RGB_MULT
-    MIN = BLEND_RGB_MIN
-    MAX = BLEND_RGB_MAX
-    RGBA_ADD = BLEND_RGBA_ADD
-    RGBA_SUB = BLEND_RGBA_SUB
-    RGBA_MULT = BLEND_RGBA_MULT
-    RGBA_MIN = BLEND_RGBA_MIN
-    RGBA_MAX = BLEND_RGBA_MAX
-    PREMULTIPLIED = BLEND_PREMULTIPLIED
-    ALPHA_SDL2 = BLEND_ALPHA_SDL2
+    ADD = _pg_constants.BLEND_RGB_ADD
+    SUB = _pg_constants.BLEND_RGB_SUB
+    MULT = _pg_constants.BLEND_RGB_MULT
+    MIN = _pg_constants.BLEND_RGB_MIN
+    MAX = _pg_constants.BLEND_RGB_MAX
+    RGBA_ADD = _pg_constants.BLEND_RGBA_ADD
+    RGBA_SUB = _pg_constants.BLEND_RGBA_SUB
+    RGBA_MULT = _pg_constants.BLEND_RGBA_MULT
+    RGBA_MIN = _pg_constants.BLEND_RGBA_MIN
+    RGBA_MAX = _pg_constants.BLEND_RGBA_MAX
+    PREMULTIPLIED = _pg_constants.BLEND_PREMULTIPLIED
+    ALPHA_SDL2 = _pg_constants.BLEND_ALPHA_SDL2
 
 
 class Renderer(metaclass=ABCMeta):
@@ -401,3 +388,6 @@ class SurfaceRenderer(Renderer):
     @property
     def surface(self, /) -> Surface:
         return self.__target
+
+
+del _pg_constants

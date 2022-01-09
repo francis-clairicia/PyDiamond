@@ -17,7 +17,7 @@ from operator import truth
 from textwrap import wrap as textwrap
 from typing import Dict, List, Optional, Tuple, Union
 
-import pygame.transform
+from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom
 
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
@@ -190,13 +190,13 @@ class Text(TDrawable, metaclass=MetaText):
         self.config.update_all_options()
 
     def _apply_both_rotation_and_scale(self, /) -> None:
-        self.__image = pygame.transform.rotozoom(self.__default_image, self.angle, self.scale)
+        self.__image = _surface_rotozoom(self.__default_image, self.angle, self.scale)
 
     def _apply_only_scale(self, /) -> None:
-        self.__image = pygame.transform.rotozoom(self.__default_image, 0, self.scale)
+        self.__image = _surface_rotozoom(self.__default_image, 0, self.scale)
 
     def _apply_only_rotation(self, /) -> None:
-        self.__image = pygame.transform.rotate(self.__default_image, self.angle)
+        self.__image = _surface_rotate(self.__default_image, self.angle)
 
     def __render_text(self, /, color: Color) -> Surface:
         render_lines: List[Surface] = list()

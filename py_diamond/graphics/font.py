@@ -14,11 +14,8 @@ __license__ = "GNU GPL v3.0"
 
 from typing import Iterable, Union
 
-import pygame.font
-from pygame.font import Font as _Font
-from pygame.sysfont import SysFont as _SysFont
-
-pygame.font.init()
+from pygame.font import Font as _Font, get_default_font as _pg_font_get_default_font
+from pygame.sysfont import SysFont as _pg_sysfont
 
 
 def SysFont(name: Union[str, bytes, Iterable[Union[str, bytes]]], size: int, bold: bool = False, italic: bool = False) -> Font:
@@ -45,20 +42,19 @@ def SysFont(name: Union[str, bytes, Iterable[Union[str, bytes]]], size: int, bol
     a Font instance. If None, a pygame.font.Font object is created.
     """
 
-    font: Font = _SysFont(name, size, bold=bold, italic=italic, constructor=_font_constructor)  # type: ignore[no-untyped-call]
+    def font_constructor(fontpath: str, size: int, bold: bool, italic: bool) -> Font:
+        font: Font = Font(fontpath, size)
+        if bold:
+            font.set_bold(True)
+        if italic:
+            font.set_italic(True)
+        return font
+
+    font: Font = _pg_sysfont(name, size, bold=bold, italic=italic, constructor=font_constructor)  # type: ignore[no-untyped-call]
     return font
 
 
 class Font(_Font):
     @staticmethod
     def get_default_font() -> str:
-        return pygame.font.get_default_font()
-
-
-def _font_constructor(fontpath: str, size: int, bold: bool, italic: bool) -> Font:
-    font = Font(fontpath, size)
-    if bold:
-        font.set_bold(True)
-    if italic:
-        font.set_italic(True)
-    return font
+        return _pg_font_get_default_font()

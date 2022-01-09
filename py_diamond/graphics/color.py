@@ -41,7 +41,7 @@ from types import MappingProxyType
 from typing import Any, Final, List, Mapping, Tuple, Union, overload
 
 from pygame.color import Color as _Color
-from pygame.colordict import THECOLORS as _ALL_COLORS
+from pygame.colordict import THECOLORS as _PG_ALL_COLORS
 
 
 class Color(_Color):
@@ -126,7 +126,7 @@ class ImmutableColor(Color):
         super().__init__(*args, **kwargs)
 
 
-COLOR_DICT: Final[Mapping[str, Color]] = MappingProxyType({c: ImmutableColor(c) for c in _ALL_COLORS})
+COLOR_DICT: Final[Mapping[str, Color]] = MappingProxyType({c: ImmutableColor(c) for c in _PG_ALL_COLORS})
 
 WHITE: Final[Color] = COLOR_DICT.get("white", ImmutableColor(255, 255, 255, 255))
 BLACK: Final[Color] = COLOR_DICT.get("black", ImmutableColor(0, 0, 0, 255))
@@ -149,4 +149,4 @@ MAGENTA: Final[Color] = COLOR_DICT.get("magenta", ImmutableColor(255, 0, 255, 25
 PURPLE: Final[Color] = COLOR_DICT.get("purple", ImmutableColor(165, 0, 255, 255))
 TRANSPARENT: Final[Color] = ImmutableColor(0, 0, 0, 0)
 
-del _ALL_COLORS
+del _PG_ALL_COLORS

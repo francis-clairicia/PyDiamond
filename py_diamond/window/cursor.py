@@ -17,10 +17,9 @@ from enum import Enum, EnumMeta
 from types import MethodType
 from typing import Any, Callable, ClassVar, Dict, Optional, Sequence, Tuple, overload
 
-import pygame
-import pygame.cursors
-import pygame.mouse
-from pygame.cursors import Cursor as _Cursor
+import pygame.constants as _pg_constants
+from pygame.cursors import Cursor as _Cursor, compile as _pg_cursors_compile, load_xbm as _pg_cursors_load_xbm
+from pygame.mouse import set_cursor as _pg_mouse_set_cursor, set_system_cursor as _pg_mouse_set_system_cursor
 
 from ..graphics.surface import Surface
 from ..system.utils import wraps
@@ -93,20 +92,20 @@ class CustomCursor(Cursor):
     def compile(
         hotspot: Tuple[int, int], strings: Sequence[str], black: str = "X", white: str = ".", xor: str = "o"
     ) -> CustomCursor:
-        data, mask = pygame.cursors.compile(strings, black=black, white=white, xor=xor)
+        data, mask = _pg_cursors_compile(strings, black=black, white=white, xor=xor)
         width = max(len(line) for line in strings)
         height = len(strings)
         return CustomCursor((width, height), hotspot, data, mask)
 
     @staticmethod
     def load_xbm(cursorfile: str, maskfile: str) -> CustomCursor:
-        size, hotspot, xormasks, andmasks = pygame.cursors.load_xbm(cursorfile, maskfile)
+        size, hotspot, xormasks, andmasks = _pg_cursors_load_xbm(cursorfile, maskfile)
         width, height = size
         x, y = hotspot
         return CustomCursor((width, height), (x, y), xormasks, andmasks)
 
     def set(self, /) -> None:
-        pygame.mouse.set_cursor(self.__cursor)
+        _pg_mouse_set_cursor(self.__cursor)
 
 
 class _MetaSystemCursor(_MetaCursor, EnumMeta):
@@ -114,18 +113,21 @@ class _MetaSystemCursor(_MetaCursor, EnumMeta):
 
 
 class SystemCursor(Cursor, Enum, metaclass=_MetaSystemCursor):
-    ARROW = pygame.SYSTEM_CURSOR_ARROW
-    IBEAM = pygame.SYSTEM_CURSOR_IBEAM
-    WAIT = pygame.SYSTEM_CURSOR_WAIT
-    CROSSHAIR = pygame.SYSTEM_CURSOR_CROSSHAIR
-    WAITARROW = pygame.SYSTEM_CURSOR_WAITARROW
-    SIZENWSE = pygame.SYSTEM_CURSOR_SIZENWSE
-    SIZENESW = pygame.SYSTEM_CURSOR_SIZENESW
-    SIZEWE = pygame.SYSTEM_CURSOR_SIZEWE
-    SIZENS = pygame.SYSTEM_CURSOR_SIZENS
-    SIZEALL = pygame.SYSTEM_CURSOR_SIZEALL
-    NO = pygame.SYSTEM_CURSOR_NO
-    HAND = pygame.SYSTEM_CURSOR_HAND
+    ARROW = _pg_constants.SYSTEM_CURSOR_ARROW
+    IBEAM = _pg_constants.SYSTEM_CURSOR_IBEAM
+    WAIT = _pg_constants.SYSTEM_CURSOR_WAIT
+    CROSSHAIR = _pg_constants.SYSTEM_CURSOR_CROSSHAIR
+    WAITARROW = _pg_constants.SYSTEM_CURSOR_WAITARROW
+    SIZENWSE = _pg_constants.SYSTEM_CURSOR_SIZENWSE
+    SIZENESW = _pg_constants.SYSTEM_CURSOR_SIZENESW
+    SIZEWE = _pg_constants.SYSTEM_CURSOR_SIZEWE
+    SIZENS = _pg_constants.SYSTEM_CURSOR_SIZENS
+    SIZEALL = _pg_constants.SYSTEM_CURSOR_SIZEALL
+    NO = _pg_constants.SYSTEM_CURSOR_NO
+    HAND = _pg_constants.SYSTEM_CURSOR_HAND
 
     def set(self, /) -> None:
-        pygame.mouse.set_system_cursor(self.value)
+        _pg_mouse_set_system_cursor(self.value)
+
+
+del _pg_constants

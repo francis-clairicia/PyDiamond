@@ -764,13 +764,13 @@ class MainWindow(SceneWindow):
         # super().__init__("my window", (0, 0))
         super().__init__("my window", (1366, 768))
 
+    def __window_init__(self) -> None:
+        super().__window_init__()
         # Text.set_default_font(FontResources.cooperblack)
 
         Button.set_default_theme("default")
         Button.set_theme("default", {"font": (FontResources.cooperblack, 20), "border_radius": 5})
 
-    def __window_init__(self) -> None:
-        super().__window_init__()
         self.text_framerate.show()
         self.set_default_framerate(120)
         self.set_default_fixed_framerate(100)
@@ -782,7 +782,10 @@ class MainWindow(SceneWindow):
 
     def __window_quit__(self, /) -> None:
         super().__window_quit__()
-        del self.prev_button, self.next_button
+        try:
+            del self.prev_button, self.next_button
+        except AttributeError:
+            pass
 
     def mainloop(self, index: int = 0) -> None:
         self.index = index % len(self.all_scenes)

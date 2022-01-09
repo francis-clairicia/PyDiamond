@@ -13,7 +13,7 @@ __license__ = "GNU GPL v3.0"
 from time import monotonic_ns as time_ns
 from typing import ClassVar
 
-import pygame.time
+from pygame.time import delay as _pg_time_delay, wait as _pg_time_wait
 
 
 class Time:
@@ -35,8 +35,8 @@ class Time:
 
     @staticmethod
     def wait(milliseconds: float) -> float:
-        return float(pygame.time.wait(round(milliseconds)))
+        return float(_pg_time_wait(round(milliseconds)))
 
     @staticmethod
     def delay(milliseconds: float) -> float:
-        return float(pygame.time.delay(round(milliseconds)))
+        return float(_pg_time_delay(round(milliseconds)))

@@ -16,7 +16,7 @@ from abc import abstractmethod
 from functools import cached_property
 from typing import Any, Dict, List, Optional, Tuple, Union, final
 
-from pygame import error as _pygame_error
+from pygame import error as _pg_error
 
 from ..math import Vector2
 from .animation import TransformAnimation
@@ -87,7 +87,7 @@ class Transformable(Movable, metaclass=MetaTransformable):
             except NotImplementedError:
                 self.__angle = 0
                 raise
-            except _pygame_error:
+            except _pg_error:
                 pass
         if pivot is not None and pivot != "center" and pivot != (center.x, center.y):
             if isinstance(pivot, str):
@@ -133,7 +133,7 @@ class Transformable(Movable, metaclass=MetaTransformable):
         except NotImplementedError:
             self.__scale = 1
             raise
-        except _pygame_error:
+        except _pg_error:
             pass
         self.center = center
 

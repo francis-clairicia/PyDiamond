@@ -57,8 +57,8 @@ from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Type, TypeVar, Union, cast, overload
 
-import pygame
-from pygame.event import Event as _PygameEvent
+import pygame.constants as _pg_constants
+from pygame.event import Event as _PygameEvent, event_name as _pg_event_name, get_blocked as _pg_event_get_blocked
 
 from .keyboard import Keyboard
 from .mouse import Mouse
@@ -111,36 +111,36 @@ class MetaEvent(type):
 @dataclass(frozen=True)
 class Event(metaclass=MetaEvent, event_type=-1):
     class Type(IntEnum):
-        KEYDOWN = pygame.KEYDOWN
-        KEYUP = pygame.KEYUP
-        MOUSEMOTION = pygame.MOUSEMOTION
-        MOUSEBUTTONUP = pygame.MOUSEBUTTONUP
-        MOUSEBUTTONDOWN = pygame.MOUSEBUTTONDOWN
-        MOUSEWHEEL = pygame.MOUSEWHEEL
-        JOYAXISMOTION = pygame.JOYAXISMOTION
-        JOYBALLMOTION = pygame.JOYBALLMOTION
-        JOYHATMOTION = pygame.JOYHATMOTION
-        JOYBUTTONUP = pygame.JOYBUTTONUP
-        JOYBUTTONDOWN = pygame.JOYBUTTONDOWN
-        JOYDEVICEADDED = pygame.JOYDEVICEADDED
-        JOYDEVICEREMOVED = pygame.JOYDEVICEREMOVED
-        USEREVENT = pygame.USEREVENT
-        TEXTEDITING = pygame.TEXTEDITING
-        TEXTINPUT = pygame.TEXTINPUT
-        WINDOWSHOWN = pygame.WINDOWSHOWN
-        WINDOWHIDDEN = pygame.WINDOWHIDDEN
-        WINDOWEXPOSED = pygame.WINDOWEXPOSED
-        WINDOWMOVED = pygame.WINDOWMOVED
-        WINDOWRESIZED = pygame.WINDOWRESIZED
-        WINDOWSIZECHANGED = pygame.WINDOWSIZECHANGED
-        WINDOWMINIMIZED = pygame.WINDOWMINIMIZED
-        WINDOWMAXIMIZED = pygame.WINDOWMAXIMIZED
-        WINDOWRESTORED = pygame.WINDOWRESTORED
-        WINDOWENTER = pygame.WINDOWENTER
-        WINDOWLEAVE = pygame.WINDOWLEAVE
-        WINDOWFOCUSGAINED = pygame.WINDOWFOCUSGAINED
-        WINDOWFOCUSLOST = pygame.WINDOWFOCUSLOST
-        WINDOWTAKEFOCUS = pygame.WINDOWTAKEFOCUS
+        KEYDOWN = _pg_constants.KEYDOWN
+        KEYUP = _pg_constants.KEYUP
+        MOUSEMOTION = _pg_constants.MOUSEMOTION
+        MOUSEBUTTONUP = _pg_constants.MOUSEBUTTONUP
+        MOUSEBUTTONDOWN = _pg_constants.MOUSEBUTTONDOWN
+        MOUSEWHEEL = _pg_constants.MOUSEWHEEL
+        JOYAXISMOTION = _pg_constants.JOYAXISMOTION
+        JOYBALLMOTION = _pg_constants.JOYBALLMOTION
+        JOYHATMOTION = _pg_constants.JOYHATMOTION
+        JOYBUTTONUP = _pg_constants.JOYBUTTONUP
+        JOYBUTTONDOWN = _pg_constants.JOYBUTTONDOWN
+        JOYDEVICEADDED = _pg_constants.JOYDEVICEADDED
+        JOYDEVICEREMOVED = _pg_constants.JOYDEVICEREMOVED
+        USEREVENT = _pg_constants.USEREVENT
+        TEXTEDITING = _pg_constants.TEXTEDITING
+        TEXTINPUT = _pg_constants.TEXTINPUT
+        WINDOWSHOWN = _pg_constants.WINDOWSHOWN
+        WINDOWHIDDEN = _pg_constants.WINDOWHIDDEN
+        WINDOWEXPOSED = _pg_constants.WINDOWEXPOSED
+        WINDOWMOVED = _pg_constants.WINDOWMOVED
+        WINDOWRESIZED = _pg_constants.WINDOWRESIZED
+        WINDOWSIZECHANGED = _pg_constants.WINDOWSIZECHANGED
+        WINDOWMINIMIZED = _pg_constants.WINDOWMINIMIZED
+        WINDOWMAXIMIZED = _pg_constants.WINDOWMAXIMIZED
+        WINDOWRESTORED = _pg_constants.WINDOWRESTORED
+        WINDOWENTER = _pg_constants.WINDOWENTER
+        WINDOWLEAVE = _pg_constants.WINDOWLEAVE
+        WINDOWFOCUSGAINED = _pg_constants.WINDOWFOCUSGAINED
+        WINDOWFOCUSLOST = _pg_constants.WINDOWFOCUSLOST
+        WINDOWTAKEFOCUS = _pg_constants.WINDOWTAKEFOCUS
 
         def __repr__(self) -> str:
             return f"<{self.real_name}: {self.value}>"
@@ -149,11 +149,11 @@ class Event(metaclass=MetaEvent, event_type=-1):
             return self.real_name
 
         def is_allowed(self, /) -> bool:
-            return not pygame.event.get_blocked(self)
+            return not _pg_event_get_blocked(self)
 
         @property
         def real_name(self, /) -> str:
-            return pygame.event.event_name(self)
+            return _pg_event_name(self)
 
     type: Event.Type = field(init=False)
 
@@ -674,3 +674,6 @@ class EventManager:
                 if output:
                     return output
         return None
+
+
+del _pg_constants

@@ -16,8 +16,8 @@ from enum import IntEnum
 from operator import truth
 from typing import Tuple
 
-import pygame.mouse
-from pygame.constants import BUTTON_LEFT, BUTTON_MIDDLE, BUTTON_RIGHT
+import pygame.constants as _pg_constants
+import pygame.mouse as _pg_mouse
 
 _MOUSE_BUTTON_STATE: Tuple[bool, bool, bool] = (False, False, False)
 
@@ -25,16 +25,16 @@ _MOUSE_BUTTON_STATE: Tuple[bool, bool, bool] = (False, False, False)
 class Mouse:
     @staticmethod
     def get_pos() -> Tuple[int, int]:
-        return pygame.mouse.get_pos()
+        return _pg_mouse.get_pos()
 
     @staticmethod
     def set_pos(x: int, y: int) -> None:
-        pygame.mouse.set_pos(x, y)
+        _pg_mouse.set_pos(x, y)
 
     @staticmethod
     def update() -> None:
         global _MOUSE_BUTTON_STATE
-        button_states = pygame.mouse.get_pressed(3)
+        button_states = _pg_mouse.get_pressed(3)
         _MOUSE_BUTTON_STATE = (truth(button_states[0]), truth(button_states[1]), truth(button_states[2]))
 
     @staticmethod
@@ -55,13 +55,16 @@ class Mouse:
 
     @staticmethod
     def set_visible(status: bool) -> None:
-        pygame.mouse.set_visible(bool(status))
+        _pg_mouse.set_visible(bool(status))
 
     @staticmethod
     def is_visible() -> bool:
-        return pygame.mouse.get_visible()
+        return _pg_mouse.get_visible()
 
     class Button(IntEnum):
-        LEFT = BUTTON_LEFT
-        RIGHT = BUTTON_RIGHT
-        MIDDLE = BUTTON_MIDDLE
+        LEFT = _pg_constants.BUTTON_LEFT
+        RIGHT = _pg_constants.BUTTON_RIGHT
+        MIDDLE = _pg_constants.BUTTON_MIDDLE
+
+
+del _pg_constants
