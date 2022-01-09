@@ -169,14 +169,14 @@ class DrawableGroup(Sequence[Drawable]):
         return drawable_list_length()
 
     @overload
-    def __getitem__(self, index: int) -> Drawable:
+    def __getitem__(self, index: int, /) -> Drawable:
         ...
 
     @overload
-    def __getitem__(self, index: slice) -> Sequence[Drawable]:
+    def __getitem__(self, index: slice, /) -> Sequence[Drawable]:
         ...
 
-    def __getitem__(self, index: Union[int, slice]) -> Union[Drawable, Sequence[Drawable]]:
+    def __getitem__(self, index: Union[int, slice], /) -> Union[Drawable, Sequence[Drawable]]:
         drawable_list: List[Drawable] = self.__list
         if isinstance(index, slice):
             return tuple(drawable_list[index])

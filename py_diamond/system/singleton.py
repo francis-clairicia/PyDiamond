@@ -39,21 +39,21 @@ class MetaSingleton(ABCMeta):
                 cls.__call_twice_error_wrapper(getattr(cls, constructor_attr, None) or getattr(object, constructor_attr)),
             )
 
-    def __setattr__(cls, __name: str, __value: Any) -> None:
-        if __name in ("_singleton_instance_", "__abstractsingleton__") and __name in cls.__dict__:
-            if __name == "_singleton_instance_":
+    def __setattr__(cls, name: str, value: Any, /) -> None:
+        if name in ("_singleton_instance_", "__abstractsingleton__") and name in cls.__dict__:
+            if name == "_singleton_instance_":
                 raise TypeError("Cannot modify singleton instance")
-            raise AttributeError(f"{__name} is a read-only attribute")
-        if __name in ("__new__", "__init__") and not isinstance(__value, cls.__call_twice_error_wrapper):
+            raise AttributeError(f"{name} is a read-only attribute")
+        if name in ("__new__", "__init__") and not isinstance(value, cls.__call_twice_error_wrapper):
             raise TypeError("Cannot modify singleton constructors")
-        return super().__setattr__(__name, __value)
+        return super().__setattr__(name, value)
 
-    def __delattr__(cls, __name: str) -> None:
-        if __name in ("_singleton_instance_", "__abstractsingleton__") and __name in cls.__dict__:
-            if __name == "_singleton_instance_":
+    def __delattr__(cls, name: str, /) -> None:
+        if name in ("_singleton_instance_", "__abstractsingleton__") and name in cls.__dict__:
+            if name == "_singleton_instance_":
                 raise TypeError("Cannot modify singleton instance")
-            raise AttributeError(f"{__name} is a read-only attribute")
-        return super().__delattr__(__name)
+            raise AttributeError(f"{name} is a read-only attribute")
+        return super().__delattr__(name)
 
     @property
     def instance(cls: Type[_T]) -> _T:
@@ -82,7 +82,7 @@ class MetaSingleton(ABCMeta):
             func = self.__func__
             return func(__cls_or_self, *args, **kwargs)
 
-        def __get__(self, obj: object, objtype: Optional[type] = None) -> Callable[..., Any]:
+        def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Callable[..., Any]:
             if obj is None:
                 return self
             return MethodType(self, obj)

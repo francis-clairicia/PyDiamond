@@ -220,14 +220,14 @@ class SpriteGroup(DrawableGroup):
         return super().__iter__()  # type: ignore[return-value]
 
     @overload
-    def __getitem__(self, index: int) -> Sprite:
+    def __getitem__(self, index: int, /) -> Sprite:
         ...
 
     @overload
-    def __getitem__(self, index: slice) -> Sequence[Sprite]:
+    def __getitem__(self, index: slice, /) -> Sequence[Sprite]:
         ...
 
-    def __getitem__(self, index: Union[int, slice]) -> Union[Sprite, Sequence[Sprite]]:
+    def __getitem__(self, index: Union[int, slice], /) -> Union[Sprite, Sequence[Sprite]]:
         return super().__getitem__(index)  # type: ignore[return-value]
 
     def __reversed__(self) -> Iterator[Sprite]:

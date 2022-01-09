@@ -1569,7 +1569,7 @@ class _ConfigInitializer:
     def __call__(self) -> Callable[..., Any]:
         return self.__func__
 
-    def __getattr__(self, name: str) -> Any:
+    def __getattr__(self, name: str, /) -> Any:
         func: Any = self.__func__
         return getattr(func, name)
 

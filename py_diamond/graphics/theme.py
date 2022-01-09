@@ -188,7 +188,7 @@ class MetaThemedObject(ABCMeta):
             kwargs = theme_kwargs | kwargs
         return create_object(*args, **kwargs)
 
-    def __setattr__(cls, name: str, value: Any) -> None:
+    def __setattr__(cls, name: str, value: Any, /) -> None:
         if name in ("__new__", "__init__"):
             raise AttributeError("can't set attribute")
         return super().__setattr__(name, value)

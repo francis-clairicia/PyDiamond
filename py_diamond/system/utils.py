@@ -314,11 +314,11 @@ class _FunctionWrapperProxy:
         func: Callable[..., Any] = self.__wrapped__
         return f"<function wrapper proxy {func.__name__} at {id(self):#x}>"
 
-    def __getattr__(self, name: str) -> Any:
+    def __getattr__(self, name: str, /) -> Any:
         func: Any = self.__wrapped__
         return getattr(func, name)
 
-    def __setattr__(self, name: str, value: Any) -> None:
+    def __setattr__(self, name: str, value: Any, /) -> None:
         if name == "__func__":
             if "__func__" in self.__dict__:
                 raise AttributeError("__func__ is a read-only attribute")
@@ -326,7 +326,7 @@ class _FunctionWrapperProxy:
         func: Any = self.__wrapped__
         return setattr(func, name, value)
 
-    def __delattr__(self, name: str) -> None:
+    def __delattr__(self, name: str, /) -> None:
         if name == "__func__":
             raise AttributeError("__func__ is a read-only attribute")
         return super().__delattr__(name)

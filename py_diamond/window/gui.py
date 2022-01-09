@@ -512,9 +512,9 @@ class BoundFocusProxy(BoundFocus, metaclass=_MetaBoundFocusProxy):
         super().__init__(focus.__self__, getattr(focus, mangle_private_attribute(BoundFocus, "scene"), None))
         self.__focus: BoundFocus = focus
 
-    def __getattr__(self, __name: str) -> Any:
+    def __getattr__(self, name: str, /) -> Any:
         focus: BoundFocus = self.original
-        return getattr(focus, __name)
+        return getattr(focus, name)
 
     @property
     def original(self) -> BoundFocus:
@@ -573,14 +573,14 @@ class FocusableContainer(Sequence[SupportsFocus]):
         return list_length()
 
     @overload
-    def __getitem__(self, index: int) -> SupportsFocus:
+    def __getitem__(self, index: int, /) -> SupportsFocus:
         ...
 
     @overload
-    def __getitem__(self, index: slice) -> Sequence[SupportsFocus]:
+    def __getitem__(self, index: slice, /) -> Sequence[SupportsFocus]:
         ...
 
-    def __getitem__(self, index: Union[int, slice]) -> Union[SupportsFocus, Sequence[SupportsFocus]]:
+    def __getitem__(self, index: Union[int, slice], /) -> Union[SupportsFocus, Sequence[SupportsFocus]]:
         focusable_list: List[SupportsFocus] = self.__list
         if isinstance(index, slice):
             return tuple(focusable_list[index])

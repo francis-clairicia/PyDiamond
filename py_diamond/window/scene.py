@@ -435,7 +435,7 @@ class MetaLayeredScene(MetaScene):
         def __init__(self, setattr_func: Callable[[Any, str, Any], None]) -> None:
             self.__func__: Callable[[object, str, Any], None] = setattr_func
 
-        def __call__(self, __obj: object, __name: str, __value: Any) -> None:
+        def __call__(self, __obj: object, __name: str, __value: Any, /) -> None:
             func = self.__func__
             return func(__obj, __name, __value)
 

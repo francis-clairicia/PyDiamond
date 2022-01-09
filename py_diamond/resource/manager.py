@@ -121,7 +121,7 @@ class MetaResourceManager(type):
             name: value for name, value in vars(cls).items() if isinstance(value, _ResourceDescriptor)
         }
 
-    def __setattr__(cls, name: str, value: Any) -> None:
+    def __setattr__(cls, name: str, value: Any, /) -> None:
         try:
             resources: Dict[str, _ResourceDescriptor] = cls.__resources
         except AttributeError:
@@ -132,7 +132,7 @@ class MetaResourceManager(type):
                 return
         super().__setattr__(name, value)
 
-    def __delattr__(cls, name: str) -> None:
+    def __delattr__(cls, name: str, /) -> None:
         if name in cls.__resources:
             cls.__resources[name].__delete__(None)
         else:

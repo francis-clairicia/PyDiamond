@@ -38,7 +38,7 @@ class MetaNonCopyable(type):
         namespace["__deepcopy__"] = __non_copyable_deepcopy__
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
-    def __setattr__(cls, name: str, value: Any) -> None:
+    def __setattr__(cls, name: str, value: Any, /) -> None:
         if name in ["__copy__", "__deepcopy__"]:
             raise TypeError(f"Cannot override {name!r} method")
         return super().__setattr__(name, value)
