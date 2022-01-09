@@ -398,13 +398,17 @@ class Configuration:
             for main_update in main_update_list:
                 main_update(obj)
 
-    def __call__(self, /, __obj: object, **kwargs: Any) -> None:
+    def __call__(self, __obj: object, /, **kwargs: Any) -> None:
         if not kwargs:
             return
         if self.has_initialization_context(__obj):
             for option, value in kwargs.items():
                 self.set(__obj, option, value)
             return
+        if len(kwargs) == 1:
+            option = tuple(kwargs)[0]
+            value = kwargs[option]
+            return self.set(__obj, option, value)
 
         info: _ConfigInfo = self.__info
         need_update: List[str] = []
@@ -447,11 +451,14 @@ class Configuration:
         for option in info.options:
             actual_descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
             value: Any
-            with suppress(AttributeError, UnregisteredOptionError):
+            try:
                 if actual_descriptor is not None:
                     value = actual_descriptor.__get__(obj, objtype)
                 else:
                     value = getattr(obj, get_private_attribute(option, objtype))
+            except (AttributeError, UnregisteredOptionError):
+                pass
+            else:
                 for value_update in info.get_option_value_update_funcs(option):
                     value_update(obj, value)
         main_update_list: List[Callable[[object], None]] = list(info.get_main_update_funcs())
@@ -471,11 +478,14 @@ class Configuration:
         self.check_option_validity(option)
         actual_descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
         value: Any
-        with suppress(AttributeError, UnregisteredOptionError):
+        try:
             if actual_descriptor is not None:
                 value = actual_descriptor.__get__(obj, objtype)
             else:
                 value = getattr(obj, get_private_attribute(option, objtype))
+        except (AttributeError, UnregisteredOptionError):
+            pass
+        else:
             for value_update in info.get_option_value_update_funcs(option):
                 value_update(obj, value)
         main_update_list: List[Callable[[object], None]] = list(info.get_main_update_funcs())
@@ -1274,8 +1284,10 @@ class BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
         options.update(kwargs)
         config = self.__config()
         obj = self.__obj
-        if not options and __m is not None:
-            return config.update_all_options(obj)
+        if not options:
+            if __m is None:
+                config.update_all_options(obj)
+            return
         return config(obj, **options)
 
     def update_all_options(self, /) -> None:
