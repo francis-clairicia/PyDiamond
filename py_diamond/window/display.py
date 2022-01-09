@@ -148,7 +148,6 @@ class Window:
         self.__default_fixed_framerate: int = self.DEFAULT_FIXED_FRAMERATE
         self.__busy_loop: bool = False
 
-        self.__loop: bool = False
         self.__callback_after: _WindowCallbackList = _WindowCallbackList()
         self.__process_callbacks: bool = True
 
@@ -167,13 +166,12 @@ class Window:
 
     @contextmanager
     def open(self: __W, /) -> Iterator[__W]:
-        if self.__loop:
+        if self.is_open():
             raise WindowError("Trying to open already opened window")
 
         def cleanup() -> None:
             self.__window_quit__()
             del self.__text_framerate
-            self.__loop = False
             self.__callback_after.clear()
             self.__surface = Surface((0, 0))
             self.__rect = ImmutableRect.convert(self.__surface.get_rect())
@@ -197,7 +195,6 @@ class Window:
             self.__window_init__()
             self.clear_all_events()
             self.__main_clock.tick()
-            self.__loop = True
             yield self
 
     def set_title(self, /, title: Optional[str]) -> None:
@@ -208,12 +205,12 @@ class Window:
 
     @final
     def close(self, /) -> NoReturn:
-        self.__loop = False
+        pygame.display.quit()
         raise Window.__Exit
 
     @final
     def is_open(self, /) -> bool:
-        return self.__loop
+        return pygame.display.get_surface() is not None
 
     def clear(self, /, color: _ColorInput = BLACK) -> None:
         self.__surface.fill(color)
@@ -343,7 +340,7 @@ class Window:
         height = int(height)
         if width <= 0 or height <= 0:
             raise ValueError("Invalid window size")
-        if not self.__loop:
+        if not self.is_open():
             raise WindowError("Trying to resize not opened window")
         if not self.resizable:
             raise WindowError("Trying to resize not resizable window")
