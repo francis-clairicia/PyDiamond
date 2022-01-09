@@ -65,14 +65,14 @@ from py_diamond.window.time import Time
 
 
 class ShapeScene(MainScene, busy_loop=True):
-    def __theme_init__(self, /) -> None:
+    def __theme_init__(self) -> None:
         super().__theme_init__()
         cls: MetaThemedShape
         for cls in [RectangleShape, PolygonShape, CircleShape, CrossShape]:
             cls.set_default_theme("default")
             cls.set_theme("default", {"outline_color": RED, "outline": 3})
 
-    def awake(self, /, **kwargs: Any) -> None:
+    def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         # self.__r: RectangleShape = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
@@ -170,7 +170,7 @@ class ShapeScene(MainScene, busy_loop=True):
 
 
 class AnimationScene(MainScene):
-    def awake(self, /, **kwargs: Any) -> None:
+    def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.rectangle = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
         self.animation = self.rectangle.animation
@@ -181,7 +181,7 @@ class AnimationScene(MainScene):
         self.rectangle.scale = 1
         self.rectangle.midleft = window.midleft
 
-    def on_start_loop(self, /) -> None:
+    def on_start_loop(self) -> None:
         window: Window = self.window
         self.animation.clear()
         self.animation.smooth_set_position(center=window.center, speed=370)
@@ -190,10 +190,10 @@ class AnimationScene(MainScene):
         self.animation.on_stop(self.move_to_left)
         self.animation.start()
 
-    def fixed_update(self, /) -> None:
+    def fixed_update(self) -> None:
         self.animation.fixed_update(use_of_linear_interpolation=True)
 
-    def update_alpha(self, /, interpolation: float) -> None:
+    def update_alpha(self, interpolation: float) -> None:
         self.animation.set_interpolation(interpolation)
 
     def render(self) -> None:
@@ -207,7 +207,7 @@ class AnimationScene(MainScene):
 
 
 class GradientScene(Scene):
-    def awake(self, /, **kwargs: Any) -> None:
+    def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.horizontal: HorizontalGradientShape = HorizontalGradientShape(100, 100, RED, YELLOW)
@@ -231,17 +231,17 @@ RAINBOW_COLORS: Final[Tuple[Color, ...]] = tuple(
 
 
 class HorizontalRainbow(HorizontalMultiColorShape):
-    def __init__(self, /, width: float, height: float) -> None:
+    def __init__(self, width: float, height: float) -> None:
         super().__init__(width, height, RAINBOW_COLORS)
 
 
 class VerticalRainbow(VerticalMultiColorShape):
-    def __init__(self, /, width: float, height: float) -> None:
+    def __init__(self, width: float, height: float) -> None:
         super().__init__(width, height, RAINBOW_COLORS)
 
 
 class RainbowScene(MainScene):
-    def awake(self, /, **kwargs: Any) -> None:
+    def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.all_rainbows: List[MultiColorShape] = [HorizontalRainbow(*self.window.size), VerticalRainbow(*self.window.size)]
         self.rainbow: int = 0
@@ -264,7 +264,7 @@ class RainbowScene(MainScene):
 
 
 class TextScene(Scene):
-    def awake(self, /, **kwargs: Any) -> None:
+    def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.text = Text(
@@ -275,15 +275,15 @@ class TextScene(Scene):
         self.text.angle = 0
         self.text.center = self.window.center
 
-    def on_start_loop(self, /) -> None:
+    def on_start_loop(self) -> None:
         self.text.animation.clear()
         self.text.animation.smooth_rotation(360, speed=5)
         self.text.animation.start()
 
-    def fixed_update(self, /) -> None:
+    def fixed_update(self) -> None:
         self.text.animation.fixed_update(use_of_linear_interpolation=True)
 
-    def update_alpha(self, /, interpolation: float) -> None:
+    def update_alpha(self, interpolation: float) -> None:
         self.text.animation.set_interpolation(interpolation)
 
     def render(self) -> None:
@@ -314,7 +314,7 @@ class FontResources(ResourceManager):
 
 
 class ResourceScene(MainScene):
-    def awake(self, /, **kwargs: Any) -> None:
+    def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.cactus = Sprite(image=ImagesResources.cactus)
         self.cactus.center = self.window.center
@@ -326,7 +326,7 @@ class ResourceScene(MainScene):
 
 
 class AnimatedSpriteScene(MainScene):
-    def awake(self, /, **kwargs: Any) -> None:
+    def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.sprite: AnimatedSprite = AnimatedSprite(*ImagesResources.car)
@@ -335,7 +335,7 @@ class AnimatedSpriteScene(MainScene):
         self.sprite.angle = 0
         self.sprite.center = self.window.center
 
-    def on_start_loop(self, /) -> None:
+    def on_start_loop(self) -> None:
         self.sprite.ratio = 20
         self.sprite.start_sprite_animation(loop=True)
         self.sprite.animation.clear()
@@ -346,7 +346,7 @@ class AnimatedSpriteScene(MainScene):
         self.sprite.animation.fixed_update(use_of_linear_interpolation=True)
         self.sprite.update()
 
-    def update_alpha(self, /, interpolation: float) -> None:
+    def update_alpha(self, interpolation: float) -> None:
         self.sprite.animation.set_interpolation(interpolation)
 
     def render(self) -> None:
@@ -354,7 +354,7 @@ class AnimatedSpriteScene(MainScene):
 
 
 class EventScene(MainScene):
-    def awake(self, /, **kwargs: Any) -> None:
+    def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.cross: CrossShape = CrossShape(50, 50, type="diagonal", color=RED, outline_color=WHITE, outline=3)
@@ -382,7 +382,7 @@ class EventScene(MainScene):
 
 
 class TextImageScene(MainScene):
-    def awake(self, /, **kwargs: Any) -> None:
+    def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.text: TextImage = TextImage(
@@ -395,16 +395,16 @@ class TextImageScene(MainScene):
         self.text.angle = 0
         self.text.scale = 1
 
-    def on_start_loop(self, /) -> None:
+    def on_start_loop(self) -> None:
         self.text.animation.clear()
         self.text.animation.smooth_rotation(360)
         self.text.animation.smooth_width_growth(100)
         self.text.animation.start()
 
-    def fixed_update(self, /) -> None:
+    def fixed_update(self) -> None:
         self.text.animation.fixed_update(use_of_linear_interpolation=True)
 
-    def update_alpha(self, /, interpolation: float) -> None:
+    def update_alpha(self, interpolation: float) -> None:
         self.text.animation.set_interpolation(interpolation)
 
     def render(self) -> None:
@@ -412,7 +412,7 @@ class TextImageScene(MainScene):
 
 
 class ButtonScene(MainScene):
-    def awake(self, /, **kwargs: Any) -> None:
+    def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.button = Button(
@@ -442,16 +442,16 @@ class ButtonScene(MainScene):
         self.button.scale = 1
         self.button.angle = 0
 
-    def on_start_loop(self, /) -> None:
+    def on_start_loop(self) -> None:
         self.button.animation.clear()
         self.button.animation.smooth_width_growth(100)
         self.button.animation.smooth_rotation(390, speed=300)
         self.button.animation.start()
 
-    def fixed_update(self, /) -> None:
+    def fixed_update(self) -> None:
         self.button.animation.fixed_update(use_of_linear_interpolation=True)
 
-    def update_alpha(self, /, interpolation: float) -> None:
+    def update_alpha(self, interpolation: float) -> None:
         self.button.animation.set_interpolation(interpolation)
 
     def __increase_counter(self) -> None:
@@ -463,7 +463,7 @@ class ButtonScene(MainScene):
 
 
 class CheckBoxScene(MainScene):
-    def awake(self, /, **kwargs: Any) -> None:
+    def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.text = Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
@@ -485,7 +485,7 @@ class CheckBoxScene(MainScene):
 
 
 class ProgressScene(MainScene):
-    def awake(self, /, **kwargs: Any) -> None:
+    def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.hprogress = hprogress = ProgressBar(500, 75, from_=10, to=90, orient="horizontal")
@@ -505,7 +505,7 @@ class ProgressScene(MainScene):
         vprogress.center = self.window.width * 3 / 4, self.window.centery
         restart.midtop = self.window.centerx, self.window.height * 3 / 4
 
-    def on_start_loop_before_transition(self, /) -> None:
+    def on_start_loop_before_transition(self) -> None:
         self.__restart()
 
     def on_start_loop(self) -> None:
@@ -515,7 +515,7 @@ class ProgressScene(MainScene):
 
         self.callback = self.every(20, increment)
 
-    def on_quit(self, /) -> None:
+    def on_quit(self) -> None:
         self.callback.kill()
 
     def render(self) -> None:
@@ -527,7 +527,7 @@ class ProgressScene(MainScene):
 
 
 class ScaleBarScene(MainScene):
-    def awake(self, /, **kwargs: Any) -> None:
+    def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.text = text = Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
@@ -550,7 +550,7 @@ class ScaleBarScene(MainScene):
 
 
 class EntryScene(MainScene):
-    def awake(self, /, **kwargs: Any) -> None:
+    def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.entry = entry = Entry(self, font=(None, 70), fg=BLUE, outline=5)
@@ -569,7 +569,7 @@ LOREN_IPSUM: Final[
 
 
 class ScrollBarScene(AutoLayeredMainScene, framerate=60, fixed_framerate=50):
-    def awake(self, /, **kwargs: Any) -> None:
+    def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.area = ScrollArea(master=self, width=self.window.width - 25, height=self.window.height - 25)
@@ -583,23 +583,23 @@ class ScrollBarScene(AutoLayeredMainScene, framerate=60, fixed_framerate=50):
         self.vscroll.border_radius = 25
         Text(LOREN_IPSUM, font=(None, 100), wrap=50).add_to_group(self.area)
 
-    def on_start_loop(self, /) -> None:
+    def on_start_loop(self) -> None:
         super().on_start_loop()
         ScrollArea.set_vertical_flip(True)
         ScrollArea.set_horizontal_flip(True)
 
-    def on_quit(self, /) -> None:
+    def on_quit(self) -> None:
         super().on_quit()
         ScrollArea.set_vertical_flip(False)
         ScrollArea.set_horizontal_flip(False)
 
-    def render_before(self, /) -> None:
+    def render_before(self) -> None:
         super().render_before()
         self.window.draw(self.area)
 
 
 class TestGUIScene(GUIScene, AutoLayeredScene):
-    def awake(self, /, **kwargs: Any) -> None:
+    def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         Button.set_default_focus_on_hover(True)
@@ -617,13 +617,13 @@ class TestGUIScene(GUIScene, AutoLayeredScene):
         self.first.midright = (self.second.left - 10, self.second.centery)
         self.third.midleft = (self.second.right + 10, self.second.centery)
 
-    def update(self, /) -> None:
+    def update(self) -> None:
         self.text.midtop = (self.second.centerx, self.second.bottom + 10)
         return super().update()
 
 
 class GridScene(GUIScene):
-    def awake(self, /, **kwargs: Any) -> None:
+    def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         Button.set_default_focus_on_hover(True)
@@ -656,20 +656,20 @@ class GridScene(GUIScene):
         self.grid.center = self.window.center
         self.group.add(self.text, self.grid)
 
-    def on_start_loop_before_transition(self, /) -> None:
+    def on_start_loop_before_transition(self) -> None:
         self.set_text_position()
         return super().on_start_loop_before_transition()
 
-    def update(self, /) -> None:
+    def update(self) -> None:
         self.set_text_position()
         super().update()
 
-    def set_text_position(self, /) -> None:
+    def set_text_position(self) -> None:
         self.text.midtop = (self.grid.centerx, self.grid.bottom + 10)
 
 
 class FormScene(GUIScene, AutoLayeredScene):
-    def __theme_init__(self, /) -> None:
+    def __theme_init__(self) -> None:
         super().__theme_init__()
 
         Text.set_theme("text", {"font": (FontResources.cooperblack, 40), "color": WHITE, "shadow_x": 3, "shadow_y": 3})
@@ -678,7 +678,7 @@ class FormScene(GUIScene, AutoLayeredScene):
         Entry.set_default_theme("default")
         Entry.set_theme("default", {"font": (None, 40), "highlight_color": YELLOW})
 
-    def awake(self, /, **kwargs: Any) -> None:
+    def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
 
@@ -694,25 +694,25 @@ class FormScene(GUIScene, AutoLayeredScene):
         self.submit = Button(self, "Submit", callback=self.form.submit)
         self.submit.focus.below(last_name)
 
-    def on_start_loop_before_transition(self, /) -> None:
+    def on_start_loop_before_transition(self) -> None:
         super().on_start_loop_before_transition()
         self.response.message = ""
         self.response.topleft = (0, 0)
         self.form.center = self.window.width / 4, self.window.centery
         self.submit.midtop = (self.form.centerx, self.form.bottom + self.form.pady)
 
-    def on_form_submit(self, /, data: Mapping[str, str]) -> None:
+    def on_form_submit(self, data: Mapping[str, str]) -> None:
         self.response.message = "{first_name} {last_name}".format_map(data)
         self.response.center = self.window.width * 3 / 4, self.window.centery
 
 
 class SceneTransitionTranslation(SceneTransition):
-    def __init__(self, /, side: Literal["left", "right"]) -> None:
+    def __init__(self, side: Literal["left", "right"]) -> None:
         super().__init__()
         self.__side: Literal["left", "right"] = side
 
     def show_new_scene(
-        self, /, target: Renderer, previous_scene_image: Surface, actual_scene_image: Surface
+        self, target: Renderer, previous_scene_image: Surface, actual_scene_image: Surface
     ) -> SceneTransitionCoroutine:
         previous_scene = Image(previous_scene_image)
         actual_scene = Image(actual_scene_image)
@@ -780,7 +780,7 @@ class MainWindow(SceneWindow):
         self.prev_button.topleft = self.left + 10, self.top + 10
         self.next_button.topright = self.right - 10, self.top + 10
 
-    def __window_quit__(self, /) -> None:
+    def __window_quit__(self) -> None:
         super().__window_quit__()
         try:
             del self.prev_button, self.next_button

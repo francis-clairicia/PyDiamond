@@ -36,7 +36,6 @@ class Clickable(metaclass=ABCMeta):
 
     def __init__(
         self,
-        /,
         master: Union[Scene, Window],
         *,
         state: str = "normal",
@@ -82,49 +81,49 @@ class Clickable(metaclass=ABCMeta):
             self.focus.take(take_focus)
 
     @abstractmethod
-    def invoke(self, /) -> None:
+    def invoke(self) -> None:
         raise NotImplementedError
 
-    def play_hover_sound(self, /) -> None:
+    def play_hover_sound(self) -> None:
         hover_sound: Optional[Sound] = self.__hover_sound
         if hover_sound is not None:
             hover_sound.play()
 
-    def play_click_sound(self, /) -> None:
+    def play_click_sound(self) -> None:
         click_sound: Optional[Sound] = self.__click_sound[self.__state]
         if click_sound is not None:
             click_sound.play()
 
-    def get_default_cursor(self, /) -> Cursor:
+    def get_default_cursor(self) -> Cursor:
         return self.__default_hover_cursor[Clickable.State.NORMAL]
 
-    def get_default_disabled_cursor(self, /) -> Cursor:
+    def get_default_disabled_cursor(self) -> Cursor:
         return self.__default_hover_cursor[Clickable.State.DISABLED]
 
-    def set_cursor_to_default(self, /) -> None:
+    def set_cursor_to_default(self) -> None:
         self.__hover_cursor[Clickable.State.NORMAL] = self.__default_hover_cursor[Clickable.State.NORMAL]
 
-    def set_disabled_cursor_to_default(self, /) -> None:
+    def set_disabled_cursor_to_default(self) -> None:
         self.__hover_cursor[Clickable.State.DISABLED] = self.__default_hover_cursor[Clickable.State.DISABLED]
 
-    def set_active_only_on_hover(self, /, status: bool) -> None:
+    def set_active_only_on_hover(self, status: bool) -> None:
         self.__active_only_on_hover = truth(status)
 
-    def set_focus_on_hover(self, /, status: bool) -> None:
+    def set_focus_on_hover(self, status: bool) -> None:
         self.__focus_on_hover = focus_on_hover = truth(status)
         if isinstance(self, SupportsFocus):
             if focus_on_hover and self.hover:
                 self.focus.set()
 
     @classmethod
-    def set_default_focus_on_hover(cls, /, status: bool) -> None:
+    def set_default_focus_on_hover(cls, status: bool) -> None:
         cls.__default_focus_on_hover = truth(status)
 
     @classmethod
-    def get_default_focus_on_hover(cls, /) -> bool:
+    def get_default_focus_on_hover(cls) -> bool:
         return cls.__default_focus_on_hover
 
-    def __handle_click_event(self, /, event: MouseButtonEventType) -> bool:
+    def __handle_click_event(self, event: MouseButtonEventType) -> bool:
         if isinstance(self, Drawable) and not self.is_shown():
             self.active = self.hover = False
             return False
@@ -154,7 +153,7 @@ class Clickable(metaclass=ABCMeta):
     def __handle_mouse_motion(self, event: MouseMotionEvent) -> None:
         self._on_mouse_motion(event)
 
-    def __handle_mouse_position(self, /, mouse_pos: Tuple[float, float]) -> None:
+    def __handle_mouse_position(self, mouse_pos: Tuple[float, float]) -> None:
         if isinstance(self, Drawable) and not self.is_shown():
             self.hover = False
             return
@@ -164,7 +163,7 @@ class Clickable(metaclass=ABCMeta):
         if hover or (not self.__active_only_on_hover and self.active):
             self.__hover_cursor[self.__state].set()
 
-    def _focus_update(self, /) -> None:
+    def _focus_update(self) -> None:
         if not self.__focus_on_hover:
             return
         if (
@@ -175,58 +174,58 @@ class Clickable(metaclass=ABCMeta):
         ):
             self.focus.set()
 
-    def _valid_mouse_button(self, /, button: int) -> bool:
+    def _valid_mouse_button(self, button: int) -> bool:
         return button == Mouse.Button.LEFT
 
     @abstractmethod
-    def _mouse_in_hitbox(self, /, mouse_pos: Tuple[float, float]) -> bool:
+    def _mouse_in_hitbox(self, mouse_pos: Tuple[float, float]) -> bool:
         raise NotImplementedError
 
-    def _on_change_state(self, /) -> None:
+    def _on_change_state(self) -> None:
         pass
 
-    def _on_click_down(self, /, event: MouseButtonDownEvent) -> None:
+    def _on_click_down(self, event: MouseButtonDownEvent) -> None:
         pass
 
-    def _on_click_up(self, /, event: MouseButtonUpEvent) -> None:
+    def _on_click_up(self, event: MouseButtonUpEvent) -> None:
         pass
 
-    def _on_click_out(self, /, event: MouseButtonDownEvent) -> None:
+    def _on_click_out(self, event: MouseButtonDownEvent) -> None:
         pass
 
-    def _on_mouse_motion(self, /, event: MouseMotionEvent) -> None:
+    def _on_mouse_motion(self, event: MouseMotionEvent) -> None:
         pass
 
-    def _on_hover(self, /) -> None:
+    def _on_hover(self) -> None:
         pass
 
-    def _on_leave(self, /) -> None:
+    def _on_leave(self) -> None:
         pass
 
-    def _on_active_set(self, /) -> None:
+    def _on_active_set(self) -> None:
         pass
 
     @property
-    def master(self, /) -> Union[Scene, Window]:
+    def master(self) -> Union[Scene, Window]:
         return self.__master
 
     @property
-    def window(self, /) -> Window:
+    def window(self) -> Window:
         master: Union[Scene, Window] = self.__master
         if isinstance(master, Window):
             return master
         return master.window
 
     @property
-    def scene(self, /) -> Optional[Scene]:
+    def scene(self) -> Optional[Scene]:
         return self.__scene
 
     @property
-    def state(self, /) -> str:
+    def state(self) -> str:
         return str(self.__state.value)
 
     @state.setter
-    def state(self, /, state: str) -> None:
+    def state(self, state: str) -> None:
         state = Clickable.State(state)
         if state == self.__state:
             return
@@ -240,11 +239,11 @@ class Clickable(metaclass=ABCMeta):
         self._on_change_state()
 
     @property
-    def hover(self, /) -> bool:
+    def hover(self) -> bool:
         return self.__hover
 
     @hover.setter
-    def hover(self, /, status: bool) -> None:
+    def hover(self, status: bool) -> None:
         status = truth(status)
         if status == self.__hover:
             return
@@ -260,11 +259,11 @@ class Clickable(metaclass=ABCMeta):
             self._on_leave()
 
     @property
-    def active(self, /) -> bool:
+    def active(self) -> bool:
         return truth(self.__active and (self.hover or not self.__active_only_on_hover))
 
     @active.setter
-    def active(self, /, status: bool) -> None:
+    def active(self, status: bool) -> None:
         status = truth(status)
         if status == self.__active:
             return
@@ -273,47 +272,47 @@ class Clickable(metaclass=ABCMeta):
             self._on_active_set()
 
     @property
-    def hover_sound(self, /) -> Optional[Sound]:
+    def hover_sound(self) -> Optional[Sound]:
         return self.__hover_sound
 
     @hover_sound.setter
-    def hover_sound(self, /, sound: Optional[Sound]) -> None:
+    def hover_sound(self, sound: Optional[Sound]) -> None:
         if sound is not None and not isinstance(sound, Sound):
             raise TypeError(f"sound must be a '{Sound.__module__}.{Sound.__name__}' object")
         self.__hover_sound = sound
 
     @property
-    def click_sound(self, /) -> Optional[Sound]:
+    def click_sound(self) -> Optional[Sound]:
         return self.__click_sound[Clickable.State.NORMAL]
 
     @click_sound.setter
-    def click_sound(self, /, sound: Optional[Sound]) -> None:
+    def click_sound(self, sound: Optional[Sound]) -> None:
         if sound is not None and not isinstance(sound, Sound):
             raise TypeError(f"sound must be a '{Sound.__module__}.{Sound.__name__}' object")
         self.__click_sound[Clickable.State.NORMAL] = sound
 
     @property
-    def disabled_sound(self, /) -> Optional[Sound]:
+    def disabled_sound(self) -> Optional[Sound]:
         return self.__click_sound[Clickable.State.DISABLED]
 
     @disabled_sound.setter
-    def disabled_sound(self, /, sound: Optional[Sound]) -> None:
+    def disabled_sound(self, sound: Optional[Sound]) -> None:
         if sound is not None and not isinstance(sound, Sound):
             raise TypeError(f"sound must be a '{Sound.__module__}.{Sound.__name__}' object")
         self.__click_sound[Clickable.State.DISABLED] = sound
 
     @property
-    def hover_cursor(self, /) -> Cursor:
+    def hover_cursor(self) -> Cursor:
         return self.__hover_cursor[Clickable.State.NORMAL]
 
     @hover_cursor.setter
-    def hover_cursor(self, /, cursor: Cursor) -> None:
+    def hover_cursor(self, cursor: Cursor) -> None:
         self.__hover_cursor[Clickable.State.NORMAL] = cursor
 
     @property
-    def disabled_cursor(self, /) -> Cursor:
+    def disabled_cursor(self) -> Cursor:
         return self.__hover_cursor[Clickable.State.DISABLED]
 
     @disabled_cursor.setter
-    def disabled_cursor(self, /, cursor: Cursor) -> None:
+    def disabled_cursor(self, cursor: Cursor) -> None:
         self.__hover_cursor[Clickable.State.DISABLED] = cursor

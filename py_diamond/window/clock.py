@@ -17,13 +17,13 @@ class Clock:
 
     __slots__ = ("__time", "__last_tick")
 
-    def __init__(self, /, start: bool = False) -> None:
+    def __init__(self, start: bool = False) -> None:
         self.__time: float = 0
         self.__last_tick: int = 0
         if start:
             self.__last_tick = time_ns()
 
-    def get_elapsed_time(self, /) -> float:
+    def get_elapsed_time(self) -> float:
         last_tick: int = self.__last_tick
         now: int = time_ns()
         if last_tick:
@@ -31,7 +31,7 @@ class Clock:
         self.__last_tick = now
         return self.__time
 
-    def elapsed_time(self, /, milliseconds: float, restart: bool = True) -> bool:
+    def elapsed_time(self, milliseconds: float, restart: bool = True) -> bool:
         elapsed: float = self.get_elapsed_time()
         if elapsed >= milliseconds:
             if restart:
@@ -39,7 +39,7 @@ class Clock:
             return True
         return False
 
-    def restart(self, /, reset: bool = True) -> None:
+    def restart(self, reset: bool = True) -> None:
         self.__last_tick = time_ns()
         if reset:
             self.__time = 0

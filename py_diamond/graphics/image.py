@@ -27,22 +27,21 @@ if TYPE_CHECKING:
 
 class Image(TDrawable):
     @overload
-    def __init__(self, /) -> None:
+    def __init__(self) -> None:
         ...
 
     @overload
     def __init__(
-        self, /, image: Surface, *, copy: bool = True, width: Optional[float] = None, height: Optional[float] = None
+        self, image: Surface, *, copy: bool = True, width: Optional[float] = None, height: Optional[float] = None
     ) -> None:
         ...
 
     @overload
-    def __init__(self, /, image: str, *, width: Optional[float] = None, height: Optional[float] = None) -> None:
+    def __init__(self, image: str, *, width: Optional[float] = None, height: Optional[float] = None) -> None:
         ...
 
     def __init__(
         self,
-        /,
         image: Optional[Union[Surface, str]] = None,
         *,
         copy: bool = True,
@@ -72,50 +71,50 @@ class Image(TDrawable):
             self.scale_to_height(height)
         self.topleft = (0, 0)
 
-    def draw_onto(self, /, target: Renderer) -> None:
+    def draw_onto(self, target: Renderer) -> None:
         image: Surface = self.__image
         topleft: Tuple[float, float] = self.topleft
         target.draw(image, topleft)
 
-    def get(self, /, apply_rotation_scale: bool = False) -> Surface:
+    def get(self, apply_rotation_scale: bool = False) -> Surface:
         if apply_rotation_scale:
             return self.__image.copy()
         return self.__default_image.copy()
 
-    def set(self, /, image: Surface, copy: bool = True) -> None:
+    def set(self, image: Surface, copy: bool = True) -> None:
         center: Tuple[float, float] = self.center
         self.__default_image = image.copy() if copy else image
         self.apply_rotation_scale()
         self.center = center
 
-    def fill(self, /, color: Color, rect: Optional[Rect] = None) -> None:
+    def fill(self, color: Color, rect: Optional[Rect] = None) -> None:
         mask = create_surface(self.__default_image.get_size() if rect is None else rect.size)
         mask.fill(color)
         self.__default_image.blit(mask, rect or (0, 0))
         self.apply_rotation_scale()
 
-    def load(self, /, file: str) -> None:
+    def load(self, file: str) -> None:
         center: Tuple[float, float] = self.center
         self.__default_image = load_image(file)
         self.apply_rotation_scale()
         self.center = center
 
-    def save(self, /, file: str) -> None:
+    def save(self, file: str) -> None:
         save_image(self.__image, file)
 
-    def get_local_size(self, /) -> Tuple[float, float]:
+    def get_local_size(self) -> Tuple[float, float]:
         return self.__default_image.get_size()
 
-    def get_size(self, /) -> Tuple[float, float]:
+    def get_size(self) -> Tuple[float, float]:
         return self.__image.get_size()
 
-    def use_smooth_scale(self, /, status: bool) -> None:
+    def use_smooth_scale(self, status: bool) -> None:
         former_state: bool = self.__smooth_scale
         self.__smooth_scale = actual_state = bool(status)
         if former_state != actual_state:
             self.apply_rotation_scale()
 
-    def _apply_both_rotation_and_scale(self, /) -> None:
+    def _apply_both_rotation_and_scale(self) -> None:
         angle: float = self.angle
         scale: float = self.scale
         image: Surface = self.__default_image
@@ -130,12 +129,12 @@ class Image(TDrawable):
                 image = _surface_smoothscale(image, (w, h))
             self.__image = _surface_rotate(image, angle)
 
-    def _apply_only_rotation(self, /) -> None:
+    def _apply_only_rotation(self) -> None:
         angle: float = self.angle
         image: Surface = self.__default_image
         self.__image = _surface_rotate(image, angle)
 
-    def _apply_only_scale(self, /) -> None:
+    def _apply_only_scale(self) -> None:
         scale: float = self.scale
         image: Surface = self.__default_image
 

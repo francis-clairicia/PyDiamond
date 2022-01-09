@@ -46,21 +46,21 @@ from pygame.colordict import THECOLORS as _PG_ALL_COLORS
 
 class Color(_Color):
     @property
-    def h(self, /) -> float:
+    def h(self) -> float:
         return self.hsva[0]
 
     @h.setter
-    def h(self, /, value: float) -> None:
+    def h(self, value: float) -> None:
         _, S, V, A = self.hsva
         H = value % 360
         self.hsva = (H, S, V, A)
 
     @property
-    def s(self, /) -> float:
+    def s(self) -> float:
         return self.hsva[1]
 
     @s.setter
-    def s(self, /, value: float) -> None:
+    def s(self, value: float) -> None:
         H, _, V, A = self.hsva
         S = value
         if S > 100:
@@ -70,11 +70,11 @@ class Color(_Color):
         self.hsva = (H, S, V, A)
 
     @property
-    def v(self, /) -> float:
+    def v(self) -> float:
         return self.hsva[2]
 
     @v.setter
-    def v(self, /, value: float) -> None:
+    def v(self, value: float) -> None:
         H, S, _, A = self.hsva
         V = value
         if V > 100:
@@ -83,17 +83,17 @@ class Color(_Color):
             V = 0
         self.hsva = (H, S, V, A)
 
-    def with_brightness(self, /, value: float) -> Color:
+    def with_brightness(self, value: float) -> Color:
         c = Color(self)
         c.v = value
         return c
 
-    def with_saturation(self, /, value: float) -> Color:
+    def with_saturation(self, value: float) -> Color:
         c = Color(self)
         c.s = value
         return c
 
-    def with_alpha(self, /, value: int) -> Color:
+    def with_alpha(self, value: int) -> Color:
         return Color(self.r, self.g, self.b, value)
 
 
@@ -122,7 +122,7 @@ class ImmutableColor(Color):
     def __init__(self, rgbvalue: _ColorValue) -> None:
         ...
 
-    def __init__(self, /, *args: Any, **kwargs: Any) -> None:  # type: ignore[misc]
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
 

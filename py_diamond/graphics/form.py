@@ -45,7 +45,6 @@ class Form(MDrawable):
     @initializer
     def __init__(
         self,
-        /,
         master: Optional[GUIScene] = None,
         *,
         on_submit: Callable[[Mapping[str, str]], None],
@@ -66,17 +65,16 @@ class Form(MDrawable):
         self.pady = pady
         self.__entry_dict: Dict[str, Entry] = {}
 
-    def get_size(self, /) -> Tuple[float, float]:
+    def get_size(self) -> Tuple[float, float]:
         return self.__grid.get_size()
 
-    def draw_onto(self, /, target: Renderer) -> None:
+    def draw_onto(self, target: Renderer) -> None:
         grid: Grid = self.__grid
         grid.topleft = self.topleft
         grid.draw_onto(target)
 
     def add_entry(
         self,
-        /,
         name: str,
         entry: Entry,
         label: Optional[Drawable] = None,
@@ -98,7 +96,7 @@ class Form(MDrawable):
         entry_dict[name] = entry
         return entry
 
-    def remove_entry(self, /, name: str) -> None:
+    def remove_entry(self, name: str) -> None:
         entry_dict: Dict[str, Entry] = self.__entry_dict
         entry: Entry = entry_dict.pop(name)
         grid: Grid = self.__grid
@@ -106,37 +104,37 @@ class Form(MDrawable):
         grid.unify()
 
     @overload
-    def get(self, /) -> Mapping[str, str]:
+    def get(self) -> Mapping[str, str]:
         ...
 
     @overload
-    def get(self, /, name: str) -> str:
+    def get(self, name: str) -> str:
         ...
 
-    def get(self, /, name: Optional[str] = None) -> Union[str, Mapping[str, str]]:
+    def get(self, name: Optional[str] = None) -> Union[str, Mapping[str, str]]:
         entry_dict: Dict[str, Entry] = self.__entry_dict
         if name is not None:
             return entry_dict[name].get()
         return {n: e.get() for n, e in entry_dict.items()}
 
-    def submit(self, /) -> None:
+    def submit(self) -> None:
         on_submit: Callable[[Mapping[str, str]], None] = self.__on_submit
         return on_submit(self.get())
 
-    def set_visibility(self, /, status: bool) -> None:
+    def set_visibility(self, status: bool) -> None:
         super().set_visibility(status)
         self.__grid.set_visibility(self.is_shown())
 
     @config.getter_key("bg_color")
     @config.getter_key("outline")
     @config.getter_key("outline_color")
-    def __get_grid_option(self, /, option: str) -> Any:
+    def __get_grid_option(self, option: str) -> Any:
         return self.__grid.config.get(option)
 
     @config.setter_key("bg_color")
     @config.setter_key("outline")
     @config.setter_key("outline_color")
-    def __set_grid_option(self, /, option: str, value: Any) -> None:
+    def __set_grid_option(self, option: str, value: Any) -> None:
         return self.__grid.config.set(option, value)
 
     config.enum("label_justify", Justify)
@@ -144,7 +142,7 @@ class Form(MDrawable):
 
     @config.on_update_key_value("label_justify")
     @config.on_update_key_value("entry_justify")
-    def __update_grid_justify(self, /, option: str, justify: Grid.Justify) -> None:
+    def __update_grid_justify(self, option: str, justify: Grid.Justify) -> None:
         grid: Grid = self.__grid
         column: int = {"label_justify": 0, "entry_justify": 1}[option]
         for row in range(grid.nb_rows):
@@ -155,12 +153,12 @@ class Form(MDrawable):
 
     @config.on_update_key_value("padx")
     @config.on_update_key_value("pady")
-    def __upgrade_grid_padding(self, /, option: str, value: int) -> None:
+    def __upgrade_grid_padding(self, option: str, value: int) -> None:
         grid: Grid = self.__grid
         for row in range(grid.nb_rows):
             for column in range(grid.nb_columns):
                 grid.modify(row=row, column=column, **{option: value})  # type: ignore
 
     @property
-    def master(self, /) -> Optional[GUIScene]:
+    def master(self) -> Optional[GUIScene]:
         return self.__grid.master

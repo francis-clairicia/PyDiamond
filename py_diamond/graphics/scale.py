@@ -35,7 +35,6 @@ class ScaleBar(ProgressBar, Clickable):
     @initializer
     def __init__(
         self,
-        /,
         master: Union[Scene, Window],
         width: float,
         height: float,
@@ -98,7 +97,7 @@ class ScaleBar(ProgressBar, Clickable):
         self.__percent_callback: Optional[Callable[[float], None]] = percent_callback
         self.set_active_only_on_hover(False)
 
-    def invoke(self, /) -> None:
+    def invoke(self) -> None:
         callback: Optional[Callable[[float], None]]
 
         callback = self.__value_callback
@@ -109,20 +108,20 @@ class ScaleBar(ProgressBar, Clickable):
         if callable(callback):
             callback(self.percent)
 
-    def _mouse_in_hitbox(self, /, mouse_pos: Tuple[float, float]) -> bool:
+    def _mouse_in_hitbox(self, mouse_pos: Tuple[float, float]) -> bool:
         return truth(self.rect.collidepoint(mouse_pos))
 
-    def _on_click_down(self, /, event: MouseButtonDownEvent) -> None:
+    def _on_click_down(self, event: MouseButtonDownEvent) -> None:
         if self.active:
             self.__compute_scale_percent_by_mouse_pos(event.pos)
         return super()._on_click_down(event)
 
-    def _on_mouse_motion(self, /, event: MouseMotionEvent) -> None:
+    def _on_mouse_motion(self, event: MouseMotionEvent) -> None:
         if self.active:
             self.__compute_scale_percent_by_mouse_pos(event.pos)
         return super()._on_mouse_motion(event)
 
-    def __compute_scale_percent_by_mouse_pos(self, /, mouse_pos: Tuple[float, float]) -> None:
+    def __compute_scale_percent_by_mouse_pos(self, mouse_pos: Tuple[float, float]) -> None:
         if self.orient == ScaleBar.Orient.HORIZONTAL:
             self.percent = (mouse_pos[0] - self.left) / self.width
         else:

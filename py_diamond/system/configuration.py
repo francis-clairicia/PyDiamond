@@ -34,6 +34,7 @@ from typing import (
     Callable,
     ClassVar,
     Dict,
+    Final,
     FrozenSet,
     Generic,
     Iterable,
@@ -80,7 +81,7 @@ class ConfigError(Exception):
 
 
 class OptionError(ConfigError):
-    def __init__(self, /, name: str, message: str) -> None:
+    def __init__(self, name: str, message: str) -> None:
         if name:
             message = f"{name!r}: {message}"
         super().__init__(message)
@@ -88,22 +89,22 @@ class OptionError(ConfigError):
 
 
 class UnknownOptionError(OptionError):
-    def __init__(self, /, name: str) -> None:
+    def __init__(self, name: str) -> None:
         super().__init__(name, "Unknown config option")
 
 
 class UnregisteredOptionError(OptionError):
-    def __init__(self, /, name: str) -> None:
+    def __init__(self, name: str) -> None:
         super().__init__(name, "Unregistered option")
 
 
 class EmptyOptionNameError(OptionError):
-    def __init__(self, /) -> None:
+    def __init__(self) -> None:
         super().__init__("", "Empty string option given")
 
 
 class InvalidAliasError(OptionError):
-    def __init__(self, /, name: str, message: str) -> None:
+    def __init__(self, name: str, message: str) -> None:
         super().__init__(name, message)
 
 
@@ -116,19 +117,24 @@ def initializer(func: _Func) -> _Func:
     return cast(_Func, _ConfigInitializer(func))
 
 
+_FORBIDDEN_OPTIONS: Final[Sequence[str]] = ("self",)
+
+
 class Configuration:
     __update_stack: ClassVar[Dict[object, List[str]]] = dict()
     __init_context: ClassVar[Dict[object, _InitializationRegister]] = dict()
 
     def __init__(
         self,
-        /,
         *known_options: str,
         autocopy: Optional[bool] = None,
         parent: Optional[Union[Configuration, Sequence[Configuration]]] = None,
     ) -> None:
         if any(not option for option in known_options):
             raise ValueError("Configuration option must not be empty")
+        for option in _FORBIDDEN_OPTIONS:
+            if option in known_options:
+                raise ValueError(f"{option!r}: Forbidden option name")
         if parent is None:
             parent = []
         elif isinstance(parent, Configuration):
@@ -141,7 +147,7 @@ class Configuration:
         self.__no_parent_ownership: Set[str] = set()
         self.__bound_class: Optional[type] = None
 
-    def __repr__(self, /) -> str:
+    def __repr__(self) -> str:
         return f"{type(self).__name__}({{{', '.join(repr(s) for s in sorted(self.known_options()))}}})"
 
     def __set_name__(self, owner: type, name: str, /) -> None:
@@ -170,13 +176,13 @@ class Configuration:
                 _register_configuration(owner, former_config)
                 raise TypeError(f"A class can't have several {Configuration.__name__!r} objects")
 
-    def known_options(self, /) -> FrozenSet[str]:
+    def known_options(self) -> FrozenSet[str]:
         return self.__info.options
 
-    def known_aliases(self, /) -> FrozenSet[str]:
+    def known_aliases(self) -> FrozenSet[str]:
         return frozenset(self.__info.aliases)
 
-    def check_option_validity(self, /, option: str, *, use_alias: bool = False) -> str:
+    def check_option_validity(self, option: str, *, use_alias: bool = False) -> str:
         info = self.__info
         if use_alias:
             option = info.aliases.get(option, option)
@@ -186,7 +192,7 @@ class Configuration:
             raise UnknownOptionError(option)
         return option
 
-    def is_option_valid(self, /, option: str, *, use_alias: bool = False) -> bool:
+    def is_option_valid(self, option: str, *, use_alias: bool = False) -> bool:
         try:
             self.check_option_validity(option, use_alias=use_alias)
         except OptionError:
@@ -230,7 +236,7 @@ class Configuration:
         else:
             raise TypeError("Invalid argument")
 
-    def remove_parent_ownership(self, /, option: str) -> None:
+    def remove_parent_ownership(self, option: str) -> None:
         self.check_option_validity(option)
         info: _ConfigInfo = self.__info
         self.__no_parent_ownership.add(option)
@@ -258,14 +264,14 @@ class Configuration:
         return BoundConfiguration(config, obj)
 
     @overload
-    def get(self, /, obj: object, option: str) -> Any:
+    def get(self, obj: object, option: str) -> Any:
         ...
 
     @overload
-    def get(self, /, obj: object, option: str, default: _DT) -> Union[Any, _DT]:
+    def get(self, obj: object, option: str, default: _DT) -> Union[Any, _DT]:
         ...
 
-    def get(self, /, obj: object, option: str, default: _DT = _NoDefault) -> Any:
+    def get(self, obj: object, option: str, default: _DT = _NoDefault) -> Any:
         option = self.check_option_validity(option, use_alias=True)
         info: _ConfigInfo = self.__info
         descr: Optional[_Descriptor] = info.value_descriptors.get(option)
@@ -295,7 +301,7 @@ class Configuration:
         missing = object()
         return self.get(obj, option, missing) is not missing
 
-    def set(self, /, obj: object, option: str, value: Any) -> None:
+    def set(self, obj: object, option: str, value: Any) -> None:
         option = self.check_option_validity(option, use_alias=True)
         info: _ConfigInfo = self.__info
         descr: Optional[_Descriptor] = info.value_descriptors.get(option)
@@ -362,7 +368,7 @@ class Configuration:
                 for main_update in main_update_list:
                     main_update(obj)
 
-    def delete(self, /, obj: object, option: str) -> None:
+    def delete(self, obj: object, option: str) -> None:
         option = self.check_option_validity(option, use_alias=True)
         info: _ConfigInfo = self.__info
         descr = info.value_descriptors.get(option)
@@ -443,7 +449,7 @@ class Configuration:
             for main_update in main_update_list:
                 main_update(__obj)
 
-    def update_all_options(self, /, obj: object) -> None:
+    def update_all_options(self, obj: object) -> None:
         objtype: type = type(obj)
         info: _ConfigInfo = self.__info
         get_private_attribute = self.__get_option_private_attribute
@@ -470,7 +476,7 @@ class Configuration:
         for main_update in main_update_list:
             main_update(obj)
 
-    def update_option(self, /, obj: object, option: str) -> None:
+    def update_option(self, obj: object, option: str) -> None:
         objtype: type = type(obj)
         info: _ConfigInfo = self.__info
         get_private_attribute = self.__get_option_private_attribute
@@ -497,7 +503,7 @@ class Configuration:
             main_update(obj)
 
     @contextmanager
-    def initialization(self, /, obj: object) -> Iterator[None]:
+    def initialization(self, obj: object) -> Iterator[None]:
         if self.has_initialization_context(obj):
             yield
             return
@@ -716,7 +722,7 @@ class Configuration:
         decorator(func)
         return None
 
-    def use_descriptor(self, /, option: str, descriptor: _Descriptor) -> None:
+    def use_descriptor(self, option: str, descriptor: _Descriptor) -> None:
         self.check_option_validity(option)
         info: _ConfigInfo = self.__info
         if option in info.value_descriptors:
@@ -1028,17 +1034,17 @@ class Configuration:
         decorator(func)
         return None
 
-    def enum(self, /, option: str, enum: Type[Enum], *, return_value: bool = False) -> None:
+    def enum(self, option: str, enum: Type[Enum], *, return_value: bool = False) -> None:
         self.value_converter_static(option, enum)
         self.__info.enum_return_value[option] = bool(return_value)
 
-    def attribute(self, /, func: Callable[..., _T]) -> OptionAttribute[_T]:
+    def attribute(self, func: Callable[..., _T]) -> OptionAttribute[_T]:
         self.check_option_validity(func.__name__, use_alias=True)
         attr: OptionAttribute[_T] = OptionAttribute()
         attr.__doc__ = func.__doc__
         return attr
 
-    def set_alias(self, /, option: str, alias: str) -> None:
+    def set_alias(self, option: str, alias: str) -> None:
         info: _ConfigInfo = self.__info
         self.check_option_validity(option)
         if not isinstance(alias, str):
@@ -1054,18 +1060,18 @@ class Configuration:
             raise InvalidAliasError(alias, f"Already bound to option {aliases[alias]!r}")
         aliases[alias] = option
 
-    def remove_alias(self, /, alias: str) -> None:
+    def remove_alias(self, alias: str) -> None:
         aliases: Dict[str, str] = self.__info.aliases
         aliases.pop(alias)
 
-    def remove_all_aliases(self, /, option: str) -> None:
+    def remove_all_aliases(self, option: str) -> None:
         self.check_option_validity(option)
         aliases: Dict[str, str] = self.__info.aliases
         for alias, opt in list(aliases.items()):
             if opt == option:
                 aliases.pop(alias)
 
-    def register_copy_func(self, /, cls: type, func: Callable[[Any], Any], *, allow_subclass: bool = False) -> None:
+    def register_copy_func(self, cls: type, func: Callable[[Any], Any], *, allow_subclass: bool = False) -> None:
         if not isinstance(cls, type):
             raise TypeError("'cls' argument must be a type")
         if not callable(func):
@@ -1074,12 +1080,12 @@ class Configuration:
         info.value_copy[cls] = func
         info.value_copy_allow_subclass[cls] = bool(allow_subclass)
 
-    def remove_copy_func(self, /, cls: type) -> None:
+    def remove_copy_func(self, cls: type) -> None:
         info: _ConfigInfo = self.__info
         info.value_copy.pop(cls, None)
         info.value_copy_allow_subclass.pop(cls, None)
 
-    def readonly(self, /, *options: str) -> None:
+    def readonly(self, *options: str) -> None:
         info: _ConfigInfo = self.__info
         parents: Tuple[Configuration, ...] = self.__parents__
         for option in options:
@@ -1092,7 +1098,7 @@ class Configuration:
                     raise OptionError(option, "Trying to flag option as read-only with custom setter/deleter")
             info.readonly.add(option)
 
-    def __get_option_private_attribute(self, /, option: str, objtype: type) -> str:
+    def __get_option_private_attribute(self, option: str, objtype: type) -> str:
         owner: type
         infos: _ConfigInfo = self.__info
         config_owner: Optional[type] = self.__bound_class
@@ -1180,7 +1186,7 @@ class OptionAttribute(Generic[_T]):
             raise AttributeError(error) from exc
 
     @property
-    def name(self, /) -> str:
+    def name(self) -> str:
         return self.__name
 
 
@@ -1188,30 +1194,30 @@ _InitializationRegister = Dict[str, Any]
 
 
 class BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
-    def __init__(self, /, config: Configuration, obj: _T) -> None:
+    def __init__(self, config: Configuration, obj: _T) -> None:
         super().__init__()
         self.__config: Callable[[], Configuration] = lambda: config
         self.__obj: _T = obj
 
-    def __iter__(self, /) -> Iterator[str]:
+    def __iter__(self) -> Iterator[str]:
         return iter(self.known_options())
 
-    def __len__(self, /) -> int:
+    def __len__(self) -> int:
         return len(self.known_options())
 
-    def known_options(self, /) -> FrozenSet[str]:
+    def known_options(self) -> FrozenSet[str]:
         config = self.__config()
         return config.known_options()
 
-    def known_aliases(self, /) -> FrozenSet[str]:
+    def known_aliases(self) -> FrozenSet[str]:
         config = self.__config()
         return config.known_aliases()
 
-    def check_option_validity(self, /, option: str, *, use_alias: bool = False) -> str:
+    def check_option_validity(self, option: str, *, use_alias: bool = False) -> str:
         config = self.__config()
         return config.check_option_validity(option, use_alias=use_alias)
 
-    def is_option_valid(self, /, option: str, *, use_alias: bool = False) -> bool:
+    def is_option_valid(self, option: str, *, use_alias: bool = False) -> bool:
         config = self.__config()
         return config.is_option_valid(option, use_alias=use_alias)
 
@@ -1240,7 +1246,7 @@ class BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
         except OptionError as exc:
             raise KeyError(option) from exc
 
-    def set(self, /, option: str, value: Any) -> None:
+    def set(self, option: str, value: Any) -> None:
         config = self.__config()
         obj = self.__obj
         return config.set(obj, option, value)
@@ -1251,12 +1257,12 @@ class BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
         except OptionError as exc:
             raise KeyError(option) from exc
 
-    def delete(self, /, option: str) -> None:
+    def delete(self, option: str) -> None:
         config = self.__config()
         obj = self.__obj
         return config.delete(obj, option)
 
-    def __call__(self, /, **kwargs: Any) -> None:
+    def __call__(self, **kwargs: Any) -> None:
         config = self.__config()
         obj = self.__obj
         return config(obj, **kwargs)
@@ -1290,29 +1296,29 @@ class BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
             return
         return config(obj, **options)
 
-    def update_all_options(self, /) -> None:
+    def update_all_options(self) -> None:
         config = self.__config()
         obj = self.__obj
         return config.update_all_options(obj)
 
-    def update_option(self, /, option: str) -> None:
+    def update_option(self, option: str) -> None:
         config = self.__config()
         obj = self.__obj
         return config.update_option(obj, option)
 
     @contextmanager
-    def initialization(self, /) -> Iterator[None]:
+    def initialization(self) -> Iterator[None]:
         config = self.__config()
         obj = self.__obj
         with config.initialization(obj) as out:
             yield out
 
-    def has_initialization_context(self, /) -> bool:
+    def has_initialization_context(self) -> bool:
         obj = self.__obj
         return Configuration.has_initialization_context(obj)
 
     @property
-    def __self__(self, /) -> _T:
+    def __self__(self) -> _T:
         return self.__obj
 
 
@@ -1448,7 +1454,7 @@ _VT = TypeVar("_VT")
 
 
 class _ConfigInfo:
-    def __init__(self, /, known_options: Sequence[str], autocopy: Optional[bool], parents: Sequence[_ConfigInfo]) -> None:
+    def __init__(self, known_options: Sequence[str], autocopy: Optional[bool], parents: Sequence[_ConfigInfo]) -> None:
         def merge_dict(
             d1: Dict[_KT, _VT], d2: Dict[_KT, _VT], /, *, on_conflict: Literal["override", "raise", "skip"], setting: str
         ) -> None:
@@ -1507,7 +1513,7 @@ class _ConfigInfo:
                     raise OptionError(option, "Trying to flag option as read-only with custom setter/deleter")
             self.readonly = readonly
 
-    def get_main_update_funcs(self, /) -> Iterator[Callable[[object], None]]:
+    def get_main_update_funcs(self) -> Iterator[Callable[[object], None]]:
         def get_iterator() -> Iterator[Callable[[object], None]]:
             for parent in self.parents:
                 yield from parent.get_main_update_funcs()
@@ -1517,7 +1523,7 @@ class _ConfigInfo:
 
         yield from dict.fromkeys(get_iterator())
 
-    def get_option_update_funcs(self, /, option: str) -> Iterator[Callable[[object], None]]:
+    def get_option_update_funcs(self, option: str) -> Iterator[Callable[[object], None]]:
         def get_iterator() -> Iterator[Callable[[object], None]]:
             for parent in self.parents:
                 yield from parent.get_option_update_funcs(option)
@@ -1527,7 +1533,7 @@ class _ConfigInfo:
 
         yield from dict.fromkeys(get_iterator())
 
-    def get_option_value_update_funcs(self, /, option: str) -> Iterator[Callable[[object, Any], None]]:
+    def get_option_value_update_funcs(self, option: str) -> Iterator[Callable[[object, Any], None]]:
         def get_iterator() -> Iterator[Callable[[object, Any], None]]:
             for parent in self.parents:
                 yield from parent.get_option_value_update_funcs(option)
@@ -1537,7 +1543,7 @@ class _ConfigInfo:
 
         yield from dict.fromkeys(get_iterator())
 
-    def get_copy_func(self, /, cls: type) -> Callable[[Any], Any]:
+    def get_copy_func(self, cls: type) -> Callable[[Any], Any]:
         try:
             return self.value_copy[cls]
         except KeyError:
@@ -1556,14 +1562,14 @@ def _copy_object(obj: _T) -> _T:
 
 
 class _ConfigInitializer:
-    def __init__(self, /, func: Callable[..., Any]) -> None:
+    def __init__(self, func: Callable[..., Any]) -> None:
         self.__func__: Callable[..., Any] = func
 
     @property
-    def __call__(self, /) -> Callable[..., Any]:
+    def __call__(self) -> Callable[..., Any]:
         return self.__func__
 
-    def __getattr__(self, /, name: str) -> Any:
+    def __getattr__(self, name: str) -> Any:
         func: Any = self.__func__
         return getattr(func, name)
 

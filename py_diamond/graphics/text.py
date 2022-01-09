@@ -71,7 +71,6 @@ class Text(TDrawable, metaclass=MetaText):
     @initializer
     def __init__(
         self,
-        /,
         message: str = "",
         *,
         font: Optional[_TextFont] = None,
@@ -99,18 +98,18 @@ class Text(TDrawable, metaclass=MetaText):
         self.shadow = (shadow_x, shadow_y)
         self.shadow_color = shadow_color
 
-    def draw_onto(self, /, target: Renderer) -> None:
+    def draw_onto(self, target: Renderer) -> None:
         image: Surface = self.__image
         topleft: Tuple[float, float] = self.topleft
         target.draw(image, topleft)
 
-    def get_local_size(self, /) -> Tuple[float, float]:
+    def get_local_size(self) -> Tuple[float, float]:
         return self.__default_image.get_size()
 
-    def get_size(self, /) -> Tuple[float, float]:
+    def get_size(self) -> Tuple[float, float]:
         return self.__image.get_size()
 
-    def get(self, /, wrapped: bool = False) -> str:
+    def get(self, wrapped: bool = False) -> str:
         message: str = self.message
         if not wrapped:
             return message
@@ -166,7 +165,6 @@ class Text(TDrawable, metaclass=MetaText):
 
     def set_font(
         self,
-        /,
         font: Optional[_TextFont],
         bold: Optional[bool] = None,
         italic: Optional[bool] = None,
@@ -177,28 +175,28 @@ class Text(TDrawable, metaclass=MetaText):
             Text.create_font(font, bold=bold, italic=italic, underline=underline),
         )
 
-    def set_custom_line_font(self, /, index: int, font: Font) -> None:
+    def set_custom_line_font(self, index: int, font: Font) -> None:
         if index < 0:
             raise ValueError(f"Negative index: {index}")
         self.__custom_font[index] = Text.create_font(font)
         self.config.update_all_options()
 
-    def remove_custom_line_font(self, /, index: int) -> None:
+    def remove_custom_line_font(self, index: int) -> None:
         if index < 0:
             raise ValueError(f"Negative index: {index}")
         self.__custom_font.pop(index, None)
         self.config.update_all_options()
 
-    def _apply_both_rotation_and_scale(self, /) -> None:
+    def _apply_both_rotation_and_scale(self) -> None:
         self.__image = _surface_rotozoom(self.__default_image, self.angle, self.scale)
 
-    def _apply_only_scale(self, /) -> None:
+    def _apply_only_scale(self) -> None:
         self.__image = _surface_rotozoom(self.__default_image, 0, self.scale)
 
-    def _apply_only_rotation(self, /) -> None:
+    def _apply_only_rotation(self) -> None:
         self.__image = _surface_rotate(self.__default_image, self.angle)
 
-    def __render_text(self, /, color: Color) -> Surface:
+    def __render_text(self, color: Color) -> Surface:
         render_lines: List[Surface] = list()
         render_width: float = 0
         render_height: float = 0
@@ -227,7 +225,7 @@ class Text(TDrawable, metaclass=MetaText):
             top += render.get_height()
         return text
 
-    def _render(self, /) -> Surface:
+    def _render(self) -> Surface:
         text: Surface = self.__render_text(self.color)
         shadow_x, shadow_y = self.shadow
         shadow_x = int(shadow_x)
@@ -266,7 +264,7 @@ class Text(TDrawable, metaclass=MetaText):
     config.set_autocopy("font", copy_on_get=False, copy_on_set=False)
 
     @config.main_update
-    def __update_surface(self, /) -> None:
+    def __update_surface(self) -> None:
         if self.config.has_initialization_context():
             self.__default_image = self._render()
             self.apply_rotation_scale()
@@ -298,7 +296,6 @@ class TextImage(Text):
     @initializer
     def __init__(
         self,
-        /,
         message: str = "",
         *,
         img: Optional[Surface] = None,
@@ -338,73 +335,73 @@ class TextImage(Text):
         self.compound = compound
         self.img = img
 
-    def get_img_angle(self, /) -> float:
+    def get_img_angle(self) -> float:
         return self.__img_angle
 
-    def get_img_scale(self, /) -> float:
+    def get_img_scale(self) -> float:
         return self.__img_scale
 
-    def img_rotate(self, /, angle_offset: float) -> None:
+    def img_rotate(self, angle_offset: float) -> None:
         if self.__img is not None:
             self.__img.rotate(angle_offset)
             self.__img_angle = self.__img.angle
 
-    def img_set_rotation(self, /, angle: float) -> None:
+    def img_set_rotation(self, angle: float) -> None:
         if self.__img is not None:
             self.__img.set_rotation(angle)
             self.__img_angle = self.__img.angle
 
-    def img_set_scale(self, /, scale: float) -> None:
+    def img_set_scale(self, scale: float) -> None:
         if self.__img is not None:
             self.__img.set_scale(scale)
             self.__img_scale = self.__img.scale
 
-    def img_scale_to_width(self, /, width: float) -> None:
+    def img_scale_to_width(self, width: float) -> None:
         if self.__img is not None:
             self.__img.scale_to_width(width)
             self.__img_scale = self.__img.scale
 
-    def img_scale_to_height(self, /, height: float) -> None:
+    def img_scale_to_height(self, height: float) -> None:
         if self.__img is not None:
             self.__img.scale_to_height(height)
             self.__img_scale = self.__img.scale
 
-    def img_scale_to_size(self, /, size: Tuple[float, float]) -> None:
+    def img_scale_to_size(self, size: Tuple[float, float]) -> None:
         if self.__img is not None:
             self.__img.scale_to_size(size)
             self.__img_scale = self.__img.scale
 
-    def img_set_min_width(self, /, width: float) -> None:
+    def img_set_min_width(self, width: float) -> None:
         if self.__img is not None:
             self.__img.set_min_width(width)
             self.__img_scale = self.__img.scale
 
-    def img_set_max_width(self, /, width: float) -> None:
+    def img_set_max_width(self, width: float) -> None:
         if self.__img is not None:
             self.__img.set_max_width(width)
             self.__img_scale = self.__img.scale
 
-    def img_set_min_height(self, /, height: float) -> None:
+    def img_set_min_height(self, height: float) -> None:
         if self.__img is not None:
             self.__img.set_min_height(height)
             self.__img_scale = self.__img.scale
 
-    def img_set_max_height(self, /, height: float) -> None:
+    def img_set_max_height(self, height: float) -> None:
         if self.__img is not None:
             self.__img.set_max_height(height)
             self.__img_scale = self.__img.scale
 
-    def img_set_min_size(self, /, size: Tuple[float, float]) -> None:
+    def img_set_min_size(self, size: Tuple[float, float]) -> None:
         if self.__img is not None:
             self.__img.set_min_size(size)
             self.__img_scale = self.__img.scale
 
-    def img_set_max_size(self, /, size: Tuple[float, float]) -> None:
+    def img_set_max_size(self, size: Tuple[float, float]) -> None:
         if self.__img is not None:
             self.__img.set_max_size(size)
             self.__img_scale = self.__img.scale
 
-    def _render(self, /) -> Surface:
+    def _render(self) -> Surface:
         text: Surface = super()._render()
         img: Optional[Image] = self.__img
         if img is None:
@@ -461,14 +458,14 @@ class TextImage(Text):
     config.value_converter_static("distance", valid_float(min_value=0))
 
     @config.getter("img")
-    def __get_img_surface(self, /) -> Optional[Surface]:
+    def __get_img_surface(self) -> Optional[Surface]:
         img: Optional[Image] = self.__img
         if img is None:
             return None
         return img.get()
 
     @config.setter("img")
-    def __update_img(self, /, surface: Optional[Surface]) -> None:
+    def __update_img(self, surface: Optional[Surface]) -> None:
         if surface is None:
             self.__img = None
             return
@@ -483,22 +480,22 @@ class TextImage(Text):
 
 
 class _BoundImage(Image):
-    def __init__(self, /, text: TextImage, image: Surface) -> None:
+    def __init__(self, text: TextImage, image: Surface) -> None:
         super().__init__(image)
         self.__text: TextImage = text
 
-    def _apply_both_rotation_and_scale(self, /) -> None:
+    def _apply_both_rotation_and_scale(self) -> None:
         super()._apply_both_rotation_and_scale()
         self.__text.config.update_all_options()
 
-    def _apply_only_rotation(self, /) -> None:
+    def _apply_only_rotation(self) -> None:
         super()._apply_only_rotation()
         self.__text.config.update_all_options()
 
-    def _apply_only_scale(self, /) -> None:
+    def _apply_only_scale(self) -> None:
         super()._apply_only_scale()
         self.__text.config.update_all_options()
 
-    def set(self, /, image: Surface, copy: bool = True) -> None:
+    def set(self, image: Surface, copy: bool = True) -> None:
         super().set(image, copy=copy)
         self.__text.config.update_all_options()

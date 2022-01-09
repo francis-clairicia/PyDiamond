@@ -63,7 +63,7 @@ def _draw_decorator(func: Callable[[Drawable, Renderer], None], /) -> Callable[[
 
 
 class MetaDrawable(ABCMeta):
-    def __new__(metacls, /, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaDrawable:
+    def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaDrawable:
         if "Drawable" in globals() and not any(issubclass(cls, Drawable) for cls in bases):
             raise TypeError(
                 f"{name!r} must be inherits from a {Drawable.__name__} class in order to use {MetaDrawable.__name__} metaclass"
@@ -77,27 +77,27 @@ class MetaDrawable(ABCMeta):
 
 
 class Drawable(metaclass=MetaDrawable):
-    def __init__(self, /) -> None:
+    def __init__(self) -> None:
         self.__shown: bool = True
         self.__groups: Set[DrawableGroup] = set()
 
     @abstractmethod
-    def draw_onto(self, /, target: Renderer) -> None:
+    def draw_onto(self, target: Renderer) -> None:
         raise NotImplementedError
 
-    def show(self, /) -> None:
+    def show(self) -> None:
         self.set_visibility(True)
 
-    def hide(self, /) -> None:
+    def hide(self) -> None:
         self.set_visibility(False)
 
-    def set_visibility(self, /, status: bool) -> None:
+    def set_visibility(self, status: bool) -> None:
         self.__shown = bool(status)
 
-    def is_shown(self, /) -> bool:
+    def is_shown(self) -> bool:
         return self.__shown
 
-    def add_to_group(self, /, *groups: DrawableGroup) -> None:
+    def add_to_group(self, *groups: DrawableGroup) -> None:
         actual_groups: Set[DrawableGroup] = self.__groups
         for g in filter(lambda g: g not in actual_groups, groups):
             actual_groups.add(g)
@@ -108,7 +108,7 @@ class Drawable(metaclass=MetaDrawable):
                     actual_groups.remove(g)
                     raise
 
-    def remove_from_group(self, /, *groups: DrawableGroup) -> None:
+    def remove_from_group(self, *groups: DrawableGroup) -> None:
         if not groups:
             return
         actual_groups: Set[DrawableGroup] = self.__groups
@@ -121,7 +121,7 @@ class Drawable(metaclass=MetaDrawable):
                 with suppress(ValueError):
                     g.remove(self)
 
-    def kill(self, /) -> None:
+    def kill(self) -> None:
         actual_groups: Set[DrawableGroup] = self.__groups.copy()
         self.__groups.clear()
         for g in actual_groups:
@@ -130,11 +130,11 @@ class Drawable(metaclass=MetaDrawable):
                     g.remove(self)
         del actual_groups
 
-    def is_alive(self, /) -> bool:
+    def is_alive(self) -> bool:
         return len(self.__groups) > 0
 
     @property
-    def groups(self, /) -> FrozenSet[DrawableGroup]:
+    def groups(self) -> FrozenSet[DrawableGroup]:
         return frozenset(self.__groups)
 
 
@@ -143,7 +143,7 @@ class MetaTDrawable(MetaDrawable, MetaTransformable):
 
 
 class TDrawable(Drawable, Transformable, metaclass=MetaTDrawable):
-    def __init__(self, /) -> None:
+    def __init__(self) -> None:
         Drawable.__init__(self)
         Transformable.__init__(self)
 
@@ -153,27 +153,27 @@ class MetaMDrawable(MetaDrawable, MetaMovable):
 
 
 class MDrawable(Drawable, Movable, metaclass=MetaMDrawable):
-    def __init__(self, /) -> None:
+    def __init__(self) -> None:
         Drawable.__init__(self)
         Movable.__init__(self)
 
 
 class DrawableGroup(Sequence[Drawable]):
-    def __init__(self, /, *objects: Drawable, **kwargs: Any) -> None:
+    def __init__(self, *objects: Drawable, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.__list: List[Drawable] = []
         self.add(*objects)
 
-    def __len__(self, /) -> int:
+    def __len__(self) -> int:
         drawable_list_length = self.__list.__len__
         return drawable_list_length()
 
     @overload
-    def __getitem__(self, /, index: int) -> Drawable:
+    def __getitem__(self, index: int) -> Drawable:
         ...
 
     @overload
-    def __getitem__(self, /, index: slice) -> Sequence[Drawable]:
+    def __getitem__(self, index: slice) -> Sequence[Drawable]:
         ...
 
     def __getitem__(self, index: Union[int, slice]) -> Union[Drawable, Sequence[Drawable]]:
@@ -182,14 +182,14 @@ class DrawableGroup(Sequence[Drawable]):
             return tuple(drawable_list[index])
         return drawable_list[index]
 
-    def __bool__(self, /) -> bool:
+    def __bool__(self) -> bool:
         return self.__len__() > 0
 
-    def draw_onto(self, /, target: Renderer) -> None:
+    def draw_onto(self, target: Renderer) -> None:
         for drawable in self.__list:
             drawable.draw_onto(target)
 
-    def add(self, /, *objects: Drawable) -> None:
+    def add(self, *objects: Drawable) -> None:
         drawable_list: List[Drawable] = self.__list
         for d in filter(lambda d: d not in drawable_list, objects):
             drawable_list.append(d)
@@ -200,7 +200,7 @@ class DrawableGroup(Sequence[Drawable]):
                     drawable_list.remove(d)
                     raise
 
-    def remove(self, /, *objects: Drawable) -> None:
+    def remove(self, *objects: Drawable) -> None:
         if not objects:
             return
         drawable_list: List[Drawable] = self.__list
@@ -213,7 +213,7 @@ class DrawableGroup(Sequence[Drawable]):
                 with suppress(ValueError):
                     d.remove_from_group(self)
 
-    def pop(self, /, index: int = -1) -> Drawable:
+    def pop(self, index: int = -1) -> Drawable:
         drawable_list: List[Drawable] = self.__list
         d: Drawable = drawable_list.pop(index)
         if self in d.groups:
@@ -221,11 +221,11 @@ class DrawableGroup(Sequence[Drawable]):
                 d.remove_from_group(self)
         return d
 
-    def clear(self, /) -> None:
+    def clear(self) -> None:
         while not self.empty():
             self.pop()
 
-    def empty(self, /) -> bool:
+    def empty(self) -> bool:
         return not self
 
     def find(self, objtype: Type[_T]) -> Iterator[_T]:
@@ -235,12 +235,12 @@ class DrawableGroup(Sequence[Drawable]):
 
 
 class LayeredGroup(DrawableGroup):
-    def __init__(self, /, *objects: Drawable, default_layer: int = 0, **kwargs: Any) -> None:
+    def __init__(self, *objects: Drawable, default_layer: int = 0, **kwargs: Any) -> None:
         self.__default_layer: int = default_layer
         self.__layer_dict: Dict[Drawable, int] = {}
         super().__init__(*objects, **kwargs)
 
-    def add(self, /, *objects: Drawable, layer: Optional[int] = None) -> None:
+    def add(self, *objects: Drawable, layer: Optional[int] = None) -> None:
         if not objects:
             return
         layer_dict: Dict[Drawable, int] = self.__layer_dict
@@ -260,26 +260,26 @@ class LayeredGroup(DrawableGroup):
                     drawable_list.remove(d)
                     raise
 
-    def remove(self, /, *objects: Drawable) -> None:
+    def remove(self, *objects: Drawable) -> None:
         if not objects:
             return
         super().remove(*objects)
         for d in objects:
             self.__layer_dict.pop(d, None)
 
-    def pop(self, /, index: int = -1) -> Drawable:
+    def pop(self, index: int = -1) -> Drawable:
         d: Drawable = super().pop(index=index)
         self.__layer_dict.pop(d, None)
         return d
 
-    def get_layer(self, /, obj: Drawable) -> int:
+    def get_layer(self, obj: Drawable) -> int:
         layer_dict: Dict[Drawable, int] = self.__layer_dict
         try:
             return layer_dict[obj]
         except KeyError:
             raise ValueError("obj not in group") from None
 
-    def change_layer(self, /, obj: Drawable, layer: int) -> None:
+    def change_layer(self, obj: Drawable, layer: int) -> None:
         layer = int(layer)
         layer_dict: Dict[Drawable, int] = self.__layer_dict
         actual_layer: Optional[int] = layer_dict.get(obj, None)
@@ -295,27 +295,27 @@ class LayeredGroup(DrawableGroup):
         drawable_list.insert(bisect_right(layers_list, layer), obj)
         layer_dict[obj] = layer
 
-    def get_top_layer(self, /) -> int:
+    def get_top_layer(self) -> int:
         layer_dict: Dict[Drawable, int] = self.__layer_dict
         return layer_dict[self[-1]]
 
-    def get_bottom_layer(self, /) -> int:
+    def get_bottom_layer(self) -> int:
         layer_dict: Dict[Drawable, int] = self.__layer_dict
         return layer_dict[self[0]]
 
-    def get_top_drawable(self, /) -> Drawable:
+    def get_top_drawable(self) -> Drawable:
         return self[-1]
 
-    def get_bottom_drawable(self, /) -> Drawable:
+    def get_bottom_drawable(self) -> Drawable:
         return self[0]
 
-    def move_to_front(self, /, obj: Drawable) -> None:
+    def move_to_front(self, obj: Drawable) -> None:
         self.change_layer(obj, self.get_top_layer())
 
-    def move_to_back(self, /, obj: Drawable) -> None:
+    def move_to_back(self, obj: Drawable) -> None:
         self.change_layer(obj, self.get_bottom_layer() - 1)
 
-    def get_from_layer(self, /, layer: int) -> Sequence[Drawable]:
+    def get_from_layer(self, layer: int) -> Sequence[Drawable]:
         drawable_list: List[Drawable] = []
         add_drawable = drawable_list.append
 
@@ -327,12 +327,12 @@ class LayeredGroup(DrawableGroup):
 
         return drawable_list
 
-    def remove_from_layer(self, /, layer: int) -> Sequence[Drawable]:
+    def remove_from_layer(self, layer: int) -> Sequence[Drawable]:
         drawable_list: Sequence[Drawable] = self.get_from_layer(layer)
         self.remove(*drawable_list)
         return drawable_list
 
-    def switch_layer(self, /, layer1: int, layer2: int) -> None:
+    def switch_layer(self, layer1: int, layer2: int) -> None:
         get_from_layer = self.get_from_layer
         change_layer = self.change_layer
         drawable_list_layer1: Sequence[Drawable] = get_from_layer(layer1)
@@ -343,9 +343,9 @@ class LayeredGroup(DrawableGroup):
             change_layer(d, layer1)
 
     @property
-    def default_layer(self, /) -> int:
+    def default_layer(self) -> int:
         return self.__default_layer
 
     @property
-    def layers(self, /) -> Sequence[int]:
+    def layers(self) -> Sequence[int]:
         return sorted(set(self.__layer_dict.values()))

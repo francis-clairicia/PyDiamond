@@ -143,13 +143,13 @@ class JThread(Thread):
         used_target: Optional[Callable[..., None]] = target
         super().__init__(group=group, target=used_target, name=name, args=args, kwargs=kwargs)
 
-    def __del__(self, /) -> None:
+    def __del__(self) -> None:
         if current_thread() is self or not self.is_alive():
             return
         self.join()
 
     @property
-    def daemon(self, /) -> bool:  # type: ignore[override]
+    def daemon(self) -> bool:  # type: ignore[override]
         return super().daemon
 
 

@@ -73,7 +73,6 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
 
     def __init__(
         self,
-        /,
         master: Union[Scene, Window],
         width: float,
         height: float,
@@ -148,7 +147,7 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
         if callback_at_init and callable(callback):
             callback(self.__value)
 
-    def draw_onto(self, /, target: Renderer) -> None:
+    def draw_onto(self, target: Renderer) -> None:
         shape: RectangleShape = self.__shape
         active_img: Optional[Image] = self.__active_img
         active: TDrawable
@@ -164,19 +163,19 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
             active.center = center
             active.draw_onto(target)
 
-    def get_local_size(self, /) -> Tuple[float, float]:
+    def get_local_size(self) -> Tuple[float, float]:
         return self.__shape.get_local_size()
 
-    def get_size(self, /) -> Tuple[float, float]:
+    def get_size(self) -> Tuple[float, float]:
         return self.__shape.get_size()
 
-    def invoke(self, /) -> None:
+    def invoke(self) -> None:
         self.value = self.__on_value if self.value == self.__off_value else self.__off_value
 
-    def get_value(self, /) -> Union[_OnValue, _OffValue]:
+    def get_value(self) -> Union[_OnValue, _OffValue]:
         return self.__value
 
-    def set_value(self, /, value: Union[_OnValue, _OffValue]) -> None:
+    def set_value(self, value: Union[_OnValue, _OffValue]) -> None:
         if value not in [self.__on_value, self.__off_value]:
             raise ValueError(f"{value!r} is not {self.__on_value!r} or {self.__off_value!r}")
         if value == self.__value:
@@ -186,10 +185,10 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
         if callable(callback):
             callback(value)
 
-    def _mouse_in_hitbox(self, /, mouse_pos: Tuple[float, float]) -> bool:
+    def _mouse_in_hitbox(self, mouse_pos: Tuple[float, float]) -> bool:
         return truth(self.__shape.rect.collidepoint(mouse_pos))
 
-    def _apply_both_rotation_and_scale(self, /) -> None:
+    def _apply_both_rotation_and_scale(self) -> None:
         angle: float = self.angle
         scale: float = self.scale
         self.__shape.set_rotation(angle)
@@ -200,14 +199,14 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
         self.__cross.set_rotation(angle)
         self.__cross.set_scale(scale)
 
-    def _apply_only_rotation(self, /) -> None:
+    def _apply_only_rotation(self) -> None:
         angle: float = self.angle
         self.__shape.set_rotation(angle)
         if self.__active_img is not None:
             self.__active_img.set_rotation(angle)
         self.__cross.set_rotation(angle)
 
-    def _apply_only_scale(self, /) -> None:
+    def _apply_only_scale(self) -> None:
         scale: float = self.scale
         self.__shape.set_scale(scale)
         if self.__active_img is not None:
@@ -228,7 +227,7 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
     @config.getter_key("border_top_right_radius")
     @config.getter_key("border_bottom_left_radius")
     @config.getter_key("border_bottom_right_radius")
-    def __get_shape_option(self, /, option: str) -> Any:
+    def __get_shape_option(self, option: str) -> Any:
         return self.__shape.config.get(option)
 
     @config.setter_key("local_width")
@@ -242,30 +241,29 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
     @config.setter_key("border_top_right_radius")
     @config.setter_key("border_bottom_left_radius")
     @config.setter_key("border_bottom_right_radius")
-    def __set_shape_option(self, /, option: str, value: Any) -> Any:
+    def __set_shape_option(self, option: str, value: Any) -> Any:
         return self.__shape.config.set(option, value)
 
     @property
-    def img(self, /) -> Optional[Surface]:
+    def img(self) -> Optional[Surface]:
         return self.__active_img.get() if self.__active_img is not None else None
 
     @property
-    def on_value(self, /) -> _OnValue:
+    def on_value(self) -> _OnValue:
         return self.__on_value
 
     @property
-    def off_value(self, /) -> _OffValue:
+    def off_value(self) -> _OffValue:
         return self.__off_value
 
     @property
-    def callback(self, /) -> Optional[Callable[[Union[_OnValue, _OffValue]], None]]:
+    def callback(self) -> Optional[Callable[[Union[_OnValue, _OffValue]], None]]:
         return self.__on_changed_value
 
 
 class BooleanCheckBox(CheckBox[bool, bool]):
     def __init__(
         self,
-        /,
         master: Union[Scene, Window],
         width: float,
         height: float,

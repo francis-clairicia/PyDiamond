@@ -39,7 +39,6 @@ _ALL_VALID_ROTATION_PIVOTS: Tuple[str, ...] = (
 class MetaTransformable(MetaMovable):
     def __new__(
         metacls,
-        /,
         name: str,
         bases: Tuple[type, ...],
         namespace: Dict[str, Any],
@@ -53,19 +52,18 @@ class MetaTransformable(MetaMovable):
 
 
 class Transformable(Movable, metaclass=MetaTransformable):
-    def __init__(self, /) -> None:
+    def __init__(self) -> None:
         Movable.__init__(self)
         self.__angle: float = 0
         self.__scale: float = 1
 
     def rotate(
-        self, /, angle_offset: float, pivot: Optional[Union[Tuple[float, float], Vector2, str]] = None, *, apply: bool = True
+        self, angle_offset: float, pivot: Optional[Union[Tuple[float, float], Vector2, str]] = None, *, apply: bool = True
     ) -> None:
         self.set_rotation(self.__angle + angle_offset, pivot=pivot, apply=apply)
 
     def set_rotation(
         self,
-        /,
         angle: float,
         pivot: Optional[Union[Tuple[float, float], Vector2, str]] = None,
         *,
@@ -97,7 +95,7 @@ class Transformable(Movable, metaclass=MetaTransformable):
             center = pivot + (center - pivot).rotate(-self.__angle + former_angle)
         self.center = center.x, center.y
 
-    def rotate_around_point(self, /, angle_offset: float, pivot: Union[Tuple[float, float], Vector2, str]) -> None:
+    def rotate_around_point(self, angle_offset: float, pivot: Union[Tuple[float, float], Vector2, str]) -> None:
         if angle_offset == 0:
             return
         if isinstance(pivot, str):
@@ -117,7 +115,7 @@ class Transformable(Movable, metaclass=MetaTransformable):
             raise AttributeError(f"Bad pivot attribute: {pivot!r}")
         return Vector2(getattr(self, pivot))
 
-    def set_scale(self, /, scale: float, *, apply: bool = True) -> None:
+    def set_scale(self, scale: float, *, apply: bool = True) -> None:
         scale = max(float(scale), 0)
         if self.scale == scale:
             return
@@ -137,45 +135,45 @@ class Transformable(Movable, metaclass=MetaTransformable):
             pass
         self.center = center
 
-    def scale_to_width(self, /, width: float, *, apply: bool = True) -> None:
+    def scale_to_width(self, width: float, *, apply: bool = True) -> None:
         w: float = self.get_local_size()[0]
         self.set_scale(width / w, apply=apply)
 
-    def scale_to_height(self, /, height: float, *, apply: bool = True) -> None:
+    def scale_to_height(self, height: float, *, apply: bool = True) -> None:
         h: float = self.get_local_size()[1]
         self.set_scale(height / h, apply=apply)
 
-    def scale_to_size(self, /, size: Tuple[float, float]) -> None:
+    def scale_to_size(self, size: Tuple[float, float]) -> None:
         w, h = self.get_local_size()
         scale_width: float = size[0] / w
         scale_height: float = size[1] / h
         self.set_scale(min(scale_width, scale_height))
 
-    def set_min_width(self, /, width: float) -> None:
+    def set_min_width(self, width: float) -> None:
         if self.width < width:
             self.width = width
 
-    def set_max_width(self, /, width: float) -> None:
+    def set_max_width(self, width: float) -> None:
         if self.width > width:
             self.width = width
 
-    def set_min_height(self, /, height: float) -> None:
+    def set_min_height(self, height: float) -> None:
         if self.height < height:
             self.height = height
 
-    def set_max_height(self, /, height: float) -> None:
+    def set_max_height(self, height: float) -> None:
         if self.height > height:
             self.height = height
 
-    def set_min_size(self, /, size: Tuple[float, float]) -> None:
+    def set_min_size(self, size: Tuple[float, float]) -> None:
         if self.width < size[0] or self.height < size[1]:
             self.size = size
 
-    def set_max_size(self, /, size: Tuple[float, float]) -> None:
+    def set_max_size(self, size: Tuple[float, float]) -> None:
         if self.width > size[0] or self.height > size[1]:
             self.size = size
 
-    def apply_rotation_scale(self, /) -> None:
+    def apply_rotation_scale(self) -> None:
         try:
             self._apply_both_rotation_and_scale()
         except NotImplementedError:
@@ -200,34 +198,34 @@ class Transformable(Movable, metaclass=MetaTransformable):
                 del only_scale_exc, only_rotation_exc
 
     @abstractmethod
-    def _apply_both_rotation_and_scale(self, /) -> None:
+    def _apply_both_rotation_and_scale(self) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def _apply_only_rotation(self, /) -> None:
+    def _apply_only_rotation(self) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def _apply_only_scale(self, /) -> None:
+    def _apply_only_scale(self) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def get_local_size(self, /) -> Tuple[float, float]:
+    def get_local_size(self) -> Tuple[float, float]:
         raise NotImplementedError
 
     @final
-    def get_local_width(self, /) -> float:
+    def get_local_width(self) -> float:
         return self.get_local_size()[0]
 
     @final
-    def get_local_height(self, /) -> float:
+    def get_local_height(self) -> float:
         return self.get_local_size()[1]
 
-    def get_size(self, /) -> Tuple[float, float]:
+    def get_size(self) -> Tuple[float, float]:
         return self.get_area_size()
 
     @final
-    def get_area_size(self, /, *, apply_scale: bool = True, apply_rotation: bool = True) -> Tuple[float, float]:
+    def get_area_size(self, *, apply_scale: bool = True, apply_rotation: bool = True) -> Tuple[float, float]:
         if not apply_scale and not apply_rotation:
             return self.get_local_size()
 
@@ -257,10 +255,10 @@ class Transformable(Movable, metaclass=MetaTransformable):
         return (right - left, bottom - top)
 
     @final
-    def get_area(self, /, *, apply_scale: bool = True, apply_rotation: bool = True) -> Rect:
+    def get_area(self, *, apply_scale: bool = True, apply_rotation: bool = True) -> Rect:
         return Rect((0, 0), self.get_area_size(apply_scale=apply_scale, apply_rotation=apply_rotation))
 
-    def get_local_rect(self, /, **kwargs: Union[float, Tuple[float, float]]) -> Rect:
+    def get_local_rect(self, **kwargs: Union[float, Tuple[float, float]]) -> Rect:
         r: Rect = Rect((0, 0), self.get_local_size())
         for name, value in kwargs.items():
             if not hasattr(r, name):
@@ -269,45 +267,45 @@ class Transformable(Movable, metaclass=MetaTransformable):
         return r
 
     @property
-    def angle(self, /) -> float:
+    def angle(self) -> float:
         return self.__angle
 
     @angle.setter
-    def angle(self, /, angle: float) -> None:
+    def angle(self, angle: float) -> None:
         self.set_rotation(angle)
 
     @property
-    def scale(self, /) -> float:
+    def scale(self) -> float:
         return self.__scale
 
     @scale.setter
-    def scale(self, /, scale: float) -> None:
+    def scale(self, scale: float) -> None:
         self.set_scale(scale)
 
     @cached_property
-    def animation(self, /) -> TransformAnimation:
+    def animation(self) -> TransformAnimation:
         return TransformAnimation(self)
 
     @property
-    def size(self, /) -> Tuple[float, float]:
+    def size(self) -> Tuple[float, float]:
         return self.get_size()
 
     @size.setter
-    def size(self, /, size: Tuple[float, float]) -> None:
+    def size(self, size: Tuple[float, float]) -> None:
         self.scale_to_size(size)
 
     @property
-    def width(self, /) -> float:
+    def width(self) -> float:
         return self.get_size()[0]
 
     @width.setter
-    def width(self, /, width: float) -> None:
+    def width(self, width: float) -> None:
         self.scale_to_width(width)
 
     @property
-    def height(self, /) -> float:
+    def height(self) -> float:
         return self.get_size()[1]
 
     @height.setter
-    def height(self, /, height: float) -> None:
+    def height(self, height: float) -> None:
         self.scale_to_height(height)

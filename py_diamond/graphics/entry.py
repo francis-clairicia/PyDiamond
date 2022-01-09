@@ -103,7 +103,6 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
     @initializer
     def __init__(
         self,
-        /,
         master: Union[Scene, Window],
         on_validate: Optional[Callable[[], Any]] = None,
         *,
@@ -207,10 +206,10 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
         master.event.bind_event(Event.Type.KEYDOWN, key_press_event)
         master.event.bind_event(Event.Type.TEXTINPUT, key_press_event)
 
-    def get_local_size(self, /) -> Tuple[float, float]:
+    def get_local_size(self) -> Tuple[float, float]:
         return self.__shape.get_local_size()
 
-    def draw_onto(self, /, target: Renderer) -> None:
+    def draw_onto(self, target: Renderer) -> None:
         shape: RectangleShape = self.__shape
         outline_shape: RectangleShape = self.__outline_shape
         text: Text = self.__text
@@ -237,52 +236,52 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
 
         outline_shape.draw_onto(target)
 
-    def get(self, /) -> str:
+    def get(self) -> str:
         return self.__text.message
 
-    def clear(self, /) -> None:
+    def clear(self) -> None:
         self.__text.message = str()
 
-    def start_edit(self, /) -> None:
+    def start_edit(self) -> None:
         Keyboard.IME.start_text_input()
         self.__start_edit = True
         self.__show_cursor = True
 
-    def stop_edit(self, /) -> None:
+    def stop_edit(self) -> None:
         Keyboard.IME.stop_text_input()
         self.__start_edit = False
 
-    def invoke(self, /) -> None:
+    def invoke(self) -> None:
         if self.focus.get_mode() == BoundFocus.Mode.MOUSE:
             self.start_edit()
         else:
             on_validate: Callable[[], None] = self.__on_validate
             on_validate()
 
-    def _on_focus_set(self, /) -> None:
+    def _on_focus_set(self) -> None:
         self.start_edit()
         self.__update_shape_outline()
 
-    def _on_focus_leave(self, /) -> None:
+    def _on_focus_leave(self) -> None:
         self.stop_edit()
         self.__update_shape_outline()
 
-    def _mouse_in_hitbox(self, /, mouse_pos: Tuple[float, float]) -> bool:
+    def _mouse_in_hitbox(self, mouse_pos: Tuple[float, float]) -> bool:
         return self.__shape.rect.collidepoint(mouse_pos)
 
-    def _apply_both_rotation_and_scale(self, /) -> None:
+    def _apply_both_rotation_and_scale(self) -> None:
         raise NotImplementedError
 
-    def _apply_only_rotation(self, /) -> None:
+    def _apply_only_rotation(self) -> None:
         raise NotImplementedError
 
-    def _apply_only_scale(self, /) -> None:
+    def _apply_only_scale(self) -> None:
         scale: float = self.scale
         self.__outline_shape.scale = self.__shape.scale = self.__text.scale = scale
         self.__cursor_width_offset = 15 * scale
         self.__cursor_height_offset = 10 * scale
 
-    def __edit(self, /) -> bool:
+    def __edit(self) -> bool:
         if not self.__start_edit:
             return False
         if self.focus.get_mode() == BoundFocus.Mode.KEY:
@@ -292,7 +291,7 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
                 Keyboard.IME.stop_text_input()
         return Keyboard.IME.text_input_enabled()
 
-    def __key_press(self, /, event: Union[KeyDownEvent, TextInputEvent]) -> bool:
+    def __key_press(self, event: Union[KeyDownEvent, TextInputEvent]) -> bool:
         if not self.__edit() or not isinstance(event, (KeyDownEvent, TextInputEvent)):
             return False
         self.__show_cursor = True
@@ -332,7 +331,7 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
             self.cursor += len(entered_text)
         return True
 
-    def __update_shape_outline(self, /) -> None:
+    def __update_shape_outline(self) -> None:
         shape: RectangleShape = self.__outline_shape
         outline: int
         outline_color: Color
@@ -345,7 +344,7 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
         shape.config(outline=outline, outline_color=outline_color)
 
     @config.value_converter("cursor")
-    def __cursor_validator(self, /, cursor: Any) -> int:
+    def __cursor_validator(self, cursor: Any) -> int:
         return valid_integer(value=cursor, min_value=0, max_value=len(self.get()))
 
     config.value_converter_static("interval", valid_integer(min_value=0))
@@ -357,7 +356,7 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
     @config.getter_key("shadow_y")
     @config.getter_key("shadow")
     @config.getter_key("shadow_color")
-    def __get_text_option(self, /, option: str) -> Any:
+    def __get_text_option(self, option: str) -> Any:
         return self.__text.config.get(option)
 
     @config.setter_key("fg", use_key="color")
@@ -366,7 +365,7 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
     @config.setter_key("shadow_y")
     @config.setter_key("shadow")
     @config.setter_key("shadow_color")
-    def __set_text_option(self, /, option: str, value: Any) -> None:
+    def __set_text_option(self, option: str, value: Any) -> None:
         return self.__text.config.set(option, value)
 
     @config.getter_key("bg", use_key="color")
@@ -378,7 +377,7 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
     @config.getter_key("border_top_right_radius")
     @config.getter_key("border_bottom_left_radius")
     @config.getter_key("border_bottom_right_radius")
-    def __get_shape_option(self, /, option: str) -> Any:
+    def __get_shape_option(self, option: str) -> Any:
         return self.__shape.config.get(option)
 
     @config.setter_key("bg", use_key="color")
@@ -387,7 +386,7 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
     @config.setter_key("border_top_right_radius")
     @config.setter_key("border_bottom_left_radius")
     @config.setter_key("border_bottom_right_radius")
-    def __set_shape_option(self, /, option: str, value: Any) -> None:
+    def __set_shape_option(self, option: str, value: Any) -> None:
         self.__shape.config.set(option, value)
         if option != "color":
             self.__outline_shape.config.set(option, value)
@@ -396,7 +395,7 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
 
     @config.on_update("font")
     @config.on_update("fixed_width")
-    def __update_shape_using_font(self, /) -> None:
+    def __update_shape_using_font(self) -> None:
         max_nb_chars: int = self.__nb_chars
         fixed_width: Optional[float] = self.__fixed_width
         entry_size: Tuple[int, int] = _get_entry_size(self.__text.font, max_nb_chars or 10)
@@ -419,7 +418,7 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
     config.on_update("highlight_thickness", __update_shape_outline)
 
     @cached_property
-    def focus(self, /) -> BoundFocus:
+    def focus(self) -> BoundFocus:
         return BoundFocus(self, self.scene)
 
 
@@ -431,7 +430,6 @@ class _TextEntry(Text):
     @initializer
     def __init__(
         self,
-        /,
         message: str = "",
         *,
         font: Optional[_TextFont],
@@ -458,7 +456,7 @@ class _TextEntry(Text):
         )
         self.max_width = None
 
-    def _render(self, /) -> Surface:
+    def _render(self) -> Surface:
         # max_width: Optional[int] = self.max_width
         text: Surface = super()._render()
         # if max_width is not None:

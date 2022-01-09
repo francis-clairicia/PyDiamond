@@ -70,7 +70,7 @@ _ScheduledFunc = TypeVar("_ScheduledFunc", bound=Callable[..., None])
 
 class _SupportsDrawing(Protocol):
     @abstractmethod
-    def draw_onto(self, /, target: Renderer) -> None:
+    def draw_onto(self, target: Renderer) -> None:
         raise NotImplementedError
 
 
@@ -79,14 +79,14 @@ class WindowError(_pg_error):
 
 
 class ScheduledFunction(Generic[_ScheduledFunc]):
-    def __init__(self, /, milliseconds: float, func: _ScheduledFunc) -> None:
+    def __init__(self, milliseconds: float, func: _ScheduledFunc) -> None:
         super().__init__()
         self.__clock = Clock()
         self.__milliseconds: float = milliseconds
         self.__func__: _ScheduledFunc = func
         self.__first_start: bool = True
 
-    def __call__(self, /, *args: Any, **kwargs: Any) -> None:
+    def __call__(self, *args: Any, **kwargs: Any) -> None:
         func: _ScheduledFunc = self.__func__
         if self.__first_start or self.__clock.elapsed_time(self.__milliseconds):
             self.__first_start = False
@@ -117,7 +117,7 @@ class Window:
 
     __main_window: ClassVar[bool] = True
 
-    def __new__(cls, /, *args: Any, **kwargs: Any) -> Any:
+    def __new__(cls, *args: Any, **kwargs: Any) -> Any:
         if not Window.__main_window:
             raise WindowError("Cannot have multiple open windows")
         Window.__main_window = False
@@ -125,7 +125,6 @@ class Window:
 
     def __init__(
         self,
-        /,
         title: Optional[str] = None,
         size: Tuple[int, int] = (0, 0),
         *,
@@ -158,19 +157,19 @@ class Window:
 
         self.__text_framerate: Text
 
-    def __window_init__(self, /) -> None:
+    def __window_init__(self) -> None:
         pass
 
-    def __window_quit__(self, /) -> None:
+    def __window_quit__(self) -> None:
         pass
 
-    def __del__(self, /) -> None:
+    def __del__(self) -> None:
         Window.__main_window = True
 
     __W = TypeVar("__W", bound="Window")
 
     @contextmanager
-    def open(self: __W, /) -> Iterator[__W]:
+    def open(self: __W) -> Iterator[__W]:
         if self.is_open():
             raise WindowError("Trying to open already opened window")
 
@@ -203,49 +202,49 @@ class Window:
             self.__main_clock.tick()
             yield self
 
-    def set_title(self, /, title: Optional[str]) -> None:
+    def set_title(self, title: Optional[str]) -> None:
         _pg_display.set_caption(title or Window.DEFAULT_TITLE)
 
-    def iconify(self, /) -> bool:
+    def iconify(self) -> bool:
         return truth(_pg_display.iconify())
 
     @final
-    def close(self, /) -> NoReturn:
+    def close(self) -> NoReturn:
         _pg_display.quit()
         raise Window.__Exit
 
     @final
-    def is_open(self, /) -> bool:
+    def is_open(self) -> bool:
         return _pg_display.get_surface() is not None
 
-    def clear(self, /, color: _ColorInput = BLACK) -> None:
+    def clear(self, color: _ColorInput = BLACK) -> None:
         self.__surface.fill(color)
 
-    def get_default_framerate(self, /) -> int:
+    def get_default_framerate(self) -> int:
         return self.__default_framerate
 
-    def set_default_framerate(self, /, value: int) -> None:
+    def set_default_framerate(self, value: int) -> None:
         self.__default_framerate = max(int(value), 0)
 
-    def used_framerate(self, /) -> int:
+    def used_framerate(self) -> int:
         return self.__default_framerate
 
-    def get_default_fixed_framerate(self, /) -> int:
+    def get_default_fixed_framerate(self) -> int:
         return self.__default_fixed_framerate
 
-    def set_default_fixed_framerate(self, /, value: int) -> None:
+    def set_default_fixed_framerate(self, value: int) -> None:
         self.__default_fixed_framerate = max(int(value), 0)
 
-    def used_fixed_framerate(self, /) -> int:
+    def used_fixed_framerate(self) -> int:
         return self.__default_fixed_framerate
 
-    def get_busy_loop(self, /) -> bool:
+    def get_busy_loop(self) -> bool:
         return self.__busy_loop
 
-    def set_busy_loop(self, /, status: bool) -> None:
+    def set_busy_loop(self, status: bool) -> None:
         self.__busy_loop = truth(status)
 
-    def refresh(self, /) -> float:
+    def refresh(self) -> float:
         screen = SurfaceRenderer(_pg_display.get_surface())
         text_framerate: Text = self.__text_framerate
         screen.draw(self.__surface, (0, 0))
@@ -269,7 +268,7 @@ class Window:
         setattr(Time, fixed_delta_attribute, 1 / fixed_framerate if fixed_framerate > 0 else Time.delta())
         return real_time
 
-    def draw(self, /, *targets: _SupportsDrawing) -> None:
+    def draw(self, *targets: _SupportsDrawing) -> None:
         renderer: SurfaceRenderer = SurfaceRenderer(self.__surface)
 
         for target in targets:
@@ -277,7 +276,7 @@ class Window:
                 target.draw_onto(renderer)
 
     @contextmanager
-    def capture(self, /, draw_on_default_at_end: bool = True) -> Iterator[Surface]:
+    def capture(self, draw_on_default_at_end: bool = True) -> Iterator[Surface]:
         default_surface = self.__surface
         self.__surface = captured_surface = self.get_screen_copy()
         try:
@@ -287,24 +286,24 @@ class Window:
                 default_surface.blit(captured_surface, (0, 0))
             self.__surface = default_surface
 
-    def get_screen_copy(self, /) -> Surface:
+    def get_screen_copy(self) -> Surface:
         return self.__surface.copy()
 
-    def handle_events(self, /) -> Sequence[Event]:
+    def handle_events(self) -> Sequence[Event]:
         return tuple(self.process_events())
 
     @contextmanager
-    def no_window_callback_processing(self, /) -> Iterator[None]:
+    def no_window_callback_processing(self) -> Iterator[None]:
         self.__process_callbacks = False
         try:
             yield
         finally:
             self.__process_callbacks = True
 
-    def _process_callbacks(self, /) -> None:
+    def _process_callbacks(self) -> None:
         self.__callback_after.process()
 
-    def process_events(self, /) -> Iterator[Event]:
+    def process_events(self) -> Iterator[Event]:
         Keyboard.update()
         Mouse.update()
 
@@ -336,11 +335,11 @@ class Window:
                 yield event
         manager.handle_mouse_position()
 
-    def handle_close_event(self, /) -> None:
+    def handle_close_event(self) -> None:
         self.close()
 
     @final
-    def set_size(self, /, size: Tuple[int, int]) -> None:
+    def set_size(self, size: Tuple[int, int]) -> None:
         width, height = size
         width = int(width)
         height = int(height)
@@ -359,57 +358,57 @@ class Window:
         _pg_display.set_mode(size, flags=flags, vsync=vsync)
 
     @final
-    def set_width(self, /, width: int) -> None:
+    def set_width(self, width: int) -> None:
         height = self.__surface.get_size()[1]
         return self.set_size((width, height))
 
     @final
-    def set_height(self, /, height: int) -> None:
+    def set_height(self, height: int) -> None:
         width = self.__surface.get_size()[0]
         return self.set_size((width, height))
 
-    def allow_only_event(self, /, *event_types: Event.Type) -> None:
+    def allow_only_event(self, *event_types: Event.Type) -> None:
         event_types = tuple(Event.Type(e) for e in event_types)
         self.block_only_event(*(event for event in Event.Type if event not in event_types))
 
     @contextmanager
-    def allow_only_event_context(self, /, *event_types: Event.Type) -> Iterator[None]:
+    def allow_only_event_context(self, *event_types: Event.Type) -> Iterator[None]:
         with self.__save_blocked_events():
             self.allow_only_event(*event_types)
             yield
 
-    def allow_all_events(self, /) -> None:
+    def allow_all_events(self) -> None:
         _pg_event.set_allowed(None)
 
     @contextmanager
-    def allow_all_events_context(self, /) -> Iterator[None]:
+    def allow_all_events_context(self) -> Iterator[None]:
         with self.__save_blocked_events():
             self.allow_all_events()
             yield
 
-    def clear_all_events(self, /) -> None:
+    def clear_all_events(self) -> None:
         _pg_event.clear()
 
-    def block_only_event(self, /, *event_types: Event.Type) -> None:
+    def block_only_event(self, *event_types: Event.Type) -> None:
         _pg_event.set_blocked([Event.Type(event) for event in event_types])
 
     @contextmanager
-    def block_only_event_context(self, /, *event_types: Event.Type) -> Iterator[None]:
+    def block_only_event_context(self, *event_types: Event.Type) -> Iterator[None]:
         with self.__save_blocked_events():
             self.block_only_event(*event_types)
             yield
 
-    def block_all_events(self, /) -> None:
+    def block_all_events(self) -> None:
         _pg_event.set_blocked(tuple(Event.Type))
 
     @contextmanager
-    def block_all_events_context(self, /) -> Iterator[None]:
+    def block_all_events_context(self) -> Iterator[None]:
         with self.__save_blocked_events():
             self.block_all_events()
             yield
 
     @contextmanager
-    def __save_blocked_events(self, /) -> Iterator[None]:
+    def __save_blocked_events(self) -> Iterator[None]:
         all_blocked_events: Sequence[Event.Type] = tuple(event for event in Event.Type if not event.is_allowed())
 
         def set_blocked_events() -> None:
@@ -422,20 +421,20 @@ class Window:
             stack.callback(set_blocked_events)
             yield
 
-    def after(self, /, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
+    def after(self, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
         window_callback: WindowCallback = WindowCallback(self, milliseconds, callback, args, kwargs)
         self.__callback_after.append(window_callback)
         return window_callback
 
     @overload
-    def every(self, /, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
+    def every(self, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
         ...
 
     @overload
-    def every(self, /, milliseconds: float, callback: Callable[..., Iterator[None]], *args: Any, **kwargs: Any) -> WindowCallback:
+    def every(self, milliseconds: float, callback: Callable[..., Iterator[None]], *args: Any, **kwargs: Any) -> WindowCallback:
         ...
 
-    def every(self, /, milliseconds: float, callback: Callable[..., Any], *args: Any, **kwargs: Any) -> WindowCallback:
+    def every(self, milliseconds: float, callback: Callable[..., Any], *args: Any, **kwargs: Any) -> WindowCallback:
         window_callback: WindowCallback
 
         if isgeneratorfunction(callback):
@@ -456,112 +455,112 @@ class Window:
         self.__callback_after.append(window_callback)
         return window_callback
 
-    def remove_window_callback(self, /, window_callback: WindowCallback) -> None:
+    def remove_window_callback(self, window_callback: WindowCallback) -> None:
         with suppress(ValueError):
             self.__callback_after.remove(window_callback)
 
     @property
-    def framerate(self, /) -> float:
+    def framerate(self) -> float:
         return self.__main_clock.get_fps()
 
     @property
-    def text_framerate(self, /) -> Text:
+    def text_framerate(self) -> Text:
         return self.__text_framerate
 
     @property
-    def event(self, /) -> EventManager:
+    def event(self) -> EventManager:
         return self.__event
 
     @property
-    def resizable(self, /) -> bool:
+    def resizable(self) -> bool:
         out: int = self.__flags & _PG_RESIZABLE
         return out != 0
 
     @property
-    def rect(self, /) -> ImmutableRect:
+    def rect(self) -> ImmutableRect:
         return self.__rect
 
     @property
-    def left(self, /) -> int:
+    def left(self) -> int:
         return self.__rect.left
 
     @property
-    def right(self, /) -> int:
+    def right(self) -> int:
         return self.__rect.right
 
     @property
-    def top(self, /) -> int:
+    def top(self) -> int:
         return self.__rect.top
 
     @property
-    def bottom(self, /) -> int:
+    def bottom(self) -> int:
         return self.__rect.bottom
 
     @property
-    def size(self, /) -> Tuple[int, int]:
+    def size(self) -> Tuple[int, int]:
         return self.__rect.size
 
     @property
-    def width(self, /) -> int:
+    def width(self) -> int:
         return self.__rect.width
 
     @property
-    def height(self, /) -> int:
+    def height(self) -> int:
         return self.__rect.height
 
     @property
-    def center(self, /) -> Tuple[int, int]:
+    def center(self) -> Tuple[int, int]:
         return self.__rect.center
 
     @property
-    def centerx(self, /) -> int:
+    def centerx(self) -> int:
         return self.__rect.centerx
 
     @property
-    def centery(self, /) -> int:
+    def centery(self) -> int:
         return self.__rect.centery
 
     @property
-    def topleft(self, /) -> Tuple[int, int]:
+    def topleft(self) -> Tuple[int, int]:
         return self.__rect.topleft
 
     @property
-    def topright(self, /) -> Tuple[int, int]:
+    def topright(self) -> Tuple[int, int]:
         return self.__rect.topright
 
     @property
-    def bottomleft(self, /) -> Tuple[int, int]:
+    def bottomleft(self) -> Tuple[int, int]:
         return self.__rect.bottomleft
 
     @property
-    def bottomright(self, /) -> Tuple[int, int]:
+    def bottomright(self) -> Tuple[int, int]:
         return self.__rect.bottomright
 
     @property
-    def midtop(self, /) -> Tuple[int, int]:
+    def midtop(self) -> Tuple[int, int]:
         return self.__rect.midtop
 
     @property
-    def midbottom(self, /) -> Tuple[int, int]:
+    def midbottom(self) -> Tuple[int, int]:
         return self.__rect.midbottom
 
     @property
-    def midleft(self, /) -> Tuple[int, int]:
+    def midleft(self) -> Tuple[int, int]:
         return self.__rect.midleft
 
     @property
-    def midright(self, /) -> Tuple[int, int]:
+    def midright(self) -> Tuple[int, int]:
         return self.__rect.midright
 
 
 class _FramerateManager:
-    def __init__(self, /) -> None:
+    def __init__(self) -> None:
         self.__fps: float = 0
         self.__fps_count: int = 0
         self.__fps_tick: float = Time.get_ticks()
         self.__last_tick: float = self.__fps_tick
 
-    def __tick_impl(self, /, framerate: int, use_accurate_delay: bool) -> float:
+    def __tick_impl(self, framerate: int, use_accurate_delay: bool) -> float:
         actual_tick: float = Time.get_ticks()
         elapsed: float = actual_tick - self.__last_tick
         if framerate > 0:
@@ -584,20 +583,19 @@ class _FramerateManager:
             self.__fps_tick = actual_tick
         return elapsed
 
-    def tick(self, /, framerate: int = 0) -> float:
+    def tick(self, framerate: int = 0) -> float:
         return self.__tick_impl(framerate, False)
 
-    def tick_busy_loop(self, /, framerate: int = 0) -> float:
+    def tick_busy_loop(self, framerate: int = 0) -> float:
         return self.__tick_impl(framerate, True)
 
-    def get_fps(self, /) -> float:
+    def get_fps(self) -> float:
         return self.__fps
 
 
 class WindowCallback:
     def __init__(
         self,
-        /,
         master: Window,
         wait_time: float,
         callback: Callable[..., None],
@@ -613,7 +611,7 @@ class WindowCallback:
         self.__clock = Clock(start=True)
         self.__loop: bool = bool(loop)
 
-    def __call__(self, /) -> None:
+    def __call__(self) -> None:
         loop: bool = self.__loop
         if self.__clock.elapsed_time(self.__wait_time, restart=loop):
             args = self.__args
@@ -623,12 +621,12 @@ class WindowCallback:
             if not loop:
                 self.kill()
 
-    def kill(self, /) -> None:
+    def kill(self) -> None:
         self.__master.remove_window_callback(self)
 
 
 class _WindowCallbackList(List[WindowCallback]):
-    def process(self, /) -> None:
+    def process(self) -> None:
         if not self:
             return
         for callback in tuple(self):

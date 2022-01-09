@@ -29,7 +29,7 @@ class _MetaCursor(ABCMeta):
     __cursor_setter: ClassVar[Optional[Callable[[], None]]] = None
     __default_cursor: ClassVar[Optional[Cursor]] = None
 
-    def __new__(metacls, /, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> _MetaCursor:
+    def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> _MetaCursor:
         def _set_decorator(func: Callable[[Cursor], None], /) -> Callable[[Cursor], None]:
             actual_cursor: Optional[Cursor] = None
 
@@ -65,7 +65,7 @@ class _MetaCursor(ABCMeta):
 
 class Cursor(metaclass=_MetaCursor):
     @abstractmethod
-    def set(self, /) -> None:
+    def set(self) -> None:
         raise NotImplementedError
 
 
@@ -84,7 +84,7 @@ class CustomCursor(Cursor):
     def __init__(self, cursor: _Cursor, /) -> None:
         ...
 
-    def __init__(self, /, *args: Any) -> None:
+    def __init__(self, *args: Any) -> None:
         super().__init__()
         self.__cursor: _Cursor = _Cursor(*args)
 
@@ -104,7 +104,7 @@ class CustomCursor(Cursor):
         x, y = hotspot
         return CustomCursor((width, height), (x, y), xormasks, andmasks)
 
-    def set(self, /) -> None:
+    def set(self) -> None:
         _pg_mouse_set_cursor(self.__cursor)
 
 
@@ -126,7 +126,7 @@ class SystemCursor(Cursor, Enum, metaclass=_MetaSystemCursor):
     NO = _pg_constants.SYSTEM_CURSOR_NO
     HAND = _pg_constants.SYSTEM_CURSOR_HAND
 
-    def set(self, /) -> None:
+    def set(self) -> None:
         _pg_mouse_set_system_cursor(self.value)
 
 

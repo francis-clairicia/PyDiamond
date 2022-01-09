@@ -27,7 +27,6 @@ from .scene import Scene
 class Pressable(Clickable):
     def __init__(
         self,
-        /,
         master: Union[Scene, Window],
         *,
         state: str = "normal",
@@ -52,7 +51,7 @@ class Pressable(Clickable):
         master.event.bind_event(Event.Type.KEYDOWN, self.__handle_key_press_event)
         master.event.bind_event(Event.Type.KEYUP, self.__handle_key_press_event)
 
-    def __handle_key_press_event(self, /, event: KeyEventType) -> bool:
+    def __handle_key_press_event(self, event: KeyEventType) -> bool:
         if isinstance(self, Drawable) and not self.is_shown():
             self.active = self.hover = False
             return False
@@ -82,19 +81,19 @@ class Pressable(Clickable):
                 return True
         return False
 
-    def _valid_key(self, /, key: int) -> bool:
+    def _valid_key(self, key: int) -> bool:
         return key in (Keyboard.Key.RETURN, Keyboard.Key.KP_ENTER)
 
-    def _focus_update(self, /) -> None:
+    def _focus_update(self) -> None:
         super()._focus_update()
         if isinstance(self, SupportsFocus) and self.focus.get_mode() == self.focus.Mode.KEY:
             self.hover = self.focus.has()
 
-    def _on_press_down(self, /, event: KeyDownEvent) -> None:
+    def _on_press_down(self, event: KeyDownEvent) -> None:
         pass
 
-    def _on_press_up(self, /, event: KeyUpEvent) -> None:
+    def _on_press_up(self, event: KeyUpEvent) -> None:
         pass
 
-    def _on_press_out(self, /, event: KeyDownEvent) -> None:
+    def _on_press_out(self, event: KeyDownEvent) -> None:
         pass

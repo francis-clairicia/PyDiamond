@@ -43,7 +43,7 @@ COMPILED_SURFACE_EXTENSION: Final[str] = ".surface"
 
 
 class SurfaceUnpickler(pickle.Unpickler):
-    def find_class(self, /, __module_name: str, __global_name: str) -> Any:
+    def find_class(self, __module_name: str, __global_name: str) -> Any:
         if __module_name != "pygame.image" or __global_name != "fromstring":
             raise pickle.UnpicklingError(f"Trying to unpickle {__module_name}.{__global_name}")
         return super().find_class(__module_name, __global_name)

@@ -56,37 +56,37 @@ class MetaThemedShape(MetaShape, MetaThemedObject):
 class AbstractShape(TDrawable, metaclass=MetaShape):
     config = Configuration(autocopy=True)
 
-    def __init__(self, /) -> None:
+    def __init__(self) -> None:
         TDrawable.__init__(self)
         self.__image: Surface = create_surface((0, 0))
         self.__shape_image: Surface = self.__image.copy()
         self.__local_size: Tuple[float, float] = (0, 0)
 
-    def draw_onto(self, /, target: Renderer) -> None:
+    def draw_onto(self, target: Renderer) -> None:
         image: Surface = self.__image
         center: Tuple[float, float] = self.center
         target.draw(image, image.get_rect(center=center))
 
-    def get_local_size(self, /) -> Tuple[float, float]:
+    def get_local_size(self) -> Tuple[float, float]:
         return self.__local_size
 
-    def get_size(self, /) -> Tuple[float, float]:
+    def get_size(self) -> Tuple[float, float]:
         return self.__image.get_size()
 
-    def _apply_both_rotation_and_scale(self, /) -> None:
+    def _apply_both_rotation_and_scale(self) -> None:
         angle: float = self.angle
         scale: float = self.scale
         self.__image = _surface_rotozoom(self.__shape_image, angle, scale)
 
-    def _apply_only_rotation(self, /) -> None:
+    def _apply_only_rotation(self) -> None:
         angle: float = self.angle
         self.__image = _surface_rotate(self.__shape_image, angle)
 
-    def _apply_only_scale(self, /) -> None:
+    def _apply_only_scale(self) -> None:
         scale: float = self.scale
         self.__image = _surface_rotozoom(self.__shape_image, 0, scale)
 
-    def __compute_shape_size(self, /) -> None:
+    def __compute_shape_size(self) -> None:
         all_points: Sequence[Vector2] = self.get_local_vertices()
 
         if not all_points:
@@ -102,14 +102,14 @@ class AbstractShape(TDrawable, metaclass=MetaShape):
         self.__local_size = (w, h)
 
     @abstractmethod
-    def _make(self, /) -> Surface:
+    def _make(self) -> Surface:
         raise NotImplementedError
 
     @abstractmethod
-    def get_local_vertices(self, /) -> Sequence[Vector2]:
+    def get_local_vertices(self) -> Sequence[Vector2]:
         raise NotImplementedError
 
-    def get_vertices(self, /) -> Sequence[Vector2]:
+    def get_vertices(self) -> Sequence[Vector2]:
         angle: float = self.angle
         scale: float = self.scale
         all_points: Sequence[Vector2] = self.get_local_vertices()
@@ -137,7 +137,7 @@ class AbstractShape(TDrawable, metaclass=MetaShape):
         return tuple(vertices)
 
     @config.main_update
-    def __update_shape(self, /) -> None:
+    def __update_shape(self) -> None:
         if self.config.has_initialization_context():
             self.__compute_shape_size()
             self.__shape_image = self._make()
@@ -156,7 +156,7 @@ class SingleColorShape(AbstractShape):
     color: OptionAttribute[Color] = OptionAttribute()
 
     @initializer
-    def __init__(self, /, *, color: Color, **kwargs: Any) -> None:
+    def __init__(self, *, color: Color, **kwargs: Any) -> None:
         self.color = color
         super().__init__(**kwargs)
 
@@ -170,12 +170,12 @@ class OutlinedShape(AbstractShape):
     outline_color: OptionAttribute[Color] = OptionAttribute()
 
     @initializer
-    def __init__(self, /, *, outline: int, outline_color: Color, **kwargs: Any) -> None:
+    def __init__(self, *, outline: int, outline_color: Color, **kwargs: Any) -> None:
         self.outline = outline
         self.outline_color = outline_color
         super().__init__(**kwargs)
 
-    def get_local_size(self, /) -> Tuple[float, float]:
+    def get_local_size(self) -> Tuple[float, float]:
         w, h = super().get_local_size()
         outline: int = self.outline
         if outline == 0:
@@ -196,7 +196,6 @@ class PolygonShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
     @initializer
     def __init__(
         self,
-        /,
         color: Color,
         *,
         outline: int = 0,
@@ -208,7 +207,7 @@ class PolygonShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
         self.__center: Vector2 = Vector2(0, 0)
         self.set_points(points)
 
-    def _make(self, /) -> Surface:
+    def _make(self) -> Surface:
         outline: int = self.outline
         all_points: Sequence[Vector2] = self.points
 
@@ -234,10 +233,10 @@ class PolygonShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
 
         return image.surface
 
-    def get_local_vertices(self, /) -> Sequence[Vector2]:
+    def get_local_vertices(self) -> Sequence[Vector2]:
         return self.points
 
-    def set_points(self, /, points: PointList) -> None:
+    def set_points(self, points: PointList) -> None:
         self.config.set("points", points)
 
     config.set_autocopy("points", copy_on_set=False)
@@ -254,7 +253,7 @@ class PolygonShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
         return tuple(points)
 
     @config.on_update_value("points")
-    def __on_update_points(self, /, points: Sequence[Vector2]) -> None:
+    def __on_update_points(self, points: Sequence[Vector2]) -> None:
         left: float = 0
         top: float = 0
         right: float = max((point.x for point in points), default=0)
@@ -273,11 +272,11 @@ class AbstractRectangleShape(AbstractShape):
     local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
 
     @initializer
-    def __init__(self, /, *, width: float, height: float, **kwargs: Any) -> None:
+    def __init__(self, *, width: float, height: float, **kwargs: Any) -> None:
         self.local_size = width, height
         super().__init__(**kwargs)
 
-    def get_local_vertices(self, /) -> Sequence[Vector2]:
+    def get_local_vertices(self) -> Sequence[Vector2]:
         w, h = self.local_size
         return (Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h))
 
@@ -295,11 +294,11 @@ class AbstractSquareShape(AbstractShape):
     local_size: OptionAttribute[float] = OptionAttribute()
 
     @initializer
-    def __init__(self, /, *, size: float, **kwargs: Any) -> None:
+    def __init__(self, *, size: float, **kwargs: Any) -> None:
         self.local_size = size
         super().__init__(**kwargs)
 
-    def get_local_vertices(self, /) -> Sequence[Vector2]:
+    def get_local_vertices(self) -> Sequence[Vector2]:
         w = h = self.local_size
         return (Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h))
 
@@ -325,7 +324,6 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape, me
     @initializer
     def __init__(
         self,
-        /,
         width: float,
         height: float,
         color: Color,
@@ -353,7 +351,7 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape, me
         self.border_bottom_left_radius = border_bottom_left_radius
         self.border_bottom_right_radius = border_bottom_right_radius
 
-    def _make(self, /) -> Surface:
+    def _make(self) -> Surface:
         outline: int = self.outline
         w: float = self.local_width
         h: float = self.local_height
@@ -376,7 +374,7 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape, me
     @config.getter_key("border_top_right_radius")
     @config.getter_key("border_bottom_left_radius")
     @config.getter_key("border_bottom_right_radius")
-    def __get_border_radius(self, /, border: str) -> int:
+    def __get_border_radius(self, border: str) -> int:
         try:
             return self.__draw_params[border]
         except KeyError as exc:
@@ -387,7 +385,7 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape, me
     @config.setter_key("border_top_right_radius")
     @config.setter_key("border_bottom_left_radius")
     @config.setter_key("border_bottom_right_radius")
-    def __set_border_radius(self, /, border: str, radius: int) -> None:
+    def __set_border_radius(self, border: str, radius: int) -> None:
         self.__draw_params[border] = radius
 
 
@@ -397,11 +395,11 @@ class AbstractCircleShape(AbstractShape):
     radius: OptionAttribute[float] = OptionAttribute()
 
     @initializer
-    def __init__(self, /, *, radius: float, **kwargs: Any) -> None:
+    def __init__(self, *, radius: float, **kwargs: Any) -> None:
         self.radius = radius
         super().__init__(**kwargs)
 
-    def get_local_vertices(self, /) -> Sequence[Vector2]:
+    def get_local_vertices(self) -> Sequence[Vector2]:
         r: float = self.radius
         center: Vector2 = Vector2(r, r)
         radius: Vector2 = Vector2(r, 0)
@@ -427,7 +425,6 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclas
     @initializer
     def __init__(
         self,
-        /,
         radius: float,
         color: Color,
         *,
@@ -448,7 +445,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclas
         self.draw_bottom_left = draw_bottom_left
         self.draw_bottom_right = draw_bottom_right
 
-    def _make(self, /) -> Surface:
+    def _make(self) -> Surface:
         radius: float = self.radius
         outline: int = self.outline
         width, height = self.get_local_size()
@@ -461,7 +458,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclas
             image.draw_circle(self.outline_color, center, radius, width=outline, **draw_params)
         return image.surface
 
-    def get_local_vertices(self, /) -> Sequence[Vector2]:
+    def get_local_vertices(self) -> Sequence[Vector2]:
         return self.__points
 
     config.value_converter_static("draw_top_left", truth)
@@ -473,7 +470,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclas
     @config.getter_key("draw_top_right")
     @config.getter_key("draw_bottom_left")
     @config.getter_key("draw_bottom_right")
-    def __get_draw_arc(self, /, side: str) -> bool:
+    def __get_draw_arc(self, side: str) -> bool:
         try:
             return self.__draw_params[side]
         except KeyError as exc:
@@ -483,14 +480,14 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclas
     @config.setter_key("draw_top_right")
     @config.setter_key("draw_bottom_left")
     @config.setter_key("draw_bottom_right")
-    def __set_draw_arc(self, /, side: str, status: bool) -> None:
+    def __set_draw_arc(self, side: str, status: bool) -> None:
         self.__draw_params[side] = status
 
     @config.on_update("draw_top_left")
     @config.on_update("draw_top_right")
     @config.on_update("draw_bottom_left")
     @config.on_update("draw_bottom_right")
-    def __compute_vertices(self, /) -> None:
+    def __compute_vertices(self) -> None:
         draw_params = self.__draw_params
         center: Vector2 = Vector2(self.radius, self.radius)
         if all(not drawn for drawn in draw_params.values()):
@@ -539,7 +536,6 @@ class CrossShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
     @initializer
     def __init__(
         self,
-        /,
         width: float,
         height: float,
         color: Color,
@@ -556,7 +552,7 @@ class CrossShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
         self.local_size = width, height
         self.line_width = line_width
 
-    def _make(self, /) -> Surface:
+    def _make(self) -> Surface:
         p = PolygonShape(
             self.color,
             outline=self.outline,
@@ -566,10 +562,10 @@ class CrossShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
         image: Surface = getattr(p, mangle_private_attribute(AbstractShape, "image"))
         return image
 
-    def get_local_vertices(self, /) -> Sequence[Vector2]:
+    def get_local_vertices(self) -> Sequence[Vector2]:
         return self.__points
 
-    def __get_diagonal_cross_points(self, /) -> Tuple[Vector2, ...]:
+    def __get_diagonal_cross_points(self) -> Tuple[Vector2, ...]:
         rect: Rect = Rect((0, 0), self.local_size)
         line_width: float = self.line_width
 
@@ -616,7 +612,7 @@ class CrossShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
             Vector2(rect.left, rect.top + h_offset),
         )
 
-    def __get_plus_cross_points(self, /) -> Tuple[Vector2, ...]:
+    def __get_plus_cross_points(self) -> Tuple[Vector2, ...]:
         rect: Rect = self.get_local_rect()
         line_width: float = self.line_width
 
@@ -644,7 +640,7 @@ class CrossShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
     config.value_converter_static("line_width", valid_float(min_value=0))
 
     @property
-    def type(self, /) -> str:
+    def type(self) -> str:
         return str(self.__type.value)
 
     config.getter("local_size", lambda self: (self.local_width, self.local_height))
@@ -654,7 +650,7 @@ class CrossShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
     @config.on_update("local_height")
     @config.on_update("local_size")
     @config.on_update("line_width")
-    def __compute_vertices(self, /) -> None:
+    def __compute_vertices(self) -> None:
         compute_vertices = {
             CrossShape.Type.DIAGONAL: self.__get_diagonal_cross_points,
             CrossShape.Type.PLUS: self.__get_plus_cross_points,
@@ -665,7 +661,6 @@ class CrossShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
 class DiagonalCrossShape(CrossShape):
     def __init__(
         self,
-        /,
         width: float,
         height: float,
         color: Color,
@@ -690,7 +685,6 @@ class DiagonalCrossShape(CrossShape):
 class PlusCrossShape(CrossShape):
     def __init__(
         self,
-        /,
         width: float,
         height: float,
         color: Color,

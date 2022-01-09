@@ -20,12 +20,12 @@ _T = TypeVar("_T")
 
 
 class MetaSingleton(ABCMeta):
-    def __new__(metacls, /, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaSingleton:
+    def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaSingleton:
         kwargs.pop("abstract", None)
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
     def __init__(
-        cls, /, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], *, abstract: bool = False, **kwargs: Any
+        cls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], *, abstract: bool = False, **kwargs: Any
     ) -> None:
         super().__init__(name, bases, namespace, **kwargs)
         cls.__abstractsingleton__: bool = bool(abstract or cls.__abstractmethods__)
@@ -39,7 +39,7 @@ class MetaSingleton(ABCMeta):
                 cls.__call_twice_error_wrapper(getattr(cls, constructor_attr, None) or getattr(object, constructor_attr)),
             )
 
-    def __setattr__(cls, /, __name: str, __value: Any) -> None:
+    def __setattr__(cls, __name: str, __value: Any) -> None:
         if __name in ("_singleton_instance_", "__abstractsingleton__") and __name in cls.__dict__:
             if __name == "_singleton_instance_":
                 raise TypeError("Cannot modify singleton instance")
@@ -48,7 +48,7 @@ class MetaSingleton(ABCMeta):
             raise TypeError("Cannot modify singleton constructors")
         return super().__setattr__(__name, __value)
 
-    def __delattr__(cls, /, __name: str) -> None:
+    def __delattr__(cls, __name: str) -> None:
         if __name in ("_singleton_instance_", "__abstractsingleton__") and __name in cls.__dict__:
             if __name == "_singleton_instance_":
                 raise TypeError("Cannot modify singleton instance")

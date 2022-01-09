@@ -61,7 +61,7 @@ class MetaGUIScene(MetaLayeredScene):
 
 
 class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
-    def __init__(self, /) -> None:
+    def __init__(self) -> None:
         super().__init__()
         self.__container: FocusableContainer = FocusableContainer(self)
         self.__group: _GUILayeredGroup = _GUILayeredGroup(self)
@@ -78,14 +78,14 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
         self.event.bind_key_press(Keyboard.Key.TAB, handle_key_event)
         self.event.bind_key_press(Keyboard.Key.ESCAPE, handle_key_event)
 
-    def handle_event(self, /, event: Event) -> bool:
+    def handle_event(self, event: Event) -> bool:
         if super().handle_event(event):
             return True
         if isinstance(event, KeyDownEvent) and self.__handle_key_event(event):
             return True
         return False
 
-    def focus_get(self, /) -> Optional[SupportsFocus]:
+    def focus_get(self) -> Optional[SupportsFocus]:
         if not self.looping():
             return None
         focus_index: int = self.__focus_index
@@ -101,7 +101,7 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
         self.__focus_index = -1
         return None
 
-    def focus_next(self, /) -> Optional[SupportsFocus]:
+    def focus_next(self) -> Optional[SupportsFocus]:
         if not self.looping():
             return None
         focusable_list: Sequence[SupportsFocus] = self.__container
@@ -119,7 +119,7 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
         self.__focus_index = -1
         return None
 
-    def focus_prev(self, /) -> Optional[SupportsFocus]:
+    def focus_prev(self) -> Optional[SupportsFocus]:
         if not self.looping():
             return None
         focusable_list: Sequence[SupportsFocus] = self.__container
@@ -140,14 +140,14 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
         return None
 
     @overload
-    def focus_set(self, /, focusable: SupportsFocus) -> bool:
+    def focus_set(self, focusable: SupportsFocus) -> bool:
         ...
 
     @overload
-    def focus_set(self, /, focusable: None) -> None:
+    def focus_set(self, focusable: None) -> None:
         ...
 
-    def focus_set(self, /, focusable: Optional[SupportsFocus]) -> Optional[bool]:
+    def focus_set(self, focusable: Optional[SupportsFocus]) -> Optional[bool]:
         if not self.looping():
             return None if focusable is None else False
         if focusable is None:
@@ -185,7 +185,7 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
         for callback in getattr(focusable, "_focus_leave_callbacks_", ()):
             callback()
 
-    def __handle_key_event(self, /, event: KeyDownEvent) -> bool:
+    def __handle_key_event(self, event: KeyDownEvent) -> bool:
         if event.key == Keyboard.Key.TAB:
             self.focus_set(self.focus_next() if not event.mod & Keyboard.Modifiers.SHIFT else self.focus_prev())
             return True
@@ -213,11 +213,11 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
 
     @property
     @final
-    def group(self, /) -> LayeredGroup:
+    def group(self) -> LayeredGroup:
         return self.__group
 
     @property
-    def focus_container(self, /) -> FocusableContainer:
+    def focus_container(self) -> FocusableContainer:
         return self.__container
 
 
@@ -233,19 +233,19 @@ class GUIMainScene(GUIScene, MainScene, metaclass=MetaGUIMainScene):
 class SupportsFocus(Protocol):
     @property
     @abstractmethod
-    def focus(self, /) -> BoundFocus:
+    def focus(self) -> BoundFocus:
         raise NoFocusSupportError
 
-    def _on_focus_set(self, /) -> None:
+    def _on_focus_set(self) -> None:
         pass
 
-    def _on_focus_leave(self, /) -> None:
+    def _on_focus_leave(self) -> None:
         pass
 
 
 @runtime_checkable
 class HasFocusUpdate(Protocol):
-    def _focus_update(self, /) -> None:
+    def _focus_update(self) -> None:
         pass
 
 
@@ -268,33 +268,33 @@ class BoundFocus:
 
     __mode: ClassVar[Mode] = Mode.MOUSE
 
-    def __init__(self, /, focusable: SupportsFocus, scene: Optional[Scene]) -> None:
+    def __init__(self, focusable: SupportsFocus, scene: Optional[Scene]) -> None:
         self.__f: SupportsFocus = focusable
         self.__scene: Optional[GUIScene] = scene if isinstance(scene, GUIScene) else None
 
-    def is_bound_to(self, /, scene: GUIScene) -> bool:
+    def is_bound_to(self, scene: GUIScene) -> bool:
         bound_scene: Optional[GUIScene] = self.__scene
         return bound_scene is not None and bound_scene is scene
 
-    def get(self, /) -> Optional[SupportsFocus]:
+    def get(self) -> Optional[SupportsFocus]:
         scene: Optional[GUIScene] = self.__scene
         if scene is None:
             return None
         return scene.focus_get()
 
-    def has(self, /) -> bool:
+    def has(self) -> bool:
         f: SupportsFocus = self.__self__
         return self.get() is f
 
     @overload
-    def take(self, /, status: bool) -> None:
+    def take(self, status: bool) -> None:
         ...
 
     @overload
-    def take(self, /) -> bool:
+    def take(self) -> bool:
         ...
 
-    def take(self, /, status: Optional[bool] = None) -> Optional[bool]:
+    def take(self, status: Optional[bool] = None) -> Optional[bool]:
         f: SupportsFocus = self.__self__
         if status is not None:
             status = bool(status)
@@ -308,14 +308,14 @@ class BoundFocus:
             taken = taken and f.is_shown()
         return taken
 
-    def set(self, /) -> bool:
+    def set(self) -> bool:
         scene: Optional[GUIScene] = self.__scene
         if scene is None:
             return False
         f: SupportsFocus = self.__self__
         return scene.focus_set(f)
 
-    def leave(self, /) -> None:
+    def leave(self) -> None:
         scene: Optional[GUIScene] = self.__scene
         if scene is None:
             return
@@ -358,10 +358,10 @@ class BoundFocus:
                 raise TypeError(f"Expected None or SupportsFocus object, got {obj!r}")
             bound_object_dict[side] = obj
 
-    def remove_obj_on_side(self, /, *sides: str) -> None:
+    def remove_obj_on_side(self, *sides: str) -> None:
         self.set_obj_on_side(dict.fromkeys(sides))
 
-    def remove_all(self, /) -> None:
+    def remove_all(self) -> None:
         self.remove_obj_on_side(*BoundFocus.Side)
 
     class BoundObjectsDict(TypedDict):
@@ -371,14 +371,14 @@ class BoundFocus:
         on_right: Optional[SupportsFocus]
 
     @overload
-    def get_obj_on_side(self, /) -> BoundObjectsDict:
+    def get_obj_on_side(self) -> BoundObjectsDict:
         ...
 
     @overload
-    def get_obj_on_side(self, /, side: str) -> Optional[SupportsFocus]:
+    def get_obj_on_side(self, side: str) -> Optional[SupportsFocus]:
         ...
 
-    def get_obj_on_side(self, /, side: Optional[str] = None) -> Union[BoundObjectsDict, SupportsFocus, None]:
+    def get_obj_on_side(self, side: Optional[str] = None) -> Union[BoundObjectsDict, SupportsFocus, None]:
         f: SupportsFocus = self.__self__
         bound_object_dict: Dict[BoundFocus.Side, Optional[SupportsFocus]] = getattr(f, "_bound_focus_objects_", {})
 
@@ -393,63 +393,63 @@ class BoundFocus:
         side = BoundFocus.Side(side)
         return bound_object_dict.get(side)
 
-    def left_to(self, /, right: SupportsFocus, *, bind_other: bool = True) -> None:
+    def left_to(self, right: SupportsFocus, *, bind_other: bool = True) -> None:
         if bind_other:
             right.focus.set_obj_on_side(on_left=self.__self__)
         self.set_obj_on_side(on_right=right)
 
-    def right_to(self, /, left: SupportsFocus, *, bind_other: bool = True) -> None:
+    def right_to(self, left: SupportsFocus, *, bind_other: bool = True) -> None:
         if bind_other:
             left.focus.set_obj_on_side(on_right=self.__self__)
         self.set_obj_on_side(on_left=left)
 
-    def above(self, /, bottom: SupportsFocus, *, bind_other: bool = True) -> None:
+    def above(self, bottom: SupportsFocus, *, bind_other: bool = True) -> None:
         if bind_other:
             bottom.focus.set_obj_on_side(on_top=self.__self__)
         self.set_obj_on_side(on_bottom=bottom)
 
-    def below(self, /, top: SupportsFocus, *, bind_other: bool = True) -> None:
+    def below(self, top: SupportsFocus, *, bind_other: bool = True) -> None:
         if bind_other:
             top.focus.set_obj_on_side(on_bottom=self.__self__)
         self.set_obj_on_side(on_top=top)
 
-    def register_focus_set_callback(self, /, callback: Callable[[], None]) -> None:
+    def register_focus_set_callback(self, callback: Callable[[], None]) -> None:
         f: SupportsFocus = self.__self__
         list_callback: List[Callable[[], None]] = setdefaultattr(f, "_focus_set_callbacks_", [])
         if callback not in list_callback:
             list_callback.append(callback)
 
-    def unregister_focus_set_callback(self, /, callback: Callable[[], None]) -> None:
+    def unregister_focus_set_callback(self, callback: Callable[[], None]) -> None:
         f: SupportsFocus = self.__self__
         list_callback: List[Callable[[], None]] = setdefaultattr(f, "_focus_set_callbacks_", [])
         list_callback.remove(callback)
 
-    def register_focus_leave_callback(self, /, callback: Callable[[], None]) -> None:
+    def register_focus_leave_callback(self, callback: Callable[[], None]) -> None:
         f: SupportsFocus = self.__self__
         list_callback: List[Callable[[], None]] = setdefaultattr(f, "_focus_leave_callbacks_", [])
         if callback not in list_callback:
             list_callback.append(callback)
 
-    def unregister_focus_leave_callback(self, /, callback: Callable[[], None]) -> None:
+    def unregister_focus_leave_callback(self, callback: Callable[[], None]) -> None:
         f: SupportsFocus = self.__self__
         list_callback: List[Callable[[], None]] = setdefaultattr(f, "_focus_leave_callbacks_", [])
         list_callback.remove(callback)
 
     @classmethod
-    def get_mode(cls, /) -> Mode:
+    def get_mode(cls) -> Mode:
         return cls.__mode
 
     @classmethod
-    def set_mode(cls, /, mode: Mode) -> None:
+    def set_mode(cls, mode: Mode) -> None:
         cls.__mode = cls.Mode(mode)
 
     @property
-    def __self__(self, /) -> SupportsFocus:
+    def __self__(self) -> SupportsFocus:
         return self.__f
 
 
 class _MetaBoundFocusProxy(type):
-    def __new__(metacls, /, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> _MetaBoundFocusProxy:
+    def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> _MetaBoundFocusProxy:
         if "BoundFocusProxy" in globals() and not any(issubclass(cls, BoundFocusProxy) for cls in bases):
             raise TypeError(
                 f"{name!r} must be inherits from a {BoundFocusProxy.__name__} class in order to use {_MetaBoundFocusProxy.__name__} metaclass"
@@ -508,7 +508,7 @@ class _MetaBoundFocusProxy(type):
 
 
 class BoundFocusProxy(BoundFocus, metaclass=_MetaBoundFocusProxy):
-    def __init__(self, /, focus: BoundFocus) -> None:
+    def __init__(self, focus: BoundFocus) -> None:
         super().__init__(focus.__self__, getattr(focus, mangle_private_attribute(BoundFocus, "scene"), None))
         self.__focus: BoundFocus = focus
 
@@ -517,7 +517,7 @@ class BoundFocusProxy(BoundFocus, metaclass=_MetaBoundFocusProxy):
         return getattr(focus, __name)
 
     @property
-    def original(self, /) -> BoundFocus:
+    def original(self) -> BoundFocus:
         return self.__focus
 
 
@@ -530,16 +530,16 @@ _SIDE_WITH_KEY_EVENT: Final[Dict[int, BoundFocus.Side]] = {
 
 
 class _GUILayeredGroup(LayeredGroup):
-    def __init__(self, /, master: GUIScene) -> None:
+    def __init__(self, master: GUIScene) -> None:
         self.__master: GUIScene = master
         super().__init__()
 
-    def draw_onto(self, /, target: Renderer) -> None:
+    def draw_onto(self, target: Renderer) -> None:
         master: GUIScene = self.__master
         master.focus_container.update()
         super().draw_onto(target)
 
-    def add(self, /, *objects: Drawable, layer: Optional[int] = None) -> None:
+    def add(self, *objects: Drawable, layer: Optional[int] = None) -> None:
         super().add(*objects, layer=layer)
         master: GUIScene = self.__master
         container: FocusableContainer = master.focus_container
@@ -547,14 +547,14 @@ class _GUILayeredGroup(LayeredGroup):
             if isinstance(obj, SupportsFocus) and obj.focus.is_bound_to(master):
                 container.add(obj)
 
-    def remove(self, /, *objects: Drawable) -> None:
+    def remove(self, *objects: Drawable) -> None:
         super().remove(*objects)
         container: FocusableContainer = self.__master.focus_container
         for obj in objects:
             if isinstance(obj, SupportsFocus) and obj in container:
                 container.remove(obj)
 
-    def pop(self, /, index: int = -1) -> Drawable:
+    def pop(self, index: int = -1) -> Drawable:
         obj: Drawable = super().pop(index=index)
         container: FocusableContainer = self.__master.focus_container
         if isinstance(obj, SupportsFocus) and obj in container:
@@ -563,30 +563,30 @@ class _GUILayeredGroup(LayeredGroup):
 
 
 class FocusableContainer(Sequence[SupportsFocus]):
-    def __init__(self, /, master: GUIScene) -> None:
+    def __init__(self, master: GUIScene) -> None:
         super().__init__()
         self.__master: GUIScene = master
         self.__list: List[SupportsFocus] = []
 
-    def __len__(self, /) -> int:
+    def __len__(self) -> int:
         list_length = self.__list.__len__
         return list_length()
 
     @overload
-    def __getitem__(self, /, index: int) -> SupportsFocus:
+    def __getitem__(self, index: int) -> SupportsFocus:
         ...
 
     @overload
-    def __getitem__(self, /, index: slice) -> Sequence[SupportsFocus]:
+    def __getitem__(self, index: slice) -> Sequence[SupportsFocus]:
         ...
 
-    def __getitem__(self, /, index: Union[int, slice]) -> Union[SupportsFocus, Sequence[SupportsFocus]]:
+    def __getitem__(self, index: Union[int, slice]) -> Union[SupportsFocus, Sequence[SupportsFocus]]:
         focusable_list: List[SupportsFocus] = self.__list
         if isinstance(index, slice):
             return tuple(focusable_list[index])
         return focusable_list[index]
 
-    def add(self, /, focusable: SupportsFocus) -> None:
+    def add(self, focusable: SupportsFocus) -> None:
         if focusable in self:
             return
         if not isinstance(focusable, SupportsFocus):
@@ -596,11 +596,11 @@ class FocusableContainer(Sequence[SupportsFocus]):
             raise ValueError("'focusable' is not bound to this scene")
         self.__list.append(focusable)
 
-    def remove(self, /, focusable: SupportsFocus) -> None:
+    def remove(self, focusable: SupportsFocus) -> None:
         focusable_list: List[SupportsFocus] = self.__list
         focusable_list.remove(focusable)
 
-    def update(self, /) -> None:
+    def update(self) -> None:
         for f in self:
             if isinstance(f, HasFocusUpdate):
                 f._focus_update()
