@@ -21,8 +21,8 @@ import os
 import sys
 
 ############ Environment initialization ############
-if sys.version_info < (3, 9):
-    raise ImportError("This framework must be ran with python >= 3.9 (actual={}.{}.{})".format(*sys.version_info[0:3]))
+if sys.version_info < (3, 10):
+    raise ImportError("This framework must be ran with python >= 3.10 (actual={}.{}.{})".format(*sys.version_info[0:3]))
 
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")  # Must be set before importing pygame
 if os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] not in ("0", "1"):

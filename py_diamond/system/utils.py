@@ -21,45 +21,50 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from functools import lru_cache as _lru_cache, wraps as _wraps
-from typing import Any, Callable, Optional, Type, TypeVar, Union, cast, overload
+from functools import WRAPPER_ASSIGNMENTS, WRAPPER_UPDATES, lru_cache as _lru_cache, update_wrapper as _update_wrapper
+from typing import Any, Callable, Optional, ParamSpec, Sequence, Type, TypeVar, Union, overload
 
+_P = ParamSpec("_P")
 _T = TypeVar("_T")
-_Func = TypeVar("_Func", bound=Callable[..., Any])
+_R = TypeVar("_R")
 
 
 @overload
-def lru_cache(func: _Func, /) -> _Func:
+def lru_cache(func: Callable[_P, _R], /) -> Callable[_P, _R]:
     ...
 
 
 @overload
-def lru_cache(*, maxsize: Optional[int] = 128, typed: bool = False) -> Callable[[_Func], _Func]:
+def lru_cache(*, maxsize: Optional[int] = 128, typed: bool = False) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]:
     ...
 
 
-def lru_cache(func: Optional[_Func] = None, /, *, maxsize: Optional[int] = 128, typed: bool = False) -> Callable[..., Any]:
-    decorator = cast(Callable[[_Func], _Func], _lru_cache(maxsize=maxsize, typed=typed))
+def lru_cache(
+    func: Optional[Callable[..., Any]] = None, /, *, maxsize: Optional[int] = 128, typed: bool = False
+) -> Callable[..., Any]:
+    decorator = _lru_cache(maxsize=maxsize, typed=typed)
     if func is not None:
         return decorator(func)
     return decorator
 
 
-def cache(func: _Func, /) -> _Func:
+def cache(func: Callable[_P, _R], /) -> Callable[_P, _R]:
     return lru_cache(maxsize=None)(func)
 
 
 @overload
-def tp_cache(func: _Func, /) -> _Func:
+def tp_cache(func: Callable[_P, _R], /) -> Callable[_P, _R]:
     ...
 
 
 @overload
-def tp_cache(*, maxsize: Optional[int] = 128, typed: bool = False) -> Callable[[_Func], _Func]:
+def tp_cache(*, maxsize: Optional[int] = 128, typed: bool = False) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]:
     ...
 
 
-def tp_cache(func: Optional[_Func] = None, /, *, maxsize: Optional[int] = 128, typed: bool = False) -> Callable[..., Any]:
+def tp_cache(
+    func: Optional[Callable[..., Any]] = None, /, *, maxsize: Optional[int] = 128, typed: bool = False
+) -> Callable[..., Any]:
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         cached: Callable[..., Any] = lru_cache(maxsize=maxsize, typed=typed)(func)
 
@@ -78,10 +83,11 @@ def tp_cache(func: Optional[_Func] = None, /, *, maxsize: Optional[int] = 128, t
     return decorator
 
 
-def wraps(wrapped_func: _Func) -> Callable[[Callable[..., Any]], _Func]:
-    def decorator(wrapper: Callable[..., Any]) -> _Func:
-        wrapper = _wraps(wrapped_func)(wrapper)
-        return cast(_Func, _FunctionWrapperProxy(wrapper))
+def wraps(
+    wrapped_func: Callable[_P, _R], *, assigned: Sequence[str] = WRAPPER_ASSIGNMENTS, updated: Sequence[str] = WRAPPER_UPDATES
+) -> Callable[[Callable[..., _R]], Callable[_P, _R]]:
+    def decorator(wrapper: Callable[..., _R]) -> Callable[_P, _R]:
+        return _update_wrapper(wrapper, wrapped_func, assigned=assigned, updated=updated)
 
     return decorator
 
@@ -94,9 +100,10 @@ def setdefaultattr(obj: object, name: str, value: _T) -> _T:
     return value
 
 
-def concreteclassmethod(func: _Func) -> _Func:
+# def concreteclassmethod(func: Callable[Concatenate[Type[_T], _P], _R]) -> Callable[Concatenate[Type[_T], _P], _R]:
+def concreteclassmethod(func: Callable[_P, _R]) -> Callable[_P, _R]:
     @wraps(func)
-    def wrapper(cls: Any, *args: Any, **kwargs: Any) -> Any:
+    def wrapper(cls: Any, *args: Any, **kwargs: Any) -> _R:
         if isinstance(cls, type) and getattr(cls, "__abstractmethods__", None):
             raise TypeError(f"{cls.__name__} is an abstract class")
         return func(cls, *args, **kwargs)
@@ -302,46 +309,3 @@ def __valid_number(value_type: Union[Type[int], Type[float]], optional: bool, /,
     else:
         raise TypeError("Invalid arguments")
     return valid_number
-
-
-class _FunctionWrapperProxy:
-    def __init__(self, wrapper: Callable[..., Any]) -> None:
-        if not callable(getattr(wrapper, "__wrapped__")):
-            raise AttributeError("Not a valid wrapper object: __wrapped__ attribute must be callable")
-        self.__func__: Callable[..., Any] = wrapper
-
-    def __repr__(self) -> str:
-        func: Callable[..., Any] = self.__wrapped__
-        return f"<function wrapper proxy {func.__name__} at {id(self):#x}>"
-
-    def __getattr__(self, name: str, /) -> Any:
-        func: Any = self.__wrapped__
-        return getattr(func, name)
-
-    def __setattr__(self, name: str, value: Any, /) -> None:
-        if name == "__func__":
-            if "__func__" in self.__dict__:
-                raise AttributeError("__func__ is a read-only attribute")
-            return super().__setattr__(name, value)
-        func: Any = self.__wrapped__
-        return setattr(func, name, value)
-
-    def __delattr__(self, name: str, /) -> None:
-        if name == "__func__":
-            raise AttributeError("__func__ is a read-only attribute")
-        return super().__delattr__(name)
-
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        func: Callable[..., Any] = self.__func__
-        return func(*args, **kwargs)
-
-    def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Callable[..., Any]:
-        func: Callable[..., Any] = self.__func__
-        func = getattr(func, "__get__")(obj, objtype)
-        return func
-
-    @property
-    def __wrapped__(self) -> Callable[..., Any]:
-        func: Callable[..., Any] = self.__func__
-        func = getattr(func, "__wrapped__")
-        return func

@@ -15,8 +15,8 @@ import os
 import pygame
 
 ############ pygame.mixer initialization ############
-if pygame.version.vernum < (2, 0):
-    raise ImportError(f"Your pygame version is too old: {pygame.version.ver!r} < '2.0.0'")
+if pygame.version.vernum < (2, 1, 1):
+    raise ImportError(f"Your pygame version is too old: {pygame.version.ver!r} < '2.1.1'")
 
 if pygame.version.SDL < (2, 0, 16):
     raise ImportError(f"Your SDL version is too old: {str(pygame.version.SDL)!r} < '2.0.16'")

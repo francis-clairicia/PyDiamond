@@ -108,7 +108,7 @@ class MetaEvent(type):
         return event_cls(**kwargs)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Event(metaclass=MetaEvent, event_type=-1):
     class Type(IntEnum):
         KEYDOWN = _pg_constants.KEYDOWN
@@ -158,7 +158,7 @@ class Event(metaclass=MetaEvent, event_type=-1):
     type: Event.Type = field(init=False)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class KeyDownEvent(Event, event_type=Event.Type.KEYDOWN):
     key: int
     mod: int
@@ -166,7 +166,7 @@ class KeyDownEvent(Event, event_type=Event.Type.KEYDOWN):
     scancode: int
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class KeyUpEvent(Event, event_type=Event.Type.KEYUP):
     key: int
     mod: int
@@ -175,13 +175,13 @@ class KeyUpEvent(Event, event_type=Event.Type.KEYUP):
 KeyEventType = Union[KeyDownEvent, KeyUpEvent]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class MouseButtonDownEvent(Event, event_type=Event.Type.MOUSEBUTTONDOWN):
     pos: Tuple[int, int]
     button: int
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class MouseButtonUpEvent(Event, event_type=Event.Type.MOUSEBUTTONUP):
     pos: Tuple[int, int]
     button: int
@@ -190,14 +190,14 @@ class MouseButtonUpEvent(Event, event_type=Event.Type.MOUSEBUTTONUP):
 MouseButtonEventType = Union[MouseButtonDownEvent, MouseButtonUpEvent]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class MouseMotionEvent(Event, event_type=Event.Type.MOUSEMOTION):
     pos: Tuple[int, int]
     rel: Tuple[int, int]
     buttons: Tuple[bool, bool, bool]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class MouseWheelEvent(Event, event_type=Event.Type.MOUSEWHEEL):
     flipped: bool
     x: int
@@ -207,34 +207,34 @@ class MouseWheelEvent(Event, event_type=Event.Type.MOUSEWHEEL):
 MouseEventType = Union[MouseButtonEventType, MouseWheelEvent, MouseMotionEvent]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class JoyAxisMotionEvent(Event, event_type=Event.Type.JOYAXISMOTION):
     instance_id: int
     axis: int
     value: float
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class JoyBallMotionEvent(Event, event_type=Event.Type.JOYBALLMOTION):
     instance_id: int
     ball: int
     rel: float
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class JoyHatMotionEvent(Event, event_type=Event.Type.JOYHATMOTION):
     instance_id: int
     hat: int
     value: Tuple[int, int]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class JoyButtonDownEvent(Event, event_type=Event.Type.JOYBUTTONDOWN):
     instance_id: int
     button: int
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class JoyButtonUpEvent(Event, event_type=Event.Type.JOYBUTTONUP):
     instance_id: int
     button: int
@@ -243,24 +243,24 @@ class JoyButtonUpEvent(Event, event_type=Event.Type.JOYBUTTONUP):
 JoyButtonEventType = Union[JoyButtonDownEvent, JoyButtonUpEvent]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class JoyDeviceAddedEvent(Event, event_type=Event.Type.JOYDEVICEADDED):
     device_index: int
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class JoyDeviceRemovedEvent(Event, event_type=Event.Type.JOYDEVICEREMOVED):
     instance_id: int
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class TextEditingEvent(Event, event_type=Event.Type.TEXTEDITING):
     text: str
     start: int
     length: int
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class TextInputEvent(Event, event_type=Event.Type.TEXTINPUT):
     text: str
 
@@ -268,80 +268,80 @@ class TextInputEvent(Event, event_type=Event.Type.TEXTINPUT):
 TextEvent = Union[TextEditingEvent, TextInputEvent]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class UserEvent(Event, event_type=Event.Type.USEREVENT):
     code: int
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowShownEvent(Event, event_type=Event.Type.WINDOWSHOWN):
     pass
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowHiddenEvent(Event, event_type=Event.Type.WINDOWHIDDEN):
     pass
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowExposedEvent(Event, event_type=Event.Type.WINDOWEXPOSED):
     pass
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowMovedEvent(Event, event_type=Event.Type.WINDOWMOVED):
     x: int
     y: int
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowResizedEvent(Event, event_type=Event.Type.WINDOWRESIZED):
     x: int
     y: int
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowSizeChangedEvent(Event, event_type=Event.Type.WINDOWSIZECHANGED):
     x: int
     y: int
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowMinimizedEvent(Event, event_type=Event.Type.WINDOWMINIMIZED):
     pass
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowMaximizedEvent(Event, event_type=Event.Type.WINDOWMAXIMIZED):
     pass
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowRestoredEvent(Event, event_type=Event.Type.WINDOWRESTORED):
     pass
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowEnterEvent(Event, event_type=Event.Type.WINDOWENTER):
     pass
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowLeaveEvent(Event, event_type=Event.Type.WINDOWLEAVE):
     pass
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowFocusGainedEvent(Event, event_type=Event.Type.WINDOWFOCUSGAINED):
     pass
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowFocusLostEvent(Event, event_type=Event.Type.WINDOWFOCUSLOST):
     pass
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowTakeFocusEvent(Event, event_type=Event.Type.WINDOWTAKEFOCUS):
     pass
 

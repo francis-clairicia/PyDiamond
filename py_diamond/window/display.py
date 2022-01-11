@@ -105,6 +105,34 @@ def scheduled(milliseconds: float) -> Callable[[_ScheduledFunc], _ScheduledFunc]
     return decorator
 
 
+#### To use when mypy will supports ParamSpec vars in Generic
+# class ScheduledFunction(Generic[_P]):
+#     def __init__(self, milliseconds: float, func: Callable[_P, None]) -> None:
+#         super().__init__()
+#         self.__clock = Clock()
+#         self.__milliseconds: float = milliseconds
+#         self.__wrapped__: Callable[_P, None] = func
+#         self.__first_start: bool = True
+
+#     def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> None:
+#         func: Callable[_P, None] = self.__wrapped__
+#         if self.__first_start or self.__clock.elapsed_time(self.__milliseconds):
+#             self.__first_start = False
+#             func(*args, **kwargs)
+
+#     def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Callable[..., None]:
+#         if obj is None:
+#             return self
+#         return MethodType(self, obj)
+
+
+# def scheduled(milliseconds: float) -> Callable[[Callable[_P, None]], ScheduledFunction[_P]]:
+#     def decorator(func: Callable[_P, None], /) -> ScheduledFunction[_P]:
+#         return ScheduledFunction[_P](milliseconds, func)
+
+#     return decorator  # type: ignore
+
+
 class Window:
     class __Exit(BaseException):
         pass

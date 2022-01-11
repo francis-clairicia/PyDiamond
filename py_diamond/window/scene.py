@@ -218,9 +218,6 @@ class Scene(metaclass=MetaScene):
     def __theme_init__(self) -> None:
         pass
 
-    def __quit__(self) -> None:
-        pass
-
     @final
     def __del_scene__(self) -> None:
         with suppress(KeyError):
@@ -249,6 +246,9 @@ class Scene(metaclass=MetaScene):
         pass
 
     def on_quit(self) -> None:
+        pass
+
+    def destroy(self) -> None:
         pass
 
     @abstractmethod
@@ -413,8 +413,7 @@ class MetaLayeredScene(MetaScene):
             add_drawable_attributes = False
 
         if add_drawable_attributes:
-            setattr_func: Callable[[AbstractLayeredScene, str, Any], Any]
-            setattr_func = namespace.get("__setattr__", bases[0].__setattr__)
+            setattr_func: Callable[[AbstractLayeredScene, str, Any], Any] = namespace.get("__setattr__", bases[0].__setattr__)
 
             @wraps(setattr_func)
             def setattr_wrapper(self: AbstractLayeredScene, /, __name: str, __value: Any) -> Any:
@@ -455,8 +454,8 @@ class AbstractLayeredScene(Scene, metaclass=MetaLayeredScene):
     def group(self) -> LayeredGroup:
         raise NotImplementedError
 
-    def __quit__(self) -> None:
-        super().__quit__()
+    def destroy(self) -> None:
+        super().destroy()
         self.group.clear()
 
     def render_before(self) -> None:
@@ -780,7 +779,7 @@ class _SceneManager:
             except KeyError:
                 return
             all_attributes: List[str] = list(scene.__dict__)
-            scene.__quit__()
+            scene.destroy()
         for attr in all_attributes:
             if attr != self.__scene_manager_attribute:
                 delattr(scene, attr)

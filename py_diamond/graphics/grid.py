@@ -41,10 +41,14 @@ class Grid(MDrawable, Container[Drawable]):
         BOTTOM = auto()
         CENTER = auto()
 
-    @dataclass
+    @dataclass(init=False)
     class Padding:
-        x: int = 0
-        y: int = 0
+        x: int
+        y: int
+
+        def __init__(self, x: int = 0, y: int = 0) -> None:
+            self.x = int(x)
+            self.y = int(y)
 
     config: Configuration = Configuration("bg_color", "outline", "outline_color", "justify")
 

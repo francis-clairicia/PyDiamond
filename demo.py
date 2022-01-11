@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S python3 -O
 # -*- coding: Utf-8 -*
 
 from __future__ import annotations

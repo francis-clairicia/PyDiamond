@@ -31,12 +31,11 @@ python3 -m pip install -r requirements.txt
 PyDiamond is dependent of pygame and Python (obviously). Some features of pygame needed in PyDiamond is available with a specific version of the SDL.
 
 Dependency version:
-- CPython >= 3.9
+- CPython >= 3.10
 - pygame >= 2.1.2
 - SDL >= 2.0.16
 - SDL_image >= 2.0.0
 - SDL_mixer >= 2.0.0
-- typing_extensions >= 4.0.1 (Will be removed when switching to Python 3.10)
 
 ## Credits
 - DR0ID for the gradient module

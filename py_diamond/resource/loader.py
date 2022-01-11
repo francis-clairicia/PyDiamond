@@ -54,11 +54,11 @@ class SoundLoader(ResourceLoader[Sound]):
 
 class FontLoader(ResourceLoader[str]):
     def load(self) -> str:
-        assert Font(self.filepath, 10) is not None
+        Font(self.filepath, 10)
         return self.filepath
 
 
 class MusicLoader(ResourceLoader[str]):
     def load(self) -> str:
-        assert Sound(file=self.filepath) is not None
+        Sound(file=self.filepath)
         return self.filepath

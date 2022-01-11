@@ -22,7 +22,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta, abstractmethod
-from bisect import bisect_right
+from bisect import insort_right
 from contextlib import suppress
 from typing import (
     TYPE_CHECKING,
@@ -245,14 +245,11 @@ class LayeredGroup(DrawableGroup):
             return
         layer_dict: Dict[Drawable, int] = self.__layer_dict
         drawable_list: List[Drawable] = getattr(self, mangle_private_attribute(DrawableGroup, "list"))
-        get_layer = self.get_layer
-        layers_list: List[int] = list(get_layer(d) for d in drawable_list)
-        default_layer: int = layer if layer is not None else self.__default_layer
+        if layer is None:
+            layer = self.__default_layer
         for d in filter(lambda d: d not in drawable_list, objects):
-            new_layer: int = layer_dict.setdefault(d, default_layer)
-            index: int = bisect_right(layers_list, new_layer)
-            layers_list.insert(index, new_layer)
-            drawable_list.insert(index, d)
+            layer_dict.setdefault(d, layer)
+            insort_right(drawable_list, d, key=layer_dict.__getitem__)
             if self not in d.groups:
                 try:
                     d.add_to_group(self)
@@ -290,10 +287,8 @@ class LayeredGroup(DrawableGroup):
             drawable_list.remove(obj)
         except ValueError:
             raise ValueError("obj not in group") from None
-        get_layer = self.get_layer
-        layers_list: List[int] = list(get_layer(d) for d in drawable_list)
-        drawable_list.insert(bisect_right(layers_list, layer), obj)
         layer_dict[obj] = layer
+        insort_right(drawable_list, obj, key=layer_dict.__getitem__)
 
     def get_top_layer(self) -> int:
         layer_dict: Dict[Drawable, int] = self.__layer_dict
