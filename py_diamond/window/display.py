@@ -58,7 +58,7 @@ from ..system._mangling import mangle_private_attribute
 from ..system.utils import wraps
 from .clock import Clock
 from .cursor import Cursor
-from .event import Event, EventManager, UnknownEventTypeError, WindowSizeChangedEvent
+from .event import Event, EventFactory, EventManager, UnknownEventTypeError, WindowSizeChangedEvent
 from .keyboard import Keyboard
 from .mouse import Mouse
 from .time import Time
@@ -341,7 +341,7 @@ class Window:
         manager: EventManager = self.event
 
         process_event = manager.process_event
-        make_event = Event.from_pygame_event
+        make_event = EventFactory.from_pygame_event
         for pg_event in _pg_event.get():
             if pg_event.type in (_PG_QUIT, _PG_WINDOWCLOSE):
                 self.handle_close_event()

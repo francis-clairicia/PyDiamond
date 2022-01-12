@@ -21,6 +21,8 @@ class Time:
     __delta: ClassVar[float] = 1
     __fixed_delta: ClassVar[float] = 1
 
+    __slots__ = ()
+
     @staticmethod
     def delta() -> float:
         return Time.__delta

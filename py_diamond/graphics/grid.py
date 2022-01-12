@@ -41,7 +41,7 @@ class Grid(MDrawable, Container[Drawable]):
         BOTTOM = auto()
         CENTER = auto()
 
-    @dataclass(init=False)
+    @dataclass(init=False, slots=True)
     class Padding:
         x: int
         y: int
@@ -384,6 +384,9 @@ class Grid(MDrawable, Container[Drawable]):
 
 
 class _GridRow:
+
+    __slots__ = ("__master", "__cells", "__columns", "__row")
+
     def __init__(self, master: Grid, row: int, column_dict: Dict[int, _GridColumnPlaceholder]) -> None:
         self.move_to_row(row)
         self.__master: Grid = master
@@ -451,6 +454,9 @@ class _GridRow:
 
 
 class _GridColumnPlaceholder:
+
+    __slots__ = ("__column",)
+
     def __init__(self, column: int) -> None:
         self.move_to_column(column)
 
@@ -468,6 +474,17 @@ class _GridColumnPlaceholder:
 
 
 class _GridCell(MDrawable):
+
+    __slots__ = (
+        "__master",
+        "__column",
+        "__object",
+        "__padx",
+        "__pady",
+        "__justify",
+        "__obj_size",
+    )
+
     def __init__(self, master: _GridRow, column: _GridColumnPlaceholder) -> None:
         super().__init__()
         self.__master: _GridRow = master
@@ -638,6 +655,9 @@ class _GridCell(MDrawable):
 
 
 class _GridBoundFocusProxy(BoundFocusProxy):
+
+    __slots__ = ("__grid",)
+
     def __init__(self, focus: BoundFocus, grid: Grid) -> None:
         super().__init__(focus)
         self.__grid: Grid = grid

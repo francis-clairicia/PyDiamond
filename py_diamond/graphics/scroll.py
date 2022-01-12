@@ -21,7 +21,7 @@ from ..system._mangling import mangle_private_attribute
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
 from ..window.clickable import Clickable
-from ..window.event import Event, MouseButtonDownEvent, MouseButtonUpEvent, MouseMotionEvent, MouseWheelEvent
+from ..window.event import MouseButtonDownEvent, MouseButtonUpEvent, MouseMotionEvent, MouseWheelEvent
 from ..window.mouse import Mouse
 from .color import BLACK, GRAY, TRANSPARENT, WHITE, Color
 from .drawable import Drawable, LayeredGroup, MetaTDrawable, TDrawable
@@ -394,7 +394,7 @@ class ScrollArea(LayeredGroup, Movable):
         self.__h_scroll: Optional[ScrollBar] = None
         self.__v_scroll: Optional[ScrollBar] = None
         self.__bg_color: Color = bg_color
-        master.event.bind_event(Event.Type.MOUSEWHEEL, self.__handle_wheel_event)
+        master.event.bind_event(MouseWheelEvent, self.__handle_wheel_event)
 
     @classmethod
     def set_horizontal_flip(cls, status: bool) -> None:

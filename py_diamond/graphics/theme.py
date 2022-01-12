@@ -22,10 +22,12 @@ from typing import (
     ClassVar,
     ContextManager,
     Dict,
+    Iterable,
     Iterator,
     List,
     Mapping,
     Optional,
+    Sequence,
     Set,
     Tuple,
     Type,
@@ -111,7 +113,7 @@ class _NoThemeType(str):
 
 NoTheme: _NoThemeType = _NoThemeType()
 
-ThemeType = Union[str, List[str]]
+ThemeType = Union[str, Iterable[str]]
 
 
 class MetaThemedObject(ABCMeta):
@@ -174,11 +176,11 @@ class MetaThemedObject(ABCMeta):
         if theme is NoTheme:
             return create_object(*args, **kwargs)
         if theme is None:
-            theme = []
+            theme = ()
         elif isinstance(theme, str):
-            theme = [theme]
+            theme = (theme,)
         else:
-            theme = list(theme)
+            theme = tuple(theme)
             if not all(isinstance(t, str) for t in theme):
                 raise TypeError("Themes must be str objects")
 
@@ -384,7 +386,7 @@ class MetaThemedObject(ABCMeta):
         return subclass
 
     @staticmethod
-    def __get_all_parent_class(cls: MetaThemedObject, *, do_not_search_for: Set[type]) -> List[MetaThemedObject]:
+    def __get_all_parent_class(cls: MetaThemedObject, *, do_not_search_for: Set[type]) -> Sequence[MetaThemedObject]:
         def get_all_parent_class(cls: MetaThemedObject) -> Iterator[MetaThemedObject]:
             if not isinstance(cls, MetaThemedObject) or cls in do_not_search_for or cls.is_abstract_theme_class():
                 return
@@ -401,7 +403,7 @@ class MetaThemedObject(ABCMeta):
                 yield base
                 yield from get_all_parent_class(base)
 
-        return list(reversed(dict.fromkeys(get_all_parent_class(cls))))
+        return tuple(reversed(dict.fromkeys(get_all_parent_class(cls))))
 
 
 _ThemedObjectClass = TypeVar("_ThemedObjectClass")

@@ -124,6 +124,13 @@ class Configuration:
     __update_stack: ClassVar[Dict[object, List[str]]] = dict()
     __init_context: ClassVar[Dict[object, _InitializationRegister]] = dict()
 
+    __slots__ = (
+        "__all_parents",
+        "__info",
+        "__no_parent_ownership",
+        "__bound_class",
+    )
+
     def __init__(
         self,
         *known_options: str,
@@ -1137,6 +1144,9 @@ class Configuration:
 
 
 class OptionAttribute(Generic[_T]):
+
+    __slots__ = ("__name", "__doc__")
+
     def __set_name__(self, owner: type, name: str, /) -> None:
         if len(name) == 0:
             raise ValueError("Attribute name must not be empty")
@@ -1194,6 +1204,9 @@ _InitializationRegister = Dict[str, Any]
 
 
 class BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
+
+    __slots__ = ("__config", "__obj")
+
     def __init__(self, config: Configuration, obj: _T) -> None:
         super().__init__()
         self.__config: Callable[[], Configuration] = lambda: config
@@ -1454,6 +1467,29 @@ _VT = TypeVar("_VT")
 
 
 class _ConfigInfo:
+
+    __slots__ = (
+        "parents",
+        "options",
+        "main_update",
+        "value_descriptors",
+        "update",
+        "self_update",
+        "value_converter",
+        "value_update",
+        "self_value_update",
+        "value_validator",
+        "autocopy",
+        "value_autocopy_get",
+        "value_autocopy_set",
+        "attribute_class_owner",
+        "aliases",
+        "value_copy",
+        "value_copy_allow_subclass",
+        "enum_return_value",
+        "readonly",
+    )
+
     def __init__(self, known_options: Sequence[str], autocopy: Optional[bool], parents: Sequence[_ConfigInfo]) -> None:
         def merge_dict(
             d1: Dict[_KT, _VT], d2: Dict[_KT, _VT], /, *, on_conflict: Literal["override", "raise", "skip"], setting: str
@@ -1562,6 +1598,9 @@ def _copy_object(obj: _T) -> _T:
 
 
 class _ConfigInitializer:
+
+    __slots__ = ("__func__", "__dict__")
+
     def __init__(self, func: Callable[..., Any]) -> None:
         self.__func__: Callable[..., Any] = func
 

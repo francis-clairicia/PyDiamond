@@ -20,7 +20,7 @@ from ..graphics.drawable import Drawable
 from ..system.enum import AutoLowerNameEnum
 from .cursor import Cursor, SystemCursor
 from .display import Window
-from .event import Event, MouseButtonDownEvent, MouseButtonEventType, MouseButtonUpEvent, MouseMotionEvent
+from .event import MouseButtonDownEvent, MouseButtonEventType, MouseButtonUpEvent, MouseMotionEvent
 from .gui import SupportsFocus
 from .mouse import Mouse
 from .scene import Scene
@@ -73,9 +73,9 @@ class Clickable(metaclass=ABCMeta):
         self.hover_sound = hover_sound
         self.click_sound = click_sound
         self.disabled_sound = disabled_sound
-        master.event.bind_event(Event.Type.MOUSEBUTTONDOWN, self.__handle_click_event)
-        master.event.bind_event(Event.Type.MOUSEBUTTONUP, self.__handle_click_event)
-        master.event.bind_event(Event.Type.MOUSEMOTION, self.__handle_mouse_motion)
+        master.event.bind_event(MouseButtonDownEvent, self.__handle_click_event)
+        master.event.bind_event(MouseButtonUpEvent, self.__handle_click_event)
+        master.event.bind_event(MouseMotionEvent, self.__handle_mouse_motion)
         master.event.bind_mouse_position(self.__handle_mouse_position)
         if isinstance(self, SupportsFocus):
             self.focus.take(take_focus)

@@ -24,6 +24,9 @@ class MixerParams(NamedTuple):
 
 
 class Mixer:
+
+    __slots__ = ()
+
     @staticmethod
     @contextmanager
     def init(frequency: int = 44100, size: int = -16, channels: int = 2, buffersize: int = 512) -> Iterator[None]:

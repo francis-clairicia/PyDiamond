@@ -12,7 +12,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Tuple, Type, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Tuple, TypeAlias, Union, overload
 
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.utils import valid_integer
@@ -27,8 +27,8 @@ if TYPE_CHECKING:
 
 
 class Form(MDrawable):
-    Justify: Type[Grid.Justify] = Grid.Justify
-    Padding: Type[Grid.Padding] = Grid.Padding
+    Justify: TypeAlias = Grid.Justify
+    Padding: TypeAlias = Grid.Padding
 
     config: Configuration = Configuration(
         "bg_color", "outline", "outline_color", "label_justify", "entry_justify", "padx", "pady"
@@ -37,8 +37,8 @@ class Form(MDrawable):
     bg_color: OptionAttribute[Color] = OptionAttribute()
     outline: OptionAttribute[int] = OptionAttribute()
     outline_color: OptionAttribute[Color] = OptionAttribute()
-    label_justify: OptionAttribute[Grid.Justify] = OptionAttribute()
-    entry_justify: OptionAttribute[Grid.Justify] = OptionAttribute()
+    label_justify: OptionAttribute[Justify] = OptionAttribute()
+    entry_justify: OptionAttribute[Justify] = OptionAttribute()
     padx: OptionAttribute[int] = OptionAttribute()
     pady: OptionAttribute[int] = OptionAttribute()
 
@@ -51,8 +51,8 @@ class Form(MDrawable):
         bg_color: Color = TRANSPARENT,
         outline: int = 0,
         outline_color: Color = BLACK,
-        label_justify: Grid.Justify = Justify.RIGHT,
-        entry_justify: Grid.Justify = Justify.LEFT,
+        label_justify: Justify = Justify.RIGHT,
+        entry_justify: Justify = Justify.LEFT,
         padx: int = 10,
         pady: int = 10,
     ) -> None:
@@ -142,7 +142,7 @@ class Form(MDrawable):
 
     @config.on_update_key_value("label_justify")
     @config.on_update_key_value("entry_justify")
-    def __update_grid_justify(self, option: str, justify: Grid.Justify) -> None:
+    def __update_grid_justify(self, option: str, justify: Justify) -> None:
         grid: Grid = self.__grid
         column: int = {"label_justify": 0, "entry_justify": 1}[option]
         for row in range(grid.nb_rows):

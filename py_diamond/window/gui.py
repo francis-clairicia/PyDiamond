@@ -51,7 +51,17 @@ from ..graphics.renderer import Renderer
 from ..system._mangling import mangle_private_attribute
 from ..system.enum import AutoLowerNameEnum
 from ..system.utils import setdefaultattr, wraps
-from .event import Event, KeyDownEvent, KeyEventType, MouseEventType
+from .event import (
+    Event,
+    KeyDownEvent,
+    KeyEventType,
+    KeyUpEvent,
+    MouseButtonDownEvent,
+    MouseButtonUpEvent,
+    MouseEventType,
+    MouseMotionEvent,
+    MouseWheelEvent,
+)
 from .keyboard import Keyboard
 from .scene import AbstractLayeredScene, MainScene, MetaLayeredMainScene, MetaLayeredScene, Scene
 
@@ -61,6 +71,9 @@ class MetaGUIScene(MetaLayeredScene):
 
 
 class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
+
+    __slots__ = ("__group", "__focus_index", "__container")
+
     def __init__(self) -> None:
         super().__init__()
         self.__container: FocusableContainer = FocusableContainer(self)
@@ -69,12 +82,12 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
         handle_key_event = self.__handle_key_event
         set_focus_mode_key: Callable[[KeyEventType], None] = lambda event: BoundFocus.set_mode(BoundFocus.Mode.KEY)
         set_focus_mode_mouse: Callable[[MouseEventType], None] = lambda event: BoundFocus.set_mode(BoundFocus.Mode.MOUSE)
-        self.event.bind_event(Event.Type.KEYDOWN, set_focus_mode_key)
-        self.event.bind_event(Event.Type.KEYUP, set_focus_mode_key)
-        self.event.bind_event(Event.Type.MOUSEBUTTONDOWN, set_focus_mode_mouse)
-        self.event.bind_event(Event.Type.MOUSEBUTTONUP, set_focus_mode_mouse)
-        self.event.bind_event(Event.Type.MOUSEMOTION, set_focus_mode_mouse)
-        self.event.bind_event(Event.Type.MOUSEWHEEL, set_focus_mode_mouse)
+        self.event.bind_event(KeyDownEvent, set_focus_mode_key)
+        self.event.bind_event(KeyUpEvent, set_focus_mode_key)
+        self.event.bind_event(MouseButtonDownEvent, set_focus_mode_mouse)
+        self.event.bind_event(MouseButtonUpEvent, set_focus_mode_mouse)
+        self.event.bind_event(MouseMotionEvent, set_focus_mode_mouse)
+        self.event.bind_event(MouseWheelEvent, set_focus_mode_mouse)
         self.event.bind_key_press(Keyboard.Key.TAB, handle_key_event)
         self.event.bind_key_press(Keyboard.Key.ESCAPE, handle_key_event)
 
@@ -226,7 +239,7 @@ class MetaGUIMainScene(MetaGUIScene, MetaLayeredMainScene):
 
 
 class GUIMainScene(GUIScene, MainScene, metaclass=MetaGUIMainScene):
-    pass
+    __slots__ = ()
 
 
 @runtime_checkable
@@ -267,6 +280,8 @@ class BoundFocus:
         MOUSE = auto()
 
     __mode: ClassVar[Mode] = Mode.MOUSE
+
+    __slots__ = ("__f", "__scene")
 
     def __init__(self, focusable: SupportsFocus, scene: Optional[Scene]) -> None:
         self.__f: SupportsFocus = focusable
@@ -508,6 +523,9 @@ class _MetaBoundFocusProxy(type):
 
 
 class BoundFocusProxy(BoundFocus, metaclass=_MetaBoundFocusProxy):
+
+    __slots__ = ("__focus",)
+
     def __init__(self, focus: BoundFocus) -> None:
         super().__init__(focus.__self__, getattr(focus, mangle_private_attribute(BoundFocus, "scene"), None))
         self.__focus: BoundFocus = focus
@@ -530,6 +548,9 @@ _SIDE_WITH_KEY_EVENT: Final[Dict[int, BoundFocus.Side]] = {
 
 
 class _GUILayeredGroup(LayeredGroup):
+
+    __slots__ = ("__master",)
+
     def __init__(self, master: GUIScene) -> None:
         self.__master: GUIScene = master
         super().__init__()
@@ -563,6 +584,9 @@ class _GUILayeredGroup(LayeredGroup):
 
 
 class FocusableContainer(Sequence[SupportsFocus]):
+
+    __slots__ = ("__master", "__list")
+
     def __init__(self, master: GUIScene) -> None:
         super().__init__()
         self.__master: GUIScene = master

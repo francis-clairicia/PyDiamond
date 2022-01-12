@@ -22,6 +22,9 @@ _T = TypeVar("_T")
 
 
 class ResourceLoader(Generic[_T], metaclass=ABCMeta):
+
+    __slots__ = ("__filepath",)
+
     def __init__(self, filepath: str) -> None:
         super().__init__()
         self.__filepath: str = set_constant_file(filepath)
@@ -43,22 +46,34 @@ class ResourceLoader(Generic[_T], metaclass=ABCMeta):
 
 
 class ImageLoader(ResourceLoader[Surface]):
+
+    __slots__ = ()
+
     def load(self) -> Surface:
         return load_image(self.filepath)
 
 
 class SoundLoader(ResourceLoader[Sound]):
+
+    __slots__ = ()
+
     def load(self) -> Sound:
         return Sound(file=self.filepath)
 
 
 class FontLoader(ResourceLoader[str]):
+
+    __slots__ = ()
+
     def load(self) -> str:
         Font(self.filepath, 10)
         return self.filepath
 
 
 class MusicLoader(ResourceLoader[str]):
+
+    __slots__ = ()
+
     def load(self) -> str:
         Sound(file=self.filepath)
         return self.filepath

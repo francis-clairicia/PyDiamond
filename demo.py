@@ -53,8 +53,8 @@ from py_diamond.window.gui import GUIScene
 from py_diamond.window.keyboard import Keyboard
 from py_diamond.window.mouse import Mouse
 from py_diamond.window.scene import (
-    AutoLayeredMainScene,
-    AutoLayeredScene,
+    AbstractAutoLayeredScene,
+    LayeredMainScene,
     MainScene,
     Scene,
     SceneTransition,
@@ -563,12 +563,10 @@ class EntryScene(MainScene):
         self.window.draw(self.entry)
 
 
-LOREN_IPSUM: Final[
-    str
-] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin euismod justo ac pharetra fermentum. Duis neque massa, commodo eu est vel, dignissim interdum eros. Nulla augue ex, blandit ac magna dapibus, dignissim venenatis massa. Donec tempus laoreet eros tristique rhoncus. Sed eget metus vitae purus ultricies semper. Suspendisse sodales rhoncus quam ac aliquam. Duis quis elit rhoncus, condimentum dolor nec, elementum lorem. Integer placerat dui orci, in ultricies nulla viverra ac. Morbi at justo eu libero rutrum dignissim a in velit. Suspendisse magna odio, fermentum vel tortor eget, condimentum sagittis ex. Vivamus tristique venenatis purus, at pharetra erat lobortis id. Pellentesque tincidunt bibendum erat, ac faucibus ligula semper vitae. Vestibulum ac quam in nulla tristique congue id quis lectus. Sed fermentum hendrerit velit."
+LOREN_IPSUM = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin euismod justo ac pharetra fermentum. Duis neque massa, commodo eu est vel, dignissim interdum eros. Nulla augue ex, blandit ac magna dapibus, dignissim venenatis massa. Donec tempus laoreet eros tristique rhoncus. Sed eget metus vitae purus ultricies semper. Suspendisse sodales rhoncus quam ac aliquam. Duis quis elit rhoncus, condimentum dolor nec, elementum lorem. Integer placerat dui orci, in ultricies nulla viverra ac. Morbi at justo eu libero rutrum dignissim a in velit. Suspendisse magna odio, fermentum vel tortor eget, condimentum sagittis ex. Vivamus tristique venenatis purus, at pharetra erat lobortis id. Pellentesque tincidunt bibendum erat, ac faucibus ligula semper vitae. Vestibulum ac quam in nulla tristique congue id quis lectus. Sed fermentum hendrerit velit."
 
 
-class ScrollBarScene(AutoLayeredMainScene, framerate=60, fixed_framerate=50):
+class ScrollBarScene(LayeredMainScene, AbstractAutoLayeredScene, framerate=60, fixed_framerate=50):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
@@ -598,7 +596,7 @@ class ScrollBarScene(AutoLayeredMainScene, framerate=60, fixed_framerate=50):
         self.window.draw(self.area)
 
 
-class TestGUIScene(GUIScene, AutoLayeredScene):
+class TestGUIScene(GUIScene, AbstractAutoLayeredScene):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
@@ -668,7 +666,7 @@ class GridScene(GUIScene):
         self.text.midtop = (self.grid.centerx, self.grid.bottom + 10)
 
 
-class FormScene(GUIScene, AutoLayeredScene):
+class FormScene(GUIScene, AbstractAutoLayeredScene):
     def __theme_init__(self) -> None:
         super().__theme_init__()
 

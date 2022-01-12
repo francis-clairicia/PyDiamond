@@ -71,6 +71,9 @@ class BlendMode(IntEnum):
 
 
 class Renderer(metaclass=ABCMeta):
+
+    __slots__ = ()
+
     @abstractmethod
     def get_rect(self, **kwargs: Union[float, Sequence[float]]) -> Rect:
         raise NotImplementedError
@@ -199,6 +202,9 @@ class Renderer(metaclass=ABCMeta):
 
 
 class SurfaceRenderer(Renderer):
+
+    __slots__ = ("__target",)
+
     @overload
     def __init__(self, size: Tuple[float, float], /, *, convert_alpha: bool = True) -> None:
         ...

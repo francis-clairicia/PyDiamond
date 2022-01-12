@@ -159,6 +159,9 @@ class MDrawable(Drawable, Movable, metaclass=MetaMDrawable):
 
 
 class DrawableGroup(Sequence[Drawable]):
+
+    __slots__ = ("__list",)
+
     def __init__(self, *objects: Drawable, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.__list: List[Drawable] = []
@@ -235,6 +238,9 @@ class DrawableGroup(Sequence[Drawable]):
 
 
 class LayeredGroup(DrawableGroup):
+
+    __slots__ = ("__default_layer", "__layer_dict")
+
     def __init__(self, *objects: Drawable, default_layer: int = 0, **kwargs: Any) -> None:
         self.__default_layer: int = default_layer
         self.__layer_dict: Dict[Drawable, int] = {}

@@ -27,6 +27,15 @@ from .surface import Surface, create_surface
 class Sprite(TDrawable):
     DEFAULT_MASK_THRESHOLD: Final[int] = 127
 
+    __slots__ = (
+        "__default_image",
+        "__image",
+        "__mask_threshold",
+        "__mask",
+        "__smooth_scale",
+        "__blend_mode",
+    )
+
     def __init__(self, image: Optional[Surface] = None, mask_threshold: int = DEFAULT_MASK_THRESHOLD) -> None:
         TDrawable.__init__(self)
         self.__default_image: Surface = image.convert_alpha() if image is not None else create_surface((0, 0))
@@ -151,6 +160,15 @@ class Sprite(TDrawable):
 class AnimatedSprite(Sprite):
     __T = TypeVar("__T", bound="AnimatedSprite")
 
+    __slots__ = (
+        "__list",
+        "__sprite_idx",
+        "__clock",
+        "__wait_time",
+        "__animation",
+        "__loop",
+    )
+
     def __init__(self, image: Surface, *images: Surface, mask_threshold: int = Sprite.DEFAULT_MASK_THRESHOLD) -> None:
         super().__init__(image=image, mask_threshold=mask_threshold)
         self.__list: List[Surface] = [self.default_image, *(i.convert_alpha() for i in images)]
@@ -213,6 +231,8 @@ class AnimatedSprite(Sprite):
 
 
 class SpriteGroup(DrawableGroup):
+    __slots__ = ()
+
     def __init__(self, *objects: Sprite, **kwargs: Any) -> None:
         super().__init__(*objects, **kwargs)
 
@@ -246,6 +266,8 @@ class SpriteGroup(DrawableGroup):
 
 
 class LayeredSpriteGroup(SpriteGroup, LayeredGroup):
+    __slots__ = ()
+
     def __init__(self, *objects: Sprite, default_layer: int = 0, **kwargs: Any) -> None:
         super().__init__(*objects, default_layer=default_layer, **kwargs)
 

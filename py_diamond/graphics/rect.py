@@ -22,29 +22,6 @@ from ..math.vector2 import Vector2
 
 @dataclass(init=False, repr=False, frozen=True)
 class ImmutableRect(Rect):
-    x: int
-    y: int
-    top: int
-    left: int
-    bottom: int
-    right: int
-    topleft: Tuple[int, int]
-    bottomleft: Tuple[int, int]
-    topright: Tuple[int, int]
-    bottomright: Tuple[int, int]
-    midtop: Tuple[int, int]
-    midleft: Tuple[int, int]
-    midbottom: Tuple[int, int]
-    midright: Tuple[int, int]
-    center: Tuple[int, int]
-    centerx: int
-    centery: int
-    size: Tuple[int, int]
-    width: int
-    height: int
-    w: int
-    h: int
-
     @overload
     def __init__(self, left: float, top: float, width: float, height: float) -> None:
         ...

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 __all__ = [
     "Event",
+    "EventFactory",
     "EventManager",
     "JoyAxisMotionEvent",
     "JoyBallMotionEvent",
@@ -20,7 +21,6 @@ __all__ = [
     "KeyDownEvent",
     "KeyEventType",
     "KeyUpEvent",
-    "MetaEvent",
     "MouseButtonDownEvent",
     "MouseButtonEventType",
     "MouseButtonUpEvent",
@@ -53,9 +53,10 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from contextlib import suppress
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from enum import IntEnum
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Type, TypeVar, Union, cast, overload
+from types import MappingProxyType
+from typing import Any, Callable, ClassVar, Dict, Final, List, Literal, Optional, Sequence, Tuple, Type, TypeVar, Union, cast
 
 import pygame.constants as _pg_constants
 from pygame.event import Event as _PygameEvent, event_name as _pg_event_name, get_blocked as _pg_event_get_blocked
@@ -70,24 +71,11 @@ class UnknownEventTypeError(TypeError):
     pass
 
 
-class MetaEvent(type):
-    __associations: Dict[Event.Type, Type[Event]] = dict()
-
-    def __new__(
-        metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], *, event_type: Event.Type, **kwargs: Any
-    ) -> MetaEvent:
+class _MetaEvent(type):
+    def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> _MetaEvent:
         if name != "Event" or "Event" in globals():
             if bases != (Event,):
                 raise TypeError(f"{name!r} must only inherits from Event without multiple inheritance")
-            event_type = Event.Type(event_type)
-            if event_type in metacls.__associations:
-                raise TypeError(f"There is already a class with this type: {event_type}")
-            annotations = namespace.setdefault("__annotations__", {})
-            annotations["type"] = Event.Type
-            namespace["type"] = field(default=event_type, init=False)
-            cls: MetaEvent = super().__new__(metacls, name, bases, namespace, **kwargs)
-            metacls.__associations[event_type] = cast(Type[Event], cls)
-            return cls
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
     def __call__(cls, *args: Any, **kwargs: Any) -> Any:
@@ -95,21 +83,9 @@ class MetaEvent(type):
             raise TypeError("Cannot instantiate base class Event")
         return super().__call__(*args, **kwargs)
 
-    @staticmethod
-    def from_pygame_event(event: _PygameEvent) -> Event:
-        associations = MetaEvent.__associations
-        try:
-            event_type = Event.Type(event.type)
-            event_cls: Type[Event] = associations[event_type]
-        except (KeyError, ValueError) as exc:
-            raise UnknownEventTypeError(f"Unknown event {event!r}") from exc
-        fields = event_cls.__dataclass_fields__
-        kwargs: Dict[str, Any] = {k: event.__dict__[k] for k in filter(fields.__contains__, event.__dict__) if k != "type"}
-        return event_cls(**kwargs)
 
-
-@dataclass(frozen=True, kw_only=True)
-class Event(metaclass=MetaEvent, event_type=-1):
+@dataclass(frozen=True, kw_only=True, slots=True)
+class Event(metaclass=_MetaEvent):
     class Type(IntEnum):
         KEYDOWN = _pg_constants.KEYDOWN
         KEYUP = _pg_constants.KEYUP
@@ -142,6 +118,8 @@ class Event(metaclass=MetaEvent, event_type=-1):
         WINDOWFOCUSLOST = _pg_constants.WINDOWFOCUSLOST
         WINDOWTAKEFOCUS = _pg_constants.WINDOWTAKEFOCUS
 
+        value: int
+
         def __repr__(self) -> str:
             return f"<{self.real_name}: {self.value}>"
 
@@ -155,19 +133,21 @@ class Event(metaclass=MetaEvent, event_type=-1):
         def real_name(self) -> str:
             return _pg_event_name(self)
 
-    type: Event.Type = field(init=False)
+    type: ClassVar[Event.Type] = field(init=False)
 
 
-@dataclass(frozen=True, kw_only=True)
-class KeyDownEvent(Event, event_type=Event.Type.KEYDOWN):
+@dataclass(frozen=True, kw_only=True, slots=True)
+class KeyDownEvent(Event):
+    type: ClassVar[Literal[Event.Type.KEYDOWN]] = field(default=Event.Type.KEYDOWN, init=False)
     key: int
     mod: int
     unicode: str
     scancode: int
 
 
-@dataclass(frozen=True, kw_only=True)
-class KeyUpEvent(Event, event_type=Event.Type.KEYUP):
+@dataclass(frozen=True, kw_only=True, slots=True)
+class KeyUpEvent(Event):
+    type: ClassVar[Literal[Event.Type.KEYUP]] = field(default=Event.Type.KEYUP, init=False)
     key: int
     mod: int
 
@@ -175,14 +155,16 @@ class KeyUpEvent(Event, event_type=Event.Type.KEYUP):
 KeyEventType = Union[KeyDownEvent, KeyUpEvent]
 
 
-@dataclass(frozen=True, kw_only=True)
-class MouseButtonDownEvent(Event, event_type=Event.Type.MOUSEBUTTONDOWN):
+@dataclass(frozen=True, kw_only=True, slots=True)
+class MouseButtonDownEvent(Event):
+    type: ClassVar[Literal[Event.Type.MOUSEBUTTONDOWN]] = field(default=Event.Type.MOUSEBUTTONDOWN, init=False)
     pos: Tuple[int, int]
     button: int
 
 
-@dataclass(frozen=True, kw_only=True)
-class MouseButtonUpEvent(Event, event_type=Event.Type.MOUSEBUTTONUP):
+@dataclass(frozen=True, kw_only=True, slots=True)
+class MouseButtonUpEvent(Event):
+    type: ClassVar[Literal[Event.Type.MOUSEBUTTONUP]] = field(default=Event.Type.MOUSEBUTTONUP, init=False)
     pos: Tuple[int, int]
     button: int
 
@@ -190,15 +172,17 @@ class MouseButtonUpEvent(Event, event_type=Event.Type.MOUSEBUTTONUP):
 MouseButtonEventType = Union[MouseButtonDownEvent, MouseButtonUpEvent]
 
 
-@dataclass(frozen=True, kw_only=True)
-class MouseMotionEvent(Event, event_type=Event.Type.MOUSEMOTION):
+@dataclass(frozen=True, kw_only=True, slots=True)
+class MouseMotionEvent(Event):
+    type: ClassVar[Literal[Event.Type.MOUSEMOTION]] = field(default=Event.Type.MOUSEMOTION, init=False)
     pos: Tuple[int, int]
     rel: Tuple[int, int]
     buttons: Tuple[bool, bool, bool]
 
 
-@dataclass(frozen=True, kw_only=True)
-class MouseWheelEvent(Event, event_type=Event.Type.MOUSEWHEEL):
+@dataclass(frozen=True, kw_only=True, slots=True)
+class MouseWheelEvent(Event):
+    type: ClassVar[Literal[Event.Type.MOUSEWHEEL]] = field(default=Event.Type.MOUSEWHEEL, init=False)
     flipped: bool
     x: int
     y: int
@@ -207,35 +191,40 @@ class MouseWheelEvent(Event, event_type=Event.Type.MOUSEWHEEL):
 MouseEventType = Union[MouseButtonEventType, MouseWheelEvent, MouseMotionEvent]
 
 
-@dataclass(frozen=True, kw_only=True)
-class JoyAxisMotionEvent(Event, event_type=Event.Type.JOYAXISMOTION):
+@dataclass(frozen=True, kw_only=True, slots=True)
+class JoyAxisMotionEvent(Event):
+    type: ClassVar[Literal[Event.Type.JOYAXISMOTION]] = field(default=Event.Type.JOYAXISMOTION, init=False)
     instance_id: int
     axis: int
     value: float
 
 
-@dataclass(frozen=True, kw_only=True)
-class JoyBallMotionEvent(Event, event_type=Event.Type.JOYBALLMOTION):
+@dataclass(frozen=True, kw_only=True, slots=True)
+class JoyBallMotionEvent(Event):
+    type: ClassVar[Literal[Event.Type.JOYBALLMOTION]] = field(default=Event.Type.JOYBALLMOTION, init=False)
     instance_id: int
     ball: int
     rel: float
 
 
-@dataclass(frozen=True, kw_only=True)
-class JoyHatMotionEvent(Event, event_type=Event.Type.JOYHATMOTION):
+@dataclass(frozen=True, kw_only=True, slots=True)
+class JoyHatMotionEvent(Event):
+    type: ClassVar[Literal[Event.Type.JOYHATMOTION]] = field(default=Event.Type.JOYHATMOTION, init=False)
     instance_id: int
     hat: int
     value: Tuple[int, int]
 
 
-@dataclass(frozen=True, kw_only=True)
-class JoyButtonDownEvent(Event, event_type=Event.Type.JOYBUTTONDOWN):
+@dataclass(frozen=True, kw_only=True, slots=True)
+class JoyButtonDownEvent(Event):
+    type: ClassVar[Literal[Event.Type.JOYBUTTONDOWN]] = field(default=Event.Type.JOYBUTTONDOWN, init=False)
     instance_id: int
     button: int
 
 
-@dataclass(frozen=True, kw_only=True)
-class JoyButtonUpEvent(Event, event_type=Event.Type.JOYBUTTONUP):
+@dataclass(frozen=True, kw_only=True, slots=True)
+class JoyButtonUpEvent(Event):
+    type: ClassVar[Literal[Event.Type.JOYBUTTONUP]] = field(default=Event.Type.JOYBUTTONUP, init=False)
     instance_id: int
     button: int
 
@@ -243,107 +232,115 @@ class JoyButtonUpEvent(Event, event_type=Event.Type.JOYBUTTONUP):
 JoyButtonEventType = Union[JoyButtonDownEvent, JoyButtonUpEvent]
 
 
-@dataclass(frozen=True, kw_only=True)
-class JoyDeviceAddedEvent(Event, event_type=Event.Type.JOYDEVICEADDED):
+@dataclass(frozen=True, kw_only=True, slots=True)
+class JoyDeviceAddedEvent(Event):
+    type: ClassVar[Literal[Event.Type.JOYDEVICEADDED]] = field(default=Event.Type.JOYDEVICEADDED, init=False)
     device_index: int
 
 
-@dataclass(frozen=True, kw_only=True)
-class JoyDeviceRemovedEvent(Event, event_type=Event.Type.JOYDEVICEREMOVED):
+@dataclass(frozen=True, kw_only=True, slots=True)
+class JoyDeviceRemovedEvent(Event):
+    type: ClassVar[Literal[Event.Type.JOYDEVICEREMOVED]] = field(default=Event.Type.JOYDEVICEREMOVED, init=False)
     instance_id: int
 
 
-@dataclass(frozen=True, kw_only=True)
-class TextEditingEvent(Event, event_type=Event.Type.TEXTEDITING):
+@dataclass(frozen=True, kw_only=True, slots=True)
+class TextEditingEvent(Event):
+    type: ClassVar[Literal[Event.Type.TEXTEDITING]] = field(default=Event.Type.TEXTEDITING, init=False)
     text: str
     start: int
     length: int
 
 
-@dataclass(frozen=True, kw_only=True)
-class TextInputEvent(Event, event_type=Event.Type.TEXTINPUT):
+@dataclass(frozen=True, kw_only=True, slots=True)
+class TextInputEvent(Event):
+    type: ClassVar[Literal[Event.Type.TEXTINPUT]] = field(default=Event.Type.TEXTINPUT, init=False)
     text: str
 
 
 TextEvent = Union[TextEditingEvent, TextInputEvent]
 
 
-@dataclass(frozen=True, kw_only=True)
-class UserEvent(Event, event_type=Event.Type.USEREVENT):
+@dataclass(frozen=True, kw_only=True, slots=True)
+class UserEvent(Event):
+    type: ClassVar[Literal[Event.Type.USEREVENT]] = field(default=Event.Type.USEREVENT, init=False)
     code: int
 
 
-@dataclass(frozen=True, kw_only=True)
-class WindowShownEvent(Event, event_type=Event.Type.WINDOWSHOWN):
-    pass
+@dataclass(frozen=True, kw_only=True, slots=True)
+class WindowShownEvent(Event):
+    type: ClassVar[Literal[Event.Type.WINDOWSHOWN]] = field(default=Event.Type.WINDOWSHOWN, init=False)
 
 
-@dataclass(frozen=True, kw_only=True)
-class WindowHiddenEvent(Event, event_type=Event.Type.WINDOWHIDDEN):
-    pass
+@dataclass(frozen=True, kw_only=True, slots=True)
+class WindowHiddenEvent(Event):
+    type: ClassVar[Literal[Event.Type.WINDOWHIDDEN]] = field(default=Event.Type.WINDOWHIDDEN, init=False)
 
 
-@dataclass(frozen=True, kw_only=True)
-class WindowExposedEvent(Event, event_type=Event.Type.WINDOWEXPOSED):
-    pass
+@dataclass(frozen=True, kw_only=True, slots=True)
+class WindowExposedEvent(Event):
+    type: ClassVar[Literal[Event.Type.WINDOWEXPOSED]] = field(default=Event.Type.WINDOWEXPOSED, init=False)
 
 
-@dataclass(frozen=True, kw_only=True)
-class WindowMovedEvent(Event, event_type=Event.Type.WINDOWMOVED):
+@dataclass(frozen=True, kw_only=True, slots=True)
+class WindowMovedEvent(Event):
+    type: ClassVar[Literal[Event.Type.WINDOWMOVED]] = field(default=Event.Type.WINDOWMOVED, init=False)
     x: int
     y: int
 
 
-@dataclass(frozen=True, kw_only=True)
-class WindowResizedEvent(Event, event_type=Event.Type.WINDOWRESIZED):
+@dataclass(frozen=True, kw_only=True, slots=True)
+class WindowResizedEvent(Event):
+    type: ClassVar[Literal[Event.Type.WINDOWRESIZED]] = field(default=Event.Type.WINDOWRESIZED, init=False)
     x: int
     y: int
 
 
-@dataclass(frozen=True, kw_only=True)
-class WindowSizeChangedEvent(Event, event_type=Event.Type.WINDOWSIZECHANGED):
+@dataclass(frozen=True, kw_only=True, slots=True)
+class WindowSizeChangedEvent(Event):
+    type: ClassVar[Literal[Event.Type.WINDOWSIZECHANGED]] = field(default=Event.Type.WINDOWSIZECHANGED, init=False)
     x: int
     y: int
 
 
-@dataclass(frozen=True, kw_only=True)
-class WindowMinimizedEvent(Event, event_type=Event.Type.WINDOWMINIMIZED):
-    pass
+@dataclass(frozen=True, kw_only=True, slots=True)
+class WindowMinimizedEvent(Event):
+    type: ClassVar[Literal[Event.Type.WINDOWMINIMIZED]] = field(default=Event.Type.WINDOWMINIMIZED, init=False)
 
 
-@dataclass(frozen=True, kw_only=True)
-class WindowMaximizedEvent(Event, event_type=Event.Type.WINDOWMAXIMIZED):
-    pass
+@dataclass(frozen=True, kw_only=True, slots=True)
+class WindowMaximizedEvent(Event):
+    type: ClassVar[Literal[Event.Type.WINDOWMAXIMIZED]] = field(default=Event.Type.WINDOWMAXIMIZED, init=False)
 
 
-@dataclass(frozen=True, kw_only=True)
-class WindowRestoredEvent(Event, event_type=Event.Type.WINDOWRESTORED):
-    pass
+@dataclass(frozen=True, kw_only=True, slots=True)
+class WindowRestoredEvent(Event):
+    type: ClassVar[Literal[Event.Type.WINDOWRESTORED]] = field(default=Event.Type.WINDOWRESTORED, init=False)
 
 
-@dataclass(frozen=True, kw_only=True)
-class WindowEnterEvent(Event, event_type=Event.Type.WINDOWENTER):
-    pass
+@dataclass(frozen=True, kw_only=True, slots=True)
+class WindowEnterEvent(Event):
+    type: ClassVar[Literal[Event.Type.WINDOWENTER]] = field(default=Event.Type.WINDOWENTER, init=False)
 
 
-@dataclass(frozen=True, kw_only=True)
-class WindowLeaveEvent(Event, event_type=Event.Type.WINDOWLEAVE):
-    pass
+@dataclass(frozen=True, kw_only=True, slots=True)
+class WindowLeaveEvent(Event):
+    type: ClassVar[Literal[Event.Type.WINDOWLEAVE]] = field(default=Event.Type.WINDOWLEAVE, init=False)
 
 
-@dataclass(frozen=True, kw_only=True)
-class WindowFocusGainedEvent(Event, event_type=Event.Type.WINDOWFOCUSGAINED):
-    pass
+@dataclass(frozen=True, kw_only=True, slots=True)
+class WindowFocusGainedEvent(Event):
+    type: ClassVar[Literal[Event.Type.WINDOWFOCUSGAINED]] = field(default=Event.Type.WINDOWFOCUSGAINED, init=False)
 
 
-@dataclass(frozen=True, kw_only=True)
-class WindowFocusLostEvent(Event, event_type=Event.Type.WINDOWFOCUSLOST):
-    pass
+@dataclass(frozen=True, kw_only=True, slots=True)
+class WindowFocusLostEvent(Event):
+    type: ClassVar[Literal[Event.Type.WINDOWFOCUSLOST]] = field(default=Event.Type.WINDOWFOCUSLOST, init=False)
 
 
-@dataclass(frozen=True, kw_only=True)
-class WindowTakeFocusEvent(Event, event_type=Event.Type.WINDOWTAKEFOCUS):
-    pass
+@dataclass(frozen=True, kw_only=True, slots=True)
+class WindowTakeFocusEvent(Event):
+    type: ClassVar[Literal[Event.Type.WINDOWTAKEFOCUS]] = field(default=Event.Type.WINDOWTAKEFOCUS, init=False)
 
 
 _EventCallback = Callable[[Event], Optional[bool]]
@@ -352,7 +349,36 @@ _TE = TypeVar("_TE", bound=Event)
 _MousePositionCallback = Callable[[Tuple[float, float]], None]
 
 
+class EventFactory:
+    associations: Final[MappingProxyType[Event.Type, Type[Event]]] = MappingProxyType(
+        {obj.type: obj for obj in globals().values() if isinstance(obj, type) and issubclass(obj, Event) and obj is not Event}
+    )
+
+    __slots__ = ()
+
+    @staticmethod
+    def from_pygame_event(event: _PygameEvent) -> Event:
+        try:
+            event_type = Event.Type(event.type)
+            event_cls: Type[Event] = EventFactory.associations[event_type]
+        except (KeyError, ValueError) as exc:
+            raise UnknownEventTypeError(f"Unknown event {event!r}") from exc
+        event_fields: Sequence[str] = tuple(f.name for f in fields(event_cls))
+        kwargs: Dict[str, Any] = {k: event.__dict__[k] for k in filter(event_fields.__contains__, event.__dict__)}
+        return event_cls(**kwargs)
+
+
 class EventManager:
+
+    __slots__ = (
+        "__event_handler_dict",
+        "__key_pressed_handler_dict",
+        "__key_released_handler_dict",
+        "__mouse_button_pressed_handler_dict",
+        "__mouse_button_released_handler_dict",
+        "__mouse_pos_handler_list",
+    )
+
     def __init__(self) -> None:
         self.__event_handler_dict: Dict[Event.Type, List[_EventCallback]] = dict()
         self.__key_pressed_handler_dict: Dict[Keyboard.Key, List[_EventCallback]] = dict()
@@ -375,183 +401,11 @@ class EventManager:
         with suppress(KeyError, ValueError):
             handler_dict[key].remove(cast(_EventCallback, callback))
 
-    @overload
-    def bind_event(self, event_type: Literal[Event.Type.KEYDOWN], callback: Callable[[KeyDownEvent], Optional[bool]]) -> None:
-        ...
+    def bind_event(self, event_cls: Type[_TE], callback: Callable[[_TE], Optional[bool]]) -> None:
+        EventManager.__bind(self.__event_handler_dict, event_cls.type, callback)
 
-    @overload
-    def bind_event(self, event_type: Literal[Event.Type.KEYUP], callback: Callable[[KeyUpEvent], Optional[bool]]) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.MOUSEBUTTONDOWN], callback: Callable[[MouseButtonDownEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.MOUSEBUTTONUP], callback: Callable[[MouseButtonUpEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.MOUSEMOTION], callback: Callable[[MouseMotionEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.MOUSEWHEEL], callback: Callable[[MouseWheelEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.JOYAXISMOTION], callback: Callable[[JoyAxisMotionEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.JOYBALLMOTION], callback: Callable[[JoyBallMotionEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.JOYHATMOTION], callback: Callable[[JoyHatMotionEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.JOYBUTTONDOWN], callback: Callable[[JoyButtonDownEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.JOYBUTTONUP], callback: Callable[[JoyButtonUpEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.JOYDEVICEADDED], callback: Callable[[JoyDeviceAddedEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.JOYDEVICEREMOVED], callback: Callable[[JoyDeviceRemovedEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.TEXTEDITING], callback: Callable[[TextEditingEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(self, event_type: Literal[Event.Type.TEXTINPUT], callback: Callable[[TextInputEvent], Optional[bool]]) -> None:
-        ...
-
-    @overload
-    def bind_event(self, event_type: Literal[Event.Type.USEREVENT], callback: Callable[[UserEvent], Optional[bool]]) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.WINDOWSHOWN], callback: Callable[[WindowShownEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.WINDOWHIDDEN], callback: Callable[[WindowHiddenEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.WINDOWEXPOSED], callback: Callable[[WindowExposedEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.WINDOWMOVED], callback: Callable[[WindowMovedEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.WINDOWRESIZED], callback: Callable[[WindowResizedEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.WINDOWSIZECHANGED], callback: Callable[[WindowSizeChangedEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.WINDOWMINIMIZED], callback: Callable[[WindowMinimizedEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.WINDOWMAXIMIZED], callback: Callable[[WindowMaximizedEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.WINDOWRESTORED], callback: Callable[[WindowRestoredEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.WINDOWENTER], callback: Callable[[WindowEnterEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.WINDOWLEAVE], callback: Callable[[WindowLeaveEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.WINDOWFOCUSGAINED], callback: Callable[[WindowFocusGainedEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.WINDOWFOCUSLOST], callback: Callable[[WindowFocusLostEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    @overload
-    def bind_event(
-        self, event_type: Literal[Event.Type.WINDOWTAKEFOCUS], callback: Callable[[WindowTakeFocusEvent], Optional[bool]]
-    ) -> None:
-        ...
-
-    def bind_event(self, event_type: Event.Type, callback: Callable[[_TE], Optional[bool]]) -> None:
-        EventManager.__bind(self.__event_handler_dict, Event.Type(event_type), callback)
-
-    def unbind_event(self, event_type: Event.Type, callback_to_remove: Callable[[_TE], Optional[bool]]) -> None:
-        EventManager.__unbind(self.__event_handler_dict, Event.Type(event_type), callback_to_remove)
+    def unbind_event(self, event_cls: Type[_TE], callback_to_remove: Callable[[_TE], Optional[bool]]) -> None:
+        EventManager.__unbind(self.__event_handler_dict, event_cls.type, callback_to_remove)
 
     def unbind_all(self) -> None:
         self.__event_handler_dict.clear()

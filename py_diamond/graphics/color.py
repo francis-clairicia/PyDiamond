@@ -102,18 +102,6 @@ _ColorValue = Union[Color, str, Tuple[int, int, int], List[int], int, Tuple[int,
 
 @dataclass(init=False, repr=False, frozen=True)
 class ImmutableColor(Color):
-    r: int
-    g: int
-    b: int
-    a: int
-    h: float
-    s: float
-    v: float
-    cmy: Tuple[float, float, float]
-    hsva: Tuple[float, float, float, float]
-    hsla: Tuple[float, float, float, float]
-    i1i2i3: Tuple[float, float, float]
-
     @overload
     def __init__(self, r: int, g: int, b: int, a: int = 255) -> None:
         ...

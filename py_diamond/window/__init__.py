@@ -5,9 +5,8 @@
 """PyDiamond's window module"""
 
 __all__ = [
+    "AbstractAutoLayeredScene",
     "AbstractLayeredScene",
-    "AutoLayeredMainScene",
-    "AutoLayeredScene",
     "BoundFocus",
     "BoundFocusProxy",
     "Clickable",
@@ -15,6 +14,7 @@ __all__ = [
     "Cursor",
     "CustomCursor",
     "Event",
+    "EventFactory",
     "EventManager",
     "FocusableContainer",
     "GUIMainScene",
@@ -35,7 +35,6 @@ __all__ = [
     "LayeredMainScene",
     "LayeredScene",
     "MainScene",
-    "MetaEvent",
     "MetaGUIMainScene",
     "MetaGUIScene",
     "MetaLayeredMainScene",
@@ -115,6 +114,7 @@ from .cursor import Cursor, CustomCursor, SystemCursor
 from .display import ScheduledFunction, Window, WindowCallback, WindowError, scheduled
 from .event import (
     Event,
+    EventFactory,
     EventManager,
     JoyAxisMotionEvent,
     JoyBallMotionEvent,
@@ -127,7 +127,6 @@ from .event import (
     KeyDownEvent,
     KeyEventType,
     KeyUpEvent,
-    MetaEvent,
     MouseButtonDownEvent,
     MouseButtonEventType,
     MouseButtonUpEvent,
@@ -170,9 +169,8 @@ from .keyboard import Keyboard
 from .mouse import Mouse
 from .pressable import Pressable
 from .scene import (
+    AbstractAutoLayeredScene,
     AbstractLayeredScene,
-    AutoLayeredMainScene,
-    AutoLayeredScene,
     LayeredMainScene,
     LayeredScene,
     MainScene,

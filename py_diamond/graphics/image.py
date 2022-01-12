@@ -26,6 +26,13 @@ if TYPE_CHECKING:
 
 
 class Image(TDrawable):
+
+    __slots__ = (
+        "__default_image",
+        "__image",
+        "__smooth_scale",
+    )
+
     @overload
     def __init__(self) -> None:
         ...

@@ -14,4 +14,4 @@ from pygame.mixer import Sound
 
 
 class Music:
-    pass
+    __slots__ = ()

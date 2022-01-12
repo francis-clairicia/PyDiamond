@@ -70,6 +70,9 @@ class Cursor(metaclass=_MetaCursor):
 
 
 class CustomCursor(Cursor):
+
+    __slots__ = ("__cursor",)
+
     @overload
     def __init__(
         self, size: Tuple[int, int], hotspot: Tuple[int, int], xormasks: Sequence[int], andmasks: Sequence[int], /
@@ -125,6 +128,8 @@ class SystemCursor(Cursor, Enum, metaclass=_MetaSystemCursor):
     SIZEALL = _pg_constants.SYSTEM_CURSOR_SIZEALL
     NO = _pg_constants.SYSTEM_CURSOR_NO
     HAND = _pg_constants.SYSTEM_CURSOR_HAND
+
+    value: int
 
     def set(self) -> None:
         _pg_mouse_set_system_cursor(self.value)

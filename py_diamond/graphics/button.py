@@ -15,7 +15,21 @@ __license__ = "GNU GPL v3.0"
 from enum import auto, unique
 from functools import cached_property
 from operator import truth
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Dict, Final, Literal, Optional, Tuple, Type, TypedDict, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    ClassVar,
+    Dict,
+    Final,
+    Literal,
+    Optional,
+    Tuple,
+    TypeAlias,
+    TypedDict,
+    Union,
+    overload,
+)
 
 from ..math import Vector2
 from ..system.configuration import Configuration, OptionAttribute, initializer
@@ -51,8 +65,8 @@ class MetaButton(MetaTDrawable, MetaThemedObject):
 @TextImage.register_themed_subclass
 @RectangleShape.register_themed_subclass
 class Button(TDrawable, Pressable, metaclass=MetaButton):
-    Justify: Type[TextImage.Justify] = TextImage.Justify
-    Compound: Type[TextImage.Compound] = TextImage.Compound
+    Justify: TypeAlias = TextImage.Justify
+    Compound: TypeAlias = TextImage.Compound
 
     @unique
     class HorizontalAlign(AutoLowerNameEnum):

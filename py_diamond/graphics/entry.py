@@ -20,7 +20,7 @@ from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.utils import valid_integer, valid_optional_float, valid_optional_integer
 from ..window.clock import Clock
 from ..window.cursor import SystemCursor
-from ..window.event import Event, KeyDownEvent, TextInputEvent
+from ..window.event import KeyDownEvent, TextInputEvent
 from ..window.gui import BoundFocus
 from ..window.keyboard import Keyboard
 from ..window.pressable import Pressable
@@ -203,8 +203,8 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
         self.__cursor_animation_clock = Clock()
 
         key_press_event = self.__key_press
-        master.event.bind_event(Event.Type.KEYDOWN, key_press_event)
-        master.event.bind_event(Event.Type.TEXTINPUT, key_press_event)
+        master.event.bind_event(KeyDownEvent, key_press_event)
+        master.event.bind_event(TextInputEvent, key_press_event)
 
     def get_local_size(self) -> Tuple[float, float]:
         return self.__shape.get_local_size()

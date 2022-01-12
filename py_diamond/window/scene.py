@@ -7,9 +7,8 @@
 from __future__ import annotations
 
 __all__ = [
+    "AbstractAutoLayeredScene",
     "AbstractLayeredScene",
-    "AutoLayeredMainScene",
-    "AutoLayeredScene",
     "LayeredMainScene",
     "LayeredScene",
     "MainScene",
@@ -192,6 +191,16 @@ class ReturningSceneTransition(SceneTransition):
 class Scene(metaclass=MetaScene):
     __instances: ClassVar[Set[Type[Scene]]] = set()
 
+    __slots__ = (
+        "__manager",
+        "__event",
+        "__bg_color",
+        "__callback_after",
+        "__callback_after_dict",
+        "__stack",
+        "__dict__",
+    )
+
     def __new__(cls) -> Any:
         instances: Set[Type[Scene]] = Scene.__instances
         if cls in instances:
@@ -359,7 +368,7 @@ class MetaMainScene(MetaScene):
 
 
 class MainScene(Scene, metaclass=MetaMainScene):
-    pass
+    __slots__ = ()
 
 
 @overload
@@ -416,14 +425,14 @@ class MetaLayeredScene(MetaScene):
             setattr_func: Callable[[AbstractLayeredScene, str, Any], Any] = namespace.get("__setattr__", bases[0].__setattr__)
 
             @wraps(setattr_func)
-            def setattr_wrapper(self: AbstractLayeredScene, /, __name: str, __value: Any) -> Any:
+            def setattr_wrapper(self: AbstractLayeredScene, name: str, value: Any, /) -> Any:
                 try:
                     group: LayeredGroup = self.group
                 except AttributeError:
-                    return setattr_func(self, __name, __value)
-                output: Any = setattr_func(self, __name, __value)
-                if isinstance(__value, Drawable):
-                    group.add(__value)
+                    return setattr_func(self, name, value)
+                output: Any = setattr_func(self, name, value)
+                if isinstance(value, Drawable):
+                    group.add(value)
                 return output
 
             namespace["__setattr__"] = metacls.__setattr_wrapper(setattr_wrapper)
@@ -449,6 +458,9 @@ class MetaLayeredScene(MetaScene):
 
 
 class AbstractLayeredScene(Scene, metaclass=MetaLayeredScene):
+
+    __slots__ = ()
+
     @property
     @abstractmethod
     def group(self) -> LayeredGroup:
@@ -473,6 +485,9 @@ class AbstractLayeredScene(Scene, metaclass=MetaLayeredScene):
 
 
 class LayeredScene(AbstractLayeredScene, metaclass=MetaLayeredScene):
+
+    __slots__ = ("__group",)
+
     def __init__(self) -> None:
         super().__init__()
         self.__group: LayeredGroup = LayeredGroup()
@@ -482,20 +497,16 @@ class LayeredScene(AbstractLayeredScene, metaclass=MetaLayeredScene):
         return self.__group
 
 
-class AutoLayeredScene(LayeredScene, add_drawable_attributes=True):
-    pass
+class AbstractAutoLayeredScene(AbstractLayeredScene, add_drawable_attributes=True):
+    __slots__ = ()
 
 
 class MetaLayeredMainScene(MetaLayeredScene, MetaMainScene):
-    pass
+    __slots__ = ()
 
 
 class LayeredMainScene(LayeredScene, MainScene, metaclass=MetaLayeredMainScene):
-    pass
-
-
-class AutoLayeredMainScene(LayeredMainScene, add_drawable_attributes=True):
-    pass
+    __slots__ = ()
 
 
 class SceneWindow(Window):

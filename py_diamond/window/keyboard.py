@@ -24,6 +24,9 @@ _KEY_REPEAT: Tuple[int, int] = (0, 0)
 
 
 class Keyboard:
+
+    __slots__ = ()
+
     @staticmethod
     def update() -> None:
         global _KEY_STATES
