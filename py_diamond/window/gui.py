@@ -628,3 +628,6 @@ class FocusableContainer(Sequence[SupportsFocus]):
         for f in self:
             if isinstance(f, HasFocusUpdate):
                 f._focus_update()
+
+
+del _MetaBoundFocusProxy

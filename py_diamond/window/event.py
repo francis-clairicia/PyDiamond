@@ -524,4 +524,4 @@ class EventManager:
         return None
 
 
-del _pg_constants
+del _pg_constants, _MetaEvent
