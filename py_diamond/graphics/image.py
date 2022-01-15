@@ -12,7 +12,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import TYPE_CHECKING, Optional, Tuple, Union, overload
+from typing import TYPE_CHECKING, Optional, Tuple, overload
 
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom, smoothscale as _surface_smoothscale
 
@@ -49,7 +49,7 @@ class Image(TDrawable):
 
     def __init__(
         self,
-        image: Optional[Union[Surface, str]] = None,
+        image: Optional[Surface | str] = None,
         *,
         copy: bool = True,
         width: Optional[float] = None,

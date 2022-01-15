@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 from contextlib import suppress
 from enum import auto, unique
 from operator import truth
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Optional, Tuple
 
 from ..system._mangling import mangle_private_attribute
 from ..system.configuration import Configuration, OptionAttribute, initializer
@@ -379,7 +379,7 @@ class ScrollArea(LayeredGroup, Movable):
     def __init__(
         self,
         *objects: Drawable,
-        master: Union[Scene, Window],
+        master: Scene | Window,
         width: float,
         height: float,
         default_layer: int = 0,
@@ -387,7 +387,7 @@ class ScrollArea(LayeredGroup, Movable):
     ) -> None:
         LayeredGroup.__init__(self, *objects, default_layer=default_layer)
         Movable.__init__(self)
-        self.__master: Union[Scene, Window] = master
+        self.__master: Scene | Window = master
         self.__view_rect: Rect = Rect(0, 0, width, height)
         self.__whole_area: Surface = create_surface((width, height))
         self.__area_view: Surface = self.__whole_area.subsurface(0, 0, width, height)
@@ -538,5 +538,5 @@ class ScrollArea(LayeredGroup, Movable):
             update_cursor_shape(v_scroll)
 
     @property
-    def master(self) -> Union[Scene, Window]:
+    def master(self) -> Scene | Window:
         return self.__master

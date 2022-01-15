@@ -13,7 +13,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from operator import truth
-from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, Tuple, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, Tuple, TypeVar
 
 from ..system.configuration import Configuration, OptionAttribute
 from ..window.clickable import Clickable
@@ -58,7 +58,7 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
         "border_bottom_right_radius",
     )
 
-    value: OptionAttribute[Union[_OnValue, _OffValue]] = OptionAttribute()
+    value: OptionAttribute[_OnValue | _OffValue] = OptionAttribute()
     local_width: OptionAttribute[float] = OptionAttribute()
     local_height: OptionAttribute[float] = OptionAttribute()
     local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
@@ -73,15 +73,15 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
 
     def __init__(
         self,
-        master: Union[Scene, Window],
+        master: Scene | Window,
         width: float,
         height: float,
         color: Color,
-        callback: Optional[Callable[[Union[_OnValue, _OffValue]], None]] = None,
+        callback: Optional[Callable[[_OnValue | _OffValue], None]] = None,
         *,
         off_value: _OffValue,
         on_value: _OnValue,
-        value: Union[_OnValue, _OffValue] = NoDefaultValue,
+        value: _OnValue | _OffValue = NoDefaultValue,
         outline: int = 2,
         outline_color: Color = BLACK,
         img: Optional[Surface] = None,
@@ -135,11 +135,11 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
             line_width=0.2,
             theme=NoTheme,
         )
-        self.__on_changed_value: Optional[Callable[[Union[_OnValue, _OffValue]], None]] = callback
+        self.__on_changed_value: Optional[Callable[[_OnValue | _OffValue], None]] = callback
         self.__active_img: Optional[Image] = Image(img) if img is not None else None
         self.__on_value: _OnValue = on_value
         self.__off_value: _OffValue = off_value
-        self.__value: Union[_OnValue, _OffValue] = off_value
+        self.__value: _OnValue | _OffValue = off_value
         if value in [on_value, off_value]:
             self.__value = value
         elif value is not NoDefaultValue:
@@ -172,10 +172,10 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
     def invoke(self) -> None:
         self.value = self.__on_value if self.value == self.__off_value else self.__off_value
 
-    def get_value(self) -> Union[_OnValue, _OffValue]:
+    def get_value(self) -> _OnValue | _OffValue:
         return self.__value
 
-    def set_value(self, value: Union[_OnValue, _OffValue]) -> None:
+    def set_value(self, value: _OnValue | _OffValue) -> None:
         if value not in [self.__on_value, self.__off_value]:
             raise ValueError(f"{value!r} is not {self.__on_value!r} or {self.__off_value!r}")
         if value == self.__value:
@@ -257,14 +257,14 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
         return self.__off_value
 
     @property
-    def callback(self) -> Optional[Callable[[Union[_OnValue, _OffValue]], None]]:
+    def callback(self) -> Optional[Callable[[_OnValue | _OffValue], None]]:
         return self.__on_changed_value
 
 
 class BooleanCheckBox(CheckBox[bool, bool]):
     def __init__(
         self,
-        master: Union[Scene, Window],
+        master: Scene | Window,
         width: float,
         height: float,
         color: Color,

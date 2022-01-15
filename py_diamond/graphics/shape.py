@@ -28,7 +28,7 @@ from abc import abstractmethod
 from enum import auto, unique
 from math import radians, sin, tan
 from operator import truth
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, TypeAlias
 
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom
 
@@ -187,7 +187,7 @@ class OutlinedShape(AbstractShape):
 
 
 class PolygonShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
-    PointList = Union[Sequence[Vector2], Sequence[Tuple[float, float]], Sequence[Tuple[int, int]]]
+    PointList: TypeAlias = Sequence[Vector2] | Sequence[Tuple[float, float]] | Sequence[Tuple[int, int]]
 
     config = Configuration("points", parent=[OutlinedShape.config, SingleColorShape.config])
 

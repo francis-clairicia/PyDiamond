@@ -13,7 +13,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Callable, Dict, Iterator, List, Literal, NamedTuple, Optional, Tuple, TypeVar, Union
+from typing import TYPE_CHECKING, Callable, Dict, Iterator, List, Literal, NamedTuple, Optional, Tuple, TypeAlias, TypeVar
 
 from ..math import Vector2
 from ..window.time import Time
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from ..window.scene import Scene, SceneWindow
     from .transformable import Transformable
 
-_AnimationType = Literal["move", "rotate", "rotate_point", "scale"]
+_AnimationType: TypeAlias = Literal["move", "rotate", "rotate_point", "scale"]
 
 
 class TransformAnimation:
@@ -48,17 +48,17 @@ class TransformAnimation:
 
     __Self = TypeVar("__Self", bound="TransformAnimation")
 
-    def smooth_set_position(self: __Self, speed: float = 100, **position: Union[float, Tuple[float, float]]) -> __Self:
+    def smooth_set_position(self: __Self, speed: float = 100, **position: float | Tuple[float, float]) -> __Self:
         transformable: Transformable = self.__transformable
         self.__animations["move"] = _AnimationSetPosition(transformable, speed, position)
         return self
 
-    def smooth_translation(self: __Self, translation: Union[Vector2, Tuple[float, float]], speed: float = 100) -> __Self:
+    def smooth_translation(self: __Self, translation: Vector2 | Tuple[float, float], speed: float = 100) -> __Self:
         transformable: Transformable = self.__transformable
         self.__animations["move"] = _AnimationMove(transformable, speed, translation)
         return self
 
-    def infinite_translation(self: __Self, direction: Union[Vector2, Tuple[float, float]], speed: float = 100) -> __Self:
+    def infinite_translation(self: __Self, direction: Vector2 | Tuple[float, float], speed: float = 100) -> __Self:
         transformable: Transformable = self.__transformable
         self.__animations["move"] = _AnimationInfiniteMove(transformable, speed, direction)
         return self
@@ -68,7 +68,7 @@ class TransformAnimation:
         angle: float,
         speed: float = 100,
         *,
-        pivot: Optional[Union[str, Tuple[float, float], Vector2]] = None,
+        pivot: Optional[str | Tuple[float, float] | Vector2] = None,
         counter_clockwise: bool = True,
     ) -> __Self:
         transformable: Transformable = self.__transformable
@@ -89,7 +89,7 @@ class TransformAnimation:
     def smooth_rotation_around_point(
         self: __Self,
         angle: float,
-        pivot: Union[str, Tuple[float, float], Vector2],
+        pivot: str | Tuple[float, float] | Vector2,
         speed: float = 100,
         *,
         rotate_object: bool = False,
@@ -107,7 +107,7 @@ class TransformAnimation:
 
     def infinite_rotation_around_point(
         self: __Self,
-        pivot: Union[str, Tuple[float, float], Vector2],
+        pivot: str | Tuple[float, float] | Vector2,
         speed: float = 100,
         *,
         counter_clockwise: bool = True,
@@ -290,11 +290,9 @@ class _AnimationSetPosition(_AbstractAnimationClass):
 
     __slots__ = ("__position",)
 
-    def __init__(
-        self, transformable: Transformable, speed: float, position: Dict[str, Union[float, Tuple[float, float]]]
-    ) -> None:
+    def __init__(self, transformable: Transformable, speed: float, position: Dict[str, float | Tuple[float, float]]) -> None:
         super().__init__(transformable, speed)
-        self.__position: Dict[str, Union[float, Tuple[float, float]]] = position
+        self.__position: Dict[str, float | Tuple[float, float]] = position
 
     def started(self) -> bool:
         return super().started() and len(self.__position) > 0
@@ -322,7 +320,7 @@ class _AnimationMove(_AbstractAnimationClass):
 
     __slots__ = ("__vector", "__traveled")
 
-    def __init__(self, transformable: Transformable, speed: float, translation: Union[Vector2, Tuple[float, float]]) -> None:
+    def __init__(self, transformable: Transformable, speed: float, translation: Vector2 | Tuple[float, float]) -> None:
         super().__init__(transformable, speed)
         self.__vector: Vector2 = Vector2(translation)
         self.__traveled: float = 0
@@ -354,7 +352,7 @@ class _AnimationInfiniteMove(_AbstractAnimationClass):
 
     __slots__ = ("__vector",)
 
-    def __init__(self, transformable: Transformable, speed: float, direction: Union[Vector2, Tuple[float, float]]) -> None:
+    def __init__(self, transformable: Transformable, speed: float, direction: Vector2 | Tuple[float, float]) -> None:
         super().__init__(transformable, speed)
         self.__vector: Vector2 = Vector2(direction)
         if self.__vector.length_squared() > 0:
@@ -383,7 +381,7 @@ class _AnimationSetRotation(_AbstractAnimationClass):
         transformable: Transformable,
         angle: float,
         speed: float,
-        pivot: Union[Vector2, Tuple[float, float], str, None],
+        pivot: Optional[Vector2 | Tuple[float, float] | str],
         counter_clockwise: bool,
     ) -> None:
         super().__init__(transformable, speed)
@@ -490,7 +488,7 @@ class _AnimationRotationAroundPoint(_AbstractAnimationClass):
         transformable: Transformable,
         angle: float,
         speed: float,
-        pivot: Union[Vector2, Tuple[float, float], str],
+        pivot: Vector2 | Tuple[float, float] | str,
         rotate_object: bool,
     ) -> None:
         super().__init__(transformable, speed)
@@ -534,7 +532,7 @@ class _AnimationInfiniteRotateAroundPoint(_AbstractAnimationClass):
         self,
         transformable: Transformable,
         speed: float,
-        pivot: Union[Vector2, Tuple[float, float], str],
+        pivot: Vector2 | Tuple[float, float] | str,
         counter_clockwise: bool,
         rotate_object: bool,
     ) -> None:

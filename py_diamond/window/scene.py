@@ -51,6 +51,7 @@ from typing import (
     Set,
     Tuple,
     Type,
+    TypeAlias,
     TypeVar,
     cast,
     final,
@@ -169,7 +170,7 @@ class MetaScene(ABCMeta):
         return obj
 
 
-SceneTransitionCoroutine = Generator[None, Optional[float], None]
+SceneTransitionCoroutine: TypeAlias = Generator[None, Optional[float], None]
 
 
 class SceneTransition(metaclass=ABCMeta):

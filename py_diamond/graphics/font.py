@@ -12,13 +12,13 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import Iterable, Union
+from typing import Iterable
 
 from pygame.font import Font as _Font, get_default_font as _pg_font_get_default_font
 from pygame.sysfont import SysFont as _pg_sysfont
 
 
-def SysFont(name: Union[str, bytes, Iterable[Union[str, bytes]]], size: int, bold: bool = False, italic: bool = False) -> Font:
+def SysFont(name: str | bytes | Iterable[str | bytes], size: int, bold: bool = False, italic: bool = False) -> Font:
     """SysFont(name, size, bold=False, italic=False) -> Font
     Create a pygame Font from system font resources.
 

@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
 from functools import cached_property
-from typing import Any, Dict, List, Optional, Tuple, Union, final
+from typing import Any, Dict, List, Optional, Tuple, final
 
 from pygame import error as _pg_error
 
@@ -58,14 +58,14 @@ class Transformable(Movable, metaclass=MetaTransformable):
         self.__scale: float = 1
 
     def rotate(
-        self, angle_offset: float, pivot: Optional[Union[Tuple[float, float], Vector2, str]] = None, *, apply: bool = True
+        self, angle_offset: float, pivot: Optional[Tuple[float, float] | Vector2 | str] = None, *, apply: bool = True
     ) -> None:
         self.set_rotation(self.__angle + angle_offset, pivot=pivot, apply=apply)
 
     def set_rotation(
         self,
         angle: float,
-        pivot: Optional[Union[Tuple[float, float], Vector2, str]] = None,
+        pivot: Optional[Tuple[float, float] | Vector2 | str] = None,
         *,
         apply: bool = True,
     ) -> None:
@@ -95,7 +95,7 @@ class Transformable(Movable, metaclass=MetaTransformable):
             center = pivot + (center - pivot).rotate(-self.__angle + former_angle)
         self.center = center.x, center.y
 
-    def rotate_around_point(self, angle_offset: float, pivot: Union[Tuple[float, float], Vector2, str]) -> None:
+    def rotate_around_point(self, angle_offset: float, pivot: Tuple[float, float] | Vector2 | str) -> None:
         if angle_offset == 0:
             return
         if isinstance(pivot, str):
@@ -258,7 +258,7 @@ class Transformable(Movable, metaclass=MetaTransformable):
     def get_area(self, *, apply_scale: bool = True, apply_rotation: bool = True) -> Rect:
         return Rect((0, 0), self.get_area_size(apply_scale=apply_scale, apply_rotation=apply_rotation))
 
-    def get_local_rect(self, **kwargs: Union[float, Tuple[float, float]]) -> Rect:
+    def get_local_rect(self, **kwargs: float | Tuple[float, float]) -> Rect:
         r: Rect = Rect((0, 0), self.get_local_size())
         for name, value in kwargs.items():
             if not hasattr(r, name):

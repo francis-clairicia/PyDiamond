@@ -15,7 +15,7 @@ from contextlib import suppress
 from enum import auto, unique
 from operator import truth
 from textwrap import wrap as textwrap
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, TypeAlias
 
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom
 
@@ -31,7 +31,7 @@ from .renderer import Renderer, SurfaceRenderer
 from .surface import Surface, create_surface
 from .theme import MetaThemedObject, ThemeType
 
-_TextFont = Union[Font, Tuple[Optional[str], int]]
+_TextFont: TypeAlias = Font | Tuple[Optional[str], int]
 
 
 class MetaText(MetaTDrawable, MetaThemedObject):
@@ -156,7 +156,7 @@ class Text(TDrawable, metaclass=MetaText):
         return font
 
     @staticmethod
-    def set_default_font(font: Union[str, None]) -> None:
+    def set_default_font(font: Optional[str]) -> None:
         if font is None:
             with suppress(AttributeError):
                 delattr(Text, "__default_font__")

@@ -12,7 +12,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import Any, Final, Iterable, Iterator, List, Optional, Sequence, Tuple, Type, TypeVar, Union, overload
+from typing import Any, Final, Iterable, Iterator, List, Optional, Sequence, Tuple, Type, TypeVar, overload
 
 from pygame.mask import Mask, from_surface as _pg_mask_from_surface
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom, smoothscale as _surface_smoothscale
@@ -247,7 +247,7 @@ class SpriteGroup(DrawableGroup):
     def __getitem__(self, index: slice, /) -> Sequence[Sprite]:
         ...
 
-    def __getitem__(self, index: Union[int, slice], /) -> Union[Sprite, Sequence[Sprite]]:
+    def __getitem__(self, index: int | slice, /) -> Sprite | Sequence[Sprite]:
         return super().__getitem__(index)  # type: ignore[return-value]
 
     def __reversed__(self) -> Iterator[Sprite]:

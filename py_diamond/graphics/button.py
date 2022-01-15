@@ -15,21 +15,7 @@ __license__ = "GNU GPL v3.0"
 from enum import auto, unique
 from functools import cached_property
 from operator import truth
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    ClassVar,
-    Dict,
-    Final,
-    Literal,
-    Optional,
-    Tuple,
-    TypeAlias,
-    TypedDict,
-    Union,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Dict, Final, Literal, Optional, Tuple, TypeAlias, TypedDict, overload
 
 from ..math import Vector2
 from ..system.configuration import Configuration, OptionAttribute, initializer
@@ -55,7 +41,7 @@ if TYPE_CHECKING:
     from .font import Font
     from .renderer import Renderer
 
-    _TextFont = Union[Font, Tuple[Optional[str], int]]
+    _TextFont: TypeAlias = Font | Tuple[Optional[str], int]
 
 
 class MetaButton(MetaTDrawable, MetaThemedObject):
@@ -215,7 +201,7 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
     @initializer
     def __init__(
         self,
-        master: Union[Scene, Window],
+        master: Scene | Window,
         text: str = "",
         callback: Optional[Callable[[], None]] = None,
         *,
@@ -896,7 +882,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     @initializer
     def __init__(
         self,
-        master: Union[Scene, Window],
+        master: Scene | Window,
         img: Surface,
         callback: Optional[Callable[[], None]] = None,
         *,

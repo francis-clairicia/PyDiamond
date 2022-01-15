@@ -16,7 +16,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from enum import auto, unique
 from itertools import chain
-from typing import Any, Callable, Container, Dict, Iterator, List, Literal, Optional, Sequence, Tuple, TypeVar, Union, overload
+from typing import Any, Callable, Container, Dict, Iterator, List, Literal, Optional, Sequence, Tuple, TypeVar, overload
 
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
@@ -603,7 +603,7 @@ class _GridCell(MDrawable):
         obj: Optional[MDrawable] = self.__object
         if obj is None:
             return
-        move: Dict[Grid.Justify, Dict[str, Union[float, Tuple[float, float]]]] = {
+        move: Dict[Grid.Justify, Dict[str, float | Tuple[float, float]]] = {
             Grid.Justify.LEFT: {"left": self.left + self.__padx, "centery": self.centery},
             Grid.Justify.RIGHT: {"right": self.right - self.__padx, "centery": self.centery},
             Grid.Justify.TOP: {"top": self.top + self.__pady, "centerx": self.centerx},

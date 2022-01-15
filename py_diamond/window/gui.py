@@ -40,7 +40,6 @@ from typing import (
     Sequence,
     Tuple,
     TypedDict,
-    Union,
     final,
     overload,
     runtime_checkable,
@@ -393,7 +392,7 @@ class BoundFocus:
     def get_obj_on_side(self, side: str) -> Optional[SupportsFocus]:
         ...
 
-    def get_obj_on_side(self, side: Optional[str] = None) -> Union[BoundObjectsDict, SupportsFocus, None]:
+    def get_obj_on_side(self, side: Optional[str] = None) -> Optional[BoundObjectsDict | SupportsFocus]:
         f: SupportsFocus = self.__self__
         bound_object_dict: Dict[BoundFocus.Side, Optional[SupportsFocus]] = getattr(f, "_bound_focus_objects_", {})
 
@@ -604,7 +603,7 @@ class FocusableContainer(Sequence[SupportsFocus]):
     def __getitem__(self, index: slice, /) -> Sequence[SupportsFocus]:
         ...
 
-    def __getitem__(self, index: Union[int, slice], /) -> Union[SupportsFocus, Sequence[SupportsFocus]]:
+    def __getitem__(self, index: int | slice, /) -> SupportsFocus | Sequence[SupportsFocus]:
         focusable_list: List[SupportsFocus] = self.__list
         if isinstance(index, slice):
             return tuple(focusable_list[index])

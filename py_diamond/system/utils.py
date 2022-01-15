@@ -22,7 +22,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from functools import WRAPPER_ASSIGNMENTS, WRAPPER_UPDATES, lru_cache as _lru_cache, update_wrapper as _update_wrapper
-from typing import Any, Callable, Optional, ParamSpec, Sequence, Type, TypeVar, Union, overload
+from typing import Any, Callable, Optional, ParamSpec, Sequence, Type, TypeAlias, TypeVar, overload
 
 _P = ParamSpec("_P")
 _T = TypeVar("_T")
@@ -144,7 +144,7 @@ def valid_integer(*, value: Any, min_value: int, max_value: int) -> int:
     ...
 
 
-def valid_integer(**kwargs: Any) -> Union[int, Callable[[Any], int]]:
+def valid_integer(**kwargs: Any) -> int | Callable[[Any], int]:
     value: Any = kwargs.pop("value", _MISSING)
     decorator: Callable[[Any], int] = __valid_number(int, False, **kwargs)
     if value is not _MISSING:
@@ -182,7 +182,7 @@ def valid_optional_integer(*, value: Any, min_value: int, max_value: int) -> Opt
     ...
 
 
-def valid_optional_integer(**kwargs: Any) -> Union[Optional[int], Callable[[Any], Optional[int]]]:
+def valid_optional_integer(**kwargs: Any) -> Optional[int] | Callable[[Any], Optional[int]]:
     value: Any = kwargs.pop("value", _MISSING)
     decorator: Callable[[Any], Optional[int]] = __valid_number(int, True, **kwargs)
     if value is not _MISSING:
@@ -220,7 +220,7 @@ def valid_float(*, value: Any, min_value: float, max_value: float) -> float:
     ...
 
 
-def valid_float(**kwargs: Any) -> Union[float, Callable[[Any], float]]:
+def valid_float(**kwargs: Any) -> float | Callable[[Any], float]:
     value: Any = kwargs.pop("value", _MISSING)
     decorator: Callable[[Any], float] = __valid_number(float, False, **kwargs)
     if value is not _MISSING:
@@ -258,7 +258,7 @@ def valid_optional_float(*, value: Any, min_value: float, max_value: float) -> O
     ...
 
 
-def valid_optional_float(**kwargs: Any) -> Union[Optional[float], Callable[[Any], Optional[float]]]:
+def valid_optional_float(**kwargs: Any) -> Optional[float] | Callable[[Any], Optional[float]]:
     value: Any = kwargs.pop("value", _MISSING)
     decorator: Callable[[Any], Optional[float]] = __valid_number(float, True, **kwargs)
     if value is not _MISSING:
@@ -266,10 +266,13 @@ def valid_optional_float(**kwargs: Any) -> Union[Optional[float], Callable[[Any]
     return decorator
 
 
+_Number: TypeAlias = int | float
+
+
 @cache
-def __valid_number(value_type: Union[Type[int], Type[float]], optional: bool, /, **kwargs: Any) -> Callable[[Any], Any]:
-    _min: Union[int, float]
-    _max: Union[int, float]
+def __valid_number(value_type: Type[_Number], optional: bool, /, **kwargs: Any) -> Callable[[Any], Any]:
+    _min: _Number
+    _max: _Number
 
     if any(param not in ("min_value", "max_value") for param in kwargs):
         raise TypeError("Invalid arguments")
@@ -285,7 +288,7 @@ def __valid_number(value_type: Union[Type[int], Type[float]], optional: bool, /,
         if _min > _max:
             raise ValueError(f"min_value ({_min}) > max_value ({_max})")
 
-        def valid_number(val: Any) -> Optional[Union[int, float]]:
+        def valid_number(val: Any) -> Optional[_Number]:
             if optional and val is None:
                 return None
             return min(max(value_type(val), _min), _max)
@@ -293,7 +296,7 @@ def __valid_number(value_type: Union[Type[int], Type[float]], optional: bool, /,
     elif min_value is not null:
         _min = value_type(min_value)
 
-        def valid_number(val: Any) -> Optional[Union[int, float]]:
+        def valid_number(val: Any) -> Optional[_Number]:
             if optional and val is None:
                 return None
             return max(value_type(val), _min)
@@ -301,7 +304,7 @@ def __valid_number(value_type: Union[Type[int], Type[float]], optional: bool, /,
     elif max_value is not null:
         _max = value_type(max_value)
 
-        def valid_number(val: Any) -> Optional[Union[int, float]]:
+        def valid_number(val: Any) -> Optional[_Number]:
             if optional and val is None:
                 return None
             return min(value_type(val), _max)

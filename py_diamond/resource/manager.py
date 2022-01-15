@@ -15,13 +15,13 @@ __license__ = "GNU GPL v3.0"
 from contextlib import suppress
 from os.path import join
 from types import MappingProxyType
-from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, TypeAlias
 
 from ..system.path import set_constant_directory
 from .loader import ResourceLoader
 
-_ResourcePath = Union[str, Sequence["_ResourcePath"], Mapping[Any, "_ResourcePath"]]  # type: ignore
-_ResourceLoader = Union[ResourceLoader[Any], Tuple["_ResourceLoader", ...], Dict[Any, "_ResourceLoader"]]  # type: ignore
+_ResourcePath: TypeAlias = str | Sequence["_ResourcePath"] | Mapping[Any, "_ResourcePath"]  # type: ignore
+_ResourceLoader: TypeAlias = ResourceLoader[Any] | Tuple["_ResourceLoader", ...] | Dict[Any, "_ResourceLoader"]  # type: ignore
 
 
 class _ResourceDescriptor:
@@ -92,7 +92,7 @@ class MetaResourceManager(type):
     def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaResourceManager:
         resources: Dict[str, Any] = namespace.setdefault("__resources_files__", dict())
 
-        annotations: Dict[str, Union[type, str]] = namespace.get("__annotations__", dict())
+        annotations: Dict[str, type | str] = namespace.get("__annotations__", dict())
         for attr_name in ["__resources_files__", "__resources_directory__", "__resource_loader__"]:
             annotations.pop(attr_name, None)
         for attr_name in annotations:

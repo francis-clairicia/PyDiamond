@@ -31,13 +31,13 @@ from typing import (
     Set,
     Tuple,
     Type,
+    TypeAlias,
     TypeVar,
-    Union,
     overload,
 )
 
-_ClassTheme = Dict[str, Dict[str, Any]]
-_ClassThemeDict = Dict[type, _ClassTheme]
+_ClassTheme: TypeAlias = Dict[str, Dict[str, Any]]
+_ClassThemeDict: TypeAlias = Dict[type, _ClassTheme]
 
 _THEMES: _ClassThemeDict = dict()
 _DEFAULT_THEME: Dict[type, List[str]] = dict()
@@ -113,7 +113,7 @@ class _NoThemeType(str):
 
 NoTheme: _NoThemeType = _NoThemeType()
 
-ThemeType = Union[str, Iterable[str]]
+ThemeType: TypeAlias = str | Iterable[str]
 
 
 class MetaThemedObject(ABCMeta):
@@ -270,7 +270,7 @@ class MetaThemedObject(ABCMeta):
     def set_default_theme(cls, name: None, /) -> None:
         ...
 
-    def set_default_theme(cls, name: Union[str, None], /, *names: str, update: bool = False) -> None:
+    def set_default_theme(cls, name: Optional[str], /, *names: str, update: bool = False) -> None:
         if cls.is_abstract_theme_class():
             raise TypeError("Abstract theme classes cannot set themes.")
 

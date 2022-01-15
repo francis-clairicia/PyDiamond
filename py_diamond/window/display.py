@@ -31,8 +31,8 @@ from typing import (
     Protocol,
     Sequence,
     Tuple,
+    TypeAlias,
     TypeVar,
-    Union,
     cast,
     final,
     overload,
@@ -63,7 +63,7 @@ from .keyboard import Keyboard
 from .mouse import Mouse
 from .time import Time
 
-_ColorInput = Union[Color, str, List[int], Tuple[int, int, int], Tuple[int, int, int, int]]
+_ColorInput: TypeAlias = Color | str | Tuple[int, int, int] | List[int] | Tuple[int, int, int, int]
 
 _ScheduledFunc = TypeVar("_ScheduledFunc", bound=Callable[..., None])
 
@@ -136,8 +136,6 @@ def scheduled(milliseconds: float) -> Callable[[_ScheduledFunc], _ScheduledFunc]
 class Window:
     class __Exit(BaseException):
         pass
-
-    Config = Dict[str, Any]
 
     DEFAULT_TITLE: Final[str] = "PyDiamond window"
     DEFAULT_FRAMERATE: Final[int] = 60

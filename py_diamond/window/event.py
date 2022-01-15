@@ -56,7 +56,7 @@ from contextlib import suppress
 from dataclasses import dataclass, field, fields
 from enum import IntEnum
 from types import MappingProxyType
-from typing import Any, Callable, ClassVar, Dict, Final, List, Literal, Optional, Sequence, Tuple, Type, TypeVar, Union, cast
+from typing import Any, Callable, ClassVar, Dict, Final, List, Literal, Optional, Sequence, Tuple, Type, TypeAlias, TypeVar, cast
 
 import pygame.constants as _pg_constants
 from pygame.event import Event as _PygameEvent, event_name as _pg_event_name, get_blocked as _pg_event_get_blocked
@@ -152,7 +152,7 @@ class KeyUpEvent(Event):
     mod: int
 
 
-KeyEventType = Union[KeyDownEvent, KeyUpEvent]
+KeyEventType: TypeAlias = KeyDownEvent | KeyUpEvent
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -169,7 +169,7 @@ class MouseButtonUpEvent(Event):
     button: int
 
 
-MouseButtonEventType = Union[MouseButtonDownEvent, MouseButtonUpEvent]
+MouseButtonEventType: TypeAlias = MouseButtonDownEvent | MouseButtonUpEvent
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -188,7 +188,7 @@ class MouseWheelEvent(Event):
     y: int
 
 
-MouseEventType = Union[MouseButtonEventType, MouseWheelEvent, MouseMotionEvent]
+MouseEventType: TypeAlias = MouseButtonEventType | MouseWheelEvent | MouseMotionEvent
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -229,7 +229,7 @@ class JoyButtonUpEvent(Event):
     button: int
 
 
-JoyButtonEventType = Union[JoyButtonDownEvent, JoyButtonUpEvent]
+JoyButtonEventType: TypeAlias = JoyButtonDownEvent | JoyButtonUpEvent
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -258,7 +258,7 @@ class TextInputEvent(Event):
     text: str
 
 
-TextEvent = Union[TextEditingEvent, TextInputEvent]
+TextEvent: TypeAlias = TextEditingEvent | TextInputEvent
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -343,10 +343,10 @@ class WindowTakeFocusEvent(Event):
     type: ClassVar[Literal[Event.Type.WINDOWTAKEFOCUS]] = field(default=Event.Type.WINDOWTAKEFOCUS, init=False)
 
 
-_EventCallback = Callable[[Event], Optional[bool]]
+_EventCallback: TypeAlias = Callable[[Event], Optional[bool]]
 _TE = TypeVar("_TE", bound=Event)
 
-_MousePositionCallback = Callable[[Tuple[float, float]], None]
+_MousePositionCallback: TypeAlias = Callable[[Tuple[float, float]], None]
 
 
 class EventFactory:

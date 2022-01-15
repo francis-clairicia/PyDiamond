@@ -13,7 +13,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from operator import truth
-from typing import TYPE_CHECKING, Callable, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Optional, Tuple
 
 from ..system.configuration import Configuration, initializer
 from ..window.clickable import Clickable
@@ -35,7 +35,7 @@ class ScaleBar(ProgressBar, Clickable):
     @initializer
     def __init__(
         self,
-        master: Union[Scene, Window],
+        master: Scene | Window,
         width: float,
         height: float,
         from_: float = 0,

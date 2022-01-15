@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from functools import cached_property
 from string import printable as ASCII_PRINTABLE
-from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple, TypeAlias
 
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.utils import valid_integer, valid_optional_float, valid_optional_integer
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from .font import Font
     from .renderer import Renderer
 
-    _TextFont = Union[Font, Tuple[Optional[str], int]]
+    _TextFont: TypeAlias = Font | Tuple[Optional[str], int]
 
 
 class MetaEntry(MetaTDrawable, MetaThemedObject):
@@ -103,7 +103,7 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
     @initializer
     def __init__(
         self,
-        master: Union[Scene, Window],
+        master: Scene | Window,
         on_validate: Optional[Callable[[], Any]] = None,
         *,
         max_nb_chars: int = 10,
@@ -291,7 +291,7 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
                 Keyboard.IME.stop_text_input()
         return Keyboard.IME.text_input_enabled()
 
-    def __key_press(self, event: Union[KeyDownEvent, TextInputEvent]) -> bool:
+    def __key_press(self, event: KeyDownEvent | TextInputEvent) -> bool:
         if not self.__edit() or not isinstance(event, (KeyDownEvent, TextInputEvent)):
             return False
         self.__show_cursor = True

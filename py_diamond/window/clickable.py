@@ -13,7 +13,7 @@ __license__ = "GNU GPL v3.0"
 from abc import ABCMeta, abstractmethod
 from enum import auto, unique
 from operator import truth
-from typing import ClassVar, Dict, Optional, Tuple, Union
+from typing import ClassVar, Dict, Optional, Tuple
 
 from ..audio.sound import Sound
 from ..graphics.drawable import Drawable
@@ -36,7 +36,7 @@ class Clickable(metaclass=ABCMeta):
 
     def __init__(
         self,
-        master: Union[Scene, Window],
+        master: Scene | Window,
         *,
         state: str = "normal",
         hover_sound: Optional[Sound] = None,
@@ -46,7 +46,7 @@ class Clickable(metaclass=ABCMeta):
         disabled_cursor: Optional[Cursor] = None,
         take_focus: bool = True,
     ) -> None:
-        self.__master: Union[Scene, Window] = master
+        self.__master: Scene | Window = master
         self.__scene: Optional[Scene]
         if isinstance(master, Scene):
             self.__scene = master
@@ -206,12 +206,12 @@ class Clickable(metaclass=ABCMeta):
         pass
 
     @property
-    def master(self) -> Union[Scene, Window]:
+    def master(self) -> Scene | Window:
         return self.__master
 
     @property
     def window(self) -> Window:
-        master: Union[Scene, Window] = self.__master
+        master: Scene | Window = self.__master
         if isinstance(master, Window):
             return master
         return master.window

@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from enum import IntEnum, IntFlag, unique
 from operator import truth
-from typing import ClassVar, Optional, Sequence, Tuple, Union, overload
+from typing import ClassVar, Optional, Sequence, Tuple, overload
 
 import pygame.constants as _pg_constants
 import pygame.key as _pg_key
@@ -43,7 +43,7 @@ class Keyboard:
         ...
 
     @staticmethod
-    def get(key: Union[str, Key]) -> Union[str, Key]:
+    def get(key: str | Key) -> str | Key:
         if isinstance(key, str):
             return Keyboard.Key(_pg_key.key_code(key))
         if isinstance(key, int):
@@ -51,7 +51,7 @@ class Keyboard:
         raise TypeError("Bad argument type")
 
     @staticmethod
-    def is_pressed(key: Union[Key, str]) -> bool:
+    def is_pressed(key: Key | str) -> bool:
         if isinstance(key, str):
             key = Keyboard.get(key)
         else:

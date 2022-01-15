@@ -13,7 +13,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from enum import auto, unique
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
@@ -138,7 +138,7 @@ class ProgressBar(RectangleShape):
         outline_rect.draw_onto(target)
 
         offset = 10
-        movements: Dict[str, Dict[str, Union[float, Tuple[float, float]]]]
+        movements: Dict[str, Dict[str, float | Tuple[float, float]]]
         if self.__value_text.is_shown() and self.__value_text_type in ["value", "percent"]:
             movements = {
                 ProgressBar.Side.TOP.value: {"bottom": self.top - offset, "centerx": self.centerx},

@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta, abstractmethod
 from enum import IntEnum, unique
-from typing import TYPE_CHECKING, Any, List, Optional, Protocol, Sequence, Tuple, Union, overload
+from typing import TYPE_CHECKING, Any, List, Optional, Protocol, Sequence, Tuple, TypeAlias, overload
 
 import pygame.constants as _pg_constants
 from pygame.draw import (
@@ -36,21 +36,15 @@ if TYPE_CHECKING:
     from ..math import Vector2
     from .color import Color
 
-    _Coordinate = Union[Tuple[float, float], Sequence[float], Vector2]
-    _ColorValue = Union[Color, str, Tuple[int, int, int], List[int], int, Tuple[int, int, int, int]]
-    _ColorInput = Union[Color, str, List[int], Tuple[int, int, int], Tuple[int, int, int, int]]
-    _CanBeRect = Union[
-        Rect,
-        Tuple[int, int, int, int],
-        List[int],
-        Tuple[_Coordinate, _Coordinate],
-        List[_Coordinate],
-    ]
+    _Coordinate: TypeAlias = Tuple[float, float] | Sequence[float] | Vector2
+    _ColorValue: TypeAlias = Color | str | Tuple[int, int, int] | List[int] | int | Tuple[int, int, int, int]
+    _ColorInput: TypeAlias = Color | str | Tuple[int, int, int] | List[int] | Tuple[int, int, int, int]
+    _CanBeRect: TypeAlias = Rect | Tuple[int, int, int, int] | List[int] | Tuple[_Coordinate, _Coordinate] | List[_Coordinate]
 
     class _HasRectAttribute(Protocol):
         rect: _CanBeRect
 
-    _RectValue = Union[_CanBeRect, _HasRectAttribute]
+    _RectValue: TypeAlias = _CanBeRect | _HasRectAttribute
 
 
 @unique
@@ -75,7 +69,7 @@ class Renderer(metaclass=ABCMeta):
     __slots__ = ()
 
     @abstractmethod
-    def get_rect(self, **kwargs: Union[float, Sequence[float]]) -> Rect:
+    def get_rect(self, **kwargs: float | Sequence[float]) -> Rect:
         raise NotImplementedError
 
     @abstractmethod
@@ -213,10 +207,10 @@ class SurfaceRenderer(Renderer):
     def __init__(self, target: Surface, /) -> None:
         ...
 
-    def __init__(self, arg: Union[Surface, Tuple[float, float]], /, *, convert_alpha: bool = True) -> None:
+    def __init__(self, arg: Surface | Tuple[float, float], /, *, convert_alpha: bool = True) -> None:
         self.__target: Surface = arg if isinstance(arg, Surface) else create_surface(arg, convert_alpha=convert_alpha)
 
-    def get_rect(self, **kwargs: Union[float, Sequence[float]]) -> Rect:
+    def get_rect(self, **kwargs: float | Sequence[float]) -> Rect:
         target: Surface = self.__target
         return target.get_rect(**kwargs)
 

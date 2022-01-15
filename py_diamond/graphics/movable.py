@@ -13,7 +13,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta, abstractmethod
-from typing import Any, Callable, Dict, Tuple, Union, final
+from typing import Any, Callable, Dict, Tuple, final
 
 from ..math import Vector2
 from ..system.utils import wraps
@@ -81,7 +81,7 @@ class Movable(metaclass=MetaMovable):
         self.__x: float = 0
         self.__y: float = 0
 
-    def set_position(self, **position: Union[float, Tuple[float, float]]) -> None:
+    def set_position(self, **position: float | Tuple[float, float]) -> None:
         for name in position:
             if name not in _ALL_VALID_POSITIONS:
                 raise AttributeError(f"Unknown position attribute {name!r}")
@@ -92,7 +92,7 @@ class Movable(metaclass=MetaMovable):
         self.__x += dx
         self.__y += dy
 
-    def translate(self, vector: Union[Vector2, Tuple[float, float]]) -> None:
+    def translate(self, vector: Vector2 | Tuple[float, float]) -> None:
         self.__x += vector[0]
         self.__y += vector[1]
 
@@ -108,7 +108,7 @@ class Movable(metaclass=MetaMovable):
     def get_height(self) -> float:
         return self.get_size()[1]
 
-    def get_rect(self, **kwargs: Union[float, Tuple[float, float]]) -> Rect:
+    def get_rect(self, **kwargs: float | Tuple[float, float]) -> Rect:
         r: Rect = Rect(self.topleft, self.get_size())
         for name, value in kwargs.items():
             if not hasattr(r, name):

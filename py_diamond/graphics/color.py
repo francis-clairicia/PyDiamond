@@ -38,7 +38,7 @@ __license__ = "GNU GPL v3.0"
 
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any, Final, List, Mapping, Tuple, Union, overload
+from typing import Any, Final, List, Mapping, Tuple, TypeAlias, overload
 
 from pygame.color import Color as _Color
 from pygame.colordict import THECOLORS as _PG_ALL_COLORS
@@ -97,7 +97,7 @@ class Color(_Color):
         return Color(self.r, self.g, self.b, value)
 
 
-_ColorValue = Union[Color, str, Tuple[int, int, int], List[int], int, Tuple[int, int, int, int]]
+_ColorValue: TypeAlias = Color | str | Tuple[int, int, int] | List[int] | int | Tuple[int, int, int, int]
 
 
 @dataclass(init=False, repr=False, frozen=True)

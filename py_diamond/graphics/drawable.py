@@ -38,7 +38,6 @@ from typing import (
     Tuple,
     Type,
     TypeVar,
-    Union,
     overload,
 )
 
@@ -179,7 +178,7 @@ class DrawableGroup(Sequence[Drawable]):
     def __getitem__(self, index: slice, /) -> Sequence[Drawable]:
         ...
 
-    def __getitem__(self, index: Union[int, slice], /) -> Union[Drawable, Sequence[Drawable]]:
+    def __getitem__(self, index: int | slice, /) -> Drawable | Sequence[Drawable]:
         drawable_list: List[Drawable] = self.__list
         if isinstance(index, slice):
             return tuple(drawable_list[index])

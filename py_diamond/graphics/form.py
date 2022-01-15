@@ -12,7 +12,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Tuple, TypeAlias, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Tuple, TypeAlias, overload
 
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.utils import valid_integer
@@ -111,7 +111,7 @@ class Form(MDrawable):
     def get(self, name: str) -> str:
         ...
 
-    def get(self, name: Optional[str] = None) -> Union[str, Mapping[str, str]]:
+    def get(self, name: Optional[str] = None) -> str | Mapping[str, str]:
         entry_dict: Dict[str, Entry] = self.__entry_dict
         if name is not None:
             return entry_dict[name].get()
