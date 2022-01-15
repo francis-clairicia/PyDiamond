@@ -37,7 +37,7 @@ class _MetaCursor(ABCMeta):
             def wrapper(self: Cursor, /) -> None:
                 nonlocal actual_cursor
                 if actual_cursor is not self:
-                    metacls.__cursor_setter = MethodType(func, self)
+                    _MetaCursor.__cursor_setter = MethodType(func, self)
                     actual_cursor = self
 
             return wrapper
@@ -48,19 +48,19 @@ class _MetaCursor(ABCMeta):
 
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
-    @classmethod
-    def update(metacls) -> None:
-        cursor_setter = metacls.__cursor_setter
+    @staticmethod
+    def update() -> None:
+        cursor_setter = _MetaCursor.__cursor_setter
         if not callable(cursor_setter):
-            default_cursor: Cursor = metacls.__default_cursor or SystemCursor.ARROW
+            default_cursor: Cursor = _MetaCursor.__default_cursor or SystemCursor.ARROW
             default_cursor.set()
         if callable(cursor_setter):
             cursor_setter()
-            metacls.__cursor_setter = None
+            _MetaCursor.__cursor_setter = None
 
-    @classmethod
-    def set_default(metacls, cursor: Optional[Cursor]) -> None:
-        metacls.__default_cursor = cursor
+    @staticmethod
+    def set_default(cursor: Optional[Cursor]) -> None:
+        _MetaCursor.__default_cursor = cursor
 
 
 class Cursor(metaclass=_MetaCursor):
@@ -135,4 +135,4 @@ class SystemCursor(Cursor, Enum, metaclass=_MetaSystemCursor):
         _pg_mouse_set_system_cursor(self.value)
 
 
-del _pg_constants, _MetaCursor, _MetaSystemCursor
+del _pg_constants, _MetaSystemCursor
