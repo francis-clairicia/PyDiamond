@@ -11,17 +11,17 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from time import monotonic_ns as time_ns
-from typing import ClassVar
+from typing import ClassVar, Final
 
 from pygame.time import delay as _pg_time_delay, wait as _pg_time_wait
 
+from ..system.namespace import MetaClassNamespace
 
-class Time:
-    __start: ClassVar[int] = time_ns()
+
+class Time(metaclass=MetaClassNamespace):
+    __start: Final[int] = time_ns()
     __delta: ClassVar[float] = 1
     __fixed_delta: ClassVar[float] = 1
-
-    __slots__ = ()
 
     @staticmethod
     def delta() -> float:
