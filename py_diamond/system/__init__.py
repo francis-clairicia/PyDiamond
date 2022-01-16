@@ -8,14 +8,18 @@ __all__ = [
     "AutoLowerNameEnum",
     "AutoUpperNameEnum",
     "BoundConfiguration",
+    "ClassNamespace",
     "ConfigError",
     "Configuration",
     "EmptyOptionNameError",
     "InitializationError",
     "InvalidAliasError",
     "JThread",
+    "MetaClassNamespace",
+    "MetaNoDuplicate",
     "MetaNonCopyable",
     "MetaSingleton",
+    "NoDuplicate",
     "NonCopyable",
     "OptionAttribute",
     "OptionError",
@@ -27,6 +31,7 @@ __all__ = [
     "UnregisteredOptionError",
     "cache",
     "concreteclassmethod",
+    "forbidden_call",
     "initializer",
     "jthread",
     "lru_cache",
@@ -62,7 +67,9 @@ from .configuration import (
     UnregisteredOptionError,
     initializer,
 )
+from .duplicate import MetaNoDuplicate, NoDuplicate
 from .enum import AutoLowerNameEnum, AutoUpperNameEnum, StrEnum
+from .namespace import ClassNamespace, MetaClassNamespace
 from .non_copyable import MetaNonCopyable, NonCopyable
 from .path import set_constant_directory, set_constant_file
 from .singleton import MetaSingleton, Singleton
@@ -70,6 +77,7 @@ from .threading import JThread, RThread, Thread, jthread, rthread, thread
 from .utils import (
     cache,
     concreteclassmethod,
+    forbidden_call,
     lru_cache,
     setdefaultattr,
     tp_cache,

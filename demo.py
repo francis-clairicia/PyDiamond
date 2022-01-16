@@ -6,6 +6,9 @@ from __future__ import annotations
 from argparse import ArgumentParser
 from typing import Any, Callable, ClassVar, Final, List, Literal, Mapping, Optional, Sequence, Tuple, Type
 
+from py_diamond.audio.mixer import Mixer
+from py_diamond.audio.music import Music, MusicStream
+from py_diamond.audio.sound import Sound
 from py_diamond.graphics.button import Button, ImageButton
 from py_diamond.graphics.checkbox import CheckBox
 from py_diamond.graphics.color import (
@@ -45,11 +48,11 @@ from py_diamond.graphics.shape import CircleShape, CrossShape, MetaThemedShape, 
 from py_diamond.graphics.sprite import AnimatedSprite, Sprite
 from py_diamond.graphics.surface import Surface
 from py_diamond.graphics.text import Text, TextImage
-from py_diamond.resource.loader import FontLoader, ImageLoader
+from py_diamond.resource.loader import FontLoader, ImageLoader, MusicLoader, SoundLoader
 from py_diamond.resource.manager import ResourceManager
 from py_diamond.window.display import Window
-from py_diamond.window.event import Event, KeyUpEvent, MouseButtonEventType
-from py_diamond.window.gui import GUIScene
+from py_diamond.window.event import Event, KeyUpEvent, MouseButtonEventType, MusicEndEvent
+from py_diamond.window.gui import GUIMainScene, GUIScene
 from py_diamond.window.keyboard import Keyboard
 from py_diamond.window.mouse import Mouse
 from py_diamond.window.scene import (
@@ -64,7 +67,7 @@ from py_diamond.window.scene import (
 from py_diamond.window.time import Time
 
 
-class ShapeScene(MainScene, busy_loop=True):
+class ShapeScene(MainScene):
     def __theme_init__(self) -> None:
         super().__theme_init__()
         cls: MetaThemedShape
@@ -700,8 +703,128 @@ class FormScene(GUIScene, AbstractAutoLayeredScene):
         self.submit.midtop = (self.form.centerx, self.form.bottom + self.form.pady)
 
     def on_form_submit(self, data: Mapping[str, str]) -> None:
-        self.response.message = "{first_name} {last_name}".format_map(data)
+        self.response.message = "{first_name}\n{last_name}".format_map(data)
         self.response.center = self.window.width * 3 / 4, self.window.centery
+
+class MusicManager(ResourceManager):
+    menu: Music
+    garage: Music
+    gameplay: Music
+    __resource_loader__ = MusicLoader
+    __resources_directory__ = "./files/sounds"
+    __resources_files__ = {"menu": "menu.wav", "garage": "garage.wav", "gameplay": "gameplay.wav"}
+
+
+class SoundManager(ResourceManager):
+    select: Sound
+    validate: Sound
+    block: Sound
+    __resource_loader__ = SoundLoader
+    __resources_directory__ = "./files/sounds"
+    __resources_files__ = {"select": "sfx-menu-select.wav", "validate": "sfx-menu-validate.wav", "block": "sfx-menu-block.wav"}
+
+
+class AudioScene(MainScene):
+    def __init__(self) -> None:
+        super().__init__()
+        self.event.bind_event(MusicEndEvent, print)
+
+    def __theme_init__(self) -> None:
+        super().__theme_init__()
+        Text.set_default_theme("text")
+        Text.set_theme("text", {"font": (FontResources.cooperblack, 40), "color": WHITE, "shadow_x": 3, "shadow_y": 3})
+
+    def awake(self, **kwargs: Any) -> None:
+        self.background_color = BLUE_DARK
+        self.text = Text("Audio Scene")
+        self.first = Button(
+            self, "First", shadow_x=0, shadow_y=0, hover_sound=SoundManager.select, click_sound=SoundManager.validate
+        )
+        return super().awake(**kwargs)
+
+    def on_start_loop_before_transition(self) -> None:
+        self.update()
+        return super().on_start_loop_before_transition()
+
+    def on_start_loop(self) -> None:
+        MusicManager.menu.play()
+        MusicManager.garage.queue()
+        MusicManager.gameplay.queue()
+        return super().on_start_loop()
+
+    def update(self) -> None:
+        self.text.center = self.window.center
+        self.first.midtop = (self.text.centerx, self.text.bottom + 10)
+        return super().update()
+
+    def render(self) -> None:
+        self.window.draw(self.text, self.first)
+
+    def on_quit(self) -> None:
+        MusicStream.stop()
+        return super().on_quit()
+
+
+class GUIAudioScene(GUIMainScene, AbstractAutoLayeredScene):
+    def __theme_init__(self) -> None:
+        super().__theme_init__()
+        Text.set_default_theme("text")
+        Text.set_theme("text", {"font": (FontResources.cooperblack, 40), "color": WHITE, "shadow_x": 3, "shadow_y": 3})
+
+        Button.set_default_theme("button")
+        Button.set_theme(
+            "button",
+            {
+                "shadow_x": 0,
+                "shadow_y": 0,
+                "hover_sound": SoundManager.select,
+                "click_sound": SoundManager.validate,
+                "disabled_sound": SoundManager.block,
+            },
+        )
+
+    def awake(self, **kwargs: Any) -> None:
+        super().awake(**kwargs)
+        self.background_color = BLUE_DARK
+        Button.set_default_focus_on_hover(True)
+
+        self.text = Text("None", font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
+        self.grid = Grid(self, bg_color=YELLOW)
+
+        self.grid.padding.x = 20
+        self.grid.padding.y = 20
+
+        def create_button(text: str, state: str = "normal") -> Button:
+            return Button(self, text, callback=lambda: self.text.config(message=text), state=state)
+
+        self.grid.place(create_button("First"), 0, 0)
+        self.grid.place(create_button("Second"), 2, 1)
+        self.grid.place(create_button("Third"), 1, 2)
+        self.grid.place(create_button("Fourth", state="disabled"), 1, 1)
+
+        self.grid.outline = 2
+        self.grid.outline_color = PURPLE
+
+        self.grid.center = self.window.center
+
+    def on_start_loop_before_transition(self) -> None:
+        self.set_text_position()
+        return super().on_start_loop_before_transition()
+
+    def update(self) -> None:
+        self.set_text_position()
+        super().update()
+
+    def set_text_position(self) -> None:
+        self.text.midtop = (self.grid.centerx, self.grid.bottom + 10)
+
+    def on_start_loop(self) -> None:
+        MusicManager.menu.play(-1)
+        return super().on_start_loop()
+
+    def on_quit(self) -> None:
+        MusicStream.stop()
+        return super().on_quit()
 
 
 class SceneTransitionTranslation(SceneTransition):
@@ -756,6 +879,8 @@ class MainWindow(SceneWindow):
         TestGUIScene,
         GridScene,
         FormScene,
+        AudioScene,
+        GUIAudioScene,
     ]
 
     def __init__(self) -> None:
@@ -807,7 +932,7 @@ def main() -> None:
     parser.add_argument("-i", "--index", type=int, default=0)
     args = parser.parse_args()
 
-    with MainWindow().open() as window:
+    with MainWindow().open() as window, Mixer.init():
         window.mainloop(args.index)
 
 

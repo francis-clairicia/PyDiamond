@@ -137,4 +137,4 @@ MAGENTA: Final[Color] = COLOR_DICT.get("magenta", ImmutableColor(255, 0, 255, 25
 PURPLE: Final[Color] = COLOR_DICT.get("purple", ImmutableColor(165, 0, 255, 255))
 TRANSPARENT: Final[Color] = ImmutableColor(0, 0, 0, 0)
 
-del _PG_ALL_COLORS
+del _PG_ALL_COLORS, _Color

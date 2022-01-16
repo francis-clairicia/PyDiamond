@@ -15,7 +15,7 @@ from contextlib import suppress
 from enum import auto, unique
 from operator import truth
 from textwrap import wrap as textwrap
-from typing import Dict, List, Optional, Tuple, TypeAlias
+from typing import Dict, Final, List, Optional, Tuple, TypeAlias
 
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom
 
@@ -109,12 +109,15 @@ class Text(TDrawable, metaclass=MetaText):
     def get_size(self) -> Tuple[float, float]:
         return self.__image.get_size()
 
-    def get(self, wrapped: bool = False) -> str:
+    def get(self, wrapped: bool = True) -> str:
         message: str = self.message
         if not wrapped:
             return message
         wrap: int = self.wrap
         return "\n".join(textwrap(message, width=wrap)) if wrap > 0 else message
+
+    def clear(self) -> None:
+        self.message = str()
 
     @staticmethod
     def create_font(
@@ -196,6 +199,12 @@ class Text(TDrawable, metaclass=MetaText):
     def _apply_only_rotation(self) -> None:
         self.__image = _surface_rotate(self.__default_image, self.angle)
 
+    __TEXT_JUSTIFY_DICT: Final[Dict[Justify, str]] = {
+        Justify.LEFT: "left",
+        Justify.RIGHT: "right",
+        Justify.CENTER: "centerx",
+    }
+
     def __render_text(self, color: Color) -> Surface:
         render_lines: List[Surface] = list()
         render_width: float = 0
@@ -215,11 +224,8 @@ class Text(TDrawable, metaclass=MetaText):
         text: Surface = create_surface((render_width, render_height))
         text_rect: Rect = text.get_rect()
         top: int = 0
-        params: Dict[str, int] = {
-            Text.Justify.LEFT: {"left": text_rect.left},
-            Text.Justify.RIGHT: {"right": text_rect.right},
-            Text.Justify.CENTER: {"centerx": text_rect.centerx},
-        }[self.__justify]
+        justify_pos: str = self.__TEXT_JUSTIFY_DICT[self.__justify]
+        params: Dict[str, int] = {justify_pos: getattr(text_rect, justify_pos)}
         for render in render_lines:
             text.blit(render, render.get_rect(**params, top=top))
             top += render.get_height()

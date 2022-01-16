@@ -58,3 +58,6 @@ class Font(_Font):
     @staticmethod
     def get_default_font() -> str:
         return _pg_font_get_default_font()
+
+
+del _Font

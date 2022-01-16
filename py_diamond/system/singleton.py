@@ -78,7 +78,7 @@ class MetaSingleton(ABCMeta):
             if cls.__abstractsingleton__ and not cls.__abstractmethods__:
                 raise TypeError(f"{cls.__name__} cannot be instantiated")
             if "_singleton_instance_" in cls.__dict__:
-                raise TypeError("Cannot instanciate a singleton twice")
+                raise TypeError("Cannot instantiate a singleton twice")
             func = self.__func__
             return func(__cls_or_self, *args, **kwargs)
 

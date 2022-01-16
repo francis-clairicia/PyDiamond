@@ -240,7 +240,7 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
         return self.__text.message
 
     def clear(self) -> None:
-        self.__text.message = str()
+        self.__text.clear()
 
     def start_edit(self) -> None:
         Keyboard.IME.start_text_input()

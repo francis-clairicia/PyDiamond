@@ -64,11 +64,12 @@ class _ResourceDescriptor:
                 return MappingProxyType({key: load_all_resources(value) for key, value in resource_loader.items()})
             raise TypeError(f"Unexpected resource loader type: {type(resource_loader).__name__!r} ({resource_loader!r})")
 
-        resource: Any
         try:
-            resource = self.__resource
+            return self.__resource
         except AttributeError:
-            self.__resource = resource = load_all_resources(self.__loader)
+            pass
+        resource: Any = load_all_resources(self.__loader)
+        self.__resource = resource
         return resource
 
     def unload(self) -> None:
@@ -92,12 +93,16 @@ class MetaResourceManager(type):
     def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaResourceManager:
         resources: Dict[str, Any] = namespace.setdefault("__resources_files__", dict())
 
-        annotations: Dict[str, type | str] = namespace.get("__annotations__", dict())
+        annotations: Dict[str, type | str] = namespace.setdefault("__annotations__", dict())
+        annotations = annotations.copy()
         for attr_name in ["__resources_files__", "__resources_directory__", "__resource_loader__"]:
             annotations.pop(attr_name, None)
         for attr_name in annotations:
             if attr_name not in resources:
                 raise KeyError(f"Missing {attr_name!r} key in '__resources_files__' dict")
+        for attr_name in resources:
+            if attr_name not in annotations:
+                raise KeyError(f"Missing {attr_name!r} annotation")
 
         directory: Optional[str] = namespace.get("__resources_directory__")
         if directory is not None:

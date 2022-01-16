@@ -27,6 +27,7 @@ __all__ = [
     "MouseEventType",
     "MouseMotionEvent",
     "MouseWheelEvent",
+    "MusicEndEvent",
     "TextEditingEvent",
     "TextEvent",
     "TextInputEvent",
@@ -54,13 +55,14 @@ __license__ = "GNU GPL v3.0"
 
 from contextlib import suppress
 from dataclasses import dataclass, field, fields
-from enum import IntEnum
+from enum import IntEnum, unique
 from types import MappingProxyType
 from typing import Any, Callable, ClassVar, Dict, Final, List, Literal, Optional, Sequence, Tuple, Type, TypeAlias, TypeVar, cast
 
 import pygame.constants as _pg_constants
 from pygame.event import Event as _PygameEvent, event_name as _pg_event_name, get_blocked as _pg_event_get_blocked
 
+from ..audio.music import Music, MusicStream
 from .keyboard import Keyboard
 from .mouse import Mouse
 
@@ -73,6 +75,12 @@ class UnknownEventTypeError(TypeError):
 
 class _MetaEvent(type):
     def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> _MetaEvent:
+        try:
+            EventFactory
+        except NameError:
+            pass
+        else:
+            raise TypeError("Trying to create custom event")
         if name != "Event" or "Event" in globals():
             if bases != (Event,):
                 raise TypeError(f"{name!r} must only inherits from Event without multiple inheritance")
@@ -86,7 +94,9 @@ class _MetaEvent(type):
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class Event(metaclass=_MetaEvent):
+    @unique
     class Type(IntEnum):
+        # Built-in events
         KEYDOWN = _pg_constants.KEYDOWN
         KEYUP = _pg_constants.KEYUP
         MOUSEMOTION = _pg_constants.MOUSEMOTION
@@ -118,6 +128,10 @@ class Event(metaclass=_MetaEvent):
         WINDOWFOCUSLOST = _pg_constants.WINDOWFOCUSLOST
         WINDOWTAKEFOCUS = _pg_constants.WINDOWTAKEFOCUS
 
+        # Custom events
+        MUSICEND = MusicStream.MUSICEND
+
+        ###############
         value: int
 
         def __repr__(self) -> str:
@@ -264,7 +278,7 @@ TextEvent: TypeAlias = TextEditingEvent | TextInputEvent
 @dataclass(frozen=True, kw_only=True, slots=True)
 class UserEvent(Event):
     type: ClassVar[Literal[Event.Type.USEREVENT]] = field(default=Event.Type.USEREVENT, init=False)
-    code: int
+    code: int = -1
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -341,6 +355,13 @@ class WindowFocusLostEvent(Event):
 @dataclass(frozen=True, kw_only=True, slots=True)
 class WindowTakeFocusEvent(Event):
     type: ClassVar[Literal[Event.Type.WINDOWTAKEFOCUS]] = field(default=Event.Type.WINDOWTAKEFOCUS, init=False)
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class MusicEndEvent(Event):
+    type: ClassVar[Literal[Event.Type.MUSICEND]] = field(default=Event.Type.MUSICEND, init=False)
+    finished: Music
+    next: Optional[Music]
 
 
 _EventCallback: TypeAlias = Callable[[Event], Optional[bool]]
@@ -524,4 +545,4 @@ class EventManager:
         return None
 
 
-del _pg_constants, _MetaEvent
+del _pg_constants, _MetaEvent, MusicStream

@@ -4,7 +4,7 @@
 #
 """PyDiamond's audio module"""
 
-__all__ = ["Mixer", "MixerParams", "Music", "Sound"]
+__all__ = ["Channel", "Mixer", "MixerParams", "Music", "MusicStream", "Sound"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
@@ -30,4 +30,5 @@ del os, pygame
 
 ############ Package initialization ############
 from .mixer import Mixer, MixerParams
-from .sound import Music, Sound
+from .music import Music, MusicStream
+from .sound import Channel, Sound

@@ -13,6 +13,7 @@ __license__ = "GNU GPL v3.0"
 from abc import ABCMeta, abstractmethod
 from typing import Generic, Type, TypeVar, cast, get_args
 
+from ..audio.music import Music
 from ..audio.sound import Sound
 from ..graphics.font import Font
 from ..graphics.surface import Surface, load_image
@@ -70,10 +71,9 @@ class FontLoader(ResourceLoader[str]):
         return self.filepath
 
 
-class MusicLoader(ResourceLoader[str]):
+class MusicLoader(ResourceLoader[Music]):
 
     __slots__ = ()
 
-    def load(self) -> str:
-        Sound(file=self.filepath)
-        return self.filepath
+    def load(self) -> Music:
+        return Music(self.filepath)

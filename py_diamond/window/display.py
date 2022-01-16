@@ -28,6 +28,7 @@ from typing import (
     List,
     NoReturn,
     Optional,
+    ParamSpec,
     Protocol,
     Sequence,
     Tuple,
@@ -45,9 +46,12 @@ from pygame.constants import (
     FULLSCREEN as _PG_FULLSCREEN,
     QUIT as _PG_QUIT,
     RESIZABLE as _PG_RESIZABLE,
+    VIDEORESIZE as _PG_VIDEORESIZE,
     WINDOWCLOSE as _PG_WINDOWCLOSE,
 )
+from pygame.mixer import music as _pg_music
 
+from ..audio.music import MusicStream
 from ..graphics.color import BLACK, WHITE, Color
 from ..graphics.rect import ImmutableRect
 from ..graphics.renderer import Renderer, SurfaceRenderer
@@ -65,6 +69,7 @@ from .time import Time
 
 _ColorInput: TypeAlias = Color | str | Tuple[int, int, int] | List[int] | Tuple[int, int, int, int]
 
+_P = ParamSpec("_P")
 _ScheduledFunc = TypeVar("_ScheduledFunc", bound=Callable[..., None])
 
 
@@ -212,6 +217,13 @@ class Window:
         with ExitStack() as stack, suppress(Window.__Exit):
             _pg_display.init()
             stack.callback(_pg_display.quit)
+
+            from pygame.font import init as _pg_font_init, quit as _pg_font_quit
+
+            _pg_font_init()
+            stack.callback(_pg_font_quit)
+            del _pg_font_init, _pg_font_quit
+
             size: Tuple[int, int] = self.__size
             flags: int = self.__flags
             vsync = int(truth(self.__vsync))
@@ -340,9 +352,17 @@ class Window:
 
         process_event = manager.process_event
         make_event = EventFactory.from_pygame_event
+        update_music_stream: Callable[[], None] = getattr(MusicStream, mangle_private_attribute(MusicStream, "update"))
         for pg_event in _pg_event.get():
             if pg_event.type in (_PG_QUIT, _PG_WINDOWCLOSE):
-                self.handle_close_event()
+                self._handle_close_event()
+                continue
+            if pg_event.type == _PG_VIDEORESIZE:
+                if not WindowSizeChangedEvent.type.is_allowed():
+                    _pg_display.set_mode(self.__surface.get_size(), flags=self.__flags, vsync=int(self.__vsync))
+                continue
+            if pg_event.type == _pg_music.get_endevent():
+                update_music_stream()
                 continue
             try:
                 event = make_event(pg_event)
@@ -361,7 +381,7 @@ class Window:
                 yield event
         manager.handle_mouse_position()
 
-    def handle_close_event(self) -> None:
+    def _handle_close_event(self) -> None:
         self.close()
 
     @final
@@ -447,26 +467,32 @@ class Window:
             stack.callback(set_blocked_events)
             yield
 
-    def after(self, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
-        window_callback: WindowCallback = WindowCallback(self, milliseconds, callback, args, kwargs)
+    def after(
+        self, __milliseconds: float, __callback: Callable[_P, None], /, *args: _P.args, **kwargs: _P.kwargs
+    ) -> WindowCallback:
+        window_callback: WindowCallback = WindowCallback(self, __milliseconds, __callback, args, kwargs)  # type: ignore[arg-type]
         self.__callback_after.append(window_callback)
         return window_callback
 
     @overload
-    def every(self, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
+    def every(
+        self, __milliseconds: float, __callback: Callable[_P, None], /, *args: _P.args, **kwargs: _P.kwargs
+    ) -> WindowCallback:
         ...
 
     @overload
-    def every(self, milliseconds: float, callback: Callable[..., Iterator[None]], *args: Any, **kwargs: Any) -> WindowCallback:
+    def every(
+        self, __milliseconds: float, __callback: Callable[_P, Iterator[None]], /, *args: _P.args, **kwargs: _P.kwargs
+    ) -> WindowCallback:
         ...
 
-    def every(self, milliseconds: float, callback: Callable[..., Any], *args: Any, **kwargs: Any) -> WindowCallback:
+    def every(self, __milliseconds: float, __callback: Callable[..., Any], /, *args: Any, **kwargs: Any) -> WindowCallback:
         window_callback: WindowCallback
 
-        if isgeneratorfunction(callback):
-            generator: Iterator[None] = callback(*args, **kwargs)
+        if isgeneratorfunction(__callback):
+            generator: Iterator[None] = __callback(*args, **kwargs)
 
-            @wraps(callback)
+            @wraps(__callback)
             def wrapper() -> None:
                 try:
                     next(generator)
@@ -475,9 +501,9 @@ class Window:
                 except StopIteration:
                     window_callback.kill()
 
-            window_callback = WindowCallback(self, milliseconds, wrapper, loop=True)
+            window_callback = WindowCallback(self, __milliseconds, wrapper, loop=True)
         else:
-            window_callback = WindowCallback(self, milliseconds, callback, args, kwargs, loop=True)
+            window_callback = WindowCallback(self, __milliseconds, __callback, args, kwargs, loop=True)
         self.__callback_after.append(window_callback)
         return window_callback
 

@@ -263,17 +263,6 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
         theme: Optional[ThemeType] = None,
     ) -> None:
         TDrawable.__init__(self)
-        Pressable.__init__(
-            self,
-            master=master,
-            state=state,
-            hover_sound=hover_sound,
-            click_sound=click_sound,
-            disabled_sound=disabled_sound,
-            hover_cursor=hover_cursor,
-            disabled_cursor=disabled_cursor,
-            take_focus=take_focus,
-        )
         self.__text: TextImage = TextImage(
             message=text,
             img=img,
@@ -357,6 +346,17 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
         self.text_offset = text_offset
         self.text_hover_offset = text_hover_offset
         self.text_active_offset = text_active_offset
+        Pressable.__init__(
+            self,
+            master=master,
+            state=state,
+            hover_sound=hover_sound,
+            click_sound=click_sound,
+            disabled_sound=disabled_sound,
+            hover_cursor=hover_cursor,
+            disabled_cursor=disabled_cursor,
+            take_focus=take_focus,
+        )
 
     def draw_onto(self, target: Renderer) -> None:
         angle: float = self.angle

@@ -123,8 +123,6 @@ if (pygame.image.get_sdl_image_version() or (0, 0)) < (2, 0, 0):
         "Your SDL_image version is too old: '{0}.{1}.{2}' < '2.0.0'".format(*(pygame.image.get_sdl_image_version() or (0, 0, 0)))
     )
 
-pygame.font.init()
-
 ############ Surface pickling register ############
 copyreg.pickle(
     pygame.surface.Surface,

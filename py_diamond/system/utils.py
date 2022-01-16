@@ -7,6 +7,7 @@
 __all__ = [
     "cache",
     "concreteclassmethod",
+    "forbidden_call",
     "lru_cache",
     "setdefaultattr",
     "tp_cache",
@@ -103,12 +104,23 @@ def setdefaultattr(obj: object, name: str, value: _T) -> _T:
 # def concreteclassmethod(func: Callable[Concatenate[Type[_T], _P], _R]) -> Callable[Concatenate[Type[_T], _P], _R]:
 def concreteclassmethod(func: Callable[_P, _R]) -> Callable[_P, _R]:
     @wraps(func)
-    def wrapper(cls: Any, *args: Any, **kwargs: Any) -> _R:
-        if isinstance(cls, type) and getattr(cls, "__abstractmethods__", None):
+    def wrapper(__cls_or_self: Any, /, *args: Any, **kwargs: Any) -> _R:
+        cls: Any = __cls_or_self
+        if not isinstance(cls, type):
+            raise TypeError("'cls' must be a type")
+        if getattr(cls, "__abstractmethods__", None):
             raise TypeError(f"{cls.__name__} is an abstract class")
-        return func(cls, *args, **kwargs)
+        return func(__cls_or_self, *args, **kwargs)
 
     return wrapper
+
+
+def forbidden_call(func: Callable[_P, _R]) -> Callable[_P, _R]:
+    @wraps(func)
+    def not_callable(*args: Any, **kwargs: Any) -> _R:
+        raise TypeError(f"Call to function {func.__module__}.{func.__name__} is forbidden")
+
+    return not_callable
 
 
 _MISSING: Any = object()

@@ -16,6 +16,7 @@ from abc import ABCMeta
 from contextlib import suppress
 from inspect import Parameter, Signature
 from operator import truth
+from types import MappingProxyType
 from typing import (
     Any,
     Callable,
@@ -38,17 +39,21 @@ from typing import (
 
 _ClassTheme: TypeAlias = Dict[str, Dict[str, Any]]
 _ClassThemeDict: TypeAlias = Dict[type, _ClassTheme]
+_ClassDefaultTheme: TypeAlias = List[str]
+_ClassDefaultThemeDict: TypeAlias = Dict[type, _ClassDefaultTheme]
 
 _THEMES: _ClassThemeDict = dict()
-_DEFAULT_THEME: Dict[type, List[str]] = dict()
+_DEFAULT_THEME: _ClassDefaultThemeDict = dict()
 _CLASSES_NOT_USING_PARENT_THEMES: Set[type] = set()
 _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES: Set[type] = set()
 
 
 class ThemeNamespace(ContextManager["ThemeNamespace"]):
 
-    __DEFAULT: ClassVar[_ClassThemeDict] = _THEMES
-    __NAMESPACE: ClassVar[Dict[str, _ClassThemeDict]] = {}
+    __THEMES_DEFAULT_DICT: ClassVar[_ClassThemeDict] = _THEMES
+    __THEMES_DICT_NAMESPACE: ClassVar[Dict[str, _ClassThemeDict]] = {}
+    __DEFAULT_THEME_DEFAULT_DICT: ClassVar[_ClassDefaultThemeDict] = _DEFAULT_THEME
+    __DEFAULT_THEME_DICT_NAMESPACE: ClassVar[Dict[str, _ClassDefaultThemeDict]] = {}
     __actual_namespace: ClassVar[Optional[str]] = None
 
     def __init__(self, namespace: str) -> None:
@@ -57,38 +62,62 @@ class ThemeNamespace(ContextManager["ThemeNamespace"]):
         self.__entered: int = 0
 
     def __enter__(self) -> ThemeNamespace:
-        global _THEMES
+        global _THEMES, _DEFAULT_THEME
         if self.__entered == 0:
             self.__save_namespace = ThemeNamespace.__actual_namespace
             ThemeNamespace.__actual_namespace = namespace = self.__namespace
-            NAMESPACE: Dict[str, _ClassThemeDict] = ThemeNamespace.__NAMESPACE
+            THEMES_DICT_NAMESPACE: Dict[str, _ClassThemeDict] = ThemeNamespace.__THEMES_DICT_NAMESPACE
+            DEFAULT_THEME_DICT_NAMESPACE: Dict[str, _ClassDefaultThemeDict] = ThemeNamespace.__DEFAULT_THEME_DICT_NAMESPACE
             try:
-                _THEMES = NAMESPACE[namespace]
+                _THEMES = THEMES_DICT_NAMESPACE[namespace]
             except KeyError:
-                NAMESPACE[namespace] = _THEMES = dict()
+                THEMES_DICT_NAMESPACE[namespace] = _THEMES = dict()
+            try:
+                _DEFAULT_THEME = DEFAULT_THEME_DICT_NAMESPACE[namespace]
+            except KeyError:
+                DEFAULT_THEME_DICT_NAMESPACE[namespace] = _DEFAULT_THEME = dict()
         self.__entered += 1
         return self
 
     def __exit__(self, *args: Any) -> None:
-        global _THEMES
-        if self.__entered == 0:
+        global _THEMES, _DEFAULT_THEME
+        if self.__entered <= 0:
             return
         self.__entered -= 1
         if self.__entered > 0:
             return
         namespace: Optional[str] = self.__save_namespace
         self.__save_namespace = None
-        NAMESPACE: Dict[str, _ClassThemeDict] = ThemeNamespace.__NAMESPACE
-        DEFAULT: _ClassThemeDict = ThemeNamespace.__DEFAULT
         if namespace is None:
-            _THEMES = DEFAULT
+            _THEMES = ThemeNamespace.__THEMES_DEFAULT_DICT
+            _DEFAULT_THEME = ThemeNamespace.__DEFAULT_THEME_DEFAULT_DICT
         else:
-            _THEMES = NAMESPACE[namespace]
+            THEMES_DICT_NAMESPACE: Dict[str, _ClassThemeDict] = ThemeNamespace.__THEMES_DICT_NAMESPACE
+            DEFAULT_THEME_DICT_NAMESPACE: Dict[str, _ClassDefaultThemeDict] = ThemeNamespace.__DEFAULT_THEME_DICT_NAMESPACE
+            _THEMES = THEMES_DICT_NAMESPACE[namespace]
+            _DEFAULT_THEME = DEFAULT_THEME_DICT_NAMESPACE[namespace]
         ThemeNamespace.__actual_namespace = namespace
 
     @staticmethod
     def get_actual() -> Optional[str]:
         return ThemeNamespace.__actual_namespace
+
+    @staticmethod
+    def get_theme_dict(namespace: Optional[str]) -> MappingProxyType[type, _ClassTheme]:
+        if namespace is None:
+            return MappingProxyType(ThemeNamespace.__THEMES_DEFAULT_DICT)
+        return MappingProxyType(ThemeNamespace.__THEMES_DICT_NAMESPACE.get(namespace, {}))
+
+    @staticmethod
+    def get_default_theme_dict(namespace: Optional[str]) -> MappingProxyType[type, Sequence[str]]:
+        mapping: Dict[type, List[str]]
+        if namespace is None:
+            mapping = ThemeNamespace.__DEFAULT_THEME_DEFAULT_DICT
+        else:
+            mapping = ThemeNamespace.__DEFAULT_THEME_DICT_NAMESPACE.get(namespace, {})
+        if not mapping:
+            return MappingProxyType(mapping)
+        return MappingProxyType({k: tuple(v) for k, v in mapping.items()})
 
     @property
     def namespace(self) -> str:

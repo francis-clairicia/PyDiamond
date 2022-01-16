@@ -47,6 +47,7 @@ from typing import (
     List,
     NoReturn,
     Optional,
+    ParamSpec,
     Sequence,
     Set,
     Tuple,
@@ -70,6 +71,7 @@ from .event import Event, EventManager
 from .time import Time
 
 _S = TypeVar("_S", bound="MetaScene")
+_P = ParamSpec("_P")
 
 _ALL_SCENES: Final[List[Type[Scene]]] = []
 
@@ -116,6 +118,10 @@ class MetaScene(ABCMeta):
         if name in ("__new__", "__init__"):
             raise AttributeError(f"{name} cannot be overriden")
         return super().__setattr__(name, value)
+
+    @concreteclassmethod
+    def get_theme_namespace(cls) -> Optional[str]:
+        return MetaScene.__namespaces.get(cls)
 
     @concreteclassmethod
     def set_theme_namespace(cls, namespace: str) -> None:
@@ -289,8 +295,10 @@ class Scene(metaclass=MetaScene):
     def stop(self) -> NoReturn:
         self.__manager.go_back()
 
-    def after(self, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
-        window_callback: WindowCallback = _SceneWindowCallback(self, milliseconds, callback, args, kwargs)
+    def after(
+        self, __milliseconds: float, __callback: Callable[_P, None], /, *args: _P.args, **kwargs: _P.kwargs
+    ) -> WindowCallback:
+        window_callback: WindowCallback = _SceneWindowCallback(self, __milliseconds, __callback, args, kwargs)  # type: ignore[arg-type]
         callback_dict: Dict[Scene, _WindowCallbackList] = self.__callback_after_dict
         callback_list: _WindowCallbackList = self.__callback_after
 
@@ -299,23 +307,28 @@ class Scene(metaclass=MetaScene):
         return window_callback
 
     @overload
-    def every(self, milliseconds: float, callback: Callable[..., None], *args: Any, **kwargs: Any) -> WindowCallback:
+    def every(
+        self, __milliseconds: float, __callback: Callable[_P, None], /, *args: _P.args, **kwargs: _P.kwargs
+    ) -> WindowCallback:
         ...
 
     @overload
-    def every(self, milliseconds: float, callback: Callable[..., Iterator[None]], *args: Any, **kwargs: Any) -> WindowCallback:
+    def every(
+        self, __milliseconds: float, __callback: Callable[_P, Iterator[None]], /, *args: _P.args, **kwargs: _P.kwargs
+    ) -> WindowCallback:
         ...
 
-    def every(self, milliseconds: float, callback: Callable[..., Any], *args: Any, **kwargs: Any) -> WindowCallback:
+    def every(self, __milliseconds: float, __callback: Callable[..., Any], /, *args: Any, **kwargs: Any) -> WindowCallback:
         window_callback: WindowCallback
         callback_dict: Dict[Scene, _WindowCallbackList] = self.__callback_after_dict
         callback_list: _WindowCallbackList = self.__callback_after
         callback_dict[self] = callback_list
 
-        if isgeneratorfunction(callback):
-            generator: Iterator[None] = callback(*args, **kwargs)
+        if isgeneratorfunction(__callback):
+            generator: Iterator[None] = __callback(*args, **kwargs)
 
-            def callback() -> None:
+            @wraps(__callback)
+            def wrapper() -> None:
                 try:
                     next(generator)
                 except ValueError:
@@ -323,10 +336,10 @@ class Scene(metaclass=MetaScene):
                 except StopIteration:
                     window_callback.kill()
 
-            window_callback = _SceneWindowCallback(self, milliseconds, callback, loop=True)
+            window_callback = _SceneWindowCallback(self, __milliseconds, wrapper, loop=True)
 
         else:
-            window_callback = _SceneWindowCallback(self, milliseconds, callback, args, kwargs, loop=True)
+            window_callback = _SceneWindowCallback(self, __milliseconds, __callback, args, kwargs, loop=True)
 
         callback_list.append(window_callback)
         return window_callback
@@ -424,6 +437,7 @@ class MetaLayeredScene(MetaScene):
 
         if add_drawable_attributes:
             setattr_func: Callable[[AbstractLayeredScene, str, Any], Any] = namespace.get("__setattr__", bases[0].__setattr__)
+            delattr_func: Callable[[AbstractLayeredScene, str], Any] = namespace.get("__delattr__", bases[0].__delattr__)
 
             @wraps(setattr_func)
             def setattr_wrapper(self: AbstractLayeredScene, name: str, value: Any, /) -> Any:
@@ -436,7 +450,21 @@ class MetaLayeredScene(MetaScene):
                     group.add(value)
                 return output
 
+            @wraps(delattr_func)
+            def delattr_wrapper(self: AbstractLayeredScene, name: str, /) -> Any:
+                try:
+                    group: LayeredGroup = self.group
+                except AttributeError:
+                    return delattr_func(self, name)
+                _MISSING: Any = object()
+                value: Any = getattr(self, name, _MISSING)
+                output: Any = delattr_func(self, name)
+                if value is not _MISSING and isinstance(value, Drawable) and value in group:
+                    group.remove(value)
+                return output
+
             namespace["__setattr__"] = metacls.__setattr_wrapper(setattr_wrapper)
+            namespace["__delattr__"] = delattr_wrapper
 
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
@@ -547,6 +575,7 @@ class SceneWindow(Window):
             raise WindowError("SceneWindow already running")
         self.__running = True
         self.__scenes.clear()
+        self.__scenes._apply_themes()
         self.__accumulator = 0
         gc.collect()
         try:
@@ -633,6 +662,7 @@ class SceneWindow(Window):
                 self.__scenes._destroy_awaken_scene(scene)
         self.__callback_after_scenes.pop(previous_scene, None)
         self.__accumulator = 0
+        self.clear_all_events()
         gc.collect()
         actual_scene.on_start_loop()
 
@@ -766,11 +796,11 @@ class _SceneManager:
             scene: Scene = cls.__new__(cls)
             setattr(scene, self.__scene_manager_attribute, self)
             scene.__init__()  # type: ignore[misc]
-            scene.__theme_init__()
             return scene
 
         self.__window: SceneWindow = window
-        self.__all: Dict[Type[Scene], Scene] = {cls: new_scene(cls) for cls in _ALL_SCENES}
+        self.__all: Dict[Type[Scene], Scene] = {}
+        self.__all.update({cls: new_scene(cls) for cls in _ALL_SCENES})
         self.__stack: List[Scene] = []
         self.__returning_transitions: Dict[Type[Scene], ReturningSceneTransition] = {}
         self.__awaken: Set[Scene] = set()
@@ -796,6 +826,10 @@ class _SceneManager:
             if attr != self.__scene_manager_attribute:
                 delattr(scene, attr)
         scene.__init__()  # type: ignore[misc]
+
+    def _apply_themes(self) -> None:
+        for scene in self.__all.values():
+            scene.__theme_init__()
 
     def __iter__(self) -> Iterator[Scene]:
         return self.from_top_to_bottom()
