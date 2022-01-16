@@ -73,7 +73,6 @@ _ValueConverter = TypeVar("_ValueConverter", bound=Callable[[Any, Any], Any])
 _StaticValueConverter = TypeVar("_StaticValueConverter", bound=Callable[[Any], Any])
 _T = TypeVar("_T")
 _DT = TypeVar("_DT")
-_NoDefault: Any = object()
 
 
 class ConfigError(Exception):
@@ -118,6 +117,8 @@ def initializer(func: _Func) -> _Func:
 
 
 _FORBIDDEN_OPTIONS: Final[Sequence[str]] = ("self",)
+_MISSING: Any = object()
+_NO_DEFAULT: Any = object()
 
 
 class Configuration:
@@ -264,11 +265,7 @@ class Configuration:
     def __get__(self, obj: Optional[_T], objtype: Optional[type] = None, /) -> Union[Configuration, BoundConfiguration[_T]]:
         if obj is None:
             return self
-        if objtype is not None and objtype is not type(obj):
-            config = _retrieve_configuration(objtype)
-        else:
-            config = self
-        return BoundConfiguration(config, obj)
+        return BoundConfiguration(self, obj)
 
     @overload
     def get(self, obj: object, option: str) -> Any:
@@ -278,7 +275,7 @@ class Configuration:
     def get(self, obj: object, option: str, default: _DT) -> Union[Any, _DT]:
         ...
 
-    def get(self, obj: object, option: str, default: _DT = _NoDefault) -> Any:
+    def get(self, obj: object, option: str, default: _DT = _NO_DEFAULT) -> Any:
         option = self.check_option_validity(option, use_alias=True)
         info: _ConfigInfo = self.__info
         descr: Optional[_Descriptor] = info.value_descriptors.get(option)
@@ -292,8 +289,8 @@ class Configuration:
                     value = getattr(obj, get_private_attribute(option, type(obj)))
                 except AttributeError as exc:
                     raise UnregisteredOptionError(option) from exc
-        except OptionError:
-            if default is _NoDefault:
+        except (AttributeError, OptionError):
+            if default is _NO_DEFAULT:
                 raise
             return default
         if info.enum_return_value.get(option, False) and isinstance(value, Enum):
@@ -305,8 +302,7 @@ class Configuration:
         return value
 
     def has_key(self, obj: object, option: str) -> bool:
-        missing = object()
-        return self.get(obj, option, missing) is not missing
+        return self.get(obj, option, _MISSING) is not _MISSING
 
     def set(self, obj: object, option: str, value: Any) -> None:
         option = self.check_option_validity(option, use_alias=True)
@@ -315,7 +311,6 @@ class Configuration:
         value_validator: Optional[Callable[[object, Any], None]] = info.value_validator.get(option)
         converter: Optional[Callable[[object, Any], Any]] = info.value_converter.get(option)
         actual_value: Any
-        MISSING: Any = object()
 
         if callable(value_validator):
             value_validator(obj, value)
@@ -336,7 +331,7 @@ class Configuration:
             try:
                 actual_value = descr.__get__(obj, type(obj))
             except (AttributeError, UnregisteredOptionError):
-                actual_value = MISSING
+                actual_value = _MISSING
         else:
             if option in info.readonly:
                 raise OptionError(option, "Cannot be set")
@@ -346,11 +341,11 @@ class Configuration:
                 setattr(obj, get_private_attribute(option, type(obj)), value)
 
             try:
-                actual_value = getattr(obj, get_private_attribute(option, type(obj)), MISSING)
+                actual_value = getattr(obj, get_private_attribute(option, type(obj)), _MISSING)
             except (AttributeError, UnregisteredOptionError):
-                actual_value = MISSING
+                actual_value = _MISSING
 
-        if actual_value is MISSING or actual_value != value:
+        if actual_value is _MISSING or actual_value != value:
             if not converter_applied and info.value_autocopy_set.get(option, info.autocopy):
                 copy_func = info.get_copy_func(type(value))
                 with suppress(Exception):
@@ -414,6 +409,8 @@ class Configuration:
     def __call__(self, __obj: object, /, **kwargs: Any) -> None:
         if not kwargs:
             return
+        option: str
+        value: Any
         if self.has_initialization_context(__obj):
             for option, value in kwargs.items():
                 self.set(__obj, option, value)
@@ -425,7 +422,6 @@ class Configuration:
 
         info: _ConfigInfo = self.__info
         need_update: List[str] = []
-        MISSING: Any = object()
 
         @contextmanager
         def check_if_update_needed(option: str) -> Iterator[None]:
@@ -433,10 +429,10 @@ class Configuration:
             if option in need_update:
                 yield
                 return
-            former_value: Any = self.get(__obj, option, MISSING)
+            former_value: Any = self.get(__obj, option, _MISSING)
             yield
-            actual_value: Any = self.get(__obj, option, MISSING)
-            if actual_value is not MISSING and (former_value is MISSING or actual_value != former_value):
+            actual_value: Any = self.get(__obj, option, _MISSING)
+            if actual_value is not _MISSING and (former_value is _MISSING or actual_value != former_value):
                 need_update.append(option)
 
         for option, value in kwargs.items():
@@ -1245,10 +1241,10 @@ class BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
         ...
 
     @overload
-    def get(self, option: str, default: _DT, /) -> Union[Any, _DT]:
+    def get(self, option: str, default: _DT, /) -> _DT:
         ...
 
-    def get(self, option: str, default: _DT = _NoDefault, /) -> Union[Any, _DT]:
+    def get(self, option: str, default: _DT = _NO_DEFAULT, /) -> Union[Any, _DT]:
         config = self.__config()
         obj = self.__obj
         return config.get(obj, option, default)
@@ -1391,7 +1387,7 @@ def _wrap_function_wrapper(func: Any, wrapper: Callable[..., Any]) -> Callable[.
     wrap_decorator = wraps(func)
     wrapper = wrap_decorator(wrapper)
     setattr(wrapper, "__boundconfiguration_wrapper__", True)
-    return _make_function_wrapper(wrapper, check_override=False)
+    return wrapper
 
 
 def _get_cls_mro(cls: type) -> List[type]:
@@ -1594,7 +1590,8 @@ def _copy_object(obj: _T) -> _T:
     try:
         return deepcopy(obj)
     except:
-        return copy(obj)
+        pass
+    return copy(obj)
 
 
 class _ConfigInitializer:
@@ -1602,35 +1599,31 @@ class _ConfigInitializer:
     __slots__ = ("__func__", "__dict__")
 
     def __init__(self, func: Callable[..., Any]) -> None:
+        if not hasattr(func, "__get__"):
+            raise TypeError("Built-in functions cannot be used")
         self.__func__: Callable[..., Any] = func
 
     @property
     def __call__(self) -> Callable[..., Any]:
-        return self.__func__
+        return self.__get__(None)
 
     def __getattr__(self, name: str, /) -> Any:
         func: Any = self.__func__
         return getattr(func, name)
 
     def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Callable[..., Any]:
-        func: Callable[..., Any] = self.__func__
-        try:
-            func_get = getattr(func, "__get__")
-        except AttributeError:
-            if obj is not None:
-                func = MethodType(func, obj)
-        else:
-            func = func_get(obj, objtype)
-        if obj is None:
-            return func
-        config: Configuration = _retrieve_configuration(objtype if objtype is not None else type(obj))
+        init_func: Callable[..., Any] = self.__func__
+        func_get: Callable[[object, Optional[type]], Callable[..., Any]] = getattr(init_func, "__get__")
 
-        @wraps(self.__func__)
+        @wraps(init_func)
         def config_initializer(self: object, /, *args: Any, **kwargs: Any) -> Any:
+            config: Configuration = _retrieve_configuration(objtype if objtype is not None else type(self))
+            method: Callable[..., Any] = func_get(self, objtype)
             with config.initialization(self):
-                return func(*args, **kwargs)
+                return method(*args, **kwargs)
 
-        return MethodType(config_initializer, obj)
+        method_func: Callable[..., Any] = getattr(config_initializer, "__get__")(obj, objtype)
+        return method_func
 
     @property
     def __wrapped__(self) -> Callable[..., Any]:
