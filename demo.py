@@ -706,6 +706,7 @@ class FormScene(GUIScene, AbstractAutoLayeredScene):
         self.response.message = "{first_name}\n{last_name}".format_map(data)
         self.response.center = self.window.width * 3 / 4, self.window.centery
 
+
 class MusicManager(ResourceManager):
     menu: Music
     garage: Music

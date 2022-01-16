@@ -106,7 +106,7 @@ class MetaResourceManager(type):
 
         directory: Optional[str] = namespace.get("__resources_directory__")
         if directory is not None:
-            directory = set_constant_directory(directory)
+            directory = set_constant_directory(directory, error_msg="Resource directory not found")
         namespace["__resources_directory__"] = directory
 
         for resource_name, resource_path in resources.items():

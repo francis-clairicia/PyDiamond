@@ -10,16 +10,22 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-import os.path
+import os.path as os_path
 from sys import argv
-from typing import Callable, Optional, overload
+from typing import Any, Callable, Optional, overload
 
 
-def __set_path(path_exists: Callable[[str], bool], *paths: str, raise_error: bool, error_msg: Optional[str]) -> str:
-    all_path = os.path.join(*paths)
-    if not os.path.isabs(all_path):
-        all_path = os.path.join(os.path.abspath(os.path.dirname(argv[0])), all_path)
-    all_path = os.path.realpath(all_path)
+def __set_path(
+    path_exists: Callable[[str], bool],
+    *paths: str,
+    raise_error: bool = True,
+    error_msg: Optional[str] = None,
+    relative_to_cwd: bool = False,
+) -> str:
+    all_path = os_path.join(*paths)
+    if not relative_to_cwd and not os_path.isabs(all_path):
+        all_path = os_path.join(os_path.abspath(os_path.dirname(argv[0])), all_path)
+    all_path = os_path.realpath(all_path)
     if not path_exists(all_path) and raise_error:
         if error_msg:
             raise FileNotFoundError(f"{all_path!r}: {error_msg}")
@@ -28,38 +34,38 @@ def __set_path(path_exists: Callable[[str], bool], *paths: str, raise_error: boo
 
 
 @overload
-def set_constant_directory(path: str, *paths: str) -> str:
+def set_constant_directory(path: str, *paths: str, relative_to_cwd: bool = False) -> str:
     ...
 
 
 @overload
-def set_constant_directory(path: str, *paths: str, raise_error: bool) -> str:
+def set_constant_directory(path: str, *paths: str, raise_error: bool, relative_to_cwd: bool = False) -> str:
     ...
 
 
 @overload
-def set_constant_directory(path: str, *paths: str, error_msg: str) -> str:
+def set_constant_directory(path: str, *paths: str, error_msg: str, relative_to_cwd: bool = False) -> str:
     ...
 
 
-def set_constant_directory(path: str, *paths: str, raise_error: bool = True, error_msg: Optional[str] = None) -> str:
-    return __set_path(os.path.isdir, path, *paths, raise_error=raise_error, error_msg=error_msg)
+def set_constant_directory(path: str, *paths: str, error_msg: Optional[str] = None, **kwargs: Any) -> str:
+    return __set_path(os_path.isdir, path, *paths, error_msg=error_msg or "Not a directory", **kwargs)
 
 
 @overload
-def set_constant_file(path: str, *paths: str) -> str:
-    ...
-
-
-@overload
-def set_constant_file(path: str, *paths: str, raise_error: bool) -> str:
+def set_constant_file(path: str, *paths: str, relative_to_cwd: bool = False) -> str:
     ...
 
 
 @overload
-def set_constant_file(path: str, *paths: str, error_msg: str) -> str:
+def set_constant_file(path: str, *paths: str, raise_error: bool, relative_to_cwd: bool = False) -> str:
     ...
 
 
-def set_constant_file(path: str, *paths: str, raise_error: bool = True, error_msg: Optional[str] = None) -> str:
-    return __set_path(os.path.isfile, path, *paths, raise_error=raise_error, error_msg=error_msg)
+@overload
+def set_constant_file(path: str, *paths: str, error_msg: str, relative_to_cwd: bool = False) -> str:
+    ...
+
+
+def set_constant_file(path: str, *paths: str, **kwargs: Any) -> str:
+    return __set_path(os_path.isfile, path, *paths, **kwargs)
