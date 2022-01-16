@@ -16,7 +16,6 @@ __all__ = [
     "BooleanCheckBox",
     "Button",
     "COLOR_DICT",
-    "COMPILED_SURFACE_EXTENSION",
     "CYAN",
     "CheckBox",
     "CircleShape",
@@ -202,7 +201,7 @@ from .shape import (
     SingleColorShape,
 )
 from .sprite import AnimatedSprite, LayeredSpriteGroup, Mask, Sprite, SpriteGroup
-from .surface import COMPILED_SURFACE_EXTENSION, Surface, create_surface, load_image, save_image
+from .surface import Surface, create_surface, load_image, save_image
 from .text import MetaText, Text, TextImage
 from .theme import MetaThemedObject, NoTheme, ThemedObject, ThemeNamespace, ThemeType, abstract_theme_class
 from .transformable import MetaTransformable, Transformable
