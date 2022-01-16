@@ -144,6 +144,8 @@ class Clickable(metaclass=ABCMeta):
             self._on_click_up(event)
             if valid_click:
                 self.play_click_sound()
+                if isinstance(self, SupportsFocus):
+                    self.focus.set()
                 self._on_hover()
                 if self.state != Clickable.State.DISABLED:
                     self.invoke()

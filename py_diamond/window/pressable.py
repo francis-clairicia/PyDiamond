@@ -75,6 +75,8 @@ class Pressable(Clickable):
                 return False
             self._on_press_up(event)
             if valid_click:
+                if isinstance(self, SupportsFocus):
+                    self.focus.set()
                 self.play_click_sound()
                 self._on_hover()
                 if self.state != Clickable.State.DISABLED:

@@ -12,7 +12,6 @@ __all__ = [
     "FocusableContainer",
     "GUIMainScene",
     "GUIScene",
-    "HasFocusUpdate",
     "MetaGUIMainScene",
     "MetaGUIScene",
     "NoFocusSupportError",
@@ -242,23 +241,23 @@ class GUIMainScene(GUIScene, MainScene, metaclass=MetaGUIMainScene):
 
 
 @runtime_checkable
-class SupportsFocus(Protocol):
-    @property
-    @abstractmethod
-    def focus(self) -> BoundFocus:
-        raise NoFocusSupportError
-
+class _HasFocusMethods(Protocol):
     def _on_focus_set(self) -> None:
         pass
 
     def _on_focus_leave(self) -> None:
         pass
 
-
-@runtime_checkable
-class HasFocusUpdate(Protocol):
     def _focus_update(self) -> None:
         pass
+
+
+@runtime_checkable
+class SupportsFocus(_HasFocusMethods, Protocol):
+    @property
+    @abstractmethod
+    def focus(self) -> BoundFocus:
+        raise NoFocusSupportError
 
 
 class NoFocusSupportError(AttributeError):
@@ -283,6 +282,8 @@ class BoundFocus:
     __slots__ = ("__f", "__scene")
 
     def __init__(self, focusable: SupportsFocus, scene: Optional[Scene]) -> None:
+        if not isinstance(focusable, _HasFocusMethods):
+            raise NoFocusSupportError(repr(focusable))
         self.__f: SupportsFocus = focusable
         self.__scene: Optional[GUIScene] = scene if isinstance(scene, GUIScene) else None
 
@@ -625,8 +626,7 @@ class FocusableContainer(Sequence[SupportsFocus]):
 
     def update(self) -> None:
         for f in self:
-            if isinstance(f, HasFocusUpdate):
-                f._focus_update()
+            f._focus_update()
 
 
 del _MetaBoundFocusProxy

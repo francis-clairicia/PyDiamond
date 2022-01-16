@@ -623,6 +623,11 @@ class _GridCell(MDrawable):
     def _on_focus_leave(self) -> None:
         pass
 
+    def _focus_update(self) -> None:
+        obj: Optional[Any] = self.__object
+        if isinstance(obj, SupportsFocus):
+            obj._focus_update()
+
     @property
     def master(self) -> Optional[GUIScene]:
         grid_row: _GridRow = self.__master

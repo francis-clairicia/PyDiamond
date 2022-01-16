@@ -618,6 +618,8 @@ class TestGUIScene(GUIScene, AbstractAutoLayeredScene):
         self.first.midright = (self.second.left - 10, self.second.centery)
         self.third.midleft = (self.second.right + 10, self.second.centery)
 
+        Button.set_default_focus_on_hover(False)
+
     def update(self) -> None:
         self.text.midtop = (self.second.centerx, self.second.bottom + 10)
         return super().update()
@@ -656,6 +658,8 @@ class GridScene(GUIScene):
 
         self.grid.center = self.window.center
         self.group.add(self.text, self.grid)
+
+        Button.set_default_focus_on_hover(False)
 
     def on_start_loop_before_transition(self) -> None:
         self.set_text_position()
@@ -807,6 +811,8 @@ class GUIAudioScene(GUIMainScene, AbstractAutoLayeredScene):
         self.grid.outline_color = PURPLE
 
         self.grid.center = self.window.center
+
+        Button.set_default_focus_on_hover(False)
 
     def on_start_loop_before_transition(self) -> None:
         self.set_text_position()
