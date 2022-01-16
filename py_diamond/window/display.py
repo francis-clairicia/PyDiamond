@@ -458,6 +458,8 @@ class Window:
         all_blocked_events: Sequence[Event.Type] = tuple(event for event in Event.Type if not event.is_allowed())
 
         def set_blocked_events() -> None:
+            if not _pg_display.get_init():
+                return
             if not all_blocked_events:
                 self.allow_all_events()
             else:
