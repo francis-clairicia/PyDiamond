@@ -6,8 +6,10 @@
 
 __all__ = [
     "cache",
+    "concreteclasscheck",
     "concreteclassmethod",
     "forbidden_call",
+    "isconcreteclass",
     "lru_cache",
     "setdefaultattr",
     "tp_cache",
@@ -23,6 +25,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from functools import WRAPPER_ASSIGNMENTS, WRAPPER_UPDATES, lru_cache as _lru_cache, update_wrapper as _update_wrapper
+from operator import truth
 from typing import Any, Callable, Optional, ParamSpec, Sequence, Type, TypeAlias, TypeVar, overload
 
 _P = ParamSpec("_P")
@@ -104,15 +107,22 @@ def setdefaultattr(obj: object, name: str, value: _T) -> _T:
 # def concreteclassmethod(func: Callable[Concatenate[Type[_T], _P], _R]) -> Callable[Concatenate[Type[_T], _P], _R]:
 def concreteclassmethod(func: Callable[_P, _R]) -> Callable[_P, _R]:
     @wraps(func)
-    def wrapper(__cls_or_self: Any, /, *args: Any, **kwargs: Any) -> _R:
-        cls: Any = __cls_or_self
-        if not isinstance(cls, type):
-            raise TypeError("'cls' must be a type")
-        if getattr(cls, "__abstractmethods__", None):
-            raise TypeError(f"{cls.__name__} is an abstract class")
-        return func(__cls_or_self, *args, **kwargs)
+    def wrapper(cls: Any, /, *args: Any, **kwargs: Any) -> _R:
+        concreteclasscheck(cls)
+        return func(cls, *args, **kwargs)
 
     return wrapper
+
+
+def concreteclasscheck(cls: Any) -> None:
+    if not isconcreteclass(cls):
+        raise TypeError(f"{cls.__name__} is an abstract class")
+
+
+def isconcreteclass(cls: type) -> bool:
+    if not isinstance(cls, type):
+        raise TypeError("'cls' must be a type")
+    return not truth(getattr(cls, "__abstractmethods__", None))
 
 
 def forbidden_call(func: Callable[_P, _R]) -> Callable[_P, _R]:
