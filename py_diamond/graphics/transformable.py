@@ -44,10 +44,15 @@ class MetaTransformable(MetaMovable):
         namespace: Dict[str, Any],
         **kwargs: Any,
     ) -> Any:
-        if "Transformable" in globals() and not any(issubclass(cls, Transformable) for cls in bases):
-            raise TypeError(
-                f"{name!r} must be inherits from a {Transformable.__name__} class in order to use {MetaTransformable.__name__} metaclass"
-            )
+        try:
+            Transformable
+        except NameError:
+            pass
+        else:
+            if not any(issubclass(cls, Transformable) for cls in bases):
+                raise TypeError(
+                    f"{name!r} must be inherits from a {Transformable.__name__} class in order to use {MetaTransformable.__name__} metaclass"
+                )
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
 

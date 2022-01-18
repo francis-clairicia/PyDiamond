@@ -81,7 +81,11 @@ class _MetaEvent(type):
             pass
         else:
             raise TypeError("Trying to create custom event")
-        if name != "Event" or "Event" in globals():
+        try:
+            Event
+        except NameError:
+            pass
+        else:
             if bases != (Event,):
                 raise TypeError(f"{name!r} must only inherits from Event without multiple inheritance")
         return super().__new__(metacls, name, bases, namespace, **kwargs)

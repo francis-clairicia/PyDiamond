@@ -63,14 +63,19 @@ def _draw_decorator(func: Callable[[Drawable, Renderer], None], /) -> Callable[[
 
 class MetaDrawable(ABCMeta):
     def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaDrawable:
-        if "Drawable" in globals() and not any(issubclass(cls, Drawable) for cls in bases):
-            raise TypeError(
-                f"{name!r} must be inherits from a {Drawable.__name__} class in order to use {MetaDrawable.__name__} metaclass"
-            )
+        try:
+            Drawable
+        except NameError:
+            pass
+        else:
+            if not any(issubclass(cls, Drawable) for cls in bases):
+                raise TypeError(
+                    f"{name!r} must be inherits from a {Drawable.__name__} class in order to use {MetaDrawable.__name__} metaclass"
+                )
 
-        draw_method: Optional[Callable[[Drawable, Renderer], None]] = namespace.get("draw_onto")
-        if callable(draw_method):
-            namespace["draw_onto"] = _draw_decorator(draw_method)
+            draw_method: Optional[Callable[[Drawable, Renderer], None]] = namespace.get("draw_onto")
+            if callable(draw_method):
+                namespace["draw_onto"] = _draw_decorator(draw_method)
 
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 

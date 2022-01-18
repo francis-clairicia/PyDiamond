@@ -59,10 +59,15 @@ class MetaMovable(ABCMeta):
         namespace: Dict[str, Any],
         **kwargs: Any,
     ) -> MetaMovable:
-        if "Movable" in globals() and not any(issubclass(cls, Movable) for cls in bases):
-            raise TypeError(
-                f"{name!r} must be inherits from a {Movable.__name__} class in order to use {MetaMovable.__name__} metaclass"
-            )
+        try:
+            Movable
+        except NameError:
+            pass
+        else:
+            if not any(issubclass(cls, Movable) for cls in bases):
+                raise TypeError(
+                    f"{name!r} must be inherits from a {Movable.__name__} class in order to use {MetaMovable.__name__} metaclass"
+                )
 
         for position in _ALL_VALID_POSITIONS:
             if position not in namespace:
