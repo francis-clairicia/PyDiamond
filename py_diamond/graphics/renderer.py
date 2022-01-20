@@ -81,6 +81,7 @@ class Renderer(metaclass=ABCMeta):
         raise NotImplementedError
 
     @overload
+    @abstractmethod
     def draw(
         self,
         obj: Surface,
@@ -93,6 +94,7 @@ class Renderer(metaclass=ABCMeta):
         ...
 
     @overload
+    @abstractmethod
     def draw(
         self, obj: Surface, dest: Rect, /, *, area: Optional[Rect] = None, special_flags: BlendMode = BlendMode.NONE
     ) -> Rect:

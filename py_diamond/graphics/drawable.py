@@ -41,7 +41,7 @@ from typing import (
     overload,
 )
 
-from ..system._mangling import mangle_private_attribute
+from ..system._mangling import getattr_pv
 from ..system.utils import wraps
 from .movable import MetaMovable, Movable
 from .transformable import MetaTransformable, Transformable
@@ -254,7 +254,7 @@ class LayeredGroup(DrawableGroup):
         if not objects:
             return
         layer_dict: Dict[Drawable, int] = self.__layer_dict
-        drawable_list: List[Drawable] = getattr(self, mangle_private_attribute(DrawableGroup, "list"))
+        drawable_list: List[Drawable] = getattr_pv(self, "list", owner=DrawableGroup)
         if layer is None:
             layer = self.__default_layer
         for d in filter(lambda d: d not in drawable_list, objects):
@@ -292,7 +292,7 @@ class LayeredGroup(DrawableGroup):
         actual_layer: Optional[int] = layer_dict.get(obj, None)
         if (actual_layer is None and layer == self.__default_layer) or (actual_layer is not None and actual_layer == layer):
             return
-        drawable_list: List[Drawable] = getattr(self, mangle_private_attribute(DrawableGroup, "list"))
+        drawable_list: List[Drawable] = getattr_pv(self, "list", owner=DrawableGroup)
         try:
             drawable_list.remove(obj)
         except ValueError:

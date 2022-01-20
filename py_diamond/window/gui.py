@@ -46,7 +46,7 @@ from typing import (
 
 from ..graphics.drawable import Drawable, LayeredGroup
 from ..graphics.renderer import Renderer
-from ..system._mangling import mangle_private_attribute
+from ..system._mangling import getattr_pv
 from ..system.enum import AutoLowerNameEnum
 from ..system.utils import setdefaultattr, wraps
 from .event import (
@@ -527,7 +527,7 @@ class BoundFocusProxy(BoundFocus, metaclass=_MetaBoundFocusProxy):
     __slots__ = ("__focus",)
 
     def __init__(self, focus: BoundFocus) -> None:
-        super().__init__(focus.__self__, getattr(focus, mangle_private_attribute(BoundFocus, "scene"), None))
+        super().__init__(focus.__self__, getattr_pv(focus, "scene", None, owner=BoundFocus))
         self.__focus: BoundFocus = focus
 
     def __getattr__(self, name: str, /) -> Any:

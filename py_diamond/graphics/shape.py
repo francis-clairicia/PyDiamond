@@ -33,7 +33,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, TypeAlias
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom
 
 from ..math import Vector2
-from ..system._mangling import mangle_private_attribute
+from ..system._mangling import getattr_pv
 from ..system.configuration import Configuration, OptionAttribute, UnregisteredOptionError, initializer
 from ..system.enum import AutoLowerNameEnum
 from ..system.utils import valid_float, valid_integer
@@ -559,7 +559,7 @@ class CrossShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
             outline_color=self.outline_color,
             points=self.__points,
         )
-        image: Surface = getattr(p, mangle_private_attribute(AbstractShape, "image"))
+        image: Surface = getattr_pv(p, "image", owner=AbstractShape)
         return image
 
     def get_local_vertices(self) -> Sequence[Vector2]:

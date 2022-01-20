@@ -58,7 +58,7 @@ from ..graphics.renderer import Renderer, SurfaceRenderer
 from ..graphics.surface import Surface, create_surface
 from ..graphics.text import Text
 from ..graphics.theme import NoTheme
-from ..system._mangling import mangle_private_attribute
+from ..system._mangling import getattr_pv, setattr_pv
 from ..system.utils import wraps
 from .clock import Clock
 from .cursor import Cursor
@@ -302,8 +302,7 @@ class Window:
         else:
             real_time = self.__main_clock.tick(framerate)
         fixed_framerate: int = self.used_fixed_framerate()
-        fixed_delta_attribute: str = mangle_private_attribute(Time, "fixed_delta")
-        setattr(Time, fixed_delta_attribute, 1 / fixed_framerate if fixed_framerate > 0 else Time.delta())
+        setattr_pv(Time, "fixed_delta", 1 / fixed_framerate if fixed_framerate > 0 else Time.delta())
         return real_time
 
     def draw(self, *targets: _SupportsDrawing) -> None:
@@ -352,7 +351,7 @@ class Window:
 
         process_event = manager.process_event
         make_event = EventFactory.from_pygame_event
-        update_music_stream: Callable[[], None] = getattr(MusicStream, mangle_private_attribute(MusicStream, "update"))
+        update_music_stream: Callable[[], None] = getattr_pv(MusicStream, "update")
         for pg_event in _pg_event.get():
             if pg_event.type in (_PG_QUIT, _PG_WINDOWCLOSE):
                 self._handle_close_event()
@@ -627,7 +626,7 @@ class _FramerateManager:
                     else:
                         actual_tick += Time.wait(delay)
         elapsed = actual_tick - self.__last_tick
-        setattr(Time, mangle_private_attribute(Time, "delta"), elapsed / 1000)
+        setattr_pv(Time, "delta", elapsed / 1000)
         self.__last_tick = actual_tick
 
         self.__fps_count += 1

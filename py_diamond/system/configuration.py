@@ -56,6 +56,8 @@ from typing import (
     runtime_checkable,
 )
 
+from ._mangling import mangle_private_attribute
+
 _Func = TypeVar("_Func", bound=Callable[..., Any])
 _Updater = TypeVar("_Updater", bound=Callable[[Any], None])
 _KeyUpdater = TypeVar("_KeyUpdater", bound=Callable[[Any, str], None])
@@ -138,11 +140,13 @@ class Configuration:
         autocopy: Optional[bool] = None,
         parent: Optional[Union[Configuration, Sequence[Configuration]]] = None,
     ) -> None:
-        if any(not option for option in known_options):
-            raise ValueError("Configuration option must not be empty")
-        for option in _FORBIDDEN_OPTIONS:
-            if option in known_options:
+        for option in known_options:
+            if not option:
+                raise ValueError("Configuration option must not be empty")
+            if option in _FORBIDDEN_OPTIONS:
                 raise ValueError(f"{option!r}: Forbidden option name")
+            if option.startswith("__") or option.endswith("__"):
+                raise ValueError(f"{option!r}: Only one leading/trailing underscore is accepted")
         if parent is None:
             parent = []
         elif isinstance(parent, Configuration):
@@ -1109,7 +1113,7 @@ class Configuration:
             owner = infos.attribute_class_owner.get(option, objtype)
         else:
             owner = objtype
-        return f"_{owner.__name__}__{option}"
+        return mangle_private_attribute(owner, option)
 
     @staticmethod
     @contextmanager

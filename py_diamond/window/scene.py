@@ -64,7 +64,7 @@ from ..graphics.drawable import Drawable, LayeredGroup
 from ..graphics.renderer import Renderer, SurfaceRenderer
 from ..graphics.surface import Surface
 from ..graphics.theme import ThemeNamespace
-from ..system._mangling import mangle_private_attribute
+from ..system._mangling import getattr_pv, mangle_private_attribute
 from ..system.utils import concreteclassmethod, wraps
 from .display import Window, WindowCallback, WindowError, _WindowCallbackList
 from .event import Event, EventManager
@@ -226,8 +226,8 @@ class Scene(metaclass=MetaScene):
         self.__event: EventManager = EventManager()
         self.__bg_color: Color = Color(0, 0, 0)
         self.__callback_after: _WindowCallbackList = _WindowCallbackList()
-        self.__callback_after_dict: Dict[Scene, _WindowCallbackList] = getattr(
-            manager.window, mangle_private_attribute(SceneWindow, "callback_after_scenes")
+        self.__callback_after_dict: Dict[Scene, _WindowCallbackList] = getattr_pv(
+            manager.window, "callback_after_scenes", owner=SceneWindow
         )
         self.__stack: ExitStack = ExitStack()
 
