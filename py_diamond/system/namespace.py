@@ -58,7 +58,7 @@ class MetaClassNamespace(type):
         if getattr(cls, "_class_namespace_was_init_"):
             if cls.is_frozen():
                 raise AttributeError(f"{cls.__module__}.{cls.__name__}: Frozen class namespace")
-            if name == "_frozen_class_namespace_":
+            if name in ("_frozen_class_namespace_", "_class_namespace_was_init_"):
                 raise AttributeError(f"{name!r} is read-only")
         return super().__setattr__(name, value)
 
