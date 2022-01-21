@@ -4,7 +4,7 @@
 #
 """Python mangling module"""
 
-__all__ = ["mangle_private_attribute", "delattr_pv", "getattr_pv", "setattr_pv"]
+__all__ = ["delattr_pv", "getattr_pv", "hasattr_pv", "mangle_private_attribute", "setattr_pv"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
@@ -19,7 +19,22 @@ _NO_DEFAULT: Any = object()
 
 
 def mangle_private_attribute(cls: type, attribute: str) -> str:
+    if not isinstance(cls, type):
+        raise TypeError("'cls' must be a type")
     return f"_{cls.__name__.strip('_')}__{attribute}"
+
+
+def hasattr_pv(obj: object, attribute: str, *, owner: type | None = None) -> bool:
+    if owner is None:
+        if isinstance(obj, type):
+            owner = obj
+        else:
+            owner = type(obj)
+    attribute = mangle_private_attribute(owner, attribute)
+    try:
+        return hasattr(obj, attribute)
+    except AttributeError as exc:
+        raise AttributeError(f"Error when checking private attribute {attribute!r}: {exc}") from None
 
 
 @overload
@@ -39,9 +54,12 @@ def getattr_pv(obj: object, attribute: str, default: Any = _NO_DEFAULT, *, owner
         else:
             owner = type(obj)
     attribute = mangle_private_attribute(owner, attribute)
-    if default is _NO_DEFAULT:
+    if default is not _NO_DEFAULT:
+        return getattr(obj, attribute, default)
+    try:
         return getattr(obj, attribute)
-    return getattr(obj, attribute, default)
+    except AttributeError:
+        raise AttributeError(f"Missing private attribute {attribute!r}") from None
 
 
 def setattr_pv(obj: object, attribute: str, value: Any, *, owner: type | None = None) -> None:
@@ -51,7 +69,10 @@ def setattr_pv(obj: object, attribute: str, value: Any, *, owner: type | None = 
         else:
             owner = type(obj)
     attribute = mangle_private_attribute(owner, attribute)
-    return setattr(obj, attribute, value)
+    try:
+        return setattr(obj, attribute, value)
+    except AttributeError as exc:
+        raise AttributeError(f"Error when setting private attribute {attribute!r}: {exc}") from None
 
 
 def delattr_pv(obj: object, attribute: str, *, owner: type | None = None) -> None:
@@ -61,4 +82,7 @@ def delattr_pv(obj: object, attribute: str, *, owner: type | None = None) -> Non
         else:
             owner = type(obj)
     attribute = mangle_private_attribute(owner, attribute)
-    return delattr(obj, attribute)
+    try:
+        return delattr(obj, attribute)
+    except AttributeError:
+        raise AttributeError(f"Missing private attribute {attribute!r}") from None
