@@ -11,9 +11,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta, abstractmethod
-from typing import Generic, Type, TypeVar
-
-from pygame.mixer import Sound as _PygameSound
+from typing import Generic, TypeVar
 
 from ..audio.music import Music
 from ..audio.sound import Sound
@@ -46,7 +44,7 @@ class ResourceLoader(Generic[_T], metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def type(self) -> Type[_T]:
+    def type(self) -> type[_T]:
         raise NotImplementedError
 
 
@@ -58,7 +56,7 @@ class ImageLoader(ResourceLoader[Surface]):
         return load_image(self.filepath)
 
     @property
-    def type(self) -> Type[Surface]:
+    def type(self) -> type[Surface]:
         return Surface
 
 
@@ -70,7 +68,7 @@ class SoundLoader(ResourceLoader[Sound]):
         return Sound(file=self.filepath)
 
     @property
-    def type(self) -> Type[Sound]:
+    def type(self) -> type[Sound]:
         return Sound
 
 
@@ -83,7 +81,7 @@ class FontLoader(ResourceLoader[str]):
         return self.filepath
 
     @property
-    def type(self) -> Type[str]:
+    def type(self) -> type[str]:
         return str
 
 
@@ -92,11 +90,10 @@ class MusicLoader(ResourceLoader[Music]):
     __slots__ = ()
 
     def load(self) -> Music:
-        _PygameSound(self.filepath)
         return Music(self.filepath)
 
     @property
-    def type(self) -> Type[Music]:
+    def type(self) -> type[Music]:
         return Music
 
 

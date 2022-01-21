@@ -15,13 +15,13 @@ __license__ = "GNU GPL v3.0"
 from contextlib import suppress
 from os.path import join
 from types import MappingProxyType
-from typing import Any, Callable, Dict, Mapping, Sequence, Tuple, TypeAlias
+from typing import Any, Callable, Mapping, Sequence, TypeAlias
 
 from ..system.path import set_constant_directory
 from .loader import ResourceLoader
 
 _ResourcePath: TypeAlias = str | Sequence["_ResourcePath"] | Mapping[Any, "_ResourcePath"]  # type: ignore
-_ResourceLoader: TypeAlias = ResourceLoader[Any] | Tuple["_ResourceLoader", ...] | Dict[Any, "_ResourceLoader"]  # type: ignore
+_ResourceLoader: TypeAlias = ResourceLoader[Any] | tuple["_ResourceLoader", ...] | dict[Any, "_ResourceLoader"]  # type: ignore
 
 
 class _ResourceDescriptor:
@@ -88,10 +88,10 @@ class _ResourceDescriptor:
 
 
 class MetaResourceManager(type):
-    def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaResourceManager:
-        resources: Dict[str, Any] = namespace.setdefault("__resources_files__", dict())
+    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> MetaResourceManager:
+        resources: dict[str, Any] = namespace.setdefault("__resources_files__", dict())
 
-        annotations: Dict[str, type | str] = namespace.setdefault("__annotations__", dict())
+        annotations: dict[str, type | str] = namespace.setdefault("__annotations__", dict())
         annotations = annotations.copy()
         for attr_name in ["__resources_files__", "__resources_directory__", "__resource_loader__"]:
             annotations.pop(attr_name, None)
@@ -114,19 +114,19 @@ class MetaResourceManager(type):
 
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
-    def __init__(cls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> None:
+    def __init__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> None:
         super().__init__(name, bases, namespace, **kwargs)
 
         cls.__resources_directory__: str | None
-        cls.__resources_files__: Dict[str, _ResourceDescriptor]
+        cls.__resources_files__: dict[str, _ResourceDescriptor]
         cls.__resource_loader__: Callable[[str], ResourceLoader[Any]]
-        cls.__resources: Dict[str, _ResourceDescriptor] = {
+        cls.__resources: dict[str, _ResourceDescriptor] = {
             name: value for name, value in vars(cls).items() if isinstance(value, _ResourceDescriptor)
         }
 
     def __setattr__(cls, name: str, value: Any, /) -> None:
         try:
-            resources: Dict[str, _ResourceDescriptor] = cls.__resources
+            resources: dict[str, _ResourceDescriptor] = cls.__resources
         except AttributeError:
             pass
         else:
@@ -148,7 +148,7 @@ class MetaResourceManager(type):
         return sum(resource.nb_loaded_resources for resource in cls.__resources.values())
 
     def load(cls, *resources: str) -> None:
-        descriptors: Dict[str, _ResourceDescriptor] = cls.__resources
+        descriptors: dict[str, _ResourceDescriptor] = cls.__resources
         for name in resources:
             descriptors[name].load()
 
@@ -157,7 +157,7 @@ class MetaResourceManager(type):
             resource.load()
 
     def unload(cls, *resources: str) -> None:
-        descriptors: Dict[str, _ResourceDescriptor] = cls.__resources
+        descriptors: dict[str, _ResourceDescriptor] = cls.__resources
         for name in resources:
             descriptors[name].unload()
 
@@ -168,5 +168,5 @@ class MetaResourceManager(type):
 
 class ResourceManager(metaclass=MetaResourceManager):
     __resources_directory__: str | None = None
-    __resources_files__: Dict[str, _ResourcePath]
+    __resources_files__: dict[str, _ResourcePath]
     __resource_loader__: Callable[[str], ResourceLoader[Any]]

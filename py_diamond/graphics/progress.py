@@ -13,7 +13,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from enum import auto, unique
-from typing import TYPE_CHECKING, Any, Dict, Tuple
+from typing import TYPE_CHECKING, Any
 
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
@@ -127,10 +127,10 @@ class ProgressBar(RectangleShape):
         outline_rect.center = self.center
         outline: int = self.outline
         if self.orient == ProgressBar.Orient.HORIZONTAL:
-            midleft: Tuple[float, float] = self.midleft
+            midleft: tuple[float, float] = self.midleft
             scale_rect.midleft = (midleft[0] + outline / 2, midleft[1])
         else:
-            midtop: Tuple[float, float] = self.midtop
+            midtop: tuple[float, float] = self.midtop
             scale_rect.midtop = (midtop[0], midtop[1] + outline / 2)
 
         super().draw_onto(target)
@@ -138,7 +138,7 @@ class ProgressBar(RectangleShape):
         outline_rect.draw_onto(target)
 
         offset = 10
-        movements: Dict[str, Dict[str, float | Tuple[float, float]]]
+        movements: dict[str, dict[str, float | tuple[float, float]]]
         if self.__value_text.is_shown() and self.__value_text_type in ["value", "percent"]:
             movements = {
                 ProgressBar.Side.TOP.value: {"bottom": self.top - offset, "centerx": self.centerx},

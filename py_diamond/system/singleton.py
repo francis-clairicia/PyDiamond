@@ -14,18 +14,18 @@ __license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta
 from types import MethodType
-from typing import Any, Callable, Dict, Tuple, Type, TypeVar
+from typing import Any, Callable, TypeVar
 
 _T = TypeVar("_T")
 
 
 class MetaSingleton(ABCMeta):
-    def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaSingleton:
+    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> MetaSingleton:
         kwargs.pop("abstract", None)
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
     def __init__(
-        cls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], *, abstract: bool = False, **kwargs: Any
+        cls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], *, abstract: bool = False, **kwargs: Any
     ) -> None:
         super().__init__(name, bases, namespace, **kwargs)
         cls.__abstractsingleton__: bool = bool(abstract or cls.__abstractmethods__)
@@ -56,7 +56,7 @@ class MetaSingleton(ABCMeta):
         return super().__delattr__(name)
 
     @property
-    def instance(cls: Type[_T]) -> _T:
+    def instance(cls: type[_T]) -> _T:
         try:
             instance: _T = getattr(cls, "_singleton_instance_")
         except AttributeError:

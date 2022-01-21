@@ -12,7 +12,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import Any, Final, Iterable, Iterator, List, Sequence, Tuple, Type, TypeVar, overload
+from typing import Any, Final, Iterable, Iterator, Sequence, TypeVar, overload
 
 from pygame.mask import Mask, from_surface as _pg_mask_from_surface
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom, smoothscale as _surface_smoothscale
@@ -57,11 +57,11 @@ class Sprite(TDrawable):
 
     def draw_onto(self, target: Renderer) -> None:
         image: Surface = self.__image
-        topleft: Tuple[float, float] = self.topleft
+        topleft: tuple[float, float] = self.topleft
         blend_mode: BlendMode = self.__blend_mode
         target.draw(image, topleft, special_flags=blend_mode)
 
-    def get_local_size(self) -> Tuple[float, float]:
+    def get_local_size(self) -> tuple[float, float]:
         return self.__default_image.get_size()
 
     def _apply_both_rotation_and_scale(self) -> None:
@@ -102,7 +102,7 @@ class Sprite(TDrawable):
     def __update_mask(self) -> None:
         self.__mask = _pg_mask_from_surface(self.__image, self.__mask_threshold)
 
-    def get_size(self) -> Tuple[float, float]:
+    def get_size(self) -> tuple[float, float]:
         return self.__image.get_size()
 
     def get_mask_threshold(self) -> int:
@@ -118,12 +118,12 @@ class Sprite(TDrawable):
         if former_state != actual_state:
             self.apply_rotation_scale()
 
-    def is_colliding(self, other: Sprite) -> Tuple[int, int] | None:
+    def is_colliding(self, other: Sprite) -> tuple[int, int] | None:
         this_rect: Rect = self.rect
         other_rect: Rect = other.rect
         xoffset: int = other_rect.x - this_rect.x
         yoffset: int = other_rect.y - this_rect.y
-        intersection: Tuple[int, int] | None = self.mask.overlap(other.mask, (xoffset, yoffset))
+        intersection: tuple[int, int] | None = self.mask.overlap(other.mask, (xoffset, yoffset))
         if intersection is not None:
             intersection = (intersection[0] + this_rect.x, intersection[1] + this_rect.y)
         return intersection
@@ -134,7 +134,7 @@ class Sprite(TDrawable):
 
     @default_image.setter
     def default_image(self, new_image: Surface) -> None:
-        center: Tuple[float, float] = self.center
+        center: tuple[float, float] = self.center
         self.__default_image = new_image.copy()
         self.apply_rotation_scale()
         self.center = center
@@ -171,7 +171,7 @@ class AnimatedSprite(Sprite):
 
     def __init__(self, image: Surface, *images: Surface, mask_threshold: int = Sprite.DEFAULT_MASK_THRESHOLD) -> None:
         super().__init__(image=image, mask_threshold=mask_threshold)
-        self.__list: List[Surface] = [self.default_image, *(i.convert_alpha() for i in images)]
+        self.__list: list[Surface] = [self.default_image, *(i.convert_alpha() for i in images)]
         self.__sprite_idx: int = 0
         self.__clock: Clock = Clock()
         self.__wait_time: float = 10
@@ -180,13 +180,13 @@ class AnimatedSprite(Sprite):
 
     @classmethod
     def from_iterable(
-        cls: Type[__Self], iterable: Iterable[Surface], *, mask_threshold: int = Sprite.DEFAULT_MASK_THRESHOLD
+        cls: type[__Self], iterable: Iterable[Surface], *, mask_threshold: int = Sprite.DEFAULT_MASK_THRESHOLD
     ) -> __Self:
         return cls(*iterable, mask_threshold=mask_threshold)
 
     @classmethod
     def from_spritesheet(
-        cls: Type[__Self], img: Surface, rect_list: List[Rect], *, mask_threshold: int = Sprite.DEFAULT_MASK_THRESHOLD
+        cls: type[__Self], img: Surface, rect_list: list[Rect], *, mask_threshold: int = Sprite.DEFAULT_MASK_THRESHOLD
     ) -> __Self:
         return cls.from_iterable((img.subsurface(rect) for rect in rect_list), mask_threshold=mask_threshold)
 

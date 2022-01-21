@@ -10,14 +10,14 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import Any, Dict, Tuple, Type, TypeVar
+from typing import Any, TypeVar
 
 
 def __non_copyable_copy__(self: Any) -> Any:
     raise TypeError("Non copyable class")
 
 
-def __non_copyable_deepcopy__(self: Any, memo: Dict[int, Any]) -> Any:
+def __non_copyable_deepcopy__(self: Any, memo: dict[int, Any]) -> Any:
     raise TypeError("Non copyable class")
 
 
@@ -25,11 +25,11 @@ class MetaNonCopyable(type):
     __Self = TypeVar("__Self", bound="MetaNonCopyable")
 
     def __new__(
-        metacls: Type[__Self],
+        metacls: type[__Self],
         /,
         name: str,
-        bases: Tuple[type, ...],
-        namespace: Dict[str, Any],
+        bases: tuple[type, ...],
+        namespace: dict[str, Any],
         **kwargs: Any,
     ) -> __Self:
         if any(attr in namespace for attr in ["__copy__", "__deepcopy__"]):

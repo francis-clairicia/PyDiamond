@@ -19,7 +19,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import Any, Sequence, Tuple
+from typing import Any, Sequence
 
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ._gradients import (  # type: ignore[attr-defined]
@@ -58,7 +58,7 @@ class HorizontalGradientShape(AbstractRectangleShape, GradientShape):
         super().__init__(width=width, height=height, first_color=first_color, second_color=second_color)
 
     def _make(self) -> Surface:
-        size: Tuple[int, int] = (int(self.local_width), int(self.local_height))
+        size: tuple[int, int] = (int(self.local_width), int(self.local_height))
         if size[0] == 0 or size[1] == 0:
             return create_surface(size)
         return _gradient_horizontal(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore[no-any-return,arg-type]
@@ -72,7 +72,7 @@ class VerticalGradientShape(AbstractRectangleShape, GradientShape):
         super().__init__(width=width, height=height, first_color=first_color, second_color=second_color)
 
     def _make(self) -> Surface:
-        size: Tuple[int, int] = (int(self.local_width), int(self.local_height))
+        size: tuple[int, int] = (int(self.local_width), int(self.local_height))
         if size[0] == 0 or size[1] == 0:
             return create_surface(size)
         return _gradient_vertical(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore[no-any-return,arg-type]
@@ -109,10 +109,10 @@ class RadialGradientShape(AbstractCircleShape, GradientShape):
 class MultiColorShape(AbstractShape):
     config = Configuration("colors", parent=AbstractShape.config)
 
-    colors: OptionAttribute[Tuple[Color, ...]] = OptionAttribute()
+    colors: OptionAttribute[tuple[Color, ...]] = OptionAttribute()
 
     @initializer
-    def __init__(self, *, colors: Tuple[Color, ...], **kwargs: Any) -> None:
+    def __init__(self, *, colors: tuple[Color, ...], **kwargs: Any) -> None:
         self.colors = colors
         super().__init__(**kwargs)
 
@@ -130,7 +130,7 @@ class HorizontalMultiColorShape(AbstractRectangleShape, MultiColorShape):
     config = Configuration(parent=[AbstractRectangleShape.config, MultiColorShape.config])
 
     @initializer
-    def __init__(self, width: float, height: float, colors: Tuple[Color, ...]) -> None:
+    def __init__(self, width: float, height: float, colors: tuple[Color, ...]) -> None:
         super().__init__(width=width, height=height, colors=colors)
         self.__shapes: Sequence[HorizontalGradientShape]
 
@@ -143,7 +143,7 @@ class HorizontalMultiColorShape(AbstractRectangleShape, MultiColorShape):
         return renderer.surface
 
     @config.on_update_value("colors")
-    def __update_shape(self, colors: Tuple[Color, ...]) -> None:
+    def __update_shape(self, colors: tuple[Color, ...]) -> None:
         width, height = self.local_size
         gradient_width: float = round(width / (len(colors) - 1))
         gradient_height: float = height
@@ -157,7 +157,7 @@ class VerticalMultiColorShape(AbstractRectangleShape, MultiColorShape):
     config = Configuration(parent=[AbstractRectangleShape.config, MultiColorShape.config])
 
     @initializer
-    def __init__(self, width: float, height: float, colors: Tuple[Color, ...]) -> None:
+    def __init__(self, width: float, height: float, colors: tuple[Color, ...]) -> None:
         super().__init__(width=width, height=height, colors=colors)
         self.__shapes: Sequence[VerticalGradientShape]
 
@@ -170,7 +170,7 @@ class VerticalMultiColorShape(AbstractRectangleShape, MultiColorShape):
         return renderer.surface
 
     @config.on_update_value("colors")
-    def __update_shape(self, colors: Tuple[Color, ...]) -> None:
+    def __update_shape(self, colors: tuple[Color, ...]) -> None:
         width, height = self.local_size
         gradient_width: float = width
         gradient_height: float = round(height / (len(colors) - 1))

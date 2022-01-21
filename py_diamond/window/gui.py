@@ -26,22 +26,7 @@ from abc import abstractmethod
 from enum import auto, unique
 from operator import truth
 from types import FunctionType, LambdaType
-from typing import (
-    Any,
-    Callable,
-    ClassVar,
-    Dict,
-    Final,
-    List,
-    Mapping,
-    Protocol,
-    Sequence,
-    Tuple,
-    TypedDict,
-    final,
-    overload,
-    runtime_checkable,
-)
+from typing import Any, Callable, ClassVar, Final, Mapping, Protocol, Sequence, TypedDict, final, overload, runtime_checkable
 
 from ..graphics.drawable import Drawable, LayeredGroup
 from ..graphics.renderer import Renderer
@@ -362,7 +347,7 @@ class BoundFocus:
             raise TypeError("Invalid arguments")
 
         f: SupportsFocus = self.__self__
-        bound_object_dict: Dict[BoundFocus.Side, SupportsFocus | None] = setdefaultattr(f, "_bound_focus_objects_", {})
+        bound_object_dict: dict[BoundFocus.Side, SupportsFocus | None] = setdefaultattr(f, "_bound_focus_objects_", {})
         if __m is not None:
             kwargs = __m | kwargs
         del __m
@@ -394,7 +379,7 @@ class BoundFocus:
 
     def get_obj_on_side(self, side: str | None = None) -> BoundObjectsDict | SupportsFocus | None:
         f: SupportsFocus = self.__self__
-        bound_object_dict: Dict[BoundFocus.Side, SupportsFocus | None] = getattr(f, "_bound_focus_objects_", {})
+        bound_object_dict: dict[BoundFocus.Side, SupportsFocus | None] = getattr(f, "_bound_focus_objects_", {})
 
         if side is None:
             return {
@@ -429,24 +414,24 @@ class BoundFocus:
 
     def register_focus_set_callback(self, callback: Callable[[], None]) -> None:
         f: SupportsFocus = self.__self__
-        list_callback: List[Callable[[], None]] = setdefaultattr(f, "_focus_set_callbacks_", [])
+        list_callback: list[Callable[[], None]] = setdefaultattr(f, "_focus_set_callbacks_", [])
         if callback not in list_callback:
             list_callback.append(callback)
 
     def unregister_focus_set_callback(self, callback: Callable[[], None]) -> None:
         f: SupportsFocus = self.__self__
-        list_callback: List[Callable[[], None]] = setdefaultattr(f, "_focus_set_callbacks_", [])
+        list_callback: list[Callable[[], None]] = setdefaultattr(f, "_focus_set_callbacks_", [])
         list_callback.remove(callback)
 
     def register_focus_leave_callback(self, callback: Callable[[], None]) -> None:
         f: SupportsFocus = self.__self__
-        list_callback: List[Callable[[], None]] = setdefaultattr(f, "_focus_leave_callbacks_", [])
+        list_callback: list[Callable[[], None]] = setdefaultattr(f, "_focus_leave_callbacks_", [])
         if callback not in list_callback:
             list_callback.append(callback)
 
     def unregister_focus_leave_callback(self, callback: Callable[[], None]) -> None:
         f: SupportsFocus = self.__self__
-        list_callback: List[Callable[[], None]] = setdefaultattr(f, "_focus_leave_callbacks_", [])
+        list_callback: list[Callable[[], None]] = setdefaultattr(f, "_focus_leave_callbacks_", [])
         list_callback.remove(callback)
 
     @classmethod
@@ -463,7 +448,7 @@ class BoundFocus:
 
 
 class _MetaBoundFocusProxy(type):
-    def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> _MetaBoundFocusProxy:
+    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _MetaBoundFocusProxy:
         if "BoundFocusProxy" in globals() and not any(issubclass(cls, BoundFocusProxy) for cls in bases):
             raise TypeError(
                 f"{name!r} must be inherits from a {BoundFocusProxy.__name__} class in order to use {_MetaBoundFocusProxy.__name__} metaclass"
@@ -538,7 +523,7 @@ class BoundFocusProxy(BoundFocus, metaclass=_MetaBoundFocusProxy):
         return self.__focus
 
 
-_SIDE_WITH_KEY_EVENT: Final[Dict[int, BoundFocus.Side]] = {
+_SIDE_WITH_KEY_EVENT: Final[dict[int, BoundFocus.Side]] = {
     Keyboard.Key.LEFT: BoundFocus.Side.ON_LEFT,
     Keyboard.Key.RIGHT: BoundFocus.Side.ON_RIGHT,
     Keyboard.Key.UP: BoundFocus.Side.ON_TOP,
@@ -589,7 +574,7 @@ class FocusableContainer(Sequence[SupportsFocus]):
     def __init__(self, master: GUIScene) -> None:
         super().__init__()
         self.__master: GUIScene = master
-        self.__list: List[SupportsFocus] = []
+        self.__list: list[SupportsFocus] = []
 
     def __len__(self) -> int:
         list_length = self.__list.__len__
@@ -604,7 +589,7 @@ class FocusableContainer(Sequence[SupportsFocus]):
         ...
 
     def __getitem__(self, index: int | slice, /) -> SupportsFocus | Sequence[SupportsFocus]:
-        focusable_list: List[SupportsFocus] = self.__list
+        focusable_list: list[SupportsFocus] = self.__list
         if isinstance(index, slice):
             return tuple(focusable_list[index])
         return focusable_list[index]
@@ -620,7 +605,7 @@ class FocusableContainer(Sequence[SupportsFocus]):
         self.__list.append(focusable)
 
     def remove(self, focusable: SupportsFocus) -> None:
-        focusable_list: List[SupportsFocus] = self.__list
+        focusable_list: list[SupportsFocus] = self.__list
         focusable_list.remove(focusable)
 
     def update(self) -> None:

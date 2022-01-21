@@ -15,15 +15,13 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import Tuple
-
 from pygame.image import load as _pg_image_load, save as _pg_image_save
 from pygame.surface import Surface
 
 from .color import TRANSPARENT, Color
 
 
-def create_surface(size: Tuple[float, float], *, convert_alpha: bool = True, default_color: Color = TRANSPARENT) -> Surface:
+def create_surface(size: tuple[float, float], *, convert_alpha: bool = True, default_color: Color = TRANSPARENT) -> Surface:
     size = (max(size[0], 0), max(size[1], 0))
     s: Surface = Surface(size)
     if convert_alpha:

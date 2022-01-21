@@ -13,7 +13,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from operator import truth
-from typing import TYPE_CHECKING, Callable, Tuple
+from typing import TYPE_CHECKING, Callable
 
 from ..system.configuration import Configuration, initializer
 from ..window.clickable import Clickable
@@ -108,7 +108,7 @@ class ScaleBar(ProgressBar, Clickable):
         if callable(callback):
             callback(self.percent)
 
-    def _mouse_in_hitbox(self, mouse_pos: Tuple[float, float]) -> bool:
+    def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
         return truth(self.rect.collidepoint(mouse_pos))
 
     def _on_click_down(self, event: MouseButtonDownEvent) -> None:
@@ -121,7 +121,7 @@ class ScaleBar(ProgressBar, Clickable):
             self.__compute_scale_percent_by_mouse_pos(event.pos)
         return super()._on_mouse_motion(event)
 
-    def __compute_scale_percent_by_mouse_pos(self, mouse_pos: Tuple[float, float]) -> None:
+    def __compute_scale_percent_by_mouse_pos(self, mouse_pos: tuple[float, float]) -> None:
         if self.orient == ScaleBar.Orient.HORIZONTAL:
             self.percent = (mouse_pos[0] - self.left) / self.width
         else:

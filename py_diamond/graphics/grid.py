@@ -16,7 +16,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from enum import auto, unique
 from itertools import chain
-from typing import Any, Callable, Container, Dict, Iterator, List, Literal, Sequence, Tuple, TypeVar, overload
+from typing import Any, Callable, Container, Iterator, Literal, Sequence, TypeVar, overload
 
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
@@ -68,11 +68,11 @@ class Grid(MDrawable, Container[Drawable]):
         justify: Justify = Justify.CENTER,
     ) -> None:
         super().__init__()
-        self.__rows: Dict[int, _GridRow] = dict()
-        self.__columns: Dict[int, _GridColumnPlaceholder] = dict()
+        self.__rows: dict[int, _GridRow] = dict()
+        self.__columns: dict[int, _GridColumnPlaceholder] = dict()
         self.__master: GUIScene | None = master
-        self.__max_width_columns: Dict[int, float] = dict()
-        self.__max_height_rows: Dict[int, float] = dict()
+        self.__max_width_columns: dict[int, float] = dict()
+        self.__max_height_rows: dict[int, float] = dict()
         self.__bg: RectangleShape = RectangleShape(0, 0, bg_color, theme=NoTheme)
         self.__outline: RectangleShape = RectangleShape(0, 0, TRANSPARENT, outline=outline, outline_color=outline_color)
         self.__padding: Grid.Padding = Grid.Padding()
@@ -86,14 +86,14 @@ class Grid(MDrawable, Container[Drawable]):
                 return True
         return False
 
-    def get_size(self) -> Tuple[float, float]:
-        max_width_columns: Dict[int, float] = self.__max_width_columns
-        max_height_rows: Dict[int, float] = self.__max_height_rows
+    def get_size(self) -> tuple[float, float]:
+        max_width_columns: dict[int, float] = self.__max_width_columns
+        max_height_rows: dict[int, float] = self.__max_height_rows
         return (sum(max_width_columns.values()), sum(max_height_rows.values()))
 
-    def get_cell_size(self, row: int, column: int) -> Tuple[float, float]:
-        max_width_columns: Dict[int, float] = self.__max_width_columns
-        max_height_rows: Dict[int, float] = self.__max_height_rows
+    def get_cell_size(self, row: int, column: int) -> tuple[float, float]:
+        max_width_columns: dict[int, float] = self.__max_width_columns
+        max_height_rows: dict[int, float] = self.__max_height_rows
         return (max_width_columns.get(column, 0), max_height_rows.get(row, 0))
 
     def draw_onto(self, target: Renderer) -> None:
@@ -107,15 +107,15 @@ class Grid(MDrawable, Container[Drawable]):
         outline.draw_onto(target)
 
     def rows(self) -> Iterator[int]:
-        all_rows: Dict[int, _GridRow] = self.__rows
+        all_rows: dict[int, _GridRow] = self.__rows
         yield from all_rows
 
     def columns(self, row: int | None = None) -> Iterator[int]:
         if row is None:
-            all_columns: Dict[int, _GridColumnPlaceholder] = self.__columns
+            all_columns: dict[int, _GridColumnPlaceholder] = self.__columns
             yield from all_columns
             return
-        all_rows: Dict[int, _GridRow] = self.__rows
+        all_rows: dict[int, _GridRow] = self.__rows
         try:
             grid_row: _GridRow = all_rows[row]
         except KeyError as exc:
@@ -123,7 +123,7 @@ class Grid(MDrawable, Container[Drawable]):
         for cell in grid_row.iter_cells():
             yield cell.column
 
-    def cells(self) -> Iterator[Tuple[int, int]]:
+    def cells(self) -> Iterator[tuple[int, int]]:
         return ((row, column) for row in self.rows() for column in self.columns(row))
 
     def place(
@@ -207,8 +207,8 @@ class Grid(MDrawable, Container[Drawable]):
         raise IndexError(f"{(row, column)} does not exists")
 
     def unify(self) -> None:
-        all_grid_rows: Dict[int, _GridRow] = self.__rows
-        all_grid_columns: Dict[int, _GridColumnPlaceholder] = self.__columns
+        all_grid_rows: dict[int, _GridRow] = self.__rows
+        all_grid_columns: dict[int, _GridColumnPlaceholder] = self.__columns
         self.__remove_useless_cells()
         new_grid_rows: Sequence[_GridRow] = sorted(all_grid_rows.values(), key=lambda r: r.row)
         new_grid_columns: Sequence[_GridColumnPlaceholder] = sorted(all_grid_columns.values(), key=lambda c: c.column)
@@ -224,11 +224,11 @@ class Grid(MDrawable, Container[Drawable]):
         self._update()
 
     def _update(self) -> None:
-        max_width_columns: Dict[int, float] = self.__max_width_columns
-        max_height_rows: Dict[int, float] = self.__max_height_rows
-        all_rows: Dict[int, _GridRow] = self.__rows
+        max_width_columns: dict[int, float] = self.__max_width_columns
+        max_height_rows: dict[int, float] = self.__max_height_rows
+        all_rows: dict[int, _GridRow] = self.__rows
 
-        topleft: Tuple[float, float] = self.topleft
+        topleft: tuple[float, float] = self.topleft
         max_width_columns.clear()
         max_height_rows.clear()
         for cell in chain.from_iterable(row.iter_cells() for row in all_rows.values()):
@@ -240,11 +240,11 @@ class Grid(MDrawable, Container[Drawable]):
     def _on_move(self) -> None:
         super()._on_move()
         default_left, top = self.topleft
-        all_rows: Dict[int, _GridRow] = self.__rows
+        all_rows: dict[int, _GridRow] = self.__rows
         nb_rows: int = self.nb_rows
         nb_columns: int = self.nb_columns
-        max_width_columns: Dict[int, float] = self.__max_width_columns
-        max_height_rows: Dict[int, float] = self.__max_height_rows
+        max_width_columns: dict[int, float] = self.__max_width_columns
+        max_height_rows: dict[int, float] = self.__max_height_rows
 
         def get_cell(row: int, column: int) -> _GridCell | None:
             try:
@@ -268,8 +268,8 @@ class Grid(MDrawable, Container[Drawable]):
         raise ValueError(f"'obj' not in grid")
 
     def __set_obj_on_side_internal(self) -> None:
-        all_rows: Dict[int, List[_GridCell]] = {}
-        all_columns: Dict[int, List[_GridCell]] = {}
+        all_rows: dict[int, list[_GridCell]] = {}
+        all_columns: dict[int, list[_GridCell]] = {}
         self.__remove_useless_cells(all_rows=all_rows, all_columns=all_columns)
 
         if self.master is None:
@@ -320,15 +320,15 @@ class Grid(MDrawable, Container[Drawable]):
     def __remove_useless_cells(
         self,
         *,
-        all_rows: Dict[int, List[_GridCell]] | None = None,
-        all_columns: Dict[int, List[_GridCell]] | None = None,
+        all_rows: dict[int, list[_GridCell]] | None = None,
+        all_columns: dict[int, list[_GridCell]] | None = None,
     ) -> None:
         if all_rows is None:
             all_rows = {}
         if all_columns is None:
             all_columns = {}
-        all_grid_rows: Dict[int, _GridRow] = self.__rows
-        all_grid_columns: Dict[int, _GridColumnPlaceholder] = self.__columns
+        all_grid_rows: dict[int, _GridRow] = self.__rows
+        all_grid_columns: dict[int, _GridColumnPlaceholder] = self.__columns
         for grid_row in tuple(all_grid_rows.values()):
             grid_row.remove_useless_cells()
             cells: Sequence[_GridCell] = tuple(grid_row.iter_cells())
@@ -372,14 +372,14 @@ class Grid(MDrawable, Container[Drawable]):
 
     @property
     def nb_rows(self) -> int:
-        all_rows: Dict[int, _GridRow] = self.__rows
+        all_rows: dict[int, _GridRow] = self.__rows
         if not all_rows:
             return 0
         return max(all_rows) + 1
 
     @property
     def nb_columns(self) -> int:
-        all_rows: Dict[int, _GridRow] = self.__rows
+        all_rows: dict[int, _GridRow] = self.__rows
         return max((row.nb_columns for row in all_rows.values()), default=0)
 
 
@@ -387,11 +387,11 @@ class _GridRow:
 
     __slots__ = ("__master", "__cells", "__columns", "__row")
 
-    def __init__(self, master: Grid, row: int, column_dict: Dict[int, _GridColumnPlaceholder]) -> None:
+    def __init__(self, master: Grid, row: int, column_dict: dict[int, _GridColumnPlaceholder]) -> None:
         self.move_to_row(row)
         self.__master: Grid = master
-        self.__cells: Dict[int, _GridCell] = dict()
-        self.__columns: Dict[int, _GridColumnPlaceholder] = column_dict
+        self.__cells: dict[int, _GridCell] = dict()
+        self.__columns: dict[int, _GridColumnPlaceholder] = column_dict
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} row={self.row}>"
@@ -402,7 +402,7 @@ class _GridRow:
     def get_cell(self, column: int) -> _GridCell | None:
         return self.__cells.get(column, None)
 
-    def get_cell_size(self, column: int) -> Tuple[float, float]:
+    def get_cell_size(self, column: int) -> tuple[float, float]:
         master: Grid = self.grid
         return master.get_cell_size(self.row, column)
 
@@ -447,7 +447,7 @@ class _GridRow:
 
     @property
     def nb_columns(self) -> int:
-        cells: Dict[int, _GridCell] = self.__cells
+        cells: dict[int, _GridCell] = self.__cells
         if not cells:
             return 0
         return max(cells) + 1
@@ -493,7 +493,7 @@ class _GridCell(MDrawable):
         self.__padx: int = 0
         self.__pady: int = 0
         self.__justify: Grid.Justify = Grid.Justify.CENTER
-        self.__obj_size: Tuple[float, float] = (0, 0)
+        self.__obj_size: tuple[float, float] = (0, 0)
         if self.master is not None:
             self.master.focus_container.add(self)
         BoundFocus(self, self.master).take(False)
@@ -501,13 +501,13 @@ class _GridCell(MDrawable):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} row={self.row}, column={self.column}>"
 
-    def get_size(self) -> Tuple[float, float]:
+    def get_size(self) -> tuple[float, float]:
         master: _GridRow = self.__master
         cell_w, cell_h = master.get_cell_size(self.column)
         local_w, local_h = self.get_local_size()
         return max(cell_w, local_w), max(cell_h, local_h)
 
-    def get_local_size(self, *, from_grid: bool = False) -> Tuple[float, float]:
+    def get_local_size(self, *, from_grid: bool = False) -> tuple[float, float]:
         obj: MDrawable | None = self.__object
         if obj is None:
             if from_grid:
@@ -603,7 +603,7 @@ class _GridCell(MDrawable):
         obj: MDrawable | None = self.__object
         if obj is None:
             return
-        move: Dict[Grid.Justify, Dict[str, float | Tuple[float, float]]] = {
+        move: dict[Grid.Justify, dict[str, float | tuple[float, float]]] = {
             Grid.Justify.LEFT: {"left": self.left + self.__padx, "centery": self.centery},
             Grid.Justify.RIGHT: {"right": self.right - self.__padx, "centery": self.centery},
             Grid.Justify.TOP: {"top": self.top + self.__pady, "centerx": self.centerx},

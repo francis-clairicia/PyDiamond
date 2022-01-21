@@ -12,7 +12,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import TYPE_CHECKING, Tuple, overload
+from typing import TYPE_CHECKING, overload
 
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom, smoothscale as _surface_smoothscale
 
@@ -78,7 +78,7 @@ class Image(TDrawable):
 
     def draw_onto(self, target: Renderer) -> None:
         image: Surface = self.__image
-        topleft: Tuple[float, float] = self.topleft
+        topleft: tuple[float, float] = self.topleft
         target.draw(image, topleft)
 
     def get(self, apply_rotation_scale: bool = False) -> Surface:
@@ -87,7 +87,7 @@ class Image(TDrawable):
         return self.__default_image.copy()
 
     def set(self, image: Surface, copy: bool = True) -> None:
-        center: Tuple[float, float] = self.center
+        center: tuple[float, float] = self.center
         self.__default_image = image.copy() if copy else image
         self.apply_rotation_scale()
         self.center = center
@@ -99,7 +99,7 @@ class Image(TDrawable):
         self.apply_rotation_scale()
 
     def load(self, file: str) -> None:
-        center: Tuple[float, float] = self.center
+        center: tuple[float, float] = self.center
         self.__default_image = load_image(file)
         self.apply_rotation_scale()
         self.center = center
@@ -107,10 +107,10 @@ class Image(TDrawable):
     def save(self, file: str) -> None:
         save_image(self.__image, file)
 
-    def get_local_size(self) -> Tuple[float, float]:
+    def get_local_size(self) -> tuple[float, float]:
         return self.__default_image.get_size()
 
-    def get_size(self) -> Tuple[float, float]:
+    def get_size(self) -> tuple[float, float]:
         return self.__image.get_size()
 
     def use_smooth_scale(self, status: bool) -> None:

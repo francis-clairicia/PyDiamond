@@ -11,7 +11,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from threading import Thread, current_thread
-from typing import Any, Callable, Generic, Iterable, Mapping, ParamSpec, Type, TypeVar, overload
+from typing import Any, Callable, Generic, Iterable, Mapping, ParamSpec, TypeVar, overload
 
 from .utils import wraps
 
@@ -35,7 +35,7 @@ def thread(
 @overload
 def thread(
     *,
-    thread_cls: Type[_T],
+    thread_cls: type[_T],
     daemon: bool | None = None,
     auto_start: bool = True,
     name: str | None = None,
@@ -48,7 +48,7 @@ def thread(
     func: Callable[..., Any] | None = None,
     /,
     *,
-    thread_cls: Type[Thread] = Thread,
+    thread_cls: type[Thread] = Thread,
     daemon: bool | None = None,
     auto_start: bool = True,
     name: str | None = None,

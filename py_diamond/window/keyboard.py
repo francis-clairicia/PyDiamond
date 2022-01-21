@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from enum import IntEnum, IntFlag, unique
 from operator import truth
-from typing import ClassVar, Sequence, Tuple, overload
+from typing import ClassVar, Sequence, overload
 
 import pygame.constants as _pg_constants
 import pygame.key as _pg_key
@@ -22,7 +22,7 @@ import pygame.key as _pg_key
 from ..system.namespace import MetaClassNamespace
 
 _KEY_STATES: Sequence[bool] = []
-_KEY_REPEAT: Tuple[int, int] = (0, 0)
+_KEY_REPEAT: tuple[int, int] = (0, 0)
 
 
 class Keyboard(metaclass=MetaClassNamespace, frozen=True):
@@ -58,23 +58,23 @@ class Keyboard(metaclass=MetaClassNamespace, frozen=True):
         return truth(_KEY_STATES[key.value])
 
     @staticmethod
-    def get_repeat() -> Tuple[int, int]:
+    def get_repeat() -> tuple[int, int]:
         return _pg_key.get_repeat()
 
     @overload
     @staticmethod
-    def set_repeat(delay: None) -> Tuple[int, int]:
+    def set_repeat(delay: None) -> tuple[int, int]:
         ...
 
     @overload
     @staticmethod
-    def set_repeat(delay: int, interval: int = 0) -> Tuple[int, int]:
+    def set_repeat(delay: int, interval: int = 0) -> tuple[int, int]:
         ...
 
     @staticmethod
-    def set_repeat(delay: int | None, interval: int = 0) -> Tuple[int, int]:
+    def set_repeat(delay: int | None, interval: int = 0) -> tuple[int, int]:
         global _KEY_REPEAT
-        former_params: Tuple[int, int]
+        former_params: tuple[int, int]
         if not Keyboard.IME.text_input_enabled():
             former_params = _pg_key.get_repeat()
             if delay is None:

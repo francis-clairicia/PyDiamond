@@ -11,7 +11,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from contextlib import ExitStack, contextmanager
-from typing import Iterator, NamedTuple, Optional, Tuple
+from typing import Iterator, NamedTuple, Optional
 
 import pygame.mixer as _pg_mixer
 from pygame import error as _pg_error
@@ -42,7 +42,7 @@ class Mixer(metaclass=MetaClassNamespace, frozen=True):
 
     @staticmethod
     def get_init() -> MixerParams:
-        init_params: Tuple[int, int, int] | None = _pg_mixer.get_init()
+        init_params: tuple[int, int, int] | None = _pg_mixer.get_init()
         if init_params is None:
             raise _pg_error("Mixer module not initialized")
         return MixerParams(*init_params)

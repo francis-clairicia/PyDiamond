@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from argparse import ArgumentParser
-from typing import Any, Callable, ClassVar, Final, List, Literal, Mapping, Sequence, Tuple, Type
+from typing import Any, Callable, ClassVar, Final, Literal, Mapping, Sequence
 
 from py_diamond.audio.mixer import Mixer
 from py_diamond.audio.music import Music, MusicStream
@@ -228,7 +228,7 @@ class GradientScene(Scene):
         self.window.draw(self.horizontal, self.vertical, self.squared, self.radial)
 
 
-RAINBOW_COLORS: Final[Tuple[Color, ...]] = tuple(
+RAINBOW_COLORS: Final[tuple[Color, ...]] = tuple(
     c.with_brightness(75) for c in (RED, ORANGE, YELLOW, GREEN, CYAN, BLUE, MAGENTA, PURPLE, RED)
 )
 
@@ -246,7 +246,7 @@ class VerticalRainbow(VerticalMultiColorShape):
 class RainbowScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
-        self.all_rainbows: List[MultiColorShape] = [HorizontalRainbow(*self.window.size), VerticalRainbow(*self.window.size)]
+        self.all_rainbows: list[MultiColorShape] = [HorizontalRainbow(*self.window.size), VerticalRainbow(*self.window.size)]
         self.rainbow: int = 0
 
         def key_handler(event: KeyUpEvent) -> None:
@@ -867,7 +867,7 @@ class SceneTransitionTranslation(SceneTransition):
 
 class MainWindow(SceneWindow):
 
-    all_scenes: ClassVar[List[Type[Scene]]] = [
+    all_scenes: ClassVar[list[type[Scene]]] = [
         ShapeScene,
         AnimationScene,
         GradientScene,

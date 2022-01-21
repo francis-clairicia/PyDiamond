@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 from contextlib import suppress
 from enum import auto, unique
 from operator import truth
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Tuple
+from typing import TYPE_CHECKING, Any, Callable, ClassVar
 
 from ..system._mangling import mangle_private_attribute
 from ..system.configuration import Configuration, OptionAttribute, initializer
@@ -68,7 +68,7 @@ class ScrollBar(TDrawable, Clickable, metaclass=MetaScrollBar):
 
     local_width: OptionAttribute[float] = OptionAttribute()
     local_height: OptionAttribute[float] = OptionAttribute()
-    local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    local_size: OptionAttribute[tuple[float, float]] = OptionAttribute()
     cursor_color: OptionAttribute[Color] = OptionAttribute()
     color: OptionAttribute[Color] = OptionAttribute()
     outline: OptionAttribute[int] = OptionAttribute()
@@ -163,10 +163,10 @@ class ScrollBar(TDrawable, Clickable, metaclass=MetaScrollBar):
         self.set_active_only_on_hover(False)
         master._bind(self)
 
-    def get_local_size(self) -> Tuple[float, float]:
+    def get_local_size(self) -> tuple[float, float]:
         return self.__outline_shape.get_local_size()
 
-    def get_size(self) -> Tuple[float, float]:
+    def get_size(self) -> tuple[float, float]:
         return self.__outline_shape.get_size()
 
     def draw_onto(self, target: Renderer) -> None:
@@ -210,7 +210,7 @@ class ScrollBar(TDrawable, Clickable, metaclass=MetaScrollBar):
     def invoke(self) -> None:
         pass
 
-    def _mouse_in_hitbox(self, mouse_pos: Tuple[float, float]) -> bool:
+    def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
         return self.rect.collidepoint(mouse_pos)
 
     def _on_click_down(self, event: MouseButtonDownEvent) -> None:
@@ -368,7 +368,7 @@ class ScrollBar(TDrawable, Clickable, metaclass=MetaScrollBar):
         return self.__master
 
     @property
-    def bounds(self) -> Tuple[float, float]:
+    def bounds(self) -> tuple[float, float]:
         return (self.__start, self.__end)
 
 
@@ -405,10 +405,10 @@ class ScrollArea(LayeredGroup, Movable):
         cls.__v_flip = truth(status)
 
     @classmethod
-    def get_wheel_flip(cls) -> Tuple[bool, bool]:
+    def get_wheel_flip(cls) -> tuple[bool, bool]:
         return (cls.__h_flip, cls.__v_flip)
 
-    def get_size(self) -> Tuple[float, float]:
+    def get_size(self) -> tuple[float, float]:
         return self.__view_rect.size
 
     def add(self, *objects: Drawable, layer: int | None = None) -> None:
@@ -489,7 +489,7 @@ class ScrollArea(LayeredGroup, Movable):
             self.__area_view = whole_area.subsurface(view_rect)
             self.__update_scrollbars_cursor()
 
-    def __update_whole_area(self) -> Tuple[Surface, Surface]:
+    def __update_whole_area(self) -> tuple[Surface, Surface]:
         whole_area: Surface = self.__whole_area
         area_view: Surface = self.__area_view
         view_rect: Rect = self.__view_rect

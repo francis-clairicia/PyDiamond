@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from atexit import register as atexit
 from dataclasses import dataclass, field
-from typing import Final, List
+from typing import Final
 
 from pygame.event import Event as _PygameEvent, custom_type as _pg_event_custom_type, post as _pg_event_post
 from pygame.mixer import get_init as _pg_mixer_get_init, music as _pg_music
@@ -54,7 +54,7 @@ class MusicStream(metaclass=MetaClassNamespace, frozen=True):
         payload: _MusicPayload | None = None
         fadeout: bool = False
 
-    __queue: List[_MusicPayload] = []
+    __queue: list[_MusicPayload] = []
     __playing: _PlayingMusic = _PlayingMusic()
 
     @staticmethod
@@ -64,14 +64,14 @@ class MusicStream(metaclass=MetaClassNamespace, frozen=True):
             return
         MusicStream.stop()
         repeat = max(int(repeat), -1)
-        _pg_music.load(music.filepath)
+        _pg_music.load(music.filepath.encode("utf-8"))
         _pg_music.play(repeat, fade_ms=fade_ms)
         MusicStream.__playing.payload = _MusicPayload(music, repeat=repeat)
 
     @staticmethod
     @atexit
     def stop() -> None:
-        queue: List[_MusicPayload] = MusicStream.__queue
+        queue: list[_MusicPayload] = MusicStream.__queue
         queue.clear()
         played_music: _MusicPayload | None = MusicStream.__playing.payload
         if played_music is not None:
@@ -121,9 +121,9 @@ class MusicStream(metaclass=MetaClassNamespace, frozen=True):
             return
         if played_music.repeat < 0:
             raise ValueError(f"The playing music loops infinitely, queued musics will not be set")
-        queue: List[_MusicPayload] = MusicStream.__queue
+        queue: list[_MusicPayload] = MusicStream.__queue
         if not queue:
-            _pg_music.queue(music.filepath, loops=repeat)
+            _pg_music.queue(music.filepath.encode("utf-8"), loops=repeat)
         queue.append(_MusicPayload(music, repeat=repeat))
 
     @staticmethod
@@ -139,14 +139,14 @@ class MusicStream(metaclass=MetaClassNamespace, frozen=True):
         if played_music.repeat >= 0:
             next_music = played_music.music
         else:
-            queue: List[_MusicPayload] = MusicStream.__queue
+            queue: list[_MusicPayload] = MusicStream.__queue
             if not queue:
                 MusicStream.__playing.payload = next_music = None
             else:
                 MusicStream.__playing.payload = payload = queue.pop(0)
                 next_music = payload.music
                 if queue:
-                    _pg_music.queue(queue[0].music.filepath, loops=queue[0].repeat)
+                    _pg_music.queue(queue[0].music.filepath.encode("utf-8"), loops=queue[0].repeat)
         MusicStream.__post_event(played_music.music, next_music)
 
     @staticmethod

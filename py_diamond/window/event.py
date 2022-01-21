@@ -57,7 +57,7 @@ from contextlib import suppress
 from dataclasses import dataclass, field, fields
 from enum import IntEnum, unique
 from types import MappingProxyType
-from typing import Any, Callable, ClassVar, Dict, Final, List, Literal, Sequence, Tuple, Type, TypeAlias, TypeVar, cast
+from typing import Any, Callable, ClassVar, Final, Literal, Sequence, TypeAlias, TypeVar, cast
 
 import pygame.constants as _pg_constants
 from pygame.event import Event as _PygameEvent, event_name as _pg_event_name, get_blocked as _pg_event_get_blocked
@@ -74,7 +74,7 @@ class UnknownEventTypeError(TypeError):
 
 
 class _MetaEvent(type):
-    def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> _MetaEvent:
+    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _MetaEvent:
         try:
             EventFactory
         except NameError:
@@ -176,14 +176,14 @@ KeyEventType: TypeAlias = KeyDownEvent | KeyUpEvent
 @dataclass(frozen=True, kw_only=True, slots=True)
 class MouseButtonDownEvent(Event):
     type: ClassVar[Literal[Event.Type.MOUSEBUTTONDOWN]] = field(default=Event.Type.MOUSEBUTTONDOWN, init=False)
-    pos: Tuple[int, int]
+    pos: tuple[int, int]
     button: int
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class MouseButtonUpEvent(Event):
     type: ClassVar[Literal[Event.Type.MOUSEBUTTONUP]] = field(default=Event.Type.MOUSEBUTTONUP, init=False)
-    pos: Tuple[int, int]
+    pos: tuple[int, int]
     button: int
 
 
@@ -193,9 +193,9 @@ MouseButtonEventType: TypeAlias = MouseButtonDownEvent | MouseButtonUpEvent
 @dataclass(frozen=True, kw_only=True, slots=True)
 class MouseMotionEvent(Event):
     type: ClassVar[Literal[Event.Type.MOUSEMOTION]] = field(default=Event.Type.MOUSEMOTION, init=False)
-    pos: Tuple[int, int]
-    rel: Tuple[int, int]
-    buttons: Tuple[bool, bool, bool]
+    pos: tuple[int, int]
+    rel: tuple[int, int]
+    buttons: tuple[bool, bool, bool]
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -230,7 +230,7 @@ class JoyHatMotionEvent(Event):
     type: ClassVar[Literal[Event.Type.JOYHATMOTION]] = field(default=Event.Type.JOYHATMOTION, init=False)
     instance_id: int
     hat: int
-    value: Tuple[int, int]
+    value: tuple[int, int]
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -371,11 +371,11 @@ class MusicEndEvent(Event):
 _EventCallback: TypeAlias = Callable[[Event], bool | None]
 _TE = TypeVar("_TE", bound=Event)
 
-_MousePositionCallback: TypeAlias = Callable[[Tuple[float, float]], None]
+_MousePositionCallback: TypeAlias = Callable[[tuple[float, float]], None]
 
 
 class EventFactory:
-    associations: Final[MappingProxyType[Event.Type, Type[Event]]] = MappingProxyType(
+    associations: Final[MappingProxyType[Event.Type, type[Event]]] = MappingProxyType(
         {obj.type: obj for obj in globals().values() if isinstance(obj, type) and issubclass(obj, Event) and obj is not Event}
     )
 
@@ -385,11 +385,11 @@ class EventFactory:
     def from_pygame_event(event: _PygameEvent) -> Event:
         try:
             event_type = Event.Type(event.type)
-            event_cls: Type[Event] = EventFactory.associations[event_type]
+            event_cls: type[Event] = EventFactory.associations[event_type]
         except (KeyError, ValueError) as exc:
             raise UnknownEventTypeError(f"Unknown event {event!r}") from exc
         event_fields: Sequence[str] = tuple(f.name for f in fields(event_cls))
-        kwargs: Dict[str, Any] = {k: event.__dict__[k] for k in filter(event_fields.__contains__, event.__dict__)}
+        kwargs: dict[str, Any] = {k: event.__dict__[k] for k in filter(event_fields.__contains__, event.__dict__)}
         return event_cls(**kwargs)
 
 
@@ -405,31 +405,31 @@ class EventManager:
     )
 
     def __init__(self) -> None:
-        self.__event_handler_dict: Dict[Event.Type, List[_EventCallback]] = dict()
-        self.__key_pressed_handler_dict: Dict[Keyboard.Key, List[_EventCallback]] = dict()
-        self.__key_released_handler_dict: Dict[Keyboard.Key, List[_EventCallback]] = dict()
-        self.__mouse_button_pressed_handler_dict: Dict[Mouse.Button, List[_EventCallback]] = dict()
-        self.__mouse_button_released_handler_dict: Dict[Mouse.Button, List[_EventCallback]] = dict()
-        self.__mouse_pos_handler_list: List[_MousePositionCallback] = list()
+        self.__event_handler_dict: dict[Event.Type, list[_EventCallback]] = dict()
+        self.__key_pressed_handler_dict: dict[Keyboard.Key, list[_EventCallback]] = dict()
+        self.__key_released_handler_dict: dict[Keyboard.Key, list[_EventCallback]] = dict()
+        self.__mouse_button_pressed_handler_dict: dict[Mouse.Button, list[_EventCallback]] = dict()
+        self.__mouse_button_released_handler_dict: dict[Mouse.Button, list[_EventCallback]] = dict()
+        self.__mouse_pos_handler_list: list[_MousePositionCallback] = list()
 
     @staticmethod
-    def __bind(handler_dict: Dict[_T, List[_EventCallback]], key: _T, callback: Callable[[_TE], bool | None]) -> None:
+    def __bind(handler_dict: dict[_T, list[_EventCallback]], key: _T, callback: Callable[[_TE], bool | None]) -> None:
         try:
-            event_list: List[_EventCallback] = handler_dict[key]
+            event_list: list[_EventCallback] = handler_dict[key]
         except KeyError:
             handler_dict[key] = event_list = []
         if callback not in event_list:
             event_list.append(cast(_EventCallback, callback))
 
     @staticmethod
-    def __unbind(handler_dict: Dict[_T, List[_EventCallback]], key: _T, callback: Callable[[_TE], bool | None]) -> None:
+    def __unbind(handler_dict: dict[_T, list[_EventCallback]], key: _T, callback: Callable[[_TE], bool | None]) -> None:
         with suppress(KeyError, ValueError):
             handler_dict[key].remove(cast(_EventCallback, callback))
 
-    def bind_event(self, event_cls: Type[_TE], callback: Callable[[_TE], bool | None]) -> None:
+    def bind_event(self, event_cls: type[_TE], callback: Callable[[_TE], bool | None]) -> None:
         EventManager.__bind(self.__event_handler_dict, event_cls.type, callback)
 
-    def unbind_event(self, event_cls: Type[_TE], callback_to_remove: Callable[[_TE], bool | None]) -> None:
+    def unbind_event(self, event_cls: type[_TE], callback_to_remove: Callable[[_TE], bool | None]) -> None:
         EventManager.__unbind(self.__event_handler_dict, event_cls.type, callback_to_remove)
 
     def unbind_all(self) -> None:
@@ -487,12 +487,12 @@ class EventManager:
         EventManager.__unbind(self.__mouse_button_released_handler_dict, Mouse.Button(button), callback_to_remove)
 
     def bind_mouse_position(self, callback: _MousePositionCallback) -> None:
-        mouse_pos_handler_list: List[_MousePositionCallback] = self.__mouse_pos_handler_list
+        mouse_pos_handler_list: list[_MousePositionCallback] = self.__mouse_pos_handler_list
         if callback not in mouse_pos_handler_list:
             mouse_pos_handler_list.append(callback)
 
     def unbind_mouse_position(self, callback_to_remove: _MousePositionCallback) -> None:
-        mouse_pos_handler_list: List[_MousePositionCallback] = self.__mouse_pos_handler_list
+        mouse_pos_handler_list: list[_MousePositionCallback] = self.__mouse_pos_handler_list
         with suppress(ValueError):
             mouse_pos_handler_list.remove(callback_to_remove)
 
@@ -503,19 +503,19 @@ class EventManager:
         elif isinstance(event, (MouseButtonUpEvent, MouseButtonDownEvent)):
             if self.__handle_mouse_event(event):
                 return True
-        event_dict: Dict[Event.Type, List[_EventCallback]] = self.__event_handler_dict
+        event_dict: dict[Event.Type, list[_EventCallback]] = self.__event_handler_dict
         for callback in event_dict.get(event.type, ()):
             if callback(event):
                 return True
         return False
 
     def handle_mouse_position(self) -> None:
-        mouse_pos: Tuple[float, float] = Mouse.get_pos()
+        mouse_pos: tuple[float, float] = Mouse.get_pos()
         for callback in self.__mouse_pos_handler_list:
             callback(mouse_pos)
 
     def __handle_key_event(self, event: KeyEventType) -> bool | None:
-        key_handler_dict: Dict[Keyboard.Key, List[_EventCallback]] | None = None
+        key_handler_dict: dict[Keyboard.Key, list[_EventCallback]] | None = None
         if event.type == Event.Type.KEYDOWN:
             key_handler_dict = self.__key_pressed_handler_dict
         elif event.type == Event.Type.KEYUP:
@@ -532,7 +532,7 @@ class EventManager:
         return None
 
     def __handle_mouse_event(self, event: MouseButtonEventType) -> bool | None:
-        mouse_handler_dict: Dict[Mouse.Button, List[_EventCallback]] | None = None
+        mouse_handler_dict: dict[Mouse.Button, list[_EventCallback]] | None = None
         if event.type == Event.Type.MOUSEBUTTONDOWN:
             mouse_handler_dict = self.__mouse_button_pressed_handler_dict
         elif event.type == Event.Type.MOUSEBUTTONUP:

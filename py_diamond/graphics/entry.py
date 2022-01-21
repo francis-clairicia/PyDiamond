@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from functools import cached_property
 from string import printable as ASCII_PRINTABLE
-from typing import TYPE_CHECKING, Any, Callable, Tuple, TypeAlias
+from typing import TYPE_CHECKING, Any, Callable, TypeAlias
 
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.utils import valid_integer, valid_optional_float, valid_optional_integer
@@ -38,7 +38,8 @@ if TYPE_CHECKING:
     from .font import Font
     from .renderer import Renderer
 
-    _TextFont: TypeAlias = Font | Tuple[str | None, int]
+    _TupleFont: TypeAlias = tuple[str | None, int]
+    _TextFont: TypeAlias = Font | _TupleFont
 
 
 class MetaEntry(MetaTDrawable, MetaThemedObject):
@@ -81,13 +82,13 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
     font: OptionAttribute[Font] = OptionAttribute()
     shadow_x: OptionAttribute[float] = OptionAttribute()
     shadow_y: OptionAttribute[float] = OptionAttribute()
-    shadow: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    shadow: OptionAttribute[tuple[float, float]] = OptionAttribute()
     shadow_color: OptionAttribute[Color] = OptionAttribute()
 
     fixed_width: OptionAttribute[float | None] = OptionAttribute()
     local_width: OptionAttribute[float] = OptionAttribute()
     local_height: OptionAttribute[float] = OptionAttribute()
-    local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    local_size: OptionAttribute[tuple[float, float]] = OptionAttribute()
 
     outline: OptionAttribute[int] = OptionAttribute()
     outline_color: OptionAttribute[Color] = OptionAttribute()
@@ -153,7 +154,7 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
         self.__cursor_width_offset: float = 15
         self.__cursor_height_offset: float = 10
         height: float
-        entry_size: Tuple[int, int] = _get_entry_size(self.__text.font, max_nb_chars or 10)
+        entry_size: tuple[int, int] = _get_entry_size(self.__text.font, max_nb_chars or 10)
         if width is None:
             width = entry_size[0] + self.__cursor_width_offset
         height = entry_size[1] + self.__cursor_height_offset
@@ -206,7 +207,7 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
         master.event.bind_event(KeyDownEvent, key_press_event)
         master.event.bind_event(TextInputEvent, key_press_event)
 
-    def get_local_size(self) -> Tuple[float, float]:
+    def get_local_size(self) -> tuple[float, float]:
         return self.__shape.get_local_size()
 
     def draw_onto(self, target: Renderer) -> None:
@@ -230,8 +231,8 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
         if show_cursor:
             width: float = text.font.size(text.message[:cursor])[0] + 1
             height: float = self.height - self.__cursor_height_offset
-            cursor_start: Tuple[float, float] = (text.left + width, text.centery - height // 2)
-            cursor_end: Tuple[float, float] = (text.left + width, text.centery + height // 2)
+            cursor_start: tuple[float, float] = (text.left + width, text.centery - height // 2)
+            cursor_end: tuple[float, float] = (text.left + width, text.centery + height // 2)
             target.draw_line(text.color, cursor_start, cursor_end, width=2)
 
         outline_shape.draw_onto(target)
@@ -266,7 +267,7 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
         self.stop_edit()
         self.__update_shape_outline()
 
-    def _mouse_in_hitbox(self, mouse_pos: Tuple[float, float]) -> bool:
+    def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
         return self.__shape.rect.collidepoint(mouse_pos)
 
     def _apply_both_rotation_and_scale(self) -> None:
@@ -398,7 +399,7 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
     def __update_shape_using_font(self) -> None:
         max_nb_chars: int = self.__nb_chars
         fixed_width: float | None = self.__fixed_width
-        entry_size: Tuple[int, int] = _get_entry_size(self.__text.font, max_nb_chars or 10)
+        entry_size: tuple[int, int] = _get_entry_size(self.__text.font, max_nb_chars or 10)
         width: float
         if fixed_width is not None:
             width = fixed_width
@@ -422,7 +423,7 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
         return BoundFocus(self, self.scene)
 
 
-def _get_entry_size(font: Font, nb_chars: int) -> Tuple[int, int]:
+def _get_entry_size(font: Font, nb_chars: int) -> tuple[int, int]:
     return font.size(max(ASCII_PRINTABLE, key=lambda char: font.size(char)) * nb_chars)
 
 

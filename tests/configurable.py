@@ -2,7 +2,7 @@
 
 from os.path import dirname
 from sys import path as SYS_PATH
-from typing import Any, Dict, Tuple
+from typing import Any
 
 SYS_PATH.append(dirname(dirname(__file__)))
 
@@ -16,7 +16,7 @@ class Configurable:
     a: OptionAttribute[int] = OptionAttribute()
     b: OptionAttribute[int] = OptionAttribute()
     c: OptionAttribute[int] = OptionAttribute()
-    d: OptionAttribute[Dict[str, int]] = OptionAttribute()
+    d: OptionAttribute[dict[str, int]] = OptionAttribute()
 
     @initializer
     def __init__(self) -> None:
@@ -128,7 +128,7 @@ class Rect:
         print("UPDATE")
 
     @config.getter("size")
-    def get_size(self) -> Tuple[Any, Any]:
+    def get_size(self) -> tuple[Any, Any]:
         return (self.config.get("width"), self.config.get("height"))
 
     @config.setter("size")

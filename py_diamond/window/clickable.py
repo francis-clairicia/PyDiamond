@@ -13,7 +13,7 @@ __license__ = "GNU GPL v3.0"
 from abc import ABCMeta, abstractmethod
 from enum import auto, unique
 from operator import truth
-from typing import ClassVar, Dict, Tuple
+from typing import ClassVar
 
 from ..audio.sound import Sound
 from ..graphics.drawable import Drawable
@@ -57,12 +57,12 @@ class Clickable(metaclass=ABCMeta):
         self.__active: bool = False
         self.__active_only_on_hover: bool = True
         self.__hover_sound: Sound | None = None
-        self.__click_sound: Dict[Clickable.State, Sound | None] = dict.fromkeys(Clickable.State)
-        self.__default_hover_cursor: Dict[Clickable.State, Cursor] = {
+        self.__click_sound: dict[Clickable.State, Sound | None] = dict.fromkeys(Clickable.State)
+        self.__default_hover_cursor: dict[Clickable.State, Cursor] = {
             Clickable.State.NORMAL: SystemCursor.HAND,
             Clickable.State.DISABLED: SystemCursor.NO,
         }
-        self.__hover_cursor: Dict[Clickable.State, Cursor] = self.__default_hover_cursor.copy()
+        self.__hover_cursor: dict[Clickable.State, Cursor] = self.__default_hover_cursor.copy()
         if isinstance(hover_cursor, Cursor):
             self.__hover_cursor[Clickable.State.NORMAL] = hover_cursor
         if isinstance(disabled_cursor, Cursor):
@@ -155,7 +155,7 @@ class Clickable(metaclass=ABCMeta):
     def __handle_mouse_motion(self, event: MouseMotionEvent) -> None:
         self._on_mouse_motion(event)
 
-    def __handle_mouse_position(self, mouse_pos: Tuple[float, float]) -> None:
+    def __handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
         if isinstance(self, Drawable) and not self.is_shown():
             self.hover = False
             return
@@ -180,7 +180,7 @@ class Clickable(metaclass=ABCMeta):
         return button == Mouse.Button.LEFT
 
     @abstractmethod
-    def _mouse_in_hitbox(self, mouse_pos: Tuple[float, float]) -> bool:
+    def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
         raise NotImplementedError
 
     def _on_change_state(self) -> None:

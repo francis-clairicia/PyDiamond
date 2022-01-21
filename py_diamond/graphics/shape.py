@@ -28,7 +28,7 @@ from abc import abstractmethod
 from enum import auto, unique
 from math import radians, sin, tan
 from operator import truth
-from typing import Any, Dict, List, Sequence, Tuple, TypeAlias
+from typing import Any, Sequence, TypeAlias
 
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom
 
@@ -60,17 +60,17 @@ class AbstractShape(TDrawable, metaclass=MetaShape):
         TDrawable.__init__(self)
         self.__image: Surface = create_surface((0, 0))
         self.__shape_image: Surface = self.__image.copy()
-        self.__local_size: Tuple[float, float] = (0, 0)
+        self.__local_size: tuple[float, float] = (0, 0)
 
     def draw_onto(self, target: Renderer) -> None:
         image: Surface = self.__image
-        center: Tuple[float, float] = self.center
+        center: tuple[float, float] = self.center
         target.draw(image, image.get_rect(center=center))
 
-    def get_local_size(self) -> Tuple[float, float]:
+    def get_local_size(self) -> tuple[float, float]:
         return self.__local_size
 
-    def get_size(self) -> Tuple[float, float]:
+    def get_size(self) -> tuple[float, float]:
         return self.__image.get_size()
 
     def _apply_both_rotation_and_scale(self) -> None:
@@ -113,7 +113,7 @@ class AbstractShape(TDrawable, metaclass=MetaShape):
         angle: float = self.angle
         scale: float = self.scale
         all_points: Sequence[Vector2] = self.get_local_vertices()
-        vertices: List[Vector2] = []
+        vertices: list[Vector2] = []
 
         if all_points:
             left: float = min((point.x for point in all_points), default=0)
@@ -143,7 +143,7 @@ class AbstractShape(TDrawable, metaclass=MetaShape):
             self.__shape_image = self._make()
             self.apply_rotation_scale()
         else:
-            center: Tuple[float, float] = self.center
+            center: tuple[float, float] = self.center
             self.__compute_shape_size()
             self.__shape_image = self._make()
             self.apply_rotation_scale()
@@ -175,7 +175,7 @@ class OutlinedShape(AbstractShape):
         self.outline_color = outline_color
         super().__init__(**kwargs)
 
-    def get_local_size(self) -> Tuple[float, float]:
+    def get_local_size(self) -> tuple[float, float]:
         w, h = super().get_local_size()
         outline: int = self.outline
         if outline == 0:
@@ -187,7 +187,7 @@ class OutlinedShape(AbstractShape):
 
 
 class PolygonShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
-    PointList: TypeAlias = Sequence[Vector2] | Sequence[Tuple[float, float]] | Sequence[Tuple[int, int]]
+    PointList: TypeAlias = Sequence[Vector2] | Sequence[tuple[float, float]] | Sequence[tuple[int, int]]
 
     config = Configuration("points", parent=[OutlinedShape.config, SingleColorShape.config])
 
@@ -243,7 +243,7 @@ class PolygonShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
 
     @config.value_converter_static("points")
     @staticmethod
-    def __valid_points(points: PointList) -> Tuple[Vector2, ...]:
+    def __valid_points(points: PointList) -> tuple[Vector2, ...]:
         points = [Vector2(p) for p in points]
         left: float = min((point.x for point in points), default=0)
         top: float = min((point.y for point in points), default=0)
@@ -269,7 +269,7 @@ class AbstractRectangleShape(AbstractShape):
 
     local_width: OptionAttribute[float] = OptionAttribute()
     local_height: OptionAttribute[float] = OptionAttribute()
-    local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    local_size: OptionAttribute[tuple[float, float]] = OptionAttribute()
 
     @initializer
     def __init__(self, *, width: float, height: float, **kwargs: Any) -> None:
@@ -344,7 +344,7 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape, me
             outline=outline,
             outline_color=outline_color,
         )
-        self.__draw_params: Dict[str, int] = dict()
+        self.__draw_params: dict[str, int] = dict()
         self.border_radius = border_radius
         self.border_top_left_radius = border_top_left_radius
         self.border_top_right_radius = border_top_right_radius
@@ -437,8 +437,8 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclas
         theme: ThemeType | None = None,
     ) -> None:
         super().__init__(radius=radius, color=color, outline=outline, outline_color=outline_color)
-        self.__draw_params: Dict[str, bool] = dict()
-        self.__points: Tuple[Vector2, ...] = ()
+        self.__draw_params: dict[str, bool] = dict()
+        self.__points: tuple[Vector2, ...] = ()
         self.radius = radius
         self.draw_top_left = draw_top_left
         self.draw_top_right = draw_top_right
@@ -451,7 +451,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclas
         width, height = self.get_local_size()
         image: SurfaceRenderer = SurfaceRenderer((width, height))
         width, height = image.get_size()
-        center: Tuple[float, float] = (width / 2, height / 2)
+        center: tuple[float, float] = (width / 2, height / 2)
         draw_params = self.__draw_params
         image.draw_circle(self.color, center, radius, **draw_params)
         if outline > 0:
@@ -496,14 +496,14 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclas
 
         radius: Vector2 = Vector2(self.radius, 0)
 
-        angle_ranges: Dict[str, range] = {
+        angle_ranges: dict[str, range] = {
             "draw_top_right": range(0, 90),
             "draw_top_left": range(90, 180),
             "draw_bottom_left": range(180, 270),
             "draw_bottom_right": range(270, 360),
         }
 
-        all_points: List[Vector2] = []
+        all_points: list[Vector2] = []
 
         for draw_side, angle_range in angle_ranges.items():
             if draw_params[draw_side]:
@@ -525,7 +525,7 @@ class CrossShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
 
     local_width: OptionAttribute[float] = OptionAttribute()
     local_height: OptionAttribute[float] = OptionAttribute()
-    local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    local_size: OptionAttribute[tuple[float, float]] = OptionAttribute()
     line_width: OptionAttribute[float] = OptionAttribute()
 
     @unique
@@ -548,7 +548,7 @@ class CrossShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
     ) -> None:
         super().__init__(color=color, outline=outline, outline_color=outline_color)
         self.__type: CrossShape.Type = CrossShape.Type(type)
-        self.__points: Tuple[Vector2, ...] = ()
+        self.__points: tuple[Vector2, ...] = ()
         self.local_size = width, height
         self.line_width = line_width
 
@@ -565,7 +565,7 @@ class CrossShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
     def get_local_vertices(self) -> Sequence[Vector2]:
         return self.__points
 
-    def __get_diagonal_cross_points(self) -> Tuple[Vector2, ...]:
+    def __get_diagonal_cross_points(self) -> tuple[Vector2, ...]:
         rect: Rect = Rect((0, 0), self.local_size)
         line_width: float = self.line_width
 
@@ -612,7 +612,7 @@ class CrossShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
             Vector2(rect.left, rect.top + h_offset),
         )
 
-    def __get_plus_cross_points(self) -> Tuple[Vector2, ...]:
+    def __get_plus_cross_points(self) -> tuple[Vector2, ...]:
         rect: Rect = self.get_local_rect()
         line_width: float = self.line_width
 

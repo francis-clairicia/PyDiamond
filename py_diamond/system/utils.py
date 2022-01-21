@@ -26,7 +26,7 @@ __license__ = "GNU GPL v3.0"
 
 from functools import WRAPPER_ASSIGNMENTS, WRAPPER_UPDATES, lru_cache as _lru_cache, update_wrapper as _update_wrapper
 from operator import truth
-from typing import Any, Callable, ParamSpec, Sequence, Type, TypeAlias, TypeVar, overload
+from typing import Any, Callable, ParamSpec, Sequence, TypeAlias, TypeVar, overload
 
 _P = ParamSpec("_P")
 _T = TypeVar("_T")
@@ -100,7 +100,7 @@ def setdefaultattr(obj: object, name: str, value: _T) -> _T:
     return value
 
 
-# def concreteclassmethod(func: Callable[Concatenate[Type[_T], _P], _R]) -> Callable[Concatenate[Type[_T], _P], _R]:
+# def concreteclassmethod(func: Callable[Concatenate[type[_T], _P], _R]) -> Callable[Concatenate[type[_T], _P], _R]:
 def concreteclassmethod(func: Callable[_P, _R]) -> Callable[_P, _R]:
     @wraps(func)
     def wrapper(cls: Any, /, *args: Any, **kwargs: Any) -> Any:
@@ -288,7 +288,7 @@ _Number: TypeAlias = int | float
 
 
 @cache
-def __valid_number(value_type: Type[_Number], optional: bool, /, **kwargs: Any) -> Callable[[Any], Any]:
+def __valid_number(value_type: type[_Number], optional: bool, /, **kwargs: Any) -> Callable[[Any], Any]:
     _min: _Number
     _max: _Number
 

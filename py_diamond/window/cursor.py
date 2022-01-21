@@ -15,11 +15,11 @@ __license__ = "GNU GPL v3.0"
 from abc import ABCMeta, abstractmethod
 from enum import Enum, EnumMeta
 from types import MethodType
-from typing import Any, Callable, ClassVar, Dict, Sequence, Tuple, overload
+from typing import Any, Callable, ClassVar, Sequence, overload
 
 import pygame.constants as _pg_constants
 from pygame.cursors import Cursor as _Cursor, compile as _pg_cursors_compile, load_xbm as _pg_cursors_load_xbm
-from pygame.mouse import set_cursor as _pg_mouse_set_cursor, set_system_cursor as _pg_mouse_set_system_cursor
+from pygame.mouse import set_cursor as _pg_mouse_set_cursor
 
 from ..graphics.surface import Surface
 from ..system.utils import wraps
@@ -29,7 +29,7 @@ class _MetaCursor(ABCMeta):
     __cursor_setter: ClassVar[Callable[[], None] | None] = None
     __default_cursor: ClassVar[Cursor | None] = None
 
-    def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> _MetaCursor:
+    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _MetaCursor:
         def _set_decorator(func: Callable[[Cursor], None], /) -> Callable[[Cursor], None]:
             actual_cursor: Cursor | None = None
 
@@ -75,12 +75,12 @@ class CustomCursor(Cursor):
 
     @overload
     def __init__(
-        self, size: Tuple[int, int], hotspot: Tuple[int, int], xormasks: Sequence[int], andmasks: Sequence[int], /
+        self, size: tuple[int, int], hotspot: tuple[int, int], xormasks: Sequence[int], andmasks: Sequence[int], /
     ) -> None:
         ...
 
     @overload
-    def __init__(self, hotspot: Tuple[int, int], surface: Surface, /) -> None:
+    def __init__(self, hotspot: tuple[int, int], surface: Surface, /) -> None:
         ...
 
     @overload
@@ -93,7 +93,7 @@ class CustomCursor(Cursor):
 
     @staticmethod
     def compile(
-        hotspot: Tuple[int, int], strings: Sequence[str], black: str = "X", white: str = ".", xor: str = "o"
+        hotspot: tuple[int, int], strings: Sequence[str], black: str = "X", white: str = ".", xor: str = "o"
     ) -> CustomCursor:
         data, mask = _pg_cursors_compile(strings, black=black, white=white, xor=xor)
         width = max(len(line) for line in strings)
@@ -132,7 +132,7 @@ class SystemCursor(Cursor, Enum, metaclass=_MetaSystemCursor):
     value: int
 
     def set(self) -> None:
-        _pg_mouse_set_system_cursor(self.value)
+        _pg_mouse_set_cursor(self.value)
 
 
 del _pg_constants, _MetaSystemCursor

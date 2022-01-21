@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 from enum import auto, unique
 from functools import cached_property
 from operator import truth
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Dict, Final, Literal, Tuple, TypeAlias, TypedDict, overload
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, TypeAlias, TypedDict, overload
 
 from ..math import Vector2
 from ..system.configuration import Configuration, OptionAttribute, initializer
@@ -41,7 +41,8 @@ if TYPE_CHECKING:
     from .font import Font
     from .renderer import Renderer
 
-    _TextFont: TypeAlias = Font | Tuple[str | None, int]
+    _TupleFont: TypeAlias = tuple[str | None, int]
+    _TextFont: TypeAlias = Font | _TupleFont
 
 
 class MetaButton(MetaTDrawable, MetaThemedObject):
@@ -66,12 +67,12 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
         BOTTOM = auto()
         CENTER = auto()
 
-    __HORIZONTAL_ALIGN_POS: ClassVar[Dict[str, str]] = {
+    __HORIZONTAL_ALIGN_POS: ClassVar[dict[str, str]] = {
         "left": "left",
         "right": "right",
         "center": "centerx",
     }
-    __VERTICAL_ALIGN_POS: ClassVar[Dict[str, str]] = {
+    __VERTICAL_ALIGN_POS: ClassVar[dict[str, str]] = {
         "top": "top",
         "bottom": "bottom",
         "center": "centery",
@@ -143,7 +144,7 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
     text_font: OptionAttribute[Font] = OptionAttribute()
     text_justify: OptionAttribute[str] = OptionAttribute()
     text_wrap: OptionAttribute[int] = OptionAttribute()
-    text_shadow: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    text_shadow: OptionAttribute[tuple[float, float]] = OptionAttribute()
     text_shadow_x: OptionAttribute[float] = OptionAttribute()
     text_shadow_y: OptionAttribute[float] = OptionAttribute()
     text_shadow_color: OptionAttribute[Color] = OptionAttribute()
@@ -189,9 +190,9 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
     highlight_thickness: OptionAttribute[int] = OptionAttribute()
     text_align_x: OptionAttribute[str] = OptionAttribute()
     text_align_y: OptionAttribute[str] = OptionAttribute()
-    text_offset: OptionAttribute[Tuple[float, float]] = OptionAttribute()
-    text_hover_offset: OptionAttribute[Tuple[float, float]] = OptionAttribute()
-    text_active_offset: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    text_offset: OptionAttribute[tuple[float, float]] = OptionAttribute()
+    text_hover_offset: OptionAttribute[tuple[float, float]] = OptionAttribute()
+    text_active_offset: OptionAttribute[tuple[float, float]] = OptionAttribute()
     border_radius: OptionAttribute[int] = OptionAttribute()
     border_top_left_radius: OptionAttribute[int] = OptionAttribute()
     border_top_right_radius: OptionAttribute[int] = OptionAttribute()
@@ -252,9 +253,9 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
         disabled_cursor: Cursor | None = None,
         text_align_x: str = "center",
         text_align_y: str = "center",
-        text_offset: Tuple[float, float] = (0, 0),
-        text_hover_offset: Tuple[float, float] = (0, 0),
-        text_active_offset: Tuple[float, float] = (0, 0),
+        text_offset: tuple[float, float] = (0, 0),
+        text_hover_offset: tuple[float, float] = (0, 0),
+        text_active_offset: tuple[float, float] = (0, 0),
         border_radius: int = 0,
         border_top_left_radius: int = -1,
         border_top_right_radius: int = -1,
@@ -301,7 +302,7 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
         self.outline = outline
         self.outline_color = outline_color
         self.__shape.set_visibility(show_bg)
-        self.__bg_dict: Dict[Clickable.State, _ButtonColor] = {
+        self.__bg_dict: dict[Clickable.State, _ButtonColor] = {
             Clickable.State.NORMAL: {
                 "normal": Color(bg),
                 "hover": _copy_color(hover_bg),
@@ -313,7 +314,7 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
                 "active": _copy_color(disabled_active_bg),
             },
         }
-        self.__fg_dict: Dict[Clickable.State, _ButtonColor] = {
+        self.__fg_dict: dict[Clickable.State, _ButtonColor] = {
             Clickable.State.NORMAL: {
                 "normal": Color(fg),
                 "hover": _copy_color(hover_fg),
@@ -325,7 +326,7 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
                 "active": _copy_color(disabled_active_fg),
             },
         }
-        self.__img_dict: Dict[Clickable.State, _ImageDict] = {
+        self.__img_dict: dict[Clickable.State, _ImageDict] = {
             Clickable.State.NORMAL: {
                 "normal": _copy_img(img),
                 "hover": _copy_img(hover_img),
@@ -362,7 +363,7 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
         angle: float = self.angle
         scale: float = self.scale
 
-        def compute_offset(offset: Tuple[float, float]) -> Tuple[float, float]:
+        def compute_offset(offset: tuple[float, float]) -> tuple[float, float]:
             return offset[0] * scale, offset[1] * scale
 
         text_align_x: str = Button.__HORIZONTAL_ALIGN_POS[self.__text_align_x]
@@ -388,10 +389,10 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
         shape.draw_onto(target)
         text.draw_onto(target)
 
-    def get_local_size(self) -> Tuple[float, float]:
+    def get_local_size(self) -> tuple[float, float]:
         return self.__shape.get_local_size()
 
-    def get_size(self) -> Tuple[float, float]:
+    def get_size(self) -> tuple[float, float]:
         return self.__shape.get_size()
 
     def invoke(self) -> None:
@@ -437,7 +438,7 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
         self.__text.img_scale_to_height(height)
         self.__update_shape_size()
 
-    def img_scale_to_size(self, size: Tuple[float, float]) -> None:
+    def img_scale_to_size(self, size: tuple[float, float]) -> None:
         self.__text.img_scale_to_size(size)
         self.__update_shape_size()
 
@@ -457,11 +458,11 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
         self.__text.img_set_max_height(height)
         self.__update_shape_size()
 
-    def img_set_min_size(self, size: Tuple[float, float]) -> None:
+    def img_set_min_size(self, size: tuple[float, float]) -> None:
         self.__text.img_set_min_size(size)
         self.__update_shape_size()
 
-    def img_set_max_size(self, size: Tuple[float, float]) -> None:
+    def img_set_max_size(self, size: tuple[float, float]) -> None:
         self.__text.img_set_max_size(size)
         self.__update_shape_size()
 
@@ -492,9 +493,9 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
         self.__shape.angle = self.__text.angle = self.angle
         self.__update_shape_size()
 
-    def _mouse_in_hitbox(self, mouse_pos: Tuple[float, float]) -> bool:
+    def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
         rect: Rect = Rect((0, 0), self.get_area_size(apply_rotation=False))
-        center: Tuple[float, float] = self.center
+        center: tuple[float, float] = self.center
         rect.center = int(center[0]), int(center[1])
         pivot: Vector2 = Vector2(rect.center)
         mouse: Vector2 = Vector2(mouse_pos)
@@ -557,7 +558,7 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
         fixed_width: float | None = self.fixed_width
         fixed_height: float | None = self.fixed_height
 
-        new_size: Tuple[float, float] = (
+        new_size: tuple[float, float] = (
             text_width + x_add_size if fixed_width is None else fixed_width,
             text_height + y_add_size if fixed_height is None else fixed_height,
         )
@@ -617,7 +618,7 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
     config.on_update("x_add_size", __update_shape_size)
     config.on_update("y_add_size", __update_shape_size)
 
-    __STATE: Final[Dict[str, Tuple[Clickable.State, Literal["normal", "hover", "active"]]]] = {
+    __STATE: Final[dict[str, tuple[Clickable.State, Literal["normal", "hover", "active"]]]] = {
         "background": (Clickable.State.NORMAL, "normal"),
         "hover_background": (Clickable.State.NORMAL, "hover"),
         "active_background": (Clickable.State.NORMAL, "active"),
@@ -768,7 +769,7 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
     @config.value_converter_static("text_hover_offset")
     @config.value_converter_static("text_active_offset")
     @staticmethod
-    def __text_offset_validator(offset: Tuple[float, float]) -> Tuple[float, float]:
+    def __text_offset_validator(offset: tuple[float, float]) -> tuple[float, float]:
         return (float(offset[0]), float(offset[1]))
 
     @config.getter_key("border_radius")
@@ -871,8 +872,8 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     disabled_img: OptionAttribute[Surface | None] = OptionAttribute()
     disabled_hover_img: OptionAttribute[Surface | None] = OptionAttribute()
     disabled_active_img: OptionAttribute[Surface | None] = OptionAttribute()
-    hover_offset: OptionAttribute[Tuple[float, float]] = OptionAttribute()
-    active_offset: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    hover_offset: OptionAttribute[tuple[float, float]] = OptionAttribute()
+    active_offset: OptionAttribute[tuple[float, float]] = OptionAttribute()
     border_radius: OptionAttribute[int] = OptionAttribute()
     border_top_left_radius: OptionAttribute[int] = OptionAttribute()
     border_top_right_radius: OptionAttribute[int] = OptionAttribute()
@@ -909,8 +910,8 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
         # highlight_thickness=2,
         hover_cursor: Cursor | None = None,
         disabled_cursor: Cursor | None = None,
-        hover_offset: Tuple[float, float] = (0, 0),
-        active_offset: Tuple[float, float] = (0, 3),
+        hover_offset: tuple[float, float] = (0, 0),
+        active_offset: tuple[float, float] = (0, 3),
         border_radius: int = 0,
         border_top_left_radius: int = -1,
         border_top_right_radius: int = -1,
@@ -946,7 +947,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
             border_bottom_right_radius=border_bottom_right_radius,
             theme=NoTheme,
         )
-        self.__bg_dict: Dict[Clickable.State, _ButtonColor] = {
+        self.__bg_dict: dict[Clickable.State, _ButtonColor] = {
             Clickable.State.NORMAL: {
                 "normal": Color(bg),
                 "hover": _copy_color(hover_bg),
@@ -958,7 +959,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
                 "active": _copy_color(disabled_active_bg),
             },
         }
-        self.__img_dict: Dict[Clickable.State, _ImageButtonDict] = {
+        self.__img_dict: dict[Clickable.State, _ImageButtonDict] = {
             Clickable.State.NORMAL: {
                 "normal": img.copy(),
                 "hover": _copy_img(hover_img),
@@ -976,7 +977,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     def draw_onto(self, target: Renderer) -> None:
         scale: float = self.scale
 
-        def compute_offset(offset: Tuple[float, float]) -> Tuple[float, float]:
+        def compute_offset(offset: tuple[float, float]) -> tuple[float, float]:
             return offset[0] * scale, offset[1] * scale
 
         shape: RectangleShape = self.__shape
@@ -991,10 +992,10 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
         shape.draw_onto(target)
         image.draw_onto(target)
 
-    def get_local_size(self) -> Tuple[float, float]:
+    def get_local_size(self) -> tuple[float, float]:
         return self.__shape.get_local_size()
 
-    def get_size(self) -> Tuple[float, float]:
+    def get_size(self) -> tuple[float, float]:
         return self.__shape.get_size()
 
     def invoke(self) -> None:
@@ -1012,7 +1013,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
         self.__shape.scale = self.__image.scale = self.scale
         self.__update_shape_size()
 
-    def _mouse_in_hitbox(self, mouse_pos: Tuple[float, float]) -> bool:
+    def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
         return truth(self.rect.collidepoint(mouse_pos))
 
     def _on_hover(self) -> None:
@@ -1049,7 +1050,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
         scale: float = self.scale
         x_add_size: float = self.x_add_size * scale
         y_add_size: float = self.y_add_size * scale
-        new_size: Tuple[float, float] = (img_width + x_add_size, img_height + y_add_size)
+        new_size: tuple[float, float] = (img_width + x_add_size, img_height + y_add_size)
         if self.config.has_initialization_context():
             self.__shape.local_size = new_size
         else:
@@ -1060,7 +1061,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     @config.value_converter_static("hover_offset")
     @config.value_converter_static("active_offset")
     @staticmethod
-    def __img_offset_validator(offset: Tuple[float, float]) -> Tuple[float, float]:
+    def __img_offset_validator(offset: tuple[float, float]) -> tuple[float, float]:
         return (float(offset[0]), float(offset[1]))
 
     config.value_converter_static("x_add_size", valid_float(min_value=0))
@@ -1068,7 +1069,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     config.on_update("x_add_size", __update_shape_size)
     config.on_update("y_add_size", __update_shape_size)
 
-    __STATE: Final[Dict[str, Tuple[Clickable.State, Literal["normal", "hover", "active"]]]] = {
+    __STATE: Final[dict[str, tuple[Clickable.State, Literal["normal", "hover", "active"]]]] = {
         "background": (Clickable.State.NORMAL, "normal"),
         "hover_background": (Clickable.State.NORMAL, "hover"),
         "active_background": (Clickable.State.NORMAL, "active"),

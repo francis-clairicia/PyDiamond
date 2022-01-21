@@ -14,19 +14,18 @@ __license__ = "GNU GPL v3.0"
 
 from enum import IntEnum
 from operator import truth
-from typing import Tuple
 
 import pygame.constants as _pg_constants
 import pygame.mouse as _pg_mouse
 
 from ..system.namespace import MetaClassNamespace
 
-_MOUSE_BUTTON_STATE: Tuple[bool, bool, bool] = (False, False, False)
+_MOUSE_BUTTON_STATE: tuple[bool, bool, bool] = (False, False, False)
 
 
 class Mouse(metaclass=MetaClassNamespace, frozen=True):
     @staticmethod
-    def get_pos() -> Tuple[int, int]:
+    def get_pos() -> tuple[int, int]:
         return _pg_mouse.get_pos()
 
     @staticmethod

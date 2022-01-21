@@ -15,7 +15,7 @@ from contextlib import suppress
 from enum import auto, unique
 from operator import truth
 from textwrap import wrap as textwrap
-from typing import Dict, Final, List, Tuple, TypeAlias
+from typing import Final, TypeAlias
 
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom
 
@@ -31,7 +31,8 @@ from .renderer import Renderer, SurfaceRenderer
 from .surface import Surface, create_surface
 from .theme import MetaThemedObject, ThemeType
 
-_TextFont: TypeAlias = Font | Tuple[str | None, int]
+_TupleFont: TypeAlias = tuple[str | None, int]
+_TextFont: TypeAlias = Font | _TupleFont
 
 
 class MetaText(MetaTDrawable, MetaThemedObject):
@@ -65,7 +66,7 @@ class Text(TDrawable, metaclass=MetaText):
     justify: OptionAttribute[str] = OptionAttribute()
     shadow_x: OptionAttribute[float] = OptionAttribute()
     shadow_y: OptionAttribute[float] = OptionAttribute()
-    shadow: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    shadow: OptionAttribute[tuple[float, float]] = OptionAttribute()
     shadow_color: OptionAttribute[Color] = OptionAttribute()
 
     @initializer
@@ -86,7 +87,7 @@ class Text(TDrawable, metaclass=MetaText):
         theme: ThemeType | None = None,
     ) -> None:
         super().__init__()
-        self.__custom_font: Dict[int, Font] = dict()
+        self.__custom_font: dict[int, Font] = dict()
         self.__default_image: Surface = create_surface((0, 0))
         self.__image: Surface = self.__default_image.copy()
         self.__justify: Text.Justify
@@ -100,13 +101,13 @@ class Text(TDrawable, metaclass=MetaText):
 
     def draw_onto(self, target: Renderer) -> None:
         image: Surface = self.__image
-        topleft: Tuple[float, float] = self.topleft
+        topleft: tuple[float, float] = self.topleft
         target.draw(image, topleft)
 
-    def get_local_size(self) -> Tuple[float, float]:
+    def get_local_size(self) -> tuple[float, float]:
         return self.__default_image.get_size()
 
-    def get_size(self) -> Tuple[float, float]:
+    def get_size(self) -> tuple[float, float]:
         return self.__image.get_size()
 
     def get(self, wrapped: bool = True) -> str:
@@ -199,18 +200,18 @@ class Text(TDrawable, metaclass=MetaText):
     def _apply_only_rotation(self) -> None:
         self.__image = _surface_rotate(self.__default_image, self.angle)
 
-    __TEXT_JUSTIFY_DICT: Final[Dict[Justify, str]] = {
+    __TEXT_JUSTIFY_DICT: Final[dict[Justify, str]] = {
         Justify.LEFT: "left",
         Justify.RIGHT: "right",
         Justify.CENTER: "centerx",
     }
 
     def __render_text(self, color: Color) -> Surface:
-        render_lines: List[Surface] = list()
+        render_lines: list[Surface] = list()
         render_width: float = 0
         render_height: float = 0
         default_font: Font = self.font
-        custom_font: Dict[int, Font] = self.__custom_font
+        custom_font: dict[int, Font] = self.__custom_font
         for index, line in enumerate(self.get(wrapped=True).splitlines()):
             font = custom_font.get(index, default_font)
             render = font.render(line, True, color)
@@ -225,7 +226,7 @@ class Text(TDrawable, metaclass=MetaText):
         text_rect: Rect = text.get_rect()
         top: int = 0
         justify_pos: str = self.__TEXT_JUSTIFY_DICT[self.__justify]
-        params: Dict[str, int] = {justify_pos: getattr(text_rect, justify_pos)}
+        params: dict[str, int] = {justify_pos: getattr(text_rect, justify_pos)}
         for render in render_lines:
             text.blit(render, render.get_rect(**params, top=top))
             top += render.get_height()
@@ -275,7 +276,7 @@ class Text(TDrawable, metaclass=MetaText):
             self.__default_image = self._render()
             self.apply_rotation_scale()
         else:
-            center: Tuple[float, float] = self.center
+            center: tuple[float, float] = self.center
             self.__default_image = self._render()
             self.apply_rotation_scale()
             self.center = center
@@ -372,7 +373,7 @@ class TextImage(Text):
             self.__img.scale_to_height(height)
             self.__img_scale = self.__img.scale
 
-    def img_scale_to_size(self, size: Tuple[float, float]) -> None:
+    def img_scale_to_size(self, size: tuple[float, float]) -> None:
         if self.__img is not None:
             self.__img.scale_to_size(size)
             self.__img_scale = self.__img.scale
@@ -397,12 +398,12 @@ class TextImage(Text):
             self.__img.set_max_height(height)
             self.__img_scale = self.__img.scale
 
-    def img_set_min_size(self, size: Tuple[float, float]) -> None:
+    def img_set_min_size(self, size: tuple[float, float]) -> None:
         if self.__img is not None:
             self.__img.set_min_size(size)
             self.__img_scale = self.__img.scale
 
-    def img_set_max_size(self, size: Tuple[float, float]) -> None:
+    def img_set_max_size(self, size: tuple[float, float]) -> None:
         if self.__img is not None:
             self.__img.set_max_size(size)
             self.__img_scale = self.__img.scale

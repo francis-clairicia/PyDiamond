@@ -18,20 +18,17 @@ from inspect import isgeneratorfunction
 from operator import truth
 from types import MethodType
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
-    Dict,
     Final,
     Generic,
     Iterator,
-    List,
     NoReturn,
     ParamSpec,
     Protocol,
     Sequence,
-    Tuple,
-    TypeAlias,
     TypeVar,
     final,
     overload,
@@ -50,7 +47,7 @@ from pygame.constants import (
 from pygame.mixer import music as _pg_music
 
 from ..audio.music import MusicStream
-from ..graphics.color import BLACK, WHITE, Color
+from ..graphics.color import BLACK, WHITE
 from ..graphics.rect import ImmutableRect
 from ..graphics.renderer import Renderer, SurfaceRenderer
 from ..graphics.surface import Surface, create_surface
@@ -65,7 +62,8 @@ from .keyboard import Keyboard
 from .mouse import Mouse
 from .time import Time
 
-_ColorInput: TypeAlias = Color | str | Tuple[int, int, int] | List[int] | Tuple[int, int, int, int]
+if TYPE_CHECKING:
+    from pygame._common import _ColorValue  # pyright: reportMissingModuleSource=false
 
 _P = ParamSpec("_P")
 _ScheduledFunc = TypeVar("_ScheduledFunc", bound=Callable[..., None])
@@ -155,14 +153,14 @@ class Window:
     def __init__(
         self,
         title: str | None = None,
-        size: Tuple[int, int] = (0, 0),
+        size: tuple[int, int] = (0, 0),
         *,
         resizable: bool = False,
         fullscreen: bool = False,
         vsync: bool = True,
     ) -> None:
         self.set_title(title)
-        self.__size: Tuple[int, int] = (max(size[0], 0), max(size[1], 0))
+        self.__size: tuple[int, int] = (max(size[0], 0), max(size[1], 0))
         self.__flags: int = 0
         if resizable:
             self.__flags |= _PG_RESIZABLE
@@ -222,7 +220,7 @@ class Window:
             stack.callback(_pg_font_quit)
             del _pg_font_init, _pg_font_quit
 
-            size: Tuple[int, int] = self.__size
+            size: tuple[int, int] = self.__size
             flags: int = self.__flags
             vsync = int(truth(self.__vsync))
             screen: Surface = _pg_display.set_mode(size, flags=flags, vsync=vsync)
@@ -253,7 +251,7 @@ class Window:
     def is_open(self) -> bool:
         return _pg_display.get_surface() is not None
 
-    def clear(self, color: _ColorInput = BLACK) -> None:
+    def clear(self, color: _ColorValue = BLACK) -> None:
         self.__surface.fill(color)
 
     def get_default_framerate(self) -> int:
@@ -382,7 +380,7 @@ class Window:
         self.close()
 
     @final
-    def set_size(self, size: Tuple[int, int]) -> None:
+    def set_size(self, size: tuple[int, int]) -> None:
         width, height = size
         width = int(width)
         height = int(height)
@@ -548,7 +546,7 @@ class Window:
         return self.__rect.bottom
 
     @property
-    def size(self) -> Tuple[int, int]:
+    def size(self) -> tuple[int, int]:
         return self.__rect.size
 
     @property
@@ -560,7 +558,7 @@ class Window:
         return self.__rect.height
 
     @property
-    def center(self) -> Tuple[int, int]:
+    def center(self) -> tuple[int, int]:
         return self.__rect.center
 
     @property
@@ -572,35 +570,35 @@ class Window:
         return self.__rect.centery
 
     @property
-    def topleft(self) -> Tuple[int, int]:
+    def topleft(self) -> tuple[int, int]:
         return self.__rect.topleft
 
     @property
-    def topright(self) -> Tuple[int, int]:
+    def topright(self) -> tuple[int, int]:
         return self.__rect.topright
 
     @property
-    def bottomleft(self) -> Tuple[int, int]:
+    def bottomleft(self) -> tuple[int, int]:
         return self.__rect.bottomleft
 
     @property
-    def bottomright(self) -> Tuple[int, int]:
+    def bottomright(self) -> tuple[int, int]:
         return self.__rect.bottomright
 
     @property
-    def midtop(self) -> Tuple[int, int]:
+    def midtop(self) -> tuple[int, int]:
         return self.__rect.midtop
 
     @property
-    def midbottom(self) -> Tuple[int, int]:
+    def midbottom(self) -> tuple[int, int]:
         return self.__rect.midbottom
 
     @property
-    def midleft(self) -> Tuple[int, int]:
+    def midleft(self) -> tuple[int, int]:
         return self.__rect.midleft
 
     @property
-    def midright(self) -> Tuple[int, int]:
+    def midright(self) -> tuple[int, int]:
         return self.__rect.midright
 
     del __Self
@@ -652,15 +650,15 @@ class WindowCallback:
         master: Window,
         wait_time: float,
         callback: Callable[..., None],
-        args: Tuple[Any, ...] = (),
-        kwargs: Dict[str, Any] = {},
+        args: tuple[Any, ...] = (),
+        kwargs: dict[str, Any] = {},
         loop: bool = False,
     ) -> None:
         self.__master: Window = master
         self.__wait_time: float = wait_time
         self.__callback: Callable[..., None] = callback
-        self.__args: Tuple[Any, ...] = args
-        self.__kwargs: Dict[str, Any] = kwargs
+        self.__args: tuple[Any, ...] = args
+        self.__kwargs: dict[str, Any] = kwargs
         self.__clock = Clock(start=True)
         self.__loop: bool = bool(loop)
 
@@ -678,7 +676,7 @@ class WindowCallback:
         self.__master.remove_window_callback(self)
 
 
-class _WindowCallbackList(List[WindowCallback]):
+class _WindowCallbackList(list[WindowCallback]):
     def process(self) -> None:
         if not self:
             return

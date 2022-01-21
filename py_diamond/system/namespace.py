@@ -11,18 +11,18 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from operator import truth
-from typing import Any, Dict, Tuple, Type, TypeVar
+from typing import Any, TypeVar
 
 
 class MetaClassNamespace(type):
     __Self = TypeVar("__Self", bound="MetaClassNamespace")
 
     def __new__(
-        metacls: Type[__Self],
+        metacls: type[__Self],
         /,
         name: str,
-        bases: Tuple[type, ...],
-        namespace: Dict[str, Any],
+        bases: tuple[type, ...],
+        namespace: dict[str, Any],
         *,
         frozen: bool = False,
         **kwargs: Any,
@@ -44,8 +44,8 @@ class MetaClassNamespace(type):
         cls,
         /,
         name: str,
-        bases: Tuple[type, ...],
-        namespace: Dict[str, Any],
+        bases: tuple[type, ...],
+        namespace: dict[str, Any],
         **kwargs: Any,
     ) -> None:
         super().__init__(name, bases, namespace, **kwargs)

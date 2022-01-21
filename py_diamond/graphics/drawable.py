@@ -24,7 +24,7 @@ __license__ = "GNU GPL v3.0"
 from abc import ABCMeta, abstractmethod
 from bisect import insort_right
 from contextlib import suppress
-from typing import TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Iterator, List, Sequence, Set, Tuple, Type, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Sequence, TypeVar, overload
 
 from ..system._mangling import getattr_pv
 from ..system.utils import wraps
@@ -47,7 +47,7 @@ def _draw_decorator(func: Callable[[Drawable, Renderer], None], /) -> Callable[[
 
 
 class MetaDrawable(ABCMeta):
-    def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> MetaDrawable:
+    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> MetaDrawable:
         try:
             Drawable
         except NameError:
@@ -68,7 +68,7 @@ class MetaDrawable(ABCMeta):
 class Drawable(metaclass=MetaDrawable):
     def __init__(self) -> None:
         self.__shown: bool = True
-        self.__groups: Set[DrawableGroup] = set()
+        self.__groups: set[DrawableGroup] = set()
 
     @abstractmethod
     def draw_onto(self, target: Renderer) -> None:
@@ -87,7 +87,7 @@ class Drawable(metaclass=MetaDrawable):
         return self.__shown
 
     def add_to_group(self, *groups: DrawableGroup) -> None:
-        actual_groups: Set[DrawableGroup] = self.__groups
+        actual_groups: set[DrawableGroup] = self.__groups
         for g in filter(lambda g: g not in actual_groups, groups):
             actual_groups.add(g)
             if self not in g:
@@ -100,7 +100,7 @@ class Drawable(metaclass=MetaDrawable):
     def remove_from_group(self, *groups: DrawableGroup) -> None:
         if not groups:
             return
-        actual_groups: Set[DrawableGroup] = self.__groups
+        actual_groups: set[DrawableGroup] = self.__groups
         for g in groups:
             if g not in actual_groups:
                 raise ValueError(f"sprite not in {g!r}")
@@ -111,7 +111,7 @@ class Drawable(metaclass=MetaDrawable):
                     g.remove(self)
 
     def kill(self) -> None:
-        actual_groups: Set[DrawableGroup] = self.__groups.copy()
+        actual_groups: set[DrawableGroup] = self.__groups.copy()
         self.__groups.clear()
         for g in actual_groups:
             if self in g:
@@ -123,7 +123,7 @@ class Drawable(metaclass=MetaDrawable):
         return len(self.__groups) > 0
 
     @property
-    def groups(self) -> FrozenSet[DrawableGroup]:
+    def groups(self) -> frozenset[DrawableGroup]:
         return frozenset(self.__groups)
 
 
@@ -153,7 +153,7 @@ class DrawableGroup(Sequence[Drawable]):
 
     def __init__(self, *objects: Drawable, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.__list: List[Drawable] = []
+        self.__list: list[Drawable] = []
         self.add(*objects)
 
     def __len__(self) -> int:
@@ -169,7 +169,7 @@ class DrawableGroup(Sequence[Drawable]):
         ...
 
     def __getitem__(self, index: int | slice, /) -> Drawable | Sequence[Drawable]:
-        drawable_list: List[Drawable] = self.__list
+        drawable_list: list[Drawable] = self.__list
         if isinstance(index, slice):
             return tuple(drawable_list[index])
         return drawable_list[index]
@@ -182,7 +182,7 @@ class DrawableGroup(Sequence[Drawable]):
             drawable.draw_onto(target)
 
     def add(self, *objects: Drawable) -> None:
-        drawable_list: List[Drawable] = self.__list
+        drawable_list: list[Drawable] = self.__list
         for d in filter(lambda d: d not in drawable_list, objects):
             drawable_list.append(d)
             if self not in d.groups:
@@ -195,7 +195,7 @@ class DrawableGroup(Sequence[Drawable]):
     def remove(self, *objects: Drawable) -> None:
         if not objects:
             return
-        drawable_list: List[Drawable] = self.__list
+        drawable_list: list[Drawable] = self.__list
         for d in objects:
             if d not in drawable_list:
                 raise ValueError(f"{d!r} not in self")
@@ -206,7 +206,7 @@ class DrawableGroup(Sequence[Drawable]):
                     d.remove_from_group(self)
 
     def pop(self, index: int = -1) -> Drawable:
-        drawable_list: List[Drawable] = self.__list
+        drawable_list: list[Drawable] = self.__list
         d: Drawable = drawable_list.pop(index)
         if self in d.groups:
             with suppress(ValueError):
@@ -220,7 +220,7 @@ class DrawableGroup(Sequence[Drawable]):
     def empty(self) -> bool:
         return not self
 
-    def find(self, objtype: Type[_T]) -> Iterator[_T]:
+    def find(self, objtype: type[_T]) -> Iterator[_T]:
         for obj in self:
             if isinstance(obj, objtype):
                 yield obj
@@ -232,14 +232,14 @@ class LayeredGroup(DrawableGroup):
 
     def __init__(self, *objects: Drawable, default_layer: int = 0, **kwargs: Any) -> None:
         self.__default_layer: int = default_layer
-        self.__layer_dict: Dict[Drawable, int] = {}
+        self.__layer_dict: dict[Drawable, int] = {}
         super().__init__(*objects, **kwargs)
 
     def add(self, *objects: Drawable, layer: int | None = None) -> None:
         if not objects:
             return
-        layer_dict: Dict[Drawable, int] = self.__layer_dict
-        drawable_list: List[Drawable] = getattr_pv(self, "list", owner=DrawableGroup)
+        layer_dict: dict[Drawable, int] = self.__layer_dict
+        drawable_list: list[Drawable] = getattr_pv(self, "list", owner=DrawableGroup)
         if layer is None:
             layer = self.__default_layer
         for d in filter(lambda d: d not in drawable_list, objects):
@@ -265,7 +265,7 @@ class LayeredGroup(DrawableGroup):
         return d
 
     def get_layer(self, obj: Drawable) -> int:
-        layer_dict: Dict[Drawable, int] = self.__layer_dict
+        layer_dict: dict[Drawable, int] = self.__layer_dict
         try:
             return layer_dict[obj]
         except KeyError:
@@ -273,11 +273,11 @@ class LayeredGroup(DrawableGroup):
 
     def change_layer(self, obj: Drawable, layer: int) -> None:
         layer = int(layer)
-        layer_dict: Dict[Drawable, int] = self.__layer_dict
+        layer_dict: dict[Drawable, int] = self.__layer_dict
         actual_layer: int | None = layer_dict.get(obj, None)
         if (actual_layer is None and layer == self.__default_layer) or (actual_layer is not None and actual_layer == layer):
             return
-        drawable_list: List[Drawable] = getattr_pv(self, "list", owner=DrawableGroup)
+        drawable_list: list[Drawable] = getattr_pv(self, "list", owner=DrawableGroup)
         try:
             drawable_list.remove(obj)
         except ValueError:
@@ -286,11 +286,11 @@ class LayeredGroup(DrawableGroup):
         insort_right(drawable_list, obj, key=layer_dict.__getitem__)
 
     def get_top_layer(self) -> int:
-        layer_dict: Dict[Drawable, int] = self.__layer_dict
+        layer_dict: dict[Drawable, int] = self.__layer_dict
         return layer_dict[self[-1]]
 
     def get_bottom_layer(self) -> int:
-        layer_dict: Dict[Drawable, int] = self.__layer_dict
+        layer_dict: dict[Drawable, int] = self.__layer_dict
         return layer_dict[self[0]]
 
     def get_top_drawable(self) -> Drawable:
@@ -306,7 +306,7 @@ class LayeredGroup(DrawableGroup):
         self.change_layer(obj, self.get_bottom_layer() - 1)
 
     def get_from_layer(self, layer: int) -> Sequence[Drawable]:
-        drawable_list: List[Drawable] = []
+        drawable_list: list[Drawable] = []
         add_drawable = drawable_list.append
 
         for obj, drawable_layer in self.__layer_dict.items():

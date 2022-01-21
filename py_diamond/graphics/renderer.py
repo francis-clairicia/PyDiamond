@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta, abstractmethod
 from enum import IntEnum, unique
-from typing import TYPE_CHECKING, Any, List, Protocol, Sequence, Tuple, TypeAlias, overload
+from typing import TYPE_CHECKING, Any, Sequence, overload
 
 import pygame.constants as _pg_constants
 from pygame.draw import (
@@ -33,18 +33,7 @@ from .rect import Rect
 from .surface import Surface, create_surface
 
 if TYPE_CHECKING:
-    from ..math import Vector2
-    from .color import Color
-
-    _Coordinate: TypeAlias = Tuple[float, float] | Sequence[float] | Vector2
-    _ColorValue: TypeAlias = Color | str | Tuple[int, int, int] | List[int] | int | Tuple[int, int, int, int]
-    _ColorInput: TypeAlias = Color | str | Tuple[int, int, int] | List[int] | Tuple[int, int, int, int]
-    _CanBeRect: TypeAlias = Rect | Tuple[int, int, int, int] | List[int] | Tuple[_Coordinate, _Coordinate] | List[_Coordinate]
-
-    class _HasRectAttribute(Protocol):
-        rect: _CanBeRect
-
-    _RectValue: TypeAlias = _CanBeRect | _HasRectAttribute
+    from pygame._common import _ColorValue, _Coordinate, _RectValue  # pyright: reportMissingModuleSource=false
 
 
 @unique
@@ -73,11 +62,11 @@ class Renderer(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def get_size(self) -> Tuple[float, float]:
+    def get_size(self) -> tuple[float, float]:
         raise NotImplementedError
 
     @abstractmethod
-    def fill(self, color: _ColorInput) -> None:
+    def fill(self, color: _ColorValue) -> None:
         raise NotImplementedError
 
     @overload
@@ -85,7 +74,7 @@ class Renderer(metaclass=ABCMeta):
     def draw(
         self,
         obj: Surface,
-        dest: Tuple[float, float],
+        dest: tuple[float, float],
         /,
         *,
         area: Rect | None = None,
@@ -200,25 +189,25 @@ class SurfaceRenderer(Renderer):
     __slots__ = ("__target",)
 
     @overload
-    def __init__(self, size: Tuple[float, float], /, *, convert_alpha: bool = True) -> None:
+    def __init__(self, size: tuple[float, float], /, *, convert_alpha: bool = True) -> None:
         ...
 
     @overload
     def __init__(self, target: Surface, /) -> None:
         ...
 
-    def __init__(self, arg: Surface | Tuple[float, float], /, *, convert_alpha: bool = True) -> None:
+    def __init__(self, arg: Surface | tuple[float, float], /, *, convert_alpha: bool = True) -> None:
         self.__target: Surface = arg if isinstance(arg, Surface) else create_surface(arg, convert_alpha=convert_alpha)
 
     def get_rect(self, **kwargs: float | Sequence[float]) -> Rect:
         target: Surface = self.__target
         return target.get_rect(**kwargs)
 
-    def get_size(self) -> Tuple[int, int]:
+    def get_size(self) -> tuple[int, int]:
         target: Surface = self.__target
         return target.get_size()
 
-    def fill(self, color: _ColorInput) -> None:
+    def fill(self, color: _ColorValue) -> None:
         target: Surface = self.__target
         target.fill(color)
 
@@ -226,7 +215,7 @@ class SurfaceRenderer(Renderer):
     def draw(
         self,
         obj: Surface,
-        dest: Tuple[float, float],
+        dest: tuple[float, float],
         /,
         *,
         area: Rect | None = None,

@@ -13,7 +13,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from operator import truth
-from typing import TYPE_CHECKING, Any, Callable, Generic, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
 
 from ..system.configuration import Configuration, OptionAttribute
 from ..window.clickable import Clickable
@@ -61,7 +61,7 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
     value: OptionAttribute[_OnValue | _OffValue] = OptionAttribute()
     local_width: OptionAttribute[float] = OptionAttribute()
     local_height: OptionAttribute[float] = OptionAttribute()
-    local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
+    local_size: OptionAttribute[tuple[float, float]] = OptionAttribute()
     color: OptionAttribute[Color] = OptionAttribute()
     outline: OptionAttribute[int] = OptionAttribute()
     outline_color: OptionAttribute[Color] = OptionAttribute()
@@ -163,10 +163,10 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
             active.center = center
             active.draw_onto(target)
 
-    def get_local_size(self) -> Tuple[float, float]:
+    def get_local_size(self) -> tuple[float, float]:
         return self.__shape.get_local_size()
 
-    def get_size(self) -> Tuple[float, float]:
+    def get_size(self) -> tuple[float, float]:
         return self.__shape.get_size()
 
     def invoke(self) -> None:
@@ -185,7 +185,7 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
         if callable(callback):
             callback(value)
 
-    def _mouse_in_hitbox(self, mouse_pos: Tuple[float, float]) -> bool:
+    def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
         return truth(self.__shape.rect.collidepoint(mouse_pos))
 
     def _apply_both_rotation_and_scale(self) -> None:

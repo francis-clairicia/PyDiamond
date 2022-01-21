@@ -16,7 +16,9 @@ from ..system.duplicate import MetaNoDuplicate
 
 
 class Sound(_PygameSound, metaclass=MetaNoDuplicate):
-    def __init__(self, file: str) -> None:
+    def __init__(self, file: str | bytes) -> None:
+        if not isinstance(file, bytes):
+            file = file.encode("utf-8")
         return super().__init__(file=file)
 
     def set_volume(self, value: float) -> None:
