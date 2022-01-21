@@ -339,3 +339,6 @@ class LayeredGroup(DrawableGroup):
     @property
     def layers(self) -> Sequence[int]:
         return sorted(set(self.__layer_dict.values()))
+
+
+del _T

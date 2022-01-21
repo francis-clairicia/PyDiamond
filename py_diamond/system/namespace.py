@@ -15,10 +15,10 @@ from typing import Any, Dict, Tuple, Type, TypeVar
 
 
 class MetaClassNamespace(type):
-    __T = TypeVar("__T", bound="MetaClassNamespace")
+    __Self = TypeVar("__Self", bound="MetaClassNamespace")
 
     def __new__(
-        metacls: Type[__T],
+        metacls: Type[__Self],
         /,
         name: str,
         bases: Tuple[type, ...],
@@ -26,7 +26,7 @@ class MetaClassNamespace(type):
         *,
         frozen: bool = False,
         **kwargs: Any,
-    ) -> __T:
+    ) -> __Self:
         if "__slots__" in namespace:
             raise ValueError("'__slots__' must not be defined")
         if not frozen:
@@ -64,6 +64,8 @@ class MetaClassNamespace(type):
 
     def is_frozen(cls) -> bool:
         return truth(getattr(cls, "_frozen_class_namespace_", False))
+
+    del __Self
 
 
 class ClassNamespace(metaclass=MetaClassNamespace):

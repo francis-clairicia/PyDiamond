@@ -445,3 +445,6 @@ def abstract_theme_class(cls: _ThemedObjectClass) -> _ThemedObjectClass:
 @abstract_theme_class
 class ThemedObject(metaclass=MetaThemedObject):
     pass
+
+
+del _T, _ThemedObjectClass

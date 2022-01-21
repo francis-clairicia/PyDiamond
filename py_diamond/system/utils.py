@@ -86,7 +86,7 @@ def tp_cache(func: Callable[..., Any] | None = None, /, *, maxsize: int | None =
 def wraps(
     wrapped_func: Callable[_P, _R], *, assigned: Sequence[str] = WRAPPER_ASSIGNMENTS, updated: Sequence[str] = WRAPPER_UPDATES
 ) -> Callable[[Callable[..., _R]], Callable[_P, _R]]:
-    def decorator(wrapper: Callable[..., _R]) -> Callable[_P, _R]:
+    def decorator(wrapper: Callable[..., Any]) -> Callable[..., Any]:
         return _update_wrapper(wrapper, wrapped_func, assigned=assigned, updated=updated)
 
     return decorator
@@ -103,7 +103,7 @@ def setdefaultattr(obj: object, name: str, value: _T) -> _T:
 # def concreteclassmethod(func: Callable[Concatenate[Type[_T], _P], _R]) -> Callable[Concatenate[Type[_T], _P], _R]:
 def concreteclassmethod(func: Callable[_P, _R]) -> Callable[_P, _R]:
     @wraps(func)
-    def wrapper(cls: Any, /, *args: Any, **kwargs: Any) -> _R:
+    def wrapper(cls: Any, /, *args: Any, **kwargs: Any) -> Any:
         concreteclasscheck(cls)
         return func(cls, *args, **kwargs)
 
@@ -123,7 +123,7 @@ def isconcreteclass(cls: type) -> bool:
 
 def forbidden_call(func: Callable[_P, _R]) -> Callable[_P, _R]:
     @wraps(func)
-    def not_callable(*args: Any, **kwargs: Any) -> _R:
+    def not_callable(*args: Any, **kwargs: Any) -> Any:
         raise TypeError(f"Call to function {func.__module__}.{func.__name__} is forbidden")
 
     return not_callable
@@ -295,11 +295,10 @@ def __valid_number(value_type: Type[_Number], optional: bool, /, **kwargs: Any) 
     if any(param not in ("min_value", "max_value") for param in kwargs):
         raise TypeError("Invalid arguments")
 
-    null = object()
-    min_value: Any = kwargs.get("min_value", null)
-    max_value: Any = kwargs.get("max_value", null)
+    min_value: Any = kwargs.get("min_value", _MISSING)
+    max_value: Any = kwargs.get("max_value", _MISSING)
 
-    if min_value is not null and max_value is not null:
+    if min_value is not _MISSING and max_value is not _MISSING:
         _min = value_type(min_value)
         _max = value_type(max_value)
 
@@ -311,7 +310,7 @@ def __valid_number(value_type: Type[_Number], optional: bool, /, **kwargs: Any) 
                 return None
             return min(max(value_type(val), _min), _max)
 
-    elif min_value is not null:
+    elif min_value is not _MISSING:
         _min = value_type(min_value)
 
         def valid_number(val: Any) -> _Number | None:
@@ -319,7 +318,7 @@ def __valid_number(value_type: Type[_Number], optional: bool, /, **kwargs: Any) 
                 return None
             return max(value_type(val), _min)
 
-    elif max_value is not null:
+    elif max_value is not _MISSING:
         _max = value_type(max_value)
 
         def valid_number(val: Any) -> _Number | None:
@@ -330,3 +329,6 @@ def __valid_number(value_type: Type[_Number], optional: bool, /, **kwargs: Any) 
     else:
         raise TypeError("Invalid arguments")
     return valid_number
+
+
+del _P, _T, _R

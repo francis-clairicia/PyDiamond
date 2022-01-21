@@ -90,3 +90,6 @@ class MetaSingleton(ABCMeta):
 
 class Singleton(metaclass=MetaSingleton, abstract=True):
     pass
+
+
+del _T

@@ -115,7 +115,7 @@ class InitializationError(ConfigError):
 
 
 def initializer(func: _Func) -> _Func:
-    return cast(_Func, _ConfigInitializer(func))
+    return _ConfigInitializer(func)  # type: ignore[return-value]
 
 
 _FORBIDDEN_OPTIONS: Final[Sequence[str]] = ("self",)
@@ -964,7 +964,7 @@ class Configuration:
                 got: str = repr(cls.__qualname__ if cls.__module__ != object.__module__ else val)
                 raise TypeError(f"Invalid value type. expected {expected}, got {got}")
 
-            decorator(cast(_StaticValueValidator, type_checker))
+            decorator(type_checker)  # type: ignore[arg-type]
             return None
 
         if func is None:
@@ -1033,7 +1033,7 @@ class Configuration:
                     return None
                 return _type(val)
 
-            decorator(cast(_StaticValueConverter, value_converter))
+            decorator(value_converter)  # type: ignore[arg-type]
             return None
 
         if func is None:
@@ -1336,7 +1336,7 @@ class BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
 
 
 def _no_type_check_cache(func: _Func) -> _Func:
-    return cast(_Func, cache(func))
+    return cache(func)  # type: ignore[return-value]
 
 
 @_no_type_check_cache
@@ -1643,3 +1643,25 @@ import copyreg
 copyreg.pickle(_ConfigProperty, lambda p: (_ConfigProperty, (p.fget, p.fset, p.fdel, p.__doc__)))  # type: ignore
 
 del copyreg
+
+del (
+    _Func,
+    _Updater,
+    _KeyUpdater,
+    _ValueUpdater,
+    _KeyValueUpdater,
+    _Getter,
+    _Setter,
+    _Deleter,
+    _KeyGetter,
+    _KeySetter,
+    _KeyDeleter,
+    _ValueValidator,
+    _StaticValueValidator,
+    _ValueConverter,
+    _StaticValueConverter,
+    _T,
+    _DT,
+    _KT,
+    _VT,
+)

@@ -158,7 +158,7 @@ class Sprite(TDrawable):
 
 
 class AnimatedSprite(Sprite):
-    __T = TypeVar("__T", bound="AnimatedSprite")
+    __Self = TypeVar("__Self", bound="AnimatedSprite")
 
     __slots__ = (
         "__list",
@@ -179,13 +179,15 @@ class AnimatedSprite(Sprite):
         self.__loop: bool = False
 
     @classmethod
-    def from_iterable(cls: Type[__T], iterable: Iterable[Surface], *, mask_threshold: int = Sprite.DEFAULT_MASK_THRESHOLD) -> __T:
+    def from_iterable(
+        cls: Type[__Self], iterable: Iterable[Surface], *, mask_threshold: int = Sprite.DEFAULT_MASK_THRESHOLD
+    ) -> __Self:
         return cls(*iterable, mask_threshold=mask_threshold)
 
     @classmethod
     def from_spritesheet(
-        cls: Type[__T], img: Surface, rect_list: List[Rect], *, mask_threshold: int = Sprite.DEFAULT_MASK_THRESHOLD
-    ) -> __T:
+        cls: Type[__Self], img: Surface, rect_list: List[Rect], *, mask_threshold: int = Sprite.DEFAULT_MASK_THRESHOLD
+    ) -> __Self:
         return cls.from_iterable((img.subsurface(rect) for rect in rect_list), mask_threshold=mask_threshold)
 
     def update(self, *args: Any, **kwargs: Any) -> None:
@@ -228,6 +230,8 @@ class AnimatedSprite(Sprite):
     @ratio.setter
     def ratio(self, value: float) -> None:
         self.__wait_time = max(float(value), 0)
+
+    del __Self
 
 
 class SpriteGroup(DrawableGroup):

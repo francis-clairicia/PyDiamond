@@ -98,3 +98,6 @@ class MusicLoader(ResourceLoader[Music]):
     @property
     def type(self) -> Type[Music]:
         return Music
+
+
+del _T

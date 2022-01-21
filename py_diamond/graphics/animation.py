@@ -219,6 +219,8 @@ class TransformAnimation:
         if not self.has_animation_started():
             self.clear(pause=False)
 
+    del __Self
+
 
 class _TransformState(NamedTuple):
     angle: float

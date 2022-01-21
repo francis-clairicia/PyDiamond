@@ -33,7 +33,6 @@ from typing import (
     Tuple,
     TypeAlias,
     TypeVar,
-    cast,
     final,
     overload,
 )
@@ -104,7 +103,7 @@ class ScheduledFunction(Generic[_ScheduledFunc]):
 
 def scheduled(milliseconds: float) -> Callable[[_ScheduledFunc], _ScheduledFunc]:
     def decorator(func: _ScheduledFunc, /) -> _ScheduledFunc:
-        return cast(_ScheduledFunc, ScheduledFunction(milliseconds, func))
+        return ScheduledFunction(milliseconds, func)  # type: ignore[return-value]
 
     return decorator
 
@@ -196,10 +195,10 @@ class Window:
     def __del__(self) -> None:
         Window.__main_window = True
 
-    __W = TypeVar("__W", bound="Window")
+    __Self = TypeVar("__Self", bound="Window")
 
     @contextmanager
-    def open(self: __W) -> Iterator[__W]:
+    def open(self: __Self) -> Iterator[__Self]:
         if self.is_open():
             raise WindowError("Trying to open already opened window")
 
@@ -604,6 +603,8 @@ class Window:
     def midright(self) -> Tuple[int, int]:
         return self.__rect.midright
 
+    del __Self
+
 
 class _FramerateManager:
     def __init__(self) -> None:
@@ -683,3 +684,6 @@ class _WindowCallbackList(List[WindowCallback]):
             return
         for callback in tuple(self):
             callback()
+
+
+del _P, _ScheduledFunc

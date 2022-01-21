@@ -549,10 +549,10 @@ class SceneWindow(Window):
         self.__accumulator: float = 0
         self.__running: bool = False
 
-    __W = TypeVar("__W", bound="SceneWindow")
+    __Self = TypeVar("__Self", bound="SceneWindow")
 
     @contextmanager
-    def open(self: __W) -> Iterator[__W]:
+    def open(self: __Self) -> Iterator[__Self]:
         def cleanup() -> None:
             self.__callback_after_scenes.clear()
             self.__scenes.clear()
@@ -758,6 +758,8 @@ class SceneWindow(Window):
         if not scene_callback_after:
             self.__callback_after_scenes.pop(scene)
 
+    del __Self
+
 
 class _SceneManager:
     class SceneException(BaseException):
@@ -946,3 +948,6 @@ class _SceneWindowCallback(WindowCallback):
     @property
     def scene(self) -> Scene:
         return self.__scene
+
+
+del _S, _P

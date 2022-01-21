@@ -172,3 +172,6 @@ def jthread(
     if func is not None:
         return decorator(func)
     return decorator
+
+
+del _P, _T, _R

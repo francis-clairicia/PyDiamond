@@ -86,3 +86,6 @@ def delattr_pv(obj: object, attribute: str, *, owner: type | None = None) -> Non
         return delattr(obj, attribute)
     except AttributeError:
         raise AttributeError(f"Missing private attribute {attribute!r}") from None
+
+
+del _T

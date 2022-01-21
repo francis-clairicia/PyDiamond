@@ -680,3 +680,6 @@ class _GridBoundFocusProxy(BoundFocusProxy):
             return super().take(status)
         grid: Grid = self.__grid
         return super().take() and grid.is_shown()
+
+
+del _D

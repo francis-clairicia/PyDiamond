@@ -22,16 +22,16 @@ def __non_copyable_deepcopy__(self: Any, memo: Dict[int, Any]) -> Any:
 
 
 class MetaNonCopyable(type):
-    __T = TypeVar("__T", bound="MetaNonCopyable")
+    __Self = TypeVar("__Self", bound="MetaNonCopyable")
 
     def __new__(
-        metacls: Type[__T],
+        metacls: Type[__Self],
         /,
         name: str,
         bases: Tuple[type, ...],
         namespace: Dict[str, Any],
         **kwargs: Any,
-    ) -> __T:
+    ) -> __Self:
         if any(attr in namespace for attr in ["__copy__", "__deepcopy__"]):
             raise TypeError("'__copy__' and '__deepcopy__' cannot be overriden from a non-copyable object")
         namespace["__copy__"] = __non_copyable_copy__
@@ -42,6 +42,8 @@ class MetaNonCopyable(type):
         if name in ["__copy__", "__deepcopy__"]:
             raise TypeError(f"Cannot override {name!r} method")
         return super().__setattr__(name, value)
+
+    del __Self
 
 
 class NonCopyable(metaclass=MetaNonCopyable):
