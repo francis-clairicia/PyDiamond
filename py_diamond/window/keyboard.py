@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from enum import IntEnum, IntFlag, unique
 from operator import truth
-from typing import ClassVar, Optional, Sequence, Tuple, overload
+from typing import ClassVar, Sequence, Tuple, overload
 
 import pygame.constants as _pg_constants
 import pygame.key as _pg_key
@@ -72,7 +72,7 @@ class Keyboard(metaclass=MetaClassNamespace, frozen=True):
         ...
 
     @staticmethod
-    def set_repeat(delay: Optional[int], interval: int = 0) -> Tuple[int, int]:
+    def set_repeat(delay: int | None, interval: int = 0) -> Tuple[int, int]:
         global _KEY_REPEAT
         former_params: Tuple[int, int]
         if not Keyboard.IME.text_input_enabled():

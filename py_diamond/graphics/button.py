@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 from enum import auto, unique
 from functools import cached_property
 from operator import truth
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Dict, Final, Literal, Optional, Tuple, TypeAlias, TypedDict, overload
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Dict, Final, Literal, Tuple, TypeAlias, TypedDict, overload
 
 from ..math import Vector2
 from ..system.configuration import Configuration, OptionAttribute, initializer
@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     from .font import Font
     from .renderer import Renderer
 
-    _TextFont: TypeAlias = Font | Tuple[Optional[str], int]
+    _TextFont: TypeAlias = Font | Tuple[str | None, int]
 
 
 class MetaButton(MetaTDrawable, MetaThemedObject):
@@ -147,11 +147,11 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
     text_shadow_x: OptionAttribute[float] = OptionAttribute()
     text_shadow_y: OptionAttribute[float] = OptionAttribute()
     text_shadow_color: OptionAttribute[Color] = OptionAttribute()
-    img: OptionAttribute[Optional[Surface]] = OptionAttribute()
+    img: OptionAttribute[Surface | None] = OptionAttribute()
     compound: OptionAttribute[str] = OptionAttribute()
     distance_text_img: OptionAttribute[float] = OptionAttribute()
-    fixed_width: OptionAttribute[Optional[float]] = OptionAttribute()
-    fixed_height: OptionAttribute[Optional[float]] = OptionAttribute()
+    fixed_width: OptionAttribute[float | None] = OptionAttribute()
+    fixed_height: OptionAttribute[float | None] = OptionAttribute()
     x_add_size: OptionAttribute[float] = OptionAttribute()
     y_add_size: OptionAttribute[float] = OptionAttribute()
     background: OptionAttribute[Color] = OptionAttribute()
@@ -160,31 +160,31 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
     fg: OptionAttribute[Color] = OptionAttribute()
     outline: OptionAttribute[int] = OptionAttribute()
     outline_color: OptionAttribute[Color] = OptionAttribute()
-    hover_background: OptionAttribute[Optional[Color]] = OptionAttribute()
-    hover_foreground: OptionAttribute[Optional[Color]] = OptionAttribute()
-    hover_bg: OptionAttribute[Optional[Color]] = OptionAttribute()
-    hover_fg: OptionAttribute[Optional[Color]] = OptionAttribute()
-    active_background: OptionAttribute[Optional[Color]] = OptionAttribute()
-    active_foreground: OptionAttribute[Optional[Color]] = OptionAttribute()
-    active_bg: OptionAttribute[Optional[Color]] = OptionAttribute()
-    active_fg: OptionAttribute[Optional[Color]] = OptionAttribute()
+    hover_background: OptionAttribute[Color | None] = OptionAttribute()
+    hover_foreground: OptionAttribute[Color | None] = OptionAttribute()
+    hover_bg: OptionAttribute[Color | None] = OptionAttribute()
+    hover_fg: OptionAttribute[Color | None] = OptionAttribute()
+    active_background: OptionAttribute[Color | None] = OptionAttribute()
+    active_foreground: OptionAttribute[Color | None] = OptionAttribute()
+    active_bg: OptionAttribute[Color | None] = OptionAttribute()
+    active_fg: OptionAttribute[Color | None] = OptionAttribute()
     disabled_background: OptionAttribute[Color] = OptionAttribute()
     disabled_foreground: OptionAttribute[Color] = OptionAttribute()
     disabled_bg: OptionAttribute[Color] = OptionAttribute()
     disabled_fg: OptionAttribute[Color] = OptionAttribute()
-    disabled_hover_background: OptionAttribute[Optional[Color]] = OptionAttribute()
-    disabled_hover_foreground: OptionAttribute[Optional[Color]] = OptionAttribute()
-    disabled_hover_bg: OptionAttribute[Optional[Color]] = OptionAttribute()
-    disabled_hover_fg: OptionAttribute[Optional[Color]] = OptionAttribute()
-    disabled_active_background: OptionAttribute[Optional[Color]] = OptionAttribute()
-    disabled_active_foreground: OptionAttribute[Optional[Color]] = OptionAttribute()
-    disabled_active_bg: OptionAttribute[Optional[Color]] = OptionAttribute()
-    disabled_active_fg: OptionAttribute[Optional[Color]] = OptionAttribute()
-    hover_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
-    active_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
-    disabled_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
-    disabled_hover_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
-    disabled_active_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
+    disabled_hover_background: OptionAttribute[Color | None] = OptionAttribute()
+    disabled_hover_foreground: OptionAttribute[Color | None] = OptionAttribute()
+    disabled_hover_bg: OptionAttribute[Color | None] = OptionAttribute()
+    disabled_hover_fg: OptionAttribute[Color | None] = OptionAttribute()
+    disabled_active_background: OptionAttribute[Color | None] = OptionAttribute()
+    disabled_active_foreground: OptionAttribute[Color | None] = OptionAttribute()
+    disabled_active_bg: OptionAttribute[Color | None] = OptionAttribute()
+    disabled_active_fg: OptionAttribute[Color | None] = OptionAttribute()
+    hover_img: OptionAttribute[Surface | None] = OptionAttribute()
+    active_img: OptionAttribute[Surface | None] = OptionAttribute()
+    disabled_img: OptionAttribute[Surface | None] = OptionAttribute()
+    disabled_hover_img: OptionAttribute[Surface | None] = OptionAttribute()
+    disabled_active_img: OptionAttribute[Surface | None] = OptionAttribute()
     highlight_color: OptionAttribute[Color] = OptionAttribute()
     highlight_thickness: OptionAttribute[int] = OptionAttribute()
     text_align_x: OptionAttribute[str] = OptionAttribute()
@@ -203,23 +203,23 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
         self,
         master: Scene | Window,
         text: str = "",
-        callback: Optional[Callable[[], None]] = None,
+        callback: Callable[[], None] | None = None,
         *,
-        img: Optional[Surface] = None,
+        img: Surface | None = None,
         compound: str = "left",
         distance_text_img: float = 5,
-        font: Optional[_TextFont] = None,
-        bold: Optional[bool] = None,
-        italic: Optional[bool] = None,
-        underline: Optional[bool] = None,
+        font: _TextFont | None = None,
+        bold: bool | None = None,
+        italic: bool | None = None,
+        underline: bool | None = None,
         wrap: int = 0,
         justify: str = "left",
         shadow_x: float = 0,
         shadow_y: float = 0,
         shadow_color: Color = BLACK,
         state: str = "normal",
-        width: Optional[float] = None,
-        height: Optional[float] = None,
+        width: float | None = None,
+        height: float | None = None,
         x_add_size: float = 20,
         y_add_size: float = 20,
         show_bg: bool = True,
@@ -227,29 +227,29 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
         fg: Color = BLACK,
         outline: int = 2,
         outline_color: Color = BLACK,
-        hover_bg: Optional[Color] = WHITE,
-        hover_fg: Optional[Color] = None,
-        hover_sound: Optional[Sound] = None,
-        active_bg: Optional[Color] = GRAY,
-        active_fg: Optional[Color] = None,
-        click_sound: Optional[Sound] = None,
+        hover_bg: Color | None = WHITE,
+        hover_fg: Color | None = None,
+        hover_sound: Sound | None = None,
+        active_bg: Color | None = GRAY,
+        active_fg: Color | None = None,
+        click_sound: Sound | None = None,
         disabled_bg: Color = GRAY_DARK,
         disabled_fg: Color = BLACK,
-        disabled_sound: Optional[Sound] = None,
-        disabled_hover_bg: Optional[Color] = None,
-        disabled_hover_fg: Optional[Color] = None,
-        disabled_active_bg: Optional[Color] = None,
-        disabled_active_fg: Optional[Color] = None,
-        hover_img: Optional[Surface] = None,
-        active_img: Optional[Surface] = None,
-        disabled_img: Optional[Surface] = None,
-        disabled_hover_img: Optional[Surface] = None,
-        disabled_active_img: Optional[Surface] = None,
+        disabled_sound: Sound | None = None,
+        disabled_hover_bg: Color | None = None,
+        disabled_hover_fg: Color | None = None,
+        disabled_active_bg: Color | None = None,
+        disabled_active_fg: Color | None = None,
+        hover_img: Surface | None = None,
+        active_img: Surface | None = None,
+        disabled_img: Surface | None = None,
+        disabled_hover_img: Surface | None = None,
+        disabled_active_img: Surface | None = None,
         highlight_color: Color = BLUE,
         highlight_thickness: int = 2,
         take_focus: bool = True,
-        hover_cursor: Optional[Cursor] = None,
-        disabled_cursor: Optional[Cursor] = None,
+        hover_cursor: Cursor | None = None,
+        disabled_cursor: Cursor | None = None,
         text_align_x: str = "center",
         text_align_y: str = "center",
         text_offset: Tuple[float, float] = (0, 0),
@@ -260,7 +260,7 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
-        theme: Optional[ThemeType] = None,
+        theme: ThemeType | None = None,
     ) -> None:
         TDrawable.__init__(self)
         self.__text: TextImage = TextImage(
@@ -395,16 +395,16 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
         return self.__shape.get_size()
 
     def invoke(self) -> None:
-        callback: Optional[Callable[[], None]] = self.callback
+        callback: Callable[[], None] | None = self.callback
         if callable(callback):
             callback()
 
     def text_set_font(
         self,
-        font: Optional[_TextFont],
-        bold: Optional[bool] = None,
-        italic: Optional[bool] = None,
-        underline: Optional[bool] = None,
+        font: _TextFont | None,
+        bold: bool | None = None,
+        italic: bool | None = None,
+        underline: bool | None = None,
     ) -> None:
         self.__text.set_font(font, bold, italic, underline)
         self.__update_shape_size()
@@ -473,7 +473,7 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
     def show_background(self, status: bool) -> None:
         ...
 
-    def show_background(self, status: Optional[bool] = None) -> Optional[bool]:
+    def show_background(self, status: bool | None = None) -> bool | None:
         if status is None:
             return self.__shape.is_shown()
         self.__shape.set_visibility(truth(status))
@@ -529,13 +529,13 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
 
     def __set_state(self, button_state: Literal["normal", "hover", "active"]) -> None:
         clickable_state: Clickable.State = Clickable.State(self.state)
-        bg_color: Optional[Color] = self.__bg_dict[clickable_state][button_state]
+        bg_color: Color | None = self.__bg_dict[clickable_state][button_state]
         if bg_color is None:
             bg_color = self.__bg_dict[clickable_state]["normal"]
-        fg_color: Optional[Color] = self.__fg_dict[clickable_state][button_state]
+        fg_color: Color | None = self.__fg_dict[clickable_state][button_state]
         if fg_color is None:
             fg_color = self.__fg_dict[clickable_state]["normal"]
-        img: Optional[Surface] = self.__img_dict[clickable_state][button_state]
+        img: Surface | None = self.__img_dict[clickable_state][button_state]
         if img is None:
             img = self.__img_dict[clickable_state]["normal"]
         self.__shape.config(color=bg_color)
@@ -554,8 +554,8 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
         text_width, text_height = self.__text.get_local_size()
         x_add_size: float = self.x_add_size * self.scale
         y_add_size: float = self.y_add_size * self.scale
-        fixed_width: Optional[float] = self.fixed_width
-        fixed_height: Optional[float] = self.fixed_height
+        fixed_width: float | None = self.fixed_width
+        fixed_height: float | None = self.fixed_height
 
         new_size: Tuple[float, float] = (
             text_width + x_add_size if fixed_width is None else fixed_width,
@@ -651,7 +651,7 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
     @config.getter_key("disabled_background")
     @config.getter_key("disabled_hover_background")
     @config.getter_key("disabled_active_background")
-    def __get_background(self, option: str) -> Optional[Color]:
+    def __get_background(self, option: str) -> Color | None:
         clickable_state, button_state = Button.__STATE[option]
         return self.__bg_dict[clickable_state][button_state]
 
@@ -661,7 +661,7 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
     @config.setter_key("disabled_background")
     @config.setter_key("disabled_hover_background")
     @config.setter_key("disabled_active_background")
-    def __set_background(self, option: str, color: Optional[Color]) -> None:
+    def __set_background(self, option: str, color: Color | None) -> None:
         clickable_state, button_state = Button.__STATE[option]
         self.__bg_dict[clickable_state][button_state] = color
 
@@ -692,7 +692,7 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
     @config.getter_key("disabled_foreground")
     @config.getter_key("disabled_hover_foreground")
     @config.getter_key("disabled_active_foreground")
-    def __get_foreground(self, option: str) -> Optional[Color]:
+    def __get_foreground(self, option: str) -> Color | None:
         clickable_state, button_state = Button.__STATE[option]
         return self.__fg_dict[clickable_state][button_state]
 
@@ -702,7 +702,7 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
     @config.setter_key("disabled_foreground")
     @config.setter_key("disabled_hover_foreground")
     @config.setter_key("disabled_active_foreground")
-    def __set_foreground(self, option: str, color: Optional[Color]) -> None:
+    def __set_foreground(self, option: str, color: Color | None) -> None:
         clickable_state, button_state = Button.__STATE[option]
         self.__fg_dict[clickable_state][button_state] = color
 
@@ -733,7 +733,7 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
     @config.getter_key("disabled_img")
     @config.getter_key("disabled_hover_img")
     @config.getter_key("disabled_active_img")
-    def __get_img(self, option: str) -> Optional[Surface]:
+    def __get_img(self, option: str) -> Surface | None:
         clickable_state, button_state = Button.__STATE[option]
         return self.__img_dict[clickable_state][button_state]
 
@@ -743,7 +743,7 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
     @config.setter_key("disabled_img")
     @config.setter_key("disabled_hover_img")
     @config.setter_key("disabled_active_img")
-    def __set_img(self, option: str, img: Optional[Surface]) -> None:
+    def __set_img(self, option: str, img: Surface | None) -> None:
         clickable_state, button_state = Button.__STATE[option]
         self.__img_dict[clickable_state][button_state] = img
 
@@ -798,12 +798,12 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
     config.on_update("highlight_thickness", __update_shape_outline)
 
     @property
-    def callback(self) -> Optional[Callable[[], None]]:
-        self.__callback: Optional[Callable[[], None]]
+    def callback(self) -> Callable[[], None] | None:
+        self.__callback: Callable[[], None] | None
         return self.__callback
 
     @callback.setter
-    def callback(self, callback: Optional[Callable[[], None]]) -> None:
+    def callback(self, callback: Callable[[], None] | None) -> None:
         if callable(callback):
             self.__callback = callback
         else:
@@ -856,21 +856,21 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     bg: OptionAttribute[Color] = OptionAttribute()
     outline: OptionAttribute[int] = OptionAttribute()
     outline_color: OptionAttribute[Color] = OptionAttribute()
-    hover_background: OptionAttribute[Optional[Color]] = OptionAttribute()
-    hover_bg: OptionAttribute[Optional[Color]] = OptionAttribute()
-    active_background: OptionAttribute[Optional[Color]] = OptionAttribute()
-    active_bg: OptionAttribute[Optional[Color]] = OptionAttribute()
+    hover_background: OptionAttribute[Color | None] = OptionAttribute()
+    hover_bg: OptionAttribute[Color | None] = OptionAttribute()
+    active_background: OptionAttribute[Color | None] = OptionAttribute()
+    active_bg: OptionAttribute[Color | None] = OptionAttribute()
     disabled_background: OptionAttribute[Color] = OptionAttribute()
     disabled_bg: OptionAttribute[Color] = OptionAttribute()
-    disabled_hover_background: OptionAttribute[Optional[Color]] = OptionAttribute()
-    disabled_hover_bg: OptionAttribute[Optional[Color]] = OptionAttribute()
-    disabled_active_background: OptionAttribute[Optional[Color]] = OptionAttribute()
-    disabled_active_bg: OptionAttribute[Optional[Color]] = OptionAttribute()
-    hover_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
-    active_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
-    disabled_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
-    disabled_hover_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
-    disabled_active_img: OptionAttribute[Optional[Surface]] = OptionAttribute()
+    disabled_hover_background: OptionAttribute[Color | None] = OptionAttribute()
+    disabled_hover_bg: OptionAttribute[Color | None] = OptionAttribute()
+    disabled_active_background: OptionAttribute[Color | None] = OptionAttribute()
+    disabled_active_bg: OptionAttribute[Color | None] = OptionAttribute()
+    hover_img: OptionAttribute[Surface | None] = OptionAttribute()
+    active_img: OptionAttribute[Surface | None] = OptionAttribute()
+    disabled_img: OptionAttribute[Surface | None] = OptionAttribute()
+    disabled_hover_img: OptionAttribute[Surface | None] = OptionAttribute()
+    disabled_active_img: OptionAttribute[Surface | None] = OptionAttribute()
     hover_offset: OptionAttribute[Tuple[float, float]] = OptionAttribute()
     active_offset: OptionAttribute[Tuple[float, float]] = OptionAttribute()
     border_radius: OptionAttribute[int] = OptionAttribute()
@@ -884,31 +884,31 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
         self,
         master: Scene | Window,
         img: Surface,
-        callback: Optional[Callable[[], None]] = None,
+        callback: Callable[[], None] | None = None,
         *,
-        hover_img: Optional[Surface] = None,
-        active_img: Optional[Surface] = None,
-        disabled_img: Optional[Surface] = None,
-        disabled_hover_img: Optional[Surface] = None,
-        disabled_active_img: Optional[Surface] = None,
+        hover_img: Surface | None = None,
+        active_img: Surface | None = None,
+        disabled_img: Surface | None = None,
+        disabled_hover_img: Surface | None = None,
+        disabled_active_img: Surface | None = None,
         state: str = "normal",
         x_add_size: float = 20,
         y_add_size: float = 20,
         bg: Color = TRANSPARENT,
         outline: int = 0,
         outline_color: Color = BLACK,
-        hover_bg: Optional[Color] = None,
-        active_bg: Optional[Color] = None,
-        disabled_bg: Optional[Color] = None,
-        disabled_hover_bg: Optional[Color] = None,
-        disabled_active_bg: Optional[Color] = None,
-        hover_sound: Optional[Sound] = None,
-        click_sound: Optional[Sound] = None,
-        disabled_sound: Optional[Sound] = None,
+        hover_bg: Color | None = None,
+        active_bg: Color | None = None,
+        disabled_bg: Color | None = None,
+        disabled_hover_bg: Color | None = None,
+        disabled_active_bg: Color | None = None,
+        hover_sound: Sound | None = None,
+        click_sound: Sound | None = None,
+        disabled_sound: Sound | None = None,
         # highlight_color=BLUE,
         # highlight_thickness=2,
-        hover_cursor: Optional[Cursor] = None,
-        disabled_cursor: Optional[Cursor] = None,
+        hover_cursor: Cursor | None = None,
+        disabled_cursor: Cursor | None = None,
         hover_offset: Tuple[float, float] = (0, 0),
         active_offset: Tuple[float, float] = (0, 3),
         border_radius: int = 0,
@@ -916,7 +916,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
-        theme: Optional[ThemeType] = None,
+        theme: ThemeType | None = None,
     ) -> None:
         TDrawable.__init__(self)
         Clickable.__init__(
@@ -998,7 +998,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
         return self.__shape.get_size()
 
     def invoke(self) -> None:
-        callback: Optional[Callable[[], None]] = self.callback
+        callback: Callable[[], None] | None = self.callback
         if callable(callback):
             callback()
 
@@ -1026,10 +1026,10 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
 
     def __set_state(self, button_state: Literal["normal", "hover", "active"]) -> None:
         clickable_state: Clickable.State = Clickable.State(self.state)
-        bg_color: Optional[Color] = self.__bg_dict[clickable_state][button_state]
+        bg_color: Color | None = self.__bg_dict[clickable_state][button_state]
         if bg_color is None:
             bg_color = self.__bg_dict[clickable_state]["normal"]
-        img: Optional[Surface] = self.__img_dict[clickable_state][button_state]
+        img: Surface | None = self.__img_dict[clickable_state][button_state]
         if img is None:
             img = self.__img_dict[clickable_state]["normal"]
         self.__shape.color = bg_color
@@ -1096,7 +1096,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     @config.getter_key("disabled_background")
     @config.getter_key("disabled_hover_background")
     @config.getter_key("disabled_active_background")
-    def __get_background(self, option: str) -> Optional[Color]:
+    def __get_background(self, option: str) -> Color | None:
         clickable_state, button_state = ImageButton.__STATE[option]
         return self.__bg_dict[clickable_state][button_state]
 
@@ -1106,7 +1106,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     @config.setter_key("disabled_background")
     @config.setter_key("disabled_hover_background")
     @config.setter_key("disabled_active_background")
-    def __set_background(self, option: str, color: Optional[Color]) -> None:
+    def __set_background(self, option: str, color: Color | None) -> None:
         clickable_state, button_state = ImageButton.__STATE[option]
         self.__bg_dict[clickable_state][button_state] = color
 
@@ -1137,7 +1137,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     @config.getter_key("disabled_img")
     @config.getter_key("disabled_hover_img")
     @config.getter_key("disabled_active_img")
-    def __get_img(self, option: str) -> Optional[Surface]:
+    def __get_img(self, option: str) -> Surface | None:
         clickable_state, button_state = ImageButton.__STATE[option]
         return self.__img_dict[clickable_state][button_state]
 
@@ -1147,7 +1147,7 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
     @config.setter_key("disabled_img")
     @config.setter_key("disabled_hover_img")
     @config.setter_key("disabled_active_img")
-    def __set_img(self, option: str, img: Optional[Surface]) -> None:
+    def __set_img(self, option: str, img: Surface | None) -> None:
         clickable_state, button_state = ImageButton.__STATE[option]
         self.__img_dict[clickable_state][button_state] = img
 
@@ -1186,12 +1186,12 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
         return self.__shape.config.set(option, value)
 
     @property
-    def callback(self) -> Optional[Callable[[], None]]:
-        self.__callback: Optional[Callable[[], None]]
+    def callback(self) -> Callable[[], None] | None:
+        self.__callback: Callable[[], None] | None
         return self.__callback
 
     @callback.setter
-    def callback(self, callback: Optional[Callable[[], None]]) -> None:
+    def callback(self, callback: Callable[[], None] | None) -> None:
         if callable(callback):
             self.__callback = callback
         else:
@@ -1200,45 +1200,45 @@ class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
 
 class _ButtonColor(TypedDict):
     normal: Color
-    hover: Optional[Color]
-    active: Optional[Color]
+    hover: Color | None
+    active: Color | None
 
 
 class _ImageDict(TypedDict):
-    normal: Optional[Surface]
-    hover: Optional[Surface]
-    active: Optional[Surface]
+    normal: Surface | None
+    hover: Surface | None
+    active: Surface | None
 
 
 class _ImageButtonDict(TypedDict):
     normal: Surface
-    hover: Optional[Surface]
-    active: Optional[Surface]
+    hover: Surface | None
+    active: Surface | None
 
 
 @overload
-def _copy_color(c: Optional[Color]) -> Optional[Color]:
+def _copy_color(c: Color | None) -> Color | None:
     ...
 
 
 @overload
-def _copy_color(c: Optional[Color], default: Color) -> Color:
+def _copy_color(c: Color | None, default: Color) -> Color:
     ...
 
 
-def _copy_color(c: Optional[Color], default: Optional[Color] = None) -> Optional[Color]:
+def _copy_color(c: Color | None, default: Color | None = None) -> Color | None:
     return Color(c) if c is not None else (None if default is None else _copy_color(default))
 
 
 @overload
-def _copy_img(surface: Optional[Surface]) -> Optional[Surface]:
+def _copy_img(surface: Surface | None) -> Surface | None:
     ...
 
 
 @overload
-def _copy_img(surface: Optional[Surface], default: Surface) -> Surface:
+def _copy_img(surface: Surface | None, default: Surface) -> Surface:
     ...
 
 
-def _copy_img(surface: Optional[Surface], default: Optional[Surface] = None) -> Optional[Surface]:
+def _copy_img(surface: Surface | None, default: Surface | None = None) -> Surface | None:
     return surface.copy() if surface is not None else (None if default is None else _copy_img(default))

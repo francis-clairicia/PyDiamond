@@ -13,7 +13,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Callable, Dict, Iterator, List, Literal, NamedTuple, Optional, Tuple, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, Callable, Dict, Iterator, List, Literal, NamedTuple, Tuple, TypeAlias, TypeVar
 
 from ..math import Vector2
 from ..window.time import Time
@@ -41,9 +41,9 @@ class TransformAnimation:
         self.__transformable: Transformable = transformable
         self.__animations_order: List[_AnimationType] = ["scale", "rotate", "rotate_point", "move"]
         self.__animations: Dict[_AnimationType, _AbstractAnimationClass] = {}
-        self.__actual_state: Optional[_TransformState] = None
-        self.__previous_state: Optional[_TransformState] = None
-        self.__on_stop: Optional[Callable[[], None]] = None
+        self.__actual_state: _TransformState | None = None
+        self.__previous_state: _TransformState | None = None
+        self.__on_stop: Callable[[], None] | None = None
         self.__wait: bool = True
 
     __Self = TypeVar("__Self", bound="TransformAnimation")
@@ -68,7 +68,7 @@ class TransformAnimation:
         angle: float,
         speed: float = 100,
         *,
-        pivot: Optional[str | Tuple[float, float] | Vector2] = None,
+        pivot: str | Tuple[float, float] | Vector2 | None = None,
         counter_clockwise: bool = True,
     ) -> __Self:
         transformable: Transformable = self.__transformable
@@ -179,7 +179,7 @@ class TransformAnimation:
     def started(self) -> bool:
         return not self.__wait and self.has_animation_started()
 
-    def on_stop(self, callback: Optional[Callable[[], None]]) -> None:
+    def on_stop(self, callback: Callable[[], None] | None) -> None:
         if not (callback is None or callable(callback)):
             raise TypeError("Invalid arguments")
         self.__on_stop = callback
@@ -213,7 +213,7 @@ class TransformAnimation:
 
     def __iter_animations(self) -> Iterator[_AbstractAnimationClass]:
         for animation_name in self.__animations_order:
-            animation: Optional[_AbstractAnimationClass] = self.__animations.get(animation_name)
+            animation: _AbstractAnimationClass | None = self.__animations.get(animation_name)
             if animation is not None:
                 yield animation
         if not self.has_animation_started():
@@ -381,13 +381,13 @@ class _AnimationSetRotation(_AbstractAnimationClass):
         transformable: Transformable,
         angle: float,
         speed: float,
-        pivot: Optional[Vector2 | Tuple[float, float] | str],
+        pivot: Vector2 | Tuple[float, float] | str | None,
         counter_clockwise: bool,
     ) -> None:
         super().__init__(transformable, speed)
         angle %= 360
         self.__angle: float = angle
-        self.__pivot: Optional[Vector2]
+        self.__pivot: Vector2 | None
         if isinstance(pivot, str):
             pivot = transformable.get_pivot_from_attribute(pivot)
         self.__pivot = Vector2(pivot) if pivot is not None else None

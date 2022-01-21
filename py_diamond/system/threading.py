@@ -11,7 +11,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from threading import Thread, current_thread
-from typing import Any, Callable, Generic, Iterable, Mapping, Optional, ParamSpec, Type, TypeVar, overload
+from typing import Any, Callable, Generic, Iterable, Mapping, ParamSpec, Type, TypeVar, overload
 
 from .utils import wraps
 
@@ -27,7 +27,7 @@ def thread(func: Callable[_P, None], /) -> Callable[_P, Thread]:
 
 @overload
 def thread(
-    *, daemon: Optional[bool] = None, auto_start: bool = True, name: Optional[str] = None
+    *, daemon: bool | None = None, auto_start: bool = True, name: str | None = None
 ) -> Callable[[Callable[_P, None]], Callable[_P, Thread]]:
     ...
 
@@ -36,22 +36,22 @@ def thread(
 def thread(
     *,
     thread_cls: Type[_T],
-    daemon: Optional[bool] = None,
+    daemon: bool | None = None,
     auto_start: bool = True,
-    name: Optional[str] = None,
+    name: str | None = None,
     **thread_cls_kwargs: Any,
 ) -> Callable[[Callable[_P, Any]], Callable[_P, _T]]:
     ...
 
 
 def thread(
-    func: Optional[Callable[..., Any]] = None,
+    func: Callable[..., Any] | None = None,
     /,
     *,
     thread_cls: Type[Thread] = Thread,
-    daemon: Optional[bool] = None,
+    daemon: bool | None = None,
     auto_start: bool = True,
-    name: Optional[str] = None,
+    name: str | None = None,
     **thread_cls_kwargs: Any,
 ) -> Callable[..., Any]:
     if daemon is not None:
@@ -77,15 +77,15 @@ class RThread(Thread, Generic[_R]):
     def __init__(
         self,
         group: None = None,
-        target: Optional[Callable[..., _R]] = None,
-        name: Optional[str] = None,
+        target: Callable[..., _R] | None = None,
+        name: str | None = None,
         args: Iterable[Any] = (),
-        kwargs: Optional[Mapping[str, Any]] = None,
+        kwargs: Mapping[str, Any] | None = None,
         *,
-        daemon: Optional[bool] = None,
+        daemon: bool | None = None,
     ) -> None:
         self._return: _R
-        used_target: Optional[Callable[..., None]] = None
+        used_target: Callable[..., None] | None = None
         if target is not None:
             _target: Callable[..., _R] = target
 
@@ -94,7 +94,7 @@ class RThread(Thread, Generic[_R]):
 
         super().__init__(group=group, target=used_target, name=name, args=args, kwargs=kwargs, daemon=daemon)
 
-    def join(self, timeout: Optional[float] = None) -> _R:  # type: ignore[override]
+    def join(self, timeout: float | None = None) -> _R:  # type: ignore[override]
         super().join(timeout=timeout)
         ret: _R = self._return
         del self._return
@@ -108,18 +108,18 @@ def rthread(func: Callable[_P, _R], /) -> Callable[_P, RThread[_R]]:
 
 @overload
 def rthread(
-    *, daemon: Optional[bool] = None, auto_start: bool = True, name: Optional[str] = None
+    *, daemon: bool | None = None, auto_start: bool = True, name: str | None = None
 ) -> Callable[[Callable[_P, _R]], Callable[_P, RThread[_R]]]:
     ...
 
 
 def rthread(
-    func: Optional[Callable[..., Any]] = None,
+    func: Callable[..., Any] | None = None,
     /,
     *,
-    daemon: Optional[bool] = None,
+    daemon: bool | None = None,
     auto_start: bool = True,
-    name: Optional[str] = None,
+    name: str | None = None,
 ) -> Callable[..., Any]:
     decorator = thread(thread_cls=RThread, daemon=daemon, auto_start=auto_start, name=name)
     if func is not None:
@@ -131,14 +131,14 @@ class JThread(Thread):
     def __init__(
         self,
         group: None = None,
-        target: Optional[Callable[..., None]] = None,
-        name: Optional[str] = None,
+        target: Callable[..., None] | None = None,
+        name: str | None = None,
         args: Iterable[Any] = (),
-        kwargs: Optional[Mapping[str, Any]] = None,
+        kwargs: Mapping[str, Any] | None = None,
         *,
         daemon: None = None,
     ) -> None:
-        used_target: Optional[Callable[..., None]] = target
+        used_target: Callable[..., None] | None = target
         super().__init__(group=group, target=used_target, name=name, args=args, kwargs=kwargs)
 
     def __del__(self) -> None:
@@ -157,16 +157,16 @@ def jthread(func: Callable[_P, None], /) -> Callable[_P, JThread]:
 
 
 @overload
-def jthread(*, auto_start: bool = True, name: Optional[str] = None) -> Callable[[Callable[_P, None]], Callable[_P, JThread]]:
+def jthread(*, auto_start: bool = True, name: str | None = None) -> Callable[[Callable[_P, None]], Callable[_P, JThread]]:
     ...
 
 
 def jthread(
-    func: Optional[Callable[..., Any]] = None,
+    func: Callable[..., Any] | None = None,
     /,
     *,
     auto_start: bool = True,
-    name: Optional[str] = None,
+    name: str | None = None,
 ) -> Callable[..., Any]:
     decorator = thread(thread_cls=JThread, daemon=None, auto_start=auto_start, name=name)
     if func is not None:

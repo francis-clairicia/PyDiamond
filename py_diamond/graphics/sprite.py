@@ -12,7 +12,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import Any, Final, Iterable, Iterator, List, Optional, Sequence, Tuple, Type, TypeVar, overload
+from typing import Any, Final, Iterable, Iterator, List, Sequence, Tuple, Type, TypeVar, overload
 
 from pygame.mask import Mask, from_surface as _pg_mask_from_surface
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom, smoothscale as _surface_smoothscale
@@ -36,7 +36,7 @@ class Sprite(TDrawable):
         "__blend_mode",
     )
 
-    def __init__(self, image: Optional[Surface] = None, mask_threshold: int = DEFAULT_MASK_THRESHOLD) -> None:
+    def __init__(self, image: Surface | None = None, mask_threshold: int = DEFAULT_MASK_THRESHOLD) -> None:
         TDrawable.__init__(self)
         self.__default_image: Surface = image.convert_alpha() if image is not None else create_surface((0, 0))
         self.__image: Surface = self.__default_image.copy()
@@ -118,12 +118,12 @@ class Sprite(TDrawable):
         if former_state != actual_state:
             self.apply_rotation_scale()
 
-    def is_colliding(self, other: Sprite) -> Optional[Tuple[int, int]]:
+    def is_colliding(self, other: Sprite) -> Tuple[int, int] | None:
         this_rect: Rect = self.rect
         other_rect: Rect = other.rect
         xoffset: int = other_rect.x - this_rect.x
         yoffset: int = other_rect.y - this_rect.y
-        intersection: Optional[Tuple[int, int]] = self.mask.overlap(other.mask, (xoffset, yoffset))
+        intersection: Tuple[int, int] | None = self.mask.overlap(other.mask, (xoffset, yoffset))
         if intersection is not None:
             intersection = (intersection[0] + this_rect.x, intersection[1] + this_rect.y)
         return intersection
@@ -271,7 +271,7 @@ class LayeredSpriteGroup(SpriteGroup, LayeredGroup):
     def __init__(self, *objects: Sprite, default_layer: int = 0, **kwargs: Any) -> None:
         super().__init__(*objects, default_layer=default_layer, **kwargs)
 
-    def add(self, *objects: Sprite, layer: Optional[int] = None) -> None:  # type: ignore[override]
+    def add(self, *objects: Sprite, layer: int | None = None) -> None:  # type: ignore[override]
         if any(not isinstance(obj, Sprite) for obj in objects):
             raise TypeError("SpriteGroup only accepts Sprite objects")
         return LayeredGroup.add(self, *objects, layer=layer)

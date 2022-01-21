@@ -12,14 +12,14 @@ __license__ = "GNU GPL v3.0"
 
 import os.path as os_path
 from sys import argv
-from typing import Any, Callable, Optional, overload
+from typing import Any, Callable, overload
 
 
 def __set_path(
     path_exists: Callable[[str], bool],
     *paths: str,
     raise_error: bool = True,
-    error_msg: Optional[str] = None,
+    error_msg: str | None = None,
     relative_to_cwd: bool = False,
 ) -> str:
     all_path = os_path.join(*paths)
@@ -48,7 +48,7 @@ def set_constant_directory(path: str, *paths: str, error_msg: str, relative_to_c
     ...
 
 
-def set_constant_directory(path: str, *paths: str, error_msg: Optional[str] = None, **kwargs: Any) -> str:
+def set_constant_directory(path: str, *paths: str, error_msg: str | None = None, **kwargs: Any) -> str:
     return __set_path(os_path.isdir, path, *paths, error_msg=error_msg or "Not a directory", **kwargs)
 
 

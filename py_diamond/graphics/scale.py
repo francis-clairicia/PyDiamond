@@ -13,7 +13,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from operator import truth
-from typing import TYPE_CHECKING, Callable, Optional, Tuple
+from typing import TYPE_CHECKING, Callable, Tuple
 
 from ..system.configuration import Configuration, initializer
 from ..window.clickable import Clickable
@@ -40,17 +40,17 @@ class ScaleBar(ProgressBar, Clickable):
         height: float,
         from_: float = 0,
         to: float = 1,
-        default: Optional[float] = None,
+        default: float | None = None,
         orient: str = "horizontal",
-        value_callback: Optional[Callable[[float], None]] = None,
-        percent_callback: Optional[Callable[[float], None]] = None,
+        value_callback: Callable[[float], None] | None = None,
+        percent_callback: Callable[[float], None] | None = None,
         *,
         state: str = "normal",
-        hover_sound: Optional[Sound] = None,
-        click_sound: Optional[Sound] = None,
-        disabled_sound: Optional[Sound] = None,
-        hover_cursor: Optional[Cursor] = None,
-        disabled_cursor: Optional[Cursor] = None,
+        hover_sound: Sound | None = None,
+        click_sound: Sound | None = None,
+        disabled_sound: Sound | None = None,
+        hover_cursor: Cursor | None = None,
+        disabled_cursor: Cursor | None = None,
         color: Color = WHITE,
         scale_color: Color = GRAY,
         outline: int = 2,
@@ -62,7 +62,7 @@ class ScaleBar(ProgressBar, Clickable):
         border_bottom_right_radius: int = -1,
         # highlight_color=BLUE,
         # highlight_thickness=2,
-        theme: Optional[ThemeType] = None,
+        theme: ThemeType | None = None,
     ):
         ProgressBar.__init__(
             self,
@@ -93,12 +93,12 @@ class ScaleBar(ProgressBar, Clickable):
             hover_cursor=hover_cursor,
             disabled_cursor=disabled_cursor,
         )
-        self.__value_callback: Optional[Callable[[float], None]] = value_callback
-        self.__percent_callback: Optional[Callable[[float], None]] = percent_callback
+        self.__value_callback: Callable[[float], None] | None = value_callback
+        self.__percent_callback: Callable[[float], None] | None = percent_callback
         self.set_active_only_on_hover(False)
 
     def invoke(self) -> None:
-        callback: Optional[Callable[[float], None]]
+        callback: Callable[[float], None] | None
 
         callback = self.__value_callback
         if callable(callback):

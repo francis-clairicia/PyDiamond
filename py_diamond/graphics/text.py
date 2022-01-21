@@ -15,7 +15,7 @@ from contextlib import suppress
 from enum import auto, unique
 from operator import truth
 from textwrap import wrap as textwrap
-from typing import Dict, Final, List, Optional, Tuple, TypeAlias
+from typing import Dict, Final, List, Tuple, TypeAlias
 
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom
 
@@ -31,7 +31,7 @@ from .renderer import Renderer, SurfaceRenderer
 from .surface import Surface, create_surface
 from .theme import MetaThemedObject, ThemeType
 
-_TextFont: TypeAlias = Font | Tuple[Optional[str], int]
+_TextFont: TypeAlias = Font | Tuple[str | None, int]
 
 
 class MetaText(MetaTDrawable, MetaThemedObject):
@@ -73,17 +73,17 @@ class Text(TDrawable, metaclass=MetaText):
         self,
         message: str = "",
         *,
-        font: Optional[_TextFont] = None,
-        bold: Optional[bool] = None,
-        italic: Optional[bool] = None,
-        underline: Optional[bool] = None,
+        font: _TextFont | None = None,
+        bold: bool | None = None,
+        italic: bool | None = None,
+        underline: bool | None = None,
         color: Color = BLACK,
         wrap: int = 0,
         justify: str = "left",
         shadow_x: float = 0,
         shadow_y: float = 0,
         shadow_color: Color = BLACK,
-        theme: Optional[ThemeType] = None,
+        theme: ThemeType | None = None,
     ) -> None:
         super().__init__()
         self.__custom_font: Dict[int, Font] = dict()
@@ -121,10 +121,10 @@ class Text(TDrawable, metaclass=MetaText):
 
     @staticmethod
     def create_font(
-        font: Optional[_TextFont],
-        bold: Optional[bool] = None,
-        italic: Optional[bool] = None,
-        underline: Optional[bool] = None,
+        font: _TextFont | None,
+        bold: bool | None = None,
+        italic: bool | None = None,
+        underline: bool | None = None,
     ) -> Font:
         obj: Font
         if font is None:
@@ -159,7 +159,7 @@ class Text(TDrawable, metaclass=MetaText):
         return font
 
     @staticmethod
-    def set_default_font(font: Optional[str]) -> None:
+    def set_default_font(font: str | None) -> None:
         if font is None:
             with suppress(AttributeError):
                 delattr(Text, "__default_font__")
@@ -168,10 +168,10 @@ class Text(TDrawable, metaclass=MetaText):
 
     def set_font(
         self,
-        font: Optional[_TextFont],
-        bold: Optional[bool] = None,
-        italic: Optional[bool] = None,
-        underline: Optional[bool] = None,
+        font: _TextFont | None,
+        bold: bool | None = None,
+        italic: bool | None = None,
+        underline: bool | None = None,
     ) -> None:
         self.config.set(
             "font",
@@ -295,7 +295,7 @@ class TextImage(Text):
 
     config = Configuration("img", "compound", "distance", parent=Text.config)
 
-    img: OptionAttribute[Optional[Surface]] = OptionAttribute()
+    img: OptionAttribute[Surface | None] = OptionAttribute()
     compound: OptionAttribute[str] = OptionAttribute()
     distance: OptionAttribute[float] = OptionAttribute()
 
@@ -304,20 +304,20 @@ class TextImage(Text):
         self,
         message: str = "",
         *,
-        img: Optional[Surface] = None,
+        img: Surface | None = None,
         compound: str = "left",
         distance: float = 5,
-        font: Optional[_TextFont] = None,
-        bold: Optional[bool] = None,
-        italic: Optional[bool] = None,
-        underline: Optional[bool] = None,
+        font: _TextFont | None = None,
+        bold: bool | None = None,
+        italic: bool | None = None,
+        underline: bool | None = None,
         color: Color = BLACK,
         wrap: int = 0,
         justify: str = "left",
         shadow_x: float = 0,
         shadow_y: float = 0,
         shadow_color: Color = BLACK,
-        theme: Optional[ThemeType] = None,
+        theme: ThemeType | None = None,
     ) -> None:
         super().__init__(
             message=message,
@@ -333,7 +333,7 @@ class TextImage(Text):
             shadow_color=shadow_color,
             theme=theme,
         )
-        self.__img: Optional[Image] = None
+        self.__img: Image | None = None
         self.__compound: TextImage.Compound
         self.__img_angle: float = 0
         self.__img_scale: float = 1
@@ -409,7 +409,7 @@ class TextImage(Text):
 
     def _render(self) -> Surface:
         text: Surface = super()._render()
-        img: Optional[Image] = self.__img
+        img: Image | None = self.__img
         if img is None:
             return text
         text_width, text_height = text.get_size()
@@ -464,18 +464,18 @@ class TextImage(Text):
     config.value_converter_static("distance", valid_float(min_value=0))
 
     @config.getter("img")
-    def __get_img_surface(self) -> Optional[Surface]:
-        img: Optional[Image] = self.__img
+    def __get_img_surface(self) -> Surface | None:
+        img: Image | None = self.__img
         if img is None:
             return None
         return img.get()
 
     @config.setter("img")
-    def __update_img(self, surface: Optional[Surface]) -> None:
+    def __update_img(self, surface: Surface | None) -> None:
         if surface is None:
             self.__img = None
             return
-        img: Optional[Image] = self.__img
+        img: Image | None = self.__img
         if img is None:
             self.__img = img = _BoundImage(self, surface)
             img.set_scale(self.__img_scale, apply=False)

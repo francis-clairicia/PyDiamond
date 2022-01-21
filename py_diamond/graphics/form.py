@@ -12,7 +12,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Tuple, TypeAlias, overload
+from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Tuple, TypeAlias, overload
 
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.utils import valid_integer
@@ -45,7 +45,7 @@ class Form(MDrawable):
     @initializer
     def __init__(
         self,
-        master: Optional[GUIScene] = None,
+        master: GUIScene | None = None,
         *,
         on_submit: Callable[[Mapping[str, str]], None],
         bg_color: Color = TRANSPARENT,
@@ -77,7 +77,7 @@ class Form(MDrawable):
         self,
         name: str,
         entry: Entry,
-        label: Optional[Drawable] = None,
+        label: Drawable | None = None,
     ) -> Entry:
         if not isinstance(name, str) or not isinstance(entry, Entry) or (label is not None and not isinstance(label, Drawable)):
             raise TypeError("Invalid arguments")
@@ -111,7 +111,7 @@ class Form(MDrawable):
     def get(self, name: str) -> str:
         ...
 
-    def get(self, name: Optional[str] = None) -> str | Mapping[str, str]:
+    def get(self, name: str | None = None) -> str | Mapping[str, str]:
         entry_dict: Dict[str, Entry] = self.__entry_dict
         if name is not None:
             return entry_dict[name].get()
@@ -160,5 +160,5 @@ class Form(MDrawable):
                 grid.modify(row=row, column=column, **{option: value})  # type: ignore
 
     @property
-    def master(self) -> Optional[GUIScene]:
+    def master(self) -> GUIScene | None:
         return self.__grid.master

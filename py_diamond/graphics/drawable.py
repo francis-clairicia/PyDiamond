@@ -24,22 +24,7 @@ __license__ = "GNU GPL v3.0"
 from abc import ABCMeta, abstractmethod
 from bisect import insort_right
 from contextlib import suppress
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    FrozenSet,
-    Iterator,
-    List,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Type,
-    TypeVar,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Iterator, List, Sequence, Set, Tuple, Type, TypeVar, overload
 
 from ..system._mangling import getattr_pv
 from ..system.utils import wraps
@@ -73,7 +58,7 @@ class MetaDrawable(ABCMeta):
                     f"{name!r} must be inherits from a {Drawable.__name__} class in order to use {MetaDrawable.__name__} metaclass"
                 )
 
-            draw_method: Optional[Callable[[Drawable, Renderer], None]] = namespace.get("draw_onto")
+            draw_method: Callable[[Drawable, Renderer], None] | None = namespace.get("draw_onto")
             if callable(draw_method):
                 namespace["draw_onto"] = _draw_decorator(draw_method)
 
@@ -250,7 +235,7 @@ class LayeredGroup(DrawableGroup):
         self.__layer_dict: Dict[Drawable, int] = {}
         super().__init__(*objects, **kwargs)
 
-    def add(self, *objects: Drawable, layer: Optional[int] = None) -> None:
+    def add(self, *objects: Drawable, layer: int | None = None) -> None:
         if not objects:
             return
         layer_dict: Dict[Drawable, int] = self.__layer_dict
@@ -289,7 +274,7 @@ class LayeredGroup(DrawableGroup):
     def change_layer(self, obj: Drawable, layer: int) -> None:
         layer = int(layer)
         layer_dict: Dict[Drawable, int] = self.__layer_dict
-        actual_layer: Optional[int] = layer_dict.get(obj, None)
+        actual_layer: int | None = layer_dict.get(obj, None)
         if (actual_layer is None and layer == self.__default_layer) or (actual_layer is not None and actual_layer == layer):
             return
         drawable_list: List[Drawable] = getattr_pv(self, "list", owner=DrawableGroup)

@@ -11,7 +11,6 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from operator import truth
-from typing import Optional
 
 from ..audio.sound import Sound
 from ..graphics.drawable import Drawable
@@ -30,11 +29,11 @@ class Pressable(Clickable):
         master: Scene | Window,
         *,
         state: str = "normal",
-        hover_sound: Optional[Sound] = None,
-        click_sound: Optional[Sound] = None,
-        disabled_sound: Optional[Sound] = None,
-        hover_cursor: Optional[Cursor] = None,
-        disabled_cursor: Optional[Cursor] = None,
+        hover_sound: Sound | None = None,
+        click_sound: Sound | None = None,
+        disabled_sound: Sound | None = None,
+        hover_cursor: Cursor | None = None,
+        disabled_cursor: Cursor | None = None,
         take_focus: bool = True,
     ) -> None:
         Clickable.__init__(

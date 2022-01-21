@@ -42,7 +42,7 @@ class Mixer(metaclass=MetaClassNamespace, frozen=True):
 
     @staticmethod
     def get_init() -> MixerParams:
-        init_params: Optional[Tuple[int, int, int]] = _pg_mixer.get_init()
+        init_params: Tuple[int, int, int] | None = _pg_mixer.get_init()
         if init_params is None:
             raise _pg_error("Mixer module not initialized")
         return MixerParams(*init_params)
@@ -80,7 +80,7 @@ class Mixer(metaclass=MetaClassNamespace, frozen=True):
         return _pg_mixer.set_reserved(count)
 
     @staticmethod
-    def find_channel() -> Optional[Channel]:
+    def find_channel() -> Optional[Channel]:  # Channel | None cannot be used -> Channel is a function
         return _pg_mixer.find_channel()
 
     @staticmethod

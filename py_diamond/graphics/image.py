@@ -12,7 +12,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import TYPE_CHECKING, Optional, Tuple, overload
+from typing import TYPE_CHECKING, Tuple, overload
 
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom, smoothscale as _surface_smoothscale
 
@@ -38,22 +38,20 @@ class Image(TDrawable):
         ...
 
     @overload
-    def __init__(
-        self, image: Surface, *, copy: bool = True, width: Optional[float] = None, height: Optional[float] = None
-    ) -> None:
+    def __init__(self, image: Surface, *, copy: bool = True, width: float | None = None, height: float | None = None) -> None:
         ...
 
     @overload
-    def __init__(self, image: str, *, width: Optional[float] = None, height: Optional[float] = None) -> None:
+    def __init__(self, image: str, *, width: float | None = None, height: float | None = None) -> None:
         ...
 
     def __init__(
         self,
-        image: Optional[Surface | str] = None,
+        image: Surface | str | None = None,
         *,
         copy: bool = True,
-        width: Optional[float] = None,
-        height: Optional[float] = None,
+        width: float | None = None,
+        height: float | None = None,
     ) -> None:
         super().__init__()
         if image is None:
@@ -94,7 +92,7 @@ class Image(TDrawable):
         self.apply_rotation_scale()
         self.center = center
 
-    def fill(self, color: Color, rect: Optional[Rect] = None) -> None:
+    def fill(self, color: Color, rect: Rect | None = None) -> None:
         mask = create_surface(self.__default_image.get_size() if rect is None else rect.size)
         mask.fill(color)
         self.__default_image.blit(mask, rect or (0, 0))

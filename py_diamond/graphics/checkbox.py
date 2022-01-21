@@ -13,7 +13,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from operator import truth
-from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, Tuple, TypeVar
 
 from ..system.configuration import Configuration, OptionAttribute
 from ..window.clickable import Clickable
@@ -77,29 +77,29 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
         width: float,
         height: float,
         color: Color,
-        callback: Optional[Callable[[_OnValue | _OffValue], None]] = None,
+        callback: Callable[[_OnValue | _OffValue], None] | None = None,
         *,
         off_value: _OffValue,
         on_value: _OnValue,
         value: _OnValue | _OffValue = NoDefaultValue,
         outline: int = 2,
         outline_color: Color = BLACK,
-        img: Optional[Surface] = None,
+        img: Surface | None = None,
         callback_at_init: bool = True,
         # highlight_color=BLUE,
         # highlight_thickness=2,
         state: str = "normal",
-        hover_cursor: Optional[Cursor] = None,
-        disabled_cursor: Optional[Cursor] = None,
-        hover_sound: Optional[Sound] = None,
-        click_sound: Optional[Sound] = None,
-        disabled_sound: Optional[Sound] = None,
+        hover_cursor: Cursor | None = None,
+        disabled_cursor: Cursor | None = None,
+        hover_sound: Sound | None = None,
+        click_sound: Sound | None = None,
+        disabled_sound: Sound | None = None,
         border_radius: int = 0,
         border_top_left_radius: int = -1,
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
-        theme: Optional[ThemeType] = None,
+        theme: ThemeType | None = None,
     ) -> None:
         if on_value == off_value:
             raise ValueError("'On' value and 'Off' value are identical")
@@ -135,8 +135,8 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
             line_width=0.2,
             theme=NoTheme,
         )
-        self.__on_changed_value: Optional[Callable[[_OnValue | _OffValue], None]] = callback
-        self.__active_img: Optional[Image] = Image(img) if img is not None else None
+        self.__on_changed_value: Callable[[_OnValue | _OffValue], None] | None = callback
+        self.__active_img: Image | None = Image(img) if img is not None else None
         self.__on_value: _OnValue = on_value
         self.__off_value: _OffValue = off_value
         self.__value: _OnValue | _OffValue = off_value
@@ -149,7 +149,7 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
 
     def draw_onto(self, target: Renderer) -> None:
         shape: RectangleShape = self.__shape
-        active_img: Optional[Image] = self.__active_img
+        active_img: Image | None = self.__active_img
         active: TDrawable
         active_cross: DiagonalCrossShape = self.__cross
 
@@ -245,7 +245,7 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
         return self.__shape.config.set(option, value)
 
     @property
-    def img(self) -> Optional[Surface]:
+    def img(self) -> Surface | None:
         return self.__active_img.get() if self.__active_img is not None else None
 
     @property
@@ -257,7 +257,7 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Met
         return self.__off_value
 
     @property
-    def callback(self) -> Optional[Callable[[_OnValue | _OffValue], None]]:
+    def callback(self) -> Callable[[_OnValue | _OffValue], None] | None:
         return self.__on_changed_value
 
 
@@ -274,22 +274,22 @@ class BooleanCheckBox(CheckBox[bool, bool]):
         value: bool = NoDefaultValue,
         outline: int = 2,
         outline_color: Color = BLACK,
-        img: Optional[Surface] = None,
-        callback: Optional[Callable[[bool], None]] = None,
+        img: Surface | None = None,
+        callback: Callable[[bool], None] | None = None,
         # highlight_color=BLUE,
         # highlight_thickness=2,
         state: str = "normal",
-        hover_cursor: Optional[Cursor] = None,
-        disabled_cursor: Optional[Cursor] = None,
-        hover_sound: Optional[Sound] = None,
-        click_sound: Optional[Sound] = None,
-        disabled_sound: Optional[Sound] = None,
+        hover_cursor: Cursor | None = None,
+        disabled_cursor: Cursor | None = None,
+        hover_sound: Sound | None = None,
+        click_sound: Sound | None = None,
+        disabled_sound: Sound | None = None,
         border_radius: int = 0,
         border_top_left_radius: int = -1,
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
-        theme: Optional[ThemeType] = None,
+        theme: ThemeType | None = None,
     ) -> None:
         super().__init__(
             master=master,

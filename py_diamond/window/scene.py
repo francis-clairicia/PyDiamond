@@ -46,7 +46,6 @@ from typing import (
     Iterator,
     List,
     NoReturn,
-    Optional,
     ParamSpec,
     Sequence,
     Set,
@@ -120,7 +119,7 @@ class MetaScene(ABCMeta):
         return super().__setattr__(name, value)
 
     @concreteclassmethod
-    def get_theme_namespace(cls) -> Optional[str]:
+    def get_theme_namespace(cls) -> str | None:
         return MetaScene.__namespaces.get(cls)
 
     @concreteclassmethod
@@ -172,7 +171,7 @@ class MetaScene(ABCMeta):
         return obj
 
 
-SceneTransitionCoroutine: TypeAlias = Generator[None, Optional[float], None]
+SceneTransitionCoroutine: TypeAlias = Generator[None, float | None, None]
 
 
 class SceneTransition(metaclass=ABCMeta):
@@ -283,7 +282,7 @@ class Scene(metaclass=MetaScene):
 
     @final
     def start(
-        self, scene: Type[Scene], *, transition: Optional[SceneTransition] = None, stop_self: bool = False, **awake_kwargs: Any
+        self, scene: Type[Scene], *, transition: SceneTransition | None = None, stop_self: bool = False, **awake_kwargs: Any
     ) -> NoReturn:
         self.__manager.go_to(scene, transition=transition, remove_actual=stop_self, awake_kwargs=awake_kwargs)
 
@@ -391,7 +390,7 @@ def set_default_theme_namespace(namespace: str, cls: _S) -> None:
     ...
 
 
-def set_default_theme_namespace(namespace: str, cls: Optional[_S] = None) -> Optional[Callable[[_S], _S]]:
+def set_default_theme_namespace(namespace: str, cls: _S | None = None) -> Callable[[_S], _S] | None:
     def decorator(scene: _S, /) -> _S:
         scene.set_theme_namespace(namespace)
         return scene
@@ -472,7 +471,7 @@ class MetaLayeredScene(MetaScene):
             func = self.__func__
             return func(__obj, __name, __value)
 
-        def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Callable[..., Any]:
+        def __get__(self, obj: object, objtype: type | None = None, /) -> Callable[..., Any]:
             if obj is None:
                 return self
             return MethodType(self, obj)
@@ -537,7 +536,7 @@ class LayeredMainScene(LayeredScene, MainScene, metaclass=MetaLayeredMainScene):
 class SceneWindow(Window):
     def __init__(
         self,
-        title: Optional[str] = None,
+        title: str | None = None,
         size: Tuple[int, int] = (0, 0),
         *,
         resizable: bool = False,
@@ -615,7 +614,7 @@ class SceneWindow(Window):
         previous_scene: Scene,
         actual_scene: Scene,
         closing_scenes: Sequence[Scene],
-        transition_factory: Optional[Callable[[Renderer, Surface, Surface], SceneTransitionCoroutine]],
+        transition_factory: Callable[[Renderer, Surface, Surface], SceneTransitionCoroutine] | None,
     ) -> None:
         if previous_scene is None:
             raise TypeError("Previous scene must not be None")
@@ -681,7 +680,7 @@ class SceneWindow(Window):
             func(alpha)
 
     def update_scene(self) -> None:
-        scene: Optional[Scene] = self.__scenes.top()
+        scene: Scene | None = self.__scenes.top()
         if scene is None:
             return
         self._fixed_updates_call(scene.fixed_update)
@@ -689,7 +688,7 @@ class SceneWindow(Window):
         scene.update()
 
     def render_scene(self) -> None:
-        scene: Optional[Scene] = self.__scenes.top()
+        scene: Scene | None = self.__scenes.top()
         if scene is None:
             return
         self.clear(scene.background_color)
@@ -699,7 +698,7 @@ class SceneWindow(Window):
         self,
         scene: Type[Scene],
         *,
-        transition: Optional[SceneTransition] = None,
+        transition: SceneTransition | None = None,
         remove_actual: bool = False,
         **awake_kwargs: Any,
     ) -> NoReturn:
@@ -715,8 +714,8 @@ class SceneWindow(Window):
             self.__callback_after_scenes[actual_scene].process()
 
     def process_events(self) -> Iterator[Event]:
-        actual_scene: Optional[Scene] = self.__scenes.top()
-        manager: Optional[EventManager] = actual_scene.event if actual_scene is not None else None
+        actual_scene: Scene | None = self.__scenes.top()
+        manager: EventManager | None = actual_scene.event if actual_scene is not None else None
         manager_process_event: Callable[[Event], bool] = manager.process_event if manager is not None else lambda event: False
         process_event: Callable[[Event], bool] = actual_scene.handle_event if actual_scene is not None else lambda event: False
         for event in super().process_events():
@@ -744,14 +743,14 @@ class SceneWindow(Window):
         return framerate
 
     def get_busy_loop(self) -> bool:
-        actual_scene: Optional[Scene] = self.__scenes.top()
+        actual_scene: Scene | None = self.__scenes.top()
         return super().get_busy_loop() or (actual_scene is not None and actual_scene.__class__.require_busy_loop())
 
     def remove_window_callback(self, window_callback: WindowCallback) -> None:
         if not isinstance(window_callback, _SceneWindowCallback):
             return super().remove_window_callback(window_callback)
         scene = window_callback.scene
-        scene_callback_after: Optional[_WindowCallbackList] = self.__callback_after_scenes.get(scene)
+        scene_callback_after: _WindowCallbackList | None = self.__callback_after_scenes.get(scene)
         if scene_callback_after is None:
             return
         with suppress(ValueError):
@@ -767,15 +766,15 @@ class _SceneManager:
     class NewScene(SceneException):
         def __init__(
             self,
-            previous_scene: Optional[Scene],
+            previous_scene: Scene | None,
             actual_scene: Scene,
-            transition: Optional[Callable[[Renderer, Surface, Surface], SceneTransitionCoroutine]],
+            transition: Callable[[Renderer, Surface, Surface], SceneTransitionCoroutine] | None,
             closing_scenes: List[Scene],
         ) -> None:
             super().__init__(
                 f"New scene open, from {type(previous_scene).__name__ if previous_scene else None} to {type(actual_scene).__name__}"
             )
-            self.previous_scene: Optional[Scene] = previous_scene
+            self.previous_scene: Scene | None = previous_scene
             self.actual_scene: Scene = actual_scene
             self.transition = transition
             self.closing_scenes = closing_scenes
@@ -836,7 +835,7 @@ class _SceneManager:
     def from_bottom_to_top(self) -> Iterator[Scene]:
         return reversed(self.__stack)
 
-    def top(self) -> Optional[Scene]:
+    def top(self) -> Scene | None:
         return self.__stack[0] if self.__stack else None
 
     def started(self, scene: Scene) -> bool:
@@ -874,7 +873,7 @@ class _SceneManager:
         self,
         scene: Type[Scene],
         *,
-        transition: Optional[SceneTransition] = None,
+        transition: SceneTransition | None = None,
         remove_actual: bool = False,
         awake_kwargs: Dict[str, Any] = {},
     ) -> NoReturn:
@@ -885,7 +884,7 @@ class _SceneManager:
         actual_scene = stack[0] if stack else None
         if actual_scene is next_scene:
             raise _SceneManager.SameScene(actual_scene)
-        scene_transition: Optional[Callable[[Renderer, Surface, Surface], SceneTransitionCoroutine]] = None
+        scene_transition: Callable[[Renderer, Surface, Surface], SceneTransitionCoroutine] | None = None
         closing_scenes: List[Scene] = []
         if actual_scene is None or next_scene not in stack:
             stack.insert(0, next_scene)

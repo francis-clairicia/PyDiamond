@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta
 from types import MethodType
-from typing import Any, Callable, Dict, Optional, Tuple, Type, TypeVar
+from typing import Any, Callable, Dict, Tuple, Type, TypeVar
 
 _T = TypeVar("_T")
 
@@ -82,7 +82,7 @@ class MetaSingleton(ABCMeta):
             func = self.__func__
             return func(__cls_or_self, *args, **kwargs)
 
-        def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Callable[..., Any]:
+        def __get__(self, obj: object, objtype: type | None = None, /) -> Callable[..., Any]:
             if obj is None:
                 return self
             return MethodType(self, obj)

@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from functools import cached_property
 from string import printable as ASCII_PRINTABLE
-from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple, TypeAlias
+from typing import TYPE_CHECKING, Any, Callable, Tuple, TypeAlias
 
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.utils import valid_integer, valid_optional_float, valid_optional_integer
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from .font import Font
     from .renderer import Renderer
 
-    _TextFont: TypeAlias = Font | Tuple[Optional[str], int]
+    _TextFont: TypeAlias = Font | Tuple[str | None, int]
 
 
 class MetaEntry(MetaTDrawable, MetaThemedObject):
@@ -84,7 +84,7 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
     shadow: OptionAttribute[Tuple[float, float]] = OptionAttribute()
     shadow_color: OptionAttribute[Color] = OptionAttribute()
 
-    fixed_width: OptionAttribute[Optional[float]] = OptionAttribute()
+    fixed_width: OptionAttribute[float | None] = OptionAttribute()
     local_width: OptionAttribute[float] = OptionAttribute()
     local_height: OptionAttribute[float] = OptionAttribute()
     local_size: OptionAttribute[Tuple[float, float]] = OptionAttribute()
@@ -104,14 +104,14 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
     def __init__(
         self,
         master: Scene | Window,
-        on_validate: Optional[Callable[[], Any]] = None,
+        on_validate: Callable[[], Any] | None = None,
         *,
         max_nb_chars: int = 10,
-        width: Optional[float] = None,
-        font: Optional[_TextFont] = None,
-        bold: Optional[bool] = None,
-        italic: Optional[bool] = None,
-        underline: Optional[bool] = None,
+        width: float | None = None,
+        font: _TextFont | None = None,
+        bold: bool | None = None,
+        italic: bool | None = None,
+        underline: bool | None = None,
         shadow_x: float = 0,
         shadow_y: float = 0,
         shadow_color: Color = BLACK,
@@ -123,15 +123,15 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
         state: str = "normal",
         highlight_color: Color = BLUE,
         highlight_thickness: int = 2,
-        hover_sound: Optional[Sound] = None,
-        click_sound: Optional[Sound] = None,
-        disabled_sound: Optional[Sound] = None,
+        hover_sound: Sound | None = None,
+        click_sound: Sound | None = None,
+        disabled_sound: Sound | None = None,
         border_radius: int = 0,
         border_top_left_radius: int = -1,
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
-        theme: Optional[ThemeType] = None,
+        theme: ThemeType | None = None,
     ):
         TDrawable.__init__(self)
         self.__text: _TextEntry = _TextEntry(
@@ -149,7 +149,7 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
         width = max(float(width), 0) if width is not None else None
         self.__on_validate: Callable[[], None] = on_validate if callable(on_validate) else lambda: None
         self.__nb_chars: int = max_nb_chars
-        self.__fixed_width: Optional[float] = width
+        self.__fixed_width: float | None = width
         self.__cursor_width_offset: float = 15
         self.__cursor_height_offset: float = 10
         height: float
@@ -397,7 +397,7 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
     @config.on_update("fixed_width")
     def __update_shape_using_font(self) -> None:
         max_nb_chars: int = self.__nb_chars
-        fixed_width: Optional[float] = self.__fixed_width
+        fixed_width: float | None = self.__fixed_width
         entry_size: Tuple[int, int] = _get_entry_size(self.__text.font, max_nb_chars or 10)
         width: float
         if fixed_width is not None:
@@ -432,15 +432,15 @@ class _TextEntry(Text):
         self,
         message: str = "",
         *,
-        font: Optional[_TextFont],
-        bold: Optional[bool] = None,
-        italic: Optional[bool] = None,
-        underline: Optional[bool] = None,
+        font: _TextFont | None,
+        bold: bool | None = None,
+        italic: bool | None = None,
+        underline: bool | None = None,
         color: Color,
         shadow_x: float,
         shadow_y: float,
         shadow_color: Color,
-        theme: Optional[ThemeType] = None,
+        theme: ThemeType | None = None,
     ) -> None:
         super().__init__(
             message=message,
@@ -457,7 +457,7 @@ class _TextEntry(Text):
         self.max_width = None
 
     def _render(self) -> Surface:
-        # max_width: Optional[int] = self.max_width
+        # max_width: int | None = self.max_width
         text: Surface = super()._render()
         # if max_width is not None:
         #     return text.subsurface(0, 0, max_width, text.get_height()).copy()
@@ -467,4 +467,4 @@ class _TextEntry(Text):
 
     config.value_converter_static("max_width", valid_optional_integer(min_value=0))
 
-    max_width: OptionAttribute[Optional[int]] = OptionAttribute()
+    max_width: OptionAttribute[int | None] = OptionAttribute()

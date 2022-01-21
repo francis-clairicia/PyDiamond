@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 from contextlib import suppress
 from enum import auto, unique
 from operator import truth
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Tuple
 
 from ..system._mangling import mangle_private_attribute
 from ..system.configuration import Configuration, OptionAttribute, initializer
@@ -91,11 +91,11 @@ class ScrollBar(TDrawable, Clickable, metaclass=MetaScrollBar):
         color: Color = WHITE,
         cursor_color: Color = GRAY,
         state: str = "normal",
-        hover_sound: Optional[Sound] = None,
-        click_sound: Optional[Sound] = None,
-        disabled_sound: Optional[Sound] = None,
-        hover_cursor: Optional[Cursor] = None,
-        disabled_cursor: Optional[Cursor] = None,
+        hover_sound: Sound | None = None,
+        click_sound: Sound | None = None,
+        disabled_sound: Sound | None = None,
+        hover_cursor: Cursor | None = None,
+        disabled_cursor: Cursor | None = None,
         outline: int = 0,
         outline_color: Color = BLACK,
         border_radius: int = 0,
@@ -103,7 +103,7 @@ class ScrollBar(TDrawable, Clickable, metaclass=MetaScrollBar):
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
-        theme: Optional[ThemeType] = None,
+        theme: ThemeType | None = None,
     ) -> None:
         if not isinstance(master, ScrollArea):
             raise TypeError("ScrollBar objects must be created for a ScrollArea object")
@@ -391,8 +391,8 @@ class ScrollArea(LayeredGroup, Movable):
         self.__view_rect: Rect = Rect(0, 0, width, height)
         self.__whole_area: Surface = create_surface((width, height))
         self.__area_view: Surface = self.__whole_area.subsurface(0, 0, width, height)
-        self.__h_scroll: Optional[ScrollBar] = None
-        self.__v_scroll: Optional[ScrollBar] = None
+        self.__h_scroll: ScrollBar | None = None
+        self.__v_scroll: ScrollBar | None = None
         self.__bg_color: Color = bg_color
         master.event.bind_event(MouseWheelEvent, self.__handle_wheel_event)
 
@@ -411,7 +411,7 @@ class ScrollArea(LayeredGroup, Movable):
     def get_size(self) -> Tuple[float, float]:
         return self.__view_rect.size
 
-    def add(self, *objects: Drawable, layer: Optional[int] = None) -> None:
+    def add(self, *objects: Drawable, layer: int | None = None) -> None:
         if any(not isinstance(obj, Movable) for obj in objects):
             raise TypeError("ScrollArea only accepts Drawable and Movable objects")
         return super().add(*objects, layer=layer)
@@ -444,8 +444,8 @@ class ScrollArea(LayeredGroup, Movable):
         view_rect: Rect = self.__view_rect
         start: float
         end: float
-        h_scroll: Optional[ScrollBar] = self.__h_scroll
-        v_scroll: Optional[ScrollBar] = self.__v_scroll
+        h_scroll: ScrollBar | None = self.__h_scroll
+        v_scroll: ScrollBar | None = self.__v_scroll
         if h_scroll is not None:
             start, end = h_scroll.bounds
             view_rect.left = int(whole_area_rect.width * start)
@@ -522,8 +522,8 @@ class ScrollArea(LayeredGroup, Movable):
         view_rect: Rect = self.__view_rect
         start: float
         end: float
-        h_scroll: Optional[ScrollBar] = self.__h_scroll
-        v_scroll: Optional[ScrollBar] = self.__v_scroll
+        h_scroll: ScrollBar | None = self.__h_scroll
+        v_scroll: ScrollBar | None = self.__v_scroll
         if h_scroll is not None:
             start = (view_rect.left - whole_area_rect.left) / whole_area_rect.width
             end = view_rect.right / whole_area_rect.width

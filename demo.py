@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from argparse import ArgumentParser
-from typing import Any, Callable, ClassVar, Final, List, Literal, Mapping, Optional, Sequence, Tuple, Type
+from typing import Any, Callable, ClassVar, Final, List, Literal, Mapping, Sequence, Tuple, Type
 
 from py_diamond.audio.mixer import Mixer
 from py_diamond.audio.music import Music, MusicStream
@@ -856,7 +856,7 @@ class SceneTransitionTranslation(SceneTransition):
             previous_scene_shown = lambda: previous_scene.left <= target_rect.right
         previous_scene.animation.start()
         while previous_scene_shown():
-            interpolation: Optional[float] = yield
+            interpolation: float | None = yield
             while interpolation is None:
                 previous_scene.animation.fixed_update(use_of_linear_interpolation=True)
                 interpolation = yield

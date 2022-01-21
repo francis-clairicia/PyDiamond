@@ -28,7 +28,7 @@ from abc import abstractmethod
 from enum import auto, unique
 from math import radians, sin, tan
 from operator import truth
-from typing import Any, Dict, List, Optional, Sequence, Tuple, TypeAlias
+from typing import Any, Dict, List, Sequence, Tuple, TypeAlias
 
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom
 
@@ -201,7 +201,7 @@ class PolygonShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
         outline: int = 0,
         outline_color: Color = BLACK,
         points: PointList = (),
-        theme: Optional[ThemeType] = None,
+        theme: ThemeType | None = None,
     ) -> None:
         super().__init__(color=color, outline=outline, outline_color=outline_color)
         self.__center: Vector2 = Vector2(0, 0)
@@ -335,7 +335,7 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape, me
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
-        theme: Optional[ThemeType] = None,
+        theme: ThemeType | None = None,
     ) -> None:
         super().__init__(
             width=width,
@@ -434,7 +434,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclas
         draw_top_right: bool = True,
         draw_bottom_left: bool = True,
         draw_bottom_right: bool = True,
-        theme: Optional[ThemeType] = None,
+        theme: ThemeType | None = None,
     ) -> None:
         super().__init__(radius=radius, color=color, outline=outline, outline_color=outline_color)
         self.__draw_params: Dict[str, bool] = dict()
@@ -544,7 +544,7 @@ class CrossShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
         line_width: float = 0.3,
         outline_color: Color = BLACK,
         outline: int = 0,
-        theme: Optional[ThemeType] = None,
+        theme: ThemeType | None = None,
     ) -> None:
         super().__init__(color=color, outline=outline, outline_color=outline_color)
         self.__type: CrossShape.Type = CrossShape.Type(type)
@@ -668,7 +668,7 @@ class DiagonalCrossShape(CrossShape):
         line_width: float = 0.3,
         outline_color: Color = BLACK,
         outline: int = 0,
-        theme: Optional[ThemeType] = None,
+        theme: ThemeType | None = None,
     ) -> None:
         super().__init__(
             width,
@@ -692,7 +692,7 @@ class PlusCrossShape(CrossShape):
         line_width: float = 0.3,
         outline_color: Color = BLACK,
         outline: int = 0,
-        theme: Optional[ThemeType] = None,
+        theme: ThemeType | None = None,
     ) -> None:
         super().__init__(
             width,

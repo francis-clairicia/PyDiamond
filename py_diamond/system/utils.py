@@ -26,7 +26,7 @@ __license__ = "GNU GPL v3.0"
 
 from functools import WRAPPER_ASSIGNMENTS, WRAPPER_UPDATES, lru_cache as _lru_cache, update_wrapper as _update_wrapper
 from operator import truth
-from typing import Any, Callable, Optional, ParamSpec, Sequence, Type, TypeAlias, TypeVar, overload
+from typing import Any, Callable, ParamSpec, Sequence, Type, TypeAlias, TypeVar, overload
 
 _P = ParamSpec("_P")
 _T = TypeVar("_T")
@@ -39,13 +39,11 @@ def lru_cache(func: Callable[_P, _R], /) -> Callable[_P, _R]:
 
 
 @overload
-def lru_cache(*, maxsize: Optional[int] = 128, typed: bool = False) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]:
+def lru_cache(*, maxsize: int | None = 128, typed: bool = False) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]:
     ...
 
 
-def lru_cache(
-    func: Optional[Callable[..., Any]] = None, /, *, maxsize: Optional[int] = 128, typed: bool = False
-) -> Callable[..., Any]:
+def lru_cache(func: Callable[..., Any] | None = None, /, *, maxsize: int | None = 128, typed: bool = False) -> Callable[..., Any]:
     decorator = _lru_cache(maxsize=maxsize, typed=typed)
     if func is not None:
         return decorator(func)
@@ -62,13 +60,11 @@ def tp_cache(func: Callable[_P, _R], /) -> Callable[_P, _R]:
 
 
 @overload
-def tp_cache(*, maxsize: Optional[int] = 128, typed: bool = False) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]:
+def tp_cache(*, maxsize: int | None = 128, typed: bool = False) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]:
     ...
 
 
-def tp_cache(
-    func: Optional[Callable[..., Any]] = None, /, *, maxsize: Optional[int] = 128, typed: bool = False
-) -> Callable[..., Any]:
+def tp_cache(func: Callable[..., Any] | None = None, /, *, maxsize: int | None = 128, typed: bool = False) -> Callable[..., Any]:
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         cached: Callable[..., Any] = lru_cache(maxsize=maxsize, typed=typed)(func)
 
@@ -175,38 +171,38 @@ def valid_integer(**kwargs: Any) -> int | Callable[[Any], int]:
 
 
 @overload
-def valid_optional_integer(*, min_value: int) -> Callable[[Any], Optional[int]]:
+def valid_optional_integer(*, min_value: int) -> Callable[[Any], int | None]:
     ...
 
 
 @overload
-def valid_optional_integer(*, max_value: int) -> Callable[[Any], Optional[int]]:
+def valid_optional_integer(*, max_value: int) -> Callable[[Any], int | None]:
     ...
 
 
 @overload
-def valid_optional_integer(*, min_value: int, max_value: int) -> Callable[[Any], Optional[int]]:
+def valid_optional_integer(*, min_value: int, max_value: int) -> Callable[[Any], int | None]:
     ...
 
 
 @overload
-def valid_optional_integer(*, value: Any, min_value: int) -> Optional[int]:
+def valid_optional_integer(*, value: Any, min_value: int) -> int | None:
     ...
 
 
 @overload
-def valid_optional_integer(*, value: Any, max_value: int) -> Optional[int]:
+def valid_optional_integer(*, value: Any, max_value: int) -> int | None:
     ...
 
 
 @overload
-def valid_optional_integer(*, value: Any, min_value: int, max_value: int) -> Optional[int]:
+def valid_optional_integer(*, value: Any, min_value: int, max_value: int) -> int | None:
     ...
 
 
-def valid_optional_integer(**kwargs: Any) -> Optional[int] | Callable[[Any], Optional[int]]:
+def valid_optional_integer(**kwargs: Any) -> int | None | Callable[[Any], int | None]:
     value: Any = kwargs.pop("value", _MISSING)
-    decorator: Callable[[Any], Optional[int]] = __valid_number(int, True, **kwargs)
+    decorator: Callable[[Any], int | None] = __valid_number(int, True, **kwargs)
     if value is not _MISSING:
         return decorator(value)
     return decorator
@@ -251,38 +247,38 @@ def valid_float(**kwargs: Any) -> float | Callable[[Any], float]:
 
 
 @overload
-def valid_optional_float(*, min_value: float) -> Callable[[Any], Optional[float]]:
+def valid_optional_float(*, min_value: float) -> Callable[[Any], float | None]:
     ...
 
 
 @overload
-def valid_optional_float(*, max_value: float) -> Callable[[Any], Optional[float]]:
+def valid_optional_float(*, max_value: float) -> Callable[[Any], float | None]:
     ...
 
 
 @overload
-def valid_optional_float(*, min_value: float, max_value: float) -> Callable[[Any], Optional[float]]:
+def valid_optional_float(*, min_value: float, max_value: float) -> Callable[[Any], float | None]:
     ...
 
 
 @overload
-def valid_optional_float(*, value: Any, min_value: float) -> Optional[float]:
+def valid_optional_float(*, value: Any, min_value: float) -> float | None:
     ...
 
 
 @overload
-def valid_optional_float(*, value: Any, max_value: float) -> Optional[float]:
+def valid_optional_float(*, value: Any, max_value: float) -> float | None:
     ...
 
 
 @overload
-def valid_optional_float(*, value: Any, min_value: float, max_value: float) -> Optional[float]:
+def valid_optional_float(*, value: Any, min_value: float, max_value: float) -> float | None:
     ...
 
 
-def valid_optional_float(**kwargs: Any) -> Optional[float] | Callable[[Any], Optional[float]]:
+def valid_optional_float(**kwargs: Any) -> float | None | Callable[[Any], float | None]:
     value: Any = kwargs.pop("value", _MISSING)
-    decorator: Callable[[Any], Optional[float]] = __valid_number(float, True, **kwargs)
+    decorator: Callable[[Any], float | None] = __valid_number(float, True, **kwargs)
     if value is not _MISSING:
         return decorator(value)
     return decorator
@@ -310,7 +306,7 @@ def __valid_number(value_type: Type[_Number], optional: bool, /, **kwargs: Any) 
         if _min > _max:
             raise ValueError(f"min_value ({_min}) > max_value ({_max})")
 
-        def valid_number(val: Any) -> Optional[_Number]:
+        def valid_number(val: Any) -> _Number | None:
             if optional and val is None:
                 return None
             return min(max(value_type(val), _min), _max)
@@ -318,7 +314,7 @@ def __valid_number(value_type: Type[_Number], optional: bool, /, **kwargs: Any) 
     elif min_value is not null:
         _min = value_type(min_value)
 
-        def valid_number(val: Any) -> Optional[_Number]:
+        def valid_number(val: Any) -> _Number | None:
             if optional and val is None:
                 return None
             return max(value_type(val), _min)
@@ -326,7 +322,7 @@ def __valid_number(value_type: Type[_Number], optional: bool, /, **kwargs: Any) 
     elif max_value is not null:
         _max = value_type(max_value)
 
-        def valid_number(val: Any) -> Optional[_Number]:
+        def valid_number(val: Any) -> _Number | None:
             if optional and val is None:
                 return None
             return min(value_type(val), _max)

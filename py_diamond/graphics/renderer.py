@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta, abstractmethod
 from enum import IntEnum, unique
-from typing import TYPE_CHECKING, Any, List, Optional, Protocol, Sequence, Tuple, TypeAlias, overload
+from typing import TYPE_CHECKING, Any, List, Protocol, Sequence, Tuple, TypeAlias, overload
 
 import pygame.constants as _pg_constants
 from pygame.draw import (
@@ -88,16 +88,14 @@ class Renderer(metaclass=ABCMeta):
         dest: Tuple[float, float],
         /,
         *,
-        area: Optional[Rect] = None,
+        area: Rect | None = None,
         special_flags: BlendMode = BlendMode.NONE,
     ) -> Rect:
         ...
 
     @overload
     @abstractmethod
-    def draw(
-        self, obj: Surface, dest: Rect, /, *, area: Optional[Rect] = None, special_flags: BlendMode = BlendMode.NONE
-    ) -> Rect:
+    def draw(self, obj: Surface, dest: Rect, /, *, area: Rect | None = None, special_flags: BlendMode = BlendMode.NONE) -> Rect:
         ...
 
     @abstractmethod
@@ -134,10 +132,10 @@ class Renderer(metaclass=ABCMeta):
         center: _Coordinate,
         radius: float,
         width: int = 0,
-        draw_top_right: Optional[bool] = None,
-        draw_top_left: Optional[bool] = None,
-        draw_bottom_left: Optional[bool] = None,
-        draw_bottom_right: Optional[bool] = None,
+        draw_top_right: bool | None = None,
+        draw_top_left: bool | None = None,
+        draw_bottom_left: bool | None = None,
+        draw_bottom_right: bool | None = None,
     ) -> Rect:
         raise NotImplementedError
 
@@ -231,15 +229,13 @@ class SurfaceRenderer(Renderer):
         dest: Tuple[float, float],
         /,
         *,
-        area: Optional[Rect] = None,
+        area: Rect | None = None,
         special_flags: BlendMode = BlendMode.NONE,
     ) -> Rect:
         ...
 
     @overload
-    def draw(
-        self, obj: Surface, dest: Rect, /, *, area: Optional[Rect] = None, special_flags: BlendMode = BlendMode.NONE
-    ) -> Rect:
+    def draw(self, obj: Surface, dest: Rect, /, *, area: Rect | None = None, special_flags: BlendMode = BlendMode.NONE) -> Rect:
         ...
 
     def draw(self, obj: Surface, /, *args: Any, **kwargs: Any) -> Rect:
@@ -287,10 +283,10 @@ class SurfaceRenderer(Renderer):
         center: _Coordinate,
         radius: float,
         width: int = 0,
-        draw_top_right: Optional[bool] = None,
-        draw_top_left: Optional[bool] = None,
-        draw_bottom_left: Optional[bool] = None,
-        draw_bottom_right: Optional[bool] = None,
+        draw_top_right: bool | None = None,
+        draw_top_left: bool | None = None,
+        draw_bottom_left: bool | None = None,
+        draw_bottom_right: bool | None = None,
     ) -> Rect:
         target: Surface = self.__target
         output_rect: Rect = _draw_circle(

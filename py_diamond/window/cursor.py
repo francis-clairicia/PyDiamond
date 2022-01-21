@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 from abc import ABCMeta, abstractmethod
 from enum import Enum, EnumMeta
 from types import MethodType
-from typing import Any, Callable, ClassVar, Dict, Optional, Sequence, Tuple, overload
+from typing import Any, Callable, ClassVar, Dict, Sequence, Tuple, overload
 
 import pygame.constants as _pg_constants
 from pygame.cursors import Cursor as _Cursor, compile as _pg_cursors_compile, load_xbm as _pg_cursors_load_xbm
@@ -26,12 +26,12 @@ from ..system.utils import wraps
 
 
 class _MetaCursor(ABCMeta):
-    __cursor_setter: ClassVar[Optional[Callable[[], None]]] = None
-    __default_cursor: ClassVar[Optional[Cursor]] = None
+    __cursor_setter: ClassVar[Callable[[], None] | None] = None
+    __default_cursor: ClassVar[Cursor | None] = None
 
     def __new__(metacls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> _MetaCursor:
         def _set_decorator(func: Callable[[Cursor], None], /) -> Callable[[Cursor], None]:
-            actual_cursor: Optional[Cursor] = None
+            actual_cursor: Cursor | None = None
 
             @wraps(func)
             def wrapper(self: Cursor, /) -> None:
@@ -42,7 +42,7 @@ class _MetaCursor(ABCMeta):
 
             return wrapper
 
-        set_method: Optional[Callable[[Cursor], None]] = namespace.get("set")
+        set_method: Callable[[Cursor], None] | None = namespace.get("set")
         if callable(set_method):
             namespace["set"] = _set_decorator(set_method)
 
@@ -59,7 +59,7 @@ class _MetaCursor(ABCMeta):
             _MetaCursor.__cursor_setter = None
 
     @staticmethod
-    def set_default(cursor: Optional[Cursor]) -> None:
+    def set_default(cursor: Cursor | None) -> None:
         _MetaCursor.__default_cursor = cursor
 
 

@@ -13,7 +13,7 @@ __license__ = "GNU GPL v3.0"
 from abc import ABCMeta, abstractmethod
 from enum import auto, unique
 from operator import truth
-from typing import ClassVar, Dict, Optional, Tuple
+from typing import ClassVar, Dict, Tuple
 
 from ..audio.sound import Sound
 from ..graphics.drawable import Drawable
@@ -39,15 +39,15 @@ class Clickable(metaclass=ABCMeta):
         master: Scene | Window,
         *,
         state: str = "normal",
-        hover_sound: Optional[Sound] = None,
-        click_sound: Optional[Sound] = None,
-        disabled_sound: Optional[Sound] = None,
-        hover_cursor: Optional[Cursor] = None,
-        disabled_cursor: Optional[Cursor] = None,
+        hover_sound: Sound | None = None,
+        click_sound: Sound | None = None,
+        disabled_sound: Sound | None = None,
+        hover_cursor: Cursor | None = None,
+        disabled_cursor: Cursor | None = None,
         take_focus: bool = True,
     ) -> None:
         self.__master: Scene | Window = master
-        self.__scene: Optional[Scene]
+        self.__scene: Scene | None
         if isinstance(master, Scene):
             self.__scene = master
         else:
@@ -56,8 +56,8 @@ class Clickable(metaclass=ABCMeta):
         self.__hover: bool = False
         self.__active: bool = False
         self.__active_only_on_hover: bool = True
-        self.__hover_sound: Optional[Sound] = None
-        self.__click_sound: Dict[Clickable.State, Optional[Sound]] = dict.fromkeys(Clickable.State)
+        self.__hover_sound: Sound | None = None
+        self.__click_sound: Dict[Clickable.State, Sound | None] = dict.fromkeys(Clickable.State)
         self.__default_hover_cursor: Dict[Clickable.State, Cursor] = {
             Clickable.State.NORMAL: SystemCursor.HAND,
             Clickable.State.DISABLED: SystemCursor.NO,
@@ -85,12 +85,12 @@ class Clickable(metaclass=ABCMeta):
         raise NotImplementedError
 
     def play_hover_sound(self) -> None:
-        hover_sound: Optional[Sound] = self.__hover_sound
+        hover_sound: Sound | None = self.__hover_sound
         if hover_sound is not None:
             hover_sound.play()
 
     def play_click_sound(self) -> None:
-        click_sound: Optional[Sound] = self.__click_sound[self.__state]
+        click_sound: Sound | None = self.__click_sound[self.__state]
         if click_sound is not None:
             click_sound.play()
 
@@ -219,7 +219,7 @@ class Clickable(metaclass=ABCMeta):
         return master.window
 
     @property
-    def scene(self) -> Optional[Scene]:
+    def scene(self) -> Scene | None:
         return self.__scene
 
     @property
@@ -274,31 +274,31 @@ class Clickable(metaclass=ABCMeta):
             self._on_active_set()
 
     @property
-    def hover_sound(self) -> Optional[Sound]:
+    def hover_sound(self) -> Sound | None:
         return self.__hover_sound
 
     @hover_sound.setter
-    def hover_sound(self, sound: Optional[Sound]) -> None:
+    def hover_sound(self, sound: Sound | None) -> None:
         if sound is not None and not isinstance(sound, Sound):
             raise TypeError(f"sound must be a '{Sound.__module__}.{Sound.__name__}' object")
         self.__hover_sound = sound
 
     @property
-    def click_sound(self) -> Optional[Sound]:
+    def click_sound(self) -> Sound | None:
         return self.__click_sound[Clickable.State.NORMAL]
 
     @click_sound.setter
-    def click_sound(self, sound: Optional[Sound]) -> None:
+    def click_sound(self, sound: Sound | None) -> None:
         if sound is not None and not isinstance(sound, Sound):
             raise TypeError(f"sound must be a '{Sound.__module__}.{Sound.__name__}' object")
         self.__click_sound[Clickable.State.NORMAL] = sound
 
     @property
-    def disabled_sound(self) -> Optional[Sound]:
+    def disabled_sound(self) -> Sound | None:
         return self.__click_sound[Clickable.State.DISABLED]
 
     @disabled_sound.setter
-    def disabled_sound(self, sound: Optional[Sound]) -> None:
+    def disabled_sound(self, sound: Sound | None) -> None:
         if sound is not None and not isinstance(sound, Sound):
             raise TypeError(f"sound must be a '{Sound.__module__}.{Sound.__name__}' object")
         self.__click_sound[Clickable.State.DISABLED] = sound

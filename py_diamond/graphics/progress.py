@@ -13,7 +13,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from enum import auto, unique
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Tuple
 
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
@@ -55,7 +55,7 @@ class ProgressBar(RectangleShape):
         height: float,
         from_: float = 0,
         to: float = 1,
-        default: Optional[float] = None,
+        default: float | None = None,
         orient: str = "horizontal",
         *,
         color: Color = WHITE,
@@ -67,7 +67,7 @@ class ProgressBar(RectangleShape):
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
-        theme: Optional[ThemeType] = None,
+        theme: ThemeType | None = None,
     ) -> None:
         self.__scale_rect: RectangleShape = RectangleShape(
             0,
@@ -233,7 +233,7 @@ class ProgressBar(RectangleShape):
         self.__label_text.hide()
         self.__label_text_side = str()
 
-    def config_label_text(self, message: Optional[str] = None, **kwargs: Any) -> None:
+    def config_label_text(self, message: str | None = None, **kwargs: Any) -> None:
         if message is not None:
             kwargs["message"] = message
         self.__label_text.config(**kwargs)

@@ -27,7 +27,6 @@ from typing import (
     Iterator,
     List,
     NoReturn,
-    Optional,
     ParamSpec,
     Protocol,
     Sequence,
@@ -97,7 +96,7 @@ class ScheduledFunction(Generic[_ScheduledFunc]):
             self.__first_start = False
             func(*args, **kwargs)
 
-    def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Callable[..., None]:
+    def __get__(self, obj: object, objtype: type | None = None, /) -> Callable[..., None]:
         if obj is None:
             return self
         return MethodType(self, obj)
@@ -125,7 +124,7 @@ def scheduled(milliseconds: float) -> Callable[[_ScheduledFunc], _ScheduledFunc]
 #             self.__first_start = False
 #             func(*args, **kwargs)
 
-#     def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Callable[..., None]:
+#     def __get__(self, obj: object, objtype: type | None = None, /) -> Callable[..., None]:
 #         if obj is None:
 #             return self
 #         return MethodType(self, obj)
@@ -156,7 +155,7 @@ class Window:
 
     def __init__(
         self,
-        title: Optional[str] = None,
+        title: str | None = None,
         size: Tuple[int, int] = (0, 0),
         *,
         resizable: bool = False,
@@ -240,7 +239,7 @@ class Window:
             self.__main_clock.tick()
             yield self
 
-    def set_title(self, title: Optional[str]) -> None:
+    def set_title(self, title: str | None) -> None:
         _pg_display.set_caption(title or Window.DEFAULT_TITLE)
 
     def iconify(self) -> bool:

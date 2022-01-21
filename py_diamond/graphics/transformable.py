@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
 from functools import cached_property
-from typing import Any, Dict, List, Optional, Tuple, final
+from typing import Any, Dict, List, Tuple, final
 
 from pygame import error as _pg_error
 
@@ -63,14 +63,14 @@ class Transformable(Movable, metaclass=MetaTransformable):
         self.__scale: float = 1
 
     def rotate(
-        self, angle_offset: float, pivot: Optional[Tuple[float, float] | Vector2 | str] = None, *, apply: bool = True
+        self, angle_offset: float, pivot: Tuple[float, float] | Vector2 | str | None = None, *, apply: bool = True
     ) -> None:
         self.set_rotation(self.__angle + angle_offset, pivot=pivot, apply=apply)
 
     def set_rotation(
         self,
         angle: float,
-        pivot: Optional[Tuple[float, float] | Vector2 | str] = None,
+        pivot: Tuple[float, float] | Vector2 | str | None = None,
         *,
         apply: bool = True,
     ) -> None:
@@ -182,8 +182,8 @@ class Transformable(Movable, metaclass=MetaTransformable):
         try:
             self._apply_both_rotation_and_scale()
         except NotImplementedError:
-            only_scale_exc: Optional[NotImplementedError] = None
-            only_rotation_exc: Optional[NotImplementedError] = None
+            only_scale_exc: NotImplementedError | None = None
+            only_rotation_exc: NotImplementedError | None = None
             try:
                 try:
                     self._apply_only_scale()

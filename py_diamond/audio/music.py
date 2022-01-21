@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from atexit import register as atexit
 from dataclasses import dataclass, field
-from typing import Final, List, Optional
+from typing import Final, List
 
 from pygame.event import Event as _PygameEvent, custom_type as _pg_event_custom_type, post as _pg_event_post
 from pygame.mixer import get_init as _pg_mixer_get_init, music as _pg_music
@@ -51,7 +51,7 @@ class MusicStream(metaclass=MetaClassNamespace, frozen=True):
 
     @dataclass
     class _PlayingMusic:
-        payload: Optional[_MusicPayload] = None
+        payload: _MusicPayload | None = None
         fadeout: bool = False
 
     __queue: List[_MusicPayload] = []
@@ -59,7 +59,7 @@ class MusicStream(metaclass=MetaClassNamespace, frozen=True):
 
     @staticmethod
     def play(music: Music, *, repeat: int = 0, fade_ms: int = 0) -> None:
-        played_music: Optional[_MusicPayload] = MusicStream.__playing.payload
+        played_music: _MusicPayload | None = MusicStream.__playing.payload
         if played_music is not None and played_music.music is music:
             return
         MusicStream.stop()
@@ -73,7 +73,7 @@ class MusicStream(metaclass=MetaClassNamespace, frozen=True):
     def stop() -> None:
         queue: List[_MusicPayload] = MusicStream.__queue
         queue.clear()
-        played_music: Optional[_MusicPayload] = MusicStream.__playing.payload
+        played_music: _MusicPayload | None = MusicStream.__playing.payload
         if played_music is not None:
             played_music.repeat = 0
         MusicStream.__playing.payload = None
@@ -115,7 +115,7 @@ class MusicStream(metaclass=MetaClassNamespace, frozen=True):
         repeat = int(repeat)
         if repeat < 0:
             raise ValueError("Cannot set infinite loop for queued musics")
-        played_music: Optional[_MusicPayload] = MusicStream.__playing.payload
+        played_music: _MusicPayload | None = MusicStream.__playing.payload
         if played_music is None:
             MusicStream.play(music, repeat=repeat)
             return
@@ -128,13 +128,13 @@ class MusicStream(metaclass=MetaClassNamespace, frozen=True):
 
     @staticmethod
     def __update() -> None:
-        played_music: Optional[_MusicPayload] = MusicStream.__playing.payload
+        played_music: _MusicPayload | None = MusicStream.__playing.payload
         if MusicStream.__playing.fadeout:
             MusicStream.stop()
             return
         if played_music is None or played_music.repeat < 0:
             return
-        next_music: Optional[Music]
+        next_music: Music | None
         played_music.repeat -= 1
         if played_music.repeat >= 0:
             next_music = played_music.music
@@ -150,7 +150,7 @@ class MusicStream(metaclass=MetaClassNamespace, frozen=True):
         MusicStream.__post_event(played_music.music, next_music)
 
     @staticmethod
-    def __post_event(finished_music: Music, next_music: Optional[Music]) -> bool:
+    def __post_event(finished_music: Music, next_music: Music | None) -> bool:
         return _pg_event_post(_PygameEvent(MusicStream.MUSICEND, finished=finished_music, next=next_music))
 
 

@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 from contextlib import suppress
 from os.path import join
 from types import MappingProxyType
-from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, TypeAlias
+from typing import Any, Callable, Dict, Mapping, Sequence, Tuple, TypeAlias
 
 from ..system.path import set_constant_directory
 from .loader import ResourceLoader
@@ -25,9 +25,7 @@ _ResourceLoader: TypeAlias = ResourceLoader[Any] | Tuple["_ResourceLoader", ...]
 
 
 class _ResourceDescriptor:
-    def __init__(
-        self, path: _ResourcePath, loader: Callable[[str], ResourceLoader[Any]], directory: Optional[str] = None
-    ) -> None:
+    def __init__(self, path: _ResourcePath, loader: Callable[[str], ResourceLoader[Any]], directory: str | None = None) -> None:
         def get_resources_loader(path: _ResourcePath) -> _ResourceLoader:
             if isinstance(path, str):
                 if isinstance(directory, str):
@@ -45,7 +43,7 @@ class _ResourceDescriptor:
         self.__loader: _ResourceLoader = get_resources_loader(path)
         self.__resource: Any
 
-    def __get__(self, obj: Any, objtype: Optional[type] = None, /) -> Any:
+    def __get__(self, obj: Any, objtype: type | None = None, /) -> Any:
         return self.load()
 
     def __set__(self, obj: Any, value: Any, /) -> None:
@@ -104,7 +102,7 @@ class MetaResourceManager(type):
             if attr_name not in annotations:
                 raise KeyError(f"Missing {attr_name!r} annotation")
 
-        directory: Optional[str] = namespace.get("__resources_directory__")
+        directory: str | None = namespace.get("__resources_directory__")
         if directory is not None:
             directory = set_constant_directory(directory, error_msg="Resource directory not found")
         namespace["__resources_directory__"] = directory
@@ -119,7 +117,7 @@ class MetaResourceManager(type):
     def __init__(cls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any], **kwargs: Any) -> None:
         super().__init__(name, bases, namespace, **kwargs)
 
-        cls.__resources_directory__: Optional[str]
+        cls.__resources_directory__: str | None
         cls.__resources_files__: Dict[str, _ResourceDescriptor]
         cls.__resource_loader__: Callable[[str], ResourceLoader[Any]]
         cls.__resources: Dict[str, _ResourceDescriptor] = {
@@ -169,6 +167,6 @@ class MetaResourceManager(type):
 
 
 class ResourceManager(metaclass=MetaResourceManager):
-    __resources_directory__: Optional[str] = None
+    __resources_directory__: str | None = None
     __resources_files__: Dict[str, _ResourcePath]
     __resource_loader__: Callable[[str], ResourceLoader[Any]]

@@ -34,7 +34,6 @@ from typing import (
     Final,
     List,
     Mapping,
-    Optional,
     Protocol,
     Sequence,
     Tuple,
@@ -96,7 +95,7 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
             return True
         return False
 
-    def focus_get(self) -> Optional[SupportsFocus]:
+    def focus_get(self) -> SupportsFocus | None:
         if not self.looping():
             return None
         focus_index: int = self.__focus_index
@@ -112,7 +111,7 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
         self.__focus_index = -1
         return None
 
-    def focus_next(self) -> Optional[SupportsFocus]:
+    def focus_next(self) -> SupportsFocus | None:
         if not self.looping():
             return None
         focusable_list: Sequence[SupportsFocus] = self.__container
@@ -130,7 +129,7 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
         self.__focus_index = -1
         return None
 
-    def focus_prev(self) -> Optional[SupportsFocus]:
+    def focus_prev(self) -> SupportsFocus | None:
         if not self.looping():
             return None
         focusable_list: Sequence[SupportsFocus] = self.__container
@@ -158,7 +157,7 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
     def focus_set(self, focusable: None) -> None:
         ...
 
-    def focus_set(self, focusable: Optional[SupportsFocus]) -> Optional[bool]:
+    def focus_set(self, focusable: SupportsFocus | None) -> bool | None:
         if not self.looping():
             return None if focusable is None else False
         if focusable is None:
@@ -212,11 +211,11 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
     def __focus_obj_on_side(self, side: BoundFocus.Side) -> None:
         if not self.looping():
             return
-        actual_obj: Optional[SupportsFocus] = self.focus_get()
+        actual_obj: SupportsFocus | None = self.focus_get()
         if actual_obj is None:
             self.focus_set(self.focus_next())
             return
-        obj: Optional[SupportsFocus] = actual_obj.focus.get_obj_on_side(side)
+        obj: SupportsFocus | None = actual_obj.focus.get_obj_on_side(side)
         while obj is not None and not obj.focus.take():
             obj = obj.focus.get_obj_on_side(side)
         if obj is not None:
@@ -281,18 +280,18 @@ class BoundFocus:
 
     __slots__ = ("__f", "__scene")
 
-    def __init__(self, focusable: SupportsFocus, scene: Optional[Scene]) -> None:
+    def __init__(self, focusable: SupportsFocus, scene: Scene | None) -> None:
         if not isinstance(focusable, _HasFocusMethods):
             raise NoFocusSupportError(repr(focusable))
         self.__f: SupportsFocus = focusable
-        self.__scene: Optional[GUIScene] = scene if isinstance(scene, GUIScene) else None
+        self.__scene: GUIScene | None = scene if isinstance(scene, GUIScene) else None
 
     def is_bound_to(self, scene: GUIScene) -> bool:
-        bound_scene: Optional[GUIScene] = self.__scene
+        bound_scene: GUIScene | None = self.__scene
         return bound_scene is not None and bound_scene is scene
 
-    def get(self) -> Optional[SupportsFocus]:
-        scene: Optional[GUIScene] = self.__scene
+    def get(self) -> SupportsFocus | None:
+        scene: GUIScene | None = self.__scene
         if scene is None:
             return None
         return scene.focus_get()
@@ -309,13 +308,13 @@ class BoundFocus:
     def take(self) -> bool:
         ...
 
-    def take(self, status: Optional[bool] = None) -> Optional[bool]:
+    def take(self, status: bool | None = None) -> bool | None:
         f: SupportsFocus = self.__self__
         if status is not None:
             status = bool(status)
             setattr(f, "_take_focus_", status)
             return None
-        scene: Optional[GUIScene] = self.__scene
+        scene: GUIScene | None = self.__scene
         if scene is None:
             return False
         taken: bool = truth(getattr(f, "_take_focus_", False))
@@ -324,14 +323,14 @@ class BoundFocus:
         return taken
 
     def set(self) -> bool:
-        scene: Optional[GUIScene] = self.__scene
+        scene: GUIScene | None = self.__scene
         if scene is None:
             return False
         f: SupportsFocus = self.__self__
         return scene.focus_set(f)
 
     def leave(self) -> None:
-        scene: Optional[GUIScene] = self.__scene
+        scene: GUIScene | None = self.__scene
         if scene is None:
             return
         if self.has():
@@ -342,28 +341,28 @@ class BoundFocus:
         self,
         /,
         *,
-        on_top: Optional[SupportsFocus] = ...,
-        on_bottom: Optional[SupportsFocus] = ...,
-        on_left: Optional[SupportsFocus] = ...,
-        on_right: Optional[SupportsFocus] = ...,
+        on_top: SupportsFocus | None = ...,
+        on_bottom: SupportsFocus | None = ...,
+        on_left: SupportsFocus | None = ...,
+        on_right: SupportsFocus | None = ...,
     ) -> None:
         ...
 
     @overload
-    def set_obj_on_side(self, __m: Mapping[str, Optional[SupportsFocus]], /) -> None:
+    def set_obj_on_side(self, __m: Mapping[str, SupportsFocus | None], /) -> None:
         ...
 
     def set_obj_on_side(
         self,
-        __m: Optional[Mapping[str, Optional[SupportsFocus]]] = None,
+        __m: Mapping[str, SupportsFocus | None] | None = None,
         /,
-        **kwargs: Optional[SupportsFocus],
+        **kwargs: SupportsFocus | None,
     ) -> None:
         if __m is None and not kwargs:
             raise TypeError("Invalid arguments")
 
         f: SupportsFocus = self.__self__
-        bound_object_dict: Dict[BoundFocus.Side, Optional[SupportsFocus]] = setdefaultattr(f, "_bound_focus_objects_", {})
+        bound_object_dict: Dict[BoundFocus.Side, SupportsFocus | None] = setdefaultattr(f, "_bound_focus_objects_", {})
         if __m is not None:
             kwargs = __m | kwargs
         del __m
@@ -380,22 +379,22 @@ class BoundFocus:
         self.remove_obj_on_side(*BoundFocus.Side)
 
     class BoundObjectsDict(TypedDict):
-        on_top: Optional[SupportsFocus]
-        on_bottom: Optional[SupportsFocus]
-        on_left: Optional[SupportsFocus]
-        on_right: Optional[SupportsFocus]
+        on_top: SupportsFocus | None
+        on_bottom: SupportsFocus | None
+        on_left: SupportsFocus | None
+        on_right: SupportsFocus | None
 
     @overload
     def get_obj_on_side(self) -> BoundObjectsDict:
         ...
 
     @overload
-    def get_obj_on_side(self, side: str) -> Optional[SupportsFocus]:
+    def get_obj_on_side(self, side: str) -> SupportsFocus | None:
         ...
 
-    def get_obj_on_side(self, side: Optional[str] = None) -> Optional[BoundObjectsDict | SupportsFocus]:
+    def get_obj_on_side(self, side: str | None = None) -> BoundObjectsDict | SupportsFocus | None:
         f: SupportsFocus = self.__self__
-        bound_object_dict: Dict[BoundFocus.Side, Optional[SupportsFocus]] = getattr(f, "_bound_focus_objects_", {})
+        bound_object_dict: Dict[BoundFocus.Side, SupportsFocus | None] = getattr(f, "_bound_focus_objects_", {})
 
         if side is None:
             return {
@@ -560,7 +559,7 @@ class _GUILayeredGroup(LayeredGroup):
         master.focus_container.update()
         super().draw_onto(target)
 
-    def add(self, *objects: Drawable, layer: Optional[int] = None) -> None:
+    def add(self, *objects: Drawable, layer: int | None = None) -> None:
         super().add(*objects, layer=layer)
         master: GUIScene = self.__master
         container: FocusableContainer = master.focus_container

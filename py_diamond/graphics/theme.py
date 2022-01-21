@@ -27,7 +27,6 @@ from typing import (
     Iterator,
     List,
     Mapping,
-    Optional,
     Sequence,
     Set,
     Tuple,
@@ -54,11 +53,11 @@ class ThemeNamespace(ContextManager["ThemeNamespace"]):
     __THEMES_DICT_NAMESPACE: ClassVar[Dict[str, _ClassThemeDict]] = {}
     __DEFAULT_THEME_DEFAULT_DICT: ClassVar[_ClassDefaultThemeDict] = _DEFAULT_THEME
     __DEFAULT_THEME_DICT_NAMESPACE: ClassVar[Dict[str, _ClassDefaultThemeDict]] = {}
-    __actual_namespace: ClassVar[Optional[str]] = None
+    __actual_namespace: ClassVar[str | None] = None
 
     def __init__(self, namespace: str) -> None:
         self.__namespace: str = str(namespace)
-        self.__save_namespace: Optional[str] = None
+        self.__save_namespace: str | None = None
         self.__entered: int = 0
 
     def __enter__(self) -> ThemeNamespace:
@@ -86,7 +85,7 @@ class ThemeNamespace(ContextManager["ThemeNamespace"]):
         self.__entered -= 1
         if self.__entered > 0:
             return
-        namespace: Optional[str] = self.__save_namespace
+        namespace: str | None = self.__save_namespace
         self.__save_namespace = None
         if namespace is None:
             _THEMES = ThemeNamespace.__THEMES_DEFAULT_DICT
@@ -99,17 +98,17 @@ class ThemeNamespace(ContextManager["ThemeNamespace"]):
         ThemeNamespace.__actual_namespace = namespace
 
     @staticmethod
-    def get_actual() -> Optional[str]:
+    def get_actual() -> str | None:
         return ThemeNamespace.__actual_namespace
 
     @staticmethod
-    def get_theme_dict(namespace: Optional[str]) -> MappingProxyType[type, _ClassTheme]:
+    def get_theme_dict(namespace: str | None) -> MappingProxyType[type, _ClassTheme]:
         if namespace is None:
             return MappingProxyType(ThemeNamespace.__THEMES_DEFAULT_DICT)
         return MappingProxyType(ThemeNamespace.__THEMES_DICT_NAMESPACE.get(namespace, {}))
 
     @staticmethod
-    def get_default_theme_dict(namespace: Optional[str]) -> MappingProxyType[type, Sequence[str]]:
+    def get_default_theme_dict(namespace: str | None) -> MappingProxyType[type, Sequence[str]]:
         mapping: Dict[type, List[str]]
         if namespace is None:
             mapping = ThemeNamespace.__DEFAULT_THEME_DEFAULT_DICT
@@ -174,8 +173,8 @@ class MetaThemedObject(ABCMeta):
                     raise TypeError(f"{func.__qualname__}: 'theme' parameter must have None as default value")
 
         if all(not getattr(attr, "__isabstractmethod__", False) for attr in namespace.values()):
-            new_method: Optional[Callable[..., Any]] = namespace.get("__new__")
-            init_method: Optional[Callable[..., None]] = namespace.get("__init__")
+            new_method: Callable[..., Any] | None = namespace.get("__new__")
+            init_method: Callable[..., None] | None = namespace.get("__init__")
             if new_method is not None:
                 check_parameters(new_method)
             if init_method is not None:
@@ -201,7 +200,7 @@ class MetaThemedObject(ABCMeta):
         if cls.is_abstract_theme_class():
             return create_object(*args, **kwargs)
 
-        theme: Optional[ThemeType] = kwargs.get("theme")
+        theme: ThemeType | None = kwargs.get("theme")
         if theme is NoTheme:
             return create_object(*args, **kwargs)
         if theme is None:
@@ -232,7 +231,7 @@ class MetaThemedObject(ABCMeta):
     def set_theme(cls, name: str, options: None) -> None:
         ...
 
-    def set_theme(cls, name: str, options: Optional[Dict[str, Any]], update: bool = False, ignore_unusable: bool = False) -> None:
+    def set_theme(cls, name: str, options: Dict[str, Any] | None, update: bool = False, ignore_unusable: bool = False) -> None:
         if cls.is_abstract_theme_class():
             raise TypeError("Abstract theme classes cannot set themes.")
         if name is NoTheme:
@@ -299,7 +298,7 @@ class MetaThemedObject(ABCMeta):
     def set_default_theme(cls, name: None, /) -> None:
         ...
 
-    def set_default_theme(cls, name: Optional[str], /, *names: str, update: bool = False) -> None:
+    def set_default_theme(cls, name: str | None, /, *names: str, update: bool = False) -> None:
         if cls.is_abstract_theme_class():
             raise TypeError("Abstract theme classes cannot set themes.")
 
