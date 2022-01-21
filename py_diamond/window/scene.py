@@ -125,7 +125,7 @@ class MetaScene(ABCMeta):
 
     @concreteclassmethod
     def set_theme_namespace(cls, namespace: str) -> None:
-        MetaScene.__namespaces[cls] = namespace
+        MetaScene.__namespaces[cls] = str(namespace)
 
     @concreteclassmethod
     def remove_theme_namespace(cls) -> None:
@@ -148,15 +148,11 @@ class MetaScene(ABCMeta):
         @wraps(func)
         def wrapper(__cls_or_self: Any, /, *args: Any, **kwargs: Any) -> Any:
             cls: type = type(__cls_or_self) if not isinstance(__cls_or_self, type) else __cls_or_self
-            output: Any
-            try:
-                theme_namespace: Any = MetaScene.__namespaces[cls]
-            except KeyError:
-                output = func(__cls_or_self, *args, **kwargs)
-            else:
-                with ThemeNamespace(theme_namespace):
-                    output = func(__cls_or_self, *args, **kwargs)
-            return output
+            theme_namespace: str | None = MetaScene.__namespaces.get(cls)
+            if theme_namespace is None:
+                return func(__cls_or_self, *args, **kwargs)
+            with ThemeNamespace(theme_namespace):
+                return func(__cls_or_self, *args, **kwargs)
 
         return wrapper
 
