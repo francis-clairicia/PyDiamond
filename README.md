@@ -1,5 +1,5 @@
 # PyDiamond
-PyDiamond engine is a game engine inteded to game developers in Python language.
+PyDiamond engine is a game engine intended to game developers in Python language.
 
 The framework uses the popular [pygame library](https://github.com/pygame/pygame/).
 
@@ -28,7 +28,7 @@ This code will open a small window.
 ```sh
 python3 -m pip install -r requirements.txt
 ```
-PyDiamond is dependent of pygame and Python (obviously). Some features of pygame needed in PyDiamond is available with a specific version of the SDL.
+PyDiamond is dependent of pygame and Python (obviously). Some features of pygame needed in PyDiamond are available with a specific version of the SDL.
 
 Dependency version:
 - CPython >= 3.10
