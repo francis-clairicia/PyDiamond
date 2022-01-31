@@ -6,9 +6,12 @@
 
 __all__ = [
     "cache",
+    "concreteclass",
     "concreteclasscheck",
     "concreteclassmethod",
+    "dsuppress",
     "forbidden_call",
+    "isabstractmethod",
     "isconcreteclass",
     "lru_cache",
     "setdefaultattr",
@@ -24,6 +27,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
+from contextlib import ContextDecorator, suppress
 from functools import WRAPPER_ASSIGNMENTS, WRAPPER_UPDATES, lru_cache as _lru_cache, update_wrapper as _update_wrapper
 from operator import truth
 from typing import Any, Callable, ParamSpec, Sequence, TypeAlias, TypeVar, overload
@@ -110,9 +114,14 @@ def concreteclassmethod(func: Callable[_P, _R]) -> Callable[_P, _R]:
     return wrapper
 
 
+def concreteclass(cls: type[_T]) -> type[_T]:
+    concreteclasscheck(cls)
+    return cls
+
+
 def concreteclasscheck(cls: Any) -> None:
     if not isconcreteclass(cls):
-        raise TypeError(f"{cls.__name__} is an abstract class")
+        raise TypeError(f"{cls.__name__} is an abstract class (abstract methods: {', '.join(cls.__abstractmethods__)})")
 
 
 def isconcreteclass(cls: type) -> bool:
@@ -121,12 +130,20 @@ def isconcreteclass(cls: type) -> bool:
     return not truth(getattr(cls, "__abstractmethods__", None))
 
 
+def isabstractmethod(func: Callable[..., Any]) -> bool:
+    return truth(getattr(func, "__isabstractmethod__", False))
+
+
 def forbidden_call(func: Callable[_P, _R]) -> Callable[_P, _R]:
     @wraps(func)
     def not_callable(*args: Any, **kwargs: Any) -> Any:
-        raise TypeError(f"Call to function {func.__module__}.{func.__name__} is forbidden")
+        raise TypeError(f"Call to function {func.__qualname__} is forbidden")
 
     return not_callable
+
+
+class dsuppress(suppress, ContextDecorator):
+    pass
 
 
 _MISSING: Any = object()

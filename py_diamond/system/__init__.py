@@ -14,7 +14,6 @@ __all__ = [
     "EmptyOptionNameError",
     "InitializationError",
     "InvalidAliasError",
-    "JThread",
     "MetaClassNamespace",
     "MetaNoDuplicate",
     "MetaNonCopyable",
@@ -30,12 +29,14 @@ __all__ = [
     "UnknownOptionError",
     "UnregisteredOptionError",
     "cache",
+    "concreteclass",
     "concreteclasscheck",
     "concreteclassmethod",
+    "dsuppress",
     "forbidden_call",
     "initializer",
+    "isabstractmethod",
     "isconcreteclass",
-    "jthread",
     "lru_cache",
     "rthread",
     "set_constant_directory",
@@ -75,12 +76,15 @@ from .namespace import ClassNamespace, MetaClassNamespace
 from .non_copyable import MetaNonCopyable, NonCopyable
 from .path import set_constant_directory, set_constant_file
 from .singleton import MetaSingleton, Singleton
-from .threading import JThread, RThread, Thread, jthread, rthread, thread
+from .threading import RThread, Thread, rthread, thread
 from .utils import (
     cache,
+    concreteclass,
     concreteclasscheck,
     concreteclassmethod,
+    dsuppress,
     forbidden_call,
+    isabstractmethod,
     isconcreteclass,
     lru_cache,
     setdefaultattr,

@@ -13,7 +13,8 @@ authors = [
 ]
 license = {file = "LICENSE"}
 dependencies = [
-    "pygame >=2.1.2"
+    "pygame >=2.1.2",
+    "cryptography >=36.0"
 ]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
@@ -24,7 +25,6 @@ classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.10",
-  "Topic :: Software Development :: Libraries :: Python Modules",
   "Topic :: Software Development :: Libraries :: pygame",
   "Typing :: Typed"
 ]
@@ -35,7 +35,7 @@ Source = "https://github.com/francis-clairicia/PyDiamond"
 [tool.isort]
 profile = "black"
 line_length = 130
-skip = [".gitignore", "_gradients.py"]
+skip = ["_gradients.py"]
 skip_gitignore = true
 combine_as_imports = true
 
@@ -43,7 +43,7 @@ combine_as_imports = true
 line-length = 130
 
 [tool.mypy]
-python_version="3.10"
+python_version = "3.10"
 warn_unused_configs = true
 disallow_any_generics = true
 disallow_any_unimported = true
@@ -62,3 +62,8 @@ warn_unreachable = true
 no_implicit_reexport = true
 strict_equality = true
 enable_error_code = ["truthy-bool"]
+
+[tool.pytest.ini_options]
+minversion = "6.2.5"
+addopts = "-ra -v"
+testpaths = ["tests"]

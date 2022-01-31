@@ -1,1 +1,2 @@
 pygame>=2.1.2
+cryptography>=36.0

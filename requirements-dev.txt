@@ -1,3 +1,4 @@
 mypy>=0.930
 isort
 black
+pytest>=6.2.5

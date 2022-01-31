@@ -4,20 +4,24 @@
 #
 """Threading utilty module"""
 
-__all__ = ["JThread", "RThread", "Thread", "jthread", "rthread", "thread"]
+__all__ = ["RThread", "Thread", "rthread", "thread"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from threading import Thread, current_thread
+from threading import Thread as _Thread
 from typing import Any, Callable, Generic, Iterable, Mapping, ParamSpec, TypeVar, overload
 
 from .utils import wraps
 
 _P = ParamSpec("_P")
-_T = TypeVar("_T", bound=Thread)
+_T = TypeVar("_T", bound="Thread")
 _R = TypeVar("_R")
+
+
+class Thread(_Thread):
+    pass
 
 
 @overload
@@ -95,7 +99,7 @@ class RThread(Thread, Generic[_R]):
         super().__init__(group=group, target=used_target, name=name, args=args, kwargs=kwargs, daemon=daemon)
 
     def join(self, timeout: float | None = None) -> _R:  # type: ignore[override]
-        super().join(timeout=timeout)
+        super().join(timeout)
         ret: _R = self._return
         del self._return
         return ret
@@ -127,51 +131,4 @@ def rthread(
     return decorator
 
 
-class JThread(Thread):
-    def __init__(
-        self,
-        group: None = None,
-        target: Callable[..., None] | None = None,
-        name: str | None = None,
-        args: Iterable[Any] = (),
-        kwargs: Mapping[str, Any] | None = None,
-        *,
-        daemon: None = None,
-    ) -> None:
-        used_target: Callable[..., None] | None = target
-        super().__init__(group=group, target=used_target, name=name, args=args, kwargs=kwargs)
-
-    def __del__(self) -> None:
-        if current_thread() is self or not self.is_alive():
-            return
-        self.join()
-
-    @property
-    def daemon(self) -> bool:  # type: ignore[override]
-        return super().daemon
-
-
-@overload
-def jthread(func: Callable[_P, None], /) -> Callable[_P, JThread]:
-    ...
-
-
-@overload
-def jthread(*, auto_start: bool = True, name: str | None = None) -> Callable[[Callable[_P, None]], Callable[_P, JThread]]:
-    ...
-
-
-def jthread(
-    func: Callable[..., Any] | None = None,
-    /,
-    *,
-    auto_start: bool = True,
-    name: str | None = None,
-) -> Callable[..., Any]:
-    decorator = thread(thread_cls=JThread, daemon=None, auto_start=auto_start, name=name)
-    if func is not None:
-        return decorator(func)
-    return decorator
-
-
-del _P, _T, _R
+del _Thread

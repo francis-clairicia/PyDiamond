@@ -4,7 +4,7 @@
 #
 """Python mangling module"""
 
-__all__ = ["delattr_pv", "getattr_pv", "hasattr_pv", "mangle_private_attribute", "setattr_pv"]
+__all__ = ["delattr_pv", "getattr_pv", "hasattr_pv", "mangle_private_attribute", "setattr_pv", "setdefaultattr_pv"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
@@ -21,6 +21,12 @@ _NO_DEFAULT: Any = object()
 def mangle_private_attribute(cls: type, attribute: str) -> str:
     if not isinstance(cls, type):
         raise TypeError("'cls' must be a type")
+    if not attribute:
+        raise ValueError(f"Empty attribute string")
+    if all(c == "_" for c in attribute):
+        raise ValueError(f"attribute filled with underscores")
+    if attribute.endswith("__"):
+        raise ValueError(f"{attribute!r}: Two or more trailing underscores")
     return f"_{cls.__name__.strip('_')}__{attribute}"
 
 
@@ -54,9 +60,9 @@ def getattr_pv(obj: object, attribute: str, default: Any = _NO_DEFAULT, *, owner
         else:
             owner = type(obj)
     attribute = mangle_private_attribute(owner, attribute)
-    if default is not _NO_DEFAULT:
-        return getattr(obj, attribute, default)
     try:
+        if default is not _NO_DEFAULT:
+            return getattr(obj, attribute, default)
         return getattr(obj, attribute)
     except AttributeError:
         raise AttributeError(f"Missing private attribute {attribute!r}") from None
@@ -86,6 +92,14 @@ def delattr_pv(obj: object, attribute: str, *, owner: type | None = None) -> Non
         return delattr(obj, attribute)
     except AttributeError:
         raise AttributeError(f"Missing private attribute {attribute!r}") from None
+
+
+def setdefaultattr_pv(obj: object, name: str, value: _T, *, owner: type | None = None) -> _T:
+    try:
+        return getattr_pv(obj, name, owner=owner)  # type: ignore[no-any-return]
+    except AttributeError:
+        setattr_pv(obj, name, value, owner=owner)
+    return value
 
 
 del _T

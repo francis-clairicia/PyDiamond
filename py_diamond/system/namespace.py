@@ -29,6 +29,9 @@ class MetaClassNamespace(type):
     ) -> __Self:
         if "__slots__" in namespace:
             raise ValueError("'__slots__' must not be defined")
+        for attr in ("__new__", "__init__"):
+            if attr in namespace:
+                raise TypeError(f"A ClassNamespace class is not instantiable, so no need to define {attr!r}")
         if not frozen:
             for b in bases:
                 if isinstance(b, MetaClassNamespace):
@@ -52,15 +55,29 @@ class MetaClassNamespace(type):
         setattr(cls, "_class_namespace_was_init_", True)
 
     def __call__(cls, *args: Any, **kwargs: Any) -> Any:
-        raise TypeError(f"{cls.__module__}.{cls.__name__} is cannot be instantiated")
+        raise TypeError(f"{cls.__module__}.{cls.__name__} cannot be instantiated")
 
     def __setattr__(cls, name: str, value: Any, /) -> None:
+        if name in ("__new__", "__init__"):
+            raise TypeError(f"{cls.__module__}.{cls.__name__} cannot be instantiated")
         if getattr(cls, "_class_namespace_was_init_"):
             if cls.is_frozen():
                 raise AttributeError(f"{cls.__module__}.{cls.__name__}: Frozen class namespace")
             if name in ("_frozen_class_namespace_", "_class_namespace_was_init_"):
                 raise AttributeError(f"{name!r} is read-only")
+        elif name == "_frozen_class_namespace_":
+            raise AttributeError(f"{name!r} is read-only")
         return super().__setattr__(name, value)
+
+    def __delattr__(cls, name: str, /) -> None:
+        if getattr(cls, "_class_namespace_was_init_"):
+            if cls.is_frozen():
+                raise AttributeError(f"{cls.__module__}.{cls.__name__}: Frozen class namespace")
+            if name in ("_frozen_class_namespace_", "_class_namespace_was_init_"):
+                raise AttributeError(f"{name!r} is read-only")
+        elif name == "_frozen_class_namespace_":
+            raise AttributeError(f"{name!r} is read-only")
+        return super().__delattr__(name)
 
     def is_frozen(cls) -> bool:
         return truth(getattr(cls, "_frozen_class_namespace_", False))
