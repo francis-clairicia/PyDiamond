@@ -6,9 +6,19 @@ from threading import Event
 from typing import Any, Generator
 
 from py_diamond.network.client import TCPNetworkClient
-from py_diamond.network.protocol import AbstractNetworkProtocol, PicklingNetworkProtocol, SecuredNetworkProtocol, ValidationError
+from py_diamond.network.protocol import (
+    AbstractNetworkProtocol,
+    JSONNetworkProtocol,
+    PicklingNetworkProtocol,
+    SecuredNetworkProtocol,
+    ValidationError,
+)
 from py_diamond.network.socket import PythonTCPClientSocket, PythonTCPServerSocket
 from py_diamond.system.threading import Thread, thread
+
+
+class SafePicklingProtocol(PicklingNetworkProtocol, SecuredNetworkProtocol):
+    SECRET_KEY = SecuredNetworkProtocol.generate_key()
 
 
 @thread
@@ -75,9 +85,6 @@ def test_custom_protocol() -> None:
     shutdow_requested: Event = Event()
     host: str = "localhost"
     port: int = randrange(10000, 65536)
-
-    class SafePicklingProtocol(PicklingNetworkProtocol, SecuredNetworkProtocol):
-        SECRET_KEY = SecuredNetworkProtocol.generate_key()
 
     server_started.clear()
     shutdow_requested.clear()
@@ -153,7 +160,7 @@ def test_multiple_requests() -> None:
         server_thread.join()
 
 
-def test_several_successive_send() -> None:
+def test_several_successive_send_using_pickling_protocol() -> None:
     server_started: Event = Event()
     shutdow_requested: Event = Event()
     host: str = "localhost"
@@ -165,6 +172,52 @@ def test_several_successive_send() -> None:
     try:
         server_started.wait()
         with TCPNetworkClient[Any]((host, port), protocol_cls=PicklingNetworkProtocol) as client:
+            client.send_packet({"data": [5, 2]})
+            client.send_packet("Hello")
+            client.send_packet(132)
+            assert client.recv_packet() == {"data": [5, 2]}
+            assert client.recv_packet() == "Hello"
+            assert client.recv_packet() == 132
+    finally:
+        shutdow_requested.set()
+        server_thread.join()
+
+
+def test_several_successive_send_using_json_protocol() -> None:
+    server_started: Event = Event()
+    shutdow_requested: Event = Event()
+    host: str = "localhost"
+    port: int = randrange(10000, 65536)
+
+    server_started.clear()
+    shutdow_requested.clear()
+    server_thread: Thread = launch_server(host, port, server_started, shutdow_requested)
+    try:
+        server_started.wait()
+        with TCPNetworkClient[Any]((host, port), protocol_cls=JSONNetworkProtocol) as client:
+            client.send_packet({"data": [5, 2]})
+            client.send_packet("Hello")
+            client.send_packet(132)
+            assert client.recv_packet() == {"data": [5, 2]}
+            assert client.recv_packet() == "Hello"
+            assert client.recv_packet() == 132
+    finally:
+        shutdow_requested.set()
+        server_thread.join()
+
+
+def test_several_successive_send_using_secured_pickling_protocol() -> None:
+    server_started: Event = Event()
+    shutdow_requested: Event = Event()
+    host: str = "localhost"
+    port: int = randrange(10000, 65536)
+
+    server_started.clear()
+    shutdow_requested.clear()
+    server_thread: Thread = launch_server(host, port, server_started, shutdow_requested)
+    try:
+        server_started.wait()
+        with TCPNetworkClient[Any]((host, port), protocol_cls=SafePicklingProtocol) as client:
             client.send_packet({"data": [5, 2]})
             client.send_packet("Hello")
             client.send_packet(132)

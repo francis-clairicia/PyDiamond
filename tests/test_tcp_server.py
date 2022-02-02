@@ -168,24 +168,24 @@ def test_request_handling() -> None:
             TCPNetworkClient[int](address, protocol_cls=_IntegerNetworkProtocol) as client_3,
         ):
             client_1.send_packet(350)
-            sleep(0.2)
+            sleep(0.3)
             assert client_2.recv_packet() == 350
             assert client_3.recv_packet() == 350
             assert client_1.recv_packet_no_wait() is None
             client_2.send_packet(-634)
-            sleep(0.2)
+            sleep(0.3)
             assert client_1.recv_packet() == -634
             assert client_3.recv_packet() == -634
             assert client_2.recv_packet_no_wait() is None
             client_3.send_packet(0)
-            sleep(0.2)
+            sleep(0.3)
             assert client_1.recv_packet() == 0
             assert client_2.recv_packet() == 0
             assert client_3.recv_packet_no_wait() is None
             client_1.send_packet(350)
             client_2.send_packet(-634)
             client_3.send_packet(0)
-            sleep(0.5)
+            sleep(0.3)
             assert list(client_1.recv_packets()) == [-634, 0]
             assert list(client_2.recv_packets()) == [350, 0]
             assert list(client_3.recv_packets()) == [350, -634]

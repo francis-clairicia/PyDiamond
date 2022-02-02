@@ -16,7 +16,6 @@ def test_pickling_protocol() -> None:
 
 
 def test_json_protocol() -> None:
-    assert JSONNetworkProtocol.SEPARATOR == b"\0"
     d: bytes = JSONNetworkProtocol.serialize({"key": [1, 2], "value": True})
     assert d == b'{"key": [1, 2], "value": true}'
     assert JSONNetworkProtocol.deserialize(d) == {"key": [1, 2], "value": True}
@@ -26,7 +25,6 @@ def test_secured_protocol() -> None:
     class SecuredJSONProtocol(JSONNetworkProtocol, SecuredNetworkProtocol):
         SECRET_KEY: ClassVar[str] = SecuredNetworkProtocol.generate_key()
 
-    assert SecuredJSONProtocol.SEPARATOR == b"\r\n"
     d: bytes = SecuredJSONProtocol.serialize({"key": [1, 2], "value": True})
     assert d != b'{"key": [1, 2], "value": true}'
     assert Fernet(SecuredJSONProtocol.SECRET_KEY).decrypt(d) == b'{"key": [1, 2], "value": true}'

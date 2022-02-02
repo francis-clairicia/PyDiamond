@@ -12,7 +12,7 @@ __license__ = "GNU GPL v3.0"
 
 from json import JSONDecodeError, dumps as json_dumps, loads as json_loads
 from types import TracebackType
-from typing import Any, ClassVar
+from typing import Any
 
 from ...system.utils import concreteclass
 from .base import AutoParsedNetworkProtocol
@@ -20,8 +20,6 @@ from .base import AutoParsedNetworkProtocol
 
 @concreteclass
 class JSONNetworkProtocol(AutoParsedNetworkProtocol):
-    SEPARATOR: ClassVar[bytes] = b"\0"
-
     @classmethod
     def serialize(cls, packet: Any) -> bytes:
         return json_dumps(packet).encode("utf-8")

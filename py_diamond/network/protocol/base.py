@@ -21,8 +21,9 @@ __license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta, abstractmethod
 from contextlib import contextmanager
+from struct import Struct, error as StructError
 from types import TracebackType
-from typing import Any, Callable, ClassVar, Generator, Iterator, ParamSpec, TypeVar
+from typing import Any, Callable, ClassVar, Final, Generator, Iterator, ParamSpec, TypeVar
 
 from cryptography.fernet import Fernet, InvalidToken
 
@@ -92,24 +93,29 @@ class AbstractNetworkProtocol(metaclass=MetaNetworkProtocol, frozen=True):
 
 
 class AutoParsedNetworkProtocol(AbstractNetworkProtocol):
-    SEPARATOR: ClassVar[bytes] = b""
+    struct: Final[Struct] = Struct("!I")
 
     @classmethod
     def add_header_footer(cls, data: bytes) -> bytes:
-        return data + cls.SEPARATOR
+        header: bytes = cls.struct.pack(len(data))
+        return header + data
 
     @classmethod
     def parse_received_data(cls, buffer: bytes) -> Generator[bytes, None, bytes]:
-        SEPARATOR: bytes = cls.SEPARATOR
-        if not SEPARATOR:
-            yield buffer
-            return bytes()
+        struct: Struct = cls.struct
         while True:
-            idx: int = buffer.find(SEPARATOR)
-            if idx < 0:
+            if len(buffer) < struct.size:
                 break
-            yield buffer[:idx]
-            buffer = buffer[idx + len(SEPARATOR) :]
+            header: bytes = buffer[: struct.size]
+            body: bytes = buffer[struct.size :]
+            try:
+                data_length: int = struct.unpack(header)[0]
+            except StructError:
+                break
+            if len(body) < data_length:
+                break
+            yield body[:data_length]
+            buffer = body[data_length:]
         return buffer
 
 
@@ -135,7 +141,7 @@ class MetaSecuredNetworkProtocol(MetaNetworkProtocol):
             ):
                 raise TypeError("Attribute conflict with security attributes")
 
-            for attr in ("parse_received_data", "verify_received_data", "SEPARATOR"):
+            for attr in ("parse_received_data", "verify_received_data"):
                 if attr in namespace:
                     raise TypeError(f"{attr!r} must not be overriden")
                 namespace[attr] = vars(SecuredNetworkProtocol)[attr]
@@ -272,7 +278,6 @@ class MetaSecuredNetworkProtocol(MetaNetworkProtocol):
 
 class SecuredNetworkProtocol(AutoParsedNetworkProtocol, metaclass=MetaSecuredNetworkProtocol):
     SECRET_KEY: ClassVar[str]
-    SEPARATOR: ClassVar[bytes] = b"\r\n"
 
     @staticmethod
     def generate_key() -> str:
