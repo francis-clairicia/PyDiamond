@@ -65,6 +65,10 @@ class AbstractNetworkProtocol(metaclass=MetaNetworkProtocol, frozen=True):
         raise NotImplementedError
 
     @classmethod
+    def add_header_footer(cls, data: bytes) -> bytes:
+        return data + cls.SEPARATOR
+
+    @classmethod
     def parse_received_data(cls, buffer: bytes) -> Generator[bytes, None, bytes]:
         SEPARATOR: bytes = cls.SEPARATOR
         if not SEPARATOR:

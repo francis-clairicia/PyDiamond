@@ -290,7 +290,7 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
             try:
                 sock.settimeout(timeout)
                 sock.connect(address)
-            except OSError:
+            except:
                 sock.close()
                 raise
         sock.settimeout(None)
@@ -452,7 +452,7 @@ class PythonUDPServerSocket(_AbstractPythonUDPSocket, AbstractUDPServerSocket):
                 del HAS_IPV6
 
             sock.bind(address)
-        except OSError:
+        except:
             sock.close()
             raise
 
