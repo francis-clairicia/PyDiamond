@@ -141,7 +141,7 @@ class MetaSecuredNetworkProtocol(MetaNetworkProtocol):
             ):
                 raise TypeError("Attribute conflict with security attributes")
 
-            for attr in ("parse_received_data", "verify_received_data"):
+            for attr in ("add_header_footer", "parse_received_data", "verify_received_data"):
                 if attr in namespace:
                     raise TypeError(f"{attr!r} must not be overriden")
                 namespace[attr] = vars(SecuredNetworkProtocol)[attr]
@@ -282,6 +282,10 @@ class SecuredNetworkProtocol(AutoParsedNetworkProtocol, metaclass=MetaSecuredNet
     @staticmethod
     def generate_key() -> str:
         return Fernet.generate_key().decode("utf-8")
+
+    @classmethod
+    def add_header_footer(cls, data: bytes) -> bytes:
+        return super().add_header_footer(data)
 
     @classmethod
     def parse_received_data(cls, buffer: bytes) -> Generator[bytes, None, bytes]:
