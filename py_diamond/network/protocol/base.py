@@ -8,6 +8,7 @@ from __future__ import annotations
 
 __all__ = [
     "AbstractNetworkProtocol",
+    "AutoParsedNetworkProtocol",
     "MetaNetworkProtocol",
     "MetaSecuredNetworkProtocol",
     "SecuredNetworkProtocol",
@@ -52,8 +53,6 @@ class MetaNetworkProtocol(ABCMeta, MetaClassNamespace):
 
 
 class AbstractNetworkProtocol(metaclass=MetaNetworkProtocol, frozen=True):
-    SEPARATOR: ClassVar[bytes] = b""
-
     @classmethod
     @abstractmethod
     def serialize(cls, packet: Any) -> bytes:
@@ -66,21 +65,12 @@ class AbstractNetworkProtocol(metaclass=MetaNetworkProtocol, frozen=True):
 
     @classmethod
     def add_header_footer(cls, data: bytes) -> bytes:
-        return data + cls.SEPARATOR
+        return data
 
     @classmethod
+    @abstractmethod
     def parse_received_data(cls, buffer: bytes) -> Generator[bytes, None, bytes]:
-        SEPARATOR: bytes = cls.SEPARATOR
-        if not SEPARATOR:
-            yield buffer
-            return bytes()
-        while True:
-            idx: int = buffer.find(SEPARATOR)
-            if idx < 0:
-                break
-            yield buffer[:idx]
-            buffer = buffer[idx + len(SEPARATOR) :]
-        return buffer
+        raise NotImplementedError
 
     @classmethod
     def verify_packet_to_send(cls, packet: Any) -> None:
@@ -99,6 +89,28 @@ class AbstractNetworkProtocol(metaclass=MetaNetworkProtocol, frozen=True):
         cls, data: bytes, exc_type: type[BaseException], exc_value: BaseException, tb: TracebackType
     ) -> bool:
         return False
+
+
+class AutoParsedNetworkProtocol(AbstractNetworkProtocol):
+    SEPARATOR: ClassVar[bytes] = b""
+
+    @classmethod
+    def add_header_footer(cls, data: bytes) -> bytes:
+        return data + cls.SEPARATOR
+
+    @classmethod
+    def parse_received_data(cls, buffer: bytes) -> Generator[bytes, None, bytes]:
+        SEPARATOR: bytes = cls.SEPARATOR
+        if not SEPARATOR:
+            yield buffer
+            return bytes()
+        while True:
+            idx: int = buffer.find(SEPARATOR)
+            if idx < 0:
+                break
+            yield buffer[:idx]
+            buffer = buffer[idx + len(SEPARATOR) :]
+        return buffer
 
 
 class MetaSecuredNetworkProtocol(MetaNetworkProtocol):
@@ -258,7 +270,7 @@ class MetaSecuredNetworkProtocol(MetaNetworkProtocol):
     del __Self
 
 
-class SecuredNetworkProtocol(AbstractNetworkProtocol, metaclass=MetaSecuredNetworkProtocol):
+class SecuredNetworkProtocol(AutoParsedNetworkProtocol, metaclass=MetaSecuredNetworkProtocol):
     SECRET_KEY: ClassVar[str]
     SEPARATOR: ClassVar[bytes] = b"\r\n"
 

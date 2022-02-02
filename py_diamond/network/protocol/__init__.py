@@ -6,6 +6,7 @@
 
 __all__ = [
     "AbstractNetworkProtocol",
+    "AutoParsedNetworkProtocol",
     "JSONNetworkProtocol",
     "MetaNetworkProtocol",
     "MetaSecuredNetworkProtocol",
@@ -22,6 +23,7 @@ __license__ = "GNU GPL v3.0"
 ############ Package initialization ############
 from .base import (
     AbstractNetworkProtocol,
+    AutoParsedNetworkProtocol,
     MetaNetworkProtocol,
     MetaSecuredNetworkProtocol,
     SecuredNetworkProtocol,

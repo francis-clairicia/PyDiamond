@@ -15,11 +15,11 @@ from types import TracebackType
 from typing import Any, ClassVar
 
 from ...system.utils import concreteclass
-from .base import AbstractNetworkProtocol
+from .base import AutoParsedNetworkProtocol
 
 
 @concreteclass
-class JSONNetworkProtocol(AbstractNetworkProtocol):
+class JSONNetworkProtocol(AutoParsedNetworkProtocol):
     SEPARATOR: ClassVar[bytes] = b"\0"
 
     @classmethod

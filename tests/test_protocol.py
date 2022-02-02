@@ -4,14 +4,12 @@ from typing import ClassVar
 
 from cryptography.fernet import Fernet, InvalidToken
 
-from py_diamond.network.protocol import JSONNetworkProtocol, PicklingNetworkProtocol
-from py_diamond.network.protocol.base import SecuredNetworkProtocol
+from py_diamond.network.protocol import JSONNetworkProtocol, PicklingNetworkProtocol, SecuredNetworkProtocol
 
 
 def test_pickling_protocol() -> None:
     d: dict[str, list[tuple[int, float]]] = {"key": [(1, 5.2)]}
 
-    assert PicklingNetworkProtocol.SEPARATOR == b""
     serialized_d: bytes = PicklingNetworkProtocol.serialize(d)
     assert isinstance(serialized_d, bytes)
     assert PicklingNetworkProtocol.deserialize(serialized_d) == d
