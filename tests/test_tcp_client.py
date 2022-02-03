@@ -1,6 +1,5 @@
 # -*- coding: Utf-8 -*
 
-from random import randrange
 from selectors import EVENT_READ, DefaultSelector
 from threading import Event
 from typing import Any, Generator
@@ -15,6 +14,8 @@ from py_diamond.network.protocol import (
 )
 from py_diamond.network.socket import PythonTCPClientSocket, PythonTCPServerSocket
 from py_diamond.system.threading import Thread, thread
+
+from .random_port import random_port
 
 
 class SafePicklingProtocol(PicklingNetworkProtocol, SecuredNetworkProtocol):
@@ -39,7 +40,7 @@ def test_default() -> None:
     server_started: Event = Event()
     shutdow_requested: Event = Event()
     host: str = "localhost"
-    port: int = randrange(10000, 65536)
+    port: int = random_port()
 
     server_started.clear()
     shutdow_requested.clear()
@@ -62,7 +63,7 @@ def test_custom_socket() -> None:
     server_started: Event = Event()
     shutdow_requested: Event = Event()
     host: str = "localhost"
-    port: int = randrange(10000, 65536)
+    port: int = random_port()
 
     server_started.clear()
     shutdow_requested.clear()
@@ -84,7 +85,7 @@ def test_custom_protocol() -> None:
     server_started: Event = Event()
     shutdow_requested: Event = Event()
     host: str = "localhost"
-    port: int = randrange(10000, 65536)
+    port: int = random_port()
 
     server_started.clear()
     shutdow_requested.clear()
@@ -132,7 +133,7 @@ def test_multiple_requests() -> None:
     server_started: Event = Event()
     shutdow_requested: Event = Event()
     host: str = "localhost"
-    port: int = randrange(10000, 65536)
+    port: int = random_port()
 
     server_started.clear()
     shutdow_requested.clear()
@@ -164,7 +165,7 @@ def test_several_successive_send_using_pickling_protocol() -> None:
     server_started: Event = Event()
     shutdow_requested: Event = Event()
     host: str = "localhost"
-    port: int = randrange(10000, 65536)
+    port: int = random_port()
 
     server_started.clear()
     shutdow_requested.clear()
@@ -187,7 +188,7 @@ def test_several_successive_send_using_json_protocol() -> None:
     server_started: Event = Event()
     shutdow_requested: Event = Event()
     host: str = "localhost"
-    port: int = randrange(10000, 65536)
+    port: int = random_port()
 
     server_started.clear()
     shutdow_requested.clear()
@@ -210,7 +211,7 @@ def test_several_successive_send_using_secured_pickling_protocol() -> None:
     server_started: Event = Event()
     shutdow_requested: Event = Event()
     host: str = "localhost"
-    port: int = randrange(10000, 65536)
+    port: int = random_port()
 
     server_started.clear()
     shutdow_requested.clear()

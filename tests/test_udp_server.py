@@ -1,6 +1,5 @@
 # -*- coding: Utf-8 -*
 
-from random import randrange
 from time import sleep
 from typing import Any, ClassVar, Generator
 
@@ -10,6 +9,8 @@ from py_diamond.network.server import AbstractUDPRequestHandler, UDPNetworkServe
 from py_diamond.network.socket import IPv4SocketAddress
 from py_diamond.system.threading import Thread
 
+from .random_port import random_port
+
 
 class _MirrorRequestHandler(AbstractUDPRequestHandler[Any]):
     def handle(self) -> None:
@@ -17,7 +18,7 @@ class _MirrorRequestHandler(AbstractUDPRequestHandler[Any]):
 
 
 def test_serve_forever_default() -> None:
-    address: tuple[str, int] = ("localhost", randrange(10000, 65536))
+    address: tuple[str, int] = ("localhost", random_port())
 
     with UDPNetworkServer(address, _MirrorRequestHandler) as server:
         assert not server.running()
@@ -31,7 +32,7 @@ def test_serve_forever_default() -> None:
 
 
 def test_serve_forever_context_shut_down() -> None:
-    address: tuple[str, int] = ("localhost", randrange(10000, 65536))
+    address: tuple[str, int] = ("localhost", random_port())
 
     with UDPNetworkServer(address, _MirrorRequestHandler) as server:
         t: Thread = Thread(target=server.serve_forever, args=(0.1,))
@@ -42,7 +43,7 @@ def test_serve_forever_context_shut_down() -> None:
 
 
 def test_serve_forever_in_thread_default() -> None:
-    address: tuple[str, int] = ("localhost", randrange(10000, 65536))
+    address: tuple[str, int] = ("localhost", random_port())
 
     with UDPNetworkServer(address, _MirrorRequestHandler) as server:
         t: Thread = server.serve_forever_in_thread(poll_interval=0.1)
@@ -54,7 +55,7 @@ def test_serve_forever_in_thread_default() -> None:
 
 
 def test_serve_forver_in_thread_context_shut_down() -> None:
-    address: tuple[str, int] = ("localhost", randrange(10000, 65536))
+    address: tuple[str, int] = ("localhost", random_port())
 
     with UDPNetworkServer(address, _MirrorRequestHandler) as server:
         t: Thread = server.serve_forever_in_thread(poll_interval=0.1)
@@ -71,7 +72,7 @@ class _TestServiceActionServer(UDPNetworkServer[Any]):
 
 
 def test_service_actions() -> None:
-    address: tuple[str, int] = ("localhost", randrange(10000, 65536))
+    address: tuple[str, int] = ("localhost", random_port())
 
     with _TestServiceActionServer(address, _MirrorRequestHandler) as server:
         server.serve_forever_in_thread(poll_interval=0.1)
@@ -111,7 +112,7 @@ class _IntegerNetworkProtocol(AbstractNetworkProtocol):
 
 
 def test_request_handling() -> None:
-    address: IPv4SocketAddress = IPv4SocketAddress("localhost", randrange(10000, 65536))
+    address: IPv4SocketAddress = IPv4SocketAddress("localhost", random_port())
 
     with UDPNetworkServer(address, _MirrorRequestHandler, protocol_cls=_IntegerNetworkProtocol) as server:
         server.serve_forever_in_thread(poll_interval=0.1)

@@ -1,6 +1,5 @@
 # -*- coding: Utf-8 -*
 
-from random import randrange
 from selectors import EVENT_READ, DefaultSelector
 from threading import Event
 from typing import Any
@@ -9,6 +8,8 @@ from py_diamond.network.client import UDPNetworkClient
 from py_diamond.network.protocol import PicklingNetworkProtocol, SecuredNetworkProtocol
 from py_diamond.network.socket import IPv4SocketAddress, PythonUDPClientSocket, PythonUDPServerSocket
 from py_diamond.system.threading import Thread, thread
+
+from .random_port import random_port
 
 
 @thread
@@ -26,7 +27,7 @@ def test_default() -> None:
     server_started: Event = Event()
     shutdow_requested: Event = Event()
     host: str = "localhost"
-    port: int = randrange(10000, 65536)
+    port: int = random_port()
 
     server_started.clear()
     shutdow_requested.clear()
@@ -50,7 +51,7 @@ def test_custom_socket() -> None:
     server_started: Event = Event()
     shutdow_requested: Event = Event()
     host: str = "localhost"
-    port: int = randrange(10000, 65536)
+    port: int = random_port()
 
     server_started.clear()
     shutdow_requested.clear()
@@ -73,7 +74,7 @@ def test_custom_protocol() -> None:
     server_started: Event = Event()
     shutdow_requested: Event = Event()
     host: str = "localhost"
-    port: int = randrange(10000, 65536)
+    port: int = random_port()
 
     class SafePicklingProtocol(PicklingNetworkProtocol, SecuredNetworkProtocol):
         SECRET_KEY = SecuredNetworkProtocol.generate_key()
@@ -98,7 +99,7 @@ def test_several_successive_send() -> None:
     server_started: Event = Event()
     shutdow_requested: Event = Event()
     host: str = "localhost"
-    port: int = randrange(10000, 65536)
+    port: int = random_port()
 
     server_started.clear()
     shutdow_requested.clear()

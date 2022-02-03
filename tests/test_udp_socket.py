@@ -1,6 +1,5 @@
 # -*- coding: Utf-8 -*
 
-from random import randrange
 from socket import has_ipv6 as HAS_IPV6
 
 from py_diamond.network.socket import (
@@ -14,10 +13,12 @@ from py_diamond.network.socket import (
     SocketAddress,
 )
 
+from .random_port import random_port
+
 
 def test_ipv4_client_server_connection() -> None:
     host: str = "localhost"
-    port: int = randrange(10000, 65536)
+    port: int = random_port()
 
     with (
         PythonUDPServerSocket.bind((host, port), family=AF_INET) as server,
@@ -52,7 +53,7 @@ if HAS_IPV6:
 
     def test_ipv6_client_server_connection() -> None:
         host: str = "localhost"
-        port: int = randrange(10000, 65536)
+        port: int = random_port()
 
         with (
             PythonUDPServerSocket.bind((host, port), family=AF_INET6) as server,

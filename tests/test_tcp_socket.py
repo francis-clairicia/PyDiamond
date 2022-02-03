@@ -1,6 +1,5 @@
 # -*- coding: Utf-8 -*
 
-from random import randrange
 from socket import has_dualstack_ipv6, has_ipv6 as HAS_IPV6
 
 from py_diamond.network.socket import (
@@ -15,11 +14,13 @@ from py_diamond.network.socket import (
 )
 from py_diamond.system.threading import Thread, thread
 
+from .random_port import random_port
+
 
 def test_ipv4_client_server_connection() -> None:
     server_started: bool = False
     host: str = "localhost"
-    port: int = randrange(10000, 65536)
+    port: int = random_port()
 
     @thread
     def launch_server() -> None:
@@ -68,7 +69,7 @@ if HAS_IPV6:
     def test_ipv6_client_server_connection() -> None:
         server_started: bool = False
         host: str = "localhost"
-        port: int = randrange(10000, 65536)
+        port: int = random_port()
 
         @thread
         def launch_server() -> None:
@@ -124,7 +125,7 @@ if has_dualstack_ipv6():
     def test_dualstack_ipv6_client_server_connection() -> None:
         server_started: bool = False
         host: str = "localhost"
-        port: int = randrange(10000, 65536)
+        port: int = random_port()
 
         @thread
         def launch_server() -> None:

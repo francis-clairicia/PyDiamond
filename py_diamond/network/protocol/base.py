@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+from threading import RLock
+
 __all__ = [
     "AbstractNetworkProtocol",
     "AutoParsedNetworkProtocol",
@@ -126,18 +128,19 @@ class MetaSecuredNetworkProtocol(MetaNetworkProtocol):
         try:
             SecuredNetworkProtocol
         except NameError:
-            pass
+            namespace["_lock_"] = RLock()
         else:
             if not any(issubclass(b, SecuredNetworkProtocol) for b in bases):
                 raise TypeError(
                     f"{name!r} must be inherits from a {SecuredNetworkProtocol.__name__} class in order to use {MetaSecuredNetworkProtocol.__name__} metaclass"
                 )
-            if "_cryptography_fernet_" in namespace:
-                raise TypeError("Explicit setting of '_cryptography_fernet_' attribute is forbidden")
+            for attr in ("_cryptography_fernet_", "_lock_"):
+                if attr in namespace:
+                    raise TypeError(f"Explicit setting of {attr!r} attribute is forbidden")
 
-            if (
-                len(tuple(filter(lambda t: hasattr(t, "_cryptography_fernet_"), bases))) > 1
-                or len(tuple(filter(lambda t: hasattr(t, "SECRET_KEY"), bases))) > 1
+            if any(
+                len(tuple(filter(lambda t: hasattr(t, attr), bases))) > 1
+                for attr in ("_cryptography_fernet_", "_lock_", "SECRET_KEY")
             ):
                 raise TypeError("Attribute conflict with security attributes")
 
@@ -210,15 +213,17 @@ class MetaSecuredNetworkProtocol(MetaNetworkProtocol):
             @wraps(serialize)
             @fernet_wrapper
             def serialize_wrapper(cls: type[SecuredNetworkProtocol], /, packet: Any) -> bytes:
-                fernet: MetaSecuredNetworkProtocol.__RFernet
-                fernet = getattr(cls, "_cryptography_fernet_", _MISSING)
-                if fernet is _MISSING:
-                    raise AttributeError("No SECRET_KEY given")
-                data: bytes
-                with fernet.increase_depth("encryption"):
-                    data = serialize(cls, packet)
-                if fernet.get_depth("encryption") == 0:
-                    return fernet.encrypt(data)
+                lock: RLock = getattr(cls, "_lock_")
+                with lock:
+                    fernet: MetaSecuredNetworkProtocol.__RFernet
+                    fernet = getattr(cls, "_cryptography_fernet_", _MISSING)
+                    if fernet is _MISSING:
+                        raise AttributeError("No SECRET_KEY given")
+                    data: bytes
+                    with fernet.increase_depth("encryption"):
+                        data = serialize(cls, packet)
+                    if fernet.get_depth("encryption") == 0:
+                        return fernet.encrypt(data)
                 return data
 
             setattr(cls, "serialize", classmethod(serialize_wrapper))
@@ -228,16 +233,18 @@ class MetaSecuredNetworkProtocol(MetaNetworkProtocol):
             @wraps(deserialize)
             @fernet_wrapper
             def deserialize_wrapper(cls: type[SecuredNetworkProtocol], /, data: bytes) -> Any:
-                fernet: MetaSecuredNetworkProtocol.__RFernet
-                fernet = getattr(cls, "_cryptography_fernet_", _MISSING)
-                if fernet is _MISSING:
-                    raise AttributeError("No SECRET_KEY given")
-                packet: Any
-                if fernet.get_depth("decryption") == 0:
-                    data = fernet.decrypt(data)
-                with fernet.increase_depth("decryption"):
-                    packet = deserialize(cls, data)
-                return packet
+                lock: RLock = getattr(cls, "_lock_")
+                with lock:
+                    fernet: MetaSecuredNetworkProtocol.__RFernet
+                    fernet = getattr(cls, "_cryptography_fernet_", _MISSING)
+                    if fernet is _MISSING:
+                        raise AttributeError("No SECRET_KEY given")
+                    packet: Any
+                    if fernet.get_depth("decryption") == 0:
+                        data = fernet.decrypt(data)
+                    with fernet.increase_depth("decryption"):
+                        packet = deserialize(cls, data)
+                    return packet
 
             setattr(cls, "deserialize", classmethod(deserialize_wrapper))
 
@@ -285,15 +292,15 @@ class SecuredNetworkProtocol(AutoParsedNetworkProtocol, metaclass=MetaSecuredNet
 
     @classmethod
     def add_header_footer(cls, data: bytes) -> bytes:
-        return super().add_header_footer(data)
+        return AutoParsedNetworkProtocol.add_header_footer(data)
 
     @classmethod
     def parse_received_data(cls, buffer: bytes) -> Generator[bytes, None, bytes]:
-        return super().parse_received_data(buffer)
+        return AutoParsedNetworkProtocol.parse_received_data(buffer)
 
     @classmethod
     def verify_received_data(cls, data: bytes) -> None:
-        super().verify_received_data(data)
+        return AutoParsedNetworkProtocol.verify_received_data(data)
 
     @classmethod
     def handle_deserialize_error(
