@@ -111,7 +111,7 @@ class AutoParsedNetworkProtocol(AbstractNetworkProtocol):
             try:
                 data_length: int = struct.unpack(header)[0]
             except StructError:
-                break
+                return bytes()
             if len(body) < data_length:
                 break
             yield body[:data_length]
