@@ -24,10 +24,15 @@ class StrEnum(str, Enum):
 
 
 class AutoLowerNameEnum(StrEnum):
-    def _generate_next_value_(name: str, start: int, count: int, last_values: list[str]) -> Any:  # type: ignore[override]
+    @staticmethod
+    def _generate_next_value_(name: str, start: int, count: int, last_values: list[str]) -> Any:
         return name.lower()
 
 
 class AutoUpperNameEnum(StrEnum):
-    def _generate_next_value_(name: str, start: int, count: int, last_values: list[str]) -> Any:  # type: ignore[override]
+    @staticmethod
+    def _generate_next_value_(name: str, start: int, count: int, last_values: list[str]) -> Any:
         return name.upper()
+
+
+del _StrEnumSelf
