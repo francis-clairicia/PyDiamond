@@ -155,9 +155,10 @@ class Form(MDrawable):
     @config.on_update_key_value("pady")
     def __upgrade_grid_padding(self, option: str, value: int) -> None:
         grid: Grid = self.__grid
+        option_dict: dict[str, Any] = {option: value}
         for row in range(grid.nb_rows):
             for column in range(grid.nb_columns):
-                grid.modify(row=row, column=column, **{option: value})  # type: ignore
+                grid.modify(row=row, column=column, **option_dict)
 
     @property
     def master(self) -> GUIScene | None:

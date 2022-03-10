@@ -6,7 +6,7 @@
 The framework uses the popular pygame library (https://github.com/pygame/pygame/).
 """
 
-__all__ = []  # type: ignore
+__all__ = []  # type: list[str]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
