@@ -573,7 +573,7 @@ class SceneWindow(Window):
         except _SceneManager.NewScene as exc:
             exc.actual_scene.on_start_loop_before_transition()
             exc.actual_scene.on_start_loop()
-        is_open = self.is_open
+        looping = self.looping
         process_events = self.process_events
         update_scene = self.update_scene
         render_scene = self.render_scene
@@ -581,7 +581,7 @@ class SceneWindow(Window):
         scene_transition = self.__scene_transition
 
         try:
-            while is_open():
+            while looping():
                 try:
                     for _ in process_events():
                         pass
@@ -632,7 +632,7 @@ class SceneWindow(Window):
                     animating = False
                 next_transition = transition.send
                 next_fixed_transition = lambda: next_transition(None)
-                while self.is_open() and animating:
+                while self.looping() and animating:
                     for _ in self.process_events():
                         pass
                     try:

@@ -170,7 +170,7 @@ class Window:
 
     @contextmanager
     def open(self: __Self) -> Iterator[__Self]:
-        if self.is_open():
+        if self.looping():
             raise WindowError("Trying to open already opened window")
 
         def cleanup() -> None:
@@ -221,7 +221,7 @@ class Window:
         raise Window.__Exit
 
     @final
-    def is_open(self) -> bool:
+    def looping(self) -> bool:
         return _pg_display.get_surface() is not None
 
     def clear(self, color: _ColorValue = BLACK) -> None:
@@ -359,7 +359,7 @@ class Window:
         height = int(height)
         if width <= 0 or height <= 0:
             raise ValueError("Invalid window size")
-        if not self.is_open():
+        if not self.looping():
             raise WindowError("Trying to resize not opened window")
         if not self.resizable:
             raise WindowError("Trying to resize not resizable window")
