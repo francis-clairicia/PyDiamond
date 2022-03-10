@@ -10,7 +10,6 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from operator import truth
 from typing import Any, TypeVar
 
 
@@ -61,26 +60,23 @@ class MetaClassNamespace(type):
         if name in ("__new__", "__init__"):
             raise TypeError(f"{cls.__module__}.{cls.__name__} cannot be instantiated")
         if getattr(cls, "_class_namespace_was_init_"):
-            if cls.is_frozen():
+            if getattr(cls, "_frozen_class_namespace_", False):
                 raise AttributeError(f"{cls.__module__}.{cls.__name__}: Frozen class namespace")
             if name in ("_frozen_class_namespace_", "_class_namespace_was_init_"):
                 raise AttributeError(f"{name!r} is read-only")
-        elif name == "_frozen_class_namespace_":
+        elif name in ("_frozen_class_namespace_"):
             raise AttributeError(f"{name!r} is read-only")
         return super().__setattr__(name, value)
 
     def __delattr__(cls, name: str, /) -> None:
         if getattr(cls, "_class_namespace_was_init_"):
-            if cls.is_frozen():
+            if getattr(cls, "_frozen_class_namespace_", False):
                 raise AttributeError(f"{cls.__module__}.{cls.__name__}: Frozen class namespace")
             if name in ("_frozen_class_namespace_", "_class_namespace_was_init_"):
                 raise AttributeError(f"{name!r} is read-only")
-        elif name == "_frozen_class_namespace_":
+        elif name in ("_frozen_class_namespace_"):
             raise AttributeError(f"{name!r} is read-only")
         return super().__delattr__(name)
-
-    def is_frozen(cls) -> bool:
-        return truth(getattr(cls, "_frozen_class_namespace_", False))
 
     del __Self
 

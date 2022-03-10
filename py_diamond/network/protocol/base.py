@@ -6,8 +6,6 @@
 
 from __future__ import annotations
 
-from threading import RLock
-
 __all__ = [
     "AbstractNetworkProtocol",
     "AutoParsedNetworkProtocol",
@@ -24,6 +22,7 @@ __license__ = "GNU GPL v3.0"
 from abc import ABCMeta, abstractmethod
 from contextlib import contextmanager
 from struct import Struct, error as StructError
+from threading import RLock
 from types import TracebackType
 from typing import Any, Callable, ClassVar, Final, Generator, Iterator, ParamSpec, TypeVar
 
@@ -263,18 +262,20 @@ class MetaSecuredNetworkProtocol(MetaNetworkProtocol):
     class __RFernet(Fernet):
         def __init__(self, key: bytes | str, backend: Any = None):
             super().__init__(key, backend)
+            self.__lock: RLock = RLock()
             self.__depth: dict[str, int] = {}
 
         @contextmanager
         def increase_depth(self, context: str) -> Iterator[None]:
-            depth: dict[str, int] = self.__depth
-            depth[context] = depth.get(context, 0) + 1
-            try:
-                yield
-            finally:
-                depth[context] -= 1
-                if depth[context] <= 0:
-                    depth.pop(context)
+            with self.__lock:
+                depth: dict[str, int] = self.__depth
+                depth[context] = depth.get(context, 0) + 1
+                try:
+                    yield
+                finally:
+                    depth[context] -= 1
+                    if depth[context] <= 0:
+                        depth.pop(context)
 
         def get_depth(self, context: str) -> int:
             depth: dict[str, int] = self.__depth
