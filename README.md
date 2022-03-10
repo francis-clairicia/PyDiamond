@@ -33,6 +33,7 @@ PyDiamond is dependent of pygame and Python (obviously). Some features of pygame
 Dependency version:
 - CPython >= 3.10
 - pygame >= 2.1.2
+- cryptography >= 2.1.2
 - SDL >= 2.0.16
 - SDL_image >= 2.0.0
 - SDL_mixer >= 2.0.0
