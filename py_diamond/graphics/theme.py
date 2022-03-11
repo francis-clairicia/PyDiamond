@@ -345,7 +345,7 @@ class MetaThemedObject(ABCMeta):
             for tk, tv in theme_keys.items():
                 if tk not in theme_kwargs:
                     continue
-                theme_kwargs[tv] = theme_kwargs.pop(tk)
+                theme_kwargs.setdefault(tv, theme_kwargs.pop(tk))
 
         if not ignore_unusable:
             return theme_kwargs

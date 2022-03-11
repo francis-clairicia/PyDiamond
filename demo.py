@@ -738,6 +738,7 @@ class AudioScene(MainScene):
         super().__theme_init__()
         Text.set_default_theme("text")
         Text.set_theme("text", {"font": (FontResources.cooperblack, 40), "color": WHITE, "shadow_x": 3, "shadow_y": 3})
+        Button.set_theme("text", {"fg": BLACK})
 
     def awake(self, **kwargs: Any) -> None:
         self.background_color = BLUE_DARK
@@ -777,6 +778,7 @@ class GUIAudioScene(GUIMainScene, AbstractAutoLayeredScene):
         Text.set_theme("text", {"font": (FontResources.cooperblack, 40), "color": WHITE, "shadow_x": 3, "shadow_y": 3})
 
         Button.set_default_theme("button")
+        Button.set_theme("text", {"fg": BLACK})
         Button.set_theme(
             "button",
             {
@@ -793,7 +795,7 @@ class GUIAudioScene(GUIMainScene, AbstractAutoLayeredScene):
         self.background_color = BLUE_DARK
         Button.set_default_focus_on_hover(True)
 
-        self.text = Text("None", font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
+        self.text = Text("None")
         self.grid = Grid(self, bg_color=YELLOW)
 
         self.grid.padding.x = 20
