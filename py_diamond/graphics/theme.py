@@ -129,6 +129,8 @@ ThemeType: TypeAlias = str | Iterable[str]
 
 class MetaThemedObject(ABCMeta):
     __virtual_themed_class_bases__: tuple[MetaThemedObject, ...]
+    __theme_ignore__: Sequence[str]
+    __theme_associations__: dict[type, dict[str, str]]
 
     def __new__(
         metacls,
@@ -162,6 +164,13 @@ class MetaThemedObject(ABCMeta):
                 check_parameters(new_method)
             if init_method is not None:
                 check_parameters(init_method)
+
+        ignored_parameters: str | Sequence[str] = namespace.pop("__theme_ignore__", ())
+        if isinstance(ignored_parameters, str):
+            ignored_parameters = (ignored_parameters,)
+        namespace["__theme_ignore__"] = tuple(ignored_parameters)
+
+        namespace.setdefault("__theme_associations__", {})
 
         cls = super().__new__(metacls, name, bases, namespace, **kwargs)
         if not use_parent_theme:
@@ -204,6 +213,8 @@ class MetaThemedObject(ABCMeta):
     def __setattr__(cls, name: str, value: Any, /) -> None:
         if name in ("__new__", "__init__"):
             raise AttributeError("can't set attribute")
+        if name in ("__theme_ignore__", "__theme_associations__"):
+            raise AttributeError("Read-only attribute")
         return super().__setattr__(name, value)
 
     @overload
@@ -228,12 +239,17 @@ class MetaThemedObject(ABCMeta):
         if "theme" in options:
             raise ValueError("'theme' parameter must not be given in options")
 
+        ignored_parameters: Sequence[str] = cls.__theme_ignore__
+        for opt in options:
+            if opt in ignored_parameters:
+                raise ValueError(f"{opt!r} is an ignored theme parameter")
+
         def check_options(func: Callable[..., Any], options: dict[str, Any]) -> None:
             sig: Signature = Signature.from_callable(func, follow_wrapped=True)
             parameters: Mapping[str, Parameter] = sig.parameters
             has_kwargs: bool = any(param.kind == Parameter.VAR_KEYWORD for param in parameters.values())
 
-            for option in list(options):
+            for option in filter(lambda option: option not in ignored_parameters, list(options)):
                 if option not in parameters:
                     if not has_kwargs:
                         if not ignore_unusable:
@@ -303,20 +319,35 @@ class MetaThemedObject(ABCMeta):
             raise TypeError("Abstract theme classes does not have themes.")
 
         theme_kwargs: dict[str, Any] = dict()
+        if not themes:
+            return theme_kwargs
 
-        def get_theme_options(cls: type, theme: str) -> None:
-            nonlocal theme_kwargs
-            with suppress(KeyError):
-                theme_kwargs |= _THEMES[cls][theme]
-
-        get_all_parents_class = MetaThemedObject.__get_all_parent_class
+        all_parents_class = (
+            tuple(MetaThemedObject.__get_all_parent_class(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_THEMES))
+            if parent_themes
+            else ()
+        )
         for t in dict.fromkeys(themes):
-            if parent_themes:
-                for parent in get_all_parents_class(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_THEMES):
-                    get_theme_options(parent, t)
-            get_theme_options(cls, t)
+            for parent in all_parents_class:
+                theme_kwargs |= parent.get_theme_options(t)
+            with suppress(KeyError):
+                theme_kwargs |= _THEMES[cls][t]
 
-        if not ignore_unusable or not theme_kwargs:
+        if not all_parents_class or not theme_kwargs:
+            return theme_kwargs
+
+        theme_key_associations = cls.__theme_associations__
+        for base in all_parents_class:
+            try:
+                theme_keys: dict[str, str] = theme_key_associations[base]
+            except KeyError:
+                continue
+            for tk, tv in theme_keys.items():
+                if tk not in theme_kwargs:
+                    continue
+                theme_kwargs[tv] = theme_kwargs.pop(tk)
+
+        if not ignore_unusable:
             return theme_kwargs
 
         def check_options(func: Callable[..., Any]) -> None:

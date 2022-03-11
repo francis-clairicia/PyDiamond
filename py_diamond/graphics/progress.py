@@ -13,7 +13,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from enum import auto, unique
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar, Sequence
 
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
@@ -28,6 +28,13 @@ if TYPE_CHECKING:
 
 
 class ProgressBar(RectangleShape):
+    __theme_ignore__: ClassVar[Sequence[str]] = (
+        "from_",
+        "to",
+        "default",
+        "orient",
+    )
+
     @unique
     class Side(AutoLowerNameEnum):
         TOP = auto()
@@ -53,11 +60,11 @@ class ProgressBar(RectangleShape):
         self,
         width: float,
         height: float,
+        *,
         from_: float = 0,
         to: float = 1,
         default: float | None = None,
         orient: str = "horizontal",
-        *,
         color: Color = WHITE,
         scale_color: Color = GRAY,
         outline: int = 2,

@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 from contextlib import suppress
 from enum import auto, unique
 from operator import truth
-from typing import TYPE_CHECKING, Any, Callable, ClassVar
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Sequence
 
 from ..system._mangling import mangle_private_attribute
 from ..system.configuration import Configuration, OptionAttribute, initializer
@@ -45,6 +45,8 @@ class MetaScrollBar(MetaTDrawable, MetaThemedObject):
 
 @RectangleShape.register_themed_subclass
 class ScrollBar(TDrawable, Clickable, metaclass=MetaScrollBar):
+    __theme_ignore__: ClassVar[Sequence[str]] = "orient"
+
     @unique
     class Orient(AutoLowerNameEnum):
         HORIZONTAL = auto()
@@ -86,8 +88,8 @@ class ScrollBar(TDrawable, Clickable, metaclass=MetaScrollBar):
         master: ScrollArea,
         width: float,
         height: float,
-        orient: str = "horizontal",
         *,
+        orient: str = "horizontal",
         color: Color = WHITE,
         cursor_color: Color = GRAY,
         state: str = "normal",

@@ -13,7 +13,7 @@ __copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from operator import truth
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, ClassVar, Sequence
 
 from ..system.configuration import Configuration, initializer
 from ..window.clickable import Clickable
@@ -30,6 +30,15 @@ if TYPE_CHECKING:
 
 
 class ScaleBar(ProgressBar, Clickable):
+    __theme_ignore__: ClassVar[Sequence[str]] = (
+        "from_",
+        "to",
+        "default",
+        "orient",
+        "value_callback",
+        "percent_callback",
+    )
+
     config = Configuration(parent=ProgressBar.config)
 
     @initializer
@@ -38,13 +47,13 @@ class ScaleBar(ProgressBar, Clickable):
         master: Scene | Window,
         width: float,
         height: float,
+        *,
         from_: float = 0,
         to: float = 1,
         default: float | None = None,
         orient: str = "horizontal",
         value_callback: Callable[[float], None] | None = None,
         percent_callback: Callable[[float], None] | None = None,
-        *,
         state: str = "normal",
         hover_sound: Sound | None = None,
         click_sound: Sound | None = None,

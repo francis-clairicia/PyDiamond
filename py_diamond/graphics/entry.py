@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from functools import cached_property
 from string import printable as ASCII_PRINTABLE
-from typing import TYPE_CHECKING, Any, Callable, TypeAlias
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Sequence, TypeAlias
 
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.utils import valid_integer, valid_optional_float, valid_optional_integer
@@ -49,6 +49,16 @@ class MetaEntry(MetaTDrawable, MetaThemedObject):
 @Text.register_themed_subclass
 @RectangleShape.register_themed_subclass
 class Entry(TDrawable, Pressable, metaclass=MetaEntry):
+    __theme_ignore__: ClassVar[Sequence[str]] = "on_validate"
+    __theme_associations__: ClassVar[dict[type, dict[str, str]]] = {
+        Text: {
+            "color": "fg",
+        },
+        RectangleShape: {
+            "color": "bg",
+        },
+    }
+
     config: Configuration = Configuration(
         "cursor",
         "interval",
@@ -105,8 +115,8 @@ class Entry(TDrawable, Pressable, metaclass=MetaEntry):
     def __init__(
         self,
         master: Scene | Window,
-        on_validate: Callable[[], Any] | None = None,
         *,
+        on_validate: Callable[[], Any] | None = None,
         max_nb_chars: int = 10,
         width: float | None = None,
         font: _TextFont | None = None,

@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 from enum import auto, unique
 from functools import cached_property
 from operator import truth
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, TypeAlias, TypedDict, overload
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, Sequence, TypeAlias, TypedDict, overload
 
 from ..math import Vector2
 from ..system.configuration import Configuration, OptionAttribute, initializer
@@ -54,6 +54,17 @@ class MetaButton(MetaTDrawable, MetaThemedObject):
 class Button(TDrawable, Pressable, metaclass=MetaButton):
     Justify: TypeAlias = TextImage.Justify
     Compound: TypeAlias = TextImage.Compound
+
+    __theme_ignore__: ClassVar[Sequence[str]] = "callback"
+    __theme_associations__: ClassVar[dict[type, dict[str, str]]] = {
+        TextImage: {
+            "color": "fg",
+            "distance_text_img": "distance",
+        },
+        RectangleShape: {
+            "color": "bg",
+        },
+    }
 
     @unique
     class HorizontalAlign(AutoLowerNameEnum):
