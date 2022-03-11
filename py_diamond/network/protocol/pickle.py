@@ -1,5 +1,5 @@
 # -*- coding: Utf-8 -*
-# Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine
+# Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine
 #
 #
 """pickle-based network packet protocol module"""
@@ -7,7 +7,7 @@
 __all__ = ["PicklingNetworkProtocol"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
-__copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
+__copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from pickle import HIGHEST_PROTOCOL, STOP as STOP_OPCODE, UnpicklingError, dumps as pickle_dumps, loads as pickle_loads

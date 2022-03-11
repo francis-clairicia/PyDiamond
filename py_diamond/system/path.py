@@ -1,5 +1,5 @@
 # -*- coding: Utf-8 -*
-# Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine
+# Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine
 #
 #
 """Path utils module"""
@@ -7,7 +7,7 @@
 __all__ = ["set_constant_directory", "set_constant_file"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
-__copyright__ = "Copyright (c) 2021, Francis Clairicia-Rose-Claire-Josephine"
+__copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 import os.path as os_path
