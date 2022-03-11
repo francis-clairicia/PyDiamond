@@ -100,8 +100,12 @@ class Form(MDrawable):
         entry_dict: dict[str, Entry] = self.__entry_dict
         entry: Entry = entry_dict.pop(name)
         grid: Grid = self.__grid
-        grid.remove(entry)
-        grid.unify()
+        entry_pos: tuple[int, int] | None = grid.get_position(entry)
+        if entry_pos is not None:
+            label_pos = (entry_pos[0], 0)
+            grid.pop(*label_pos, None)
+            grid.pop(*entry_pos)
+            grid.unify()
 
     @overload
     def get(self) -> Mapping[str, str]:

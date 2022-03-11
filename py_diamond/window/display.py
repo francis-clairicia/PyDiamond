@@ -79,16 +79,16 @@ class WindowError(_pg_error):
     pass
 
 
-class ScheduledFunction(Generic[_P]):
-    def __init__(self, milliseconds: float, func: Callable[_P, None]) -> None:
+class ScheduledFunction(Generic[_ScheduledFunc]):
+    def __init__(self, milliseconds: float, func: _ScheduledFunc) -> None:
         super().__init__()
         self.__clock = Clock()
         self.__milliseconds: float = milliseconds
-        self.__wrapped__: Callable[_P, None] = func
+        self.__func__: _ScheduledFunc = func
         self.__first_start: bool = True
 
-    def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> None:
-        func: Callable[_P, None] = self.__wrapped__
+    def __call__(self, *args: Any, **kwargs: Any) -> None:
+        func: _ScheduledFunc = self.__func__
         if self.__first_start or self.__clock.elapsed_time(self.__milliseconds):
             self.__first_start = False
             func(*args, **kwargs)
@@ -99,11 +99,39 @@ class ScheduledFunction(Generic[_P]):
         return MethodType(self, obj)
 
 
-def scheduled(milliseconds: float) -> Callable[[Callable[_P, None]], ScheduledFunction[_P]]:
-    def decorator(func: Callable[_P, None], /) -> ScheduledFunction[_P]:
-        return ScheduledFunction[_P](milliseconds, func)
+def scheduled(milliseconds: float) -> Callable[[_ScheduledFunc], _ScheduledFunc]:
+    def decorator(func: _ScheduledFunc, /) -> _ScheduledFunc:
+        return ScheduledFunction(milliseconds, func)  # type: ignore[return-value]
 
-    return decorator  # type: ignore
+    return decorator
+
+
+#### To use when mypy will supports ParamSpec vars in Generic
+# class ScheduledFunction(Generic[_P]):
+#     def __init__(self, milliseconds: float, func: Callable[_P, None]) -> None:
+#         super().__init__()
+#         self.__clock = Clock()
+#         self.__milliseconds: float = milliseconds
+#         self.__wrapped__: Callable[_P, None] = func
+#         self.__first_start: bool = True
+
+#     def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> None:
+#         func: Callable[_P, None] = self.__wrapped__
+#         if self.__first_start or self.__clock.elapsed_time(self.__milliseconds):
+#             self.__first_start = False
+#             func(*args, **kwargs)
+
+#     def __get__(self, obj: object, objtype: type | None = None, /) -> Callable[..., None]:
+#         if obj is None:
+#             return self
+#         return MethodType(self, obj)
+
+
+# def scheduled(milliseconds: float) -> Callable[[Callable[_P, None]], ScheduledFunction[_P]]:
+#     def decorator(func: Callable[_P, None], /) -> ScheduledFunction[_P]:
+#         return ScheduledFunction[_P](milliseconds, func)
+
+#     return decorator  # type: ignore
 
 
 class Window:

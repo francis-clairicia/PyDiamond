@@ -12,7 +12,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import Any, Final, Iterable, Iterator, Sequence, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Final, Iterable, Iterator, Sequence, TypeVar, overload
 
 from pygame.mask import Mask, from_surface as _pg_mask_from_surface
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom, smoothscale as _surface_smoothscale
@@ -237,36 +237,36 @@ class AnimatedSprite(Sprite):
 class SpriteGroup(DrawableGroup):
     __slots__ = ()
 
-    def __init__(self, *objects: Sprite, **kwargs: Any) -> None:
-        super().__init__(*objects, **kwargs)
+    if TYPE_CHECKING:
 
-    def __iter__(self) -> Iterator[Sprite]:
-        return super().__iter__()  # type: ignore[return-value]
+        def __init__(self, *objects: Sprite, **kwargs: Any) -> None:
+            ...
 
-    @overload
-    def __getitem__(self, index: int, /) -> Sprite:
-        ...
+        def __iter__(self) -> Iterator[Sprite]:
+            ...
 
-    @overload
-    def __getitem__(self, index: slice, /) -> Sequence[Sprite]:
-        ...
+        @overload
+        def __getitem__(self, index: int, /) -> Sprite:
+            ...
 
-    def __getitem__(self, index: int | slice, /) -> Sprite | Sequence[Sprite]:
-        return super().__getitem__(index)  # type: ignore[return-value]
+        @overload
+        def __getitem__(self, index: slice, /) -> Sequence[Sprite]:
+            ...
 
-    def __reversed__(self) -> Iterator[Sprite]:
-        return super().__reversed__()  # type: ignore[return-value]
+        def __getitem__(self, index: int | slice, /) -> Sprite | Sequence[Sprite]:
+            ...
 
-    def add(self, *objects: Sprite) -> None:  # type: ignore[override]
-        if any(not isinstance(obj, Sprite) for obj in objects):
-            raise TypeError("SpriteGroup only accepts Sprite objects")
-        return super().add(*objects)
+        def __reversed__(self) -> Iterator[Sprite]:
+            ...
 
-    def remove(self, *objects: Sprite) -> None:  # type: ignore[override]
-        return super().remove(*objects)
+        def add(self, *objects: Sprite) -> None:  # type: ignore[override]
+            ...
 
-    def pop(self, index: int = -1) -> Sprite:
-        return super().pop(index=index)  # type: ignore[return-value]
+        def remove(self, *objects: Sprite) -> None:  # type: ignore[override]
+            ...
+
+        def pop(self, index: int = -1) -> Sprite:
+            ...
 
 
 class LayeredSpriteGroup(SpriteGroup, LayeredGroup):
@@ -275,34 +275,34 @@ class LayeredSpriteGroup(SpriteGroup, LayeredGroup):
     def __init__(self, *objects: Sprite, default_layer: int = 0, **kwargs: Any) -> None:
         super().__init__(*objects, default_layer=default_layer, **kwargs)
 
-    def add(self, *objects: Sprite, layer: int | None = None) -> None:  # type: ignore[override]
-        if any(not isinstance(obj, Sprite) for obj in objects):
-            raise TypeError("SpriteGroup only accepts Sprite objects")
-        return LayeredGroup.add(self, *objects, layer=layer)
+    if TYPE_CHECKING:
 
-    def remove(self, *objects: Sprite) -> None:  # type: ignore[override]
-        return super().remove(*objects)
+        def add(self, *objects: Sprite, layer: int | None = None) -> None:  # type: ignore[override]
+            ...
 
-    def get_layer(self, obj: Sprite) -> int:  # type: ignore[override]
-        return super().get_layer(obj)
+        def remove(self, *objects: Sprite) -> None:  # type: ignore[override]
+            ...
 
-    def change_layer(self, obj: Sprite, layer: int) -> None:  # type: ignore[override]
-        return super().change_layer(obj, layer)
+        def get_layer(self, obj: Sprite) -> int:  # type: ignore[override]
+            ...
 
-    def get_top_drawable(self) -> Sprite:
-        return super().get_top_drawable()  # type: ignore[return-value]
+        def change_layer(self, obj: Sprite, layer: int) -> None:  # type: ignore[override]
+            ...
 
-    def get_bottom_drawable(self) -> Sprite:
-        return super().get_bottom_drawable()  # type: ignore[return-value]
+        def get_top_drawable(self) -> Sprite:
+            ...
 
-    def move_to_front(self, obj: Sprite) -> None:  # type: ignore[override]
-        return super().move_to_front(obj)
+        def get_bottom_drawable(self) -> Sprite:
+            ...
 
-    def move_to_back(self, obj: Sprite) -> None:  # type: ignore[override]
-        return super().move_to_back(obj)
+        def move_to_front(self, obj: Sprite) -> None:  # type: ignore[override]
+            ...
 
-    def get_from_layer(self, layer: int) -> Sequence[Sprite]:
-        return super().get_from_layer(layer)  # type: ignore[return-value]
+        def move_to_back(self, obj: Sprite) -> None:  # type: ignore[override]
+            ...
 
-    def remove_from_layer(self, layer: int) -> Sequence[Sprite]:
-        return super().remove_from_layer(layer)  # type: ignore[return-value]
+        def get_from_layer(self, layer: int) -> Sequence[Sprite]:
+            ...
+
+        def remove_from_layer(self, layer: int) -> Sequence[Sprite]:
+            ...

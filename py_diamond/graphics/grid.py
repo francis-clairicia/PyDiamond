@@ -30,6 +30,8 @@ from .shape import RectangleShape
 from .theme import NoTheme
 
 _D = TypeVar("_D", bound=Drawable)
+_T = TypeVar("_T")
+_MISSING: Any = object()
 
 
 class Grid(MDrawable, Container[Drawable]):
@@ -156,7 +158,37 @@ class Grid(MDrawable, Container[Drawable]):
         self._update()
         return obj
 
+    @overload
+    def get(self, row: int, column: int) -> Drawable | None:
+        ...
+
+    @overload
+    def get(self, row: int, column: int, default: _T) -> Drawable | _T:
+        ...
+
+    def get(self, row: int, column: int, default: Any = None) -> Any:
+        try:
+            grid_row: _GridRow = self.__rows[row]
+        except KeyError:
+            pass
+        else:
+            for cell in grid_row.iter_cells():
+                if cell.row == row and cell.column == column:
+                    drawable: Drawable | None = cell.get_object()
+                    if drawable is None:
+                        break
+                    return drawable
+        return default
+
+    @overload
     def pop(self, row: int, column: int) -> Drawable:
+        ...
+
+    @overload
+    def pop(self, row: int, column: int, default: _T) -> Drawable | _T:
+        ...
+
+    def pop(self, row: int, column: int, default: Any = _MISSING) -> Any:
         try:
             grid_row: _GridRow = self.__rows[row]
         except KeyError:
@@ -171,6 +203,8 @@ class Grid(MDrawable, Container[Drawable]):
                     if drawable is None:
                         break
                     return drawable
+        if default is not _MISSING:
+            return default
         raise IndexError(f"{(row, column)} does not exists")
 
     def remove(self, obj: Drawable) -> None:
@@ -178,6 +212,12 @@ class Grid(MDrawable, Container[Drawable]):
         cell.set_object(None)
         self.__set_obj_on_side_internal()
         self._update()
+
+    def get_position(self, obj: Drawable) -> tuple[int, int] | None:
+        for cell in chain.from_iterable(row.iter_cells() for row in self.__rows.values()):
+            if cell.get_object() is obj:
+                return (cell.row, cell.column)
+        return None
 
     def clear(self) -> None:
         for cell in chain.from_iterable(row.iter_cells() for row in self.__rows.values()):
