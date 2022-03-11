@@ -16,7 +16,7 @@ from abc import ABCMeta, abstractmethod
 from selectors import EVENT_READ, EVENT_WRITE
 from sys import exc_info
 from threading import RLock
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, Iterator, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Iterator, TypeVar, overload
 
 from ..system.utils import concreteclass, concreteclasscheck
 from .protocol.base import AbstractNetworkProtocol, ValidationError
@@ -206,11 +206,14 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
             except ConnectionError as exc:
                 raise DisconnectedClientError(self) from exc
 
-    def recv_packet(self, *, flags: int = 0) -> _T:
+    def recv_packet(self, *, flags: int = 0, retry_on_fail: bool = True) -> _T:
         with self.__lock:
             queue: list[_T] = self.__queue
             if not queue:
-                queue.extend(tuple(self.recv_packets(flags=flags, block=True)))
+                recv_packets: Callable[[], None] = lambda: self.__recv_packets(flags=flags, block=True)
+                recv_packets()
+                while not queue and retry_on_fail:
+                    recv_packets()
                 if not queue:
                     raise NoValidPacket
             return queue.pop(0)
@@ -219,12 +222,19 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
         with self.__lock:
             queue: list[_T] = self.__queue
             if not queue:
-                queue.extend(tuple(self.recv_packets(flags=flags, block=False)))
+                self.__recv_packets(flags=flags, block=False)
                 if not queue:
                     return None
             return queue.pop(0)
 
     def recv_packets(self, *, flags: int = 0, block: bool = True) -> Iterator[_T]:
+        with self.__lock:
+            self.__recv_packets(flags=flags, block=block)
+            queue: list[_T] = self.__queue
+            while queue:
+                yield queue.pop(0)
+
+    def __recv_packets(self, flags: int, block: bool) -> None:
         with self.__lock:
             socket: AbstractTCPClientSocket = self.__socket
             protocol: type[AbstractNetworkProtocol] = self.protocol_cls
@@ -232,34 +242,35 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
             block = block and not queue
 
             def read_socket() -> Iterator[bytes]:
+                chunk_size: int = self.RECV_CHUNK_SIZE
+                if chunk_size <= 0:
+                    return
                 with _Selector() as selector:
                     selector.register(socket, EVENT_READ)
                     if not block and not selector.select(timeout=0):
                         return
-                    chunck_size: int = self.RECV_CHUNK_SIZE
-                    if chunck_size <= 0:
-                        return
-                    data: bytes = socket.recv(chunck_size)
+                    data: bytes = socket.recv(chunk_size)
                     length: int = len(data)
                     if length == 0:
                         raise EOFError
                     yield data
-                    while length >= chunck_size and selector.select(timeout=0):
-                        data = socket.recv(chunck_size, flags=flags)
+                    while length >= chunk_size and selector.select(timeout=0):
+                        data = socket.recv(chunk_size, flags=flags)
                         length = len(data)
-                        if not data:
+                        if length == 0:
                             break
                         yield data
 
+            buffer_recv: bytes
+            buffer_recv, self.__buffer_recv = self.__buffer_recv, bytes()
             try:
                 for chunk in read_socket():
-                    self.__buffer_recv += chunk
+                    buffer_recv += chunk
             except (ConnectionError, EOFError) as exc:
-                self.__buffer_recv = bytes()
                 raise DisconnectedClientError(self) from exc
 
             def parse_received_data() -> Iterator[bytes]:
-                self.__buffer_recv = yield from protocol.parse_received_data(self.__buffer_recv)
+                self.__buffer_recv = yield from protocol.parse_received_data(buffer_recv)
 
             for data in parse_received_data():
                 if not data:
@@ -279,9 +290,6 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
                 except ValidationError:
                     continue
                 queue.append(packet)
-
-            while queue:
-                yield queue.pop(0)
 
     def has_saved_packets(self) -> bool:
         return True if self.__queue else False
@@ -430,11 +438,14 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
                     continue
                 socket.sendto(data, address, flags=flags)
 
-    def recv_packet(self, *, flags: int = 0) -> tuple[_T, SocketAddress]:
+    def recv_packet(self, *, flags: int = 0, retry_on_fail: bool = True) -> tuple[_T, SocketAddress]:
         with self.__lock:
             queue: list[tuple[_T, SocketAddress]] = self.__queue
             if not queue:
-                queue.extend(tuple(self.recv_packets(flags=flags, block=True)))
+                recv_packets: Callable[[], None] = lambda: self.__recv_packets(flags=flags, block=True)
+                recv_packets()
+                while not queue and retry_on_fail:
+                    recv_packets()
                 if not queue:
                     raise NoValidPacket
             return queue.pop(0)
@@ -443,12 +454,19 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
         with self.__lock:
             queue: list[tuple[_T, SocketAddress]] = self.__queue
             if not queue:
-                queue.extend(tuple(self.recv_packets(flags=flags, block=False)))
+                self.__recv_packets(flags=flags, block=False)
                 if not queue:
                     return None
             return queue.pop(0)
 
     def recv_packets(self, *, flags: int = 0, block: bool = True) -> Iterator[tuple[_T, SocketAddress]]:
+        with self.__lock:
+            self.__recv_packets(flags=flags, block=block)
+            queue: list[tuple[_T, SocketAddress]] = self.__queue
+            while queue:
+                yield queue.pop(0)
+
+    def __recv_packets(self, flags: int, block: bool) -> None:
         with self.__lock:
             socket: AbstractUDPSocket = self.__socket
             protocol: type[AbstractNetworkProtocol] = self.protocol_cls
@@ -485,9 +503,6 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
                 except ValidationError:
                     continue
                 queue.append((packet, sender))
-
-            while queue:
-                yield queue.pop(0)
 
     def has_saved_packets(self) -> bool:
         return True if self.__queue else False
