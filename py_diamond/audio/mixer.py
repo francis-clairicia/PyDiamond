@@ -4,6 +4,8 @@
 #
 """Mixer module"""
 
+from __future__ import annotations
+
 __all__ = ["Mixer", "MixerParams"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -11,7 +13,7 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from contextlib import ExitStack, contextmanager
-from typing import Iterator, NamedTuple, Optional
+from typing import Iterator, NamedTuple
 
 import pygame.mixer as _pg_mixer
 from pygame import error as _pg_error
@@ -80,7 +82,7 @@ class Mixer(metaclass=ClassNamespaceMeta, frozen=True):
         return _pg_mixer.set_reserved(count)
 
     @staticmethod
-    def find_channel() -> Optional[Channel]:  # Channel | None cannot be used -> Channel is a function
+    def find_channel() -> Channel | None:
         return _pg_mixer.find_channel()
 
     @staticmethod
