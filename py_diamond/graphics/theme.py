@@ -322,32 +322,24 @@ class MetaThemedObject(ABCMeta):
         if not themes:
             return theme_kwargs
 
-        all_parents_class = (
-            tuple(MetaThemedObject.__get_all_parent_class(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_THEMES))
+        all_parents_classes = (
+            tuple(MetaThemedObject.__get_all_parent_classes(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_THEMES))
             if parent_themes
             else ()
         )
+        theme_key_associations = cls.__theme_associations__
         for t in dict.fromkeys(themes):
-            for parent in all_parents_class:
-                theme_kwargs |= parent.get_theme_options(t)
+            for parent in all_parents_classes:
+                parent_theme_kwargs = parent.get_theme_options(t)
+                for parent_param, cls_param in theme_key_associations.get(parent, {}).items():
+                    if parent_param not in parent_theme_kwargs:
+                        continue
+                    parent_theme_kwargs[cls_param] = parent_theme_kwargs.pop(parent_param)
+                theme_kwargs |= parent_theme_kwargs
             with suppress(KeyError):
                 theme_kwargs |= _THEMES[cls][t]
 
-        if not all_parents_class or not theme_kwargs:
-            return theme_kwargs
-
-        theme_key_associations = cls.__theme_associations__
-        for base in all_parents_class:
-            try:
-                theme_keys: dict[str, str] = theme_key_associations[base]
-            except KeyError:
-                continue
-            for tk, tv in theme_keys.items():
-                if tk not in theme_kwargs:
-                    continue
-                theme_kwargs.setdefault(tv, theme_kwargs.pop(tk))
-
-        if not ignore_unusable:
+        if not all_parents_classes or not theme_kwargs or not ignore_unusable:
             return theme_kwargs
 
         def check_options(func: Callable[..., Any]) -> None:
@@ -355,7 +347,7 @@ class MetaThemedObject(ABCMeta):
             parameters: Mapping[str, Parameter] = sig.parameters
             has_kwargs: bool = any(param.kind == Parameter.VAR_KEYWORD for param in parameters.values())
 
-            for option in list(theme_kwargs):
+            for option in tuple(theme_kwargs):
                 if option not in parameters:
                     if not has_kwargs:
                         theme_kwargs.pop(option)
@@ -388,7 +380,7 @@ class MetaThemedObject(ABCMeta):
                 default_theme |= dict.fromkeys(_DEFAULT_THEME[cls])
 
         if parent_default_themes:
-            get_all_parents_class = MetaThemedObject.__get_all_parent_class
+            get_all_parents_class = MetaThemedObject.__get_all_parent_classes
             for parent in get_all_parents_class(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_DEFAULT_THEMES):
                 add_default_themes(parent)
         add_default_themes(cls)
@@ -428,8 +420,8 @@ class MetaThemedObject(ABCMeta):
         return subclass
 
     @staticmethod
-    def __get_all_parent_class(cls: MetaThemedObject, *, do_not_search_for: set[type]) -> Sequence[MetaThemedObject]:
-        def get_all_parent_class(cls: MetaThemedObject) -> Iterator[MetaThemedObject]:
+    def __get_all_parent_classes(cls: MetaThemedObject, *, do_not_search_for: set[type]) -> Sequence[MetaThemedObject]:
+        def get_all_parent_classes(cls: MetaThemedObject) -> Iterator[MetaThemedObject]:
             if not isinstance(cls, MetaThemedObject) or cls in do_not_search_for or cls.is_abstract_theme_class():
                 return
             mro: list[type]
@@ -443,9 +435,9 @@ class MetaThemedObject(ABCMeta):
                 if not isinstance(base, MetaThemedObject) or base.is_abstract_theme_class():
                     continue
                 yield base
-                yield from get_all_parent_class(base)
+                yield from get_all_parent_classes(base)
 
-        return tuple(reversed(dict.fromkeys(get_all_parent_class(cls))))
+        return tuple(reversed(dict.fromkeys(get_all_parent_classes(cls))))
 
 
 _ThemedObjectClass = TypeVar("_ThemedObjectClass")
