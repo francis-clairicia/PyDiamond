@@ -59,7 +59,7 @@ class Button(TDrawable, Pressable, metaclass=ButtonMeta):
     __theme_associations__: ClassVar[dict[type, dict[str, str]]] = {
         TextImage: {
             "color": "fg",
-            "distance_text_img": "distance",
+            "distance": "distance_text_img",
         },
         RectangleShape: {
             "color": "bg",
