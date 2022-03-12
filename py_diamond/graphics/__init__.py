@@ -15,16 +15,20 @@ __all__ = [
     "BLUE_LIGHT",
     "BooleanCheckBox",
     "Button",
+    "ButtonMeta",
     "COLOR_DICT",
     "CYAN",
     "CheckBox",
+    "CheckBoxMeta",
     "CircleShape",
     "Color",
     "CrossShape",
     "DiagonalCrossShape",
     "Drawable",
     "DrawableGroup",
+    "DrawableMeta",
     "Entry",
+    "EntryMeta",
     "Font",
     "Form",
     "GRAY",
@@ -45,21 +49,10 @@ __all__ = [
     "LayeredSpriteGroup",
     "MAGENTA",
     "MDrawable",
+    "MDrawableMeta",
     "Mask",
-    "MetaButton",
-    "MetaCheckBox",
-    "MetaDrawable",
-    "MetaEntry",
-    "MetaMDrawable",
-    "MetaMovable",
-    "MetaScrollBar",
-    "MetaShape",
-    "MetaTDrawable",
-    "MetaText",
-    "MetaThemedObject",
-    "MetaThemedShape",
-    "MetaTransformable",
     "Movable",
+    "MovableMeta",
     "MultiColorShape",
     "NoTheme",
     "ORANGE",
@@ -78,6 +71,8 @@ __all__ = [
     "ScaleBar",
     "ScrollArea",
     "ScrollBar",
+    "ScrollBarMeta",
+    "ShapeMeta",
     "SingleColorShape",
     "Sprite",
     "SpriteGroup",
@@ -86,14 +81,19 @@ __all__ = [
     "SurfaceRenderer",
     "SysFont",
     "TDrawable",
+    "TDrawableMeta",
     "TRANSPARENT",
     "Text",
     "TextImage",
+    "TextMeta",
     "ThemeNamespace",
     "ThemeType",
     "ThemedObject",
+    "ThemedObjectMeta",
+    "ThemedShapeMeta",
     "TransformAnimation",
     "Transformable",
+    "TransformableMeta",
     "VerticalGradientShape",
     "VerticalMultiColorShape",
     "WHITE",
@@ -136,8 +136,8 @@ del os, typing, pygame, copyreg
 
 
 ############ Package initialization ############
-from .button import Button, ImageButton, MetaButton
-from .checkbox import BooleanCheckBox, CheckBox, MetaCheckBox
+from .button import Button, ButtonMeta, ImageButton
+from .checkbox import BooleanCheckBox, CheckBox, CheckBoxMeta
 from .color import (
     BLACK,
     BLUE,
@@ -163,8 +163,8 @@ from .color import (
     Color,
     ImmutableColor,
 )
-from .drawable import Drawable, DrawableGroup, LayeredGroup, MDrawable, MetaDrawable, MetaMDrawable, MetaTDrawable, TDrawable
-from .entry import Entry, MetaEntry
+from .drawable import Drawable, DrawableGroup, DrawableMeta, LayeredGroup, MDrawable, MDrawableMeta, TDrawable, TDrawableMeta
+from .entry import Entry, EntryMeta
 from .font import Font, SysFont
 from .form import Form
 from .gradients import (
@@ -179,12 +179,12 @@ from .gradients import (
 )
 from .grid import Grid
 from .image import Image
-from .movable import MetaMovable, Movable
+from .movable import Movable, MovableMeta
 from .progress import ProgressBar
 from .rect import ImmutableRect, Rect
 from .renderer import Renderer, SurfaceRenderer
 from .scale import ScaleBar
-from .scroll import MetaScrollBar, ScrollArea, ScrollBar
+from .scroll import ScrollArea, ScrollBar, ScrollBarMeta
 from .shape import (
     AbstractCircleShape,
     AbstractRectangleShape,
@@ -192,19 +192,19 @@ from .shape import (
     CircleShape,
     CrossShape,
     DiagonalCrossShape,
-    MetaShape,
-    MetaThemedShape,
     OutlinedShape,
     PlusCrossShape,
     PolygonShape,
     RectangleShape,
+    ShapeMeta,
     SingleColorShape,
+    ThemedShapeMeta,
 )
 from .sprite import AnimatedSprite, LayeredSpriteGroup, Mask, Sprite, SpriteGroup
 from .surface import Surface, create_surface, load_image, save_image
-from .text import MetaText, Text, TextImage
-from .theme import MetaThemedObject, NoTheme, ThemedObject, ThemeNamespace, ThemeType, abstract_theme_class
-from .transformable import MetaTransformable, Transformable
+from .text import Text, TextImage, TextMeta
+from .theme import NoTheme, ThemedObject, ThemedObjectMeta, ThemeNamespace, ThemeType, abstract_theme_class
+from .transformable import Transformable, TransformableMeta
 
 # Put it here to avoid circular import with 'window' module
 from .animation import TransformAnimation  # isort:skip

@@ -9,9 +9,9 @@ from __future__ import annotations
 __all__ = [
     "AbstractNetworkProtocol",
     "AutoParsedNetworkProtocol",
-    "MetaNetworkProtocol",
-    "MetaSecuredNetworkProtocol",
+    "NetworkProtocolMeta",
     "SecuredNetworkProtocol",
+    "SecuredNetworkProtocolMeta",
     "ValidationError",
 ]
 
@@ -28,7 +28,7 @@ from typing import Any, Callable, ClassVar, Final, Generator, Iterator, ParamSpe
 
 from cryptography.fernet import Fernet, InvalidToken
 
-from ...system.namespace import MetaClassNamespace
+from ...system.namespace import ClassNamespaceMeta
 from ...system.utils import isconcreteclass, wraps
 
 
@@ -36,8 +36,8 @@ class ValidationError(Exception):
     pass
 
 
-class MetaNetworkProtocol(ABCMeta, MetaClassNamespace):
-    __Self = TypeVar("__Self", bound="MetaNetworkProtocol")
+class NetworkProtocolMeta(ABCMeta, ClassNamespaceMeta):
+    __Self = TypeVar("__Self", bound="NetworkProtocolMeta")
 
     def __new__(metacls: type[__Self], name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> __Self:
         try:
@@ -47,14 +47,14 @@ class MetaNetworkProtocol(ABCMeta, MetaClassNamespace):
         else:
             if not any(issubclass(b, AbstractNetworkProtocol) for b in bases):
                 raise TypeError(
-                    f"{name!r} must be inherits from a {AbstractNetworkProtocol.__name__} class in order to use {MetaNetworkProtocol.__name__} metaclass"
+                    f"{name!r} must be inherits from a {AbstractNetworkProtocol.__name__} class in order to use {NetworkProtocolMeta.__name__} metaclass"
                 )
         return super().__new__(metacls, name, bases, namespace)
 
     del __Self
 
 
-class AbstractNetworkProtocol(metaclass=MetaNetworkProtocol, frozen=True):
+class AbstractNetworkProtocol(metaclass=NetworkProtocolMeta, frozen=True):
     @classmethod
     @abstractmethod
     def serialize(cls, packet: Any) -> bytes:
@@ -120,8 +120,8 @@ class AutoParsedNetworkProtocol(AbstractNetworkProtocol):
         return buffer
 
 
-class MetaSecuredNetworkProtocol(MetaNetworkProtocol):
-    __Self = TypeVar("__Self", bound="MetaSecuredNetworkProtocol")
+class SecuredNetworkProtocolMeta(NetworkProtocolMeta):
+    __Self = TypeVar("__Self", bound="SecuredNetworkProtocolMeta")
 
     def __new__(metacls: type[__Self], name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> __Self:
         try:
@@ -131,7 +131,7 @@ class MetaSecuredNetworkProtocol(MetaNetworkProtocol):
         else:
             if not any(issubclass(b, SecuredNetworkProtocol) for b in bases):
                 raise TypeError(
-                    f"{name!r} must be inherits from a {SecuredNetworkProtocol.__name__} class in order to use {MetaSecuredNetworkProtocol.__name__} metaclass"
+                    f"{name!r} must be inherits from a {SecuredNetworkProtocol.__name__} class in order to use {SecuredNetworkProtocolMeta.__name__} metaclass"
                 )
             for attr in ("_cryptography_fernet_", "_lock_"):
                 if attr in namespace:
@@ -214,7 +214,7 @@ class MetaSecuredNetworkProtocol(MetaNetworkProtocol):
             def serialize_wrapper(cls: type[SecuredNetworkProtocol], /, packet: Any) -> bytes:
                 lock: RLock = getattr(cls, "_lock_")
                 with lock:
-                    fernet: MetaSecuredNetworkProtocol.__RFernet
+                    fernet: SecuredNetworkProtocolMeta.__RFernet
                     fernet = getattr(cls, "_cryptography_fernet_", _MISSING)
                     if fernet is _MISSING:
                         raise AttributeError("No SECRET_KEY given")
@@ -234,7 +234,7 @@ class MetaSecuredNetworkProtocol(MetaNetworkProtocol):
             def deserialize_wrapper(cls: type[SecuredNetworkProtocol], /, data: bytes) -> Any:
                 lock: RLock = getattr(cls, "_lock_")
                 with lock:
-                    fernet: MetaSecuredNetworkProtocol.__RFernet
+                    fernet: SecuredNetworkProtocolMeta.__RFernet
                     fernet = getattr(cls, "_cryptography_fernet_", _MISSING)
                     if fernet is _MISSING:
                         raise AttributeError("No SECRET_KEY given")
@@ -284,7 +284,7 @@ class MetaSecuredNetworkProtocol(MetaNetworkProtocol):
     del __Self
 
 
-class SecuredNetworkProtocol(AutoParsedNetworkProtocol, metaclass=MetaSecuredNetworkProtocol):
+class SecuredNetworkProtocol(AutoParsedNetworkProtocol, metaclass=SecuredNetworkProtocolMeta):
     SECRET_KEY: ClassVar[str]
 
     @staticmethod

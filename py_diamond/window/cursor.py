@@ -25,11 +25,11 @@ from ..graphics.surface import Surface
 from ..system.utils import wraps
 
 
-class _MetaCursor(ABCMeta):
+class _CursorMeta(ABCMeta):
     __cursor_setter: ClassVar[Callable[[], None] | None] = None
     __default_cursor: ClassVar[Cursor | None] = None
 
-    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _MetaCursor:
+    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _CursorMeta:
         def _set_decorator(func: Callable[[Cursor], None], /) -> Callable[[Cursor], None]:
             actual_cursor: Cursor | None = None
 
@@ -37,7 +37,7 @@ class _MetaCursor(ABCMeta):
             def wrapper(self: Cursor, /) -> None:
                 nonlocal actual_cursor
                 if actual_cursor is not self:
-                    _MetaCursor.__cursor_setter = MethodType(func, self)
+                    _CursorMeta.__cursor_setter = MethodType(func, self)
                     actual_cursor = self
 
             return wrapper
@@ -50,20 +50,20 @@ class _MetaCursor(ABCMeta):
 
     @staticmethod
     def update() -> None:
-        cursor_setter = _MetaCursor.__cursor_setter
+        cursor_setter = _CursorMeta.__cursor_setter
         if not callable(cursor_setter):
-            default_cursor: Cursor = _MetaCursor.__default_cursor or SystemCursor.ARROW
+            default_cursor: Cursor = _CursorMeta.__default_cursor or SystemCursor.ARROW
             default_cursor.set()
         if callable(cursor_setter):
             cursor_setter()
-            _MetaCursor.__cursor_setter = None
+            _CursorMeta.__cursor_setter = None
 
     @staticmethod
     def set_default(cursor: Cursor | None) -> None:
-        _MetaCursor.__default_cursor = cursor
+        _CursorMeta.__default_cursor = cursor
 
 
-class Cursor(metaclass=_MetaCursor):
+class Cursor(metaclass=_CursorMeta):
     @abstractmethod
     def set(self) -> None:
         raise NotImplementedError
@@ -111,11 +111,11 @@ class CustomCursor(Cursor):
         _pg_mouse_set_cursor(self.__cursor)
 
 
-class _MetaSystemCursor(_MetaCursor, EnumMeta):
+class _SystemCursorMeta(_CursorMeta, EnumMeta):
     pass
 
 
-class SystemCursor(Cursor, Enum, metaclass=_MetaSystemCursor):
+class SystemCursor(Cursor, Enum, metaclass=_SystemCursorMeta):
     ARROW = _pg_constants.SYSTEM_CURSOR_ARROW
     IBEAM = _pg_constants.SYSTEM_CURSOR_IBEAM
     WAIT = _pg_constants.SYSTEM_CURSOR_WAIT
@@ -135,4 +135,4 @@ class SystemCursor(Cursor, Enum, metaclass=_MetaSystemCursor):
         _pg_mouse_set_cursor(self.value)
 
 
-del _pg_constants, _MetaSystemCursor
+del _pg_constants, _SystemCursorMeta

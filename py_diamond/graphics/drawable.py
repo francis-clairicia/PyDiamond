@@ -9,12 +9,12 @@ from __future__ import annotations
 __all__ = [
     "Drawable",
     "DrawableGroup",
+    "DrawableMeta",
     "LayeredGroup",
     "MDrawable",
-    "MetaDrawable",
-    "MetaMDrawable",
-    "MetaTDrawable",
+    "MDrawableMeta",
     "TDrawable",
+    "TDrawableMeta",
 ]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -28,8 +28,8 @@ from typing import TYPE_CHECKING, Any, Callable, Iterator, Sequence, TypeVar, ov
 
 from ..system._mangling import getattr_pv
 from ..system.utils import wraps
-from .movable import MetaMovable, Movable
-from .transformable import MetaTransformable, Transformable
+from .movable import Movable, MovableMeta
+from .transformable import Transformable, TransformableMeta
 
 if TYPE_CHECKING:
     from .renderer import Renderer
@@ -46,8 +46,8 @@ def _draw_decorator(func: Callable[[Drawable, Renderer], None], /) -> Callable[[
     return wrapper
 
 
-class MetaDrawable(ABCMeta):
-    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> MetaDrawable:
+class DrawableMeta(ABCMeta):
+    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> DrawableMeta:
         try:
             Drawable
         except NameError:
@@ -55,7 +55,7 @@ class MetaDrawable(ABCMeta):
         else:
             if not any(issubclass(cls, Drawable) for cls in bases):
                 raise TypeError(
-                    f"{name!r} must be inherits from a {Drawable.__name__} class in order to use {MetaDrawable.__name__} metaclass"
+                    f"{name!r} must be inherits from a {Drawable.__name__} class in order to use {DrawableMeta.__name__} metaclass"
                 )
 
             draw_method: Callable[[Drawable, Renderer], None] | None = namespace.get("draw_onto")
@@ -65,7 +65,7 @@ class MetaDrawable(ABCMeta):
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
 
-class Drawable(metaclass=MetaDrawable):
+class Drawable(metaclass=DrawableMeta):
     def __init__(self) -> None:
         self.__shown: bool = True
         self.__groups: set[DrawableGroup] = set()
@@ -127,21 +127,21 @@ class Drawable(metaclass=MetaDrawable):
         return frozenset(self.__groups)
 
 
-class MetaTDrawable(MetaDrawable, MetaTransformable):
+class TDrawableMeta(DrawableMeta, TransformableMeta):
     pass
 
 
-class TDrawable(Drawable, Transformable, metaclass=MetaTDrawable):
+class TDrawable(Drawable, Transformable, metaclass=TDrawableMeta):
     def __init__(self) -> None:
         Drawable.__init__(self)
         Transformable.__init__(self)
 
 
-class MetaMDrawable(MetaDrawable, MetaMovable):
+class MDrawableMeta(DrawableMeta, MovableMeta):
     pass
 
 
-class MDrawable(Drawable, Movable, metaclass=MetaMDrawable):
+class MDrawable(Drawable, Movable, metaclass=MDrawableMeta):
     def __init__(self) -> None:
         Drawable.__init__(self)
         Movable.__init__(self)

@@ -73,8 +73,8 @@ class UnknownEventTypeError(TypeError):
     pass
 
 
-class _MetaEvent(type):
-    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _MetaEvent:
+class _EventMeta(type):
+    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _EventMeta:
         try:
             EventFactory
         except NameError:
@@ -97,7 +97,7 @@ class _MetaEvent(type):
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
-class Event(metaclass=_MetaEvent):
+class Event(metaclass=_EventMeta):
     @unique
     class Type(IntEnum):
         # Built-in events
@@ -549,6 +549,6 @@ class EventManager:
         return None
 
 
-del _pg_constants, _MetaEvent, MusicStream
+del _pg_constants, _EventMeta, MusicStream
 
 del _T, _TE

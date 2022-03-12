@@ -16,7 +16,7 @@ from typing import Iterator, NamedTuple, Optional
 import pygame.mixer as _pg_mixer
 from pygame import error as _pg_error
 
-from ..system.namespace import MetaClassNamespace
+from ..system.namespace import ClassNamespaceMeta
 from .music import MusicStream
 from .sound import Channel
 
@@ -27,7 +27,7 @@ class MixerParams(NamedTuple):
     channels: int
 
 
-class Mixer(metaclass=MetaClassNamespace, frozen=True):
+class Mixer(metaclass=ClassNamespaceMeta, frozen=True):
     @staticmethod
     @contextmanager
     def init(frequency: int = 44100, size: int = -16, channels: int = 2, buffersize: int = 512) -> Iterator[MixerParams]:

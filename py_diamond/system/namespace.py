@@ -4,7 +4,7 @@
 #
 """ClassNamespace objects module"""
 
-__all__ = ["ClassNamespace", "MetaClassNamespace"]
+__all__ = ["ClassNamespace", "ClassNamespaceMeta"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -13,8 +13,8 @@ __license__ = "GNU GPL v3.0"
 from typing import Any, TypeVar
 
 
-class MetaClassNamespace(type):
-    __Self = TypeVar("__Self", bound="MetaClassNamespace")
+class ClassNamespaceMeta(type):
+    __Self = TypeVar("__Self", bound="ClassNamespaceMeta")
 
     def __new__(
         metacls: type[__Self],
@@ -33,7 +33,7 @@ class MetaClassNamespace(type):
                 raise TypeError(f"A ClassNamespace class is not instantiable, so no need to define {attr!r}")
         if not frozen:
             for b in bases:
-                if isinstance(b, MetaClassNamespace):
+                if isinstance(b, ClassNamespaceMeta):
                     frozen = getattr(b, "_frozen_class_namespace_")
                     if frozen:
                         break
@@ -81,5 +81,5 @@ class MetaClassNamespace(type):
     del __Self
 
 
-class ClassNamespace(metaclass=MetaClassNamespace):
+class ClassNamespace(metaclass=ClassNamespaceMeta):
     pass

@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["MetaSingleton", "Singleton"]
+__all__ = ["Singleton", "SingletonMeta"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -19,8 +19,8 @@ from typing import Any, Callable, TypeVar
 _T = TypeVar("_T")
 
 
-class MetaSingleton(ABCMeta):
-    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> MetaSingleton:
+class SingletonMeta(ABCMeta):
+    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> SingletonMeta:
         kwargs.pop("abstract", None)
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
@@ -73,7 +73,7 @@ class MetaSingleton(ABCMeta):
 
         def __call__(self, __cls_or_self: Any, /, *args: Any, **kwargs: Any) -> Any:
             cls: type = __cls_or_self if isinstance(__cls_or_self, type) else type(__cls_or_self)
-            if not isinstance(cls, MetaSingleton):
+            if not isinstance(cls, SingletonMeta):
                 raise TypeError("Called from a non-singleton class")
             if cls.__abstractsingleton__ and not cls.__abstractmethods__:
                 raise TypeError(f"{cls.__name__} cannot be instantiated")
@@ -88,7 +88,7 @@ class MetaSingleton(ABCMeta):
             return MethodType(self, obj)
 
 
-class Singleton(metaclass=MetaSingleton, abstract=True):
+class Singleton(metaclass=SingletonMeta, abstract=True):
     pass
 
 

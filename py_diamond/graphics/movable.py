@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["MetaMovable", "Movable"]
+__all__ = ["Movable", "MovableMeta"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -51,14 +51,14 @@ def _position_decorator(func: Callable[[Movable, Any], None], position: str) -> 
     return wrapper
 
 
-class MetaMovable(ABCMeta):
+class MovableMeta(ABCMeta):
     def __new__(
         metacls,
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, Any],
         **kwargs: Any,
-    ) -> MetaMovable:
+    ) -> MovableMeta:
         try:
             Movable
         except NameError:
@@ -66,7 +66,7 @@ class MetaMovable(ABCMeta):
         else:
             if not any(issubclass(cls, Movable) for cls in bases):
                 raise TypeError(
-                    f"{name!r} must be inherits from a {Movable.__name__} class in order to use {MetaMovable.__name__} metaclass"
+                    f"{name!r} must be inherits from a {Movable.__name__} class in order to use {MovableMeta.__name__} metaclass"
                 )
 
         for position in _ALL_VALID_POSITIONS:
@@ -81,7 +81,7 @@ class MetaMovable(ABCMeta):
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
 
-class Movable(metaclass=MetaMovable):
+class Movable(metaclass=MovableMeta):
     def __init__(self) -> None:
         self.__x: float = 0
         self.__y: float = 0

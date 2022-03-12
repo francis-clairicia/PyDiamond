@@ -7,10 +7,10 @@
 __all__ = [
     "FontLoader",
     "ImageLoader",
-    "MetaResourceManager",
     "MusicLoader",
     "ResourceLoader",
     "ResourceManager",
+    "ResourceManagerMeta",
     "SoundLoader",
 ]
 
@@ -21,4 +21,4 @@ __license__ = "GNU GPL v3.0"
 
 ############ Package initialization ############
 from .loader import FontLoader, ImageLoader, MusicLoader, ResourceLoader, SoundLoader
-from .manager import MetaResourceManager, ResourceManager
+from .manager import ResourceManager, ResourceManagerMeta

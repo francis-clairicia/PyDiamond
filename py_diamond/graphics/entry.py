@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Entry", "MetaEntry"]
+__all__ = ["Entry", "EntryMeta"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -25,11 +25,11 @@ from ..window.gui import BoundFocus
 from ..window.keyboard import Keyboard
 from ..window.pressable import Pressable
 from .color import BLACK, BLUE, TRANSPARENT, WHITE, Color
-from .drawable import MetaTDrawable, TDrawable
+from .drawable import TDrawable, TDrawableMeta
 from .shape import RectangleShape
 from .surface import Surface
 from .text import Text
-from .theme import MetaThemedObject, NoTheme, ThemeType
+from .theme import NoTheme, ThemedObjectMeta, ThemeType
 
 if TYPE_CHECKING:
     from ..audio.sound import Sound
@@ -42,13 +42,13 @@ if TYPE_CHECKING:
     _TextFont: TypeAlias = Font | _TupleFont
 
 
-class MetaEntry(MetaTDrawable, MetaThemedObject):
+class EntryMeta(TDrawableMeta, ThemedObjectMeta):
     pass
 
 
 @Text.register_themed_subclass
 @RectangleShape.register_themed_subclass
-class Entry(TDrawable, Pressable, metaclass=MetaEntry):
+class Entry(TDrawable, Pressable, metaclass=EntryMeta):
     __theme_ignore__: ClassVar[Sequence[str]] = "on_validate"
     __theme_associations__: ClassVar[dict[type, dict[str, str]]] = {
         Text: {

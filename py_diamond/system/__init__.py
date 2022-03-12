@@ -9,21 +9,21 @@ __all__ = [
     "AutoUpperNameEnum",
     "BoundConfiguration",
     "ClassNamespace",
+    "ClassNamespaceMeta",
     "ConfigError",
     "Configuration",
     "EmptyOptionNameError",
     "InitializationError",
     "InvalidAliasError",
-    "MetaClassNamespace",
-    "MetaNoDuplicate",
-    "MetaNonCopyable",
-    "MetaSingleton",
     "NoDuplicate",
+    "NoDuplicateMeta",
     "NonCopyable",
+    "NonCopyableMeta",
     "OptionAttribute",
     "OptionError",
     "RThread",
     "Singleton",
+    "SingletonMeta",
     "StrEnum",
     "Thread",
     "UnknownOptionError",
@@ -70,12 +70,12 @@ from .configuration import (
     UnregisteredOptionError,
     initializer,
 )
-from .duplicate import MetaNoDuplicate, NoDuplicate
+from .duplicate import NoDuplicate, NoDuplicateMeta
 from .enum import AutoLowerNameEnum, AutoUpperNameEnum, StrEnum
-from .namespace import ClassNamespace, MetaClassNamespace
-from .non_copyable import MetaNonCopyable, NonCopyable
+from .namespace import ClassNamespace, ClassNamespaceMeta
+from .non_copyable import NonCopyable, NonCopyableMeta
 from .path import set_constant_directory, set_constant_file
-from .singleton import MetaSingleton, Singleton
+from .singleton import Singleton, SingletonMeta
 from .threading import RThread, Thread, rthread, thread
 from .utils import (
     cache,

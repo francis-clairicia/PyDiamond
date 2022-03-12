@@ -44,7 +44,7 @@ from py_diamond.graphics.progress import ProgressBar
 from py_diamond.graphics.renderer import Renderer
 from py_diamond.graphics.scale import ScaleBar
 from py_diamond.graphics.scroll import ScrollArea, ScrollBar
-from py_diamond.graphics.shape import CircleShape, CrossShape, MetaThemedShape, PolygonShape, RectangleShape
+from py_diamond.graphics.shape import CircleShape, CrossShape, PolygonShape, RectangleShape, ThemedShapeMeta
 from py_diamond.graphics.sprite import AnimatedSprite, Sprite
 from py_diamond.graphics.surface import Surface
 from py_diamond.graphics.text import Text, TextImage
@@ -70,7 +70,7 @@ from py_diamond.window.time import Time
 class ShapeScene(MainScene):
     def __theme_init__(self) -> None:
         super().__theme_init__()
-        cls: MetaThemedShape
+        cls: ThemedShapeMeta
         for cls in [RectangleShape, PolygonShape, CircleShape, CrossShape]:
             cls.set_default_theme("default")
             cls.set_theme("default", {"outline_color": RED, "outline": 3})

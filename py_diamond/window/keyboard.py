@@ -19,13 +19,13 @@ from typing import ClassVar, Sequence, overload
 import pygame.constants as _pg_constants
 import pygame.key as _pg_key
 
-from ..system.namespace import MetaClassNamespace
+from ..system.namespace import ClassNamespaceMeta
 
 _KEY_STATES: Sequence[bool] = []
 _KEY_REPEAT: tuple[int, int] = (0, 0)
 
 
-class Keyboard(metaclass=MetaClassNamespace, frozen=True):
+class Keyboard(metaclass=ClassNamespaceMeta, frozen=True):
     @staticmethod
     def update() -> None:
         global _KEY_STATES
@@ -89,7 +89,7 @@ class Keyboard(metaclass=MetaClassNamespace, frozen=True):
                 _KEY_REPEAT = (delay, interval)
         return former_params
 
-    class IME(metaclass=MetaClassNamespace):
+    class IME(metaclass=ClassNamespaceMeta):
         __start: ClassVar[bool] = False
 
         @classmethod

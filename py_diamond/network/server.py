@@ -67,8 +67,8 @@ class ConnectedClient(Generic[_T]):
         return self.__addr
 
 
-class _MetaRequestHandler(ABCMeta):
-    __Self = TypeVar("__Self", bound="_MetaRequestHandler")
+class _RequestHandlerMeta(ABCMeta):
+    __Self = TypeVar("__Self", bound="_RequestHandlerMeta")
 
     def __new__(metacls: type[__Self], name: str, bases: tuple[type, ...], namespace: dict[str, Any]) -> __Self:
         try:
@@ -84,7 +84,7 @@ class _MetaRequestHandler(ABCMeta):
     del __Self
 
 
-class AbstractRequestHandler(Generic[_T], metaclass=_MetaRequestHandler):
+class AbstractRequestHandler(Generic[_T], metaclass=_RequestHandlerMeta):
     @overload
     def __init__(self, request: _T, client: ConnectedClient[_T], server: AbstractTCPNetworkServer[_T]) -> None:
         ...

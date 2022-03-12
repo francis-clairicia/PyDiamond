@@ -10,14 +10,14 @@ __all__ = [
     "AbstractAutoLayeredScene",
     "AbstractLayeredScene",
     "LayeredMainScene",
+    "LayeredMainSceneMeta",
     "LayeredScene",
+    "LayeredSceneMeta",
     "MainScene",
-    "MetaLayeredMainScene",
-    "MetaLayeredScene",
-    "MetaMainScene",
-    "MetaScene",
+    "MainSceneMeta",
     "ReturningSceneTransition",
     "Scene",
+    "SceneMeta",
     "SceneTransition",
     "SceneTransitionCoroutine",
     "SceneWindow",
@@ -64,13 +64,13 @@ from .display import Window, WindowCallback, WindowError, _WindowCallbackList
 from .event import Event, EventManager
 from .time import Time
 
-_S = TypeVar("_S", bound="MetaScene")
+_S = TypeVar("_S", bound="SceneMeta")
 _P = ParamSpec("_P")
 
 _ALL_SCENES: Final[list[type[Scene]]] = []
 
 
-class MetaScene(ABCMeta):
+class SceneMeta(ABCMeta):
     __namespaces: ClassVar[dict[type, str]] = dict()
 
     def __new__(
@@ -83,13 +83,13 @@ class MetaScene(ABCMeta):
         fixed_framerate: int = 0,
         busy_loop: bool = False,
         **kwargs: Any,
-    ) -> MetaScene:
+    ) -> SceneMeta:
         if "Scene" not in globals():
             return super().__new__(metacls, name, bases, namespace, **kwargs)
 
         if not any(issubclass(cls, Scene) for cls in bases):
             raise TypeError(
-                f"{name!r} must be inherits from a {Scene.__name__} class in order to use {MetaScene.__name__} metaclass"
+                f"{name!r} must be inherits from a {Scene.__name__} class in order to use {SceneMeta.__name__} metaclass"
             )
 
         if not all(issubclass(cls, Scene) for cls in bases):
@@ -115,15 +115,15 @@ class MetaScene(ABCMeta):
 
     @concreteclassmethod
     def get_theme_namespace(cls) -> str | None:
-        return MetaScene.__namespaces.get(cls)
+        return SceneMeta.__namespaces.get(cls)
 
     @concreteclassmethod
     def set_theme_namespace(cls, namespace: str) -> None:
-        MetaScene.__namespaces[cls] = str(namespace)
+        SceneMeta.__namespaces[cls] = str(namespace)
 
     @concreteclassmethod
     def remove_theme_namespace(cls) -> None:
-        MetaScene.__namespaces.pop(cls, None)
+        SceneMeta.__namespaces.pop(cls, None)
 
     @concreteclassmethod
     def get_required_framerate(cls) -> int:
@@ -142,7 +142,7 @@ class MetaScene(ABCMeta):
         @wraps(func)
         def wrapper(__cls_or_self: Any, /, *args: Any, **kwargs: Any) -> Any:
             cls: type = type(__cls_or_self) if not isinstance(__cls_or_self, type) else __cls_or_self
-            theme_namespace: str | None = MetaScene.__namespaces.get(cls)
+            theme_namespace: str | None = SceneMeta.__namespaces.get(cls)
             if theme_namespace is None:
                 return func(__cls_or_self, *args, **kwargs)
             with ThemeNamespace(theme_namespace):
@@ -154,15 +154,15 @@ class MetaScene(ABCMeta):
     def __apply_theme_namespace_decorator(obj: Any) -> Any:
         if isinstance(obj, property):
             if callable(obj.fget):
-                obj = obj.getter(MetaScene.__theme_namespace_decorator(obj.fget))
+                obj = obj.getter(SceneMeta.__theme_namespace_decorator(obj.fget))
             if callable(obj.fset):
-                obj = obj.setter(MetaScene.__theme_namespace_decorator(obj.fset))
+                obj = obj.setter(SceneMeta.__theme_namespace_decorator(obj.fset))
             if callable(obj.fdel):
-                obj = obj.deleter(MetaScene.__theme_namespace_decorator(obj.fdel))
+                obj = obj.deleter(SceneMeta.__theme_namespace_decorator(obj.fdel))
         elif isinstance(obj, classmethod):
-            obj = classmethod(MetaScene.__theme_namespace_decorator(obj.__func__))
+            obj = classmethod(SceneMeta.__theme_namespace_decorator(obj.__func__))
         elif isinstance(obj, (FunctionType, LambdaType)):
-            obj = MetaScene.__theme_namespace_decorator(obj)
+            obj = SceneMeta.__theme_namespace_decorator(obj)
         return obj
 
 
@@ -185,7 +185,7 @@ class ReturningSceneTransition(SceneTransition):
         raise NotImplementedError
 
 
-class Scene(metaclass=MetaScene):
+class Scene(metaclass=SceneMeta):
     __instances: ClassVar[set[type[Scene]]] = set()
 
     __slots__ = (
@@ -355,14 +355,14 @@ class Scene(metaclass=MetaScene):
         self.__bg_color = Color(color)
 
 
-class MetaMainScene(MetaScene):
-    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> MetaScene:
+class MainSceneMeta(SceneMeta):
+    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> SceneMeta:
         if "MainScene" not in globals():
             return super().__new__(metacls, name, bases, namespace, **kwargs)
 
         if not any(issubclass(cls, MainScene) for cls in bases):
             raise TypeError(
-                f"{name!r} must be inherits from a {MainScene.__name__} class in order to use {MetaMainScene.__name__} metaclass"
+                f"{name!r} must be inherits from a {MainScene.__name__} class in order to use {MainSceneMeta.__name__} metaclass"
             )
 
         cls = super().__new__(metacls, name, bases, namespace, **kwargs)
@@ -371,7 +371,7 @@ class MetaMainScene(MetaScene):
         return cls
 
 
-class MainScene(Scene, metaclass=MetaMainScene):
+class MainScene(Scene, metaclass=MainSceneMeta):
     __slots__ = ()
 
 
@@ -401,7 +401,7 @@ def closed_namespace(scene: _S) -> _S:
     return scene
 
 
-class MetaLayeredScene(MetaScene):
+class LayeredSceneMeta(SceneMeta):
     def __new__(
         metacls,
         name: str,
@@ -410,13 +410,13 @@ class MetaLayeredScene(MetaScene):
         *,
         add_drawable_attributes: bool = False,
         **kwargs: Any,
-    ) -> MetaScene:
+    ) -> SceneMeta:
         if "AbstractLayeredScene" not in globals():
             return super().__new__(metacls, name, bases, namespace, **kwargs)
 
         if not any(issubclass(cls, AbstractLayeredScene) for cls in bases):
             raise TypeError(
-                f"{name!r} must be inherits from a {AbstractLayeredScene.__name__} class in order to use {MetaLayeredScene.__name__} metaclass"
+                f"{name!r} must be inherits from a {AbstractLayeredScene.__name__} class in order to use {LayeredSceneMeta.__name__} metaclass"
             )
 
         if "render" in namespace:
@@ -476,7 +476,7 @@ class MetaLayeredScene(MetaScene):
             return self.__func__
 
 
-class AbstractLayeredScene(Scene, metaclass=MetaLayeredScene):
+class AbstractLayeredScene(Scene, metaclass=LayeredSceneMeta):
 
     __slots__ = ()
 
@@ -503,7 +503,7 @@ class AbstractLayeredScene(Scene, metaclass=MetaLayeredScene):
         self.render_after()
 
 
-class LayeredScene(AbstractLayeredScene, metaclass=MetaLayeredScene):
+class LayeredScene(AbstractLayeredScene, metaclass=LayeredSceneMeta):
 
     __slots__ = ("__group",)
 
@@ -520,11 +520,11 @@ class AbstractAutoLayeredScene(AbstractLayeredScene, add_drawable_attributes=Tru
     __slots__ = ()
 
 
-class MetaLayeredMainScene(MetaLayeredScene, MetaMainScene):
+class LayeredMainSceneMeta(LayeredSceneMeta, MainSceneMeta):
     __slots__ = ()
 
 
-class LayeredMainScene(LayeredScene, MainScene, metaclass=MetaLayeredMainScene):
+class LayeredMainScene(LayeredScene, MainScene, metaclass=LayeredMainSceneMeta):
     __slots__ = ()
 
 

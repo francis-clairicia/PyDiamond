@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["MetaResourceManager", "ResourceManager"]
+__all__ = ["ResourceManager", "ResourceManagerMeta"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -87,8 +87,8 @@ class _ResourceDescriptor:
         return self.__nb_resources
 
 
-class MetaResourceManager(type):
-    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> MetaResourceManager:
+class ResourceManagerMeta(type):
+    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> ResourceManagerMeta:
         resources: dict[str, Any] = namespace.setdefault("__resources_files__", dict())
 
         annotations: dict[str, type | str] = namespace.setdefault("__annotations__", dict())
@@ -166,7 +166,7 @@ class MetaResourceManager(type):
             resource.unload()
 
 
-class ResourceManager(metaclass=MetaResourceManager):
+class ResourceManager(metaclass=ResourceManagerMeta):
     __resources_directory__: str | None = None
     __resources_files__: dict[str, _ResourcePath]
     __resource_loader__: Callable[[str], ResourceLoader[Any]]

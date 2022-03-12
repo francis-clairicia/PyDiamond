@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["MetaThemedObject", "NoTheme", "ThemeNamespace", "ThemeType", "ThemedObject", "abstract_theme_class"]
+__all__ = ["NoTheme", "ThemeNamespace", "ThemeType", "ThemedObject", "ThemedObjectMeta", "abstract_theme_class"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -127,8 +127,8 @@ NoTheme: _NoThemeType = _NoThemeType()
 ThemeType: TypeAlias = str | Iterable[str]
 
 
-class MetaThemedObject(ABCMeta):
-    __virtual_themed_class_bases__: tuple[MetaThemedObject, ...]
+class ThemedObjectMeta(ABCMeta):
+    __virtual_themed_class_bases__: tuple[ThemedObjectMeta, ...]
     __theme_ignore__: Sequence[str]
     __theme_associations__: dict[type, dict[str, str]]
 
@@ -141,7 +141,7 @@ class MetaThemedObject(ABCMeta):
         use_parent_theme: bool = True,
         use_parent_default_theme: bool = True,
         **kwargs: Any,
-    ) -> MetaThemedObject:
+    ) -> ThemedObjectMeta:
         def check_parameters(func: Callable[..., Any]) -> None:
             sig: Signature = Signature.from_callable(func, follow_wrapped=True)
             parameters: Mapping[str, Parameter] = sig.parameters
@@ -182,7 +182,7 @@ class MetaThemedObject(ABCMeta):
             setattr(cls, "_no_parent_default_theme_", True)
         setattr(cls, "_is_abstract_theme_class_", False)
         cls.__virtual_themed_class_bases__ = ()
-        if all(not isinstance(b, MetaThemedObject) or b.is_abstract_theme_class() for b in bases):
+        if all(not isinstance(b, ThemedObjectMeta) or b.is_abstract_theme_class() for b in bases):
             _CLASSES_NOT_USING_PARENT_THEMES.add(cls)
             _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.add(cls)
         return cls
@@ -323,7 +323,7 @@ class MetaThemedObject(ABCMeta):
             return theme_kwargs
 
         all_parents_classes = (
-            tuple(MetaThemedObject.__get_all_parent_classes(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_THEMES))
+            tuple(ThemedObjectMeta.__get_all_parent_classes(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_THEMES))
             if parent_themes
             else ()
         )
@@ -374,13 +374,13 @@ class MetaThemedObject(ABCMeta):
     def get_default_themes(cls, *, parent_default_themes: bool = True) -> tuple[str, ...]:
         default_theme: dict[str, None] = dict()
 
-        def add_default_themes(cls: MetaThemedObject) -> None:
+        def add_default_themes(cls: ThemedObjectMeta) -> None:
             nonlocal default_theme
             with suppress(KeyError):
                 default_theme |= dict.fromkeys(_DEFAULT_THEME[cls])
 
         if parent_default_themes:
-            get_all_parents_class = MetaThemedObject.__get_all_parent_classes
+            get_all_parents_class = ThemedObjectMeta.__get_all_parent_classes
             for parent in get_all_parents_class(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_DEFAULT_THEMES):
                 add_default_themes(parent)
         add_default_themes(cls)
@@ -391,18 +391,18 @@ class MetaThemedObject(ABCMeta):
         return truth(getattr(cls, "_is_abstract_theme_class_", False))
 
     def register(cls, subclass: type[_T]) -> type[_T]:
-        def register_themed_subclass(subclass: MetaThemedObject) -> None:
+        def register_themed_subclass(subclass: ThemedObjectMeta) -> None:
             if not subclass.is_abstract_theme_class():
                 cls.register_themed_subclass(subclass)
 
         super().register(subclass)
-        if isinstance(subclass, MetaThemedObject):
+        if isinstance(subclass, ThemedObjectMeta):
             register_themed_subclass(subclass)  # type: ignore[unreachable]
         return subclass
 
     def register_themed_subclass(cls, subclass: _T) -> _T:
         themed_subclass: Any = subclass
-        if not isinstance(themed_subclass, MetaThemedObject):
+        if not isinstance(themed_subclass, ThemedObjectMeta):
             raise TypeError("Not a themed object")
         if themed_subclass.is_abstract_theme_class():
             raise TypeError("Abstract theme classes cannot have themes.")
@@ -420,9 +420,9 @@ class MetaThemedObject(ABCMeta):
         return subclass
 
     @staticmethod
-    def __get_all_parent_classes(cls: MetaThemedObject, *, do_not_search_for: set[type]) -> Sequence[MetaThemedObject]:
-        def get_all_parent_classes(cls: MetaThemedObject) -> Iterator[MetaThemedObject]:
-            if not isinstance(cls, MetaThemedObject) or cls in do_not_search_for or cls.is_abstract_theme_class():
+    def __get_all_parent_classes(cls: ThemedObjectMeta, *, do_not_search_for: set[type]) -> Sequence[ThemedObjectMeta]:
+        def get_all_parent_classes(cls: ThemedObjectMeta) -> Iterator[ThemedObjectMeta]:
+            if not isinstance(cls, ThemedObjectMeta) or cls in do_not_search_for or cls.is_abstract_theme_class():
                 return
             mro: list[type]
             try:
@@ -432,7 +432,7 @@ class MetaThemedObject(ABCMeta):
             mro.extend(cls.__virtual_themed_class_bases__)
 
             for base in mro:
-                if not isinstance(base, MetaThemedObject) or base.is_abstract_theme_class():
+                if not isinstance(base, ThemedObjectMeta) or base.is_abstract_theme_class():
                     continue
                 yield base
                 yield from get_all_parent_classes(base)
@@ -449,7 +449,7 @@ def abstract_theme_class(cls: _ThemedObjectClass) -> _ThemedObjectClass:
 
 
 @abstract_theme_class
-class ThemedObject(metaclass=MetaThemedObject):
+class ThemedObject(metaclass=ThemedObjectMeta):
     pass
 
 

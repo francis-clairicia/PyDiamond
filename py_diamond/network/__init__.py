@@ -26,9 +26,7 @@ __all__ = [
     "DisconnectedClientError",
     "IPv4SocketAddress",
     "IPv6SocketAddress",
-    "MetaNetworkProtocol",
-    "MetaSecuredNetworkProtocol",
-    "MetaSocket",
+    "NetworkProtocolMeta",
     "PicklingNetworkProtocol",
     "PythonTCPClientSocket",
     "PythonTCPServerSocket",
@@ -41,8 +39,10 @@ __all__ = [
     "SOCK_DGRAM",
     "SOCK_STREAM",
     "SecuredNetworkProtocol",
+    "SecuredNetworkProtocolMeta",
     "ShutdownFlag",
     "SocketKind",
+    "SocketMeta",
     "TCPNetworkClient",
     "TCPNetworkServer",
     "TCPNetworkServer",
@@ -61,10 +61,10 @@ __license__ = "GNU GPL v3.0"
 from .client import AbstractNetworkClient, DisconnectedClientError, TCPNetworkClient, UDPNetworkClient
 from .protocol import (
     AbstractNetworkProtocol,
-    MetaNetworkProtocol,
-    MetaSecuredNetworkProtocol,
+    NetworkProtocolMeta,
     PicklingNetworkProtocol,
     SecuredNetworkProtocol,
+    SecuredNetworkProtocolMeta,
     ValidationError,
 )
 from .server import (
@@ -94,7 +94,6 @@ from .socket import (
     AddressFamily,
     IPv4SocketAddress,
     IPv6SocketAddress,
-    MetaSocket,
     PythonTCPClientSocket,
     PythonTCPServerSocket,
     PythonUDPClientSocket,
@@ -102,4 +101,5 @@ from .socket import (
     ReceivedDatagram,
     ShutdownFlag,
     SocketKind,
+    SocketMeta,
 )

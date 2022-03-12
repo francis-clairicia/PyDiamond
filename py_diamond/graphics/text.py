@@ -4,7 +4,7 @@
 #
 """Text module"""
 
-__all__ = ["MetaText", "Text", "TextImage"]
+__all__ = ["Text", "TextImage", "TextMeta"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -23,23 +23,23 @@ from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
 from ..system.utils import valid_float, valid_integer
 from .color import BLACK, Color
-from .drawable import MetaTDrawable, TDrawable
+from .drawable import TDrawable, TDrawableMeta
 from .font import Font, SysFont
 from .image import Image
 from .rect import Rect
 from .renderer import Renderer, SurfaceRenderer
 from .surface import Surface, create_surface
-from .theme import MetaThemedObject, ThemeType
+from .theme import ThemedObjectMeta, ThemeType
 
 _TupleFont: TypeAlias = tuple[str | None, int]
 _TextFont: TypeAlias = Font | _TupleFont
 
 
-class MetaText(MetaTDrawable, MetaThemedObject):
+class TextMeta(TDrawableMeta, ThemedObjectMeta):
     pass
 
 
-class Text(TDrawable, metaclass=MetaText):
+class Text(TDrawable, metaclass=TextMeta):
     @unique
     class Justify(AutoLowerNameEnum):
         LEFT = auto()

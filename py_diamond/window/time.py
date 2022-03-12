@@ -15,10 +15,10 @@ from typing import ClassVar, Final
 
 from pygame.time import delay as _pg_time_delay, wait as _pg_time_wait
 
-from ..system.namespace import MetaClassNamespace
+from ..system.namespace import ClassNamespaceMeta
 
 
-class Time(metaclass=MetaClassNamespace):
+class Time(metaclass=ClassNamespaceMeta):
     __start: Final[int] = time_ns()
     __delta: ClassVar[float] = 1
     __fixed_delta: ClassVar[float] = 1

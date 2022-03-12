@@ -15,7 +15,6 @@ __all__ = [
     "AddressFamily",
     "IPv4SocketAddress",
     "IPv6SocketAddress",
-    "MetaSocket",
     "PythonTCPClientSocket",
     "PythonTCPServerSocket",
     "PythonUDPClientSocket",
@@ -29,6 +28,7 @@ __all__ = [
     "ShutdownFlag",
     "SocketAddress",
     "SocketKind",
+    "SocketMeta",
 ]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -45,9 +45,9 @@ from .base import (
     AbstractUDPSocket,
     IPv4SocketAddress,
     IPv6SocketAddress,
-    MetaSocket,
     ReceivedDatagram,
     SocketAddress,
+    SocketMeta,
 )
 from .constants import (
     AF_INET,

@@ -4,7 +4,7 @@
 #
 """NonCopyable objects module"""
 
-__all__ = ["MetaNonCopyable", "NonCopyable"]
+__all__ = ["NonCopyable", "NonCopyableMeta"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -21,8 +21,8 @@ def __non_copyable_deepcopy__(self: Any, memo: dict[int, Any]) -> Any:
     raise TypeError("Non copyable class")
 
 
-class MetaNonCopyable(type):
-    __Self = TypeVar("__Self", bound="MetaNonCopyable")
+class NonCopyableMeta(type):
+    __Self = TypeVar("__Self", bound="NonCopyableMeta")
 
     def __new__(
         metacls: type[__Self],
@@ -46,5 +46,5 @@ class MetaNonCopyable(type):
     del __Self
 
 
-class NonCopyable(metaclass=MetaNonCopyable):
+class NonCopyable(metaclass=NonCopyableMeta):
     pass

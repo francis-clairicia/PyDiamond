@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["BooleanCheckBox", "CheckBox", "MetaCheckBox"]
+__all__ = ["BooleanCheckBox", "CheckBox", "CheckBoxMeta"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -18,11 +18,11 @@ from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
 from ..system.configuration import Configuration, OptionAttribute
 from ..window.clickable import Clickable
 from .color import BLACK, Color
-from .drawable import MetaTDrawable, TDrawable
+from .drawable import TDrawable, TDrawableMeta
 from .image import Image
 from .shape import DiagonalCrossShape, RectangleShape
 from .surface import Surface
-from .theme import MetaThemedObject, NoTheme, ThemeType
+from .theme import NoTheme, ThemedObjectMeta, ThemeType
 
 if TYPE_CHECKING:
     from ..audio.sound import Sound
@@ -37,12 +37,12 @@ _OffValue = TypeVar("_OffValue")
 NoDefaultValue: Any = object()
 
 
-class MetaCheckBox(MetaTDrawable, MetaThemedObject):
+class CheckBoxMeta(TDrawableMeta, ThemedObjectMeta):
     pass
 
 
 @RectangleShape.register_themed_subclass
-class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=MetaCheckBox):
+class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=CheckBoxMeta):
     config: Configuration = Configuration(
         "value",
         "local_width",

@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["MetaScrollBar", "ScrollArea", "ScrollBar"]
+__all__ = ["ScrollArea", "ScrollBar", "ScrollBarMeta"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -24,13 +24,13 @@ from ..window.clickable import Clickable
 from ..window.event import MouseButtonDownEvent, MouseButtonUpEvent, MouseMotionEvent, MouseWheelEvent
 from ..window.mouse import Mouse
 from .color import BLACK, GRAY, TRANSPARENT, WHITE, Color
-from .drawable import Drawable, LayeredGroup, MetaTDrawable, TDrawable
+from .drawable import Drawable, LayeredGroup, TDrawable, TDrawableMeta
 from .movable import Movable
 from .rect import Rect
 from .renderer import Renderer, SurfaceRenderer
 from .shape import RectangleShape
 from .surface import Surface, create_surface
-from .theme import MetaThemedObject, NoTheme, ThemeType
+from .theme import NoTheme, ThemedObjectMeta, ThemeType
 
 if TYPE_CHECKING:
     from ..audio.sound import Sound
@@ -39,12 +39,12 @@ if TYPE_CHECKING:
     from ..window.scene import Scene
 
 
-class MetaScrollBar(MetaTDrawable, MetaThemedObject):
+class ScrollBarMeta(TDrawableMeta, ThemedObjectMeta):
     pass
 
 
 @RectangleShape.register_themed_subclass
-class ScrollBar(TDrawable, Clickable, metaclass=MetaScrollBar):
+class ScrollBar(TDrawable, Clickable, metaclass=ScrollBarMeta):
     __theme_ignore__: ClassVar[Sequence[str]] = "orient"
 
     @unique

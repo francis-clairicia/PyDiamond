@@ -8,10 +8,10 @@ __all__ = [
     "AbstractNetworkProtocol",
     "AutoParsedNetworkProtocol",
     "JSONNetworkProtocol",
-    "MetaNetworkProtocol",
-    "MetaSecuredNetworkProtocol",
+    "NetworkProtocolMeta",
     "PicklingNetworkProtocol",
     "SecuredNetworkProtocol",
+    "SecuredNetworkProtocolMeta",
     "ValidationError",
 ]
 
@@ -24,9 +24,9 @@ __license__ = "GNU GPL v3.0"
 from .base import (
     AbstractNetworkProtocol,
     AutoParsedNetworkProtocol,
-    MetaNetworkProtocol,
-    MetaSecuredNetworkProtocol,
+    NetworkProtocolMeta,
     SecuredNetworkProtocol,
+    SecuredNetworkProtocolMeta,
     ValidationError,
 )
 from .json import JSONNetworkProtocol

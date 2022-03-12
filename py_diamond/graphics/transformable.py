@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["MetaTransformable", "Transformable"]
+__all__ = ["Transformable", "TransformableMeta"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -20,7 +20,7 @@ from pygame import error as _pg_error
 
 from ..math import Vector2
 from .animation import TransformAnimation
-from .movable import MetaMovable, Movable
+from .movable import Movable, MovableMeta
 from .rect import Rect
 
 _ALL_VALID_ROTATION_PIVOTS: tuple[str, ...] = (
@@ -36,7 +36,7 @@ _ALL_VALID_ROTATION_PIVOTS: tuple[str, ...] = (
 )
 
 
-class MetaTransformable(MetaMovable):
+class TransformableMeta(MovableMeta):
     def __new__(
         metacls,
         name: str,
@@ -51,12 +51,12 @@ class MetaTransformable(MetaMovable):
         else:
             if not any(issubclass(cls, Transformable) for cls in bases):
                 raise TypeError(
-                    f"{name!r} must be inherits from a {Transformable.__name__} class in order to use {MetaTransformable.__name__} metaclass"
+                    f"{name!r} must be inherits from a {Transformable.__name__} class in order to use {TransformableMeta.__name__} metaclass"
                 )
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
 
-class Transformable(Movable, metaclass=MetaTransformable):
+class Transformable(Movable, metaclass=TransformableMeta):
     def __init__(self) -> None:
         Movable.__init__(self)
         self.__angle: float = 0

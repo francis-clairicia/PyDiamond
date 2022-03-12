@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Button", "ImageButton", "MetaButton"]
+__all__ = ["Button", "ButtonMeta", "ImageButton"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -25,13 +25,13 @@ from ..window.clickable import Clickable
 from ..window.gui import BoundFocus
 from ..window.pressable import Pressable
 from .color import BLACK, BLUE, GRAY, GRAY_DARK, GRAY_LIGHT, TRANSPARENT, WHITE, Color
-from .drawable import MetaTDrawable, TDrawable
+from .drawable import TDrawable, TDrawableMeta
 from .image import Image
 from .rect import Rect
 from .shape import RectangleShape
 from .surface import Surface
 from .text import TextImage
-from .theme import MetaThemedObject, NoTheme, ThemeType
+from .theme import NoTheme, ThemedObjectMeta, ThemeType
 
 if TYPE_CHECKING:
     from ..audio.sound import Sound
@@ -45,13 +45,13 @@ if TYPE_CHECKING:
     _TextFont: TypeAlias = Font | _TupleFont
 
 
-class MetaButton(MetaTDrawable, MetaThemedObject):
+class ButtonMeta(TDrawableMeta, ThemedObjectMeta):
     pass
 
 
 @TextImage.register_themed_subclass
 @RectangleShape.register_themed_subclass
-class Button(TDrawable, Pressable, metaclass=MetaButton):
+class Button(TDrawable, Pressable, metaclass=ButtonMeta):
     Justify: TypeAlias = TextImage.Justify
     Compound: TypeAlias = TextImage.Compound
 
@@ -827,7 +827,7 @@ class Button(TDrawable, Pressable, metaclass=MetaButton):
 
 
 @Button.register_themed_subclass
-class ImageButton(TDrawable, Clickable, metaclass=MetaButton):
+class ImageButton(TDrawable, Clickable, metaclass=ButtonMeta):
     config: Configuration = Configuration(
         "img",
         "x_add_size",

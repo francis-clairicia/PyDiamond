@@ -11,9 +11,9 @@ __all__ = [
     "BoundFocusProxy",
     "FocusableContainer",
     "GUIMainScene",
+    "GUIMainSceneMeta",
     "GUIScene",
-    "MetaGUIMainScene",
-    "MetaGUIScene",
+    "GUISceneMeta",
     "NoFocusSupportError",
     "SupportsFocus",
 ]
@@ -45,14 +45,14 @@ from .event import (
     MouseWheelEvent,
 )
 from .keyboard import Keyboard
-from .scene import AbstractLayeredScene, MainScene, MetaLayeredMainScene, MetaLayeredScene, Scene
+from .scene import AbstractLayeredScene, LayeredMainSceneMeta, LayeredSceneMeta, MainScene, Scene
 
 
-class MetaGUIScene(MetaLayeredScene):
+class GUISceneMeta(LayeredSceneMeta):
     pass
 
 
-class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
+class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
 
     __slots__ = ("__group", "__focus_index", "__container")
 
@@ -216,11 +216,11 @@ class GUIScene(AbstractLayeredScene, metaclass=MetaGUIScene):
         return self.__container
 
 
-class MetaGUIMainScene(MetaGUIScene, MetaLayeredMainScene):
+class GUIMainSceneMeta(GUISceneMeta, LayeredMainSceneMeta):
     pass
 
 
-class GUIMainScene(GUIScene, MainScene, metaclass=MetaGUIMainScene):
+class GUIMainScene(GUIScene, MainScene, metaclass=GUIMainSceneMeta):
     __slots__ = ()
 
 
@@ -447,11 +447,11 @@ class BoundFocus:
         return self.__f
 
 
-class _MetaBoundFocusProxy(type):
-    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _MetaBoundFocusProxy:
+class _BoundFocusProxyMeta(type):
+    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _BoundFocusProxyMeta:
         if "BoundFocusProxy" in globals() and not any(issubclass(cls, BoundFocusProxy) for cls in bases):
             raise TypeError(
-                f"{name!r} must be inherits from a {BoundFocusProxy.__name__} class in order to use {_MetaBoundFocusProxy.__name__} metaclass"
+                f"{name!r} must be inherits from a {BoundFocusProxy.__name__} class in order to use {_BoundFocusProxyMeta.__name__} metaclass"
             )
 
         if "BoundFocusProxy" not in globals() and name == "BoundFocusProxy":
@@ -506,7 +506,7 @@ class _MetaBoundFocusProxy(type):
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
 
-class BoundFocusProxy(BoundFocus, metaclass=_MetaBoundFocusProxy):
+class BoundFocusProxy(BoundFocus, metaclass=_BoundFocusProxyMeta):
 
     __slots__ = ("__focus",)
 
@@ -613,4 +613,4 @@ class FocusableContainer(Sequence[SupportsFocus]):
             f._focus_update()
 
 
-del _MetaBoundFocusProxy
+del _BoundFocusProxyMeta

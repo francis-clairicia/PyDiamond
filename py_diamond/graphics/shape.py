@@ -11,13 +11,13 @@ __all__ = [
     "CircleShape",
     "CrossShape",
     "DiagonalCrossShape",
-    "MetaShape",
-    "MetaThemedShape",
     "OutlinedShape",
     "PlusCrossShape",
     "PolygonShape",
     "RectangleShape",
+    "ShapeMeta",
     "SingleColorShape",
+    "ThemedShapeMeta",
 ]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -38,22 +38,22 @@ from ..system.configuration import Configuration, OptionAttribute, UnregisteredO
 from ..system.enum import AutoLowerNameEnum
 from ..system.utils import valid_float, valid_integer
 from .color import BLACK, Color
-from .drawable import MetaTDrawable, TDrawable
+from .drawable import TDrawable, TDrawableMeta
 from .rect import Rect
 from .renderer import Renderer, SurfaceRenderer
 from .surface import Surface, create_surface
-from .theme import MetaThemedObject, ThemeType
+from .theme import ThemedObjectMeta, ThemeType
 
 
-class MetaShape(MetaTDrawable):
+class ShapeMeta(TDrawableMeta):
     pass
 
 
-class MetaThemedShape(MetaShape, MetaThemedObject):
+class ThemedShapeMeta(ShapeMeta, ThemedObjectMeta):
     pass
 
 
-class AbstractShape(TDrawable, metaclass=MetaShape):
+class AbstractShape(TDrawable, metaclass=ShapeMeta):
     config = Configuration(autocopy=True)
 
     def __init__(self) -> None:
@@ -186,7 +186,7 @@ class OutlinedShape(AbstractShape):
     config.value_validator_static("outline_color", Color)
 
 
-class PolygonShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
+class PolygonShape(OutlinedShape, SingleColorShape, metaclass=ThemedShapeMeta):
     PointList: TypeAlias = Sequence[Vector2] | Sequence[tuple[float, float]] | Sequence[tuple[int, int]]
 
     config = Configuration("points", parent=[OutlinedShape.config, SingleColorShape.config])
@@ -305,7 +305,7 @@ class AbstractSquareShape(AbstractShape):
     config.value_converter_static("local_size", valid_float(min_value=0))
 
 
-class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
+class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape, metaclass=ThemedShapeMeta):
     config = Configuration(
         "border_radius",
         "border_top_left_radius",
@@ -408,7 +408,7 @@ class AbstractCircleShape(AbstractShape):
     config.value_converter_static("radius", valid_float(min_value=0))
 
 
-class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
+class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclass=ThemedShapeMeta):
     config = Configuration(
         "draw_top_left",
         "draw_top_right",
@@ -514,7 +514,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclas
         self.__points = tuple(all_points)
 
 
-class CrossShape(OutlinedShape, SingleColorShape, metaclass=MetaThemedShape):
+class CrossShape(OutlinedShape, SingleColorShape, metaclass=ThemedShapeMeta):
     config = Configuration(
         "local_width",
         "local_height",

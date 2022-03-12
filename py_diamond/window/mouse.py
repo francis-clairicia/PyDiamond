@@ -18,12 +18,12 @@ from operator import truth
 import pygame.constants as _pg_constants
 import pygame.mouse as _pg_mouse
 
-from ..system.namespace import MetaClassNamespace
+from ..system.namespace import ClassNamespaceMeta
 
 _MOUSE_BUTTON_STATE: tuple[bool, bool, bool] = (False, False, False)
 
 
-class Mouse(metaclass=MetaClassNamespace, frozen=True):
+class Mouse(metaclass=ClassNamespaceMeta, frozen=True):
     @staticmethod
     def get_pos() -> tuple[int, int]:
         return _pg_mouse.get_pos()
