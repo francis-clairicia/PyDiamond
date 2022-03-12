@@ -480,7 +480,7 @@ class _BoundFocusProxyMeta(type):
                 if callable(obj.fset):
 
                     @wraps(obj.fset)
-                    def setter(self: BoundFocusProxy, /, value: Any) -> None:
+                    def setter(self: BoundFocusProxy, value: Any, /) -> None:
                         focus: BoundFocus = self.original
                         return setattr(focus, name, value)
 
@@ -575,6 +575,9 @@ class FocusableContainer(Sequence[SupportsFocus]):
         super().__init__()
         self.__master: GUIScene = master
         self.__list: list[SupportsFocus] = []
+
+    def __repr__(self) -> str:
+        return self.__list.__repr__()
 
     def __len__(self) -> int:
         list_length = self.__list.__len__

@@ -21,7 +21,7 @@ from typing import Any, Callable, Container, Iterator, Literal, Sequence, TypeVa
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
 from ..system.utils import valid_integer
-from ..window.gui import BoundFocus, BoundFocusProxy, GUIScene, SupportsFocus
+from ..window.gui import GUIScene, SupportsFocus
 from .color import BLACK, TRANSPARENT, Color
 from .drawable import Drawable, MDrawable
 from .movable import Movable
@@ -315,47 +315,63 @@ class Grid(MDrawable, Container[Drawable]):
         if self.master is None:
             return
 
-        def find_closest(cells: Sequence[_GridCell], attr: Literal["row", "column"], cell_to_link: _GridCell) -> _GridCell:
-            closest: _GridCell = cells[0]
+        def find_closest(
+            cells: Sequence[_GridCell], attr: Literal["row", "column"], cell_to_link: _GridCell
+        ) -> SupportsFocus | None:
+            closest: _GridCell | None = None
+            closest_obj: SupportsFocus | None = None
             value: int = getattr(cell_to_link, attr)
-            for cell in cells[1:]:
+            for cell in cells:
+                obj: Any = cell.get_object()
+                if not isinstance(obj, SupportsFocus):
+                    continue
                 cell_value: int = int(getattr(cell, attr))
                 if cell_value == value:
-                    return cell
-                closest_value: int = int(getattr(cell, attr))
+                    return obj
+                if closest is None:
+                    closest = cell
+                    closest_obj = obj
+                closest_value: int = int(getattr(closest, attr))
                 closest_diff: int = abs(closest_value - value)
                 actual_diff: int = abs(cell_value - value)
                 if actual_diff < closest_diff or (actual_diff == closest_diff and cell_value < closest_value):
                     closest = cell
-            return closest
+                    closest_obj = obj
+            return closest_obj
 
         all_column_indexes: Sequence[int] = sorted(all_columns)
         for index, column in enumerate(all_column_indexes):
             for cell in all_columns[column]:
-                left_cell: _GridCell | None = None
-                right_cell: _GridCell | None = None
+                obj: Any | None = cell.get_object()
+                if obj is None or not isinstance(obj, SupportsFocus):
+                    continue
+                left_obj: SupportsFocus | None = None
+                right_obj: SupportsFocus | None = None
                 if index > 0:
-                    left_cell = find_closest(all_columns[all_column_indexes[index - 1]], "row", cell)
+                    left_obj = find_closest(all_columns[all_column_indexes[index - 1]], "row", cell)
                 with suppress(IndexError):
-                    right_cell = find_closest(all_columns[all_column_indexes[index + 1]], "row", cell)
-                if left_cell is not None:
-                    cell.focus.set_obj_on_side(on_left=left_cell)
-                if right_cell is not None:
-                    cell.focus.set_obj_on_side(on_right=right_cell)
+                    right_obj = find_closest(all_columns[all_column_indexes[index + 1]], "row", cell)
+                if left_obj is not None:
+                    obj.focus.set_obj_on_side(on_left=left_obj)
+                if right_obj is not None:
+                    obj.focus.set_obj_on_side(on_right=right_obj)
 
         all_row_indexes: Sequence[int] = sorted(all_rows)
         for index, row in enumerate(all_row_indexes):
             for cell in all_rows[row]:
-                top_cell: _GridCell | None = None
-                bottom_cell: _GridCell | None = None
+                obj = cell.get_object()
+                if obj is None or not isinstance(obj, SupportsFocus):
+                    continue
+                top_obj: SupportsFocus | None = None
+                bottom_obj: SupportsFocus | None = None
                 if index > 0:
-                    top_cell = find_closest(all_rows[all_row_indexes[index - 1]], "column", cell)
+                    top_obj = find_closest(all_rows[all_row_indexes[index - 1]], "column", cell)
                 with suppress(IndexError):
-                    bottom_cell = find_closest(all_rows[all_row_indexes[index + 1]], "column", cell)
-                if top_cell is not None:
-                    cell.focus.set_obj_on_side(on_top=top_cell)
-                if bottom_cell is not None:
-                    cell.focus.set_obj_on_side(on_bottom=bottom_cell)
+                    bottom_obj = find_closest(all_rows[all_row_indexes[index + 1]], "column", cell)
+                if top_obj is not None:
+                    obj.focus.set_obj_on_side(on_top=top_obj)
+                if bottom_obj is not None:
+                    obj.focus.set_obj_on_side(on_bottom=bottom_obj)
 
     def __remove_useless_cells(
         self,
@@ -462,11 +478,6 @@ class _GridRow:
         self.__row: int = row
 
     def remove_useless_cells(self) -> None:
-        master: GUIScene | None = self.master
-        if master is not None:
-            for cell in filter(lambda c: c.get_object() is None, self.__cells.values()):
-                if cell in master.focus_container:
-                    master.focus_container.remove(cell)
         self.__cells = {c.column: c for c in sorted(self.__cells.values(), key=lambda c: c.column) if c.get_object() is not None}
 
     def reset(self) -> None:
@@ -534,9 +545,6 @@ class _GridCell(MDrawable):
         self.__pady: int = 0
         self.__justify: Grid.Justify = Grid.Justify.CENTER
         self.__obj_size: tuple[float, float] = (0, 0)
-        if self.master is not None:
-            self.master.focus_container.add(self)
-        BoundFocus(self, self.master).take(False)
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} row={self.row}, column={self.column}>"
@@ -652,22 +660,6 @@ class _GridCell(MDrawable):
         }
         obj.set_position(**move[self.__justify])
 
-    def _on_focus_set(self) -> None:
-        master: GUIScene | None = self.master
-        if master is None:
-            return
-        obj: Any | None = self.__object
-        if isinstance(obj, SupportsFocus) and obj.focus.is_bound_to(master):
-            obj.focus.set()
-
-    def _on_focus_leave(self) -> None:
-        pass
-
-    def _focus_update(self) -> None:
-        obj: Any | None = self.__object
-        if isinstance(obj, SupportsFocus):
-            obj._focus_update()
-
     @property
     def master(self) -> GUIScene | None:
         grid_row: _GridRow = self.__master
@@ -687,39 +679,6 @@ class _GridCell(MDrawable):
     def column(self) -> int:
         grid_col: _GridColumnPlaceholder = self.__column
         return grid_col.column
-
-    @property
-    def focus(self) -> BoundFocus:
-        master: GUIScene | None = self.master
-        if master is None:
-            return BoundFocus(self, None)
-        focus: BoundFocus | None = getattr(self.__object, "focus", None)
-        if not isinstance(focus, BoundFocus) or not focus.is_bound_to(master):
-            return BoundFocus(self, master)
-        return _GridBoundFocusProxy(focus, self.grid)
-
-
-class _GridBoundFocusProxy(BoundFocusProxy):
-
-    __slots__ = ("__grid",)
-
-    def __init__(self, focus: BoundFocus, grid: Grid) -> None:
-        super().__init__(focus)
-        self.__grid: Grid = grid
-
-    @overload
-    def take(self, status: bool) -> None:
-        ...
-
-    @overload
-    def take(self) -> bool:
-        ...
-
-    def take(self, status: bool | None = None) -> bool | None:
-        if status is not None:
-            return super().take(status)
-        grid: Grid = self.__grid
-        return super().take() and grid.is_shown()
 
 
 del _D
