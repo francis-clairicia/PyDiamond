@@ -32,12 +32,15 @@ if os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] == "0":
 
 ############ Package initialization ############
 import py_diamond.audio
+import py_diamond.environ
 import py_diamond.graphics
 import py_diamond.math
 import py_diamond.network
 import py_diamond.resource
 import py_diamond.system
 import py_diamond.window
+
+py_diamond.environ.check()
 
 ############ Cleanup ############
 del os, sys, py_diamond

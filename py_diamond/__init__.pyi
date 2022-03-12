@@ -12,6 +12,7 @@ __status__: Final[str]
 
 from . import (
     audio as audio,
+    environ as environ,
     graphics as graphics,
     math as math,
     network as network,
