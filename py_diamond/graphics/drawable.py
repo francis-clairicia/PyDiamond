@@ -302,8 +302,8 @@ class LayeredGroup(DrawableGroup):
     def move_to_front(self, obj: Drawable) -> None:
         self.change_layer(obj, self.get_top_layer())
 
-    def move_to_back(self, obj: Drawable) -> None:
-        self.change_layer(obj, self.get_bottom_layer() - 1)
+    def move_to_back(self, obj: Drawable, after_last: bool = True) -> None:
+        self.change_layer(obj, self.get_bottom_layer() - int(bool(after_last)))
 
     def get_from_layer(self, layer: int) -> Sequence[Drawable]:
         drawable_list: list[Drawable] = []

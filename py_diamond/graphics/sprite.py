@@ -298,7 +298,7 @@ class LayeredSpriteGroup(SpriteGroup, LayeredGroup):
         def move_to_front(self, obj: Sprite) -> None:  # type: ignore[override]
             ...
 
-        def move_to_back(self, obj: Sprite) -> None:  # type: ignore[override]
+        def move_to_back(self, obj: Sprite, after_last: bool = True) -> None:  # type: ignore[override]
             ...
 
         def get_from_layer(self, layer: int) -> Sequence[Sprite]:
