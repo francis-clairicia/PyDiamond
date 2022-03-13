@@ -25,14 +25,14 @@ if sys.version_info < (3, 10):
     raise ImportError("This framework must be ran with python >= 3.10 (actual={}.{}.{})".format(*sys.version_info[0:3]))
 
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")  # Must be set before importing pygame
-if os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] not in ("0", "1"):
-    raise ValueError("Invalid value for 'PYGAME_HIDE_SUPPORT_PROMPT' environment variable")
-if os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] == "0":
-    os.environ.pop("PYGAME_HIDE_SUPPORT_PROMPT")
+os.environ.setdefault("PYGAME_FREETYPE", "1")  # Must be set before importing pygame
 
 ############ Package initialization ############
-import py_diamond.audio
 import py_diamond.environ
+
+py_diamond.environ.check_booleans(only=["PYGAME_HIDE_SUPPORT_PROMPT", "PYGAME_FREETYPE"])
+
+import py_diamond.audio
 import py_diamond.graphics
 import py_diamond.math
 import py_diamond.network
@@ -40,7 +40,7 @@ import py_diamond.resource
 import py_diamond.system
 import py_diamond.window
 
-py_diamond.environ.check()
+py_diamond.environ.check_booleans(exclude=["PYGAME_HIDE_SUPPORT_PROMPT", "PYGAME_FREETYPE"])
 
 ############ Cleanup ############
 del os, sys, py_diamond
