@@ -47,7 +47,8 @@ _T = TypeVar("_T")
 
 
 class AbstractNetworkClient(metaclass=ABCMeta):
-    __Self = TypeVar("__Self", bound="AbstractNetworkClient")
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="AbstractNetworkClient")
 
     def __enter__(self: __Self) -> __Self:
         return self
@@ -107,8 +108,6 @@ class AbstractNetworkClient(metaclass=ABCMeta):
     @abstractmethod
     def protocol_cls(self) -> type[AbstractNetworkProtocol]:
         raise NotImplementedError
-
-    del __Self
 
 
 class DisconnectedClientError(ConnectionError):

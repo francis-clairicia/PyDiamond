@@ -24,7 +24,7 @@ from contextlib import contextmanager
 from struct import Struct, error as StructError
 from threading import RLock
 from types import TracebackType
-from typing import Any, Callable, ClassVar, Final, Generator, Iterator, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Generator, Iterator, ParamSpec, TypeVar
 
 from cryptography.fernet import Fernet, InvalidToken
 
@@ -37,7 +37,8 @@ class ValidationError(Exception):
 
 
 class NetworkProtocolMeta(ABCMeta, ClassNamespaceMeta):
-    __Self = TypeVar("__Self", bound="NetworkProtocolMeta")
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="NetworkProtocolMeta")
 
     def __new__(metacls: type[__Self], name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> __Self:
         try:
@@ -50,8 +51,6 @@ class NetworkProtocolMeta(ABCMeta, ClassNamespaceMeta):
                     f"{name!r} must be inherits from a {AbstractNetworkProtocol.__name__} class in order to use {NetworkProtocolMeta.__name__} metaclass"
                 )
         return super().__new__(metacls, name, bases, namespace)
-
-    del __Self
 
 
 class AbstractNetworkProtocol(metaclass=NetworkProtocolMeta, frozen=True):
@@ -121,7 +120,8 @@ class AutoParsedNetworkProtocol(AbstractNetworkProtocol):
 
 
 class SecuredNetworkProtocolMeta(NetworkProtocolMeta):
-    __Self = TypeVar("__Self", bound="SecuredNetworkProtocolMeta")
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="SecuredNetworkProtocolMeta")
 
     def __new__(metacls: type[__Self], name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> __Self:
         try:
@@ -280,8 +280,6 @@ class SecuredNetworkProtocolMeta(NetworkProtocolMeta):
         def get_depth(self, context: str) -> int:
             depth: dict[str, int] = self.__depth
             return depth.get(context, 0)
-
-    del __Self
 
 
 class SecuredNetworkProtocol(AutoParsedNetworkProtocol, metaclass=SecuredNetworkProtocolMeta):

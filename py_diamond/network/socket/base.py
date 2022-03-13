@@ -24,7 +24,7 @@ __license__ = "GNU GPL v3.0"
 
 
 from abc import ABCMeta, abstractmethod
-from typing import Any, ClassVar, NamedTuple, TypeAlias, TypeVar, final, overload
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeAlias, TypeVar, final, overload
 
 from ...system.non_copyable import NonCopyableMeta
 from .constants import SOCK_DGRAM, SOCK_STREAM, AddressFamily, ShutdownFlag, SocketKind
@@ -50,7 +50,8 @@ class SocketMeta(ABCMeta, NonCopyableMeta):
 
 
 class AbstractSocket(metaclass=SocketMeta):
-    __Self = TypeVar("__Self", bound="AbstractSocket")
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="AbstractSocket")
 
     def __repr__(self) -> str:
         sock_family: AddressFamily = self.family
@@ -149,8 +150,6 @@ class AbstractSocket(metaclass=SocketMeta):
     def type(self) -> SocketKind:
         raise NotImplementedError
 
-    del __Self
-
 
 class AbstractTCPSocket(AbstractSocket):
     @abstractmethod
@@ -166,7 +165,8 @@ class AbstractTCPSocket(AbstractSocket):
 class AbstractTCPServerSocket(AbstractTCPSocket):
     DEFAULT_BACKLOG: ClassVar[int] = 128
 
-    __Self = TypeVar("__Self", bound="AbstractTCPServerSocket")
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="AbstractTCPServerSocket")
 
     @classmethod
     @abstractmethod
@@ -192,11 +192,10 @@ class AbstractTCPServerSocket(AbstractTCPSocket):
     def listen(self, backlog: int) -> None:
         raise NotImplementedError
 
-    del __Self
-
 
 class AbstractTCPClientSocket(AbstractTCPSocket):
-    __Self = TypeVar("__Self", bound="AbstractTCPClientSocket")
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="AbstractTCPClientSocket")
 
     @classmethod
     @abstractmethod
@@ -248,8 +247,6 @@ class AbstractTCPClientSocket(AbstractTCPSocket):
             pass
         return self.is_connected()
 
-    del __Self
-
 
 class ReceivedDatagram(NamedTuple):
     body: bytes
@@ -274,7 +271,8 @@ class AbstractUDPSocket(AbstractSocket):
 
 
 class AbstractUDPServerSocket(AbstractUDPSocket):
-    __Self = TypeVar("__Self", bound="AbstractUDPServerSocket")
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="AbstractUDPServerSocket")
 
     @classmethod
     @abstractmethod
@@ -286,15 +284,12 @@ class AbstractUDPServerSocket(AbstractUDPSocket):
     ) -> __Self:
         raise NotImplementedError
 
-    del __Self
-
 
 class AbstractUDPClientSocket(AbstractUDPSocket):
-    __Self = TypeVar("__Self", bound="AbstractUDPClientSocket")
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="AbstractUDPClientSocket")
 
     @classmethod
     @abstractmethod
     def create(cls: type[__Self], family: int = ...) -> __Self:
         raise NotImplementedError
-
-    del __Self

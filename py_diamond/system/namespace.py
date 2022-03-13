@@ -4,17 +4,20 @@
 #
 """ClassNamespace objects module"""
 
+from __future__ import annotations
+
 __all__ = ["ClassNamespace", "ClassNamespaceMeta"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 
 class ClassNamespaceMeta(type):
-    __Self = TypeVar("__Self", bound="ClassNamespaceMeta")
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="ClassNamespaceMeta")
 
     def __new__(
         metacls: type[__Self],
@@ -77,8 +80,6 @@ class ClassNamespaceMeta(type):
         elif name in ("_frozen_class_namespace_"):
             raise AttributeError(f"{name!r} is read-only")
         return super().__delattr__(name)
-
-    del __Self
 
 
 class ClassNamespace(metaclass=ClassNamespaceMeta):

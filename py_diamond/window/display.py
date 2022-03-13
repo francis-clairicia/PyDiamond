@@ -139,7 +139,8 @@ class Window:
     def __del__(self) -> None:
         Window.__main_window = True
 
-    __Self = TypeVar("__Self", bound="Window")
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="Window")
 
     @contextmanager
     def open(self: __Self) -> Iterator[__Self]:
@@ -568,8 +569,6 @@ class Window:
     @property
     def midright(self) -> tuple[int, int]:
         return self.__rect.midright
-
-    del __Self
 
 
 class _FramerateManager:

@@ -37,6 +37,7 @@ from operator import truth
 from sys import stderr
 from types import FunctionType, LambdaType, MethodType
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
@@ -72,10 +73,13 @@ _ALL_SCENES: Final[list[type[Scene]]] = []
 
 
 class SceneMeta(ABCMeta):
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="SceneMeta")
+
     __namespaces: ClassVar[dict[type, str]] = dict()
 
     def __new__(
-        metacls,
+        metacls: type[__Self],
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, Any],
@@ -84,7 +88,7 @@ class SceneMeta(ABCMeta):
         fixed_framerate: int = 0,
         busy_loop: bool = False,
         **kwargs: Any,
-    ) -> SceneMeta:
+    ) -> __Self:
         if "Scene" not in globals():
             return super().__new__(metacls, name, bases, namespace, **kwargs)
 
@@ -545,7 +549,8 @@ class SceneWindow(Window):
         self.__accumulator: float = 0
         self.__running: bool = False
 
-    __Self = TypeVar("__Self", bound="SceneWindow")
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="SceneWindow")
 
     @contextmanager
     def open(self: __Self) -> Iterator[__Self]:
@@ -753,8 +758,6 @@ class SceneWindow(Window):
             scene_callback_after.remove(window_callback)
         if not scene_callback_after:
             self.__callback_after_scenes.pop(scene)
-
-    del __Self
 
 
 class _SceneManager:

@@ -4,13 +4,15 @@
 #
 """NonCopyable objects module"""
 
+from __future__ import annotations
+
 __all__ = ["NonCopyable", "NonCopyableMeta"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 
 def __non_copyable_copy__(self: Any) -> Any:
@@ -22,7 +24,8 @@ def __non_copyable_deepcopy__(self: Any, memo: dict[int, Any]) -> Any:
 
 
 class NonCopyableMeta(type):
-    __Self = TypeVar("__Self", bound="NonCopyableMeta")
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="NonCopyableMeta")
 
     def __new__(
         metacls: type[__Self],
@@ -42,8 +45,6 @@ class NonCopyableMeta(type):
         if name in ["__copy__", "__deepcopy__"]:
             raise TypeError(f"Cannot override {name!r} method")
         return super().__setattr__(name, value)
-
-    del __Self
 
 
 class NonCopyable(metaclass=NonCopyableMeta):

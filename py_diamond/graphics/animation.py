@@ -46,7 +46,8 @@ class TransformAnimation:
         self.__on_stop: Callable[[], None] | None = None
         self.__wait: bool = True
 
-    __Self = TypeVar("__Self", bound="TransformAnimation")
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="TransformAnimation")
 
     def smooth_set_position(self: __Self, speed: float = 100, **position: float | tuple[float, float]) -> __Self:
         transformable: Transformable = self.__transformable
@@ -218,8 +219,6 @@ class TransformAnimation:
                 yield animation
         if not self.has_animation_started():
             self.clear(pause=False)
-
-    del __Self
 
 
 class _TransformState(NamedTuple):

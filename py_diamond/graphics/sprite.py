@@ -158,7 +158,8 @@ class Sprite(TDrawable):
 
 
 class AnimatedSprite(Sprite):
-    __Self = TypeVar("__Self", bound="AnimatedSprite")
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="AnimatedSprite")
 
     __slots__ = (
         "__list",
@@ -230,8 +231,6 @@ class AnimatedSprite(Sprite):
     @ratio.setter
     def ratio(self, value: float) -> None:
         self.__wait_time = max(float(value), 0)
-
-    del __Self
 
 
 class SpriteGroup(DrawableGroup):

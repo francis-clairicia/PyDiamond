@@ -68,7 +68,8 @@ class ConnectedClient(Generic[_T]):
 
 
 class _RequestHandlerMeta(ABCMeta):
-    __Self = TypeVar("__Self", bound="_RequestHandlerMeta")
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="_RequestHandlerMeta")
 
     def __new__(metacls: type[__Self], name: str, bases: tuple[type, ...], namespace: dict[str, Any]) -> __Self:
         try:
@@ -80,8 +81,6 @@ class _RequestHandlerMeta(ABCMeta):
                 if attr in namespace:
                     raise TypeError(f"{attr!r} method must not be overridden")
         return super().__new__(metacls, name, bases, namespace)
-
-    del __Self
 
 
 class AbstractRequestHandler(Generic[_T], metaclass=_RequestHandlerMeta):
@@ -124,7 +123,8 @@ class AbstractUDPRequestHandler(AbstractRequestHandler[_T]):
 
 
 class AbstractNetworkServer(Generic[_T], metaclass=ABCMeta):
-    __Self = TypeVar("__Self", bound="AbstractNetworkServer[Any]")
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="AbstractNetworkServer[Any]")
 
     def __init__(self) -> None:
         super().__init__()
@@ -238,8 +238,6 @@ class AbstractNetworkServer(Generic[_T], metaclass=ABCMeta):
     @abstractmethod
     def protocol_cls(self) -> type[AbstractNetworkProtocol]:
         raise NotImplementedError
-
-    del __Self
 
 
 class AbstractTCPNetworkServer(AbstractNetworkServer[_T]):
