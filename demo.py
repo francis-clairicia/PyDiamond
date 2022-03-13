@@ -912,6 +912,8 @@ class MainWindow(SceneWindow):
         self.prev_button.topleft = self.left + 10, self.top + 10
         self.next_button.topright = self.right - 10, self.top + 10
 
+        self.event.bind_key_release(Keyboard.Key.F11, lambda e: self.screenshot())
+
     def __window_quit__(self) -> None:
         super().__window_quit__()
         try:

@@ -55,7 +55,6 @@ __all__ = [
     "SceneTransition",
     "SceneTransitionCoroutine",
     "SceneWindow",
-    "ScheduledFunction",
     "SupportsFocus",
     "SystemCursor",
     "TextEditingEvent",
@@ -82,7 +81,6 @@ __all__ = [
     "WindowSizeChangedEvent",
     "WindowTakeFocusEvent",
     "closed_namespace",
-    "scheduled",
     "set_default_theme_namespace",
 ]
 
@@ -111,7 +109,7 @@ del os, pygame
 from .clickable import Clickable
 from .clock import Clock
 from .cursor import Cursor, CustomCursor, SystemCursor
-from .display import ScheduledFunction, Window, WindowCallback, WindowError, scheduled
+from .display import Window, WindowCallback, WindowError
 from .event import (
     Event,
     EventFactory,

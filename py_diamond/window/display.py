@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["ScheduledFunction", "Window", "WindowCallback", "WindowError", "scheduled"]
+__all__ = ["Window", "WindowCallback", "WindowError"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -14,16 +14,17 @@ __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
 from contextlib import ExitStack, contextmanager, suppress
+from datetime import datetime
 from inspect import isgeneratorfunction
+from itertools import count as itertools_count
 from operator import truth
-from types import MethodType
+from os.path import exists as path_exists
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
     Final,
-    Generic,
     Iterator,
     NoReturn,
     ParamSpec,
@@ -50,7 +51,7 @@ from ..audio.music import MusicStream
 from ..graphics.color import BLACK, WHITE
 from ..graphics.rect import ImmutableRect
 from ..graphics.renderer import Renderer, SurfaceRenderer
-from ..graphics.surface import Surface, create_surface
+from ..graphics.surface import Surface, create_surface, save_image
 from ..graphics.text import Text
 from ..graphics.theme import NoTheme
 from ..system._mangling import getattr_pv, setattr_pv
@@ -66,7 +67,6 @@ if TYPE_CHECKING:
     from pygame._common import _ColorValue  # pyright: reportMissingModuleSource=false
 
 _P = ParamSpec("_P")
-_ScheduledFunc = TypeVar("_ScheduledFunc", bound=Callable[..., None])
 
 
 class _SupportsDrawing(Protocol):
@@ -77,61 +77,6 @@ class _SupportsDrawing(Protocol):
 
 class WindowError(_pg_error):
     pass
-
-
-class ScheduledFunction(Generic[_ScheduledFunc]):
-    def __init__(self, milliseconds: float, func: _ScheduledFunc) -> None:
-        super().__init__()
-        self.__clock = Clock()
-        self.__milliseconds: float = milliseconds
-        self.__func__: _ScheduledFunc = func
-        self.__first_start: bool = True
-
-    def __call__(self, *args: Any, **kwargs: Any) -> None:
-        func: _ScheduledFunc = self.__func__
-        if self.__first_start or self.__clock.elapsed_time(self.__milliseconds):
-            self.__first_start = False
-            func(*args, **kwargs)
-
-    def __get__(self, obj: object, objtype: type | None = None, /) -> Callable[..., None]:
-        if obj is None:
-            return self
-        return MethodType(self, obj)
-
-
-def scheduled(milliseconds: float) -> Callable[[_ScheduledFunc], _ScheduledFunc]:
-    def decorator(func: _ScheduledFunc, /) -> _ScheduledFunc:
-        return ScheduledFunction(milliseconds, func)  # type: ignore[return-value]
-
-    return decorator
-
-
-#### To use when mypy will supports ParamSpec vars in Generic
-# class ScheduledFunction(Generic[_P]):
-#     def __init__(self, milliseconds: float, func: Callable[_P, None]) -> None:
-#         super().__init__()
-#         self.__clock = Clock()
-#         self.__milliseconds: float = milliseconds
-#         self.__wrapped__: Callable[_P, None] = func
-#         self.__first_start: bool = True
-
-#     def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> None:
-#         func: Callable[_P, None] = self.__wrapped__
-#         if self.__first_start or self.__clock.elapsed_time(self.__milliseconds):
-#             self.__first_start = False
-#             func(*args, **kwargs)
-
-#     def __get__(self, obj: object, objtype: type | None = None, /) -> Callable[..., None]:
-#         if obj is None:
-#             return self
-#         return MethodType(self, obj)
-
-
-# def scheduled(milliseconds: float) -> Callable[[Callable[_P, None]], ScheduledFunction[_P]]:
-#     def decorator(func: Callable[_P, None], /) -> ScheduledFunction[_P]:
-#         return ScheduledFunction[_P](milliseconds, func)
-
-#     return decorator  # type: ignore
 
 
 class Window:
@@ -211,7 +156,7 @@ class Window:
             self.__event.unbind_all()
 
         self.__event.unbind_all()
-        with self.__stack as stack, suppress(Window.__Exit):
+        with ExitStack() as stack, self.__stack, suppress(Window.__Exit):
             _pg_display.init()
             stack.callback(_pg_display.quit)
 
@@ -322,6 +267,24 @@ class Window:
 
     def get_screen_copy(self) -> Surface:
         return self.__surface.copy()
+
+    def screenshot(self) -> None:
+        screen: Surface = self.__surface.copy()
+        filename_fmt: str = "Screenshot_%Y-%m-%d_%H-%M-%S"
+        extension: str = ".png"
+
+        date = datetime.now()
+        file = date.strftime(f"{filename_fmt}{extension}")
+        if path_exists(file):
+            for i in itertools_count(start=1):
+                file = date.strftime(f"{filename_fmt}_{i}{extension}")
+                if not path_exists(file):
+                    break
+        save_image(screen, file)
+        self._on_screenshot(file, screen)
+
+    def _on_screenshot(self, filepath: str, screen: Surface) -> None:
+        pass
 
     def handle_events(self) -> Sequence[Event]:
         return tuple(self.process_events())
@@ -689,4 +652,4 @@ class _WindowCallbackList(list[WindowCallback]):
             callback()
 
 
-del _P, _ScheduledFunc
+del _P
