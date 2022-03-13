@@ -62,6 +62,7 @@ from ..system._mangling import getattr_pv, mangle_private_attribute
 from ..system.utils import concreteclassmethod, wraps
 from .display import Window, WindowCallback, WindowError, _WindowCallbackList
 from .event import Event, EventManager
+from .mouse import Mouse
 from .time import Time
 
 _S = TypeVar("_S", bound="SceneMeta")
@@ -714,10 +715,10 @@ class SceneWindow(Window):
         manager_process_event: Callable[[Event], bool] = manager.process_event if manager is not None else lambda event: False
         process_event: Callable[[Event], bool] = actual_scene.handle_event if actual_scene is not None else lambda event: False
         for event in super().process_events():
-            if not manager_process_event(event) and not process_event(event):
+            if not process_event(event) and not manager_process_event(event):
                 yield event
         if manager is not None:
-            manager.handle_mouse_position()
+            manager.handle_mouse_position(Mouse.get_pos())
 
     def used_framerate(self) -> int:
         framerate = super().used_framerate()

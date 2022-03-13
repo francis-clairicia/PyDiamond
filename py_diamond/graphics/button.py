@@ -260,6 +260,7 @@ class Button(TDrawable, Pressable, metaclass=ButtonMeta):
         highlight_color: Color = BLUE,
         highlight_thickness: int = 2,
         take_focus: bool = True,
+        focus_on_hover: bool | None = None,
         hover_cursor: Cursor | None = None,
         disabled_cursor: Cursor | None = None,
         text_align_x: str = "center",
@@ -368,6 +369,7 @@ class Button(TDrawable, Pressable, metaclass=ButtonMeta):
             hover_cursor=hover_cursor,
             disabled_cursor=disabled_cursor,
             take_focus=take_focus,
+            focus_on_hover=focus_on_hover,
         )
 
     def draw_onto(self, target: Renderer) -> None:

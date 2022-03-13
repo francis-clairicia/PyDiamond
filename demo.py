@@ -787,13 +787,13 @@ class GUIAudioScene(GUIMainScene, AbstractAutoLayeredScene):
                 "hover_sound": SoundManager.select,
                 "click_sound": SoundManager.validate,
                 "disabled_sound": SoundManager.block,
+                "focus_on_hover": True,
             },
         )
 
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
-        Button.set_default_focus_on_hover(True)
 
         self.text = Text("None")
         self.grid = Grid(self, bg_color=YELLOW)
@@ -813,8 +813,6 @@ class GUIAudioScene(GUIMainScene, AbstractAutoLayeredScene):
         self.grid.outline_color = PURPLE
 
         self.grid.center = self.window.center
-
-        Button.set_default_focus_on_hover(False)
 
     def on_start_loop_before_transition(self) -> None:
         self.set_text_position()

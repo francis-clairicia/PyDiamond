@@ -338,7 +338,7 @@ class Window:
                 continue
             if not process_event(event):
                 yield event
-        manager.handle_mouse_position()
+        manager.handle_mouse_position(Mouse.get_pos())
 
     def _handle_close_event(self) -> None:
         self.close()

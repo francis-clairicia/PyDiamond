@@ -35,6 +35,7 @@ class Pressable(Clickable):
         hover_cursor: Cursor | None = None,
         disabled_cursor: Cursor | None = None,
         take_focus: bool = True,
+        focus_on_hover: bool | None = None,
     ) -> None:
         Clickable.__init__(
             self,
@@ -46,10 +47,11 @@ class Pressable(Clickable):
             hover_cursor=hover_cursor,
             disabled_cursor=disabled_cursor,
             take_focus=take_focus,
+            focus_on_hover=focus_on_hover,
         )
         if isinstance(self.scene, GUIScene):
-            master.event.bind_event(KeyDownEvent, self.__handle_key_press_event)
-            master.event.bind_event(KeyUpEvent, self.__handle_key_press_event)
+            self.event.bind_event(KeyDownEvent, self.__handle_key_press_event)
+            self.event.bind_event(KeyUpEvent, self.__handle_key_press_event)
 
     def __handle_key_press_event(self, event: KeyEvent) -> bool:
         if isinstance(self, Drawable) and not self.is_shown():

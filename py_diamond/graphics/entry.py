@@ -137,6 +137,8 @@ class Entry(TDrawable, Pressable, metaclass=EntryMeta):
         hover_sound: Sound | None = None,
         click_sound: Sound | None = None,
         disabled_sound: Sound | None = None,
+        take_focus: bool = True,
+        focus_on_hover: bool | None = None,
         border_radius: int = 0,
         border_top_left_radius: int = -1,
         border_top_right_radius: int = -1,
@@ -205,6 +207,8 @@ class Entry(TDrawable, Pressable, metaclass=EntryMeta):
             click_sound=click_sound,
             disabled_sound=disabled_sound,
             hover_cursor=SystemCursor.IBEAM,
+            take_focus=take_focus,
+            focus_on_hover=focus_on_hover,
         )
         self.interval = interval
 
@@ -214,8 +218,8 @@ class Entry(TDrawable, Pressable, metaclass=EntryMeta):
         self.__cursor_animation_clock = Clock()
 
         key_press_event = self.__key_press
-        master.event.bind_event(KeyDownEvent, key_press_event)
-        master.event.bind_event(TextInputEvent, key_press_event)
+        self.event.bind_event(KeyDownEvent, key_press_event)
+        self.event.bind_event(TextInputEvent, key_press_event)
 
     def get_local_size(self) -> tuple[float, float]:
         return self.__shape.get_local_size()

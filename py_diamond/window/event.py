@@ -402,6 +402,7 @@ class EventManager:
         "__mouse_button_pressed_handler_dict",
         "__mouse_button_released_handler_dict",
         "__mouse_pos_handler_list",
+        "__other_manager_list",
     )
 
     def __init__(self) -> None:
@@ -411,6 +412,7 @@ class EventManager:
         self.__mouse_button_pressed_handler_dict: dict[Mouse.Button, list[_EventCallback]] = dict()
         self.__mouse_button_released_handler_dict: dict[Mouse.Button, list[_EventCallback]] = dict()
         self.__mouse_pos_handler_list: list[_MousePositionCallback] = list()
+        self.__other_manager_list: list[EventManager] = list()
 
     @staticmethod
     def __bind(handler_dict: dict[_T, list[_EventCallback]], key: _T, callback: Callable[[_TE], bool | None]) -> None:
@@ -494,6 +496,16 @@ class EventManager:
         with suppress(ValueError):
             mouse_pos_handler_list.remove(callback_to_remove)
 
+    def bind_event_manager(self, manager: EventManager) -> None:
+        other_manager_list: list[EventManager] = self.__other_manager_list
+        if manager not in other_manager_list:
+            other_manager_list.append(manager)
+
+    def unbind_event_manager(self, manager: EventManager) -> None:
+        other_manager_list: list[EventManager] = self.__other_manager_list
+        with suppress(ValueError):
+            other_manager_list.remove(manager)
+
     def process_event(self, event: Event) -> bool:
         if isinstance(event, (KeyUpEvent, KeyDownEvent)):
             if self.__handle_key_event(event):
@@ -505,12 +517,16 @@ class EventManager:
         for callback in event_dict.get(event.type, ()):
             if callback(event):
                 return True
+        for manager in self.__other_manager_list:
+            if manager.process_event(event):
+                return True
         return False
 
-    def handle_mouse_position(self) -> None:
-        mouse_pos: tuple[float, float] = Mouse.get_pos()
+    def handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
         for callback in self.__mouse_pos_handler_list:
             callback(mouse_pos)
+        for manager in self.__other_manager_list:
+            manager.handle_mouse_position(mouse_pos)
 
     def __handle_key_event(self, event: KeyEvent) -> bool | None:
         key_handler_dict: dict[Keyboard.Key, list[_EventCallback]] | None = None

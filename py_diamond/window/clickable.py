@@ -20,7 +20,7 @@ from ..graphics.drawable import Drawable
 from ..system.enum import AutoLowerNameEnum
 from .cursor import Cursor, SystemCursor
 from .display import Window
-from .event import MouseButtonDownEvent, MouseButtonEvent, MouseButtonUpEvent, MouseMotionEvent
+from .event import Event, EventManager, MouseButtonDownEvent, MouseButtonEvent, MouseButtonUpEvent, MouseMotionEvent
 from .gui import SupportsFocus
 from .mouse import Mouse
 from .scene import Scene
@@ -45,6 +45,7 @@ class Clickable(metaclass=ABCMeta):
         hover_cursor: Cursor | None = None,
         disabled_cursor: Cursor | None = None,
         take_focus: bool = True,
+        focus_on_hover: bool | None = None,
     ) -> None:
         self.__master: Scene | Window = master
         self.__scene: Scene | None
@@ -67,16 +68,20 @@ class Clickable(metaclass=ABCMeta):
             self.__hover_cursor[Clickable.State.NORMAL] = hover_cursor
         if isinstance(disabled_cursor, Cursor):
             self.__hover_cursor[Clickable.State.DISABLED] = disabled_cursor
-        self.__focus_on_hover: bool = self.__default_focus_on_hover
+        if focus_on_hover is None:
+            focus_on_hover = self.__default_focus_on_hover
+        self.__focus_on_hover: bool = truth(focus_on_hover)
 
         self.state = state
         self.hover_sound = hover_sound
         self.click_sound = click_sound
         self.disabled_sound = disabled_sound
-        master.event.bind_event(MouseButtonDownEvent, self.__handle_click_event)
-        master.event.bind_event(MouseButtonUpEvent, self.__handle_click_event)
-        master.event.bind_event(MouseMotionEvent, self.__handle_mouse_motion)
-        master.event.bind_mouse_position(self.__handle_mouse_position)
+        self.__event = event = EventManager()
+        master.event.bind_event_manager(event)
+        event.bind_event(MouseButtonDownEvent, self.__handle_click_event)
+        event.bind_event(MouseButtonUpEvent, self.__handle_click_event)
+        event.bind_event(MouseMotionEvent, self.__handle_mouse_motion)
+        event.bind_mouse_position(self.__handle_mouse_position)
         if isinstance(self, SupportsFocus):
             self.focus.take(take_focus)
 
@@ -165,12 +170,15 @@ class Clickable(metaclass=ABCMeta):
         if hover or (not self.__active_only_on_hover and self.active):
             self.__hover_cursor[self.__state].set()
 
+    def _focus_handle_event(self, event: Event) -> bool:
+        return self.event.process_event(event)
+
     def _focus_update(self) -> None:
         if not self.__focus_on_hover:
             return
         if (
-            isinstance(self, SupportsFocus)
-            and self.hover
+            self.hover
+            and isinstance(self, SupportsFocus)
             and not self.focus.has()
             and self.focus.get_mode() == self.focus.Mode.MOUSE
         ):
@@ -221,6 +229,10 @@ class Clickable(metaclass=ABCMeta):
     @property
     def scene(self) -> Scene | None:
         return self.__scene
+
+    @property
+    def event(self) -> EventManager:
+        return self.__event
 
     @property
     def state(self) -> str:

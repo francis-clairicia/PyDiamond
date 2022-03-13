@@ -74,6 +74,9 @@ class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
         self.event.bind_key_press(Keyboard.Key.ESCAPE, handle_key_event)
 
     def handle_event(self, event: Event) -> bool:
+        obj = self.focus_get()
+        if obj is not None and obj._focus_handle_event(event):
+            return True
         if super().handle_event(event):
             return True
         if isinstance(event, KeyDownEvent) and self.__handle_key_event(event):
@@ -233,6 +236,9 @@ class _HasFocusMethods(Protocol):
         pass
 
     def _focus_update(self) -> None:
+        pass
+
+    def _focus_handle_event(self, event: Event) -> bool | None:
         pass
 
 
