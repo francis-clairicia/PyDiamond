@@ -12,7 +12,6 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from atexit import register as atexit
 from dataclasses import dataclass, field
 from typing import Final
 
@@ -69,7 +68,6 @@ class MusicStream(metaclass=ClassNamespaceMeta, frozen=True):
         MusicStream.__playing.payload = _MusicPayload(music, repeat=repeat)
 
     @staticmethod
-    @atexit
     def stop() -> None:
         queue: list[_MusicPayload] = MusicStream.__queue
         queue.clear()
@@ -160,4 +158,4 @@ class _MusicPayload:
     repeat: int = field(kw_only=True)
 
 
-del atexit, _pg_event_custom_type
+del _pg_event_custom_type
