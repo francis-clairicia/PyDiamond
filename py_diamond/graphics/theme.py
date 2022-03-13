@@ -203,6 +203,8 @@ class ThemedObjectMeta(ABCMeta):
             theme = tuple(theme)
             if not all(isinstance(t, str) for t in theme):
                 raise TypeError("Themes must be str objects")
+            if any(t is NoTheme for t in theme):
+                raise ValueError("The 'NoTheme' special value is in the sequence")
 
         default_theme: tuple[str, ...] = cls.get_default_themes()
         theme_kwargs: dict[str, Any] = cls.get_theme_options(*default_theme, *theme, ignore_unusable=True)
