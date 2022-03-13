@@ -36,11 +36,11 @@ from ..system.utils import setdefaultattr, wraps
 from .event import (
     Event,
     KeyDownEvent,
-    KeyEventType,
+    KeyEvent,
     KeyUpEvent,
     MouseButtonDownEvent,
     MouseButtonUpEvent,
-    MouseEventType,
+    MouseEvent,
     MouseMotionEvent,
     MouseWheelEvent,
 )
@@ -62,8 +62,8 @@ class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
         self.__group: _GUILayeredGroup = _GUILayeredGroup(self)
         self.__focus_index: int = -1
         handle_key_event = self.__handle_key_event
-        set_focus_mode_key: Callable[[KeyEventType], None] = lambda event: BoundFocus.set_mode(BoundFocus.Mode.KEY)
-        set_focus_mode_mouse: Callable[[MouseEventType], None] = lambda event: BoundFocus.set_mode(BoundFocus.Mode.MOUSE)
+        set_focus_mode_key: Callable[[KeyEvent], None] = lambda event: BoundFocus.set_mode(BoundFocus.Mode.KEY)
+        set_focus_mode_mouse: Callable[[MouseEvent], None] = lambda event: BoundFocus.set_mode(BoundFocus.Mode.MOUSE)
         self.event.bind_event(KeyDownEvent, set_focus_mode_key)
         self.event.bind_event(KeyUpEvent, set_focus_mode_key)
         self.event.bind_event(MouseButtonDownEvent, set_focus_mode_mouse)

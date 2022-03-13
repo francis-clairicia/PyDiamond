@@ -17,7 +17,7 @@ from ..graphics.drawable import Drawable
 from .clickable import Clickable
 from .cursor import Cursor
 from .display import Window
-from .event import KeyDownEvent, KeyEventType, KeyUpEvent
+from .event import KeyDownEvent, KeyEvent, KeyUpEvent
 from .gui import GUIScene, SupportsFocus
 from .keyboard import Keyboard
 from .scene import Scene
@@ -51,7 +51,7 @@ class Pressable(Clickable):
             master.event.bind_event(KeyDownEvent, self.__handle_key_press_event)
             master.event.bind_event(KeyUpEvent, self.__handle_key_press_event)
 
-    def __handle_key_press_event(self, event: KeyEventType) -> bool:
+    def __handle_key_press_event(self, event: KeyEvent) -> bool:
         if isinstance(self, Drawable) and not self.is_shown():
             self.active = self.hover = False
             return False

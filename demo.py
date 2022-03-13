@@ -51,7 +51,7 @@ from py_diamond.graphics.text import Text, TextImage
 from py_diamond.resource.loader import FontLoader, ImageLoader, MusicLoader, SoundLoader
 from py_diamond.resource.manager import ResourceManager
 from py_diamond.window.display import Window
-from py_diamond.window.event import Event, KeyUpEvent, MouseButtonEventType, MusicEndEvent
+from py_diamond.window.event import Event, KeyUpEvent, MouseButtonEvent, MusicEndEvent
 from py_diamond.window.gui import GUIMainScene, GUIScene
 from py_diamond.window.keyboard import Keyboard
 from py_diamond.window.mouse import Mouse
@@ -377,7 +377,7 @@ class EventScene(MainScene):
     def render(self) -> None:
         self.window.draw(self.cross, self.circle)
 
-    def __switch_color(self, event: MouseButtonEventType) -> None:
+    def __switch_color(self, event: MouseButtonEvent) -> None:
         if event.type == Event.Type.MOUSEBUTTONDOWN:
             self.cross.color = YELLOW
         elif event.type == Event.Type.MOUSEBUTTONUP:

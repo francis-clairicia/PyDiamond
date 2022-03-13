@@ -20,7 +20,7 @@ from ..graphics.drawable import Drawable
 from ..system.enum import AutoLowerNameEnum
 from .cursor import Cursor, SystemCursor
 from .display import Window
-from .event import MouseButtonDownEvent, MouseButtonEventType, MouseButtonUpEvent, MouseMotionEvent
+from .event import MouseButtonDownEvent, MouseButtonEvent, MouseButtonUpEvent, MouseMotionEvent
 from .gui import SupportsFocus
 from .mouse import Mouse
 from .scene import Scene
@@ -123,7 +123,7 @@ class Clickable(metaclass=ABCMeta):
     def get_default_focus_on_hover(cls) -> bool:
         return cls.__default_focus_on_hover
 
-    def __handle_click_event(self, event: MouseButtonEventType) -> bool:
+    def __handle_click_event(self, event: MouseButtonEvent) -> bool:
         if isinstance(self, Drawable) and not self.is_shown():
             self.active = self.hover = False
             return False
