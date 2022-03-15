@@ -21,7 +21,9 @@ __all__ = [
     "SceneTransition",
     "SceneTransitionCoroutine",
     "SceneWindow",
+    "apply_theme_decorator",
     "closed_namespace",
+    "no_theme_decorator",
     "set_default_theme_namespace",
 ]
 
@@ -32,6 +34,8 @@ __license__ = "GNU GPL v3.0"
 import gc
 from abc import ABCMeta, abstractmethod
 from contextlib import ExitStack, contextmanager, nullcontext, suppress
+from dataclasses import dataclass
+from functools import cached_property
 from inspect import isgeneratorfunction
 from operator import truth
 from sys import stderr
@@ -68,6 +72,7 @@ from .time import Time
 
 _S = TypeVar("_S", bound="SceneMeta")
 _P = ParamSpec("_P")
+_T = TypeVar("_T")
 
 _ALL_SCENES: Final[list[type[Scene]]] = []
 
@@ -76,7 +81,31 @@ class SceneMeta(ABCMeta):
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="SceneMeta")
 
-    __namespaces: ClassVar[dict[type, str]] = dict()
+    @dataclass(kw_only=True)
+    class __Namespace:
+        name: str
+        extend: bool
+        include_none_namespace: bool
+
+    __namespaces: Final[dict[type, __Namespace]] = dict()
+
+    __theme_namespace_decorator_exempt: Sequence[str] = (
+        "__new__",
+        "__init__",
+        "__del_scene__",
+        "render",
+        "fixed_update",
+        "update_alpha",
+        "is_awaken",
+        "looping",
+        "start",
+        "after",
+        "every",
+        "window",
+        "event",
+        "exit_stack",
+        "background_color",
+    )
 
     def __new__(
         metacls: type[__Self],
@@ -100,10 +129,28 @@ class SceneMeta(ABCMeta):
         if not all(issubclass(cls, Scene) for cls in bases):
             raise TypeError("Multiple inheritance with other class than Scene is not supported")
 
+        theme_namespace_decorator_exempt = metacls.__theme_namespace_decorator_exempt
+
+        if "_theme_decorator_exempt_" in namespace:
+            raise TypeError("_theme_decorator_exempt_ must not be set")
+
+        cls_theme_namespace_decorator_exempt: set[str] = set()
+        for base in filter(lambda base: isinstance(base, SceneMeta), bases):
+            cls_theme_namespace_decorator_exempt.update(getattr(base, "_theme_decorator_exempt_", ()))
         for attr_name, attr_obj in namespace.items():
             if attr_name == "__new__":
                 raise TypeError("__new__ method must not be overridden")
+            if attr_name == "__theme_init__":
+                namespace[attr_name] = metacls.__theme_initializer_decorator(attr_obj)
+                continue
+            if not getattr(attr_obj, "__apply_theme_decorator__", False):
+                if attr_name in theme_namespace_decorator_exempt or attr_name in cls_theme_namespace_decorator_exempt:
+                    continue
+                if getattr(attr_obj, "__no_theme_decorator__", False):
+                    cls_theme_namespace_decorator_exempt.add(attr_name)
+                    continue
             namespace[attr_name] = metacls.__apply_theme_namespace_decorator(attr_obj)
+        namespace["_theme_decorator_exempt_"] = frozenset(cls_theme_namespace_decorator_exempt)
 
         cls = super().__new__(metacls, name, bases, namespace, **kwargs)
         if not cls.__abstractmethods__:
@@ -114,19 +161,24 @@ class SceneMeta(ABCMeta):
         return cls
 
     def __setattr__(cls, name: str, value: Any, /) -> None:
-        if name in ("__new__", "__init__"):
+        if name in ("__new__", "__init__", "_theme_decorator_exempt_"):
             raise AttributeError(f"{name} cannot be overriden")
         return super().__setattr__(name, value)
 
     @final
     @concreteclassmethod
     def get_theme_namespace(cls) -> str | None:
-        return SceneMeta.__namespaces.get(cls)
+        namespace = SceneMeta.__namespaces.get(cls)
+        return namespace.name if namespace else None
 
     @final
     @concreteclassmethod
-    def set_theme_namespace(cls, namespace: str) -> None:
-        SceneMeta.__namespaces[cls] = str(namespace)
+    def set_theme_namespace(cls, namespace: str, *, allow_extension: bool = False, include_none_namespace: bool = False) -> None:
+        SceneMeta.__namespaces[cls] = cls.__Namespace(
+            name=str(namespace),
+            extend=bool(allow_extension),
+            include_none_namespace=bool(include_none_namespace),
+        )
 
     @final
     @concreteclassmethod
@@ -153,8 +205,26 @@ class SceneMeta(ABCMeta):
         @wraps(func)
         def wrapper(__cls_or_self: Any, /, *args: Any, **kwargs: Any) -> Any:
             cls: type = type(__cls_or_self) if not isinstance(__cls_or_self, type) else __cls_or_self
-            theme_namespace: str | None = SceneMeta.__namespaces.get(cls)
-            with ThemeNamespace(theme_namespace) if theme_namespace is not None else nullcontext():
+            theme_namespace: SceneMeta.__Namespace | None = SceneMeta.__namespaces.get(cls)
+            unique_theme_namespace: str = _mangle_closed_namespace_name(cls)
+            extend_unique_theme_namespace: bool = True
+            if theme_namespace is not None and theme_namespace.name == unique_theme_namespace:
+                extend_unique_theme_namespace = False
+                theme_namespace = None
+            with (
+                ThemeNamespace(
+                    theme_namespace.name,
+                    extend=theme_namespace.extend,
+                    include_none_namespace=theme_namespace.include_none_namespace,
+                )
+                if theme_namespace is not None
+                else nullcontext(),
+                ThemeNamespace(
+                    unique_theme_namespace,
+                    extend=extend_unique_theme_namespace,
+                    include_none_namespace=extend_unique_theme_namespace,
+                ),
+            ):
                 return func(__cls_or_self, *args, **kwargs)
 
         return wrapper
@@ -169,11 +239,23 @@ class SceneMeta(ABCMeta):
                 obj = obj.setter(theme_namespace_decorator(obj.fset))
             if callable(obj.fdel):
                 obj = obj.deleter(theme_namespace_decorator(obj.fdel))
+        elif isinstance(obj, cached_property):
+            obj = cached_property(theme_namespace_decorator(obj.func))
         elif isinstance(obj, classmethod):
             obj = classmethod(theme_namespace_decorator(obj.__func__))
         elif isinstance(obj, (FunctionType, LambdaType)):
             obj = theme_namespace_decorator(obj)
         return obj
+
+    @staticmethod
+    def __theme_initializer_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        @wraps(func)
+        def wrapper(self: Scene, /, *args: Any, **kwargs: Any) -> Any:
+            theme_namespace: str = _mangle_closed_namespace_name(type(self))
+            with ThemeNamespace(theme_namespace):
+                return func(self, *args, **kwargs)
+
+        return wrapper
 
 
 SceneTransitionCoroutine: TypeAlias = Generator[None, float | None, None]
@@ -386,18 +468,26 @@ class MainScene(Scene, metaclass=MainSceneMeta):
 
 
 @overload
-def set_default_theme_namespace(namespace: str) -> Callable[[_S], _S]:
+def set_default_theme_namespace(
+    namespace: str, *, allow_extension: bool = False, include_none_namespace: bool = False
+) -> Callable[[_S], _S]:
     ...
 
 
 @overload
-def set_default_theme_namespace(namespace: str, cls: _S) -> None:
+def set_default_theme_namespace(
+    namespace: str, cls: _S, *, allow_extension: bool = False, include_none_namespace: bool = False
+) -> None:
     ...
 
 
-def set_default_theme_namespace(namespace: str, cls: _S | None = None) -> Callable[[_S], _S] | None:
+def set_default_theme_namespace(
+    namespace: str, cls: _S | None = None, *, allow_extension: bool = False, include_none_namespace: bool = False
+) -> Callable[[_S], _S] | None:
     def decorator(scene: _S, /) -> _S:
-        scene.set_theme_namespace(namespace)
+        if namespace == _mangle_closed_namespace_name(scene):
+            raise ValueError("use closed_namespace() decorator")
+        scene.set_theme_namespace(namespace, allow_extension=allow_extension, include_none_namespace=include_none_namespace)
         return scene
 
     if cls is not None:
@@ -407,8 +497,22 @@ def set_default_theme_namespace(namespace: str, cls: _S | None = None) -> Callab
 
 
 def closed_namespace(scene: _S) -> _S:
-    scene.set_theme_namespace(_mangle_closed_namespace_name(scene))
+    scene.set_theme_namespace(_mangle_closed_namespace_name(scene), allow_extension=False, include_none_namespace=False)
     return scene
+
+
+def no_theme_decorator(func: _T) -> _T:
+    with suppress(AttributeError):
+        delattr(func, "__apply_theme_decorator__")
+    setattr(func, "__no_theme_decorator__", True)
+    return func
+
+
+def apply_theme_decorator(func: _T) -> _T:
+    with suppress(AttributeError):
+        delattr(func, "__no_theme_decorator__")
+    setattr(func, "__apply_theme_decorator__", True)
+    return func
 
 
 def _mangle_closed_namespace_name(scene: type) -> str:
@@ -959,4 +1063,4 @@ class _SceneWindowCallback(WindowCallback):
         return self.__scene
 
 
-del _S, _P
+del _S, _P, _T

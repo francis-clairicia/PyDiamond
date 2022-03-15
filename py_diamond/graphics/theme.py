@@ -52,13 +52,14 @@ class ThemeNamespace(ContextManager["ThemeNamespace"]):
     __DEFAULT_THEME_DICT_NAMESPACE: ClassVar[dict[str, _ClassDefaultThemeDict]] = {}
     __actual_namespace: ClassVar[str | None] = None
 
-    def __init__(self, namespace: str, *, extend: bool = False) -> None:
+    def __init__(self, namespace: str, *, extend: bool = False, include_none_namespace: bool = True) -> None:
         self.__namespace: str = str(namespace)
         self.__save_namespace: str | None = None
         self.__save_theme_dict: _ClassThemeDict
         self.__save_default_theme_dict: _ClassDefaultThemeDict
         self.__entered: int = 0
         self.__extend: bool = extend
+        self.__include_none_namespace: bool = include_none_namespace
 
     def __enter__(self) -> ThemeNamespace:
         global _THEMES, _DEFAULT_THEME
@@ -77,7 +78,7 @@ class ThemeNamespace(ContextManager["ThemeNamespace"]):
                 _DEFAULT_THEME = DEFAULT_THEME_DICT_NAMESPACE[namespace]
             except KeyError:
                 DEFAULT_THEME_DICT_NAMESPACE[namespace] = _DEFAULT_THEME = dict()
-            if self.__extend:
+            if self.__extend and (self.__include_none_namespace or self.__save_namespace is not None):
                 _THEMES = self.__ExtendedThemeDict(_THEMES, self.__save_theme_dict)
                 _DEFAULT_THEME = self.__ExtendedDefaultThemeDict(_DEFAULT_THEME, self.__save_default_theme_dict)
         self.__entered += 1

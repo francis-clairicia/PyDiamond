@@ -600,6 +600,18 @@ class ScrollBarScene(LayeredMainScene, AbstractAutoLayeredScene, framerate=60, f
 
 
 class TestGUIScene(GUIScene, AbstractAutoLayeredScene):
+    def __theme_init__(self) -> None:
+        super().__theme_init__()
+
+        Button.set_default_theme("default")
+        Button.set_theme(
+            "default",
+            {
+                "border_top_left_radius": 30,
+                "border_bottom_right_radius": 30,
+            },
+        )
+
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
