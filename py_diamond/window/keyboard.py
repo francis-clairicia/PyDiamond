@@ -52,7 +52,7 @@ class Keyboard(metaclass=ClassNamespaceMeta, frozen=True):
     @staticmethod
     def is_pressed(key: Key | str) -> bool:
         if isinstance(key, str):
-            key = Keyboard.get(key)
+            key = Keyboard.Key(_pg_key.key_code(key))
         else:
             key = Keyboard.Key(key)
         return truth(_KEY_STATES[key.value])

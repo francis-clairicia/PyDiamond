@@ -462,9 +462,7 @@ class _BoundFocusProxyMeta(type):
 
         if "BoundFocusProxy" not in globals() and name == "BoundFocusProxy":
 
-            def proxy_method_wrapper(func: Callable[..., Any]) -> Callable[..., Any]:
-                method_name: str = func.__name__
-
+            def proxy_method_wrapper(method_name: str, func: Callable[..., Any]) -> Callable[..., Any]:
                 @wraps(func)
                 def wrapper(self: BoundFocusProxy, /, *args: Any, **kwargs: Any) -> Any:
                     focus: BoundFocus = self.original
@@ -506,8 +504,8 @@ class _BoundFocusProxyMeta(type):
             for attr_name, attr_obj in vars(BoundFocus).items():
                 if isinstance(attr_obj, property):
                     namespace[attr_name] = proxy_property_wrapper(attr_name, attr_obj)
-                elif isinstance(attr_obj, (FunctionType, LambdaType)) and not attr_name.startswith("__"):
-                    namespace[attr_name] = proxy_method_wrapper(attr_obj)
+                elif isinstance(attr_obj, (FunctionType, LambdaType)):
+                    namespace[attr_name] = proxy_method_wrapper(attr_name, attr_obj)
 
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
@@ -523,6 +521,12 @@ class BoundFocusProxy(BoundFocus, metaclass=_BoundFocusProxyMeta):
     def __getattr__(self, name: str, /) -> Any:
         focus: BoundFocus = self.original
         return getattr(focus, name)
+
+    def __setattr__(self, name: str, value: Any, /) -> None:
+        return self.original.__setattr__(name, value)
+
+    def __delattr__(self, name: str, /) -> None:
+        return self.original.__delattr__(name)
 
     @property
     def original(self) -> BoundFocus:

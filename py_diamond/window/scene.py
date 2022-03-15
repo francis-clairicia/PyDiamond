@@ -31,7 +31,7 @@ __license__ = "GNU GPL v3.0"
 
 import gc
 from abc import ABCMeta, abstractmethod
-from contextlib import ExitStack, contextmanager, suppress
+from contextlib import ExitStack, contextmanager, nullcontext, suppress
 from inspect import isgeneratorfunction
 from operator import truth
 from sys import stderr
@@ -118,26 +118,32 @@ class SceneMeta(ABCMeta):
             raise AttributeError(f"{name} cannot be overriden")
         return super().__setattr__(name, value)
 
+    @final
     @concreteclassmethod
     def get_theme_namespace(cls) -> str | None:
         return SceneMeta.__namespaces.get(cls)
 
+    @final
     @concreteclassmethod
     def set_theme_namespace(cls, namespace: str) -> None:
         SceneMeta.__namespaces[cls] = str(namespace)
 
+    @final
     @concreteclassmethod
     def remove_theme_namespace(cls) -> None:
         SceneMeta.__namespaces.pop(cls, None)
 
+    @final
     @concreteclassmethod
     def get_required_framerate(cls) -> int:
         return cls.__framerate  # type: ignore[no-any-return, attr-defined]
 
+    @final
     @concreteclassmethod
     def get_required_fixed_framerate(cls) -> int:
         return cls.__fixed_framerate  # type: ignore[no-any-return, attr-defined]
 
+    @final
     @concreteclassmethod
     def require_busy_loop(cls) -> bool:
         return cls.__busy_loop  # type: ignore[no-any-return, attr-defined]
@@ -148,26 +154,25 @@ class SceneMeta(ABCMeta):
         def wrapper(__cls_or_self: Any, /, *args: Any, **kwargs: Any) -> Any:
             cls: type = type(__cls_or_self) if not isinstance(__cls_or_self, type) else __cls_or_self
             theme_namespace: str | None = SceneMeta.__namespaces.get(cls)
-            if theme_namespace is None:
-                return func(__cls_or_self, *args, **kwargs)
-            with ThemeNamespace(theme_namespace):
+            with ThemeNamespace(theme_namespace) if theme_namespace is not None else nullcontext():
                 return func(__cls_or_self, *args, **kwargs)
 
         return wrapper
 
     @staticmethod
     def __apply_theme_namespace_decorator(obj: Any) -> Any:
+        theme_namespace_decorator = SceneMeta.__theme_namespace_decorator
         if isinstance(obj, property):
             if callable(obj.fget):
-                obj = obj.getter(SceneMeta.__theme_namespace_decorator(obj.fget))
+                obj = obj.getter(theme_namespace_decorator(obj.fget))
             if callable(obj.fset):
-                obj = obj.setter(SceneMeta.__theme_namespace_decorator(obj.fset))
+                obj = obj.setter(theme_namespace_decorator(obj.fset))
             if callable(obj.fdel):
-                obj = obj.deleter(SceneMeta.__theme_namespace_decorator(obj.fdel))
+                obj = obj.deleter(theme_namespace_decorator(obj.fdel))
         elif isinstance(obj, classmethod):
-            obj = classmethod(SceneMeta.__theme_namespace_decorator(obj.__func__))
+            obj = classmethod(theme_namespace_decorator(obj.__func__))
         elif isinstance(obj, (FunctionType, LambdaType)):
-            obj = SceneMeta.__theme_namespace_decorator(obj)
+            obj = theme_namespace_decorator(obj)
         return obj
 
 
@@ -402,8 +407,12 @@ def set_default_theme_namespace(namespace: str, cls: _S | None = None) -> Callab
 
 
 def closed_namespace(scene: _S) -> _S:
-    scene.set_theme_namespace(f"_{scene.__name__}__{id(scene):#x}")
+    scene.set_theme_namespace(_mangle_closed_namespace_name(scene))
     return scene
+
+
+def _mangle_closed_namespace_name(scene: type) -> str:
+    return f"_{scene.__name__.strip('_')}__{id(scene):#x}"
 
 
 class LayeredSceneMeta(SceneMeta):
@@ -607,8 +616,8 @@ class SceneWindow(Window):
                     print(f"{type(exc).__name__}: {exc}", file=stderr)
                     continue
         finally:
-            self.__scenes.clear()
             self.__running = False
+            self.__scenes.clear()
 
     def __scene_transition(
         self,
@@ -620,6 +629,8 @@ class SceneWindow(Window):
         if previous_scene is None:
             raise TypeError("Previous scene must not be None")
         previous_scene.on_quit_before_transition()
+        for scene in closing_scenes:
+            scene.on_quit_before_transition()
         actual_scene.on_start_loop_before_transition()
         if transition_factory is not None:
             with self.capture(draw_on_default_at_end=False) as previous_scene_surface:
@@ -653,7 +664,6 @@ class SceneWindow(Window):
             self.__scenes._destroy_awaken_scene(previous_scene)
         for scene in closing_scenes:
             with scene.exit_stack:
-                scene.on_quit_before_transition()
                 scene.on_quit()
                 self.__scenes._destroy_awaken_scene(scene)
         self.__callback_after_scenes.pop(previous_scene, None)

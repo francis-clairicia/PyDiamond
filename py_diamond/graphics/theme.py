@@ -17,12 +17,26 @@ from contextlib import suppress
 from inspect import Parameter, Signature
 from operator import truth
 from types import MappingProxyType
-from typing import Any, Callable, ClassVar, ContextManager, Iterable, Iterator, Mapping, Sequence, TypeAlias, TypeVar, overload
+from typing import (
+    Any,
+    Callable,
+    ClassVar,
+    ContextManager,
+    FrozenSet,
+    Iterable,
+    Iterator,
+    Mapping,
+    MutableMapping,
+    Sequence,
+    TypeAlias,
+    TypeVar,
+    overload,
+)
 
-_ClassTheme: TypeAlias = dict[str, dict[str, Any]]
-_ClassThemeDict: TypeAlias = dict[type, _ClassTheme]
-_ClassDefaultTheme: TypeAlias = list[str]
-_ClassDefaultThemeDict: TypeAlias = dict[type, _ClassDefaultTheme]
+_ClassTheme: TypeAlias = MutableMapping[str, MappingProxyType[str, Any]]
+_ClassThemeDict: TypeAlias = MutableMapping[type, _ClassTheme]
+_ClassDefaultTheme: TypeAlias = Sequence[str]
+_ClassDefaultThemeDict: TypeAlias = MutableMapping[type, _ClassDefaultTheme]
 
 _THEMES: _ClassThemeDict = dict()
 _DEFAULT_THEME: _ClassDefaultThemeDict = dict()
@@ -38,15 +52,20 @@ class ThemeNamespace(ContextManager["ThemeNamespace"]):
     __DEFAULT_THEME_DICT_NAMESPACE: ClassVar[dict[str, _ClassDefaultThemeDict]] = {}
     __actual_namespace: ClassVar[str | None] = None
 
-    def __init__(self, namespace: str) -> None:
+    def __init__(self, namespace: str, *, extend: bool = False) -> None:
         self.__namespace: str = str(namespace)
         self.__save_namespace: str | None = None
+        self.__save_theme_dict: _ClassThemeDict
+        self.__save_default_theme_dict: _ClassDefaultThemeDict
         self.__entered: int = 0
+        self.__extend: bool = extend
 
     def __enter__(self) -> ThemeNamespace:
         global _THEMES, _DEFAULT_THEME
         if self.__entered == 0:
             self.__save_namespace = ThemeNamespace.__actual_namespace
+            self.__save_theme_dict = _THEMES
+            self.__save_default_theme_dict = _DEFAULT_THEME
             ThemeNamespace.__actual_namespace = namespace = self.__namespace
             THEMES_DICT_NAMESPACE: dict[str, _ClassThemeDict] = ThemeNamespace.__THEMES_DICT_NAMESPACE
             DEFAULT_THEME_DICT_NAMESPACE: dict[str, _ClassDefaultThemeDict] = ThemeNamespace.__DEFAULT_THEME_DICT_NAMESPACE
@@ -58,6 +77,9 @@ class ThemeNamespace(ContextManager["ThemeNamespace"]):
                 _DEFAULT_THEME = DEFAULT_THEME_DICT_NAMESPACE[namespace]
             except KeyError:
                 DEFAULT_THEME_DICT_NAMESPACE[namespace] = _DEFAULT_THEME = dict()
+            if self.__extend:
+                _THEMES = self.__ExtendedThemeDict(_THEMES, self.__save_theme_dict)
+                _DEFAULT_THEME = self.__ExtendedDefaultThemeDict(_DEFAULT_THEME, self.__save_default_theme_dict)
         self.__entered += 1
         return self
 
@@ -70,14 +92,9 @@ class ThemeNamespace(ContextManager["ThemeNamespace"]):
             return
         namespace: str | None = self.__save_namespace
         self.__save_namespace = None
-        if namespace is None:
-            _THEMES = ThemeNamespace.__THEMES_DEFAULT_DICT
-            _DEFAULT_THEME = ThemeNamespace.__DEFAULT_THEME_DEFAULT_DICT
-        else:
-            THEMES_DICT_NAMESPACE: dict[str, _ClassThemeDict] = ThemeNamespace.__THEMES_DICT_NAMESPACE
-            DEFAULT_THEME_DICT_NAMESPACE: dict[str, _ClassDefaultThemeDict] = ThemeNamespace.__DEFAULT_THEME_DICT_NAMESPACE
-            _THEMES = THEMES_DICT_NAMESPACE[namespace]
-            _DEFAULT_THEME = DEFAULT_THEME_DICT_NAMESPACE[namespace]
+        _THEMES = self.__save_theme_dict
+        _DEFAULT_THEME = self.__save_default_theme_dict
+        del self.__save_theme_dict, self.__save_default_theme_dict
         ThemeNamespace.__actual_namespace = namespace
 
     @staticmethod
@@ -85,25 +102,172 @@ class ThemeNamespace(ContextManager["ThemeNamespace"]):
         return ThemeNamespace.__actual_namespace
 
     @staticmethod
-    def get_theme_dict(namespace: str | None) -> MappingProxyType[type, _ClassTheme]:
+    def get_theme_dict(namespace: str | None) -> MappingProxyType[type, _ClassTheme]:  # TODO: MappingProxyType on _ClassTheme
         if namespace is None:
             return MappingProxyType(ThemeNamespace.__THEMES_DEFAULT_DICT)
         return MappingProxyType(ThemeNamespace.__THEMES_DICT_NAMESPACE.get(namespace, {}))
 
     @staticmethod
     def get_default_theme_dict(namespace: str | None) -> MappingProxyType[type, Sequence[str]]:
-        mapping: dict[type, list[str]]
+        mapping: MutableMapping[type, Sequence[str]]
         if namespace is None:
             mapping = ThemeNamespace.__DEFAULT_THEME_DEFAULT_DICT
         else:
             mapping = ThemeNamespace.__DEFAULT_THEME_DICT_NAMESPACE.get(namespace, {})
-        if not mapping:
-            return MappingProxyType(mapping)
-        return MappingProxyType({k: tuple(v) for k, v in mapping.items()})
+        return MappingProxyType(mapping)
 
     @property
     def namespace(self) -> str:
         return self.__namespace
+
+    class __ExtendedThemeDict(_ClassThemeDict):
+        def __init__(self, actual: _ClassThemeDict, extension: _ClassThemeDict) -> None:
+            super().__init__()
+            self.__actual: _ClassThemeDict = actual
+            self.__extension: _ClassThemeDict = extension
+
+        def __key_list(self) -> FrozenSet[type]:
+            return frozenset((*self.__actual, *self.__extension))
+
+        def __contains__(self, __o: object) -> bool:
+            return __o in self.__actual
+
+        def __iter__(self) -> Iterator[type]:
+            return iter(self.__key_list())
+
+        def __len__(self) -> int:
+            return len(self.__key_list())
+
+        def __getitem__(self, __k: type) -> _ClassTheme:
+            theme: _ClassTheme | None = self.__actual.get(__k)
+            extension: _ClassTheme | None = self.__extension.get(__k)
+            if theme is None and extension is None:
+                raise KeyError(__k)
+            return self.__ExtendedTheme(__k, self.__actual, theme, extension)
+
+        def __setitem__(self, __k: type, __v: _ClassTheme) -> None:
+            self.__actual[__k] = __v
+
+        def __delitem__(self, __k: type) -> None:
+            del self.__actual[__k]
+
+        def popitem(self) -> tuple[type, _ClassTheme]:
+            return self.__actual.popitem()
+
+        __marker: Any = object()
+
+        def pop(self, __key: type, __default: Any = __marker) -> Any:
+            if __default is self.__marker:
+                return self.__actual.pop(__key)
+            return self.__actual.pop(__key, __default)
+
+        class __ExtendedTheme(_ClassTheme):
+            def __init__(
+                self,
+                cls: type,
+                theme_dict: _ClassThemeDict,
+                theme: _ClassTheme | None,
+                extension: _ClassTheme | None,
+            ) -> None:
+                super().__init__()
+                self.__cls: type = cls
+                self.__theme_dict: _ClassThemeDict = theme_dict
+                self.__actual: _ClassTheme | None = theme
+                self.__extension: _ClassTheme | None = extension
+
+            def __key_list(self) -> FrozenSet[str]:
+                return frozenset((*(self.__actual or {}), *(self.__extension or {})))
+
+            def __iter__(self) -> Iterator[str]:
+                return iter(self.__key_list())
+
+            def __len__(self) -> int:
+                return len(self.__key_list())
+
+            def __contains__(self, __o: object) -> bool:
+                return __o in (self.__actual or {})
+
+            def __getitem__(self, __k: str) -> MappingProxyType[str, Any]:
+                theme: _ClassTheme | None = self.__actual
+                extension: _ClassTheme | None = self.__extension
+                if theme is None:
+                    if extension is None:
+                        raise KeyError(__k)
+                    return extension[__k]
+                elif extension is None:
+                    return theme[__k]
+                theme_options: MappingProxyType[str, Any] | None = theme.get(__k)
+                extension_options: MappingProxyType[str, Any] | None = extension.get(__k)
+                if theme_options is None:
+                    if extension_options is None:
+                        raise KeyError(__k)
+                    return extension_options
+                elif extension_options is None:
+                    return theme_options
+                return MappingProxyType(extension_options | theme_options)
+
+            def __setitem__(self, __k: str, __v: MappingProxyType[str, Any]) -> None:
+                theme: _ClassTheme | None = self.__actual
+                if theme is None:
+                    self.__theme_dict[self.__cls] = self.__actual = theme = {}
+                theme[__k] = __v
+
+            def __delitem__(self, __k: str) -> None:
+                theme: _ClassTheme | None = self.__actual
+                if theme is None:
+                    raise KeyError(__k)
+                del theme[__k]
+
+            def popitem(self) -> tuple[str, MappingProxyType[str, Any]]:
+                return (self.__actual or {}).popitem()
+
+            __marker: Any = object()
+
+            def pop(self, __key: str, __default: Any = __marker) -> Any:
+                if __default is self.__marker:
+                    return (self.__actual or {}).pop(__key)
+                return (self.__actual or {}).pop(__key, __default)
+
+    class __ExtendedDefaultThemeDict(_ClassDefaultThemeDict):
+        def __init__(self, actual: _ClassDefaultThemeDict, extension: _ClassDefaultThemeDict) -> None:
+            super().__init__()
+            self.__actual: _ClassDefaultThemeDict = actual
+            self.__extension: _ClassDefaultThemeDict = extension
+
+        def __key_list(self) -> FrozenSet[type]:
+            return frozenset((*self.__actual, *self.__extension))
+
+        def __contains__(self, __o: object) -> bool:
+            return __o in self.__actual
+
+        def __iter__(self) -> Iterator[type]:
+            return iter(self.__key_list())
+
+        def __len__(self) -> int:
+            return len(self.__key_list())
+
+        def __getitem__(self, __k: type) -> _ClassDefaultTheme:
+            default_themes: _ClassDefaultTheme | None = self.__actual.get(__k)
+            extension: _ClassDefaultTheme | None = self.__extension.get(__k)
+            if default_themes is None and extension is None:
+                raise KeyError(__k)
+            return (*(extension or ()), *(default_themes or ()))
+
+        def __setitem__(self, __k: type, __v: _ClassDefaultTheme) -> None:
+            self.__actual[__k] = __v
+
+        def __delitem__(self, __k: type) -> None:
+            del self.__actual[__k]
+
+        def popitem(self) -> tuple[type, _ClassDefaultTheme]:
+            return self.__actual.popitem()
+
+        __marker: Any = object()
+
+        def pop(self, __key: type, __default: Any = __marker) -> Any:
+            if __default is self.__marker:
+                return self.__actual.pop(__key)
+            return self.__actual.pop(__key, __default)
 
 
 _T = TypeVar("_T")
@@ -280,16 +444,16 @@ class ThemedObjectMeta(ABCMeta):
         if init_method is not default_init_method:
             check_options(init_method, options)
 
-        theme_dict: dict[str, dict[str, Any]]
+        theme_dict: MutableMapping[str, MappingProxyType[str, Any]]
 
         if cls not in _THEMES:
             _THEMES[cls] = theme_dict = dict()
         else:
             theme_dict = _THEMES[cls]
         if name not in theme_dict or not update:
-            theme_dict[name] = options.copy()
+            theme_dict[name] = MappingProxyType(options.copy())
         else:
-            theme_dict[name] |= options
+            theme_dict[name] = MappingProxyType(theme_dict[name] | options)
 
     @overload
     def set_default_theme(cls, name: str, /, *names: str, update: bool = False) -> None:
@@ -312,9 +476,9 @@ class ThemedObjectMeta(ABCMeta):
         if any(theme is NoTheme for theme in default_themes):
             raise ValueError("Couldn't set 'NoTheme' as default theme")
         if cls not in _DEFAULT_THEME or not update:
-            _DEFAULT_THEME[cls] = list(default_themes)
+            _DEFAULT_THEME[cls] = tuple(default_themes)
         else:
-            _DEFAULT_THEME[cls] = list(dict.fromkeys((*_DEFAULT_THEME[cls], *default_themes)))
+            _DEFAULT_THEME[cls] = tuple(dict.fromkeys((*_DEFAULT_THEME[cls], *default_themes)))
 
     def get_theme_options(cls, *themes: str, parent_themes: bool = True, ignore_unusable: bool = False) -> dict[str, Any]:
         if cls.is_abstract_theme_class():
