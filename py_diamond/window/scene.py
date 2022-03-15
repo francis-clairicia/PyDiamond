@@ -238,7 +238,7 @@ class SceneMeta(ABCMeta):
             if callable(obj.fdel):
                 obj = obj.deleter(theme_namespace_decorator(obj.fdel))
         elif isinstance(obj, cached_property):
-            obj = cached_property(theme_namespace_decorator(obj.func))
+            setattr(obj, "func", theme_namespace_decorator(obj.func))
         elif isinstance(obj, classmethod):
             obj = classmethod(theme_namespace_decorator(obj.__func__))
         elif isinstance(obj, (FunctionType, LambdaType)):
