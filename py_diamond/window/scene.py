@@ -101,10 +101,6 @@ class SceneMeta(ABCMeta):
         "start",
         "after",
         "every",
-        "window",
-        "event",
-        "exit_stack",
-        "background_color",
     )
 
     def __new__(
@@ -145,6 +141,8 @@ class SceneMeta(ABCMeta):
                 continue
             if not getattr(attr_obj, "__apply_theme_decorator__", False):
                 if attr_name in theme_namespace_decorator_exempt or attr_name in cls_theme_namespace_decorator_exempt:
+                    continue
+                if isinstance(attr_obj, (property, cached_property)):
                     continue
                 if getattr(attr_obj, "__no_theme_decorator__", False):
                     cls_theme_namespace_decorator_exempt.add(attr_name)
