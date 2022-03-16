@@ -53,6 +53,8 @@ class SingletonMeta(ABCMeta):
             if name == "_singleton_instance_":
                 raise TypeError("Cannot modify singleton instance")
             raise AttributeError(f"{name} is a read-only attribute")
+        if name in ("__new__", "__init__"):
+            raise TypeError("Cannot modify singleton constructors")
         return super().__delattr__(name)
 
     @property

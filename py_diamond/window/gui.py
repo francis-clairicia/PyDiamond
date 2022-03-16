@@ -45,7 +45,7 @@ from .event import (
     MouseWheelEvent,
 )
 from .keyboard import Keyboard
-from .scene import AbstractLayeredScene, LayeredMainSceneMeta, LayeredSceneMeta, MainScene, Scene
+from .scene import AbstractLayeredScene, LayeredMainSceneMeta, LayeredSceneMeta, MainScene, Scene, no_theme_decorator
 
 
 class GUISceneMeta(LayeredSceneMeta):
@@ -83,6 +83,7 @@ class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
             return True
         return False
 
+    @no_theme_decorator
     def focus_get(self) -> SupportsFocus | None:
         if not self.looping():
             return None
@@ -99,6 +100,7 @@ class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
         self.__focus_index = -1
         return None
 
+    @no_theme_decorator
     def focus_next(self) -> SupportsFocus | None:
         if not self.looping():
             return None
@@ -117,6 +119,7 @@ class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
         self.__focus_index = -1
         return None
 
+    @no_theme_decorator
     def focus_prev(self) -> SupportsFocus | None:
         if not self.looping():
             return None
@@ -145,6 +148,7 @@ class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
     def focus_set(self, focusable: None) -> None:
         ...
 
+    @no_theme_decorator
     def focus_set(self, focusable: SupportsFocus | None) -> bool | None:
         if not self.looping():
             return None if focusable is None else False
@@ -171,18 +175,21 @@ class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
         self.__on_focus_set(focusable)
         return True
 
+    @no_theme_decorator
     def __on_focus_set(self, focusable: SupportsFocus) -> None:
         focusable._on_focus_set()
         callback: Callable[[], None]
         for callback in getattr(focusable, "_focus_set_callbacks_", ()):
             callback()
 
+    @no_theme_decorator
     def __on_focus_leave(self, focusable: SupportsFocus) -> None:
         focusable._on_focus_leave()
         callback: Callable[[], None]
         for callback in getattr(focusable, "_focus_leave_callbacks_", ()):
             callback()
 
+    @no_theme_decorator
     def __handle_key_event(self, event: KeyDownEvent) -> bool:
         if event.key == Keyboard.Key.TAB:
             self.focus_set(self.focus_next() if not event.mod & Keyboard.Modifiers.SHIFT else self.focus_prev())
@@ -196,6 +203,7 @@ class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
             return True
         return False
 
+    @no_theme_decorator
     def __focus_obj_on_side(self, side: BoundFocus.Side) -> None:
         if not self.looping():
             return

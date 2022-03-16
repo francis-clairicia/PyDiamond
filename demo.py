@@ -566,7 +566,7 @@ class EntryScene(MainScene):
         self.window.draw(self.entry)
 
 
-LOREN_IPSUM = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin euismod justo ac pharetra fermentum. Duis neque massa, commodo eu est vel, dignissim interdum eros. Nulla augue ex, blandit ac magna dapibus, dignissim venenatis massa. Donec tempus laoreet eros tristique rhoncus. Sed eget metus vitae purus ultricies semper. Suspendisse sodales rhoncus quam ac aliquam. Duis quis elit rhoncus, condimentum dolor nec, elementum lorem. Integer placerat dui orci, in ultricies nulla viverra ac. Morbi at justo eu libero rutrum dignissim a in velit. Suspendisse magna odio, fermentum vel tortor eget, condimentum sagittis ex. Vivamus tristique venenatis purus, at pharetra erat lobortis id. Pellentesque tincidunt bibendum erat, ac faucibus ligula semper vitae. Vestibulum ac quam in nulla tristique congue id quis lectus. Sed fermentum hendrerit velit."
+LOREM_IPSUM = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin euismod justo ac pharetra fermentum. Duis neque massa, commodo eu est vel, dignissim interdum eros. Nulla augue ex, blandit ac magna dapibus, dignissim venenatis massa. Donec tempus laoreet eros tristique rhoncus. Sed eget metus vitae purus ultricies semper. Suspendisse sodales rhoncus quam ac aliquam. Duis quis elit rhoncus, condimentum dolor nec, elementum lorem. Integer placerat dui orci, in ultricies nulla viverra ac. Morbi at justo eu libero rutrum dignissim a in velit. Suspendisse magna odio, fermentum vel tortor eget, condimentum sagittis ex. Vivamus tristique venenatis purus, at pharetra erat lobortis id. Pellentesque tincidunt bibendum erat, ac faucibus ligula semper vitae. Vestibulum ac quam in nulla tristique congue id quis lectus. Sed fermentum hendrerit velit."
 
 
 class ScrollBarScene(LayeredMainScene, AbstractAutoLayeredScene, framerate=60, fixed_framerate=50):
@@ -582,7 +582,7 @@ class ScrollBarScene(LayeredMainScene, AbstractAutoLayeredScene, framerate=60, f
         )
         self.vscroll.bottomright = self.window.right, self.hscroll.top
         self.vscroll.border_radius = 25
-        Text(LOREN_IPSUM, font=(None, 100), wrap=50).add_to_group(self.area)
+        Text(LOREM_IPSUM, font=(None, 100), wrap=50).add_to_group(self.area)
 
     def on_start_loop(self) -> None:
         super().on_start_loop()
@@ -951,7 +951,14 @@ class MainWindow(SceneWindow):
 def main() -> None:
     parser = ArgumentParser()
     parser.add_argument("-i", "--index", type=int, default=0)
+    parser.add_argument("-s", "--scenes", action="store_true")
     args = parser.parse_args()
+
+    if args.scenes:
+        import json
+
+        print(json.dumps({i: s.__name__ for i, s in enumerate(MainWindow.all_scenes)}, indent=4))
+        return
 
     with MainWindow().open() as window, Mixer.init():
         window.mainloop(args.index)

@@ -161,11 +161,11 @@ class Window:
             _pg_display.init()
             stack.callback(_pg_display.quit)
 
-            from pygame.font import init as _pg_font_init, quit as _pg_font_quit
+            import pygame.font as _pg_font
 
-            _pg_font_init()
-            stack.callback(_pg_font_quit)
-            del _pg_font_init, _pg_font_quit
+            _pg_font.init()
+            stack.callback(_pg_font.quit)
+            del _pg_font
 
             size: tuple[int, int] = self.__size
             flags: int = self.__flags
@@ -491,8 +491,7 @@ class Window:
 
     @property
     def resizable(self) -> bool:
-        out: int = self.__flags & _PG_RESIZABLE
-        return out != 0
+        return (self.__flags & _PG_RESIZABLE) != 0
 
     @property
     def rect(self) -> ImmutableRect:
@@ -618,14 +617,14 @@ class WindowCallback:
         wait_time: float,
         callback: Callable[..., None],
         args: tuple[Any, ...] = (),
-        kwargs: dict[str, Any] = {},
+        kwargs: dict[str, Any] | None = None,
         loop: bool = False,
     ) -> None:
         self.__master: Window = master
         self.__wait_time: float = wait_time
         self.__callback: Callable[..., None] = callback
         self.__args: tuple[Any, ...] = args
-        self.__kwargs: dict[str, Any] = kwargs
+        self.__kwargs: dict[str, Any] = kwargs or {}
         self.__clock = Clock(start=True)
         self.__loop: bool = bool(loop)
 

@@ -99,6 +99,7 @@ class SceneMeta(ABCMeta):
         "is_awaken",
         "looping",
         "start",
+        "stop",
         "after",
         "every",
     )
@@ -288,6 +289,7 @@ class Scene(metaclass=SceneMeta):
         "__dict__",
     )
 
+    @final
     def __new__(cls) -> Any:
         instances: set[type[Scene]] = Scene.__instances
         if cls in instances:
@@ -605,9 +607,11 @@ class AbstractLayeredScene(Scene, metaclass=LayeredSceneMeta):
         super().destroy()
         self.group.clear()
 
+    @no_theme_decorator
     def render_before(self) -> None:
         pass
 
+    @no_theme_decorator
     def render_after(self) -> None:
         pass
 
@@ -807,6 +811,7 @@ class SceneWindow(Window):
         self.clear(scene.background_color)
         scene.render()
 
+    @final
     def start_scene(
         self,
         scene: type[Scene],
@@ -816,9 +821,6 @@ class SceneWindow(Window):
         **awake_kwargs: Any,
     ) -> NoReturn:
         self.__scenes.go_to(scene, transition=transition, remove_actual=remove_actual, awake_kwargs=awake_kwargs)
-
-    def stop_actual_scene(self) -> NoReturn:
-        self.__scenes.go_back()
 
     def _process_callbacks(self) -> None:
         super()._process_callbacks()
@@ -988,10 +990,12 @@ class _SceneManager:
         *,
         transition: SceneTransition | None = None,
         remove_actual: bool = False,
-        awake_kwargs: dict[str, Any] = {},
+        awake_kwargs: dict[str, Any] | None = None,
     ) -> NoReturn:
         if scene.__abstractmethods__:
             raise TypeError(f"{scene.__name__} is an abstract class")
+        if awake_kwargs is None:
+            awake_kwargs = {}
         next_scene = self.__all[scene]
         stack = self.__stack
         actual_scene = stack[0] if stack else None
@@ -1044,7 +1048,7 @@ class _SceneWindowCallback(WindowCallback):
         wait_time: float,
         callback: Callable[..., None],
         args: tuple[Any, ...] = (),
-        kwargs: dict[str, Any] = {},
+        kwargs: dict[str, Any] | None = None,
         loop: bool = False,
     ) -> None:
         self.__scene: Scene = master
