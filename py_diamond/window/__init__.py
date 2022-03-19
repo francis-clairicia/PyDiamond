@@ -80,10 +80,6 @@ __all__ = [
     "WindowShownEvent",
     "WindowSizeChangedEvent",
     "WindowTakeFocusEvent",
-    "apply_theme_decorator",
-    "closed_namespace",
-    "no_theme_decorator",
-    "set_default_theme_namespace",
 ]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -183,9 +179,5 @@ from .scene import (
     SceneTransition,
     SceneTransitionCoroutine,
     SceneWindow,
-    apply_theme_decorator,
-    closed_namespace,
-    no_theme_decorator,
-    set_default_theme_namespace,
 )
 from .time import Time

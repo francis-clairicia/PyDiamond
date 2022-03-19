@@ -21,6 +21,8 @@ __all__ = [
     "CheckBox",
     "CheckBoxMeta",
     "CircleShape",
+    "ClassWithThemeNamespace",
+    "ClassWithThemeNamespaceMeta",
     "Color",
     "CrossShape",
     "DiagonalCrossShape",
@@ -99,9 +101,13 @@ __all__ = [
     "WHITE",
     "YELLOW",
     "abstract_theme_class",
+    "apply_theme_decorator",
+    "closed_namespace",
     "create_surface",
     "load_image",
+    "no_theme_decorator",
     "save_image",
+    "set_default_theme_namespace",
 ]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -203,7 +209,20 @@ from .shape import (
 from .sprite import AnimatedSprite, LayeredSpriteGroup, Mask, Sprite, SpriteGroup
 from .surface import Surface, create_surface, load_image, save_image
 from .text import Text, TextImage, TextMeta
-from .theme import NoTheme, ThemedObject, ThemedObjectMeta, ThemeNamespace, ThemeType, abstract_theme_class
+from .theme import (
+    ClassWithThemeNamespace,
+    ClassWithThemeNamespaceMeta,
+    NoTheme,
+    ThemedObject,
+    ThemedObjectMeta,
+    ThemeNamespace,
+    ThemeType,
+    abstract_theme_class,
+    apply_theme_decorator,
+    closed_namespace,
+    no_theme_decorator,
+    set_default_theme_namespace,
+)
 from .transformable import Transformable, TransformableMeta
 
 # Put it here to avoid circular import with 'window' module

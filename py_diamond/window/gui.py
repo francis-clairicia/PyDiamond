@@ -30,6 +30,7 @@ from typing import Any, Callable, ClassVar, Final, Mapping, Protocol, Sequence, 
 
 from ..graphics.drawable import Drawable, LayeredGroup
 from ..graphics.renderer import Renderer
+from ..graphics.theme import no_theme_decorator
 from ..system._mangling import getattr_pv
 from ..system.enum import AutoLowerNameEnum
 from ..system.utils import setdefaultattr, wraps
@@ -45,7 +46,7 @@ from .event import (
     MouseWheelEvent,
 )
 from .keyboard import Keyboard
-from .scene import AbstractLayeredScene, LayeredMainSceneMeta, LayeredSceneMeta, MainScene, Scene, no_theme_decorator
+from .scene import AbstractLayeredScene, LayeredMainSceneMeta, LayeredSceneMeta, MainScene, Scene
 
 
 class GUISceneMeta(LayeredSceneMeta):

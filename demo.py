@@ -68,12 +68,13 @@ from py_diamond.window.time import Time
 
 
 class ShapeScene(MainScene):
-    def __theme_init__(self) -> None:
+    @classmethod
+    def __theme_init__(cls) -> None:
         super().__theme_init__()
-        cls: ThemedShapeMeta
-        for cls in [RectangleShape, PolygonShape, CircleShape, CrossShape]:
-            cls.set_default_theme("default")
-            cls.set_theme("default", {"outline_color": RED, "outline": 3})
+        shape: ThemedShapeMeta
+        for shape in [RectangleShape, PolygonShape, CircleShape, CrossShape]:
+            shape.set_default_theme("default")
+            shape.set_theme("default", {"outline_color": RED, "outline": 3})
 
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
@@ -600,7 +601,8 @@ class ScrollBarScene(LayeredMainScene, AbstractAutoLayeredScene, framerate=60, f
 
 
 class TestGUIScene(GUIScene, AbstractAutoLayeredScene):
-    def __theme_init__(self) -> None:
+    @classmethod
+    def __theme_init__(cls) -> None:
         super().__theme_init__()
 
         Button.set_default_theme("default")
@@ -686,7 +688,8 @@ class GridScene(GUIScene):
 
 
 class FormScene(GUIScene, AbstractAutoLayeredScene):
-    def __theme_init__(self) -> None:
+    @classmethod
+    def __theme_init__(cls) -> None:
         super().__theme_init__()
 
         Text.set_theme("text", {"font": (FontResources.cooperblack, 40), "color": WHITE, "shadow_x": 3, "shadow_y": 3})
@@ -746,7 +749,8 @@ class AudioScene(MainScene):
         super().__init__()
         self.event.bind_event(MusicEndEvent, print)
 
-    def __theme_init__(self) -> None:
+    @classmethod
+    def __theme_init__(cls) -> None:
         super().__theme_init__()
         Text.set_default_theme("text")
         Text.set_theme("text", {"font": (FontResources.cooperblack, 40), "color": WHITE, "shadow_x": 3, "shadow_y": 3})
@@ -784,7 +788,8 @@ class AudioScene(MainScene):
 
 
 class GUIAudioScene(GUIMainScene, AbstractAutoLayeredScene):
-    def __theme_init__(self) -> None:
+    @classmethod
+    def __theme_init__(cls) -> None:
         super().__theme_init__()
         Text.set_default_theme("text")
         Text.set_theme("text", {"font": (FontResources.cooperblack, 40), "color": WHITE, "shadow_x": 3, "shadow_y": 3})
