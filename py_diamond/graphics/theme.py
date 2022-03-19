@@ -43,6 +43,7 @@ from typing import (
     Iterable,
     Iterator,
     Mapping,
+    Match,
     MutableMapping,
     Pattern,
     Sequence,
@@ -698,8 +699,10 @@ class ClassWithThemeNamespaceMeta(ABCMeta):
                         raise ValueError("Invalid decorator usage")
                     continue
                 cls_theme_decorator_exempt.add(attr_name)
-            if any(pattern.fullmatch(attr_name) is not None for pattern in theme_decorator_exempt_regex):
-                cls_theme_decorator_exempt.add(attr_name)
+            for pattern in theme_decorator_exempt_regex:
+                match = pattern.fullmatch(attr_name)
+                if match is not None and metacls.validate_theme_decorator_exempt_from_regex(match, attr_obj):
+                    cls_theme_decorator_exempt.add(attr_name)
             if not apply_theme_decorator:
                 if attr_name in cls_theme_decorator_exempt:
                     continue
@@ -709,7 +712,8 @@ class ClassWithThemeNamespaceMeta(ABCMeta):
         namespace["_theme_decorator_exempt_"] = frozenset(cls_theme_decorator_exempt)
 
         cls = super().__new__(metacls, name, bases, namespace, **kwargs)
-        metacls.__classes.add(cls)
+        if hasattr(cls, "__theme_init__") and not cls.__abstractmethods__:
+            metacls.__classes.add(cls)
         return cls
 
     def __setattr__(cls, name: str, value: Any, /) -> None:
@@ -742,14 +746,13 @@ class ClassWithThemeNamespaceMeta(ABCMeta):
     def remove_theme_namespace(cls) -> None:
         ClassWithThemeNamespaceMeta.__namespaces.pop(cls, None)
 
+    @final
+    @concreteclassmethod
     def theme_initialize(cls) -> None:
-        try:
-            theme_initialize: Callable[[], None] = getattr(cls, "__theme_init__")
-        except AttributeError:
-            pass
-        else:
-            theme_initialize()
+        theme_initialize: Callable[[], None] = getattr(cls, "__theme_init__")
+        theme_initialize()
 
+    @final
     @staticmethod
     def theme_initialize_all() -> None:
         for cls in ClassWithThemeNamespaceMeta.__classes:
@@ -760,9 +763,9 @@ class ClassWithThemeNamespaceMeta(ABCMeta):
     def get_default_theme_decorator_exempt(metacls) -> frozenset[str]:
         return frozenset(
             {
-                "__new__",
-                "__init__",
+                *(name for name, obj in vars(object).items() if callable(obj) or isinstance(obj, classmethod)),
                 "__del__",
+                "__getattr__",
             }
         )
 
@@ -775,11 +778,24 @@ class ClassWithThemeNamespaceMeta(ABCMeta):
             }
         )
 
+    @classmethod
+    def validate_theme_decorator_exempt_from_regex(metacls, match: Match[str], attr_obj: Any) -> bool:
+        return callable(attr_obj) or isinstance(
+            attr_obj,
+            (
+                property,
+                cached_property,
+                classmethod,
+            ),
+        )
+
     @staticmethod
-    def __theme_namespace_decorator(func: Callable[..., Any], /) -> Callable[..., Any]:
+    def __theme_namespace_decorator(func: Callable[..., Any], /, use_cls: bool = False) -> Callable[..., Any]:
+        get_cls: Callable[[Any], type] = (lambda o: o) if use_cls else (lambda o: type(o))  # type: ignore[no-any-return]
+
         @wraps(func)
         def wrapper(__cls_or_self: Any, /, *args: Any, **kwargs: Any) -> Any:
-            cls: type = type(__cls_or_self) if not isinstance(__cls_or_self, type) else __cls_or_self
+            cls: type = get_cls(__cls_or_self)
             theme_namespace: ClassWithThemeNamespaceMeta.__Namespace | None = ClassWithThemeNamespaceMeta.__namespaces.get(cls)
             unique_theme_namespace: str = _mangle_closed_namespace_name(cls)
             extend_unique_theme_namespace: bool = True
@@ -806,6 +822,9 @@ class ClassWithThemeNamespaceMeta(ABCMeta):
 
     @staticmethod
     def __apply_theme_namespace_decorator(obj: Any) -> Any:
+        if getattr(obj, "__isabstractmethod__", False):
+            return obj
+
         theme_namespace_decorator = ClassWithThemeNamespaceMeta.__theme_namespace_decorator
         if isinstance(obj, property):
             if callable(obj.fget):
@@ -817,7 +836,7 @@ class ClassWithThemeNamespaceMeta(ABCMeta):
         elif isinstance(obj, cached_property):
             setattr(obj, "func", theme_namespace_decorator(obj.func))
         elif isinstance(obj, classmethod):
-            obj = type(obj)(theme_namespace_decorator(obj.__func__))
+            obj = type(obj)(theme_namespace_decorator(obj.__func__, use_cls=True))
         elif isinstance(obj, (FunctionType, LambdaType)):
             obj = theme_namespace_decorator(obj)
         return obj

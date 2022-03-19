@@ -111,8 +111,8 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
             raise TypeError("Multiple inheritance with other class than Scene is not supported")
 
         for attr_name in namespace:
-            if attr_name == "__new__":
-                raise TypeError("__new__ method must not be overridden")
+            if attr_name in ("__new__", "__del_scene__"):
+                raise TypeError(f"{name} method must not be overridden")
 
         cls = super().__new__(metacls, name, bases, namespace, **kwargs)
         if not cls.__abstractmethods__:
@@ -229,6 +229,7 @@ class Scene(metaclass=SceneMeta):
     def update_alpha(self, interpolation: float) -> None:
         pass
 
+    @no_theme_decorator(permanent=False)
     def update(self) -> None:
         pass
 
@@ -248,6 +249,7 @@ class Scene(metaclass=SceneMeta):
     def draw_scene(self, scene: type[Scene]) -> None:
         self.__manager.render(scene)
 
+    @no_theme_decorator(permanent=False)
     def handle_event(self, event: Event) -> bool:
         return False
 
@@ -415,6 +417,11 @@ class LayeredSceneMeta(SceneMeta):
             namespace["__delattr__"] = delattr_wrapper
 
         return super().__new__(metacls, name, bases, namespace, **kwargs)
+
+    @classmethod
+    @cache
+    def get_default_theme_decorator_exempt(metacls) -> frozenset[str]:
+        return frozenset((*super().get_default_theme_decorator_exempt(), "__setattr__", "__delattr__"))
 
     class __setattr_wrapper:
         def __init__(self, setattr_func: Callable[[Any, str, Any], None]) -> None:
@@ -594,7 +601,7 @@ class SceneWindow(Window):
                 except StopIteration:
                     animating = False
                 next_transition = transition.send
-                next_fixed_transition = lambda: next_transition(None)
+                next_fixed_transition = lambda next=next_transition: next(None)
                 while self.looping() and animating:
                     for _ in self.process_events():
                         pass
