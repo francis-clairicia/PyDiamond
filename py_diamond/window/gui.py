@@ -10,6 +10,8 @@ __all__ = [
     "BoundFocus",
     "BoundFocusProxy",
     "FocusableContainer",
+    "GUIAutoLayeredMainScene",
+    "GUIAutoLayeredScene",
     "GUIMainScene",
     "GUIMainSceneMeta",
     "GUIScene",
@@ -46,7 +48,7 @@ from .event import (
     MouseWheelEvent,
 )
 from .keyboard import Keyboard
-from .scene import AbstractLayeredScene, LayeredMainSceneMeta, LayeredSceneMeta, MainScene, Scene
+from .scene import AbstractAutoLayeredScene, AbstractLayeredScene, LayeredMainSceneMeta, LayeredSceneMeta, MainScene, Scene
 
 
 class GUISceneMeta(LayeredSceneMeta):
@@ -224,8 +226,12 @@ class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
         return self.__group
 
     @property
-    def focus_container(self) -> FocusableContainer:
+    def _focus_container(self) -> FocusableContainer:
         return self.__container
+
+
+class GUIAutoLayeredScene(GUIScene, AbstractAutoLayeredScene):
+    __slots__ = ()
 
 
 class GUIMainSceneMeta(GUISceneMeta, LayeredMainSceneMeta):
@@ -233,6 +239,10 @@ class GUIMainSceneMeta(GUISceneMeta, LayeredMainSceneMeta):
 
 
 class GUIMainScene(GUIScene, MainScene, metaclass=GUIMainSceneMeta):
+    __slots__ = ()
+
+
+class GUIAutoLayeredMainScene(GUIMainScene, AbstractAutoLayeredScene):
     __slots__ = ()
 
 
@@ -297,8 +307,7 @@ class BoundFocus:
         return scene.focus_get()
 
     def has(self) -> bool:
-        f: SupportsFocus = self.__self__
-        return self.get() is f
+        return self.get() is self.__self__
 
     @overload
     def take(self, status: bool) -> None:
@@ -326,8 +335,7 @@ class BoundFocus:
         scene: GUIScene | None = self.__scene
         if scene is None:
             return False
-        f: SupportsFocus = self.__self__
-        return scene.focus_set(f)
+        return scene.focus_set(self.__self__)
 
     def leave(self) -> None:
         scene: GUIScene | None = self.__scene
@@ -373,9 +381,9 @@ class BoundFocus:
             bound_object_dict[side] = obj
 
     def remove_obj_on_side(self, *sides: str) -> None:
-        self.set_obj_on_side(dict.fromkeys(sides))
+        self.set_obj_on_side(dict.fromkeys(sides, None))
 
-    def remove_all(self) -> None:
+    def remove_all_links(self) -> None:
         self.remove_obj_on_side(*BoundFocus.Side)
 
     class BoundObjectsDict(TypedDict):
@@ -560,27 +568,27 @@ class _GUILayeredGroup(LayeredGroup):
 
     def draw_onto(self, target: Renderer) -> None:
         master: GUIScene = self.__master
-        master.focus_container.update()
+        master._focus_container.update()
         super().draw_onto(target)
 
     def add(self, *objects: Drawable, layer: int | None = None) -> None:
         super().add(*objects, layer=layer)
         master: GUIScene = self.__master
-        container: FocusableContainer = master.focus_container
+        container: FocusableContainer = master._focus_container
         for obj in objects:
             if isinstance(obj, SupportsFocus) and obj.focus.is_bound_to(master):
                 container.add(obj)
 
     def remove(self, *objects: Drawable) -> None:
         super().remove(*objects)
-        container: FocusableContainer = self.__master.focus_container
+        container: FocusableContainer = self.__master._focus_container
         for obj in objects:
             if isinstance(obj, SupportsFocus) and obj in container:
                 container.remove(obj)
 
     def pop(self, index: int = -1) -> Drawable:
         obj: Drawable = super().pop(index=index)
-        container: FocusableContainer = self.__master.focus_container
+        container: FocusableContainer = self.__master._focus_container
         if isinstance(obj, SupportsFocus) and obj in container:
             container.remove(obj)
         return obj

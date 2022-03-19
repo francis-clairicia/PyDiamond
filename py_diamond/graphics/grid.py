@@ -607,8 +607,8 @@ class _GridCell(MDrawable):
                 return
             self.__object = None
             self.__obj_size = (0, 0)
-            if master is not None and isinstance(obj, SupportsFocus) and obj in master.focus_container:
-                master.focus_container.remove(obj)
+            if master is not None and isinstance(obj, SupportsFocus) and obj in master._focus_container:
+                master._focus_container.remove(obj)
         else:
             ismovable: Callable[[object], bool] = lambda o: isinstance(o, Movable)
             if not ismovable(drawable):
@@ -618,7 +618,7 @@ class _GridCell(MDrawable):
                 self.set_object(None)
                 self.__object = obj
                 if master is not None and isinstance(obj, SupportsFocus):
-                    master.focus_container.add(obj)
+                    master._focus_container.add(obj)
             if padx is None:
                 padx = self.grid.padding.x
             if pady is None:

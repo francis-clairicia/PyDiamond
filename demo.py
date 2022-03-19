@@ -52,7 +52,7 @@ from py_diamond.resource.loader import FontLoader, ImageLoader, MusicLoader, Sou
 from py_diamond.resource.manager import ResourceManager
 from py_diamond.window.display import Window
 from py_diamond.window.event import Event, KeyUpEvent, MouseButtonEvent, MusicEndEvent
-from py_diamond.window.gui import GUIMainScene, GUIScene
+from py_diamond.window.gui import GUIAutoLayeredMainScene, GUIAutoLayeredScene, GUIScene
 from py_diamond.window.keyboard import Keyboard
 from py_diamond.window.mouse import Mouse
 from py_diamond.window.scene import (
@@ -600,7 +600,7 @@ class ScrollBarScene(LayeredMainScene, AbstractAutoLayeredScene, framerate=60, f
         self.window.draw(self.area)
 
 
-class TestGUIScene(GUIScene, AbstractAutoLayeredScene):
+class TestGUIScene(GUIAutoLayeredScene):
     @classmethod
     def __theme_init__(cls) -> None:
         super().__theme_init__()
@@ -687,7 +687,7 @@ class GridScene(GUIScene):
         self.text.midtop = (self.grid.centerx, self.grid.bottom + 10)
 
 
-class FormScene(GUIScene, AbstractAutoLayeredScene):
+class FormScene(GUIAutoLayeredScene):
     @classmethod
     def __theme_init__(cls) -> None:
         super().__theme_init__()
@@ -787,7 +787,7 @@ class AudioScene(MainScene):
         return super().on_quit()
 
 
-class GUIAudioScene(GUIMainScene, AbstractAutoLayeredScene):
+class GUIAudioScene(GUIAutoLayeredMainScene):
     @classmethod
     def __theme_init__(cls) -> None:
         super().__theme_init__()
