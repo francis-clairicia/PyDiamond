@@ -232,7 +232,7 @@ class Window:
         if text_framerate.is_shown():
             if not text_framerate.message or self.__framerate_update_clock.elapsed_time(200):
                 text_framerate.message = f"{round(self.framerate)} FPS"
-            self.text_framerate.draw_onto(screen)
+            text_framerate.draw_onto(screen)
         Cursor.update()
         _pg_display.flip()
 
@@ -365,12 +365,12 @@ class Window:
 
     @final
     def set_width(self, width: int) -> None:
-        height = self.__surface.get_size()[1]
+        height = self.__surface.get_height()
         return self.set_size((width, height))
 
     @final
     def set_height(self, height: int) -> None:
-        width = self.__surface.get_size()[0]
+        width = self.__surface.get_width()
         return self.set_size((width, height))
 
     def allow_only_event(self, *event_types: Event.Type) -> None:
@@ -491,7 +491,7 @@ class Window:
 
     @property
     def resizable(self) -> bool:
-        return (self.__flags & _PG_RESIZABLE) != 0
+        return (self.__flags & _PG_RESIZABLE) == _PG_RESIZABLE
 
     @property
     def rect(self) -> ImmutableRect:
