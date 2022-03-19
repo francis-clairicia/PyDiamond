@@ -312,7 +312,6 @@ class Window:
 
         process_event = manager.process_event
         make_event = EventFactory.from_pygame_event
-        update_music_stream: Callable[[], None] = getattr_pv(MusicStream, "update")
         for pg_event in _pg_event.get():
             if pg_event.type in (_PG_QUIT, _PG_WINDOWCLOSE):
                 self._handle_close_event()
@@ -322,6 +321,7 @@ class Window:
                     _pg_display.set_mode(self.__surface.get_size(), flags=self.__flags, vsync=int(self.__vsync))
                 continue
             if pg_event.type == _pg_music.get_endevent():
+                update_music_stream: Callable[[], None] = getattr_pv(MusicStream, "update")
                 update_music_stream()
                 continue
             try:

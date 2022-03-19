@@ -54,6 +54,9 @@ class Pressable(Clickable):
             self.event.bind_event(KeyUpEvent, self.__handle_key_press_event)
 
     def __handle_key_press_event(self, event: KeyEvent) -> bool:
+        if self._ignore_key_event(event):
+            return False
+
         if isinstance(self, Drawable) and not self.is_shown():
             self.active = self.hover = False
             return False
@@ -87,6 +90,24 @@ class Pressable(Clickable):
 
     def _valid_key(self, key: int) -> bool:
         return key in (Keyboard.Key.RETURN, Keyboard.Key.KP_ENTER)
+
+    def _ignore_key_event(self, event: KeyEvent) -> bool:
+        return event.key in (
+            Keyboard.Key.NUMLOCK,
+            Keyboard.Key.CAPSLOCK,
+            Keyboard.Key.SCROLLOCK,
+            Keyboard.Key.RSHIFT,
+            Keyboard.Key.LSHIFT,
+            Keyboard.Key.RCTRL,
+            Keyboard.Key.LCTRL,
+            Keyboard.Key.RALT,
+            Keyboard.Key.LALT,
+            Keyboard.Key.RMETA,
+            Keyboard.Key.LMETA,
+            Keyboard.Key.LSUPER,
+            Keyboard.Key.RSUPER,
+            Keyboard.Key.MODE,
+        )
 
     def _focus_update(self) -> None:
         super()._focus_update()
