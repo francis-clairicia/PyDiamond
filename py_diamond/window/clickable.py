@@ -78,9 +78,9 @@ class Clickable(metaclass=ABCMeta):
         self.disabled_sound = disabled_sound
         self.__event = event = EventManager()
         master.event.bind_event_manager(event)
-        event.bind_event(MouseButtonDownEvent, self.__handle_click_event)
-        event.bind_event(MouseButtonUpEvent, self.__handle_click_event)
-        event.bind_event(MouseMotionEvent, self.__handle_mouse_motion)
+        event.bind(MouseButtonDownEvent, self.__handle_click_event)
+        event.bind(MouseButtonUpEvent, self.__handle_click_event)
+        event.bind(MouseMotionEvent, self.__handle_mouse_motion)
         event.bind_mouse_position(self.__handle_mouse_position)
         if isinstance(self, SupportsFocus):
             self.focus.take(take_focus)

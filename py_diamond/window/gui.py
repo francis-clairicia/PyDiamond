@@ -67,12 +67,12 @@ class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
         handle_key_event = self.__handle_key_event
         set_focus_mode_key: Callable[[KeyEvent], None] = lambda event: BoundFocus.set_mode(BoundFocus.Mode.KEY)
         set_focus_mode_mouse: Callable[[MouseEvent], None] = lambda event: BoundFocus.set_mode(BoundFocus.Mode.MOUSE)
-        self.event.bind_event(KeyDownEvent, set_focus_mode_key)
-        self.event.bind_event(KeyUpEvent, set_focus_mode_key)
-        self.event.bind_event(MouseButtonDownEvent, set_focus_mode_mouse)
-        self.event.bind_event(MouseButtonUpEvent, set_focus_mode_mouse)
-        self.event.bind_event(MouseMotionEvent, set_focus_mode_mouse)
-        self.event.bind_event(MouseWheelEvent, set_focus_mode_mouse)
+        self.event.bind(KeyDownEvent, set_focus_mode_key)
+        self.event.bind(KeyUpEvent, set_focus_mode_key)
+        self.event.bind(MouseButtonDownEvent, set_focus_mode_mouse)
+        self.event.bind(MouseButtonUpEvent, set_focus_mode_mouse)
+        self.event.bind(MouseMotionEvent, set_focus_mode_mouse)
+        self.event.bind(MouseWheelEvent, set_focus_mode_mouse)
         self.event.bind_key_press(Keyboard.Key.TAB, handle_key_event)
         self.event.bind_key_press(Keyboard.Key.ESCAPE, handle_key_event)
 

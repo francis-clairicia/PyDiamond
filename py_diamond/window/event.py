@@ -428,10 +428,10 @@ class EventManager:
         with suppress(KeyError, ValueError):
             handler_dict[key].remove(cast(_EventCallback, callback))
 
-    def bind_event(self, event_cls: type[_TE], callback: Callable[[_TE], bool | None]) -> None:
+    def bind(self, event_cls: type[_TE], callback: Callable[[_TE], bool | None]) -> None:
         EventManager.__bind(self.__event_handler_dict, event_cls.type, callback)
 
-    def unbind_event(self, event_cls: type[_TE], callback_to_remove: Callable[[_TE], bool | None]) -> None:
+    def unbind(self, event_cls: type[_TE], callback_to_remove: Callable[[_TE], bool | None]) -> None:
         EventManager.__unbind(self.__event_handler_dict, event_cls.type, callback_to_remove)
 
     def unbind_all(self) -> None:

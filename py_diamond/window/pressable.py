@@ -50,8 +50,8 @@ class Pressable(Clickable):
             focus_on_hover=focus_on_hover,
         )
         if isinstance(self.scene, GUIScene):
-            self.event.bind_event(KeyDownEvent, self.__handle_key_press_event)
-            self.event.bind_event(KeyUpEvent, self.__handle_key_press_event)
+            self.event.bind(KeyDownEvent, self.__handle_key_press_event)
+            self.event.bind(KeyUpEvent, self.__handle_key_press_event)
 
     def __handle_key_press_event(self, event: KeyEvent) -> bool:
         if self._ignore_key_event(event):

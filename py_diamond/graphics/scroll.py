@@ -396,7 +396,7 @@ class ScrollArea(LayeredGroup, Movable):
         self.__h_scroll: ScrollBar | None = None
         self.__v_scroll: ScrollBar | None = None
         self.__bg_color: Color = bg_color
-        master.event.bind_event(MouseWheelEvent, self.__handle_wheel_event)
+        master.event.bind(MouseWheelEvent, self.__handle_wheel_event)
 
     @classmethod
     def set_horizontal_flip(cls, status: bool) -> None:

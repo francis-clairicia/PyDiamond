@@ -747,7 +747,7 @@ class SoundManager(ResourceManager):
 class AudioScene(MainScene):
     def __init__(self) -> None:
         super().__init__()
-        self.event.bind_event(MusicEndEvent, print)
+        self.event.bind(MusicEndEvent, print)
 
     @classmethod
     def __theme_init__(cls) -> None:
