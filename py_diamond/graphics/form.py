@@ -148,6 +148,7 @@ class Form(MDrawable):
     @config.on_update_key_value("entry_justify")
     def __update_grid_justify(self, option: str, justify: Justify) -> None:
         grid: Grid = self.__grid
+        # TODO: Match case
         column: int = {"label_justify": 0, "entry_justify": 1}[option]
         for row in range(grid.nb_rows):
             grid.modify(row=row, column=column, justify=justify)

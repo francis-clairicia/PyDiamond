@@ -30,6 +30,7 @@ from contextlib import nullcontext, suppress
 from dataclasses import dataclass
 from functools import cached_property
 from inspect import Parameter, Signature
+from itertools import filterfalse
 from operator import truth
 from re import compile as re_compile
 from types import FunctionType, LambdaType, MappingProxyType
@@ -446,7 +447,7 @@ class ThemedObjectMeta(ABCMeta):
             parameters: Mapping[str, Parameter] = sig.parameters
             has_kwargs: bool = any(param.kind == Parameter.VAR_KEYWORD for param in parameters.values())
 
-            for option in filter(lambda option: option not in ignored_parameters, list(options)):
+            for option in filterfalse(ignored_parameters.__contains__, list(options)):
                 if option not in parameters:
                     if not has_kwargs:
                         if not ignore_unusable:

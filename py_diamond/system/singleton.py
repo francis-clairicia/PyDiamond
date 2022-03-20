@@ -22,6 +22,14 @@ _T = TypeVar("_T")
 class SingletonMeta(ABCMeta):
     def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> SingletonMeta:
         kwargs.pop("abstract", None)
+
+        call_twice_error_wrapper = metacls.__call_twice_error_wrapper
+
+        for constructor_attr in ("__new__", "__init__"):
+            default_constructor: Callable[..., Any] = getattr(bases[0] if bases else object, constructor_attr)
+            constructor: Callable[..., Any] = namespace.pop(constructor_attr, default_constructor)
+            namespace[constructor_attr] = call_twice_error_wrapper(constructor)
+
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
     def __init__(
@@ -32,19 +40,13 @@ class SingletonMeta(ABCMeta):
         if not cls.__abstractsingleton__:
             instance = cls()
             setattr(cls, "_singleton_instance_", instance)
-        for constructor_attr in ("__new__", "__init__"):
-            setattr(
-                cls,
-                constructor_attr,
-                cls.__call_twice_error_wrapper(getattr(cls, constructor_attr, None) or getattr(object, constructor_attr)),
-            )
 
     def __setattr__(cls, name: str, value: Any, /) -> None:
         if name in ("_singleton_instance_", "__abstractsingleton__") and name in cls.__dict__:
             if name == "_singleton_instance_":
                 raise TypeError("Cannot modify singleton instance")
             raise AttributeError(f"{name} is a read-only attribute")
-        if name in ("__new__", "__init__") and not isinstance(value, cls.__call_twice_error_wrapper):
+        if name in ("__new__", "__init__"):
             raise TypeError("Cannot modify singleton constructors")
         return super().__setattr__(name, value)
 

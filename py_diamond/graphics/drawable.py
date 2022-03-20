@@ -24,6 +24,7 @@ __license__ = "GNU GPL v3.0"
 from abc import ABCMeta, abstractmethod
 from bisect import insort_right
 from contextlib import suppress
+from itertools import dropwhile, filterfalse, takewhile
 from typing import TYPE_CHECKING, Any, Callable, Iterator, Sequence, TypeVar, overload
 
 from ..system._mangling import getattr_pv
@@ -88,7 +89,7 @@ class Drawable(metaclass=DrawableMeta):
 
     def add_to_group(self, *groups: DrawableGroup) -> None:
         actual_groups: set[DrawableGroup] = self.__groups
-        for g in filter(lambda g: g not in actual_groups, groups):
+        for g in filterfalse(actual_groups.__contains__, groups):
             actual_groups.add(g)
             if self not in g:
                 try:
@@ -183,7 +184,7 @@ class DrawableGroup(Sequence[Drawable]):
 
     def add(self, *objects: Drawable) -> None:
         drawable_list: list[Drawable] = self.__list
-        for d in filter(lambda d: d not in drawable_list, objects):
+        for d in filterfalse(drawable_list.__contains__, objects):
             drawable_list.append(d)
             if self not in d.groups:
                 try:
@@ -242,7 +243,7 @@ class LayeredGroup(DrawableGroup):
         drawable_list: list[Drawable] = getattr_pv(self, "list", owner=DrawableGroup)
         if layer is None:
             layer = self.__default_layer
-        for d in filter(lambda d: d not in drawable_list, objects):
+        for d in filterfalse(drawable_list.__contains__, objects):
             layer_dict.setdefault(d, layer)
             insort_right(drawable_list, d, key=layer_dict.__getitem__)
             if self not in d.groups:
@@ -253,8 +254,6 @@ class LayeredGroup(DrawableGroup):
                     raise
 
     def remove(self, *objects: Drawable) -> None:
-        if not objects:
-            return
         super().remove(*objects)
         for d in objects:
             self.__layer_dict.pop(d, None)
@@ -305,17 +304,20 @@ class LayeredGroup(DrawableGroup):
     def move_to_back(self, obj: Drawable, after_last: bool = True) -> None:
         self.change_layer(obj, self.get_bottom_layer() - int(bool(after_last)))
 
+    def iter_in_layer(self, layer: int) -> Iterator[Drawable]:
+        return map(
+            lambda item: item[0],
+            takewhile(
+                lambda item: item[1] == layer,
+                dropwhile(
+                    lambda item: item[1] < layer,
+                    self.__layer_dict.items(),
+                ),
+            ),
+        )
+
     def get_from_layer(self, layer: int) -> Sequence[Drawable]:
-        drawable_list: list[Drawable] = []
-        add_drawable = drawable_list.append
-
-        for obj, drawable_layer in self.__layer_dict.items():
-            if drawable_layer == layer:
-                add_drawable(obj)
-            elif drawable_layer > layer:
-                break
-
-        return drawable_list
+        return tuple(self.iter_in_layer(layer))
 
     def remove_from_layer(self, layer: int) -> Sequence[Drawable]:
         drawable_list: Sequence[Drawable] = self.get_from_layer(layer)
@@ -323,14 +325,11 @@ class LayeredGroup(DrawableGroup):
         return drawable_list
 
     def switch_layer(self, layer1: int, layer2: int) -> None:
-        get_from_layer = self.get_from_layer
         change_layer = self.change_layer
-        drawable_list_layer1: Sequence[Drawable] = get_from_layer(layer1)
-        drawable_list_layer2: Sequence[Drawable] = get_from_layer(layer2)
-        for d in drawable_list_layer1:
+        drawable_list_layer1: Sequence[Drawable] = self.remove_from_layer(layer1)
+        for d in self.get_from_layer(layer2):
             change_layer(d, layer2)
-        for d in drawable_list_layer2:
-            change_layer(d, layer1)
+        self.add(layer=layer2, *drawable_list_layer1)
 
     @property
     def default_layer(self) -> int:

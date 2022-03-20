@@ -10,6 +10,7 @@ __all__ = [
     "concreteclasscheck",
     "concreteclassmethod",
     "dsuppress",
+    "flatten",
     "forbidden_call",
     "isabstractmethod",
     "isconcreteclass",
@@ -29,8 +30,9 @@ __license__ = "GNU GPL v3.0"
 
 from contextlib import ContextDecorator, suppress
 from functools import WRAPPER_ASSIGNMENTS, WRAPPER_UPDATES, lru_cache as _lru_cache, update_wrapper as _update_wrapper
+from itertools import chain
 from operator import truth
-from typing import Any, Callable, ParamSpec, Sequence, TypeAlias, TypeVar, overload
+from typing import Any, Callable, Iterable, Iterator, Literal, ParamSpec, Sequence, TypeAlias, TypeVar, overload
 
 _P = ParamSpec("_P")
 _T = TypeVar("_T")
@@ -144,6 +146,41 @@ def forbidden_call(func: Callable[_P, _R]) -> Callable[_P, _R]:
 
 class dsuppress(suppress, ContextDecorator):
     pass
+
+
+@overload
+def flatten(iterable: Iterable[Iterable[_T]]) -> Iterator[_T]:
+    ...
+
+
+@overload
+def flatten(iterable: Iterable[Iterable[_T]], *, level: Literal[1]) -> Iterator[_T]:
+    ...
+
+
+@overload
+def flatten(iterable: Iterable[Iterable[Iterable[_T]]], *, level: Literal[2]) -> Iterator[_T]:
+    ...
+
+
+@overload
+def flatten(iterable: Iterable[Iterable[Iterable[Iterable[_T]]]], *, level: Literal[3]) -> Iterator[_T]:
+    ...
+
+
+@overload
+def flatten(iterable: Iterable[Iterable[Iterable[Iterable[Iterable[_T]]]]], *, level: Literal[4]) -> Iterator[_T]:
+    ...
+
+
+def flatten(iterable: Any, *, level: int = 1) -> Iterator[Any]:
+    level = int(level)
+    if level == 1:
+        return (yield from chain.from_iterable(iterable))
+    if not (2 <= level <= 4):
+        raise ValueError("'level' must be in ]0;4]")
+    for it in iterable:
+        yield from flatten(it, level=level - 1)  # type: ignore[call-overload]
 
 
 _MISSING: Any = object()

@@ -326,7 +326,9 @@ class Window:
                 continue
             try:
                 event = make_event(pg_event)
-            except UnknownEventTypeError:
+            except UnknownEventTypeError as exc:
+                if isinstance(exc.__cause__, ValueError):
+                    _pg_event.set_blocked(pg_event.type)
                 continue
             if isinstance(event, WindowSizeChangedEvent):
                 former_surface = self.__surface
@@ -373,9 +375,21 @@ class Window:
         width = self.__surface.get_width()
         return self.set_size((width, height))
 
+    def allow_event(self, *event_types: Event.Type) -> None:
+        _pg_event.set_allowed(tuple(map(Event.Type, event_types)))
+
+    @contextmanager
+    def allow_event_context(self, *event_types: Event.Type) -> Iterator[None]:
+        with self.__save_blocked_events():
+            self.allow_event(*event_types)
+            yield
+
     def allow_only_event(self, *event_types: Event.Type) -> None:
-        event_types = tuple(Event.Type(e) for e in event_types)
-        self.block_only_event(*(event for event in Event.Type if event not in event_types))
+        if not event_types:
+            return
+        with self.__save_blocked_events(do_not_reinitialize_on_success=True):
+            self.block_all_events()
+            self.allow_event(*event_types)
 
     @contextmanager
     def allow_only_event_context(self, *event_types: Event.Type) -> Iterator[None]:
@@ -384,7 +398,7 @@ class Window:
             yield
 
     def allow_all_events(self) -> None:
-        _pg_event.set_allowed(None)
+        _pg_event.set_allowed(tuple(Event.Type))
 
     @contextmanager
     def allow_all_events_context(self) -> Iterator[None]:
@@ -395,8 +409,21 @@ class Window:
     def clear_all_events(self) -> None:
         _pg_event.clear()
 
+    def block_event(self, *event_types: Event.Type) -> None:
+        _pg_event.set_blocked(tuple(map(Event.Type, event_types)))
+
+    @contextmanager
+    def block_event_context(self, *event_types: Event.Type) -> Iterator[None]:
+        with self.__save_blocked_events():
+            self.block_event(*event_types)
+            yield
+
     def block_only_event(self, *event_types: Event.Type) -> None:
-        _pg_event.set_blocked([Event.Type(event) for event in event_types])
+        if not event_types:
+            return
+        with self.__save_blocked_events(do_not_reinitialize_on_success=True):
+            self.allow_all_events()
+            self.block_event(*event_types)
 
     @contextmanager
     def block_only_event_context(self, *event_types: Event.Type) -> Iterator[None]:
@@ -414,8 +441,8 @@ class Window:
             yield
 
     @contextmanager
-    def __save_blocked_events(self) -> Iterator[None]:
-        all_blocked_events: Sequence[Event.Type] = tuple(event for event in Event.Type if not event.is_allowed())
+    def __save_blocked_events(self, *, do_not_reinitialize_on_success: bool = False) -> Iterator[None]:
+        all_blocked_events: Sequence[Event.Type] = tuple(filter(Event.Type.is_blocked, Event.Type))
 
         def set_blocked_events() -> None:
             if not _pg_display.get_init():
@@ -428,6 +455,8 @@ class Window:
         with ExitStack() as stack:
             stack.callback(set_blocked_events)
             yield
+            if do_not_reinitialize_on_success:
+                stack.pop_all()
 
     def after(
         self, __milliseconds: float, __callback: Callable[_P, None], /, *args: _P.args, **kwargs: _P.kwargs

@@ -13,10 +13,9 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Callable, Iterator, Literal, NamedTuple, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, Callable, Iterator, Literal, NamedTuple, TypeAlias, TypeVar, final
 
 from ..math import Vector2
-from ..window.time import Time
 
 if TYPE_CHECKING:
     from ..window.scene import Scene, SceneWindow
@@ -25,6 +24,7 @@ if TYPE_CHECKING:
 _AnimationType: TypeAlias = Literal["move", "rotate", "rotate_point", "scale"]
 
 
+@final
 class TransformAnimation:
 
     __slots__ = (
@@ -161,6 +161,7 @@ class TransformAnimation:
                 self.__actual_state = _TransformState.from_transformable(transformable)
         else:
             on_stop = self.__on_stop
+            self.__wait = True
             if on_stop:
                 on_stop()
                 self.__on_stop = None
@@ -221,6 +222,7 @@ class TransformAnimation:
             self.clear(pause=False)
 
 
+@final
 class _TransformState(NamedTuple):
     angle: float
     scale: float
@@ -255,12 +257,16 @@ class _AbstractAnimationClass(metaclass=ABCMeta):
         "__transformable",
         "__animation_started",
         "__speed",
+        "__delta",
     )
 
     def __init__(self, transformable: Transformable, speed: float) -> None:
+        from ..window.time import Time
+
         self.__transformable: Transformable = transformable
         self.__animation_started: bool = True
         self.__speed: float = speed
+        self.__delta: Callable[[], float] = Time.fixed_delta
 
     def started(self) -> bool:
         return self.__animation_started and self.__speed > 0
@@ -284,7 +290,7 @@ class _AbstractAnimationClass(metaclass=ABCMeta):
 
     @property
     def speed(self) -> float:
-        return self.__speed * Time.fixed_delta()
+        return self.__speed * self.__delta()
 
 
 class _AnimationSetPosition(_AbstractAnimationClass):

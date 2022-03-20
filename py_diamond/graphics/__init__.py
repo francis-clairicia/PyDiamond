@@ -142,6 +142,7 @@ del os, typing, pygame, copyreg
 
 
 ############ Package initialization ############
+from .animation import TransformAnimation
 from .button import Button, ButtonMeta, ImageButton
 from .checkbox import BooleanCheckBox, CheckBox, CheckBoxMeta
 from .color import (
@@ -224,6 +225,3 @@ from .theme import (
     set_default_theme_namespace,
 )
 from .transformable import Transformable, TransformableMeta
-
-# Put it here to avoid circular import with 'window' module
-from .animation import TransformAnimation  # isort:skip

@@ -314,6 +314,7 @@ class Entry(TDrawable, Pressable, metaclass=EntryMeta):
         text: Text = self.__text
         max_nb_char: int = self.__nb_chars
         if isinstance(event, KeyDownEvent):
+            # TODO: Match case
             if event.key == Keyboard.Key.ESCAPE:
                 self.stop_edit()
                 return True

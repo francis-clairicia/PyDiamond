@@ -176,7 +176,7 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Che
         return self.__value
 
     def set_value(self, value: _OnValue | _OffValue) -> None:
-        if value not in [self.__on_value, self.__off_value]:
+        if value not in (self.__on_value, self.__off_value):
             raise ValueError(f"{value!r} is not {self.__on_value!r} or {self.__off_value!r}")
         if value == self.__value:
             return

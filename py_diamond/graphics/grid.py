@@ -15,12 +15,12 @@ __license__ = "GNU GPL v3.0"
 from contextlib import suppress
 from dataclasses import dataclass
 from enum import auto, unique
-from itertools import chain
+from operator import itemgetter
 from typing import Any, Callable, Container, Iterator, Literal, Sequence, TypeVar, overload
 
 from ..system.configuration import Configuration, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
-from ..system.utils import valid_integer
+from ..system.utils import flatten, valid_integer
 from ..window.gui import GUIScene, SupportsFocus
 from .color import BLACK, TRANSPARENT, Color
 from .drawable import Drawable, MDrawable
@@ -45,12 +45,8 @@ class Grid(MDrawable, Container[Drawable]):
 
     @dataclass(init=False, slots=True)
     class Padding:
-        x: int
-        y: int
-
-        def __init__(self, x: int = 0, y: int = 0) -> None:
-            self.x = int(x)
-            self.y = int(y)
+        x: int = 0
+        y: int = 0
 
     config: Configuration = Configuration("bg_color", "outline", "outline_color", "justify")
 
@@ -83,7 +79,7 @@ class Grid(MDrawable, Container[Drawable]):
     def __contains__(self, __x: object, /) -> bool:
         if not isinstance(__x, Drawable):
             return False
-        for cell in chain.from_iterable(row.iter_cells() for row in self.__rows.values()):
+        for cell in flatten(row.iter_cells() for row in self.__rows.values()):
             if cell.get_object() is __x:
                 return True
         return False
@@ -104,13 +100,21 @@ class Grid(MDrawable, Container[Drawable]):
         outline.local_size = bg.local_size = self.get_size()
         outline.center = bg.center = self.center
         bg.draw_onto(target)
-        for cell in chain.from_iterable(row.iter_cells() for row in self.__rows.values()):
+        for cell in flatten(row.iter_cells() for row in self.__rows.values()):
             cell.draw_onto(target)
         outline.draw_onto(target)
 
-    def rows(self) -> Iterator[int]:
+    def rows(self, column: int | None = None) -> Iterator[int]:
         all_rows: dict[int, _GridRow] = self.__rows
-        yield from all_rows
+        if column is None:
+            yield from all_rows
+            return
+        if column not in self.__columns:
+            raise IndexError("'column' is undefined")
+        yield from map(
+            lambda c: c.row,
+            filter(lambda c: c.column == column, flatten(row.iter_cells() for row in all_rows.values())),
+        )
 
     def columns(self, row: int | None = None) -> Iterator[int]:
         if row is None:
@@ -122,8 +126,7 @@ class Grid(MDrawable, Container[Drawable]):
             grid_row: _GridRow = all_rows[row]
         except KeyError as exc:
             raise IndexError("'row' is undefined") from exc
-        for cell in grid_row.iter_cells():
-            yield cell.column
+        yield from map(lambda c: c.column, grid_row.iter_cells())
 
     def cells(self) -> Iterator[tuple[int, int]]:
         return ((row, column) for row in self.rows() for column in self.columns(row))
@@ -152,7 +155,7 @@ class Grid(MDrawable, Container[Drawable]):
             grid_row = self.__rows[row]
         except KeyError:
             self.__rows[row] = grid_row = _GridRow(self, row, self.__columns)
-            self.__rows = dict(sorted(self.__rows.items(), key=lambda e: e[0]))
+            self.__rows = dict(sorted(self.__rows.items(), key=itemgetter(0)))
         grid_row.place(obj, column, padx=padx, pady=pady, justify=justify)
         self.__set_obj_on_side_internal()
         self._update()
@@ -214,13 +217,13 @@ class Grid(MDrawable, Container[Drawable]):
         self._update()
 
     def get_position(self, obj: Drawable) -> tuple[int, int] | None:
-        for cell in chain.from_iterable(row.iter_cells() for row in self.__rows.values()):
+        for cell in flatten(row.iter_cells() for row in self.__rows.values()):
             if cell.get_object() is obj:
                 return (cell.row, cell.column)
         return None
 
     def clear(self) -> None:
-        for cell in chain.from_iterable(row.iter_cells() for row in self.__rows.values()):
+        for cell in flatten(row.iter_cells() for row in self.__rows.values()):
             cell.set_object(None)
         self.__set_obj_on_side_internal()
         self._update()
@@ -271,7 +274,7 @@ class Grid(MDrawable, Container[Drawable]):
         topleft: tuple[float, float] = self.topleft
         max_width_columns.clear()
         max_height_rows.clear()
-        for cell in chain.from_iterable(row.iter_cells() for row in all_rows.values()):
+        for cell in flatten(row.iter_cells() for row in all_rows.values()):
             cell_w, cell_h = cell.get_local_size(from_grid=True)
             max_width_columns[cell.column] = max(max_width_columns.get(cell.column, 0), cell_w)
             max_height_rows[cell.row] = max(max_height_rows.get(cell.row, 0), cell_h)
@@ -302,7 +305,7 @@ class Grid(MDrawable, Container[Drawable]):
             top += max_height_rows.get(row, 0)
 
     def __find_cell(self, obj: Drawable) -> _GridCell:
-        for cell in chain.from_iterable(row.iter_cells() for row in self.__rows.values()):
+        for cell in flatten(row.iter_cells() for row in self.__rows.values()):
             if cell.get_object() is obj:
                 return cell
         raise ValueError(f"'obj' not in grid")
@@ -651,6 +654,7 @@ class _GridCell(MDrawable):
         obj: MDrawable | None = self.__object
         if obj is None:
             return
+        # TODO: Match case
         move: dict[Grid.Justify, dict[str, float | tuple[float, float]]] = {
             Grid.Justify.LEFT: {"left": self.left + self.__padx, "centery": self.centery},
             Grid.Justify.RIGHT: {"right": self.right - self.__padx, "centery": self.centery},

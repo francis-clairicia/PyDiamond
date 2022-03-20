@@ -89,7 +89,7 @@ class Transformable(Movable, metaclass=TransformableMeta):
                     self._apply_only_rotation()
             except NotImplementedError:
                 self.__angle = 0
-                raise
+                raise NotImplementedError from None
             except _pg_error:
                 pass
         if pivot is not None and pivot != "center" and pivot != (center.x, center.y):
@@ -135,7 +135,7 @@ class Transformable(Movable, metaclass=TransformableMeta):
                 self._apply_only_scale()
         except NotImplementedError:
             self.__scale = 1
-            raise
+            raise NotImplementedError from None
         except _pg_error:
             pass
         self.center = center

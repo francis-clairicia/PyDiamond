@@ -268,7 +268,7 @@ class SpriteGroup(DrawableGroup):
             ...
 
 
-class LayeredSpriteGroup(SpriteGroup, LayeredGroup):
+class LayeredSpriteGroup(LayeredGroup, SpriteGroup):
     __slots__ = ()
 
     def __init__(self, *objects: Sprite, default_layer: int = 0, **kwargs: Any) -> None:
@@ -276,10 +276,30 @@ class LayeredSpriteGroup(SpriteGroup, LayeredGroup):
 
     if TYPE_CHECKING:
 
+        def __iter__(self) -> Iterator[Sprite]:
+            ...
+
+        @overload
+        def __getitem__(self, index: int, /) -> Sprite:
+            ...
+
+        @overload
+        def __getitem__(self, index: slice, /) -> Sequence[Sprite]:
+            ...
+
+        def __getitem__(self, index: int | slice, /) -> Sprite | Sequence[Sprite]:
+            ...
+
+        def __reversed__(self) -> Iterator[Sprite]:
+            ...
+
         def add(self, *objects: Sprite, layer: int | None = None) -> None:  # type: ignore[override]
             ...
 
         def remove(self, *objects: Sprite) -> None:  # type: ignore[override]
+            ...
+
+        def pop(self, index: int = -1) -> Sprite:
             ...
 
         def get_layer(self, obj: Sprite) -> int:  # type: ignore[override]
@@ -298,6 +318,9 @@ class LayeredSpriteGroup(SpriteGroup, LayeredGroup):
             ...
 
         def move_to_back(self, obj: Sprite, after_last: bool = True) -> None:  # type: ignore[override]
+            ...
+
+        def iter_in_layer(self, layer: int) -> Iterator[Sprite]:
             ...
 
         def get_from_layer(self, layer: int) -> Sequence[Sprite]:

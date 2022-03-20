@@ -229,7 +229,6 @@ class Scene(metaclass=SceneMeta):
     def update_alpha(self, interpolation: float) -> None:
         pass
 
-    @no_theme_decorator(permanent=False)
     def update(self) -> None:
         pass
 
@@ -249,7 +248,6 @@ class Scene(metaclass=SceneMeta):
     def draw_scene(self, scene: type[Scene]) -> None:
         self.__manager.render(scene)
 
-    @no_theme_decorator(permanent=False)
     def handle_event(self, event: Event) -> bool:
         return False
 
@@ -382,13 +380,16 @@ class LayeredSceneMeta(SceneMeta):
         if "render" in namespace:
             raise TypeError("render() method must not be overriden")
 
-        if any(isinstance(getattr(cls, "__setattr__", None), metacls.__setattr_wrapper) for cls in bases):
+        setattr_wrapper_cls = metacls.__setattr_wrapper
+
+        if any(isinstance(getattr(cls, "__setattr__", None), setattr_wrapper_cls) for cls in bases):
             add_drawable_attributes = False
 
         if add_drawable_attributes:
             setattr_func: Callable[[AbstractLayeredScene, str, Any], Any] = namespace.get("__setattr__", bases[0].__setattr__)
             delattr_func: Callable[[AbstractLayeredScene, str], Any] = namespace.get("__delattr__", bases[0].__delattr__)
 
+            @setattr_wrapper_cls
             @wraps(setattr_func)
             def setattr_wrapper(self: AbstractLayeredScene, name: str, value: Any, /) -> Any:
                 try:
@@ -413,7 +414,7 @@ class LayeredSceneMeta(SceneMeta):
                     group.remove(value)
                 return output
 
-            namespace["__setattr__"] = metacls.__setattr_wrapper(setattr_wrapper)
+            namespace["__setattr__"] = setattr_wrapper
             namespace["__delattr__"] = delattr_wrapper
 
         return super().__new__(metacls, name, bases, namespace, **kwargs)

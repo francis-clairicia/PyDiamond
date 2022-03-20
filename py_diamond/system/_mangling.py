@@ -19,8 +19,6 @@ _NO_DEFAULT: Any = object()
 
 
 def mangle_private_attribute(cls: type, attribute: str) -> str:
-    if not isinstance(cls, type):
-        raise TypeError("'cls' must be a type")
     if not attribute:
         raise ValueError(f"Empty attribute string")
     if all(c == "_" for c in attribute):

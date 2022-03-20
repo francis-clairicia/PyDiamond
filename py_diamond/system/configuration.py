@@ -28,6 +28,7 @@ from contextlib import ExitStack, contextmanager, suppress
 from copy import copy, deepcopy
 from enum import Enum
 from functools import cache, wraps
+from itertools import filterfalse
 from types import BuiltinFunctionType, BuiltinMethodType, MethodType
 from typing import (
     Any,
@@ -1540,7 +1541,7 @@ class _ConfigInfo:
             )
             merge_dict(self.enum_return_value, p.enum_return_value, on_conflict="raise", setting="enum_return_value")
             readonly = self.readonly | p.readonly
-            for option in filter(lambda option: option not in checked_readonly_options, readonly):
+            for option in filterfalse(checked_readonly_options.__contains__, readonly):
                 checked_readonly_options.append(option)
                 descriptor = self.value_descriptors.get(option)
                 if not isinstance(descriptor, (_MutableDescriptor, _RemovableDescriptor)):
@@ -1593,9 +1594,8 @@ class _ConfigInfo:
 def _copy_object(obj: _T) -> _T:
     try:
         return deepcopy(obj)
-    except:
-        pass
-    return copy(obj)
+    except Exception:
+        return copy(obj)
 
 
 class _ConfigInitializer:

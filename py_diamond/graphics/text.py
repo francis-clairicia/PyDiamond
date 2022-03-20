@@ -424,10 +424,12 @@ class TextImage(Text):
         offset: float = self.distance
         render_width: float
         render_height: float
-        if self.__compound in [TextImage.Compound.LEFT, TextImage.Compound.RIGHT]:
+        # TODO: Match case
+        compound: TextImage.Compound = self.__compound
+        if compound in [TextImage.Compound.LEFT, TextImage.Compound.RIGHT]:
             render_width = text_width + img_width + offset
             render_height = max(text_height, img_height)
-        elif self.__compound in [TextImage.Compound.TOP, TextImage.Compound.BOTTOM]:
+        elif compound in [TextImage.Compound.TOP, TextImage.Compound.BOTTOM]:
             render_width = max(text_width, img_width)
             render_height = text_height + img_height + offset
         else:
@@ -436,7 +438,7 @@ class TextImage(Text):
         render: Surface = create_surface((render_width, render_height))
         render_rect: Rect = render.get_rect()
 
-        compound: TextImage.Compound = self.__compound
+        # TODO: Match case
         if compound == TextImage.Compound.LEFT:
             text_rect.midleft = render_rect.midleft
             img.midright = render_rect.midright

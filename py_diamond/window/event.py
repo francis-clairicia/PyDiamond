@@ -56,6 +56,7 @@ __license__ = "GNU GPL v3.0"
 from contextlib import suppress
 from dataclasses import dataclass, field, fields
 from enum import IntEnum, unique
+from operator import truth
 from types import MappingProxyType
 from typing import Any, Callable, ClassVar, Final, Literal, Sequence, TypeAlias, TypeVar, cast
 
@@ -146,6 +147,9 @@ class Event(metaclass=_EventMeta):
 
         def is_allowed(self) -> bool:
             return not _pg_event_get_blocked(self)
+
+        def is_blocked(self) -> bool:
+            return truth(_pg_event_get_blocked(self))
 
         @property
         def real_name(self) -> str:

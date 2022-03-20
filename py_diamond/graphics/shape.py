@@ -28,6 +28,7 @@ from abc import abstractmethod
 from enum import auto, unique
 from math import radians, sin, tan
 from operator import truth
+from types import MappingProxyType
 from typing import Any, Sequence, TypeAlias
 
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom
@@ -388,6 +389,10 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape, me
     def __set_border_radius(self, border: str, radius: int) -> None:
         self.__draw_params[border] = radius
 
+    @property
+    def params(self) -> MappingProxyType[str, int]:
+        return MappingProxyType(self.__draw_params)
+
 
 class AbstractCircleShape(AbstractShape):
     config = Configuration("radius", parent=AbstractShape.config)
@@ -512,6 +517,10 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclas
                 all_points.append(Vector2(center))
 
         self.__points = tuple(all_points)
+
+    @property
+    def params(self) -> MappingProxyType[str, bool]:
+        return MappingProxyType(self.__draw_params)
 
 
 class CrossShape(OutlinedShape, SingleColorShape, metaclass=ThemedShapeMeta):
