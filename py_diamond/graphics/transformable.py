@@ -14,14 +14,16 @@ __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
 from functools import cached_property
-from typing import Any, final
+from typing import TYPE_CHECKING, Any, final
 
 from pygame import error as _pg_error
 
 from ..math import Vector2
-from .animation import TransformAnimation
 from .movable import Movable, MovableMeta
 from .rect import Rect
+
+if TYPE_CHECKING:
+    from .animation import TransformAnimation
 
 _ALL_VALID_ROTATION_PIVOTS: tuple[str, ...] = (
     "center",
@@ -289,6 +291,8 @@ class Transformable(Movable, metaclass=TransformableMeta):
 
     @cached_property
     def animation(self) -> TransformAnimation:
+        from .animation import TransformAnimation
+
         return TransformAnimation(self)
 
     @property

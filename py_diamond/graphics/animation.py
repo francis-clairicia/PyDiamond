@@ -16,6 +16,7 @@ from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Callable, Iterator, Literal, NamedTuple, TypeAlias, TypeVar, final
 
 from ..math import Vector2
+from ..window.time import Time
 
 if TYPE_CHECKING:
     from ..window.scene import Scene, SceneWindow
@@ -260,8 +261,6 @@ class _AbstractAnimationClass(metaclass=ABCMeta):
     )
 
     def __init__(self, transformable: Transformable, speed: float) -> None:
-        from ..window.time import Time
-
         self.__transformable: Transformable = transformable
         self.__animation_started: bool = True
         self.__speed: float = speed
