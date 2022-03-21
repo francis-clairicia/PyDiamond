@@ -77,14 +77,12 @@ class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
         self.event.bind_key_press(Keyboard.Key.ESCAPE, handle_key_event)
 
     def handle_event(self, event: Event) -> bool:
-        obj = self.focus_get()
-        if obj is not None and obj._focus_handle_event(event):
-            return True
-        if super().handle_event(event):
-            return True
-        if isinstance(event, KeyDownEvent) and self.__handle_key_event(event):
-            return True
-        return False
+        return (
+            ((obj := self.focus_get()) is not None and obj._focus_handle_event(event))
+            or super().handle_event(event)
+            or isinstance(event, KeyDownEvent)
+            and self.__handle_key_event(event)
+        )
 
     @no_theme_decorator
     def focus_get(self) -> SupportsFocus | None:
@@ -95,8 +93,7 @@ class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
             return None
         for index, focusable in enumerate(self.__container):
             if index == focus_index:
-                focus: BoundFocus = focusable.focus
-                if not focus.take():
+                if not focusable.focus.take():
                     self.focus_set(self.focus_next())
                     return self.focus_get()
                 return focusable
@@ -156,8 +153,7 @@ class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
         if not self.looping():
             return None if focusable is None else False
         if focusable is None:
-            focusable = self.focus_get()
-            if focusable is not None:
+            if (focusable := self.focus_get()) is not None:
                 self.__focus_index = -1
                 self.__on_focus_leave(focusable)
             return None
@@ -210,13 +206,12 @@ class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
     def __focus_obj_on_side(self, side: BoundFocus.Side) -> None:
         if not self.looping():
             return
-        actual_obj: SupportsFocus | None = self.focus_get()
-        if actual_obj is None:
+        obj: SupportsFocus | None = self.focus_get()
+        if obj is None:
             self.focus_set(self.focus_next())
             return
-        obj: SupportsFocus | None = actual_obj.focus.get_obj_on_side(side)
-        while obj is not None and not obj.focus.take():
-            obj = obj.focus.get_obj_on_side(side)
+        while (obj := obj.focus.get_obj_on_side(side)) is not None and not obj.focus.take():  # type: ignore[union-attr]
+            continue
         if obj is not None:
             self.focus_set(obj)
 
@@ -297,14 +292,10 @@ class BoundFocus:
         self.__scene: GUIScene | None = scene if isinstance(scene, GUIScene) else None
 
     def is_bound_to(self, scene: GUIScene) -> bool:
-        bound_scene: GUIScene | None = self.__scene
-        return bound_scene is not None and bound_scene is scene
+        return (bound_scene := self.__scene) is not None and bound_scene is scene
 
     def get(self) -> SupportsFocus | None:
-        scene: GUIScene | None = self.__scene
-        if scene is None:
-            return None
-        return scene.focus_get()
+        return scene.focus_get() if (scene := self.__scene) else None
 
     def has(self) -> bool:
         return self.get() is self.__self__
@@ -332,16 +323,10 @@ class BoundFocus:
         return taken
 
     def set(self) -> bool:
-        scene: GUIScene | None = self.__scene
-        if scene is None:
-            return False
-        return scene.focus_set(self.__self__)
+        return scene.focus_set(self.__self__) if (scene := self.__scene) else False
 
     def leave(self) -> None:
-        scene: GUIScene | None = self.__scene
-        if scene is None:
-            return
-        if self.has():
+        if (scene := self.__scene) is not None and self.has():
             scene.focus_set(None)
 
     @overload

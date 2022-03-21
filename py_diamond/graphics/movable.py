@@ -43,8 +43,7 @@ _ALL_VALID_POSITIONS: tuple[str, ...] = (
 def _position_decorator(func: Callable[[Movable, Any], None], position: str) -> Callable[[Movable, Any], None]:
     @wraps(func)
     def wrapper(self: Movable, /, value: Any) -> None:
-        actual_value: Any = getattr(self, position)
-        if actual_value != value:
+        if getattr(self, position) != value:
             func(self, value)
             self._on_move()
 
@@ -74,8 +73,7 @@ class MovableMeta(ABCMeta):
                 continue
             if any(hasattr(cls, position) for cls in bases):
                 raise TypeError("Override of position attributes is not allowed")
-            prop: property = namespace[position]
-            if prop.fset:
+            if (prop := namespace[position]).fset:
                 namespace[position] = prop.setter(_position_decorator(prop.fset, position))
 
         return super().__new__(metacls, name, bases, namespace, **kwargs)

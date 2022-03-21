@@ -37,10 +37,7 @@ def test_ipv4_client_server_connection() -> None:
             with conn:
                 assert conn.type == s.type
                 assert conn.family == s.family
-                while True:
-                    data = conn.recv(1024)
-                    if not data:
-                        break
+                while data := conn.recv(1024):
                     conn.send(data)
         assert not s.is_open()
 
@@ -86,10 +83,7 @@ if HAS_IPV6:
                 with conn:
                     assert conn.type == s.type
                     assert conn.family == s.family
-                    while True:
-                        data = conn.recv(1024)
-                        if not data:
-                            break
+                    while data := conn.recv(1024):
                         conn.send(data)
             assert not s.is_open()
 
@@ -142,10 +136,7 @@ if has_dualstack_ipv6():
                 with conn:
                     assert conn.type == s.type
                     assert conn.family == s.family
-                    while True:
-                        data = conn.recv(1024)
-                        if not data:
-                            break
+                    while data := conn.recv(1024):
                         conn.send(data)
             assert not s.is_open()
 

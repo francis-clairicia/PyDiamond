@@ -249,14 +249,12 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
                     if not block and not selector.select(timeout=0):
                         return
                     data: bytes = socket.recv(chunk_size)
-                    length: int = len(data)
-                    if length == 0:
+                    if (length := len(data)) == 0:
                         raise EOFError
                     yield data
                     while length >= chunk_size and selector.select(timeout=0):
                         data = socket.recv(chunk_size, flags=flags)
-                        length = len(data)
-                        if length == 0:
+                        if (length := len(data)) == 0:
                             break
                         yield data
 

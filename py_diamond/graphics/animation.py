@@ -160,19 +160,18 @@ class TransformAnimation:
             if use_of_linear_interpolation:
                 self.__actual_state = _TransformState.from_transformable(transformable)
         else:
-            on_stop = self.__on_stop
             self.__wait = True
-            if on_stop:
+            if on_stop := self.__on_stop:
                 on_stop()
                 self.__on_stop = None
 
     def set_interpolation(self, interpolation: float) -> None:
-        if not self.started() or not self.__previous_state or not self.__actual_state:
+        previous: _TransformState | None = self.__previous_state
+        actual: _TransformState | None = self.__actual_state
+        if not self.started() or not previous or not actual:
             return
         interpolation = min(max(interpolation, 0), 1)
         transformable: Transformable = self.__transformable
-        previous: _TransformState = self.__previous_state
-        actual: _TransformState = self.__actual_state
         previous.interpolate(actual, interpolation).apply_on(transformable)
 
     def has_animation_started(self) -> bool:

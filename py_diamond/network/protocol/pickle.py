@@ -31,10 +31,7 @@ class PicklingNetworkProtocol(AbstractNetworkProtocol):
 
     @classmethod
     def parse_received_data(cls, buffer: bytes) -> Generator[bytes, None, bytes]:
-        while True:
-            idx: int = buffer.find(STOP_OPCODE)
-            if idx < 0:
-                break
+        while (idx := buffer.find(STOP_OPCODE)) >= 0:
             yield buffer[: idx + len(STOP_OPCODE)]
             buffer = buffer[idx + len(STOP_OPCODE) :]
         return buffer

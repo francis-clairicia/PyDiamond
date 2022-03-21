@@ -44,8 +44,7 @@ class Mixer(metaclass=ClassNamespaceMeta, frozen=True):
 
     @staticmethod
     def get_init() -> MixerParams:
-        init_params: tuple[int, int, int] | None = _pg_mixer.get_init()
-        if init_params is None:
+        if (init_params := _pg_mixer.get_init()) is None:
             raise _pg_error("Mixer module not initialized")
         return MixerParams(*init_params)
 

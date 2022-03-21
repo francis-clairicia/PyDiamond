@@ -140,7 +140,7 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Che
         self.__on_value: _OnValue = on_value
         self.__off_value: _OffValue = off_value
         self.__value: _OnValue | _OffValue = off_value
-        if value in [on_value, off_value]:
+        if value in (on_value, off_value):
             self.__value = value
         elif value is not NoDefaultValue:
             raise ValueError(f"'value' parameter doesn't fit with on/off values")

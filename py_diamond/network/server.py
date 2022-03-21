@@ -509,7 +509,7 @@ class TCPNetworkServer(AbstractTCPNetworkServer[_T]):
         super().__init__(arg, **kwargs)
 
     def _process_request(self, request: _T, client: ConnectedClient[_T]) -> None:
-        self.request_handler_cls(request, client, self)  # type: ignore
+        self.request_handler_cls(request, client, self)  # type: ignore[abstract]
 
     @property
     def request_handler_cls(self) -> type[AbstractTCPRequestHandler[_T]]:
@@ -721,7 +721,7 @@ class UDPNetworkServer(AbstractUDPNetworkServer[_T]):
         super().__init__(arg, **kwargs)
 
     def _process_request(self, request: _T, client: ConnectedClient[_T]) -> None:
-        self.request_handler_cls(request, client, self)  # type: ignore
+        self.request_handler_cls(request, client, self)  # type: ignore[abstract]
 
     @property
     def request_handler_cls(self) -> type[AbstractUDPRequestHandler[_T]]:

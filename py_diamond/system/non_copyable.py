@@ -35,14 +35,14 @@ class NonCopyableMeta(type):
         namespace: dict[str, Any],
         **kwargs: Any,
     ) -> __Self:
-        if any(attr in namespace for attr in ["__copy__", "__deepcopy__"]):
+        if any(attr in namespace for attr in ("__copy__", "__deepcopy__")):
             raise TypeError("'__copy__' and '__deepcopy__' cannot be overriden from a non-copyable object")
         namespace["__copy__"] = __non_copyable_copy__
         namespace["__deepcopy__"] = __non_copyable_deepcopy__
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
     def __setattr__(cls, name: str, value: Any, /) -> None:
-        if name in ["__copy__", "__deepcopy__"]:
+        if name in ("__copy__", "__deepcopy__"):
             raise TypeError(f"Cannot override {name!r} method")
         return super().__setattr__(name, value)
 

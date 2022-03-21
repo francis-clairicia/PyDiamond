@@ -298,8 +298,7 @@ class Grid(MDrawable, Container[Drawable]):
         for row in range(nb_rows):
             left: float = default_left
             for col in range(nb_columns):
-                cell: _GridCell | None = get_cell(row, col)
-                if cell is not None:
+                if (cell := get_cell(row, col)) is not None:
                     cell.topleft = (left, top)
                 left += max_width_columns.get(col, 0)
             top += max_height_rows.get(row, 0)
@@ -328,8 +327,7 @@ class Grid(MDrawable, Container[Drawable]):
                 obj: Any = cell.get_object()
                 if not isinstance(obj, SupportsFocus):
                     continue
-                cell_value: int = int(getattr(cell, attr))
-                if cell_value == value:
+                if (cell_value := int(getattr(cell, attr))) == value:
                     return obj
                 if closest is None:
                     closest = cell
@@ -431,10 +429,7 @@ class Grid(MDrawable, Container[Drawable]):
 
     @property
     def nb_rows(self) -> int:
-        all_rows: dict[int, _GridRow] = self.__rows
-        if not all_rows:
-            return 0
-        return max(all_rows) + 1
+        return max(all_rows) + 1 if (all_rows := self.__rows) else 0
 
     @property
     def nb_columns(self) -> int:
@@ -501,10 +496,7 @@ class _GridRow:
 
     @property
     def nb_columns(self) -> int:
-        cells: dict[int, _GridCell] = self.__cells
-        if not cells:
-            return 0
-        return max(cells) + 1
+        return max(cells) + 1 if (cells := self.__cells) else 0
 
 
 class _GridColumnPlaceholder:
@@ -637,14 +629,13 @@ class _GridCell(MDrawable):
         pady: int | None = None,
         justify: str | None = None,
     ) -> None:
-        movable: Movable | None = self.__object
         if padx is not None:
             self.__padx = valid_integer(value=padx, min_value=0)
         if pady is not None:
             self.__pady = valid_integer(value=pady, min_value=0)
         if justify is not None:
             self.__justify = Grid.Justify(justify)
-        if movable is not None:
+        if (movable := self.__object) is not None:
             self.__obj_size = movable.get_size()
         else:
             self.__obj_size = (0, 0)

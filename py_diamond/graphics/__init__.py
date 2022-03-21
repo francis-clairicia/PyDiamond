@@ -131,7 +131,7 @@ if (pygame.image.get_sdl_image_version() or (0, 0)) < (2, 0, 0):
 ############ Surface pickling register ############
 copyreg.pickle(
     pygame.surface.Surface,
-    lambda s, serializer=pygame.image.tostring, deserializer=pygame.image.fromstring: (  # type: ignore
+    lambda s, serializer=pygame.image.tostring, deserializer=pygame.image.fromstring: (  # type: ignore[misc]
         deserializer,
         (serializer(s, "ARGB"), s.get_size(), "ARGB"),
     ),

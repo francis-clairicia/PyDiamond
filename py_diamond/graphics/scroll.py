@@ -287,10 +287,10 @@ class ScrollBar(TDrawable, Clickable, metaclass=ScrollBarMeta):
             if cursor_rect.top < top:
                 cursor_rect.top = int(top)
             self.__start = max((cursor_rect.top - top) / height, 0)
-        self.__end = end = self.__start + offset
-        if end > 1:
-            self.__end = 1
+        if (end := self.__start + offset) > 1:
+            end = 1
             self.__start = 1 - offset
+        self.__end = end
         self.__master._update()
 
     config.enum("orient", Orient, return_value=True)
@@ -427,14 +427,14 @@ class ScrollArea(LayeredGroup, Movable):
         if scrollbar.scroll_area is not self:
             raise ValueError("scrollbar bound to an another ScrollArea")
         if scrollbar.orient == ScrollBar.Orient.HORIZONTAL:
-            if self.__h_scroll is not None:
-                if self.__h_scroll is not scrollbar:
+            if (h_scroll := self.__h_scroll) is not None:
+                if h_scroll is not scrollbar:
                     raise ValueError("self already have a horizontal scrollbar")
                 return
             self.__h_scroll = scrollbar
         else:
-            if self.__v_scroll is not None:
-                if self.__v_scroll is not scrollbar:
+            if (v_scroll := self.__v_scroll) is not None:
+                if v_scroll is not scrollbar:
                     raise ValueError("self already have a vertical scrollbar")
                 return
             self.__v_scroll = scrollbar

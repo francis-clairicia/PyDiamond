@@ -30,8 +30,7 @@ def launch_server(host: str, port: int, server_started_event: Event, shutdow_req
             selector.register(conn, EVENT_READ)
             while not shutdow_requested.is_set():
                 if selector.select(0.1):
-                    data = conn.recv(1024)
-                    if not data:
+                    if not (data := conn.recv(1024)):
                         break
                     conn.send(data)
 
@@ -112,10 +111,7 @@ class StringNetworkProtocol(AbstractNetworkProtocol):
     @classmethod
     def parse_received_data(cls, buffer: bytes) -> Generator[bytes, None, bytes]:
         separator: bytes = b"\n"
-        while True:
-            idx: int = buffer.find(separator)
-            if idx < 0:
-                break
+        while (idx := buffer.find(separator)) >= 0:
             yield buffer[:idx]
             buffer = buffer[idx + len(separator) :]
         return buffer
@@ -154,7 +150,7 @@ def test_multiple_requests() -> None:
             from pytest import raises
 
             with raises(ValidationError):
-                client.send_packet(5)  # type: ignore
+                client.send_packet(5)  # type: ignore[arg-type]
 
     finally:
         shutdow_requested.set()

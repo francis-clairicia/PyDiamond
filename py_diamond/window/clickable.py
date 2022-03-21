@@ -90,13 +90,11 @@ class Clickable(metaclass=ABCMeta):
         raise NotImplementedError
 
     def play_hover_sound(self) -> None:
-        hover_sound: Sound | None = self.__hover_sound
-        if hover_sound is not None:
+        if (hover_sound := self.__hover_sound) is not None:
             hover_sound.play()
 
     def play_click_sound(self) -> None:
-        click_sound: Sound | None = self.__click_sound[self.__state]
-        if click_sound is not None:
+        if (click_sound := self.__click_sound[self.__state]) is not None:
             click_sound.play()
 
     def get_default_cursor(self) -> Cursor:

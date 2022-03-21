@@ -103,9 +103,7 @@ class AutoParsedNetworkProtocol(AbstractNetworkProtocol):
     @classmethod
     def parse_received_data(cls, buffer: bytes) -> Generator[bytes, None, bytes]:
         struct: Struct = cls.struct
-        while True:
-            if len(buffer) < struct.size:
-                break
+        while len(buffer) >= struct.size:
             header: bytes = buffer[: struct.size]
             body: bytes = buffer[struct.size :]
             try:

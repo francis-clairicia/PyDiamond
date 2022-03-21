@@ -146,7 +146,7 @@ class ProgressBar(RectangleShape):
 
         offset = 10
         movements: dict[str, dict[str, float | tuple[float, float]]]
-        if self.__value_text.is_shown() and self.__value_text_type in ["value", "percent"]:
+        if self.__value_text.is_shown() and self.__value_text_type in ("value", "percent"):
             movements = {
                 ProgressBar.Side.TOP.value: {"bottom": self.top - offset, "centerx": self.centerx},
                 ProgressBar.Side.BOTTOM.value: {

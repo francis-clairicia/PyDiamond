@@ -24,6 +24,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
+import sys
 from contextlib import ExitStack, contextmanager, suppress
 from copy import copy, deepcopy
 from enum import Enum
@@ -31,6 +32,7 @@ from functools import cache, wraps
 from itertools import filterfalse
 from types import BuiltinFunctionType, BuiltinMethodType, MethodType
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
@@ -42,7 +44,6 @@ from typing import (
     Iterator,
     List,
     Literal,
-    Mapping,
     MutableMapping,
     Optional,
     Protocol,
@@ -58,6 +59,14 @@ from typing import (
 )
 
 from ._mangling import mangle_private_attribute
+
+if sys.version_info >= (3, 10):
+    from typing import TypeGuard
+else:
+    from typing_extensions import TypeGuard
+
+if TYPE_CHECKING:
+    from _typeshed import SupportsKeysAndGetItem
 
 _Func = TypeVar("_Func", bound=Callable[..., Any])
 _Updater = TypeVar("_Updater", bound=Callable[[Any], None])
@@ -1282,7 +1291,7 @@ class BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
         return config(obj, **kwargs)
 
     @overload
-    def update(self, __m: Mapping[str, Any], /, **kwargs: Any) -> None:
+    def update(self, __m: SupportsKeysAndGetItem[str, Any], /, **kwargs: Any) -> None:
         ...
 
     @overload
@@ -1293,13 +1302,19 @@ class BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
     def update(self, /, **kwargs: Any) -> None:
         ...
 
-    def update(self, __m: Optional[Union[Mapping[str, Any], Iterable[Tuple[str, Any]]]] = None, /, **kwargs: Any) -> None:
+    def update(
+        self, __m: Optional[Union[SupportsKeysAndGetItem[str, Any], Iterable[Tuple[str, Any]]]] = None, /, **kwargs: Any
+    ) -> None:
         options: Dict[str, Any] = {}
-        if isinstance(__m, Mapping):
-            for key in __m:
+
+        def _supports_key(__m: object) -> TypeGuard[SupportsKeysAndGetItem[str, Any]]:
+            return hasattr(__m, "keys") and hasattr(__m, "__getitem__")
+
+        if _supports_key(__m):
+            for key in __m.keys():
                 options[key] = __m[key]
         elif __m is not None:
-            for key, value in __m:
+            for key, value in __m:  # type: ignore[union-attr]
                 options[key] = value
         options.update(kwargs)
         config = self.__config()
@@ -1640,7 +1655,7 @@ class _ConfigProperty(property):
 
 import copyreg
 
-copyreg.pickle(_ConfigProperty, lambda p: (_ConfigProperty, (p.fget, p.fset, p.fdel, p.__doc__)))  # type: ignore
+copyreg.pickle(_ConfigProperty, lambda p: (_ConfigProperty, (p.fget, p.fset, p.fdel, p.__doc__)))  # type: ignore[arg-type, return-value]
 
 del copyreg
 

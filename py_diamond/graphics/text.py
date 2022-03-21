@@ -114,8 +114,7 @@ class Text(TDrawable, metaclass=TextMeta):
         message: str = self.message
         if not wrapped:
             return message
-        wrap: int = self.wrap
-        return "\n".join(textwrap(message, width=wrap)) if wrap > 0 else message
+        return "\n".join(textwrap(message, width=wrap)) if (wrap := self.wrap) > 0 else message
 
     def clear(self) -> None:
         self.message = str()

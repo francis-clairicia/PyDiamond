@@ -312,7 +312,6 @@ class Entry(TDrawable, Pressable, metaclass=EntryMeta):
         self.__show_cursor = True
         self.__cursor_animation_clock.restart()
         text: Text = self.__text
-        max_nb_char: int = self.__nb_chars
         if isinstance(event, KeyDownEvent):
             # TODO: Match case
             if event.key == Keyboard.Key.ESCAPE:
@@ -342,7 +341,7 @@ class Entry(TDrawable, Pressable, metaclass=EntryMeta):
 
         entered_text: str = event.text
         new_text: str = text.message[: self.cursor] + entered_text + text.message[self.cursor :]
-        if max_nb_char == 0 or len(new_text) <= max_nb_char:
+        if (max_nb_char := self.__nb_chars) == 0 or len(new_text) <= max_nb_char:
             text.message = new_text
             self.cursor += len(entered_text)
         return True

@@ -303,8 +303,8 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
     @_thread_safe_python_socket_method
     def __repr__(self) -> str:
         sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        sock_family = AddressFamily(sock.family)
-        sock_type = SocketKind(sock.type)
+        sock_family = AddressFamily(self.family)
+        sock_type = SocketKind(self.type)
         if sock is _MISSING:
             return f"<{type(self).__name__} family={sock_family}, type={sock_type} closed>"
         laddr: Any = sock.getsockname()
@@ -400,10 +400,10 @@ class _AbstractPythonUDPSocket(_AbstractPythonSocket, AbstractUDPSocket):
     @final
     @_thread_safe_python_socket_method
     def sendto(self, data: bytes, address: SocketAddress, flags: int = 0) -> int:
-        if len(data) > self.MAX_PACKET_SIZE:
-            raise ValueError(f"Datagram too big (len(data) > {self.MAX_PACKET_SIZE})")
+        if (data_length := len(data)) > self.MAX_PACKET_SIZE:
+            raise ValueError(f"Datagram too big ({data_length} > {self.MAX_PACKET_SIZE})")
         sock: socket = getattr_pv(self, "socket", owner=_AbstractPythonSocket)
-        if not data:
+        if not data_length:
             return 0
         return sock.sendto(data, flags, address)
 

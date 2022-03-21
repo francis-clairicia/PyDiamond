@@ -178,8 +178,7 @@ class OutlinedShape(AbstractShape):
 
     def get_local_size(self) -> tuple[float, float]:
         w, h = super().get_local_size()
-        outline: int = self.outline
-        if outline == 0:
+        if self.outline == 0:
             return (w, h)
         return (w + 1, h + 1)
 

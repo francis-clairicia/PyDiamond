@@ -20,8 +20,8 @@ from typing import Any, Callable, Mapping, Sequence, TypeAlias
 from ..system.path import set_constant_directory
 from .loader import ResourceLoader
 
-_ResourcePath: TypeAlias = str | Sequence["_ResourcePath"] | Mapping[Any, "_ResourcePath"]  # type: ignore
-_ResourceLoader: TypeAlias = ResourceLoader[Any] | tuple["_ResourceLoader", ...] | dict[Any, "_ResourceLoader"]  # type: ignore
+_ResourcePath: TypeAlias = str | Sequence["_ResourcePath"] | Mapping[Any, "_ResourcePath"]  # type: ignore[misc]
+_ResourceLoader: TypeAlias = ResourceLoader[Any] | tuple["_ResourceLoader", ...] | dict[Any, "_ResourceLoader"]  # type: ignore[misc]
 
 
 class _ResourceDescriptor:
