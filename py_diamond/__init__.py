@@ -26,11 +26,18 @@ if sys.version_info < (3, 10):
 
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")  # Must be set before importing pygame
 os.environ.setdefault("PYGAME_FREETYPE", "1")  # Must be set before importing pygame
+os.environ.setdefault("SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1")  # Must be set before importing pygame
 
 ############ Package initialization ############
 import py_diamond.environ
 
-py_diamond.environ.check_booleans(only=["PYGAME_HIDE_SUPPORT_PROMPT", "PYGAME_FREETYPE"])
+py_diamond.environ.check_booleans(
+    only=[
+        "PYGAME_HIDE_SUPPORT_PROMPT",
+        "PYGAME_FREETYPE",
+        "SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS",
+    ]
+)
 
 import py_diamond.audio
 import py_diamond.graphics
@@ -40,7 +47,13 @@ import py_diamond.resource
 import py_diamond.system
 import py_diamond.window
 
-py_diamond.environ.check_booleans(exclude=["PYGAME_HIDE_SUPPORT_PROMPT", "PYGAME_FREETYPE"])
+py_diamond.environ.check_booleans(
+    exclude=[
+        "PYGAME_HIDE_SUPPORT_PROMPT",
+        "PYGAME_FREETYPE",
+        "SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS",
+    ]
+)
 
 ############ Cleanup ############
 del os, sys, py_diamond
