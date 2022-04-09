@@ -334,17 +334,24 @@ class ThemedObjectMeta(ABCMeta):
         bases: tuple[type, ...],
         namespace: dict[str, Any],
         *,
+        no_theme: bool = False,
         use_parent_theme: bool = True,
         use_parent_default_theme: bool = True,
         **kwargs: Any,
     ) -> ThemedObjectMeta:
+        if any(isinstance(cls, ThemedObjectMeta) and getattr(cls, "_no_use_of_themes_", False) for cls in bases):
+            no_theme = True
+
+        if no_theme:
+            use_parent_theme = use_parent_default_theme = False
+
         def check_parameters(func: Callable[..., Any]) -> None:
             sig: Signature = Signature.from_callable(func, follow_wrapped=True)
             parameters: Mapping[str, Parameter] = sig.parameters
             has_kwargs: bool = any(param.kind == Parameter.VAR_KEYWORD for param in parameters.values())
 
             if "theme" not in parameters:
-                if not has_kwargs:
+                if not no_theme and not has_kwargs:
                     raise TypeError(f"{func.__qualname__}: Can't support 'theme' parameter")
             else:
                 param: Parameter = parameters["theme"]
@@ -367,6 +374,7 @@ class ThemedObjectMeta(ABCMeta):
         namespace["__theme_ignore__"] = tuple(ignored_parameters)
 
         namespace.setdefault("__theme_associations__", {})
+        namespace["_no_use_of_themes_"] = truth(no_theme)
 
         cls = super().__new__(metacls, name, bases, namespace, **kwargs)
         if not use_parent_theme:
@@ -385,7 +393,7 @@ class ThemedObjectMeta(ABCMeta):
 
     def __call__(cls, *args: Any, **kwargs: Any) -> Any:
         create_object: Callable[..., Any] = super().__call__
-        if cls.is_abstract_theme_class():
+        if cls.is_abstract_theme_class() or getattr(cls, "_no_use_of_themes_", False):
             return create_object(*args, **kwargs)
 
         theme: ThemeType | None = kwargs.get("theme")
@@ -792,7 +800,7 @@ class ClassWithThemeNamespaceMeta(ABCMeta):
 
     @staticmethod
     def __theme_namespace_decorator(func: Callable[..., Any], /, use_cls: bool = False) -> Callable[..., Any]:
-        get_cls: Callable[[Any], type] = (lambda o: o) if use_cls else (lambda o: type(o))  # type: ignore[no-any-return]
+        get_cls: Callable[[Any], type] = (lambda o: o) if use_cls else type  # type: ignore[no-any-return]
 
         @wraps(func)
         def wrapper(__cls_or_self: Any, /, *args: Any, **kwargs: Any) -> Any:
