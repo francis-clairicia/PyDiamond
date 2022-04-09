@@ -4,6 +4,8 @@ from selectors import EVENT_READ, DefaultSelector
 from threading import Event
 from typing import Any, Generator
 
+import pytest
+
 from py_diamond.network.client import TCPNetworkClient
 from py_diamond.network.protocol import (
     AbstractNetworkProtocol,
@@ -147,9 +149,7 @@ def test_multiple_requests() -> None:
             client.send_packet("J\n")
             assert client.recv_packet() == "IJ"
 
-            from pytest import raises
-
-            with raises(ValidationError):
+            with pytest.raises(ValidationError):
                 client.send_packet(5)  # type: ignore[arg-type]
 
     finally:

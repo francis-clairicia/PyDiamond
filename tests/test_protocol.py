@@ -2,6 +2,7 @@
 
 from typing import ClassVar
 
+import pytest
 from cryptography.fernet import Fernet, InvalidToken
 
 from py_diamond.network.protocol import JSONNetworkProtocol, PicklingNetworkProtocol, SecuredNetworkProtocol
@@ -29,9 +30,7 @@ def test_secured_protocol() -> None:
     assert d != b'{"key": [1, 2], "value": true}'
     assert Fernet(SecuredJSONProtocol.SECRET_KEY).decrypt(d) == b'{"key": [1, 2], "value": true}'
 
-    from pytest import raises
-
-    with raises(InvalidToken):
+    with pytest.raises(InvalidToken):
         Fernet(Fernet.generate_key()).decrypt(d)
 
     assert SecuredJSONProtocol.deserialize(d) == {"key": [1, 2], "value": True}
