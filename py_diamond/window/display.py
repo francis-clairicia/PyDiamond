@@ -16,7 +16,7 @@ from abc import abstractmethod
 from contextlib import ExitStack, contextmanager, suppress
 from datetime import datetime
 from inspect import isgeneratorfunction
-from itertools import count as itertools_count
+from itertools import count as itertools_count, filterfalse
 from operator import truth
 from os.path import exists as path_exists
 from typing import (
@@ -25,6 +25,7 @@ from typing import (
     Callable,
     ClassVar,
     Final,
+    Iterable,
     Iterator,
     NoReturn,
     ParamSpec,
@@ -43,22 +44,20 @@ from pygame.constants import (
     QUIT as _PG_QUIT,
     RESIZABLE as _PG_RESIZABLE,
     VIDEORESIZE as _PG_VIDEORESIZE,
-    WINDOWCLOSE as _PG_WINDOWCLOSE,
 )
 from pygame.mixer import music as _pg_music
 
 from ..audio.music import MusicStream
-from ..graphics.color import BLACK, WHITE
+from ..graphics.color import BLACK, WHITE, Color
 from ..graphics.rect import ImmutableRect
 from ..graphics.renderer import Renderer, SurfaceRenderer
 from ..graphics.surface import Surface, create_surface, save_image
 from ..graphics.text import Text
-from ..graphics.theme import NoTheme
 from ..system._mangling import getattr_pv, setattr_pv
 from ..system.utils import wraps
 from .clock import Clock
 from .cursor import Cursor
-from .event import Event, EventFactory, EventManager, UnknownEventTypeError, WindowSizeChangedEvent
+from .event import Event, EventFactory, EventFactoryError, EventManager, UnknownEventTypeError, WindowSizeChangedEvent
 from .keyboard import Keyboard
 from .mouse import Mouse
 from .time import Time
@@ -114,6 +113,7 @@ class Window:
             self.__size = (0, 0)
         self.__vsync: bool = bool(vsync)
         self.__surface: Surface = Surface((0, 0))
+        self.__clear_surface: Surface = Surface((0, 0))
         self.__rect: ImmutableRect = ImmutableRect.convert(self.__surface.get_rect())
 
         self.__main_clock: _FramerateManager = _FramerateManager()
@@ -127,7 +127,7 @@ class Window:
         self.__callback_after: _WindowCallbackList = _WindowCallbackList()
         self.__process_callbacks: bool = True
 
-        self.__text_framerate: Text
+        self.__text_framerate: _TextFramerate
         self.__stack = ExitStack()
 
     def __window_init__(self) -> None:
@@ -153,6 +153,7 @@ class Window:
                 del self.__text_framerate
             self.__callback_after.clear()
             self.__surface = Surface((0, 0))
+            self.__clear_surface = Surface((0, 0))
             self.__rect = ImmutableRect.convert(self.__surface.get_rect())
             self.__event.unbind_all()
 
@@ -173,9 +174,10 @@ class Window:
             screen: Surface = _pg_display.set_mode(size, flags=flags, vsync=vsync)
             size = screen.get_size()
             self.__surface = create_surface(size)
+            self.__clear_surface = create_surface(size)
             self.__rect = ImmutableRect.convert(self.__surface.get_rect())
+            self.__text_framerate = _TextFramerate()
             stack.callback(cleanup)
-            self.__text_framerate = Text(color=WHITE, theme=NoTheme)
             self.__text_framerate.hide()
             self.__text_framerate.midtop = (self.centerx, self.top + 10)
             self.__window_init__()
@@ -198,8 +200,15 @@ class Window:
     def looping(self) -> bool:
         return _pg_display.get_surface() is not None
 
-    def clear(self, color: _ColorValue = BLACK) -> None:
-        self.__surface.fill(color)
+    def clear(self, color: _ColorValue = BLACK, *, blend_alpha: bool = False) -> None:
+        screen: Surface = self.__surface
+        color = Color(color)
+        if blend_alpha and color.a < 255:
+            fake_screen: Surface = self.__clear_surface
+            fake_screen.fill(color)
+            screen.blit(fake_screen, (0, 0))
+        else:
+            screen.fill(color)
 
     def get_default_framerate(self) -> int:
         return self.__default_framerate
@@ -227,10 +236,10 @@ class Window:
 
     def refresh(self) -> float:
         screen = SurfaceRenderer(_pg_display.get_surface())
-        text_framerate: Text = self.__text_framerate
+        text_framerate: _TextFramerate = self.__text_framerate
         screen.draw(self.__surface, (0, 0))
         if text_framerate.is_shown():
-            if not text_framerate.message or self.__framerate_update_clock.elapsed_time(200):
+            if not text_framerate.message or self.__framerate_update_clock.elapsed_time(text_framerate.refresh_rate):
                 text_framerate.message = f"{round(self.framerate)} FPS"
             text_framerate.draw_onto(screen)
         Cursor.update()
@@ -313,7 +322,7 @@ class Window:
         process_event = manager.process_event
         make_event = EventFactory.from_pygame_event
         for pg_event in _pg_event.get():
-            if pg_event.type in (_PG_QUIT, _PG_WINDOWCLOSE):
+            if pg_event.type == _PG_QUIT:
                 self._handle_close_event()
                 continue
             if pg_event.type == _PG_VIDEORESIZE:
@@ -326,19 +335,19 @@ class Window:
                 continue
             try:
                 event = make_event(pg_event)
-            except UnknownEventTypeError as exc:
-                if isinstance(exc.__cause__, ValueError):
-                    _pg_event.set_blocked(pg_event.type)
+            except UnknownEventTypeError:
+                _pg_event.set_blocked(pg_event.type)
+                continue
+            except EventFactoryError:
                 continue
             if isinstance(event, WindowSizeChangedEvent):
                 former_surface = self.__surface
                 new_surface = create_surface((event.x, event.y))
                 new_surface.blit(former_surface, (0, 0))
                 self.__surface = new_surface
+                self.__clear_surface = create_surface(new_surface.get_size())
                 self.__rect = ImmutableRect.convert(new_surface.get_rect())
                 del former_surface, new_surface
-            if not event.type.is_allowed():
-                continue
             if not process_event(event):
                 yield event
         manager.handle_mouse_position(Mouse.get_pos())
@@ -397,13 +406,18 @@ class Window:
             self.allow_only_event(*event_types)
             yield
 
-    def allow_all_events(self) -> None:
-        _pg_event.set_allowed(tuple(Event.Type))
+    def allow_all_events(self, *, except_for: Iterable[Event.Type] = ()) -> None:
+        except_for = tuple(map(Event.Type, except_for))
+        if not except_for:
+            _pg_event.set_allowed(tuple(Event.Type))
+            return
+        _pg_event.set_allowed(tuple(filterfalse(except_for.__contains__, Event.Type)))
+        _pg_event.set_blocked(except_for)
 
     @contextmanager
-    def allow_all_events_context(self) -> Iterator[None]:
+    def allow_all_events_context(self, *, except_for: Iterable[Event.Type] = ()) -> Iterator[None]:
         with self.__save_blocked_events():
-            self.allow_all_events()
+            self.allow_all_events(except_for=except_for)
             yield
 
     def clear_all_events(self) -> None:
@@ -431,13 +445,18 @@ class Window:
             self.block_only_event(*event_types)
             yield
 
-    def block_all_events(self) -> None:
-        _pg_event.set_blocked(tuple(Event.Type))
+    def block_all_events(self, *, except_for: Iterable[Event.Type] = ()) -> None:
+        except_for = tuple(map(Event.Type, except_for))
+        if not except_for:
+            _pg_event.set_blocked(tuple(Event.Type))
+            return
+        _pg_event.set_blocked(tuple(filterfalse(except_for.__contains__, Event.Type)))
+        _pg_event.set_allowed(except_for)
 
     @contextmanager
-    def block_all_events_context(self) -> Iterator[None]:
+    def block_all_events_context(self, *, except_for: Iterable[Event.Type] = ()) -> Iterator[None]:
         with self.__save_blocked_events():
-            self.block_all_events()
+            self.block_all_events(except_for=except_for)
             yield
 
     @contextmanager
@@ -507,7 +526,7 @@ class Window:
         return self.__main_clock.get_fps()
 
     @property
-    def text_framerate(self) -> Text:
+    def text_framerate(self) -> _TextFramerate:
         return self.__text_framerate
 
     @property
@@ -597,6 +616,20 @@ class Window:
     @property
     def midright(self) -> tuple[int, int]:
         return self.__rect.midright
+
+
+class _TextFramerate(Text, no_theme=True):
+    def __init__(self) -> None:
+        super().__init__(color=WHITE)
+        self.__refresh_rate: int = 200
+
+    @property
+    def refresh_rate(self) -> int:
+        return self.__refresh_rate
+
+    @refresh_rate.setter
+    def refresh_rate(self, value: int) -> None:
+        self.__refresh_rate = max(int(value), 0)
 
 
 class _FramerateManager:

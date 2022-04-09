@@ -9,7 +9,9 @@ from __future__ import annotations
 __all__ = [
     "Event",
     "EventFactory",
+    "EventFactoryError",
     "EventManager",
+    "EventTypeNotRegisteredError",
     "JoyAxisMotionEvent",
     "JoyBallMotionEvent",
     "JoyButtonDownEvent",
@@ -64,14 +66,11 @@ import pygame.constants as _pg_constants
 from pygame.event import Event as _PygameEvent, event_name as _pg_event_name, get_blocked as _pg_event_get_blocked
 
 from ..audio.music import Music, MusicStream
+from ..system.namespace import ClassNamespaceMeta
 from .keyboard import Keyboard
 from .mouse import Mouse
 
 _T = TypeVar("_T")
-
-
-class UnknownEventTypeError(TypeError):
-    pass
 
 
 class _EventMeta(type):
@@ -136,11 +135,8 @@ class Event(metaclass=_EventMeta):
         # Custom events
         MUSICEND = MusicStream.MUSICEND
 
-        ###############
-        value: int
-
         def __repr__(self) -> str:
-            return f"<{self.real_name}: {self.value}>"
+            return f"<{self.name} ({self.real_name}): {self.value}>"
 
         def __str__(self) -> str:
             return self.real_name
@@ -378,20 +374,32 @@ _TE = TypeVar("_TE", bound=Event)
 _MousePositionCallback: TypeAlias = Callable[[tuple[float, float]], None]
 
 
-class EventFactory:
+class EventFactoryError(Exception):
+    pass
+
+
+class UnknownEventTypeError(EventFactoryError):
+    pass
+
+
+class EventTypeNotRegisteredError(EventFactoryError):
+    pass
+
+
+class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
     associations: Final[MappingProxyType[Event.Type, type[Event]]] = MappingProxyType(
         {obj.type: obj for obj in globals().values() if isinstance(obj, type) and issubclass(obj, Event) and obj is not Event}
     )
-
-    __slots__ = ()
 
     @staticmethod
     def from_pygame_event(event: _PygameEvent) -> Event:
         try:
             event_type = Event.Type(event.type)
             event_cls: type[Event] = EventFactory.associations[event_type]
-        except (KeyError, ValueError) as exc:
+        except ValueError as exc:
             raise UnknownEventTypeError(f"Unknown event {event!r}") from exc
+        except KeyError as exc:
+            raise EventTypeNotRegisteredError(f"Unknown event {event!r}") from exc
         event_fields: Sequence[str] = tuple(f.name for f in fields(event_cls))
         kwargs: dict[str, Any] = {k: event.__dict__[k] for k in filter(event_fields.__contains__, event.__dict__)}
         return event_cls(**kwargs)
