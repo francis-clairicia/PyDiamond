@@ -859,8 +859,8 @@ class SceneTransitionTranslation(SceneTransition):
     def show_new_scene(
         self, target: Renderer, previous_scene_image: Surface, actual_scene_image: Surface
     ) -> SceneTransitionCoroutine:
-        previous_scene = Image(previous_scene_image)
-        actual_scene = Image(actual_scene_image)
+        previous_scene = Image(previous_scene_image, copy=False)
+        actual_scene = Image(actual_scene_image, copy=False)
         target_rect = target.get_rect()
         previous_scene.center = actual_scene.center = target_rect.center
         previous_scene.fill(BLACK.with_alpha(100))
@@ -873,10 +873,8 @@ class SceneTransitionTranslation(SceneTransition):
             previous_scene_shown = lambda: previous_scene.left <= target_rect.right
         previous_scene.animation.start()
         while previous_scene_shown():
-            interpolation: float | None = yield
-            while interpolation is None:
+            while (interpolation := (yield)) is None:
                 previous_scene.animation.fixed_update(use_of_linear_interpolation=True)
-                interpolation = yield
             previous_scene.animation.set_interpolation(interpolation)
             actual_scene.draw_onto(target)
             previous_scene.draw_onto(target)
