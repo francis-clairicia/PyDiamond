@@ -54,6 +54,7 @@ from typing import (
     overload,
 )
 
+from ..system._mangling import PRIVATE_ATTRIBUTE_PATTERN
 from ..system.utils import cache, concreteclassmethod, wraps
 
 _ClassTheme: TypeAlias = MutableMapping[str, MappingProxyType[str, Any]]
@@ -688,8 +689,6 @@ class ClassWithThemeNamespaceMeta(ABCMeta):
         for base in filter(lambda base: isinstance(base, ClassWithThemeNamespaceMeta), bases):
             cls_theme_decorator_exempt.update(getattr(base, "_theme_decorator_exempt_", ()))
 
-        private_attribute_pattern: Pattern[str] = re_compile(r"_\w+__\w+(?!__)")
-
         for attr_name, attr_obj in namespace.items():
             no_theme_decorator: str | None = getattr(attr_obj, "__no_theme_decorator__", None)
             apply_theme_decorator: bool = getattr(attr_obj, "__apply_theme_decorator__", False)
@@ -701,7 +700,7 @@ class ClassWithThemeNamespaceMeta(ABCMeta):
                 namespace[attr_name] = type(attr_obj)(metacls.__theme_initializer_decorator(attr_obj.__func__))
                 continue
             if no_theme_decorator in ("once", "permanent"):
-                if private_attribute_pattern.fullmatch(attr_name):
+                if PRIVATE_ATTRIBUTE_PATTERN.fullmatch(attr_name):
                     no_theme_decorator = "once"
                 if no_theme_decorator == "once":
                     if apply_theme_decorator:

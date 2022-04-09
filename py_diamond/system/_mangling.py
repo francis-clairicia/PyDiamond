@@ -4,18 +4,29 @@
 #
 """Python mangling module"""
 
-__all__ = ["delattr_pv", "getattr_pv", "hasattr_pv", "mangle_private_attribute", "setattr_pv", "setdefaultattr_pv"]
+__all__ = [
+    "PRIVATE_ATTRIBUTE_PATTERN",
+    "delattr_pv",
+    "getattr_pv",
+    "hasattr_pv",
+    "mangle_private_attribute",
+    "setattr_pv",
+    "setdefaultattr_pv",
+]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 
-from typing import Any, TypeVar, overload
+import re
+from typing import Any, Final, Pattern, TypeVar, overload
 
 _T = TypeVar("_T")
 
 _NO_DEFAULT: Any = object()
+
+PRIVATE_ATTRIBUTE_PATTERN: Final[Pattern[str]] = re.compile(r"^_\w+__\w+(?<!__)$")
 
 
 def mangle_private_attribute(cls: type, attribute: str) -> str:
