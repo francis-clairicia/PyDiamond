@@ -31,6 +31,7 @@ import gc
 from abc import ABCMeta, abstractmethod
 from contextlib import ExitStack, contextmanager, suppress
 from inspect import isgeneratorfunction
+from itertools import chain
 from operator import truth
 from sys import stderr
 from types import MethodType
@@ -259,11 +260,40 @@ class Scene(metaclass=SceneMeta):
     def looping(self) -> bool:
         return self.__manager.top() is self
 
+    @overload
+    def start(  # type: ignore[misc]
+        self,
+        __scene: type[Dialog],
+        /,
+        **awake_kwargs: Any,
+    ) -> None:
+        ...
+
+    @overload
+    def start(
+        self,
+        __scene: type[Scene],
+        /,
+        *,
+        transition: SceneTransition | None = None,
+        stop_self: bool = False,
+        **awake_kwargs: Any,
+    ) -> NoReturn:
+        ...
+
     @final
     def start(
-        self, scene: type[Scene], *, transition: SceneTransition | None = None, stop_self: bool = False, **awake_kwargs: Any
-    ) -> NoReturn:
-        self.__manager.go_to(scene, transition=transition, remove_actual=stop_self, awake_kwargs=awake_kwargs)
+        self,
+        __scene: type[Scene],
+        /,
+        **kwargs: Any,
+    ) -> None:
+        if issubclass(__scene, Dialog):
+            return self.__manager.open_dialog(__scene, awake_kwargs=kwargs)
+
+        transition: SceneTransition | None = kwargs.pop("transition", None)
+        stop_self: bool = kwargs.pop("stop_self", False)
+        self.__manager.go_to(__scene, transition=transition, remove_actual=stop_self, awake_kwargs=kwargs)
 
     @final
     def stop(self) -> NoReturn:
@@ -471,7 +501,7 @@ class AbstractLayeredScene(Scene, metaclass=LayeredSceneMeta):
         self.render_after()
 
 
-class LayeredScene(AbstractLayeredScene, metaclass=LayeredSceneMeta):
+class LayeredScene(AbstractLayeredScene):
 
     __slots__ = ("__group",)
 
@@ -494,6 +524,120 @@ class LayeredMainSceneMeta(LayeredSceneMeta, MainSceneMeta):
 
 class LayeredMainScene(LayeredScene, MainScene, metaclass=LayeredMainSceneMeta):
     __slots__ = ()
+
+
+class DialogMeta(SceneMeta):
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="DialogMeta")
+
+    __theme_namespace_decorator_exempt: Sequence[str] = ("render",)
+
+    def __new__(
+        metacls: type[__Self],
+        name: str,
+        bases: tuple[type, ...],
+        namespace: dict[str, Any],
+        **kwargs: Any,
+    ) -> __Self:
+        if "Dialog" not in globals():
+            if name == "Dialog":
+                new_class = cast(type, SceneMeta).__base__.__new__
+                return new_class(metacls, name, bases, namespace, **kwargs)
+            return super().__new__(metacls, name, bases, namespace, **kwargs)
+
+        if not any(issubclass(cls, Dialog) for cls in bases):
+            raise TypeError(
+                f"{name!r} must be inherits from a {Dialog.__name__} class in order to use {DialogMeta.__name__} metaclass"
+            )
+
+        return super().__new__(metacls, name, bases, namespace, **kwargs)
+
+    def __init__(
+        cls,
+        name: str,
+        bases: tuple[type, ...],
+        namespace: dict[str, Any],
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(name, bases, namespace, **kwargs)
+        if cls in _ALL_SCENES:
+            _ALL_SCENES.remove(cls)  # type: ignore[arg-type]
+
+    @classmethod
+    @cache
+    def get_default_theme_decorator_exempt(metacls) -> frozenset[str]:
+        return frozenset((*super().get_default_theme_decorator_exempt(), *metacls.__theme_namespace_decorator_exempt))
+
+
+class Dialog(Scene, metaclass=DialogMeta):
+    __slots__ = ("__master",)
+
+    if not TYPE_CHECKING:
+
+        __new__ = object.__new__
+
+        def __del_scene__(self) -> None:
+            pass
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.__master: Scene
+        try:
+            self.__master
+        except AttributeError:
+            raise TypeError(f"Trying to instantiate {self.__class__.__name__!r} dialog outside a SceneWindow manager") from None
+        self.background_color = Color(0, 0, 0, 0)
+
+    @property
+    def master(self) -> Scene:
+        return self.__master
+
+
+# class PopUpDialog(Dialog):
+#     __slots__ = ()
+
+#     def __init__(self) -> None:
+#         super().__init__()
+#         self.event.bind(WindowSizeChangedEvent, self.__handle_resize_event)
+
+#     def awake(
+#         self,
+#         *,
+#         width_ratio: float | None = None,
+#         height_ratio: float | None = None,
+#         width: float | None = None,
+#         height: float | None = None,
+#         bg_color: Color = Color("white"),
+#         outline: int = 3,
+#         outline_color: Color = Color("black"),
+#         **kwargs: Any,
+#     ) -> None:
+#         super().awake(**kwargs)
+#         window: SceneWindow = self.window
+#         width_ratio = valid_optional_float(value=width_ratio, min_value=0, max_value=1)
+#         height_ratio = valid_optional_float(value=height_ratio, min_value=0, max_value=1)
+#         width = valid_optional_float(value=width, min_value=0)
+#         height = valid_optional_float(value=height, min_value=0)
+#         if width is not None and width_ratio is not None:
+#             raise ValueError("Must be either 'width' or 'width_ratio', not both")
+#         if height is not None and height_ratio is not None:
+#             raise ValueError("Must be either 'height' or 'height_ratio', not both")
+
+#         if width_ratio is None:
+#             width_ratio = 0.5
+#         if height_ratio is None:
+#             height_ratio = 0.5
+
+#         self.__width_ratio: float | None = width_ratio if width is None else None
+#         self.__height_ratio: float | None = height_ratio if height is None else None
+
+#         if width is None:
+#             width = window.width * width_ratio
+#         if height is None:
+#             height = window.height * height_ratio
+
+#     def __handle_resize_event(self, event: WindowSizeChangedEvent) -> None:
+#         pass
 
 
 class SceneWindow(Window):
@@ -538,22 +682,25 @@ class SceneWindow(Window):
         self.__accumulator = 0
         gc.collect()
         try:
-            self.__scenes.go_to(default_scene, awake_kwargs=scene_kwargs)
+            self.start_scene(default_scene, awake_kwargs=scene_kwargs)
         except _SceneManager.NewScene as exc:
             exc.actual_scene.on_start_loop_before_transition()
             exc.actual_scene.on_start_loop()
         looping = self.looping
-        process_events = self.process_events
+        process_events = self.handle_events
         update_scene = self.update_scene
         render_scene = self.render_scene
         refresh_screen = self.refresh
         scene_transition = self.__scene_transition
+        on_start_loop: Callable[[], None] | None = None
 
         try:
             while looping():
                 try:
-                    for _ in process_events():
-                        pass
+                    if on_start_loop is not None:
+                        on_start_loop()
+                        on_start_loop = None
+                    process_events()
                     update_scene()
                     render_scene()
                     refresh_screen()
@@ -565,7 +712,16 @@ class SceneWindow(Window):
                             all_scenes_stack.enter_context(scene.exit_stack)
                         if not self.__scenes.started(exc.previous_scene):
                             all_scenes_stack.enter_context(exc.previous_scene.exit_stack)
-                        scene_transition(exc.previous_scene, exc.actual_scene, exc.closing_scenes, exc.transition)
+                        try:
+                            scene_transition(
+                                exc.previous_scene,
+                                exc.actual_scene,
+                                exc.closing_scenes,
+                                exc.transition,
+                            )
+                        except _SceneManager.SceneException as sub_exc:
+                            raise RuntimeError("Open a new scene within a scene transition is forbidden") from sub_exc
+                    on_start_loop = exc.actual_scene.on_start_loop
                 except _SceneManager.SceneException as exc:
                     print(f"{type(exc).__name__}: {exc}", file=stderr)
                     continue
@@ -593,7 +749,11 @@ class SceneWindow(Window):
             with self.capture(draw_on_default_at_end=False) as actual_scene_surface:
                 self.clear(actual_scene.background_color)
                 actual_scene.render()
-            with self.capture() as window_surface, self.block_all_events_context(), self.no_window_callback_processing():
+            with (
+                self.capture() as window_surface,
+                self.block_all_events_context(),
+                self.no_window_callback_processing(),
+            ):
                 transition: SceneTransitionCoroutine
                 transition = transition_factory(SurfaceRenderer(window_surface), previous_scene_surface, actual_scene_surface)
                 animating = True
@@ -602,10 +762,9 @@ class SceneWindow(Window):
                 except StopIteration:
                     animating = False
                 next_transition = transition.send
-                next_fixed_transition = lambda next=next_transition: next(None)
+                next_fixed_transition = lambda: next_transition(None)
                 while self.looping() and animating:
-                    for _ in self.process_events():
-                        pass
+                    self.handle_events()
                     try:
                         self._fixed_updates_call(next_fixed_transition)
                         self._interpolation_updates_call(next_transition)
@@ -624,7 +783,6 @@ class SceneWindow(Window):
         self.__accumulator = 0
         self.clear_all_events()
         gc.collect()
-        actual_scene.on_start_loop()
 
     def refresh(self) -> float:
         real_delta_time: float = super().refresh()
@@ -656,19 +814,21 @@ class SceneWindow(Window):
         scene: Scene | None = self.__scenes.top()
         if scene is None:
             return
-        self.clear(scene.background_color)
-        scene.render()
+        self.__scenes._render(scene)
 
     @final
     def start_scene(
         self,
-        scene: type[Scene],
+        __scene: type[Scene],
+        /,
         *,
         transition: SceneTransition | None = None,
         remove_actual: bool = False,
         **awake_kwargs: Any,
     ) -> NoReturn:
-        self.__scenes.go_to(scene, transition=transition, remove_actual=remove_actual, awake_kwargs=awake_kwargs)
+        if issubclass(__scene, Dialog):
+            raise TypeError(f"start_scene() does not accept Dialogs")
+        self.__scenes.go_to(__scene, transition=transition, remove_actual=remove_actual, awake_kwargs=awake_kwargs)
 
     def _process_callbacks(self) -> None:
         super()._process_callbacks()
@@ -679,8 +839,8 @@ class SceneWindow(Window):
     def process_events(self) -> Iterator[Event]:
         actual_scene: Scene | None = self.__scenes.top()
         manager: EventManager | None = actual_scene.event if actual_scene is not None else None
-        manager_process_event: Callable[[Event], bool] = manager.process_event if manager is not None else lambda event: False
-        process_event: Callable[[Event], bool] = actual_scene.handle_event if actual_scene is not None else lambda event: False
+        manager_process_event: Callable[[Event], bool] = manager.process_event if manager is not None else lambda _: False
+        process_event: Callable[[Event], bool] = actual_scene.handle_event if actual_scene is not None else lambda _: False
         for event in super().process_events():
             if not process_event(event) and not manager_process_event(event):
                 yield event
@@ -747,7 +907,12 @@ class _SceneManager:
             super().__init__(f"Trying to go to the same running scene: {type(scene).__name__!r}")
             self.scene: Scene = scene
 
+    class DialogStop(SceneException):
+        def __init__(self) -> None:
+            super().__init__("Dialog window closed")
+
     __scene_manager_attribute: Final[str] = mangle_private_attribute(Scene, "manager")
+    __dialog_master_attribute: Final[str] = mangle_private_attribute(Dialog, "master")
 
     def __init__(self, window: SceneWindow) -> None:
         def new_scene(cls: type[Scene]) -> Scene:
@@ -757,11 +922,11 @@ class _SceneManager:
             return scene
 
         self.__window: SceneWindow = window
-        self.__all: dict[type[Scene], Scene] = {}
-        self.__all.update({cls: new_scene(cls) for cls in _ALL_SCENES})
+        self.__all: dict[type[Scene], Scene] = {cls: new_scene(cls) for cls in _ALL_SCENES}
         self.__stack: list[Scene] = []
         self.__returning_transitions: dict[type[Scene], ReturningSceneTransition] = {}
         self.__awaken: set[Scene] = set()
+        self.__dialogs: list[Dialog] = []
 
     def __del__(self) -> None:
         for scene in self.__all.values():
@@ -772,6 +937,10 @@ class _SceneManager:
         for scene in self.__all.values():
             delattr(scene, self.__scene_manager_attribute)
 
+    def _awake_scene(self, scene: Scene, awake_kwargs: dict[str, Any]) -> None:
+        scene.awake(**awake_kwargs)
+        self.__awaken.add(scene)
+
     def _destroy_awaken_scene(self, scene: Scene) -> None:
         with scene.exit_stack:
             try:
@@ -780,25 +949,27 @@ class _SceneManager:
                 return
             all_attributes: list[str] = list(scene.__dict__)
             scene.destroy()
+            scene.event.unbind_all()
         for attr in all_attributes:
-            if attr != self.__scene_manager_attribute:
-                delattr(scene, attr)
+            delattr(scene, attr)
         scene.__init__()  # type: ignore[misc]
 
     def __iter__(self) -> Iterator[Scene]:
         return self.from_top_to_bottom()
 
     def from_top_to_bottom(self) -> Iterator[Scene]:
-        return iter(self.__stack)
+        return chain(self.__dialogs, self.__stack)
 
     def from_bottom_to_top(self) -> Iterator[Scene]:
-        return reversed(self.__stack)
+        return chain(reversed(self.__stack), reversed(self.__dialogs))
 
     def top(self) -> Scene | None:
+        if self.__dialogs:
+            return self.__dialogs[0]
         return self.__stack[0] if self.__stack else None
 
     def started(self, scene: Scene) -> bool:
-        return scene in self.__stack
+        return scene in self.__stack or scene in self.__dialogs
 
     def is_awaken(self, scene: Scene) -> bool:
         return scene in self.__awaken
@@ -820,13 +991,22 @@ class _SceneManager:
     def render(self, scene: type[Scene]) -> None:
         if scene.__abstractmethods__:
             raise TypeError(f"{scene.__name__} is an abstract class")
+        if issubclass(scene, Dialog):
+            raise TypeError(f"Trying to draw a Dialog scene")
         obj = self.__all[scene]
         if not obj.is_awaken():
             raise ValueError("Trying to draw non-awaken scene")
         if obj.looping():
             raise ValueError("Trying to draw actual looping scene")
-        self.window.clear(obj.background_color)
-        obj.render()
+        self._render(obj, fill_background_color=False)
+
+    def _render(self, scene: Scene, *, fill_background_color: bool = True) -> None:
+        if fill_background_color:
+            self.window.clear(scene.background_color)
+        if isinstance(scene, Dialog):
+            self._render(scene.master, fill_background_color=fill_background_color)
+            self.window.clear(scene.background_color, blend_alpha=True)
+        scene.render()
 
     def go_to(
         self,
@@ -838,6 +1018,8 @@ class _SceneManager:
     ) -> NoReturn:
         if scene.__abstractmethods__:
             raise TypeError(f"{scene.__name__} is an abstract class")
+        if issubclass(scene, Dialog):
+            raise TypeError(f"{scene.__name__} must be opened with open_dialog()")
         if awake_kwargs is None:
             awake_kwargs = {}
         next_scene = self.__all[scene]
@@ -849,8 +1031,7 @@ class _SceneManager:
         closing_scenes: list[Scene] = []
         if actual_scene is None or next_scene not in stack:
             stack.insert(0, next_scene)
-            next_scene.awake(**awake_kwargs)
-            self.__awaken.add(next_scene)
+            self._awake_scene(next_scene, awake_kwargs)
             if actual_scene is not None:
                 if isinstance(transition, ReturningSceneTransition):
                     self.__returning_transitions[actual_scene.__class__] = transition
@@ -876,9 +1057,59 @@ class _SceneManager:
         raise _SceneManager.NewScene(actual_scene, next_scene, scene_transition, closing_scenes)
 
     def go_back(self) -> NoReturn:
+        if self.__dialogs:
+            raise _SceneManager.DialogStop
         if len(self.__stack) <= 1:
             self.window.close()
         self.go_to(self.__stack[1].__class__)
+
+    def open_dialog(
+        self,
+        dialog: type[Dialog],
+        *,
+        awake_kwargs: dict[str, Any] | None = None,
+    ) -> None:
+        if not self.__stack:
+            raise TypeError("Trying to open dialog without opened scene")
+        if not issubclass(dialog, Dialog):
+            raise TypeError(f"{dialog.__name__} must be opened with go_to()")
+        if awake_kwargs is None:
+            awake_kwargs = {}
+        master: Scene = self.__dialogs[0] if self.__dialogs else self.__stack[0]
+        obj: Dialog = dialog.__new__(dialog)
+        setattr(obj, self.__scene_manager_attribute, self)
+        setattr(obj, self.__dialog_master_attribute, master)
+        obj.__init__()  # type: ignore[misc]
+        return self.__open_dialog(obj, awake_kwargs=awake_kwargs)
+
+    def __open_dialog(
+        self,
+        dialog: Dialog,
+        *,
+        awake_kwargs: dict[str, Any],
+    ) -> None:
+        dialogs_stack = self.__dialogs
+
+        with ExitStack() as exit_stack:
+            dialogs_stack.insert(0, dialog)
+            exit_stack.callback(dialogs_stack.remove, dialog)
+            self._awake_scene(dialog, awake_kwargs)
+            exit_stack.callback(self._destroy_awaken_scene, dialog)
+
+            window = self.window
+            try:
+                dialog.on_start_loop_before_transition()
+                dialog.on_start_loop()
+                while window.looping():
+                    window.handle_events()
+                    window.update_scene()
+                    window.render_scene()
+                    window.refresh()
+            except _SceneManager.DialogStop:
+                pass
+            finally:
+                dialog.on_quit_before_transition()
+                dialog.on_quit()
 
     @property
     def window(self) -> SceneWindow:

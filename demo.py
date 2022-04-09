@@ -57,6 +57,7 @@ from py_diamond.window.keyboard import Keyboard
 from py_diamond.window.mouse import Mouse
 from py_diamond.window.scene import (
     AbstractAutoLayeredScene,
+    Dialog,
     LayeredMainScene,
     MainScene,
     Scene,
@@ -851,6 +852,32 @@ class GUIAudioScene(GUIAutoLayeredMainScene):
         return super().on_quit()
 
 
+class MyDialog(Dialog):
+    def awake(self, **kwargs: Any) -> None:
+        print(kwargs)
+        super().awake(**kwargs)
+        self.background_color = BLACK.with_alpha(200)
+        self.event.bind_key_press(Keyboard.Key.ESCAPE, lambda _: self.stop())
+
+    def render(self) -> None:
+        pass
+
+
+class TestDialogScene(GUIAutoLayeredScene):
+    def awake(self, **kwargs: Any) -> None:
+        super().awake(**kwargs)
+        self.background_color = BLUE_DARK
+        self.button = Button(self, "Open dialog", callback=self.__open_dialog)
+
+    def on_start_loop_before_transition(self) -> None:
+        self.button.center = self.window.center
+        return super().on_start_loop_before_transition()
+
+    def __open_dialog(self) -> None:
+        self.start(MyDialog, test=True)
+        print("Dialog ended")
+
+
 class SceneTransitionTranslation(SceneTransition):
     def __init__(self, side: Literal["left", "right"]) -> None:
         super().__init__()
@@ -903,6 +930,7 @@ class MainWindow(SceneWindow):
         FormScene,
         AudioScene,
         GUIAudioScene,
+        TestDialogScene,
     ]
 
     def __init__(self) -> None:
