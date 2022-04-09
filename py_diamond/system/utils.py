@@ -98,9 +98,9 @@ def wraps(
     return decorator
 
 
-def setdefaultattr(obj: object, name: str, value: _T) -> _T:
+def setdefaultattr(obj: object, name: str, value: _T) -> Any | _T:
     try:
-        return getattr(obj, name)  # type: ignore[no-any-return]
+        return getattr(obj, name)
     except AttributeError:
         setattr(obj, name, value)
     return value

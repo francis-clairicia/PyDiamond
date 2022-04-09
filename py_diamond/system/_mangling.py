@@ -29,85 +29,94 @@ _NO_DEFAULT: Any = object()
 PRIVATE_ATTRIBUTE_PATTERN: Final[Pattern[str]] = re.compile(r"^_\w+__\w+(?<!__)$")
 
 
-def mangle_private_attribute(cls: type, attribute: str) -> str:
-    if not attribute:
+def mangle_private_attribute(cls: type, name: str) -> str:
+    if not name:
         raise ValueError(f"Empty attribute string")
-    if all(c == "_" for c in attribute):
+    if all(c == "_" for c in name):
         raise ValueError(f"attribute filled with underscores")
-    if attribute.endswith("__"):
-        raise ValueError(f"{attribute!r}: Two or more trailing underscores")
-    return f"_{cls.__name__.strip('_')}__{attribute}"
+    if name.endswith("__"):
+        raise ValueError(f"{name!r}: Two or more trailing underscores")
+    return f"_{cls.__name__.strip('_')}__{name}"
 
 
-def hasattr_pv(obj: object, attribute: str, *, owner: type | None = None) -> bool:
+def hasattr_pv(obj: object, name: str, *, owner: type | None = None) -> bool:
     if owner is None:
         if isinstance(obj, type):
             owner = obj
         else:
             owner = type(obj)
-    attribute = mangle_private_attribute(owner, attribute)
+    name = mangle_private_attribute(owner, name)
     try:
-        return hasattr(obj, attribute)
+        return hasattr(obj, name)
     except AttributeError as exc:
-        raise AttributeError(f"Error when checking private attribute {attribute!r}: {exc}") from None
+        raise AttributeError(f"Error when checking private attribute {name!r}: {exc}") from None
 
 
 @overload
-def getattr_pv(obj: object, attribute: str, *, owner: type | None = None) -> Any:
+def getattr_pv(obj: object, name: str, *, owner: type | None = None) -> Any:
     ...
 
 
 @overload
-def getattr_pv(obj: object, attribute: str, default: _T, *, owner: type | None = None) -> Any | _T:
+def getattr_pv(obj: object, name: str, default: _T, *, owner: type | None = None) -> Any | _T:
     ...
 
 
-def getattr_pv(obj: object, attribute: str, default: Any = _NO_DEFAULT, *, owner: type | None = None) -> Any:
+def getattr_pv(obj: object, name: str, default: Any = _NO_DEFAULT, *, owner: type | None = None) -> Any:
     if owner is None:
         if isinstance(obj, type):
             owner = obj
         else:
             owner = type(obj)
-    attribute = mangle_private_attribute(owner, attribute)
+    name = mangle_private_attribute(owner, name)
     try:
         if default is not _NO_DEFAULT:
-            return getattr(obj, attribute, default)
-        return getattr(obj, attribute)
+            return getattr(obj, name, default)
+        return getattr(obj, name)
     except AttributeError:
-        raise AttributeError(f"Missing private attribute {attribute!r}") from None
+        raise AttributeError(f"Missing private attribute {name!r}") from None
 
 
-def setattr_pv(obj: object, attribute: str, value: Any, *, owner: type | None = None) -> None:
+def setattr_pv(obj: object, name: str, value: Any, *, owner: type | None = None) -> None:
     if owner is None:
         if isinstance(obj, type):
             owner = obj
         else:
             owner = type(obj)
-    attribute = mangle_private_attribute(owner, attribute)
+    name = mangle_private_attribute(owner, name)
     try:
-        return setattr(obj, attribute, value)
+        return setattr(obj, name, value)
     except AttributeError as exc:
-        raise AttributeError(f"Error when setting private attribute {attribute!r}: {exc}") from None
+        raise AttributeError(f"Error when setting private attribute {name!r}: {exc}") from None
 
 
-def delattr_pv(obj: object, attribute: str, *, owner: type | None = None) -> None:
+def delattr_pv(obj: object, name: str, *, owner: type | None = None) -> None:
     if owner is None:
         if isinstance(obj, type):
             owner = obj
         else:
             owner = type(obj)
-    attribute = mangle_private_attribute(owner, attribute)
+    name = mangle_private_attribute(owner, name)
     try:
-        return delattr(obj, attribute)
+        return delattr(obj, name)
     except AttributeError:
-        raise AttributeError(f"Missing private attribute {attribute!r}") from None
+        raise AttributeError(f"Missing private attribute {name!r}") from None
 
 
-def setdefaultattr_pv(obj: object, name: str, value: _T, *, owner: type | None = None) -> _T:
+def setdefaultattr_pv(obj: object, name: str, value: _T, *, owner: type | None = None) -> Any | _T:
+    if owner is None:
+        if isinstance(obj, type):
+            owner = obj
+        else:
+            owner = type(obj)
+    name = mangle_private_attribute(owner, name)
     try:
-        return getattr_pv(obj, name, owner=owner)  # type: ignore[no-any-return]
+        return getattr(obj, name)
     except AttributeError:
-        setattr_pv(obj, name, value, owner=owner)
+        try:
+            setattr(obj, name, value)
+        except AttributeError as exc:
+            raise AttributeError(f"Error when setting private attribute {name!r}: {exc}") from None
     return value
 
 
