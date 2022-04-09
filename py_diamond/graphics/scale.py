@@ -23,7 +23,7 @@ from .progress import ProgressBar
 
 if TYPE_CHECKING:
     from ..audio.sound import Sound
-    from ..window.cursor import Cursor
+    from ..window.cursor import AbstractCursor
     from ..window.display import Window
     from ..window.scene import Scene
     from .theme import ThemeType
@@ -58,8 +58,8 @@ class ScaleBar(ProgressBar, Clickable):
         hover_sound: Sound | None = None,
         click_sound: Sound | None = None,
         disabled_sound: Sound | None = None,
-        hover_cursor: Cursor | None = None,
-        disabled_cursor: Cursor | None = None,
+        hover_cursor: AbstractCursor | None = None,
+        disabled_cursor: AbstractCursor | None = None,
         color: Color = WHITE,
         scale_color: Color = GRAY,
         outline: int = 2,

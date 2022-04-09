@@ -56,7 +56,7 @@ from ..graphics.text import Text
 from ..system._mangling import getattr_pv, setattr_pv
 from ..system.utils import wraps
 from .clock import Clock
-from .cursor import Cursor
+from .cursor import AbstractCursor
 from .event import Event, EventFactory, EventFactoryError, EventManager, UnknownEventTypeError, WindowSizeChangedEvent
 from .keyboard import Keyboard
 from .mouse import Mouse
@@ -242,7 +242,7 @@ class Window:
             if not text_framerate.message or self.__framerate_update_clock.elapsed_time(text_framerate.refresh_rate):
                 text_framerate.message = f"{round(self.framerate)} FPS"
             text_framerate.draw_onto(screen)
-        Cursor.update()
+        AbstractCursor.update()
         _pg_display.flip()
 
         framerate: int = self.used_framerate()

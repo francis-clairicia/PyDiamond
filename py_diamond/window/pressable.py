@@ -15,7 +15,7 @@ from operator import truth
 from ..audio.sound import Sound
 from ..graphics.drawable import Drawable
 from .clickable import Clickable
-from .cursor import Cursor
+from .cursor import AbstractCursor
 from .display import Window
 from .event import KeyDownEvent, KeyEvent, KeyUpEvent
 from .gui import GUIScene, SupportsFocus
@@ -32,8 +32,8 @@ class Pressable(Clickable):
         hover_sound: Sound | None = None,
         click_sound: Sound | None = None,
         disabled_sound: Sound | None = None,
-        hover_cursor: Cursor | None = None,
-        disabled_cursor: Cursor | None = None,
+        hover_cursor: AbstractCursor | None = None,
+        disabled_cursor: AbstractCursor | None = None,
         take_focus: bool = True,
         focus_on_hover: bool | None = None,
     ) -> None:

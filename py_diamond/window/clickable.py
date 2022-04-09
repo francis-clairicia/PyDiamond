@@ -18,7 +18,7 @@ from typing import ClassVar
 from ..audio.sound import Sound
 from ..graphics.drawable import Drawable
 from ..system.enum import AutoLowerNameEnum
-from .cursor import Cursor, SystemCursor
+from .cursor import AbstractCursor, SystemCursor
 from .display import Window
 from .event import Event, EventManager, MouseButtonDownEvent, MouseButtonEvent, MouseButtonUpEvent, MouseMotionEvent
 from .gui import SupportsFocus
@@ -42,8 +42,8 @@ class Clickable(metaclass=ABCMeta):
         hover_sound: Sound | None = None,
         click_sound: Sound | None = None,
         disabled_sound: Sound | None = None,
-        hover_cursor: Cursor | None = None,
-        disabled_cursor: Cursor | None = None,
+        hover_cursor: AbstractCursor | None = None,
+        disabled_cursor: AbstractCursor | None = None,
         take_focus: bool = True,
         focus_on_hover: bool | None = None,
     ) -> None:
@@ -59,14 +59,14 @@ class Clickable(metaclass=ABCMeta):
         self.__active_only_on_hover: bool = True
         self.__hover_sound: Sound | None = None
         self.__click_sound: dict[Clickable.State, Sound | None] = dict.fromkeys(Clickable.State)
-        self.__default_hover_cursor: dict[Clickable.State, Cursor] = {
+        self.__default_hover_cursor: dict[Clickable.State, AbstractCursor] = {
             Clickable.State.NORMAL: SystemCursor.HAND,
             Clickable.State.DISABLED: SystemCursor.NO,
         }
-        self.__hover_cursor: dict[Clickable.State, Cursor] = self.__default_hover_cursor.copy()
-        if isinstance(hover_cursor, Cursor):
+        self.__hover_cursor: dict[Clickable.State, AbstractCursor] = self.__default_hover_cursor.copy()
+        if isinstance(hover_cursor, AbstractCursor):
             self.__hover_cursor[Clickable.State.NORMAL] = hover_cursor
-        if isinstance(disabled_cursor, Cursor):
+        if isinstance(disabled_cursor, AbstractCursor):
             self.__hover_cursor[Clickable.State.DISABLED] = disabled_cursor
         if focus_on_hover is None:
             focus_on_hover = self.__default_focus_on_hover
@@ -97,10 +97,10 @@ class Clickable(metaclass=ABCMeta):
         if (click_sound := self.__click_sound[self.__state]) is not None:
             click_sound.play()
 
-    def get_default_cursor(self) -> Cursor:
+    def get_default_cursor(self) -> AbstractCursor:
         return self.__default_hover_cursor[Clickable.State.NORMAL]
 
-    def get_default_disabled_cursor(self) -> Cursor:
+    def get_default_disabled_cursor(self) -> AbstractCursor:
         return self.__default_hover_cursor[Clickable.State.DISABLED]
 
     def set_cursor_to_default(self) -> None:
@@ -314,17 +314,17 @@ class Clickable(metaclass=ABCMeta):
         self.__click_sound[Clickable.State.DISABLED] = sound
 
     @property
-    def hover_cursor(self) -> Cursor:
+    def hover_cursor(self) -> AbstractCursor:
         return self.__hover_cursor[Clickable.State.NORMAL]
 
     @hover_cursor.setter
-    def hover_cursor(self, cursor: Cursor) -> None:
+    def hover_cursor(self, cursor: AbstractCursor) -> None:
         self.__hover_cursor[Clickable.State.NORMAL] = cursor
 
     @property
-    def disabled_cursor(self) -> Cursor:
+    def disabled_cursor(self) -> AbstractCursor:
         return self.__hover_cursor[Clickable.State.DISABLED]
 
     @disabled_cursor.setter
-    def disabled_cursor(self, cursor: Cursor) -> None:
+    def disabled_cursor(self, cursor: AbstractCursor) -> None:
         self.__hover_cursor[Clickable.State.DISABLED] = cursor

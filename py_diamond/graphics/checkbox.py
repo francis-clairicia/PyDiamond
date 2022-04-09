@@ -26,7 +26,7 @@ from .theme import NoTheme, ThemedObjectMeta, ThemeType
 
 if TYPE_CHECKING:
     from ..audio.sound import Sound
-    from ..window.cursor import Cursor
+    from ..window.cursor import AbstractCursor
     from ..window.display import Window
     from ..window.scene import Scene
     from .renderer import Renderer
@@ -89,8 +89,8 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Che
         # highlight_color=BLUE,
         # highlight_thickness=2,
         state: str = "normal",
-        hover_cursor: Cursor | None = None,
-        disabled_cursor: Cursor | None = None,
+        hover_cursor: AbstractCursor | None = None,
+        disabled_cursor: AbstractCursor | None = None,
         hover_sound: Sound | None = None,
         click_sound: Sound | None = None,
         disabled_sound: Sound | None = None,
@@ -279,8 +279,8 @@ class BooleanCheckBox(CheckBox[bool, bool]):
         # highlight_color=BLUE,
         # highlight_thickness=2,
         state: str = "normal",
-        hover_cursor: Cursor | None = None,
-        disabled_cursor: Cursor | None = None,
+        hover_cursor: AbstractCursor | None = None,
+        disabled_cursor: AbstractCursor | None = None,
         hover_sound: Sound | None = None,
         click_sound: Sound | None = None,
         disabled_sound: Sound | None = None,

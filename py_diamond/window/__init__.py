@@ -6,13 +6,13 @@
 
 __all__ = [
     "AbstractAutoLayeredScene",
+    "AbstractCursor",
     "AbstractLayeredScene",
     "BoundFocus",
     "BoundFocusProxy",
     "Clickable",
     "Clock",
     "Cursor",
-    "CustomCursor",
     "Event",
     "EventFactory",
     "EventFactoryError",
@@ -110,7 +110,7 @@ del os, pygame
 ############ Package initialization ############
 from .clickable import Clickable
 from .clock import Clock
-from .cursor import Cursor, CustomCursor, SystemCursor
+from .cursor import AbstractCursor, Cursor, SystemCursor
 from .display import Window, WindowCallback, WindowError
 from .event import (
     Event,

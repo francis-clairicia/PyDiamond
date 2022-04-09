@@ -2,11 +2,11 @@
 # Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine
 #
 #
-"""Cursor module"""
+"""AbstractCursor module"""
 
 from __future__ import annotations
 
-__all__ = ["Cursor", "CustomCursor", "SystemCursor"]
+__all__ = ["AbstractCursor", "Cursor", "SystemCursor"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -27,14 +27,14 @@ from ..system.utils import wraps
 
 class _CursorMeta(ABCMeta):
     __cursor_setter: ClassVar[Callable[[], None] | None] = None
-    __default_cursor: ClassVar[Cursor | None] = None
+    __default_cursor: ClassVar[AbstractCursor | None] = None
 
     def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _CursorMeta:
-        def _set_decorator(func: Callable[[Cursor], None], /) -> Callable[[Cursor], None]:
-            actual_cursor: Cursor | None = None
+        def _set_decorator(func: Callable[[AbstractCursor], None], /) -> Callable[[AbstractCursor], None]:
+            actual_cursor: AbstractCursor | None = None
 
             @wraps(func)
-            def wrapper(self: Cursor, /) -> None:
+            def wrapper(self: AbstractCursor, /) -> None:
                 nonlocal actual_cursor
                 if actual_cursor is not self:
                     _CursorMeta.__cursor_setter = MethodType(func, self)
@@ -42,7 +42,7 @@ class _CursorMeta(ABCMeta):
 
             return wrapper
 
-        set_method: Callable[[Cursor], None] | None = namespace.get("set")
+        set_method: Callable[[AbstractCursor], None] | None = namespace.get("set")
         if callable(set_method):
             namespace["set"] = _set_decorator(set_method)
 
@@ -52,24 +52,24 @@ class _CursorMeta(ABCMeta):
     def update() -> None:
         cursor_setter = _CursorMeta.__cursor_setter
         if not callable(cursor_setter):
-            default_cursor: Cursor = _CursorMeta.__default_cursor or SystemCursor.ARROW
+            default_cursor: AbstractCursor = _CursorMeta.__default_cursor or SystemCursor.ARROW
             default_cursor.set()
         if callable(cursor_setter):
             cursor_setter()
             _CursorMeta.__cursor_setter = None
 
     @staticmethod
-    def set_default(cursor: Cursor | None) -> None:
+    def set_default(cursor: AbstractCursor | None) -> None:
         _CursorMeta.__default_cursor = cursor
 
 
-class Cursor(metaclass=_CursorMeta):
+class AbstractCursor(metaclass=_CursorMeta):
     @abstractmethod
     def set(self) -> None:
         raise NotImplementedError
 
 
-class CustomCursor(Cursor):
+class Cursor(AbstractCursor):
 
     __slots__ = ("__cursor",)
 
@@ -92,20 +92,18 @@ class CustomCursor(Cursor):
         self.__cursor: _Cursor = _Cursor(*args)
 
     @staticmethod
-    def compile(
-        hotspot: tuple[int, int], strings: Sequence[str], black: str = "X", white: str = ".", xor: str = "o"
-    ) -> CustomCursor:
+    def compile(hotspot: tuple[int, int], strings: Sequence[str], black: str = "X", white: str = ".", xor: str = "o") -> Cursor:
         data, mask = _pg_cursors_compile(strings, black=black, white=white, xor=xor)
         width = max(len(line) for line in strings)
         height = len(strings)
-        return CustomCursor((width, height), hotspot, data, mask)
+        return Cursor((width, height), hotspot, data, mask)
 
     @staticmethod
-    def load_xbm(cursorfile: str, maskfile: str) -> CustomCursor:
+    def load_xbm(cursorfile: str, maskfile: str) -> Cursor:
         size, hotspot, xormasks, andmasks = _pg_cursors_load_xbm(cursorfile, maskfile)
         width, height = size
         x, y = hotspot
-        return CustomCursor((width, height), (x, y), xormasks, andmasks)
+        return Cursor((width, height), (x, y), xormasks, andmasks)
 
     def set(self) -> None:
         _pg_mouse_set_cursor(self.__cursor)
@@ -115,7 +113,7 @@ class _SystemCursorMeta(_CursorMeta, EnumMeta):
     pass
 
 
-class SystemCursor(Cursor, Enum, metaclass=_SystemCursorMeta):
+class SystemCursor(AbstractCursor, Enum, metaclass=_SystemCursorMeta):
     ARROW = _pg_constants.SYSTEM_CURSOR_ARROW
     IBEAM = _pg_constants.SYSTEM_CURSOR_IBEAM
     WAIT = _pg_constants.SYSTEM_CURSOR_WAIT
