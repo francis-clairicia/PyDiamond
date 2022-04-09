@@ -26,7 +26,7 @@ def __set_path(
     if not relative_to_cwd and not os_path.isabs(all_path):
         all_path = os_path.join(os_path.abspath(os_path.dirname(argv[0])), all_path)
     all_path = os_path.realpath(all_path)
-    if not path_exists(all_path) and raise_error:
+    if raise_error and not path_exists(all_path):
         if error_msg:
             raise FileNotFoundError(f"{all_path!r}: {error_msg}")
         raise FileNotFoundError(f"{all_path!r} not found")

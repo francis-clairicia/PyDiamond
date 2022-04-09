@@ -54,6 +54,7 @@ from ..graphics.renderer import Renderer, SurfaceRenderer
 from ..graphics.surface import Surface, create_surface, save_image
 from ..graphics.text import Text
 from ..system._mangling import getattr_pv, setattr_pv
+from ..system.path import set_constant_file
 from ..system.utils import wraps
 from .clock import Clock
 from .cursor import AbstractCursor
@@ -284,10 +285,10 @@ class Window:
         extension: str = ".png"
 
         date = datetime.now()
-        file = date.strftime(f"{filename_fmt}{extension}")
+        file = set_constant_file(date.strftime(f"{filename_fmt}{extension}"), raise_error=False, relative_to_cwd=True)
         if path_exists(file):
             for i in itertools_count(start=1):
-                file = date.strftime(f"{filename_fmt}_{i}{extension}")
+                file = set_constant_file(date.strftime(f"{filename_fmt}_{i}{extension}"), raise_error=False, relative_to_cwd=True)
                 if not path_exists(file):
                     break
         save_image(screen, file)
@@ -296,8 +297,9 @@ class Window:
     def _on_screenshot(self, filepath: str, screen: Surface) -> None:
         pass
 
-    def handle_events(self) -> Sequence[Event]:
-        return tuple(self.process_events())
+    def handle_events(self) -> None:
+        for _ in self.process_events():
+            continue
 
     @contextmanager
     def no_window_callback_processing(self) -> Iterator[None]:
