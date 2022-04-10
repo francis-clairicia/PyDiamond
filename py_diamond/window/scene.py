@@ -146,7 +146,7 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
     @classmethod
     @cache
     def get_default_theme_decorator_exempt(metacls) -> frozenset[str]:
-        return frozenset((*super().get_default_theme_decorator_exempt(), *metacls.__theme_namespace_decorator_exempt))
+        return frozenset(chain(super().get_default_theme_decorator_exempt(), metacls.__theme_namespace_decorator_exempt))
 
 
 SceneTransitionCoroutine: TypeAlias = Generator[None, float | None, None]
@@ -452,7 +452,7 @@ class LayeredSceneMeta(SceneMeta):
     @classmethod
     @cache
     def get_default_theme_decorator_exempt(metacls) -> frozenset[str]:
-        return frozenset((*super().get_default_theme_decorator_exempt(), "__setattr__", "__delattr__"))
+        return frozenset(chain(super().get_default_theme_decorator_exempt(), ("__setattr__", "__delattr__")))
 
     class __setattr_wrapper:
         def __init__(self, setattr_func: Callable[[Any, str, Any], None]) -> None:
@@ -566,7 +566,7 @@ class DialogMeta(SceneMeta):
     @classmethod
     @cache
     def get_default_theme_decorator_exempt(metacls) -> frozenset[str]:
-        return frozenset((*super().get_default_theme_decorator_exempt(), *metacls.__theme_namespace_decorator_exempt))
+        return frozenset(chain(super().get_default_theme_decorator_exempt(), metacls.__theme_namespace_decorator_exempt))
 
 
 class Dialog(Scene, metaclass=DialogMeta):

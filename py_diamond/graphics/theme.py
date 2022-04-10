@@ -30,7 +30,7 @@ from contextlib import nullcontext, suppress
 from dataclasses import dataclass
 from functools import cached_property
 from inspect import Parameter, Signature
-from itertools import filterfalse
+from itertools import chain, filterfalse
 from operator import truth
 from re import compile as re_compile
 from types import FunctionType, LambdaType, MappingProxyType
@@ -159,7 +159,7 @@ class ThemeNamespace(ContextManager["ThemeNamespace"]):
             self.__extension: _ClassThemeDict = extension
 
         def __key_list(self) -> frozenset[type]:
-            return frozenset((*self.__actual, *self.__extension))
+            return frozenset(chain(self.__actual, self.__extension))
 
         def __contains__(self, __o: object) -> bool:
             return __o in self.__actual
@@ -208,7 +208,7 @@ class ThemeNamespace(ContextManager["ThemeNamespace"]):
                 self.__extension: _ClassTheme | None = extension
 
             def __key_list(self) -> frozenset[str]:
-                return frozenset((*(self.__actual or {}), *(self.__extension or {})))
+                return frozenset(chain(self.__actual or {}, self.__extension or {}))
 
             def __iter__(self) -> Iterator[str]:
                 return iter(self.__key_list())
@@ -267,7 +267,7 @@ class ThemeNamespace(ContextManager["ThemeNamespace"]):
             self.__extension: _ClassDefaultThemeDict = extension
 
         def __key_list(self) -> frozenset[type]:
-            return frozenset((*self.__actual, *self.__extension))
+            return frozenset(chain(self.__actual, self.__extension))
 
         def __contains__(self, __o: object) -> bool:
             return __o in self.__actual
