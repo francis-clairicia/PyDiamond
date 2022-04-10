@@ -19,6 +19,8 @@ __all__ = [
     "NoDuplicateMeta",
     "NonCopyable",
     "NonCopyableMeta",
+    "Object",
+    "ObjectMeta",
     "OptionAttribute",
     "OptionError",
     "RThread",
@@ -33,12 +35,14 @@ __all__ = [
     "concreteclasscheck",
     "concreteclassmethod",
     "dsuppress",
+    "final",
     "flatten",
     "forbidden_call",
     "initializer",
     "isabstractmethod",
     "isconcreteclass",
     "lru_cache",
+    "override",
     "rthread",
     "set_constant_directory",
     "set_constant_file",
@@ -75,6 +79,7 @@ from .duplicate import NoDuplicate, NoDuplicateMeta
 from .enum import AutoLowerNameEnum, AutoUpperNameEnum, StrEnum
 from .namespace import ClassNamespace, ClassNamespaceMeta
 from .non_copyable import NonCopyable, NonCopyableMeta
+from .object import Object, ObjectMeta, final, override
 from .path import set_constant_directory, set_constant_file
 from .singleton import Singleton, SingletonMeta
 from .threading import RThread, Thread, rthread, thread
