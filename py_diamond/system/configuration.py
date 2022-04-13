@@ -30,6 +30,7 @@ from copy import copy, deepcopy
 from enum import Enum
 from functools import cache, wraps
 from itertools import filterfalse
+from threading import RLock
 from types import BuiltinFunctionType, BuiltinMethodType, MethodType
 from typing import (
     TYPE_CHECKING,
@@ -142,6 +143,8 @@ class Configuration:
         "__info",
         "__no_parent_ownership",
         "__bound_class",
+        "__attr_name",
+        "__lock",
     )
 
     def __init__(
@@ -149,6 +152,7 @@ class Configuration:
         *known_options: str,
         autocopy: Optional[bool] = None,
         parent: Optional[Union[Configuration, Sequence[Configuration]]] = None,
+        cached_attribute: bool | None = None,
     ) -> None:
         for option in known_options:
             if not option:
@@ -165,9 +169,11 @@ class Configuration:
             parent = list(dict.fromkeys(parent))
 
         self.__all_parents: Tuple[Configuration, ...] = tuple(parent)
-        self.__info: _ConfigInfo = _ConfigInfo(known_options, autocopy, list(p.__info for p in parent))
+        self.__info: _ConfigInfo = _ConfigInfo(known_options, autocopy, list(p.__info for p in parent), cached_attribute)
         self.__no_parent_ownership: Set[str] = set()
         self.__bound_class: Optional[type] = None
+        self.__attr_name: Optional[str] = None
+        self.__lock = RLock()
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({{{', '.join(repr(s) for s in sorted(self.known_options()))}}})"
@@ -178,6 +184,7 @@ class Configuration:
         if getattr(owner, name) is not self:
             raise AttributeError("The attribute name does not correspond")
         self.__bound_class = owner
+        self.__attr_name = name
         info: _ConfigInfo = self.__info
         attribute_class_owner: Dict[str, type] = info.attribute_class_owner
         no_parent_ownership: Set[str] = self.__no_parent_ownership
@@ -279,6 +286,23 @@ class Configuration:
     def __get__(self, obj: Optional[_T], objtype: Optional[type] = None, /) -> Union[Configuration, BoundConfiguration[_T]]:
         if obj is None:
             return self
+        attr_name = self.__attr_name
+        if not attr_name:
+            raise TypeError("Cannot use Configuration instance without calling __set_name__ on it.")
+        if self.__info.cached_attribute:
+            try:
+                obj_cache = obj.__dict__
+            except AttributeError:
+                return BoundConfiguration(self, obj)
+            bound_config: BoundConfiguration[_T] = obj_cache.get(attr_name, _MISSING)
+            if bound_config is _MISSING:
+                with self.__lock:
+                    bound_config = obj_cache.get(attr_name, _MISSING)
+                    if bound_config is _MISSING:
+                        bound_config = BoundConfiguration(self, obj)
+                        with suppress(Exception):
+                            obj_cache[attr_name] = bound_config
+            return bound_config
         return BoundConfiguration(self, obj)
 
     @overload
@@ -425,14 +449,13 @@ class Configuration:
             return
         option: str
         value: Any
+        if len(kwargs) == 1:
+            option, value = next(iter(kwargs.items()))
+            return self.set(__obj, option, value)
         if self.has_initialization_context(__obj):
             for option, value in kwargs.items():
                 self.set(__obj, option, value)
             return
-        if len(kwargs) == 1:
-            option = tuple(kwargs)[0]
-            value = kwargs[option]
-            return self.set(__obj, option, value)
 
         info: _ConfigInfo = self.__info
         need_update: List[str] = []
@@ -1056,7 +1079,8 @@ class Configuration:
         self.__info.enum_return_value[option] = bool(return_value)
 
     def attribute(self, func: Callable[..., _T]) -> OptionAttribute[_T]:
-        self.check_option_validity(func.__name__, use_alias=True)
+        option = self.check_option_validity(func.__name__, use_alias=True)
+        self.getter(option, func)
         attr: OptionAttribute[_T] = OptionAttribute()
         attr.__doc__ = func.__doc__
         return attr
@@ -1151,6 +1175,10 @@ class Configuration:
     @property
     def __parents__(self) -> Tuple[Configuration, ...]:
         return self.__all_parents
+
+    @property
+    def owner(self) -> Optional[type]:
+        return self.__bound_class
 
 
 class OptionAttribute(Generic[_T]):
@@ -1307,9 +1335,6 @@ class BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
     ) -> None:
         options: Dict[str, Any] = {}
 
-        def _supports_key(__m: object) -> TypeGuard[SupportsKeysAndGetItem[str, Any]]:
-            return hasattr(__m, "keys") and hasattr(__m, "__getitem__")
-
         if _supports_key(__m):
             for key in __m.keys():
                 options[key] = __m[key]
@@ -1362,20 +1387,51 @@ def _make_function_wrapper(func: Any, *, check_override: bool = True, no_object:
 
     if not isinstance(func, (BuiltinFunctionType, BuiltinMethodType)):
 
-        @wraps(func)
-        def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-            _func: Callable[..., Any]
-            if no_object and callable(func):
-                _func = func
+        if no_object:
+
+            if callable(func):
+
+                @wraps(func)
+                def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
+                    return func(*args, **kwargs)
+
+            elif check_override:
+
+                @wraps(func)
+                def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
+                    _func: Callable[..., Any] = getattr(func, "__get__", lambda *args: func)(self, type(self))
+                    if _can_be_overriden(_func):
+                        _func = getattr(self, _func.__name__, _func)
+                    return _func(*args, **kwargs)
+
             else:
+
+                @wraps(func)
+                def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
+                    _func: Callable[..., Any] = getattr(func, "__get__", lambda *args: func)(self, type(self))
+                    return _func(*args, **kwargs)
+
+        elif check_override:
+
+            @wraps(func)
+            def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
+                _func: Callable[..., Any]
                 _func = getattr(func, "__get__", lambda *args: func)(self, type(self))
-                if _func is func and not no_object:
+                if _func is func:
                     _func = MethodType(func, self)
-                if not callable(_func):
-                    raise TypeError("Not callable")
-            if check_override and _can_be_overriden(_func):
-                _func = getattr(self, _func.__name__, _func)
-            return _func(*args, **kwargs)
+                if _can_be_overriden(_func):
+                    _func = getattr(self, _func.__name__, _func)
+                return _func(*args, **kwargs)
+
+        else:
+
+            @wraps(func)
+            def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
+                _func: Callable[..., Any]
+                _func = getattr(func, "__get__", lambda *args: func)(self, type(self))
+                if _func is func:
+                    _func = MethodType(func, self)
+                return _func(*args, **kwargs)
 
     else:
 
@@ -1410,6 +1466,10 @@ def _wrap_function_wrapper(func: Any, wrapper: Callable[..., Any]) -> Callable[.
     return wrapper
 
 
+def _supports_key(__m: object) -> TypeGuard[SupportsKeysAndGetItem[str, Any]]:
+    return hasattr(__m, "keys") and hasattr(__m, "__getitem__")
+
+
 def _get_cls_mro(cls: type) -> List[type]:
     try:
         mro: List[type] = list(getattr(cls, "__mro__"))
@@ -1423,6 +1483,17 @@ def _get_cls_mro(cls: type) -> List[type]:
 
         mro = getmro(cls)
     return mro
+
+
+if not TYPE_CHECKING:
+    try:
+        from inspect import getmro as _inspect_get_mro
+    except ImportError:
+        pass
+    else:
+
+        def _get_cls_mro(cls: type) -> List[type]:
+            return list(_inspect_get_mro(cls))
 
 
 def _all_members(cls: type) -> Dict[str, Any]:
@@ -1449,8 +1520,6 @@ def _register_configuration(cls: type, config: Optional[Configuration]) -> Optio
 
 
 def _retrieve_configuration(cls: type) -> Configuration:
-    if not isinstance(cls, type):
-        raise TypeError(f"{cls} is not a type")
     try:
         config: Configuration = getattr(cls, "_bound_configuration_")
         if not isinstance(config, Configuration):
@@ -1504,9 +1573,16 @@ class _ConfigInfo:
         "value_copy_allow_subclass",
         "enum_return_value",
         "readonly",
+        "cached_attribute",
     )
 
-    def __init__(self, known_options: Sequence[str], autocopy: Optional[bool], parents: Sequence[_ConfigInfo]) -> None:
+    def __init__(
+        self,
+        known_options: Sequence[str],
+        autocopy: Optional[bool],
+        parents: Sequence[_ConfigInfo],
+        cached_attribute: Optional[bool],
+    ) -> None:
         def merge_dict(
             d1: Dict[_KT, _VT], d2: Dict[_KT, _VT], /, *, on_conflict: Literal["override", "raise", "skip"], setting: str
         ) -> None:
@@ -1537,15 +1613,18 @@ class _ConfigInfo:
         self.value_copy_allow_subclass: Dict[type, bool] = dict()
         self.enum_return_value: Dict[str, bool] = dict()
         self.readonly: Set[str] = set()
+        self.cached_attribute: bool = cached_attribute or False
 
         checked_readonly_options: List[str] = []
         for p in parents:
             self.options |= p.options
+            if autocopy is None:
+                self.autocopy |= p.autocopy
+            if cached_attribute is None:
+                self.cached_attribute &= p.cached_attribute
             merge_dict(self.value_descriptors, p.value_descriptors, on_conflict="raise", setting="descriptor")
             merge_dict(self.value_converter, p.value_converter, on_conflict="raise", setting="value_converter")
             merge_dict(self.value_validator, p.value_validator, on_conflict="raise", setting="value_validator")
-            if autocopy is not None:
-                self.autocopy |= p.autocopy
             merge_dict(self.value_autocopy_get, p.value_autocopy_get, on_conflict="skip", setting="autocopy_get")
             merge_dict(self.value_autocopy_set, p.value_autocopy_set, on_conflict="skip", setting="autocopy_set")
             merge_dict(self.attribute_class_owner, p.attribute_class_owner, on_conflict="skip", setting="class_owner")
