@@ -42,6 +42,7 @@ __all__ = [
     "isabstractmethod",
     "isconcreteclass",
     "lru_cache",
+    "noexcept",
     "override",
     "rthread",
     "set_constant_directory",
@@ -77,6 +78,7 @@ from .configuration import (
 )
 from .duplicate import NoDuplicate, NoDuplicateMeta
 from .enum import AutoLowerNameEnum, AutoUpperNameEnum, StrEnum
+from .exception import noexcept
 from .namespace import ClassNamespace, ClassNamespaceMeta
 from .non_copyable import NonCopyable, NonCopyableMeta
 from .object import Object, ObjectMeta, final, override
