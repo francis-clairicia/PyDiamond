@@ -9,7 +9,6 @@ from __future__ import annotations
 __all__ = [
     "AbstractNetworkProtocol",
     "AutoParsedNetworkProtocol",
-    "NetworkProtocolMeta",
     "SecuredNetworkProtocol",
     "SecuredNetworkProtocolMeta",
     "ValidationError",
@@ -19,90 +18,67 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 from contextlib import contextmanager
+from functools import cached_property
 from struct import Struct, error as StructError
 from threading import RLock
-from types import TracebackType
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Generator, Iterator, ParamSpec, TypeVar
+from types import MethodType, TracebackType
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Generator, Iterator, TypeVar, final
 
 from cryptography.fernet import Fernet, InvalidToken
 
-from ...system.namespace import ClassNamespaceMeta
-from ...system.utils import isconcreteclass, wraps
+from ...system.object import Object, ObjectMeta
+from ...system.utils import isabstractmethod, isconcreteclass
+
+if not TYPE_CHECKING:
+    from ...system.object import final as final
 
 
 class ValidationError(Exception):
     pass
 
 
-class NetworkProtocolMeta(ABCMeta, ClassNamespaceMeta):
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="NetworkProtocolMeta")
-
-    def __new__(metacls: type[__Self], name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> __Self:
-        try:
-            AbstractNetworkProtocol
-        except NameError:
-            pass
-        else:
-            if not any(issubclass(b, AbstractNetworkProtocol) for b in bases):
-                raise TypeError(
-                    f"{name!r} must be inherits from a {AbstractNetworkProtocol.__name__} class in order to use {NetworkProtocolMeta.__name__} metaclass"
-                )
-        return super().__new__(metacls, name, bases, namespace)
-
-
-class AbstractNetworkProtocol(metaclass=NetworkProtocolMeta, frozen=True):
-    @classmethod
+class AbstractNetworkProtocol(Object):
     @abstractmethod
-    def serialize(cls, packet: Any) -> bytes:
+    def serialize(self, packet: Any) -> bytes:
         raise NotImplementedError
 
-    @classmethod
     @abstractmethod
-    def deserialize(cls, data: bytes) -> Any:
+    def deserialize(self, data: bytes) -> Any:
         raise NotImplementedError
 
-    @classmethod
-    def add_header_footer(cls, data: bytes) -> bytes:
+    def add_header_footer(self, data: bytes) -> bytes:
         return data
 
-    @classmethod
     @abstractmethod
-    def parse_received_data(cls, buffer: bytes) -> Generator[bytes, None, bytes]:
+    def parse_received_data(self, buffer: bytes) -> Generator[bytes, None, bytes]:
         raise NotImplementedError
 
-    @classmethod
-    def verify_packet_to_send(cls, packet: Any) -> None:
+    def verify_packet_to_send(self, packet: Any) -> None:
         pass
 
-    @classmethod
-    def verify_received_data(cls, data: bytes) -> None:
+    def verify_received_data(self, data: bytes) -> None:
         pass
 
-    @classmethod
-    def verify_received_packet(cls, packet: Any) -> None:
+    def verify_received_packet(self, packet: Any) -> None:
         pass
 
-    @classmethod
     def handle_deserialize_error(
-        cls, data: bytes, exc_type: type[BaseException], exc_value: BaseException, tb: TracebackType
+        self, data: bytes, exc_type: type[BaseException], exc_value: BaseException, tb: TracebackType
     ) -> bool:
         return False
 
 
 class AutoParsedNetworkProtocol(AbstractNetworkProtocol):
-    struct: Final[Struct] = Struct("!I")
+    __struct: Final[Struct] = Struct("!I")
 
-    @classmethod
-    def add_header_footer(cls, data: bytes) -> bytes:
-        header: bytes = cls.struct.pack(len(data))
+    def add_header_footer(self, data: bytes) -> bytes:
+        header: bytes = self.__struct.pack(len(data))
         return header + data
 
-    @classmethod
-    def parse_received_data(cls, buffer: bytes) -> Generator[bytes, None, bytes]:
-        struct: Struct = cls.struct
+    def parse_received_data(self, buffer: bytes) -> Generator[bytes, None, bytes]:
+        struct: Struct = self.__struct
         while len(buffer) >= struct.size:
             header: bytes = buffer[: struct.size]
             body: bytes = buffer[struct.size :]
@@ -117,28 +93,27 @@ class AutoParsedNetworkProtocol(AbstractNetworkProtocol):
         return buffer
 
 
-class SecuredNetworkProtocolMeta(NetworkProtocolMeta):
+class SecuredNetworkProtocolMeta(ObjectMeta):
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="SecuredNetworkProtocolMeta")
+
+    __initializing: set[SecuredNetworkProtocolMeta] = set()
 
     def __new__(metacls: type[__Self], name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> __Self:
         try:
             SecuredNetworkProtocol
         except NameError:
-            namespace["_lock_"] = RLock()
+            pass
         else:
             if not any(issubclass(b, SecuredNetworkProtocol) for b in bases):
                 raise TypeError(
                     f"{name!r} must be inherits from a {SecuredNetworkProtocol.__name__} class in order to use {SecuredNetworkProtocolMeta.__name__} metaclass"
                 )
-            for attr in ("_cryptography_fernet_", "_lock_"):
+            for attr in ("_cryptography_fernet_",):
                 if attr in namespace:
                     raise TypeError(f"Explicit setting of {attr!r} attribute is forbidden")
 
-            if any(
-                len(tuple(filter(lambda t: hasattr(t, attr), bases))) > 1
-                for attr in ("_cryptography_fernet_", "_lock_", "SECRET_KEY")
-            ):
+            if any(len(tuple(filter(lambda t: hasattr(t, attr), bases))) > 1 for attr in ("_cryptography_fernet_", "SECRET_KEY")):
                 raise TypeError("Attribute conflict with security attributes")
 
             for attr in ("add_header_footer", "parse_received_data", "verify_received_data"):
@@ -163,97 +138,89 @@ class SecuredNetworkProtocolMeta(NetworkProtocolMeta):
         elif isconcreteclass(cls) and not hasattr(cls, "_cryptography_fernet_"):
             if SECRET_KEY is _MISSING and secret_key_var is _MISSING:
                 secret_key_var = "SECRET_KEY"
-        if SECRET_KEY is not _MISSING or secret_key_var is not _MISSING:
-            if SECRET_KEY is _MISSING:
-                from os import environ
 
-                try:
-                    SECRET_KEY = environ[secret_key_var]
-                except KeyError:
-                    raise KeyError(
-                        f"Please provide a secret key in your environment using {secret_key_var!r} key set the 'SECRET_KEY' class variable"
-                    ) from None
-                finally:
-                    del environ
-            setattr(cls, "SECRET_KEY", SECRET_KEY)
-            if not isinstance(SECRET_KEY, str):
-                raise TypeError(f"Invalid SECRET_KEY type, expected str but got {type(SECRET_KEY).__qualname__!r}")
-            if not SECRET_KEY:
-                raise ValueError("Empty secret key")
-            RFernet = metacls.__RFernet
-            fernet: Fernet = RFernet(SECRET_KEY)
-            setattr(cls, "_cryptography_fernet_", fernet)
+        if SECRET_KEY is _MISSING and secret_key_var is _MISSING:
+            return cls
 
-        serialize: Callable[[type[SecuredNetworkProtocol], Any], bytes]
+        if SECRET_KEY is _MISSING:
+            from os import environ
+
+            try:
+                SECRET_KEY = environ[secret_key_var]
+            except KeyError:
+                raise KeyError(
+                    f"Please provide a secret key in your environment using {secret_key_var!r} key set the 'SECRET_KEY' class variable"
+                ) from None
+            finally:
+                del environ
+        if not isinstance(SECRET_KEY, str):
+            raise TypeError(f"Invalid SECRET_KEY type, expected str but got {type(SECRET_KEY).__qualname__!r}")
+        if not SECRET_KEY:
+            raise ValueError("Empty secret key")
+        RFernet = metacls.__RFernet
+        RFernet(SECRET_KEY)
+        fernet_cached_property = cached_property(lambda self: RFernet(getattr(self, "SECRET_KEY")))
+        setattr(cls, "_cryptography_fernet_", fernet_cached_property)
+        fernet_cached_property.__set_name__(cls, "_cryptography_fernet_")
+        cls.__initializing.add(cls)
         try:
-            serialize = getattr(getattr(cls, "serialize"), "__func__")
+            setattr(cls, "SECRET_KEY", SECRET_KEY)
+        finally:
+            cls.__initializing.remove(cls)
+
+        serialize: Callable[[SecuredNetworkProtocol, Any], bytes]
+        try:
+            serialize = getattr(cls, "serialize")
+            if isabstractmethod(serialize):
+                raise AttributeError
         except AttributeError:
             serialize = _MISSING
-        deserialize: Callable[[type[SecuredNetworkProtocol], bytes], Any]
+        deserialize: Callable[[SecuredNetworkProtocol, bytes], Any]
         try:
-            deserialize = getattr(getattr(cls, "deserialize"), "__func__")
-        except (AttributeError, KeyError):
+            deserialize = getattr(cls, "deserialize")
+            if isabstractmethod(deserialize):
+                raise AttributeError
+        except AttributeError:
             deserialize = _MISSING
 
-        _P = ParamSpec("_P")
-        _T = TypeVar("_T")
+        if serialize is not _MISSING and not isinstance(serialize, cls.__FernetWrapper):
 
-        def fernet_wrapper(func: Callable[_P, _T]) -> Callable[_P, _T]:
-            setattr(func, "_fernet_wrapper_", True)
-            return func
-
-        def is_fernet_wrapper(func: Callable[..., Any]) -> bool:
-            return getattr(func, "_fernet_wrapper_", False)
-
-        if serialize is not _MISSING and not is_fernet_wrapper(serialize):
-
-            @wraps(serialize)
-            @fernet_wrapper
-            def serialize_wrapper(cls: type[SecuredNetworkProtocol], /, packet: Any) -> bytes:
-                lock: RLock = getattr(cls, "_lock_")
-                with lock:
-                    fernet: SecuredNetworkProtocolMeta.__RFernet
-                    fernet = getattr(cls, "_cryptography_fernet_", _MISSING)
-                    if fernet is _MISSING:
-                        raise AttributeError("No SECRET_KEY given")
+            def serialize_wrapper(self: SecuredNetworkProtocol, /, packet: Any) -> bytes:
+                with self.lock:
+                    fernet: SecuredNetworkProtocolMeta.__RFernet = getattr(self, "_cryptography_fernet_")
                     data: bytes
                     with fernet.increase_depth("encryption"):
-                        data = serialize(cls, packet)
+                        data = serialize(self, packet)
                     if fernet.get_depth("encryption") == 0:
                         return fernet.encrypt(data)
                 return data
 
-            setattr(cls, "serialize", classmethod(serialize_wrapper))
+            setattr(cls, "serialize", cls.__FernetWrapper(serialize, serialize_wrapper, "encryption"))
 
-        if deserialize is not _MISSING and not is_fernet_wrapper(deserialize):
+        if deserialize is not _MISSING and not isinstance(deserialize, cls.__FernetWrapper):
 
-            @wraps(deserialize)
-            @fernet_wrapper
-            def deserialize_wrapper(cls: type[SecuredNetworkProtocol], /, data: bytes) -> Any:
-                lock: RLock = getattr(cls, "_lock_")
-                with lock:
+            def deserialize_wrapper(self: SecuredNetworkProtocol, /, data: bytes) -> Any:
+                with self.lock:
                     fernet: SecuredNetworkProtocolMeta.__RFernet
-                    fernet = getattr(cls, "_cryptography_fernet_", _MISSING)
-                    if fernet is _MISSING:
-                        raise AttributeError("No SECRET_KEY given")
+                    fernet = getattr(self, "_cryptography_fernet_")
                     packet: Any
                     if fernet.get_depth("decryption") == 0:
                         data = fernet.decrypt(data)
                     with fernet.increase_depth("decryption"):
-                        packet = deserialize(cls, data)
+                        packet = deserialize(self, data)
                     return packet
 
-            setattr(cls, "deserialize", classmethod(deserialize_wrapper))
+            setattr(cls, "deserialize", cls.__FernetWrapper(deserialize, deserialize_wrapper, "decryption"))
 
         return cls
 
     def __setattr__(cls, name: str, value: Any, /) -> None:
-        if getattr(cls, "_class_namespace_was_init_") and name == "SECRET_KEY":
+        if cls not in cls.__initializing and name == "SECRET_KEY":
             raise AttributeError(f"Attempting to modify the secret key")
         return super().__setattr__(name, value)
 
     def __delattr__(cls, name: str, /) -> None:
-        if getattr(cls, "_class_namespace_was_init_") and name == "SECRET_KEY":
+        if name == "SECRET_KEY":
             raise AttributeError(f"Attempting to delete the secret key")
         return super().__delattr__(name)
 
@@ -276,32 +243,61 @@ class SecuredNetworkProtocolMeta(NetworkProtocolMeta):
                         depth.pop(context)
 
         def get_depth(self, context: str) -> int:
-            depth: dict[str, int] = self.__depth
-            return depth.get(context, 0)
+            with self.__lock:
+                depth: dict[str, int] = self.__depth
+                return depth.get(context, 0)
+
+    class __FernetWrapper(Object):
+        def __init__(self, func: Callable[..., Any], wrapper: Callable[..., Any], context: str) -> None:
+            self.func = func
+            self.wrapper = wrapper
+            self.context = context
+
+        @cached_property
+        def __call__(self) -> Callable[..., Any]:
+            return self.wrapper
+
+        def __get__(self, obj: object, objtype: type | None = None, /) -> Callable[..., Any]:
+            if obj is None:
+                return self
+            return MethodType(self, obj)
+
+        @property
+        def __wrapped__(self) -> Callable[..., Any]:
+            return self.func
 
 
 class SecuredNetworkProtocol(AutoParsedNetworkProtocol, metaclass=SecuredNetworkProtocolMeta):
     SECRET_KEY: ClassVar[str]
 
+    def __init__(self) -> None:
+        super().__init__()
+        self.__lock = RLock()
+
+    @property
+    def lock(self) -> RLock:
+        return self.__lock
+
+    @property
+    def fernet(self) -> Fernet:
+        cls_fernet: Fernet = getattr(self, "_cryptography_fernet_")
+        return cls_fernet
+
     @staticmethod
     def generate_key() -> str:
         return Fernet.generate_key().decode("utf-8")
 
-    @classmethod
-    def add_header_footer(cls, data: bytes) -> bytes:
-        return AutoParsedNetworkProtocol.add_header_footer(data)
+    def add_header_footer(self, data: bytes) -> bytes:
+        return AutoParsedNetworkProtocol.add_header_footer(self, data)
 
-    @classmethod
-    def parse_received_data(cls, buffer: bytes) -> Generator[bytes, None, bytes]:
-        return AutoParsedNetworkProtocol.parse_received_data(buffer)
+    def parse_received_data(self, buffer: bytes) -> Generator[bytes, None, bytes]:
+        return AutoParsedNetworkProtocol.parse_received_data(self, buffer)
 
-    @classmethod
-    def verify_received_data(cls, data: bytes) -> None:
-        return AutoParsedNetworkProtocol.verify_received_data(data)
+    def verify_received_data(self, data: bytes) -> None:
+        return AutoParsedNetworkProtocol.verify_received_data(self, data)
 
-    @classmethod
     def handle_deserialize_error(
-        cls, data: bytes, exc_type: type[BaseException], exc_value: BaseException, tb: TracebackType
+        self, data: bytes, exc_type: type[BaseException], exc_value: BaseException, tb: TracebackType
     ) -> bool:
         if issubclass(exc_type, InvalidToken):
             return True

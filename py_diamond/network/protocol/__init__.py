@@ -8,7 +8,6 @@ __all__ = [
     "AbstractNetworkProtocol",
     "AutoParsedNetworkProtocol",
     "JSONNetworkProtocol",
-    "NetworkProtocolMeta",
     "PicklingNetworkProtocol",
     "SecuredNetworkProtocol",
     "SecuredNetworkProtocolMeta",
@@ -24,7 +23,6 @@ __license__ = "GNU GPL v3.0"
 from .base import (
     AbstractNetworkProtocol,
     AutoParsedNetworkProtocol,
-    NetworkProtocolMeta,
     SecuredNetworkProtocol,
     SecuredNetworkProtocolMeta,
     ValidationError,

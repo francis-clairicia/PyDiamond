@@ -104,26 +104,22 @@ def test_custom_protocol() -> None:
 
 
 class StringNetworkProtocol(AbstractNetworkProtocol):
-    @classmethod
-    def verify_packet_to_send(cls, packet: Any) -> None:
+    def verify_packet_to_send(self, packet: Any) -> None:
         super().verify_packet_to_send(packet)
         if not isinstance(packet, str):
             raise ValidationError
 
-    @classmethod
-    def parse_received_data(cls, buffer: bytes) -> Generator[bytes, None, bytes]:
+    def parse_received_data(self, buffer: bytes) -> Generator[bytes, None, bytes]:
         separator: bytes = b"\n"
         while (idx := buffer.find(separator)) >= 0:
             yield buffer[:idx]
             buffer = buffer[idx + len(separator) :]
         return buffer
 
-    @classmethod
-    def serialize(cls, packet: str) -> bytes:
+    def serialize(self, packet: str) -> bytes:
         return packet.encode("ascii")
 
-    @classmethod
-    def deserialize(cls, data: bytes) -> str:
+    def deserialize(self, data: bytes) -> str:
         return data.decode("ascii")
 
 

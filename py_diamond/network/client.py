@@ -6,18 +6,19 @@
 
 from __future__ import annotations
 
-__all__ = ["AbstractNetworkClient", "DisconnectedClientError", "TCPNetworkClient", "UDPNetworkClient"]
+__all__ = ["AbstractNetworkClient", "ClientError", "DisconnectedClientError", "TCPNetworkClient", "UDPNetworkClient"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 from selectors import EVENT_READ, EVENT_WRITE
 from sys import exc_info
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Iterator, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Iterator, TypeVar, final, overload
 
+from ..system.object import Object
 from ..system.utils import concreteclass, concreteclasscheck
 from .protocol.base import AbstractNetworkProtocol, ValidationError
 from .protocol.pickle import PicklingNetworkProtocol
@@ -42,11 +43,14 @@ try:
 except ImportError:
     from selectors import SelectSelector as _Selector
 
+if not TYPE_CHECKING:
+    from ..system.object import final as final
+
 
 _T = TypeVar("_T")
 
 
-class AbstractNetworkClient(metaclass=ABCMeta):
+class AbstractNetworkClient(Object):
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="AbstractNetworkClient")
 
@@ -110,11 +114,22 @@ class AbstractNetworkClient(metaclass=ABCMeta):
         raise NotImplementedError
 
 
-class DisconnectedClientError(ConnectionError):
+class ClientError(Exception):
+    def __init__(self, client: TCPNetworkClient[Any], message: str | None = None) -> None:
+        if not message:
+            if not client.is_connected():
+                message = "Something went wrong for a client"
+            else:
+                addr: SocketAddress = client.getsockname()
+                message = f"Something went wrong for the client {addr.host}:{addr.port}"
+        super().__init__(message)
+        self.client: TCPNetworkClient[Any] = client
+
+
+class DisconnectedClientError(ClientError, ConnectionError):
     def __init__(self, client: TCPNetworkClient[Any]) -> None:
         addr: SocketAddress = client.getsockname()
-        super().__init__(f"{addr.host}:{addr.port} has been disconnected")
-        self.client: TCPNetworkClient[Any] = client
+        super().__init__(client, f"{addr.host}:{addr.port} has been disconnected")
 
 
 class NoValidPacket(ValueError):
@@ -171,7 +186,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
             raise TypeError("Invalid arguments")
         self.__socket: AbstractTCPClientSocket = socket
         self.__buffer_recv: bytes = b""
-        self.__protocol_cls: type[AbstractNetworkProtocol] = protocol_cls
+        self.__protocol: AbstractNetworkProtocol = protocol_cls()
         self.__queue: list[_T] = []
         self.__lock: RLock = RLock()
         super().__init__()
@@ -190,7 +205,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
     def send_packet(self, packet: _T, *, flags: int = 0) -> None:
         with self.__lock:
             socket: AbstractTCPClientSocket = self.__socket
-            protocol: type[AbstractNetworkProtocol] = self.protocol_cls
+            protocol: AbstractNetworkProtocol = self.__protocol
             protocol.verify_packet_to_send(packet)
             data: bytes = protocol.serialize(packet)
             data = protocol.add_header_footer(data)
@@ -236,7 +251,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
     def __recv_packets(self, flags: int, block: bool) -> None:
         with self.__lock:
             socket: AbstractTCPClientSocket = self.__socket
-            protocol: type[AbstractNetworkProtocol] = self.protocol_cls
+            protocol: AbstractNetworkProtocol = self.__protocol
             queue: list[_T] = self.__queue
             block = block and not queue
 
@@ -365,9 +380,10 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
             socket: AbstractTCPClientSocket = self.__socket
             return socket.try_reconnect(timeout=timeout)
 
+    @final
     @property
     def protocol_cls(self) -> type[AbstractNetworkProtocol]:
-        return self.__protocol_cls
+        return self.__protocol.__class__
 
 
 @concreteclass
@@ -413,7 +429,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
             raise TypeError("Invalid arguments")
         super().__init__()
         self.__socket: AbstractUDPSocket = socket
-        self.__protocol_cls: type[AbstractNetworkProtocol] = protocol_cls
+        self.__protocol: AbstractNetworkProtocol = protocol_cls()
         self.__queue: list[tuple[_T, SocketAddress]] = []
         self.__lock: RLock = RLock()
 
@@ -426,7 +442,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
     def send_packet(self, packet: _T, address: SocketAddress, *, flags: int = 0) -> None:
         with self.__lock:
             socket: AbstractUDPSocket = self.__socket
-            protocol: type[AbstractNetworkProtocol] = self.protocol_cls
+            protocol: AbstractNetworkProtocol = self.__protocol
             protocol.verify_packet_to_send(packet)
             data: bytes = protocol.serialize(packet)
             with _Selector() as selector:
@@ -466,7 +482,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
     def __recv_packets(self, flags: int, block: bool) -> None:
         with self.__lock:
             socket: AbstractUDPSocket = self.__socket
-            protocol: type[AbstractNetworkProtocol] = self.protocol_cls
+            protocol: AbstractNetworkProtocol = self.__protocol
             queue: list[tuple[_T, SocketAddress]] = self.__queue
             block = block and not queue
 
@@ -502,7 +518,8 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
                 queue.append((packet, sender))
 
     def has_saved_packets(self) -> bool:
-        return True if self.__queue else False
+        with self.__lock:
+            return True if self.__queue else False
 
     def getsockname(self) -> SocketAddress:
         with self.__lock:
@@ -550,6 +567,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
             socket: AbstractSocket = self.__socket
             return socket.fileno()
 
+    @final
     @property
     def protocol_cls(self) -> type[AbstractNetworkProtocol]:
-        return self.__protocol_cls
+        return self.__protocol.__class__

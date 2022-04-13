@@ -10,7 +10,6 @@ __all__ = [
     "AbstractNetworkClient",
     "AbstractNetworkProtocol",
     "AbstractNetworkServer",
-    "AbstractNetworkServer",
     "AbstractRequestHandler",
     "AbstractSocket",
     "AbstractTCPClientSocket",
@@ -22,11 +21,11 @@ __all__ = [
     "AbstractUDPRequestHandler",
     "AbstractUDPSocket",
     "AddressFamily",
+    "ClientError",
     "ConnectedClient",
     "DisconnectedClientError",
     "IPv4SocketAddress",
     "IPv6SocketAddress",
-    "NetworkProtocolMeta",
     "PicklingNetworkProtocol",
     "PythonTCPClientSocket",
     "PythonTCPServerSocket",
@@ -45,9 +44,7 @@ __all__ = [
     "SocketMeta",
     "TCPNetworkClient",
     "TCPNetworkServer",
-    "TCPNetworkServer",
     "UDPNetworkClient",
-    "UDPNetworkServer",
     "UDPNetworkServer",
     "ValidationError",
 ]
@@ -58,10 +55,9 @@ __license__ = "GNU GPL v3.0"
 
 
 ############ Package initialization ############
-from .client import AbstractNetworkClient, DisconnectedClientError, TCPNetworkClient, UDPNetworkClient
+from .client import AbstractNetworkClient, ClientError, DisconnectedClientError, TCPNetworkClient, UDPNetworkClient
 from .protocol import (
     AbstractNetworkProtocol,
-    NetworkProtocolMeta,
     PicklingNetworkProtocol,
     SecuredNetworkProtocol,
     SecuredNetworkProtocolMeta,

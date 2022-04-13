@@ -130,31 +130,26 @@ def test_multiple_connections() -> None:
 class _IntegerNetworkProtocol(AbstractNetworkProtocol):
     BYTES_LENGTH: ClassVar[int] = 8
 
-    @classmethod
-    def verify_packet_to_send(cls, packet: Any) -> None:
+    def verify_packet_to_send(self, packet: Any) -> None:
         super().verify_packet_to_send(packet)
         if not isinstance(packet, int):
             raise ValidationError
 
-    @classmethod
-    def serialize(cls, packet: int) -> bytes:
-        return packet.to_bytes(cls.BYTES_LENGTH, byteorder="big", signed=True)
+    def serialize(self, packet: int) -> bytes:
+        return packet.to_bytes(self.BYTES_LENGTH, byteorder="big", signed=True)
 
-    @classmethod
-    def deserialize(cls, data: bytes) -> int:
+    def deserialize(self, data: bytes) -> int:
         return int.from_bytes(data, byteorder="big", signed=True)
 
-    @classmethod
-    def parse_received_data(cls, buffer: bytes) -> Generator[bytes, None, bytes]:
-        bytes_length: int = cls.BYTES_LENGTH
+    def parse_received_data(self, buffer: bytes) -> Generator[bytes, None, bytes]:
+        bytes_length: int = self.BYTES_LENGTH
         while len(buffer) >= bytes_length:
             yield buffer[:bytes_length]
             buffer = buffer[bytes_length:]
         return buffer
 
-    @classmethod
-    def verify_received_data(cls, data: bytes) -> None:
-        if len(data) != cls.BYTES_LENGTH:
+    def verify_received_data(self, data: bytes) -> None:
+        if len(data) != self.BYTES_LENGTH:
             raise ValidationError
 
 
@@ -162,12 +157,14 @@ def test_request_handling() -> None:
     address: tuple[str, int] = ("localhost", random_port())
 
     with TCPNetworkServer(address, _BroadcastRequestHandler, protocol_cls=_IntegerNetworkProtocol) as server:
-        server.serve_forever_in_thread(poll_interval=0.1)
+        server.serve_forever_in_thread(poll_interval=0)
         with (
             TCPNetworkClient[int](address, protocol_cls=_IntegerNetworkProtocol) as client_1,
             TCPNetworkClient[int](address, protocol_cls=_IntegerNetworkProtocol) as client_2,
             TCPNetworkClient[int](address, protocol_cls=_IntegerNetworkProtocol) as client_3,
         ):
+            while len(server.clients) < 3:
+                sleep(0.1)
             client_1.send_packet(350)
             sleep(0.3)
             assert client_2.recv_packet() == 350

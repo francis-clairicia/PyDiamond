@@ -23,10 +23,11 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeAlias, TypeVar, final, overload
 
 from ...system.non_copyable import NonCopyableMeta
+from ...system.object import Object, ObjectMeta
 from .constants import SOCK_DGRAM, SOCK_STREAM, AddressFamily, ShutdownFlag, SocketKind
 
 
@@ -45,11 +46,11 @@ class IPv6SocketAddress(NamedTuple):
 SocketAddress: TypeAlias = IPv4SocketAddress | IPv6SocketAddress
 
 
-class SocketMeta(ABCMeta, NonCopyableMeta):
+class SocketMeta(NonCopyableMeta, ObjectMeta):
     pass
 
 
-class AbstractSocket(metaclass=SocketMeta):
+class AbstractSocket(Object, metaclass=SocketMeta):
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="AbstractSocket")
 
@@ -254,8 +255,6 @@ class ReceivedDatagram(NamedTuple):
 
 
 class AbstractUDPSocket(AbstractSocket):
-    MAX_PACKET_SIZE: ClassVar[int] = 8192
-
     @abstractmethod
     def recvfrom(self, bufsize: int = ..., flags: int = ...) -> ReceivedDatagram:
         raise NotImplementedError

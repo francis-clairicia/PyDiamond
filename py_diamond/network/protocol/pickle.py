@@ -21,35 +21,30 @@ from .base import AbstractNetworkProtocol, ValidationError
 
 @concreteclass
 class PicklingNetworkProtocol(AbstractNetworkProtocol):
-    @classmethod
-    def serialize(cls, packet: Any) -> bytes:
-        return pickletools_optimize(pickle_dumps(packet, protocol=cls.get_pickle_dump_protocol()))
+    def serialize(self, packet: Any) -> bytes:
+        return pickletools_optimize(pickle_dumps(packet, protocol=self.get_pickler_dump_protocol()))
 
-    @classmethod
-    def deserialize(cls, data: bytes) -> Any:
+    def deserialize(self, data: bytes) -> Any:
         return pickle_loads(data)
 
-    @classmethod
-    def parse_received_data(cls, buffer: bytes) -> Generator[bytes, None, bytes]:
+    def parse_received_data(self, buffer: bytes) -> Generator[bytes, None, bytes]:
         while (idx := buffer.find(STOP_OPCODE)) >= 0:
-            yield buffer[: idx + len(STOP_OPCODE)]
-            buffer = buffer[idx + len(STOP_OPCODE) :]
+            idx += len(STOP_OPCODE)
+            yield buffer[:idx]
+            buffer = buffer[idx:]
         return buffer
 
-    @classmethod
-    def verify_received_data(cls, data: bytes) -> None:
+    def verify_received_data(self, data: bytes) -> None:
         super().verify_received_data(data)
         if STOP_OPCODE not in data:
             raise ValidationError("Missing 'STOP' pickle opcode in data")
 
-    @classmethod
     def handle_deserialize_error(
-        cls, data: bytes, exc_type: type[BaseException], exc_value: BaseException, tb: TracebackType
+        self, data: bytes, exc_type: type[BaseException], exc_value: BaseException, tb: TracebackType
     ) -> bool:
         if issubclass(exc_type, UnpicklingError):
             return True
         return super().handle_deserialize_error(data, exc_type, exc_value, tb)
 
-    @classmethod
-    def get_pickle_dump_protocol(cls) -> int:
+    def get_pickler_dump_protocol(self) -> int:
         return HIGHEST_PROTOCOL

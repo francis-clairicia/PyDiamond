@@ -83,31 +83,26 @@ def test_service_actions() -> None:
 class _IntegerNetworkProtocol(AbstractNetworkProtocol):
     BYTES_LENGTH: ClassVar[int] = 8
 
-    @classmethod
-    def verify_packet_to_send(cls, packet: Any) -> None:
+    def verify_packet_to_send(self, packet: Any) -> None:
         super().verify_packet_to_send(packet)
         if not isinstance(packet, int):
             raise ValidationError
 
-    @classmethod
-    def serialize(cls, packet: int) -> bytes:
-        return packet.to_bytes(cls.BYTES_LENGTH, byteorder="big", signed=True)
+    def serialize(self, packet: int) -> bytes:
+        return packet.to_bytes(self.BYTES_LENGTH, byteorder="big", signed=True)
 
-    @classmethod
-    def deserialize(cls, data: bytes) -> int:
+    def deserialize(self, data: bytes) -> int:
         return int.from_bytes(data, byteorder="big", signed=True)
 
-    @classmethod
-    def parse_received_data(cls, buffer: bytes) -> Generator[bytes, None, bytes]:
-        bytes_length: int = cls.BYTES_LENGTH
+    def parse_received_data(self, buffer: bytes) -> Generator[bytes, None, bytes]:
+        bytes_length: int = self.BYTES_LENGTH
         while len(buffer) >= bytes_length:
             yield buffer[:bytes_length]
             buffer = buffer[bytes_length:]
         return buffer
 
-    @classmethod
-    def verify_received_data(cls, data: bytes) -> None:
-        if len(data) != cls.BYTES_LENGTH:
+    def verify_received_data(self, data: bytes) -> None:
+        if len(data) != self.BYTES_LENGTH:
             raise ValidationError
 
 
