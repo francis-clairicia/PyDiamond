@@ -30,6 +30,7 @@ __license__ = "GNU GPL v3.0"
 
 from contextlib import ContextDecorator, suppress
 from functools import WRAPPER_ASSIGNMENTS, WRAPPER_UPDATES, lru_cache as _lru_cache, update_wrapper as _update_wrapper
+from inspect import isabstract
 from itertools import chain
 from operator import truth
 from typing import Any, Callable, Iterable, Iterator, Literal, ParamSpec, Sequence, TypeAlias, TypeVar, overload
@@ -129,10 +130,10 @@ def concreteclasscheck(cls: Any) -> None:
 def isconcreteclass(cls: type) -> bool:
     if not isinstance(cls, type):
         raise TypeError("'cls' must be a type")
-    return not truth(getattr(cls, "__abstractmethods__", None))
+    return not isabstract(cls)
 
 
-def isabstractmethod(func: Callable[..., Any]) -> bool:
+def isabstractmethod(func: Any) -> bool:
     return truth(getattr(func, "__isabstractmethod__", False))
 
 

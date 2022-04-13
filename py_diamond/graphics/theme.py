@@ -55,7 +55,7 @@ from typing import (
 )
 
 from ..system._mangling import PRIVATE_ATTRIBUTE_PATTERN
-from ..system.utils import cache, concreteclassmethod, wraps
+from ..system.utils import cache, concreteclassmethod, isabstractmethod, wraps
 
 _ClassTheme: TypeAlias = MutableMapping[str, MappingProxyType[str, Any]]
 _ClassThemeProxy: TypeAlias = MappingProxyType[str, MappingProxyType[str, Any]]
@@ -361,7 +361,7 @@ class ThemedObjectMeta(ABCMeta):
                 if param.default is not None:
                     raise TypeError(f"{func.__qualname__}: 'theme' parameter must have None as default value")
 
-        if all(not getattr(attr, "__isabstractmethod__", False) for attr in namespace.values()):
+        if all(not isabstractmethod(attr) for attr in namespace.values()):
             new_method: Callable[..., Any] | None = namespace.get("__new__")
             init_method: Callable[..., None] | None = namespace.get("__init__")
             if new_method is not None:
@@ -830,7 +830,7 @@ class ClassWithThemeNamespaceMeta(ABCMeta):
 
     @staticmethod
     def __apply_theme_namespace_decorator(obj: Any) -> Any:
-        if getattr(obj, "__isabstractmethod__", False):
+        if isabstractmethod(obj):
             return obj
 
         theme_namespace_decorator = ClassWithThemeNamespaceMeta.__theme_namespace_decorator
