@@ -18,6 +18,8 @@ from itertools import chain
 from operator import truth
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Sequence, TypeVar, overload
 
+from .utils import isabstractmethod
+
 _T = TypeVar("_T")
 
 
@@ -45,21 +47,12 @@ class ObjectMeta(ABCMeta):
         namespace: dict[str, Any],
         **kwargs: Any,
     ) -> __Self:
-        try:
-            Object
-        except NameError:
-            return super().__new__(metacls, name, bases, namespace)
-
-        # Verify Object binding
-        if not any(issubclass(base, Object) for base in bases):
-            raise TypeError(
-                f"{name!r} must be inherits from a {Object.__name__} class in order to use {ObjectMeta.__name__} metaclass"
-            )
-
         # Verify final bases
         final_bases: list[type]
         if final_bases := list(filter(lambda base: getattr(base, "__finaloverride__", False), bases)):
-            raise TypeError(f"Base classes marked as final class: {', '.join(base.__qualname__ for base in final_bases)}")
+            raise TypeError(
+                f"{name!r}: Base classes marked as final class: {', '.join(base.__qualname__ for base in final_bases)}"
+            )
 
         # Verify conflict for final methods in multiple inheritance
         bases_final_methods_dict: dict[type, list[str]] = {base: list(getattr(base, "__finalmethods__", ())) for base in bases}
@@ -75,7 +68,12 @@ class ObjectMeta(ABCMeta):
                         for actual_base, previous_bases in _iter_keeping_former(bases)
                         if method in bases_final_methods_dict.get(actual_base, [])
                         for base in chain((actual_base,), previous_bases)
-                        if hasattr(actual_base, method)
+                        if base is actual_base
+                        or (
+                            hasattr(base, method)
+                            and not isabstractmethod(getattr(base, method))
+                            and (getattr(actual_base, method) is not getattr(base, method))
+                        )
                     ]
                 )
             )
@@ -86,11 +84,11 @@ class ObjectMeta(ABCMeta):
             conflict_message = ", ".join(
                 f"{method} in {tuple(b.__qualname__ for b in bases)}" for method, bases in conflict_final_methods.items()
             )
-            raise TypeError(f"Final methods conflict between base classes: {conflict_message}")
+            raise TypeError(f"{name!r}: Final methods conflict between base classes: {conflict_message}")
 
         # Verify final override
         if final_methods_overriden := list(filter(bases_final_methods_set.__contains__, namespace)):
-            raise TypeError(f"These attributes would override final methods: {', '.join(final_methods_overriden)}")
+            raise TypeError(f"{name!r}: These attributes would override final methods: {', '.join(final_methods_overriden)}")
 
         # Verify override() decorator usage
         method_that_must_override: frozenset[str] = frozenset(
@@ -99,9 +97,9 @@ class ObjectMeta(ABCMeta):
         if method_that_will_not_override := list(
             filter(lambda name: not any(hasattr(b, name) for b in bases), method_that_must_override)
         ):
-            raise TypeError(f"These methods will not override base method: {', '.join(method_that_will_not_override)}")
+            raise TypeError(f"{name!r}: These methods will not override base method: {', '.join(method_that_will_not_override)}")
 
-        # Retrieve final methods
+        # Retrieve final methods from namespace
         cls_final_methods: frozenset[str] = frozenset(
             chain(
                 bases_final_methods_set,
@@ -109,8 +107,19 @@ class ObjectMeta(ABCMeta):
             )
         )
 
+        # Verify Object binding
+        try:
+            if not any(issubclass(base, Object) for base in bases):
+                raise TypeError(
+                    f"{name!r} must be inherits from a {Object.__name__} class in order to use {ObjectMeta.__name__} metaclass"
+                )
+        except NameError:
+            pass
+
         cls = super().__new__(metacls, name, bases, namespace, **kwargs)
-        cls.__finalmethods__ = cls_final_methods
+        cls.__finalmethods__ = frozenset(
+            filter(lambda attr_name: ObjectMeta.__is_final_override(getattr(cls, attr_name, None)), cls_final_methods)
+        )
 
         return cls
 
@@ -135,7 +144,8 @@ class ObjectMeta(ABCMeta):
 
 
 class Object(object, metaclass=ObjectMeta):
-    pass
+    def __del__(self) -> None:
+        pass
 
 
 @overload
