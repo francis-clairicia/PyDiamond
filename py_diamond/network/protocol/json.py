@@ -13,17 +13,22 @@ __license__ = "GNU GPL v3.0"
 from functools import cached_property
 from json import JSONDecodeError, JSONDecoder, JSONEncoder
 from types import TracebackType
-from typing import Any
+from typing import TYPE_CHECKING, Any, final
 
 from ...system.utils import concreteclass
 from .base import AutoParsedNetworkProtocol
 
+if not TYPE_CHECKING:
+    from ...system.object import final as final
+
 
 @concreteclass
 class JSONNetworkProtocol(AutoParsedNetworkProtocol):
+    @final
     def serialize(self, packet: Any) -> bytes:
         return self.encoder.encode(packet).encode("utf-8")
 
+    @final
     def deserialize(self, data: bytes) -> Any:
         return self.decoder.decode(data.decode("utf-8"))
 

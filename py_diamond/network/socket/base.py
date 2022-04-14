@@ -11,6 +11,8 @@ __all__ = [
     "AbstractTCPClientSocket",
     "AbstractTCPServerSocket",
     "AbstractTCPSocket",
+    "AbstractUDPClientSocket",
+    "AbstractUDPServerSocket",
     "AbstractUDPSocket",
     "IPv4SocketAddress",
     "IPv6SocketAddress",
@@ -67,6 +69,7 @@ class AbstractSocket(Object, metaclass=SocketMeta):
         return self.__repr__()
 
     def __del__(self) -> None:
+        super().__del__()
         try:
             self.close()
         except:

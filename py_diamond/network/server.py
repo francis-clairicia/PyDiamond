@@ -296,6 +296,9 @@ class AbstractTCPNetworkServer(AbstractNetworkServer[_T]):
                         raise
                     except Exception:
                         self._handle_error(connected_client)
+                    if not client.is_connected():
+                        shutdown_client(client, selector)
+                        return
             except DisconnectedClientError:
                 shutdown_client(client, selector)
             except:
@@ -303,7 +306,8 @@ class AbstractTCPNetworkServer(AbstractNetworkServer[_T]):
                 raise
 
         def shutdown_client(client: TCPNetworkClient[_T], selector: BaseSelector) -> None:
-            client.close()
+            with suppress(Exception):
+                client.close()
             with suppress(KeyError):
                 selector.unregister(client)
             clients_dict.pop(client, None)

@@ -13,17 +13,22 @@ __license__ = "GNU GPL v3.0"
 from pickle import HIGHEST_PROTOCOL, STOP as STOP_OPCODE, UnpicklingError, dumps as pickle_dumps, loads as pickle_loads
 from pickletools import optimize as pickletools_optimize
 from types import TracebackType
-from typing import Any, Generator
+from typing import TYPE_CHECKING, Any, Generator, final
 
 from ...system.utils import concreteclass
 from .base import AbstractNetworkProtocol, ValidationError
 
+if not TYPE_CHECKING:
+    from ...system.object import final as final
+
 
 @concreteclass
 class PicklingNetworkProtocol(AbstractNetworkProtocol):
+    @final
     def serialize(self, packet: Any) -> bytes:
         return pickletools_optimize(pickle_dumps(packet, protocol=self.get_pickler_dump_protocol()))
 
+    @final
     def deserialize(self, data: bytes) -> Any:
         return pickle_loads(data)
 
