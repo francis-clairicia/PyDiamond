@@ -208,7 +208,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
             protocol: AbstractNetworkProtocol = self.__protocol
             protocol.verify_packet_to_send(packet)
             data: bytes = protocol.serialize(packet)
-            data = protocol.add_header_footer(data)
+            data = protocol.parser_add_header_footer(data)
             try:
                 with _Selector() as selector:
                     selector.register(socket, EVENT_WRITE)

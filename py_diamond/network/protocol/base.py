@@ -48,7 +48,7 @@ class AbstractNetworkProtocol(Object):
     def deserialize(self, data: bytes) -> Any:
         raise NotImplementedError
 
-    def add_header_footer(self, data: bytes) -> bytes:
+    def parser_add_header_footer(self, data: bytes) -> bytes:
         return data
 
     @abstractmethod
@@ -73,7 +73,7 @@ class AbstractNetworkProtocol(Object):
 class AutoParsedNetworkProtocol(AbstractNetworkProtocol):
     __struct: Final[Struct] = Struct("!I")
 
-    def add_header_footer(self, data: bytes) -> bytes:
+    def parser_add_header_footer(self, data: bytes) -> bytes:
         header: bytes = self.__struct.pack(len(data))
         return header + data
 
@@ -116,7 +116,7 @@ class SecuredNetworkProtocolMeta(ObjectMeta):
             if any(len(tuple(filter(lambda t: hasattr(t, attr), bases))) > 1 for attr in ("_cryptography_fernet_", "SECRET_KEY")):
                 raise TypeError("Attribute conflict with security attributes")
 
-            for attr in ("add_header_footer", "parse_received_data", "verify_received_data"):
+            for attr in ("parser_add_header_footer", "parse_received_data", "verify_received_data"):
                 if attr in namespace:
                     raise TypeError(f"{attr!r} must not be overriden")
                 namespace[attr] = vars(SecuredNetworkProtocol)[attr]
@@ -287,8 +287,8 @@ class SecuredNetworkProtocol(AutoParsedNetworkProtocol, metaclass=SecuredNetwork
     def generate_key() -> str:
         return Fernet.generate_key().decode("utf-8")
 
-    def add_header_footer(self, data: bytes) -> bytes:
-        return AutoParsedNetworkProtocol.add_header_footer(self, data)
+    def parser_add_header_footer(self, data: bytes) -> bytes:
+        return AutoParsedNetworkProtocol.parser_add_header_footer(self, data)
 
     def parse_received_data(self, buffer: bytes) -> Generator[bytes, None, bytes]:
         return AutoParsedNetworkProtocol.parse_received_data(self, buffer)
