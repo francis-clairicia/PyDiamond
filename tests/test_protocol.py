@@ -38,3 +38,39 @@ def test_secured_protocol() -> None:
         Fernet(Fernet.generate_key()).decrypt(d)
 
     assert protocol.deserialize(d) == {"key": [1, 2], "value": True}
+
+
+def test_secured_protocol_secret_key_from_env() -> None:
+    random_key: str = SecuredNetworkProtocol.generate_key()
+
+    from os import environ
+
+    environ["SECRET_KEY"] = random_key
+
+    try:
+
+        class SecuredJSONProtocol(JSONNetworkProtocol, SecuredNetworkProtocol):
+            pass
+
+    finally:
+        del environ["SECRET_KEY"]
+
+    assert SecuredJSONProtocol.SECRET_KEY == random_key
+
+
+def test_secured_protocol_secret_key_from_env_custom_var() -> None:
+    random_key: str = SecuredNetworkProtocol.generate_key()
+
+    from os import environ
+
+    environ["MY_SUPER_SECRET_KEY"] = random_key
+
+    try:
+
+        class SecuredJSONProtocol(JSONNetworkProtocol, SecuredNetworkProtocol, secret_key_var="MY_SUPER_SECRET_KEY"):
+            pass
+
+    finally:
+        del environ["MY_SUPER_SECRET_KEY"]
+
+    assert SecuredJSONProtocol.SECRET_KEY == random_key
