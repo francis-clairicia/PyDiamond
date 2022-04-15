@@ -19,9 +19,18 @@ __license__ = "GNU GPL v3.0"
 
 
 from os import name as OS_NAME
-from socket import SOL_SOCKET, socket
+from socket import (
+    SO_REUSEADDR,
+    SOCK_DGRAM,
+    SOCK_STREAM,
+    SOL_SOCKET,
+    create_connection as _create_connection,
+    create_server as _create_server,
+    has_ipv6 as HAS_IPV6,
+    socket,
+)
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, ParamSpec, TypeVar, final, overload
+from typing import TYPE_CHECKING, Any, Callable, Final, ParamSpec, TypeVar, final, overload
 
 from ...system._mangling import delattr_pv, getattr_pv, hasattr_pv, setattr_pv
 from ...system.utils import concreteclass, wraps
@@ -36,7 +45,7 @@ from .base import (
     ReceivedDatagram,
     SocketAddress,
 )
-from .constants import AF_INET, AF_INET6, AddressFamily, ShutdownFlag, SocketKind
+from .constants import AF_INET, AF_INET6, AddressFamily, ShutdownFlag
 
 if not TYPE_CHECKING:
     from ...system.object import final as final
@@ -68,12 +77,11 @@ class _AbstractPythonSocket(AbstractSocket):
     def __repr__(self) -> str:
         sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
         sock_family = self.family
-        sock_type = self.type
         if sock is _MISSING:
-            return f"<{type(self).__name__} family={sock_family}, type={sock_type} closed>"
+            return f"<{type(self).__name__} family={sock_family} closed>"
         laddr: tuple[Any, ...] = sock.getsockname()
         fd: int = sock.fileno()
-        return f"<{type(self).__name__} fd={fd}, family={sock_family}, type={sock_type}, laddr={laddr}>"
+        return f"<{type(self).__name__} fd={fd}, family={sock_family}, type={sock.type}, laddr={laddr}>"
 
     @final
     @_thread_safe_python_socket_method
@@ -210,6 +218,8 @@ class _AbstractPythonTCPSocket(_AbstractPythonSocket):
 @final
 @concreteclass
 class PythonTCPServerSocket(_AbstractPythonTCPSocket, AbstractTCPServerSocket):
+    DEFAULT_BACKLOG: Final[int] = 128
+
     def __init__(self) -> None:
         super().__init__()
         setattr_pv(self, "backlog", 0)
@@ -228,13 +238,8 @@ class PythonTCPServerSocket(_AbstractPythonTCPSocket, AbstractTCPServerSocket):
         if backlog is None:
             backlog = cls.DEFAULT_BACKLOG
 
-        from socket import create_server
-
         self: PythonTCPServerSocket = cls()
-        sock: socket = create_server(address, family=family, backlog=backlog, reuse_port=False, dualstack_ipv6=dualstack_ipv6)
-        if int(sock.type) != int(self.type):
-            sock.close()
-            raise TypeError("Invalid socket type")
+        sock: socket = _create_server(address, family=family, backlog=backlog, reuse_port=False, dualstack_ipv6=dualstack_ipv6)
         setattr_pv(self, "socket", sock, owner=_AbstractPythonSocket)
         setattr_pv(self, "family", AddressFamily(family), owner=_AbstractPythonSocket)
         setattr_pv(self, "backlog", backlog)
@@ -294,16 +299,9 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
         self: PythonTCPClientSocket = cls()
         sock: socket
         if family is None:
-
-            from socket import create_connection
-
-            sock = create_connection(address, timeout=timeout)
-
-            if int(sock.type) != int(self.type):
-                sock.close()
-                raise TypeError("Invalid socket type")
+            sock = _create_connection(address, timeout=timeout)
         else:
-            sock = socket(family, self.type)
+            sock = socket(family, SOCK_STREAM)
             try:
                 sock.settimeout(timeout)
                 sock.connect(address)
@@ -321,9 +319,9 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
     def __repr__(self) -> str:
         sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
         sock_family = AddressFamily(self.family)
-        sock_type = SocketKind(self.type)
         if sock is _MISSING:
-            return f"<{type(self).__name__} family={sock_family}, type={sock_type} closed>"
+            return f"<{type(self).__name__} family={sock_family} closed>"
+        sock_type = sock.type
         laddr: Any = sock.getsockname()
         fd: int = sock.fileno()
         try:
@@ -388,6 +386,8 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
         try:
             sock.getpeername()
         except OSError:
+            pass
+        else:
             return
         address: tuple[Any, ...] = getattr_pv(self, "peer")
         try:
@@ -406,13 +406,12 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
 
 
 class _AbstractPythonUDPSocket(_AbstractPythonSocket):
-    MAX_PACKET_SIZE: ClassVar[int] = 8192
+    MAX_PACKET_SIZE: Final[int] = 8192
 
     @final
     @_thread_safe_python_socket_method
-    def recvfrom(self, bufsize: int | None = None, flags: int = 0) -> ReceivedDatagram:
-        if bufsize is None:
-            bufsize = self.MAX_PACKET_SIZE
+    def recvfrom(self, flags: int = 0) -> ReceivedDatagram:
+        bufsize: int = self.MAX_PACKET_SIZE
         sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
         if sock is _MISSING:
             raise RuntimeError("Closed socket")
@@ -449,31 +448,27 @@ class PythonUDPServerSocket(_AbstractPythonUDPSocket, AbstractUDPServerSocket):
         family: int = AF_INET,
     ) -> PythonUDPServerSocket:
         self: PythonUDPServerSocket = cls()
-        sock: socket = socket(family, self.type)
+        sock: socket = socket(family, SOCK_DGRAM)
 
         try:
             if OS_NAME not in ("nt", "cygwin"):
-                from socket import SO_REUSEADDR
 
                 try:
                     sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
                 except OSError:
                     pass
-                finally:
-                    del SO_REUSEADDR
 
-            if family == AF_INET6:
-                from socket import has_ipv6 as HAS_IPV6
-
-                if HAS_IPV6:
+            if family == AF_INET6 and HAS_IPV6:
+                try:
+                    from socket import IPPROTO_IPV6, IPV6_V6ONLY
+                except ImportError:
+                    pass
+                else:
                     try:
-                        from socket import IPPROTO_IPV6, IPV6_V6ONLY
-                    except ImportError:
-                        pass
-                    else:
                         sock.setsockopt(IPPROTO_IPV6, IPV6_V6ONLY, 1)
-                        del IPPROTO_IPV6, IPV6_V6ONLY
-                del HAS_IPV6
+                    except OSError:
+                        pass
+                    del IPPROTO_IPV6, IPV6_V6ONLY
 
             sock.bind(address)
         except:
@@ -492,7 +487,7 @@ class PythonUDPClientSocket(_AbstractPythonUDPSocket, AbstractUDPClientSocket):
     @classmethod
     def create(cls, family: int = AF_INET, *, host: str = "") -> PythonUDPClientSocket:
         self: PythonUDPClientSocket = cls()
-        sock: socket = socket(family, self.type)
+        sock: socket = socket(family, SOCK_DGRAM)
         sock.bind((host, 0))
         setattr_pv(self, "socket", sock, owner=_AbstractPythonSocket)
         setattr_pv(self, "family", AddressFamily(sock.family), owner=_AbstractPythonSocket)

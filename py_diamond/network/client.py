@@ -16,7 +16,7 @@ from abc import abstractmethod
 from selectors import EVENT_READ, EVENT_WRITE
 from sys import exc_info
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Iterator, TypeVar, final, overload
+from typing import TYPE_CHECKING, Any, Callable, Final, Generic, Iterator, TypeVar, final, overload
 
 from ..system.object import Object
 from ..system.utils import concreteclass, concreteclasscheck
@@ -51,6 +51,8 @@ _T = TypeVar("_T")
 
 
 class AbstractNetworkClient(Object):
+    __slots__ = ()
+
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="AbstractNetworkClient")
 
@@ -138,7 +140,15 @@ class NoValidPacket(ValueError):
 
 @concreteclass
 class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
-    RECV_CHUNK_SIZE: ClassVar[int] = 4096
+    __DEFAULT_RECV_CHUNK_SIZE: Final[int] = 4096
+
+    __slots__ = (
+        "__socket",
+        "__buffer_recv",
+        "__protocol",
+        "__queue",
+        "__lock",
+    )
 
     @overload
     def __init__(
@@ -249,62 +259,65 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
                 yield queue.pop(0)
 
     def __recv_packets(self, flags: int, block: bool) -> None:
-        with self.__lock:
-            socket: AbstractTCPClientSocket = self.__socket
-            protocol: AbstractNetworkProtocol = self.__protocol
-            queue: list[_T] = self.__queue
-            block = block and not queue
+        socket: AbstractTCPClientSocket = self.__socket
+        protocol: AbstractNetworkProtocol = self.__protocol
+        queue: list[_T] = self.__queue
+        block = block and not queue
 
-            def read_socket() -> Iterator[bytes]:
-                chunk_size: int = self.RECV_CHUNK_SIZE
-                if chunk_size <= 0:
+        def read_socket() -> Iterator[bytes]:
+            chunk_size: int = self.get_recv_chunk_size()
+            if chunk_size <= 0:
+                return
+            with _Selector() as selector:
+                selector.register(socket, EVENT_READ)
+                if not block and not selector.select(timeout=0):
                     return
-                with _Selector() as selector:
-                    selector.register(socket, EVENT_READ)
-                    if not block and not selector.select(timeout=0):
-                        return
-                    data: bytes = socket.recv(chunk_size)
+                data: bytes = socket.recv(chunk_size)
+                if (length := len(data)) == 0:
+                    raise EOFError
+                yield data
+                while length >= chunk_size and selector.select(timeout=0):
+                    data = socket.recv(chunk_size, flags=flags)
                     if (length := len(data)) == 0:
-                        raise EOFError
+                        break
                     yield data
-                    while length >= chunk_size and selector.select(timeout=0):
-                        data = socket.recv(chunk_size, flags=flags)
-                        if (length := len(data)) == 0:
-                            break
-                        yield data
 
-            buffer_recv: bytes
-            buffer_recv, self.__buffer_recv = self.__buffer_recv, bytes()
+        buffer_recv: bytes = self.__buffer_recv
+        self.__buffer_recv = bytes()
+        try:
+            for chunk in read_socket():
+                buffer_recv += chunk
+        except (ConnectionError, EOFError) as exc:
+            raise DisconnectedClientError(self) from exc
+
+        def parse_received_data() -> Iterator[bytes]:
+            self.__buffer_recv = yield from protocol.parse_received_data(buffer_recv)
+
+        for data in parse_received_data():
+            if not data:
+                continue
             try:
-                for chunk in read_socket():
-                    buffer_recv += chunk
-            except (ConnectionError, EOFError) as exc:
-                raise DisconnectedClientError(self) from exc
-
-            def parse_received_data() -> Iterator[bytes]:
-                self.__buffer_recv = yield from protocol.parse_received_data(buffer_recv)
-
-            for data in parse_received_data():
-                if not data:
-                    continue
-                try:
-                    protocol.verify_received_data(data)
-                except ValidationError:
-                    continue
-                try:
-                    packet: _T = protocol.deserialize(data)
-                except:
-                    if not protocol.handle_deserialize_error(data, *exc_info()):
-                        raise
-                    continue
-                try:
-                    protocol.verify_received_packet(packet)
-                except ValidationError:
-                    continue
-                queue.append(packet)
+                protocol.verify_received_data(data)
+            except ValidationError:
+                continue
+            try:
+                packet: _T = protocol.deserialize(data)
+            except Exception:
+                if not protocol.handle_deserialize_error(data, *exc_info()):
+                    raise
+                continue
+            try:
+                protocol.verify_received_packet(packet)
+            except ValidationError:
+                continue
+            queue.append(packet)
 
     def has_saved_packets(self) -> bool:
-        return True if self.__queue else False
+        with self.__lock:
+            return True if self.__queue else False
+
+    def get_recv_chunk_size(self) -> int:
+        return self.__DEFAULT_RECV_CHUNK_SIZE
 
     def getsockname(self) -> SocketAddress:
         with self.__lock:
@@ -388,6 +401,13 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
 
 @concreteclass
 class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
+    __slots__ = (
+        "__socket",
+        "__protocol",
+        "__queue",
+        "__lock",
+    )
+
     @overload
     def __init__(
         self,
@@ -480,42 +500,41 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
                 yield queue.pop(0)
 
     def __recv_packets(self, flags: int, block: bool) -> None:
-        with self.__lock:
-            socket: AbstractUDPSocket = self.__socket
-            protocol: AbstractNetworkProtocol = self.__protocol
-            queue: list[tuple[_T, SocketAddress]] = self.__queue
-            block = block and not queue
+        socket: AbstractUDPSocket = self.__socket
+        protocol: AbstractNetworkProtocol = self.__protocol
+        queue: list[tuple[_T, SocketAddress]] = self.__queue
+        block = block and not queue
 
-            def read_socket() -> Iterator[ReceivedDatagram]:
-                with _Selector() as selector:
-                    selector.register(socket, EVENT_READ)
-                    if not block and not selector.select(timeout=0):
-                        return
+        def read_socket() -> Iterator[ReceivedDatagram]:
+            with _Selector() as selector:
+                selector.register(socket, EVENT_READ)
+                if not block and not selector.select(timeout=0):
+                    return
+                datagram = socket.recvfrom(flags=flags)
+                if datagram.body:
+                    yield datagram
+                while selector.select(timeout=0):
                     datagram = socket.recvfrom(flags=flags)
-                    if datagram.body:
-                        yield datagram
-                    while selector.select(timeout=0):
-                        datagram = socket.recvfrom(flags=flags)
-                        if not datagram.body:
-                            continue
-                        yield datagram
+                    if not datagram.body:
+                        continue
+                    yield datagram
 
-            for data, sender in tuple(read_socket()):
-                try:
-                    protocol.verify_received_data(data)
-                except ValidationError:
-                    continue
-                try:
-                    packet: _T = protocol.deserialize(data)
-                except:
-                    if not protocol.handle_deserialize_error(data, *exc_info()):
-                        raise
-                    continue
-                try:
-                    protocol.verify_received_packet(packet)
-                except ValidationError:
-                    continue
-                queue.append((packet, sender))
+        for data, sender in tuple(read_socket()):
+            try:
+                protocol.verify_received_data(data)
+            except ValidationError:
+                continue
+            try:
+                packet: _T = protocol.deserialize(data)
+            except Exception:
+                if not protocol.handle_deserialize_error(data, *exc_info()):
+                    raise
+                continue
+            try:
+                protocol.verify_received_packet(packet)
+            except ValidationError:
+                continue
+            queue.append((packet, sender))
 
     def has_saved_packets(self) -> bool:
         with self.__lock:

@@ -26,11 +26,11 @@ __license__ = "GNU GPL v3.0"
 
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeAlias, TypeVar, final, overload
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeAlias, TypeVar, overload
 
 from ...system.non_copyable import NonCopyableMeta
 from ...system.object import Object, ObjectMeta
-from .constants import SOCK_DGRAM, SOCK_STREAM, AddressFamily, ShutdownFlag, SocketKind
+from .constants import AddressFamily, ShutdownFlag
 
 
 class IPv4SocketAddress(NamedTuple):
@@ -58,12 +58,11 @@ class AbstractSocket(Object, metaclass=SocketMeta):
 
     def __repr__(self) -> str:
         sock_family: AddressFamily = self.family
-        sock_type: SocketKind = self.type
         if not self.is_open():
-            return f"<{type(self).__name__} family={sock_family}, type={sock_type} closed>"
+            return f"<{type(self).__name__} family={sock_family} closed>"
         sock_fd: int = self.fileno()
         laddr: tuple[Any, ...] = tuple(self.getsockname())
-        return f"<{type(self).__name__} fd={sock_fd}, family={sock_family}, type={sock_type}, laddr={laddr}>"
+        return f"<{type(self).__name__} fd={sock_fd}, family={sock_family}, laddr={laddr}>"
 
     def __str__(self) -> str:
         return self.__repr__()
@@ -149,26 +148,14 @@ class AbstractSocket(Object, metaclass=SocketMeta):
     def family(self) -> AddressFamily:
         raise NotImplementedError
 
-    @property
-    @abstractmethod
-    def type(self) -> SocketKind:
-        raise NotImplementedError
-
 
 class AbstractTCPSocket(AbstractSocket):
     @abstractmethod
     def shutdown(self, how: ShutdownFlag) -> None:
         raise NotImplementedError
 
-    @final
-    @property
-    def type(self) -> SocketKind:
-        return SOCK_STREAM
-
 
 class AbstractTCPServerSocket(AbstractTCPSocket):
-    DEFAULT_BACKLOG: ClassVar[int] = 128
-
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="AbstractTCPServerSocket")
 
@@ -214,16 +201,15 @@ class AbstractTCPClientSocket(AbstractTCPSocket):
 
     def __repr__(self) -> str:
         sock_family: AddressFamily = self.family
-        sock_type: SocketKind = self.type
         if not self.is_open():
-            return f"<{type(self).__name__} family={sock_family}, type={sock_type} closed>"
+            return f"<{type(self).__name__} family={sock_family} closed>"
         sock_fd: int = self.fileno()
         laddr: tuple[Any, ...] = tuple(self.getsockname())
         raddr: tuple[Any, ...] | None = self.getpeername()
         if raddr is not None:
             raddr = tuple(raddr)
-            return f"<{type(self).__name__} fd={sock_fd}, family={sock_family}, type={sock_type}, laddr={laddr}, raddr={raddr}>"
-        return f"<{type(self).__name__} fd={sock_fd}, family={sock_family}, type={sock_type}, laddr={laddr}>"
+            return f"<{type(self).__name__} fd={sock_fd}, family={sock_family}, laddr={laddr}, raddr={raddr}>"
+        return f"<{type(self).__name__} fd={sock_fd}, family={sock_family}, laddr={laddr}>"
 
     @abstractmethod
     def recv(self, bufsize: int, flags: int = ...) -> bytes:
@@ -259,17 +245,12 @@ class ReceivedDatagram(NamedTuple):
 
 class AbstractUDPSocket(AbstractSocket):
     @abstractmethod
-    def recvfrom(self, bufsize: int = ..., flags: int = ...) -> ReceivedDatagram:
+    def recvfrom(self, flags: int = ...) -> ReceivedDatagram:
         raise NotImplementedError
 
     @abstractmethod
     def sendto(self, data: bytes, address: SocketAddress, flags: int = ...) -> int:
         raise NotImplementedError
-
-    @final
-    @property
-    def type(self) -> SocketKind:
-        return SOCK_DGRAM
 
 
 class AbstractUDPServerSocket(AbstractUDPSocket):

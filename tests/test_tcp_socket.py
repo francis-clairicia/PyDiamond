@@ -7,7 +7,6 @@ import pytest
 from py_diamond.network.socket import (
     AF_INET,
     AF_INET6,
-    SOCK_STREAM,
     IPv4SocketAddress,
     IPv6SocketAddress,
     PythonTCPClientSocket,
@@ -29,7 +28,6 @@ def test_ipv4_client_server_connection() -> None:
         nonlocal server_started
         with PythonTCPServerSocket.bind((host, port), family=AF_INET, backlog=1) as s:
             assert s.is_open()
-            assert s.type == SOCK_STREAM
             assert s.family == AF_INET
             assert s.listening() == 1
             addr: SocketAddress = s.getsockname()
@@ -37,7 +35,6 @@ def test_ipv4_client_server_connection() -> None:
             server_started = True
             conn, addr = s.accept()
             with conn:
-                assert conn.type == s.type
                 assert conn.family == s.family
                 while data := conn.recv(1024):
                     conn.send(data)
@@ -50,7 +47,6 @@ def test_ipv4_client_server_connection() -> None:
         message: bytes = b"Hello, world"
         with PythonTCPClientSocket.connect((host, port), timeout=3) as s:
             assert s.is_open() and s.is_connected()
-            assert s.type == SOCK_STREAM
             assert s.family == AF_INET
             addr: SocketAddress = s.getsockname()
             assert isinstance(addr, IPv4SocketAddress)
@@ -74,7 +70,6 @@ def test_ipv6_client_server_connection() -> None:
         nonlocal server_started
         with PythonTCPServerSocket.bind((host, port), family=AF_INET6, backlog=1) as s:
             assert s.is_open()
-            assert s.type == SOCK_STREAM
             assert s.family == AF_INET6
             assert s.listening() == 1
             addr: SocketAddress = s.getsockname()
@@ -82,7 +77,6 @@ def test_ipv6_client_server_connection() -> None:
             server_started = True
             conn, addr = s.accept()
             with conn:
-                assert conn.type == s.type
                 assert conn.family == s.family
                 while data := conn.recv(1024):
                     conn.send(data)
@@ -100,7 +94,6 @@ def test_ipv6_client_server_connection() -> None:
         message: bytes = b"Hello, world"
         with PythonTCPClientSocket.connect((host, port), timeout=3) as s:
             assert s.is_open() and s.is_connected()
-            assert s.type == SOCK_STREAM
             assert s.family == AF_INET6
             addr: SocketAddress = s.getsockname()
             assert isinstance(addr, IPv6SocketAddress)
@@ -124,7 +117,6 @@ def test_dualstack_ipv6_client_server_connection() -> None:
         nonlocal server_started
         with PythonTCPServerSocket.bind((host, port), family=AF_INET6, backlog=1, dualstack_ipv6=True) as s:
             assert s.is_open()
-            assert s.type == SOCK_STREAM
             assert s.family == AF_INET6
             assert s.listening() == 1
             addr: SocketAddress = s.getsockname()
@@ -132,7 +124,6 @@ def test_dualstack_ipv6_client_server_connection() -> None:
             server_started = True
             conn, addr = s.accept()
             with conn:
-                assert conn.type == s.type
                 assert conn.family == s.family
                 while data := conn.recv(1024):
                     conn.send(data)
@@ -150,7 +141,6 @@ def test_dualstack_ipv6_client_server_connection() -> None:
         message: bytes = b"Hello, world"
         with PythonTCPClientSocket.connect((host, port), timeout=3, family=AF_INET6) as s:
             assert s.is_open() and s.is_connected()
-            assert s.type == SOCK_STREAM
             assert s.family == AF_INET6
             assert s.send(message) == len(message)
             data: bytes = s.recv(1024)

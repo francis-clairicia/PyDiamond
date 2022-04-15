@@ -25,11 +25,8 @@ __all__ = [
     "SHUT_RD",
     "SHUT_RDWR",
     "SHUT_WR",
-    "SOCK_DGRAM",
-    "SOCK_STREAM",
     "ShutdownFlag",
     "SocketAddress",
-    "SocketKind",
     "SocketMeta",
 ]
 
@@ -53,16 +50,5 @@ from .base import (
     SocketAddress,
     SocketMeta,
 )
-from .constants import (
-    AF_INET,
-    AF_INET6,
-    SHUT_RD,
-    SHUT_RDWR,
-    SHUT_WR,
-    SOCK_DGRAM,
-    SOCK_STREAM,
-    AddressFamily,
-    ShutdownFlag,
-    SocketKind,
-)
+from .constants import AF_INET, AF_INET6, SHUT_RD, SHUT_RDWR, SHUT_WR, AddressFamily, ShutdownFlag
 from .python import PythonTCPClientSocket, PythonTCPServerSocket, PythonUDPClientSocket, PythonUDPServerSocket
