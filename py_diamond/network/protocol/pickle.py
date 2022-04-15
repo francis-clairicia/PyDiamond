@@ -10,10 +10,11 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from pickle import HIGHEST_PROTOCOL, STOP as STOP_OPCODE, UnpicklingError, dumps as pickle_dumps, loads as pickle_loads
+from io import BytesIO
+from pickle import HIGHEST_PROTOCOL, STOP as STOP_OPCODE, Pickler, Unpickler, UnpicklingError
 from pickletools import optimize as pickletools_optimize
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Generator, final
+from typing import IO, TYPE_CHECKING, Any, Generator, final
 
 from ...system.utils import concreteclass
 from .base import AbstractNetworkProtocol, ValidationError
@@ -26,11 +27,16 @@ if not TYPE_CHECKING:
 class PicklingNetworkProtocol(AbstractNetworkProtocol):
     @final
     def serialize(self, packet: Any) -> bytes:
-        return pickletools_optimize(pickle_dumps(packet, protocol=self.get_pickler_dump_protocol()))
+        buffer = BytesIO()
+        pickler = self.get_pickler(buffer)
+        pickler.dump(packet)
+        return pickletools_optimize(buffer.getvalue())
 
     @final
     def deserialize(self, data: bytes) -> Any:
-        return pickle_loads(data)
+        buffer = BytesIO(data)
+        unpickler = self.get_unpickler(buffer)
+        return unpickler.load()
 
     def parse_received_data(self, buffer: bytes) -> Generator[bytes, None, bytes]:
         while (idx := buffer.find(STOP_OPCODE)) >= 0:
@@ -51,5 +57,8 @@ class PicklingNetworkProtocol(AbstractNetworkProtocol):
             return True
         return super().handle_deserialize_error(data, exc_type, exc_value, tb)
 
-    def get_pickler_dump_protocol(self) -> int:
-        return HIGHEST_PROTOCOL
+    def get_pickler(self, buffer: IO[bytes]) -> Pickler:
+        return Pickler(buffer, protocol=HIGHEST_PROTOCOL, fix_imports=True, buffer_callback=None)
+
+    def get_unpickler(self, buffer: IO[bytes]) -> Unpickler:
+        return Unpickler(buffer, fix_imports=True, encoding="ASCII", errors="strict", buffers=None)
