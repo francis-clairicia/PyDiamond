@@ -13,8 +13,8 @@ authors = [
 ]
 license = {file = "LICENSE"}
 dependencies = [
-    "pygame >=2.1.2",
-    "cryptography >=36.0"
+    "pygame >=2.1.2,<2.2",
+    "cryptography >=36.0,<36.1"
 ]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
@@ -35,7 +35,6 @@ Source = "https://github.com/francis-clairicia/PyDiamond"
 [tool.isort]
 profile = "black"
 line_length = 130
-skip = ["_gradients.py"]
 skip_gitignore = true
 combine_as_imports = true
 
