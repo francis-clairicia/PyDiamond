@@ -66,6 +66,7 @@ class MusicStream(metaclass=ClassNamespaceMeta, frozen=True):
         _pg_music.load(music.filepath.encode("utf-8"))
         _pg_music.play(repeat, fade_ms=fade_ms)
         MusicStream.__playing.payload = _MusicPayload(music, repeat=repeat)
+        MusicStream.__playing.fadeout = False
 
     @staticmethod
     def stop() -> None:
