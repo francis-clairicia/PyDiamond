@@ -60,7 +60,7 @@ from dataclasses import dataclass, field, fields
 from enum import IntEnum, unique
 from operator import truth
 from types import MappingProxyType
-from typing import Any, Callable, ClassVar, Final, Literal, Sequence, TypeAlias, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, Sequence, TypeAlias, TypeVar, cast
 
 import pygame.constants as _pg_constants
 from pygame.event import Event as _PygameEvent, event_name as _pg_event_name, get_blocked as _pg_event_get_blocked
@@ -90,13 +90,8 @@ class _EventMeta(type):
                 raise TypeError(f"{name!r} must only inherits from Event without multiple inheritance")
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
-    def __call__(cls, *args: Any, **kwargs: Any) -> Any:
-        if cls is Event:
-            raise TypeError("Cannot instantiate base class Event")
-        return super().__call__(*args, **kwargs)
 
-
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class Event(metaclass=_EventMeta):
     @unique
     class Type(IntEnum):
@@ -138,9 +133,6 @@ class Event(metaclass=_EventMeta):
         def __repr__(self) -> str:
             return f"<{self.name} ({self.real_name}): {self.value}>"
 
-        def __str__(self) -> str:
-            return self.real_name
-
         def is_allowed(self) -> bool:
             return not _pg_event_get_blocked(self)
 
@@ -151,10 +143,17 @@ class Event(metaclass=_EventMeta):
         def real_name(self) -> str:
             return _pg_event_name(self)
 
+    if not TYPE_CHECKING:
+
+        def __new__(cls: type[Self], *args: Any, **kwargs: Any) -> Self:
+            if cls is Event:
+                raise TypeError("Cannot instantiate base class Event")
+            return super().__new__(cls)
+
     type: ClassVar[Event.Type] = field(init=False)
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class KeyDownEvent(Event):
     type: ClassVar[Literal[Event.Type.KEYDOWN]] = field(default=Event.Type.KEYDOWN, init=False)
     key: int
@@ -163,7 +162,7 @@ class KeyDownEvent(Event):
     scancode: int
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class KeyUpEvent(Event):
     type: ClassVar[Literal[Event.Type.KEYUP]] = field(default=Event.Type.KEYUP, init=False)
     key: int
@@ -173,14 +172,14 @@ class KeyUpEvent(Event):
 KeyEvent: TypeAlias = KeyDownEvent | KeyUpEvent
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class MouseButtonDownEvent(Event):
     type: ClassVar[Literal[Event.Type.MOUSEBUTTONDOWN]] = field(default=Event.Type.MOUSEBUTTONDOWN, init=False)
     pos: tuple[int, int]
     button: int
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class MouseButtonUpEvent(Event):
     type: ClassVar[Literal[Event.Type.MOUSEBUTTONUP]] = field(default=Event.Type.MOUSEBUTTONUP, init=False)
     pos: tuple[int, int]
@@ -190,7 +189,7 @@ class MouseButtonUpEvent(Event):
 MouseButtonEvent: TypeAlias = MouseButtonDownEvent | MouseButtonUpEvent
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class MouseMotionEvent(Event):
     type: ClassVar[Literal[Event.Type.MOUSEMOTION]] = field(default=Event.Type.MOUSEMOTION, init=False)
     pos: tuple[int, int]
@@ -198,7 +197,7 @@ class MouseMotionEvent(Event):
     buttons: tuple[bool, bool, bool]
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class MouseWheelEvent(Event):
     type: ClassVar[Literal[Event.Type.MOUSEWHEEL]] = field(default=Event.Type.MOUSEWHEEL, init=False)
     flipped: bool
@@ -209,7 +208,7 @@ class MouseWheelEvent(Event):
 MouseEvent: TypeAlias = MouseButtonEvent | MouseWheelEvent | MouseMotionEvent
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class JoyAxisMotionEvent(Event):
     type: ClassVar[Literal[Event.Type.JOYAXISMOTION]] = field(default=Event.Type.JOYAXISMOTION, init=False)
     instance_id: int
@@ -217,7 +216,7 @@ class JoyAxisMotionEvent(Event):
     value: float
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class JoyBallMotionEvent(Event):
     type: ClassVar[Literal[Event.Type.JOYBALLMOTION]] = field(default=Event.Type.JOYBALLMOTION, init=False)
     instance_id: int
@@ -225,7 +224,7 @@ class JoyBallMotionEvent(Event):
     rel: float
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class JoyHatMotionEvent(Event):
     type: ClassVar[Literal[Event.Type.JOYHATMOTION]] = field(default=Event.Type.JOYHATMOTION, init=False)
     instance_id: int
@@ -233,14 +232,14 @@ class JoyHatMotionEvent(Event):
     value: tuple[int, int]
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class JoyButtonDownEvent(Event):
     type: ClassVar[Literal[Event.Type.JOYBUTTONDOWN]] = field(default=Event.Type.JOYBUTTONDOWN, init=False)
     instance_id: int
     button: int
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class JoyButtonUpEvent(Event):
     type: ClassVar[Literal[Event.Type.JOYBUTTONUP]] = field(default=Event.Type.JOYBUTTONUP, init=False)
     instance_id: int
@@ -250,19 +249,19 @@ class JoyButtonUpEvent(Event):
 JoyButtonEvent: TypeAlias = JoyButtonDownEvent | JoyButtonUpEvent
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class JoyDeviceAddedEvent(Event):
     type: ClassVar[Literal[Event.Type.JOYDEVICEADDED]] = field(default=Event.Type.JOYDEVICEADDED, init=False)
     device_index: int
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class JoyDeviceRemovedEvent(Event):
     type: ClassVar[Literal[Event.Type.JOYDEVICEREMOVED]] = field(default=Event.Type.JOYDEVICEREMOVED, init=False)
     instance_id: int
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class TextEditingEvent(Event):
     type: ClassVar[Literal[Event.Type.TEXTEDITING]] = field(default=Event.Type.TEXTEDITING, init=False)
     text: str
@@ -270,7 +269,7 @@ class TextEditingEvent(Event):
     length: int
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class TextInputEvent(Event):
     type: ClassVar[Literal[Event.Type.TEXTINPUT]] = field(default=Event.Type.TEXTINPUT, init=False)
     text: str
@@ -279,89 +278,89 @@ class TextInputEvent(Event):
 TextEvent: TypeAlias = TextEditingEvent | TextInputEvent
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class UserEvent(Event):
     type: ClassVar[Literal[Event.Type.USEREVENT]] = field(default=Event.Type.USEREVENT, init=False)
     code: int = -1
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowShownEvent(Event):
     type: ClassVar[Literal[Event.Type.WINDOWSHOWN]] = field(default=Event.Type.WINDOWSHOWN, init=False)
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowHiddenEvent(Event):
     type: ClassVar[Literal[Event.Type.WINDOWHIDDEN]] = field(default=Event.Type.WINDOWHIDDEN, init=False)
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowExposedEvent(Event):
     type: ClassVar[Literal[Event.Type.WINDOWEXPOSED]] = field(default=Event.Type.WINDOWEXPOSED, init=False)
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowMovedEvent(Event):
     type: ClassVar[Literal[Event.Type.WINDOWMOVED]] = field(default=Event.Type.WINDOWMOVED, init=False)
     x: int
     y: int
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowResizedEvent(Event):
     type: ClassVar[Literal[Event.Type.WINDOWRESIZED]] = field(default=Event.Type.WINDOWRESIZED, init=False)
     x: int
     y: int
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowSizeChangedEvent(Event):
     type: ClassVar[Literal[Event.Type.WINDOWSIZECHANGED]] = field(default=Event.Type.WINDOWSIZECHANGED, init=False)
     x: int
     y: int
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowMinimizedEvent(Event):
     type: ClassVar[Literal[Event.Type.WINDOWMINIMIZED]] = field(default=Event.Type.WINDOWMINIMIZED, init=False)
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowMaximizedEvent(Event):
     type: ClassVar[Literal[Event.Type.WINDOWMAXIMIZED]] = field(default=Event.Type.WINDOWMAXIMIZED, init=False)
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowRestoredEvent(Event):
     type: ClassVar[Literal[Event.Type.WINDOWRESTORED]] = field(default=Event.Type.WINDOWRESTORED, init=False)
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowEnterEvent(Event):
     type: ClassVar[Literal[Event.Type.WINDOWENTER]] = field(default=Event.Type.WINDOWENTER, init=False)
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowLeaveEvent(Event):
     type: ClassVar[Literal[Event.Type.WINDOWLEAVE]] = field(default=Event.Type.WINDOWLEAVE, init=False)
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowFocusGainedEvent(Event):
     type: ClassVar[Literal[Event.Type.WINDOWFOCUSGAINED]] = field(default=Event.Type.WINDOWFOCUSGAINED, init=False)
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowFocusLostEvent(Event):
     type: ClassVar[Literal[Event.Type.WINDOWFOCUSLOST]] = field(default=Event.Type.WINDOWFOCUSLOST, init=False)
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class WindowTakeFocusEvent(Event):
     type: ClassVar[Literal[Event.Type.WINDOWTAKEFOCUS]] = field(default=Event.Type.WINDOWTAKEFOCUS, init=False)
 
 
-@dataclass(frozen=True, kw_only=True, slots=True)
+@dataclass(frozen=True, kw_only=True)
 class MusicEndEvent(Event):
     type: ClassVar[Literal[Event.Type.MUSICEND]] = field(default=Event.Type.MUSICEND, init=False)
     finished: Music
