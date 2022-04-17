@@ -7,11 +7,12 @@
 from __future__ import annotations
 
 __all__ = [
+    "BuiltinEvent",
     "Event",
     "EventFactory",
     "EventFactoryError",
     "EventManager",
-    "EventTypeNotRegisteredError",
+    "EventType",
     "JoyAxisMotionEvent",
     "JoyBallMotionEvent",
     "JoyButtonDownEvent",
@@ -55,47 +56,133 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
+from abc import abstractmethod
 from contextlib import suppress
-from dataclasses import dataclass, field, fields
+from dataclasses import Field, asdict, dataclass, field, fields
 from enum import IntEnum, unique
-from operator import truth
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, Sequence, TypeAlias, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, Sequence, SupportsInt, TypeAlias, TypeVar, cast, final
 
 import pygame.constants as _pg_constants
-from pygame.event import Event as _PygameEvent, event_name as _pg_event_name, get_blocked as _pg_event_get_blocked
+from pygame.event import Event as _PygameEvent, custom_type as _pg_event_custom_type, event_name as _pg_event_name
 
 from ..audio.music import Music, MusicStream
 from ..system.namespace import ClassNamespaceMeta
+from ..system.object import Object, ObjectMeta
+from ..system.utils import isconcreteclass
 from .keyboard import Keyboard
 from .mouse import Mouse
+
+if TYPE_CHECKING:
+    from _typeshed import Self
+
+if not TYPE_CHECKING:
+    from ..system.object import final as final
 
 _T = TypeVar("_T")
 
 
-class _EventMeta(type):
+EventType: TypeAlias = SupportsInt
+
+
+class _EventMeta(ObjectMeta):
+    __associations: Final[dict[EventType, type[Event]]] = {}
+    associations: Final[MappingProxyType[EventType, type[Event]]] = MappingProxyType(__associations)
+
     def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _EventMeta:
-        try:
-            EventFactory
-        except NameError:
-            pass
-        else:
-            raise TypeError("Trying to create custom event")
         try:
             Event
         except NameError:
             pass
         else:
-            if bases != (Event,):
+            if len(bases) != 1 or not issubclass(bases[0], Event):
                 raise TypeError(f"{name!r} must only inherits from Event without multiple inheritance")
+            try:
+                BuiltinEvent
+            except NameError:
+                pass
+            else:
+                if not issubclass(bases[0], BuiltinEvent) and "type" in namespace:
+                    raise TypeError("'type' attribute must not be set explicitly")
+        cls = super().__new__(metacls, name, bases, namespace, **kwargs)
+        if isconcreteclass(cls) and cls._should_be_registered():
+            event_type: EventType
+            if not hasattr(cls, "type"):
+                event_type = _pg_event_custom_type()
+                setattr(cls, "type", event_type)
+            else:
+                event_type = getattr(cls, "type")
+                if isinstance(event_type, Field):  # Dataclass fields will be handled after the class creation
+                    if event_type.init:
+                        raise ValueError("'type' field must not be given at initialization")
+                    if not isinstance(event_type.default, EventType):
+                        raise ValueError("'type' field default value should be an integer")
+                    event_type = event_type.default
+                elif not isinstance(event_type, EventType):
+                    raise TypeError("Events must have an integer 'type' class attribute")
+            if event_type in metacls.__associations:
+                event_cls = metacls.__associations[event_type]
+                raise TypeError(f"Event with type {int(event_type)} already exists: {event_cls}")
+            metacls.__associations[event_type] = cast(type[Event], cls)
+        return cls
+
+    def _should_be_registered(cls) -> bool:
+        return True
+
+
+class Event(Object, metaclass=_EventMeta):
+    @classmethod
+    @abstractmethod
+    def from_dict(cls: type[Self], event_dict: dict[str, Any]) -> Self:
+        raise NotImplementedError
+
+    @abstractmethod
+    def to_dict(self) -> dict[str, Any]:
+        raise NotImplementedError
+
+    type: ClassVar[EventType]
+
+
+class _BuiltinEventMeta(_EventMeta):
+    __associations: Final[dict[BuiltinEvent.Type, type[BuiltinEvent]]] = {}  # type: ignore[misc]
+
+    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _EventMeta:
+        try:
+            BuiltinEvent
+        except NameError:
+            pass
+        else:
+            if len(bases) != 1 or not issubclass(bases[0], BuiltinEvent):
+                raise TypeError(f"{name!r} must only inherits from BuiltinEvent without multiple inheritance")
+            cls = super().__new__(metacls, name, bases, namespace, **kwargs)
+            event_type: Any = getattr(cls, "type", None)
+            if isinstance(event_type, Field):
+                event_type = event_type.default
+            if not isinstance(event_type, BuiltinEvent.Type):
+                raise TypeError(f"BuiltinEvents must have a BuiltinEvent.Type 'type' class attribute, got {event_type!r}")
+            if event_type in metacls.__associations:
+                raise TypeError("Trying to create custom event from BuiltinEvent class")
+            metacls.__associations[event_type] = cast(type[BuiltinEvent], cls)
+            return cls
         return super().__new__(metacls, name, bases, namespace, **kwargs)
+
+    @classmethod
+    def check_event_types_association(metacls) -> None:
+        for event_type in BuiltinEvent.Type:
+            if event_type not in metacls.__associations:
+                raise TypeError(f"{event_type.name} event does not have an associated BuiltinEvent class")
+
+    def _should_be_registered(cls) -> bool:
+        if cls.__name__ == "BuiltinEvent" and cls.__name__ not in globals():
+            return False
+        return super()._should_be_registered()
 
 
 @dataclass(frozen=True, kw_only=True)
-class Event(metaclass=_EventMeta):
+class BuiltinEvent(Event, metaclass=_BuiltinEventMeta):
     @unique
     class Type(IntEnum):
-        # Built-in events
+        # pygame's built-in events
         KEYDOWN = _pg_constants.KEYDOWN
         KEYUP = _pg_constants.KEYUP
         MOUSEMOTION = _pg_constants.MOUSEMOTION
@@ -127,17 +214,11 @@ class Event(metaclass=_EventMeta):
         WINDOWFOCUSLOST = _pg_constants.WINDOWFOCUSLOST
         WINDOWTAKEFOCUS = _pg_constants.WINDOWTAKEFOCUS
 
-        # Custom events
+        # PyDiamond's events
         MUSICEND = MusicStream.MUSICEND
 
         def __repr__(self) -> str:
             return f"<{self.name} ({self.real_name}): {self.value}>"
-
-        def is_allowed(self) -> bool:
-            return not _pg_event_get_blocked(self)
-
-        def is_blocked(self) -> bool:
-            return truth(_pg_event_get_blocked(self))
 
         @property
         def real_name(self) -> str:
@@ -146,25 +227,38 @@ class Event(metaclass=_EventMeta):
     if not TYPE_CHECKING:
 
         def __new__(cls: type[Self], *args: Any, **kwargs: Any) -> Self:
-            if cls is Event:
-                raise TypeError("Cannot instantiate base class Event")
+            if cls is BuiltinEvent:
+                raise TypeError("Cannot instantiate base class BuiltinEvent")
             return super().__new__(cls)
 
-    type: ClassVar[Event.Type] = field(init=False)
+    @final
+    @classmethod
+    def from_dict(cls: type[Self], event_dict: dict[str, Any]) -> Self:
+        event_fields: Sequence[str] = tuple(f.name for f in fields(cls))
+        kwargs: dict[str, Any] = {k: event_dict[k] for k in filter(event_fields.__contains__, event_dict)}
+        return cls(**kwargs)
+
+    @final
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    type: ClassVar[BuiltinEvent.Type] = field(init=False)
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class KeyDownEvent(Event):
-    type: ClassVar[Literal[Event.Type.KEYDOWN]] = field(default=Event.Type.KEYDOWN, init=False)
+class KeyDownEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.KEYDOWN]] = field(default=BuiltinEvent.Type.KEYDOWN, init=False)
     key: int
     mod: int
     unicode: str
     scancode: int
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class KeyUpEvent(Event):
-    type: ClassVar[Literal[Event.Type.KEYUP]] = field(default=Event.Type.KEYUP, init=False)
+class KeyUpEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.KEYUP]] = field(default=BuiltinEvent.Type.KEYUP, init=False)
     key: int
     mod: int
 
@@ -172,16 +266,18 @@ class KeyUpEvent(Event):
 KeyEvent: TypeAlias = KeyDownEvent | KeyUpEvent
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class MouseButtonDownEvent(Event):
-    type: ClassVar[Literal[Event.Type.MOUSEBUTTONDOWN]] = field(default=Event.Type.MOUSEBUTTONDOWN, init=False)
+class MouseButtonDownEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.MOUSEBUTTONDOWN]] = field(default=BuiltinEvent.Type.MOUSEBUTTONDOWN, init=False)
     pos: tuple[int, int]
     button: int
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class MouseButtonUpEvent(Event):
-    type: ClassVar[Literal[Event.Type.MOUSEBUTTONUP]] = field(default=Event.Type.MOUSEBUTTONUP, init=False)
+class MouseButtonUpEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.MOUSEBUTTONUP]] = field(default=BuiltinEvent.Type.MOUSEBUTTONUP, init=False)
     pos: tuple[int, int]
     button: int
 
@@ -189,17 +285,19 @@ class MouseButtonUpEvent(Event):
 MouseButtonEvent: TypeAlias = MouseButtonDownEvent | MouseButtonUpEvent
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class MouseMotionEvent(Event):
-    type: ClassVar[Literal[Event.Type.MOUSEMOTION]] = field(default=Event.Type.MOUSEMOTION, init=False)
+class MouseMotionEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.MOUSEMOTION]] = field(default=BuiltinEvent.Type.MOUSEMOTION, init=False)
     pos: tuple[int, int]
     rel: tuple[int, int]
     buttons: tuple[bool, bool, bool]
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class MouseWheelEvent(Event):
-    type: ClassVar[Literal[Event.Type.MOUSEWHEEL]] = field(default=Event.Type.MOUSEWHEEL, init=False)
+class MouseWheelEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.MOUSEWHEEL]] = field(default=BuiltinEvent.Type.MOUSEWHEEL, init=False)
     flipped: bool
     x: int
     y: int
@@ -208,40 +306,45 @@ class MouseWheelEvent(Event):
 MouseEvent: TypeAlias = MouseButtonEvent | MouseWheelEvent | MouseMotionEvent
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class JoyAxisMotionEvent(Event):
-    type: ClassVar[Literal[Event.Type.JOYAXISMOTION]] = field(default=Event.Type.JOYAXISMOTION, init=False)
+class JoyAxisMotionEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.JOYAXISMOTION]] = field(default=BuiltinEvent.Type.JOYAXISMOTION, init=False)
     instance_id: int
     axis: int
     value: float
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class JoyBallMotionEvent(Event):
-    type: ClassVar[Literal[Event.Type.JOYBALLMOTION]] = field(default=Event.Type.JOYBALLMOTION, init=False)
+class JoyBallMotionEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.JOYBALLMOTION]] = field(default=BuiltinEvent.Type.JOYBALLMOTION, init=False)
     instance_id: int
     ball: int
     rel: float
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class JoyHatMotionEvent(Event):
-    type: ClassVar[Literal[Event.Type.JOYHATMOTION]] = field(default=Event.Type.JOYHATMOTION, init=False)
+class JoyHatMotionEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.JOYHATMOTION]] = field(default=BuiltinEvent.Type.JOYHATMOTION, init=False)
     instance_id: int
     hat: int
     value: tuple[int, int]
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class JoyButtonDownEvent(Event):
-    type: ClassVar[Literal[Event.Type.JOYBUTTONDOWN]] = field(default=Event.Type.JOYBUTTONDOWN, init=False)
+class JoyButtonDownEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.JOYBUTTONDOWN]] = field(default=BuiltinEvent.Type.JOYBUTTONDOWN, init=False)
     instance_id: int
     button: int
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class JoyButtonUpEvent(Event):
-    type: ClassVar[Literal[Event.Type.JOYBUTTONUP]] = field(default=Event.Type.JOYBUTTONUP, init=False)
+class JoyButtonUpEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.JOYBUTTONUP]] = field(default=BuiltinEvent.Type.JOYBUTTONUP, init=False)
     instance_id: int
     button: int
 
@@ -249,123 +352,145 @@ class JoyButtonUpEvent(Event):
 JoyButtonEvent: TypeAlias = JoyButtonDownEvent | JoyButtonUpEvent
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class JoyDeviceAddedEvent(Event):
-    type: ClassVar[Literal[Event.Type.JOYDEVICEADDED]] = field(default=Event.Type.JOYDEVICEADDED, init=False)
+class JoyDeviceAddedEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.JOYDEVICEADDED]] = field(default=BuiltinEvent.Type.JOYDEVICEADDED, init=False)
     device_index: int
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class JoyDeviceRemovedEvent(Event):
-    type: ClassVar[Literal[Event.Type.JOYDEVICEREMOVED]] = field(default=Event.Type.JOYDEVICEREMOVED, init=False)
+class JoyDeviceRemovedEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.JOYDEVICEREMOVED]] = field(default=BuiltinEvent.Type.JOYDEVICEREMOVED, init=False)
     instance_id: int
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class TextEditingEvent(Event):
-    type: ClassVar[Literal[Event.Type.TEXTEDITING]] = field(default=Event.Type.TEXTEDITING, init=False)
+class TextEditingEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.TEXTEDITING]] = field(default=BuiltinEvent.Type.TEXTEDITING, init=False)
     text: str
     start: int
     length: int
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class TextInputEvent(Event):
-    type: ClassVar[Literal[Event.Type.TEXTINPUT]] = field(default=Event.Type.TEXTINPUT, init=False)
+class TextInputEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.TEXTINPUT]] = field(default=BuiltinEvent.Type.TEXTINPUT, init=False)
     text: str
 
 
 TextEvent: TypeAlias = TextEditingEvent | TextInputEvent
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class UserEvent(Event):
-    type: ClassVar[Literal[Event.Type.USEREVENT]] = field(default=Event.Type.USEREVENT, init=False)
-    code: int = -1
+class UserEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.USEREVENT]] = field(default=BuiltinEvent.Type.USEREVENT, init=False)
+    code: int
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class WindowShownEvent(Event):
-    type: ClassVar[Literal[Event.Type.WINDOWSHOWN]] = field(default=Event.Type.WINDOWSHOWN, init=False)
+class WindowShownEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.WINDOWSHOWN]] = field(default=BuiltinEvent.Type.WINDOWSHOWN, init=False)
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class WindowHiddenEvent(Event):
-    type: ClassVar[Literal[Event.Type.WINDOWHIDDEN]] = field(default=Event.Type.WINDOWHIDDEN, init=False)
+class WindowHiddenEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.WINDOWHIDDEN]] = field(default=BuiltinEvent.Type.WINDOWHIDDEN, init=False)
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class WindowExposedEvent(Event):
-    type: ClassVar[Literal[Event.Type.WINDOWEXPOSED]] = field(default=Event.Type.WINDOWEXPOSED, init=False)
+class WindowExposedEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.WINDOWEXPOSED]] = field(default=BuiltinEvent.Type.WINDOWEXPOSED, init=False)
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class WindowMovedEvent(Event):
-    type: ClassVar[Literal[Event.Type.WINDOWMOVED]] = field(default=Event.Type.WINDOWMOVED, init=False)
+class WindowMovedEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.WINDOWMOVED]] = field(default=BuiltinEvent.Type.WINDOWMOVED, init=False)
     x: int
     y: int
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class WindowResizedEvent(Event):
-    type: ClassVar[Literal[Event.Type.WINDOWRESIZED]] = field(default=Event.Type.WINDOWRESIZED, init=False)
+class WindowResizedEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.WINDOWRESIZED]] = field(default=BuiltinEvent.Type.WINDOWRESIZED, init=False)
     x: int
     y: int
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class WindowSizeChangedEvent(Event):
-    type: ClassVar[Literal[Event.Type.WINDOWSIZECHANGED]] = field(default=Event.Type.WINDOWSIZECHANGED, init=False)
+class WindowSizeChangedEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.WINDOWSIZECHANGED]] = field(default=BuiltinEvent.Type.WINDOWSIZECHANGED, init=False)
     x: int
     y: int
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class WindowMinimizedEvent(Event):
-    type: ClassVar[Literal[Event.Type.WINDOWMINIMIZED]] = field(default=Event.Type.WINDOWMINIMIZED, init=False)
+class WindowMinimizedEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.WINDOWMINIMIZED]] = field(default=BuiltinEvent.Type.WINDOWMINIMIZED, init=False)
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class WindowMaximizedEvent(Event):
-    type: ClassVar[Literal[Event.Type.WINDOWMAXIMIZED]] = field(default=Event.Type.WINDOWMAXIMIZED, init=False)
+class WindowMaximizedEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.WINDOWMAXIMIZED]] = field(default=BuiltinEvent.Type.WINDOWMAXIMIZED, init=False)
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class WindowRestoredEvent(Event):
-    type: ClassVar[Literal[Event.Type.WINDOWRESTORED]] = field(default=Event.Type.WINDOWRESTORED, init=False)
+class WindowRestoredEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.WINDOWRESTORED]] = field(default=BuiltinEvent.Type.WINDOWRESTORED, init=False)
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class WindowEnterEvent(Event):
-    type: ClassVar[Literal[Event.Type.WINDOWENTER]] = field(default=Event.Type.WINDOWENTER, init=False)
+class WindowEnterEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.WINDOWENTER]] = field(default=BuiltinEvent.Type.WINDOWENTER, init=False)
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class WindowLeaveEvent(Event):
-    type: ClassVar[Literal[Event.Type.WINDOWLEAVE]] = field(default=Event.Type.WINDOWLEAVE, init=False)
+class WindowLeaveEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.WINDOWLEAVE]] = field(default=BuiltinEvent.Type.WINDOWLEAVE, init=False)
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class WindowFocusGainedEvent(Event):
-    type: ClassVar[Literal[Event.Type.WINDOWFOCUSGAINED]] = field(default=Event.Type.WINDOWFOCUSGAINED, init=False)
+class WindowFocusGainedEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.WINDOWFOCUSGAINED]] = field(default=BuiltinEvent.Type.WINDOWFOCUSGAINED, init=False)
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class WindowFocusLostEvent(Event):
-    type: ClassVar[Literal[Event.Type.WINDOWFOCUSLOST]] = field(default=Event.Type.WINDOWFOCUSLOST, init=False)
+class WindowFocusLostEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.WINDOWFOCUSLOST]] = field(default=BuiltinEvent.Type.WINDOWFOCUSLOST, init=False)
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class WindowTakeFocusEvent(Event):
-    type: ClassVar[Literal[Event.Type.WINDOWTAKEFOCUS]] = field(default=Event.Type.WINDOWTAKEFOCUS, init=False)
+class WindowTakeFocusEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.WINDOWTAKEFOCUS]] = field(default=BuiltinEvent.Type.WINDOWTAKEFOCUS, init=False)
 
 
+@final
 @dataclass(frozen=True, kw_only=True)
-class MusicEndEvent(Event):
-    type: ClassVar[Literal[Event.Type.MUSICEND]] = field(default=Event.Type.MUSICEND, init=False)
+class MusicEndEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.MUSICEND]] = field(default=BuiltinEvent.Type.MUSICEND, init=False)
     finished: Music
     next: Music | None
 
+
+_BuiltinEventMeta.check_event_types_association()
 
 _EventCallback: TypeAlias = Callable[[Event], bool | None]
 _TE = TypeVar("_TE", bound=Event)
@@ -381,27 +506,26 @@ class UnknownEventTypeError(EventFactoryError):
     pass
 
 
-class EventTypeNotRegisteredError(EventFactoryError):
-    pass
-
-
 class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
-    associations: Final[MappingProxyType[Event.Type, type[Event]]] = MappingProxyType(
-        {obj.type: obj for obj in globals().values() if isinstance(obj, type) and issubclass(obj, Event) and obj is not Event}
-    )
+    associations: Final[MappingProxyType[EventType, type[Event]]] = _EventMeta.associations
+
+    @staticmethod
+    def get_all_event_types() -> tuple[EventType, ...]:
+        return tuple(EventFactory.associations.keys())
+
+    @staticmethod
+    def is_valid_type(event_type: EventType) -> bool:
+        return event_type in EventFactory.associations
 
     @staticmethod
     def from_pygame_event(event: _PygameEvent) -> Event:
         try:
-            event_type = Event.Type(event.type)
-            event_cls: type[Event] = EventFactory.associations[event_type]
-        except ValueError as exc:
-            raise UnknownEventTypeError(f"Unknown event {event!r}") from exc
+            event_cls: type[Event] = EventFactory.associations[event.type]
         except KeyError as exc:
-            raise EventTypeNotRegisteredError(f"Unknown event {event!r}") from exc
-        event_fields: Sequence[str] = tuple(f.name for f in fields(event_cls))
-        kwargs: dict[str, Any] = {k: event.__dict__[k] for k in filter(event_fields.__contains__, event.__dict__)}
-        return event_cls(**kwargs)
+            raise UnknownEventTypeError(f"Unknown event with type {event.type!r}") from exc
+        event_dict = dict(event.__dict__)
+        event_dict.pop("type", None)
+        return event_cls.from_dict(event_dict)
 
 
 class EventManager:
@@ -417,7 +541,7 @@ class EventManager:
     )
 
     def __init__(self) -> None:
-        self.__event_handler_dict: dict[Event.Type, list[_EventCallback]] = dict()
+        self.__event_handler_dict: dict[EventType, list[_EventCallback]] = dict()
         self.__key_pressed_handler_dict: dict[Keyboard.Key, list[_EventCallback]] = dict()
         self.__key_released_handler_dict: dict[Keyboard.Key, list[_EventCallback]] = dict()
         self.__mouse_button_pressed_handler_dict: dict[Mouse.Button, list[_EventCallback]] = dict()
@@ -524,7 +648,7 @@ class EventManager:
         elif isinstance(event, (MouseButtonUpEvent, MouseButtonDownEvent)):
             if self.__handle_mouse_event(event):
                 return True
-        event_dict: dict[Event.Type, list[_EventCallback]] = self.__event_handler_dict
+        event_dict: dict[EventType, list[_EventCallback]] = self.__event_handler_dict
         for callback in event_dict.get(event.type, ()):
             if callback(event):
                 return True
@@ -541,9 +665,9 @@ class EventManager:
 
     def __handle_key_event(self, event: KeyEvent) -> bool | None:
         key_handler_dict: dict[Keyboard.Key, list[_EventCallback]] | None = None
-        if event.type == Event.Type.KEYDOWN:
+        if event.type == BuiltinEvent.Type.KEYDOWN:
             key_handler_dict = self.__key_pressed_handler_dict
-        elif event.type == Event.Type.KEYUP:
+        elif event.type == BuiltinEvent.Type.KEYUP:
             key_handler_dict = self.__key_released_handler_dict
         if key_handler_dict:
             try:
@@ -558,9 +682,9 @@ class EventManager:
 
     def __handle_mouse_event(self, event: MouseButtonEvent) -> bool | None:
         mouse_handler_dict: dict[Mouse.Button, list[_EventCallback]] | None = None
-        if event.type == Event.Type.MOUSEBUTTONDOWN:
+        if event.type == BuiltinEvent.Type.MOUSEBUTTONDOWN:
             mouse_handler_dict = self.__mouse_button_pressed_handler_dict
-        elif event.type == Event.Type.MOUSEBUTTONUP:
+        elif event.type == BuiltinEvent.Type.MOUSEBUTTONUP:
             mouse_handler_dict = self.__mouse_button_released_handler_dict
         if mouse_handler_dict:
             try:
@@ -574,6 +698,6 @@ class EventManager:
         return None
 
 
-del _pg_constants, _EventMeta, MusicStream
+del _pg_constants, _EventMeta, _BuiltinEventMeta, MusicStream
 
 del _T, _TE

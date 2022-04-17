@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from argparse import ArgumentParser
-from typing import Any, Callable, ClassVar, Final, Literal, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, Mapping, Sequence
 
 from py_diamond.audio.mixer import Mixer
 from py_diamond.audio.music import Music, MusicStream
@@ -51,7 +51,7 @@ from py_diamond.graphics.text import Text, TextImage
 from py_diamond.resource.loader import FontLoader, ImageLoader, MusicLoader, SoundLoader
 from py_diamond.resource.manager import ResourceManager
 from py_diamond.window.display import Window
-from py_diamond.window.event import Event, KeyUpEvent, MouseButtonEvent, MusicEndEvent
+from py_diamond.window.event import BuiltinEvent, Event, KeyUpEvent, MouseButtonEvent, MusicEndEvent
 from py_diamond.window.gui import GUIAutoLayeredMainScene, GUIAutoLayeredScene, GUIScene
 from py_diamond.window.keyboard import Keyboard
 from py_diamond.window.mouse import Mouse
@@ -66,6 +66,9 @@ from py_diamond.window.scene import (
     SceneWindow,
 )
 from py_diamond.window.time import Time
+
+if TYPE_CHECKING:
+    from _typeshed import Self
 
 
 class ShapeScene(MainScene):
@@ -358,6 +361,19 @@ class AnimatedSpriteScene(MainScene):
         self.window.draw(self.sprite)
 
 
+class MyCustomEvent(Event):
+    def __init__(self, message: str) -> None:
+        super().__init__()
+        self.message: str = message
+
+    @classmethod
+    def from_dict(cls: type[Self], event_dict: dict[str, Any]) -> Self:
+        return cls(**event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return dict(self.__dict__)
+
+
 class EventScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
@@ -366,12 +382,15 @@ class EventScene(MainScene):
         self.circle: CircleShape = CircleShape(4, color=YELLOW)
         self.event.bind_mouse_position(lambda pos: self.cross.set_position(center=pos))
         self.event.bind_mouse_button(Mouse.Button.LEFT, self.__switch_color)
+        self.event.bind(MyCustomEvent, self.__update_window_title)
 
     def on_start_loop(self) -> None:
         Mouse.hide_cursor()
+        self.actual_title: str = self.window.get_title()
 
     def on_quit(self) -> None:
         Mouse.show_cursor()
+        self.window.set_title(self.actual_title)
 
     def update(self) -> None:
         self.circle.center = self.cross.center
@@ -380,10 +399,14 @@ class EventScene(MainScene):
         self.window.draw(self.cross, self.circle)
 
     def __switch_color(self, event: MouseButtonEvent) -> None:
-        if event.type == Event.Type.MOUSEBUTTONDOWN:
+        if event.type == BuiltinEvent.Type.MOUSEBUTTONDOWN:
             self.cross.color = YELLOW
-        elif event.type == Event.Type.MOUSEBUTTONUP:
+        elif event.type == BuiltinEvent.Type.MOUSEBUTTONUP:
             self.cross.color = RED
+        self.window.post_event(MyCustomEvent(f"mouse_pos=({event.pos})"))
+
+    def __update_window_title(self, event: MyCustomEvent) -> None:
+        self.window.set_title(event.message)
 
 
 class TextImageScene(MainScene):

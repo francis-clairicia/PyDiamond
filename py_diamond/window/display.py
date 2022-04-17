@@ -54,17 +54,30 @@ from ..graphics.renderer import Renderer, SurfaceRenderer
 from ..graphics.surface import Surface, create_surface, save_image
 from ..graphics.text import Text
 from ..system._mangling import getattr_pv, setattr_pv
+from ..system.object import Object
 from ..system.path import set_constant_file
 from ..system.utils import wraps
 from .clock import Clock
 from .cursor import AbstractCursor
-from .event import Event, EventFactory, EventFactoryError, EventManager, UnknownEventTypeError, WindowSizeChangedEvent
+from .event import (
+    BuiltinEvent,
+    Event,
+    EventFactory,
+    EventFactoryError,
+    EventManager,
+    EventType,
+    UnknownEventTypeError,
+    WindowSizeChangedEvent,
+)
 from .keyboard import Keyboard
 from .mouse import Mouse
 from .time import Time
 
 if TYPE_CHECKING:
     from pygame._common import _ColorValue  # pyright: reportMissingModuleSource=false
+
+if not TYPE_CHECKING:
+    from ..system.object import final as final
 
 _P = ParamSpec("_P")
 
@@ -79,7 +92,7 @@ class WindowError(_pg_error):
     pass
 
 
-class Window:
+class Window(Object):
     class __Exit(BaseException):
         pass
 
@@ -138,6 +151,7 @@ class Window:
         pass
 
     def __del__(self) -> None:
+        super().__del__()
         Window.__main_window = True
 
     if TYPE_CHECKING:
@@ -188,6 +202,10 @@ class Window:
 
     def set_title(self, title: str | None) -> None:
         _pg_display.set_caption(title or Window.DEFAULT_TITLE)
+
+    @final
+    def get_title(self) -> str:
+        return _pg_display.get_caption()[0]
 
     def iconify(self) -> bool:
         return truth(_pg_display.iconify())
@@ -328,7 +346,7 @@ class Window:
                 self._handle_close_event()
                 continue
             if pg_event.type == _PG_VIDEORESIZE:
-                if not WindowSizeChangedEvent.type.is_allowed():
+                if not self.event_is_allowed(BuiltinEvent.Type.WINDOWSIZECHANGED):
                     _pg_display.set_mode(self.__surface.get_size(), flags=self.__flags, vsync=int(self.__vsync))
                 continue
             if pg_event.type == _pg_music.get_endevent():
@@ -353,6 +371,13 @@ class Window:
             if not process_event(event):
                 yield event
         manager.handle_mouse_position(Mouse.get_pos())
+
+    def post_event(self, event: Event) -> bool:
+        event_dict = event.to_dict()
+        event_dict.pop("type", None)
+        event_type = int(event.__class__.type)
+        pg_event = _pg_event.Event(event_type, event_dict)
+        return _pg_event.post(pg_event)
 
     def _handle_close_event(self) -> None:
         self.close()
@@ -386,16 +411,24 @@ class Window:
         width = self.__surface.get_width()
         return self.set_size((width, height))
 
-    def allow_event(self, *event_types: Event.Type) -> None:
-        _pg_event.set_allowed(tuple(map(Event.Type, event_types)))
+    @final
+    def event_is_allowed(self, event_type: EventType) -> bool:
+        return not _pg_event.get_blocked(event_type)
+
+    @final
+    def allow_event(self, *event_types: EventType) -> None:
+        if tuple(filterfalse(EventFactory.is_valid_type, event_types)):
+            raise ValueError(f"Invalid event types caught")
+        _pg_event.set_allowed(event_types)
 
     @contextmanager
-    def allow_event_context(self, *event_types: Event.Type) -> Iterator[None]:
+    def allow_event_context(self, *event_types: EventType) -> Iterator[None]:
         with self.__save_blocked_events():
             self.allow_event(*event_types)
             yield
 
-    def allow_only_event(self, *event_types: Event.Type) -> None:
+    @final
+    def allow_only_event(self, *event_types: EventType) -> None:
         if not event_types:
             return
         with self.__save_blocked_events(do_not_reinitialize_on_success=True):
@@ -403,38 +436,50 @@ class Window:
             self.allow_event(*event_types)
 
     @contextmanager
-    def allow_only_event_context(self, *event_types: Event.Type) -> Iterator[None]:
+    def allow_only_event_context(self, *event_types: EventType) -> Iterator[None]:
         with self.__save_blocked_events():
             self.allow_only_event(*event_types)
             yield
 
-    def allow_all_events(self, *, except_for: Iterable[Event.Type] = ()) -> None:
-        except_for = tuple(map(Event.Type, except_for))
+    @final
+    def allow_all_events(self, *, except_for: Iterable[EventType] = ()) -> None:
+        except_for = tuple(except_for)
+        if tuple(filterfalse(EventFactory.is_valid_type, except_for)):
+            raise ValueError(f"Invalid event types caught")
         if not except_for:
-            _pg_event.set_allowed(tuple(Event.Type))
+            _pg_event.set_allowed(EventFactory.get_all_event_types())
             return
-        _pg_event.set_allowed(tuple(filterfalse(except_for.__contains__, Event.Type)))
+        _pg_event.set_allowed(tuple(filterfalse(except_for.__contains__, EventFactory.get_all_event_types())))
         _pg_event.set_blocked(except_for)
 
     @contextmanager
-    def allow_all_events_context(self, *, except_for: Iterable[Event.Type] = ()) -> Iterator[None]:
+    def allow_all_events_context(self, *, except_for: Iterable[EventType] = ()) -> Iterator[None]:
         with self.__save_blocked_events():
             self.allow_all_events(except_for=except_for)
             yield
 
+    @final
     def clear_all_events(self) -> None:
         _pg_event.clear()
 
-    def block_event(self, *event_types: Event.Type) -> None:
-        _pg_event.set_blocked(tuple(map(Event.Type, event_types)))
+    @final
+    def event_is_blocked(self, event_type: EventType) -> bool:
+        return truth(_pg_event.get_blocked(event_type))
+
+    @final
+    def block_event(self, *event_types: EventType) -> None:
+        if tuple(filterfalse(EventFactory.is_valid_type, event_types)):
+            raise ValueError(f"Invalid event types caught")
+        _pg_event.set_blocked(event_types)
 
     @contextmanager
-    def block_event_context(self, *event_types: Event.Type) -> Iterator[None]:
+    def block_event_context(self, *event_types: EventType) -> Iterator[None]:
         with self.__save_blocked_events():
             self.block_event(*event_types)
             yield
 
-    def block_only_event(self, *event_types: Event.Type) -> None:
+    @final
+    def block_only_event(self, *event_types: EventType) -> None:
         if not event_types:
             return
         with self.__save_blocked_events(do_not_reinitialize_on_success=True):
@@ -442,28 +487,31 @@ class Window:
             self.block_event(*event_types)
 
     @contextmanager
-    def block_only_event_context(self, *event_types: Event.Type) -> Iterator[None]:
+    def block_only_event_context(self, *event_types: EventType) -> Iterator[None]:
         with self.__save_blocked_events():
             self.block_only_event(*event_types)
             yield
 
-    def block_all_events(self, *, except_for: Iterable[Event.Type] = ()) -> None:
-        except_for = tuple(map(Event.Type, except_for))
+    @final
+    def block_all_events(self, *, except_for: Iterable[EventType] = ()) -> None:
+        except_for = tuple(except_for)
+        if tuple(filterfalse(EventFactory.is_valid_type, except_for)):
+            raise ValueError(f"Invalid event types caught")
         if not except_for:
-            _pg_event.set_blocked(tuple(Event.Type))
+            _pg_event.set_blocked(EventFactory.get_all_event_types())
             return
-        _pg_event.set_blocked(tuple(filterfalse(except_for.__contains__, Event.Type)))
+        _pg_event.set_blocked(tuple(filterfalse(except_for.__contains__, EventFactory.get_all_event_types())))
         _pg_event.set_allowed(except_for)
 
     @contextmanager
-    def block_all_events_context(self, *, except_for: Iterable[Event.Type] = ()) -> Iterator[None]:
+    def block_all_events_context(self, *, except_for: Iterable[EventType] = ()) -> Iterator[None]:
         with self.__save_blocked_events():
             self.block_all_events(except_for=except_for)
             yield
 
     @contextmanager
     def __save_blocked_events(self, *, do_not_reinitialize_on_success: bool = False) -> Iterator[None]:
-        all_blocked_events: Sequence[Event.Type] = tuple(filter(Event.Type.is_blocked, Event.Type))
+        all_blocked_events: Sequence[EventType] = tuple(filter(self.event_is_blocked, EventFactory.get_all_event_types()))
 
         def set_blocked_events() -> None:
             if not _pg_display.get_init():

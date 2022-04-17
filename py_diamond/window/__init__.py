@@ -10,6 +10,7 @@ __all__ = [
     "AbstractLayeredScene",
     "BoundFocus",
     "BoundFocusProxy",
+    "BuiltinEvent",
     "Clickable",
     "Clock",
     "Cursor",
@@ -17,7 +18,7 @@ __all__ = [
     "EventFactory",
     "EventFactoryError",
     "EventManager",
-    "EventTypeNotRegisteredError",
+    "EventType",
     "FocusableContainer",
     "GUIAutoLayeredMainScene",
     "GUIAutoLayeredScene",
@@ -113,11 +114,12 @@ from .clock import Clock
 from .cursor import AbstractCursor, Cursor, SystemCursor
 from .display import Window, WindowCallback, WindowError
 from .event import (
+    BuiltinEvent,
     Event,
     EventFactory,
     EventFactoryError,
     EventManager,
-    EventTypeNotRegisteredError,
+    EventType,
     JoyAxisMotionEvent,
     JoyBallMotionEvent,
     JoyButtonDownEvent,
