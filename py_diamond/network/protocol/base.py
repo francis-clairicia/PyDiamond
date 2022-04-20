@@ -20,7 +20,6 @@ __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
 from contextlib import contextmanager
-from functools import cached_property
 from struct import Struct, error as StructError
 from threading import RLock
 from types import MethodType, TracebackType
@@ -29,7 +28,7 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Generator, Ite
 from cryptography.fernet import Fernet, InvalidToken
 
 from ...system.object import Object, ObjectMeta
-from ...system.utils import isabstractmethod, isconcreteclass
+from ...system.utils import cached_property_read_only as cached_property, isabstractmethod, isconcreteclass
 
 if not TYPE_CHECKING:
     from ...system.object import final as final

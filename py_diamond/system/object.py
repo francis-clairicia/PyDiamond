@@ -192,7 +192,5 @@ def final(__o: _T, /) -> _T:
         final(__o.__func__)
     if isinstance(__o, cached_property):
         final(__o.func)
-    if not isinstance(__o, type) and not callable(__o) and not hasattr(__o, "__get__"):
-        raise TypeError("final() must only decorate functions, classes and descriptors")
     setattr(__o, "__finaloverride__", True)
     return __o  # type: ignore[no-any-return]
