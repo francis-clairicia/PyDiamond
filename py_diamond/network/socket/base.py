@@ -26,7 +26,7 @@ __license__ = "GNU GPL v3.0"
 
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, NamedTuple, TypeAlias, TypeVar, overload
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeAlias, TypeVar
 
 from ...system.non_copyable import NonCopyableMeta
 from ...system.object import Object, ObjectMeta
@@ -101,34 +101,6 @@ class AbstractSocket(Object, metaclass=SocketMeta):
 
     @abstractmethod
     def getsockname(self) -> SocketAddress:
-        raise NotImplementedError
-
-    @overload
-    @abstractmethod
-    def getsockopt(self, level: int, optname: int) -> int:
-        ...
-
-    @overload
-    @abstractmethod
-    def getsockopt(self, level: int, optname: int, buflen: int) -> bytes:
-        ...
-
-    @abstractmethod
-    def getsockopt(self, level: int, optname: int, buflen: int = ...) -> int | bytes:
-        raise NotImplementedError
-
-    @overload
-    @abstractmethod
-    def setsockopt(self, level: int, optname: int, value: int | bytes) -> None:
-        ...
-
-    @overload
-    @abstractmethod
-    def setsockopt(self, level: int, optname: int, value: None, optlen: int) -> None:
-        ...
-
-    @abstractmethod
-    def setsockopt(self, level: int, optname: int, value: int | bytes | None, optlen: int = ...) -> None:
         raise NotImplementedError
 
     @abstractmethod

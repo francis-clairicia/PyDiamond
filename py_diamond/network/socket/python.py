@@ -30,7 +30,7 @@ from socket import (
     socket,
 )
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Callable, Final, ParamSpec, TypeVar, final, overload
+from typing import TYPE_CHECKING, Any, Callable, Final, ParamSpec, TypeVar, final
 
 from ...system._mangling import delattr_pv, getattr_pv, hasattr_pv, setattr_pv
 from ...system.utils import concreteclass, wraps
@@ -111,50 +111,6 @@ class _AbstractPythonSocket(AbstractSocket):
         if int(sock.family) == AF_INET6:
             return IPv6SocketAddress(*addr)
         return IPv4SocketAddress(*addr)
-
-    @overload
-    def getsockopt(self, level: int, optname: int) -> int:
-        ...
-
-    @overload
-    def getsockopt(self, level: int, optname: int, buflen: int) -> bytes:
-        ...
-
-    @final
-    @_thread_safe_python_socket_method
-    def getsockopt(self, level: int, optname: int, buflen: Any = _MISSING) -> Any:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
-            raise RuntimeError("Closed socket")
-        if buflen is not _MISSING:
-            if not isinstance(buflen, int):
-                raise TypeError("Invalid arguments")
-            return sock.getsockopt(level, optname, buflen)
-        return sock.getsockopt(level, optname)
-
-    @overload
-    def setsockopt(self, level: int, optname: int, value: int | bytes) -> None:
-        ...
-
-    @overload
-    def setsockopt(self, level: int, optname: int, value: None, optlen: int) -> None:
-        ...
-
-    @final
-    @_thread_safe_python_socket_method
-    def setsockopt(self, level: int, optname: int, value: int | bytes | None, optlen: Any = _MISSING) -> None:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
-            raise RuntimeError("Closed socket")
-        if value is None:
-            if optlen is _MISSING:
-                raise TypeError("Invalid arguments: missing 'optlen' argument")
-            if not isinstance(optlen, int):
-                raise TypeError("Invalid arguments")
-            return sock.setsockopt(level, optname, None, optlen)
-        if optlen is not _MISSING:
-            raise TypeError("Invalid arguments: 'optlen' argument given")
-        return sock.setsockopt(level, optname, value)
 
     @final
     @_thread_safe_python_socket_method

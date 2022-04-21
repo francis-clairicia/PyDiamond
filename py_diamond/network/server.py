@@ -22,7 +22,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 from contextlib import suppress
 from selectors import EVENT_READ
 from threading import Event, RLock, current_thread
@@ -74,10 +74,10 @@ class ConnectedClient(Object, Generic[_T]):
 
 class AbstractRequestHandler(Object, Generic[_T]):
     @final
-    def __init__(self, request: _T, client: ConnectedClient[_T], server: AbstractNetworkServer[_T]) -> None:
+    def __init__(self, request: _T, client: ConnectedClient[_T], server: AbstractNetworkServer) -> None:
         self.request: _T = request
         self.client: ConnectedClient[_T] = client
-        self.server: AbstractNetworkServer[_T] = server
+        self.server: AbstractNetworkServer = server
         self.setup()
         try:
             self.handle()
@@ -103,9 +103,9 @@ class AbstractUDPRequestHandler(AbstractRequestHandler[_T]):
     server: AbstractUDPNetworkServer[_T]
 
 
-class AbstractNetworkServer(Generic[_T], metaclass=ABCMeta):
+class AbstractNetworkServer(Object):
     if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="AbstractNetworkServer[Any]")
+        __Self = TypeVar("__Self", bound="AbstractNetworkServer")
 
     def __init__(self) -> None:
         super().__init__()
@@ -134,7 +134,7 @@ class AbstractNetworkServer(Generic[_T], metaclass=ABCMeta):
             raise RuntimeError("Server already running")
 
         @thread
-        def run(self: AbstractNetworkServer[Any], poll_interval: float) -> None:
+        def run(self: AbstractNetworkServer, poll_interval: float) -> None:
             try:
                 self.serve_forever(poll_interval)
             except:
@@ -160,34 +160,6 @@ class AbstractNetworkServer(Generic[_T], metaclass=ABCMeta):
     def shutdown(self) -> None:
         raise NotImplementedError
 
-    @overload
-    @abstractmethod
-    def getsockopt(self, level: int, optname: int) -> int:
-        ...
-
-    @overload
-    @abstractmethod
-    def getsockopt(self, level: int, optname: int, buflen: int) -> bytes:
-        ...
-
-    @abstractmethod
-    def getsockopt(self, level: int, optname: int, buflen: int = ...) -> int | bytes:
-        raise NotImplementedError
-
-    @overload
-    @abstractmethod
-    def setsockopt(self, level: int, optname: int, value: int | bytes) -> None:
-        ...
-
-    @overload
-    @abstractmethod
-    def setsockopt(self, level: int, optname: int, value: None, optlen: int) -> None:
-        ...
-
-    @abstractmethod
-    def setsockopt(self, level: int, optname: int, value: int | bytes | None, optlen: int = ...) -> None:
-        raise NotImplementedError
-
     @abstractmethod
     def fileno(self) -> int:
         raise NotImplementedError
@@ -203,7 +175,7 @@ class AbstractNetworkServer(Generic[_T], metaclass=ABCMeta):
         raise NotImplementedError
 
 
-class AbstractTCPNetworkServer(AbstractNetworkServer[_T]):
+class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
     @overload
     def __init__(
         self,
@@ -380,32 +352,6 @@ class AbstractTCPNetworkServer(AbstractNetworkServer[_T]):
     def _verify_new_client(self, client: TCPNetworkClient[_T], address: SocketAddress) -> bool:
         return True
 
-    @overload
-    def getsockopt(self, level: int, optname: int) -> int:
-        ...
-
-    @overload
-    def getsockopt(self, level: int, optname: int, buflen: int) -> bytes:
-        ...
-
-    def getsockopt(self, *args: Any, **kwargs: Any) -> int | bytes:
-        with self.__lock:
-            socket: AbstractSocket = self.__socket
-            return socket.getsockopt(*args, **kwargs)
-
-    @overload
-    def setsockopt(self, level: int, optname: int, value: int | bytes) -> None:
-        ...
-
-    @overload
-    def setsockopt(self, level: int, optname: int, value: None, optlen: int) -> None:
-        ...
-
-    def setsockopt(self, *args: Any, **kwargs: Any) -> None:
-        with self.__lock:
-            socket: AbstractSocket = self.__socket
-            return socket.setsockopt(*args, **kwargs)
-
     def fileno(self) -> int:
         with self.__lock:
             socket: AbstractSocket = self.__socket
@@ -510,7 +456,7 @@ class TCPNetworkServer(AbstractTCPNetworkServer[_T]):
         return self.__request_handler_cls
 
 
-class AbstractUDPNetworkServer(AbstractNetworkServer[_T]):
+class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_T]):
     @overload
     def __init__(
         self,
@@ -629,32 +575,6 @@ class AbstractUDPNetworkServer(AbstractNetworkServer[_T]):
         with self.__lock:
             self.__loop = False
         self.__is_shutdown.wait()
-
-    @overload
-    def getsockopt(self, level: int, optname: int) -> int:
-        ...
-
-    @overload
-    def getsockopt(self, level: int, optname: int, buflen: int) -> bytes:
-        ...
-
-    def getsockopt(self, *args: Any, **kwargs: Any) -> int | bytes:
-        with self.__lock:
-            socket: AbstractSocket = self.__socket
-            return socket.getsockopt(*args, **kwargs)
-
-    @overload
-    def setsockopt(self, level: int, optname: int, value: int | bytes) -> None:
-        ...
-
-    @overload
-    def setsockopt(self, level: int, optname: int, value: None, optlen: int) -> None:
-        ...
-
-    def setsockopt(self, *args: Any, **kwargs: Any) -> None:
-        with self.__lock:
-            socket: AbstractSocket = self.__socket
-            return socket.setsockopt(*args, **kwargs)
 
     def fileno(self) -> int:
         with self.__lock:

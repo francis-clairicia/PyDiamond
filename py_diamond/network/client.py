@@ -70,34 +70,6 @@ class AbstractNetworkClient(Object):
     def getsockname(self) -> SocketAddress:
         raise NotImplementedError
 
-    @overload
-    @abstractmethod
-    def getsockopt(self, level: int, optname: int) -> int:
-        ...
-
-    @overload
-    @abstractmethod
-    def getsockopt(self, level: int, optname: int, buflen: int) -> bytes:
-        ...
-
-    @abstractmethod
-    def getsockopt(self, level: int, optname: int, buflen: int = ...) -> int | bytes:
-        raise NotImplementedError
-
-    @overload
-    @abstractmethod
-    def setsockopt(self, level: int, optname: int, value: int | bytes) -> None:
-        ...
-
-    @overload
-    @abstractmethod
-    def setsockopt(self, level: int, optname: int, value: None, optlen: int) -> None:
-        ...
-
-    @abstractmethod
-    def setsockopt(self, level: int, optname: int, value: int | bytes | None, optlen: int = ...) -> None:
-        raise NotImplementedError
-
     @abstractmethod
     def getblocking(self) -> bool:
         raise NotImplementedError
@@ -334,32 +306,6 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
             socket: AbstractTCPClientSocket = self.__socket
             return socket.is_connected()
 
-    @overload
-    def getsockopt(self, level: int, optname: int) -> int:
-        ...
-
-    @overload
-    def getsockopt(self, level: int, optname: int, buflen: int) -> bytes:
-        ...
-
-    def getsockopt(self, *args: Any, **kwargs: Any) -> int | bytes:
-        with self.__lock:
-            socket: AbstractSocket = self.__socket
-            return socket.getsockopt(*args, **kwargs)
-
-    @overload
-    def setsockopt(self, level: int, optname: int, value: int | bytes) -> None:
-        ...
-
-    @overload
-    def setsockopt(self, level: int, optname: int, value: None, optlen: int) -> None:
-        ...
-
-    def setsockopt(self, *args: Any, **kwargs: Any) -> None:
-        with self.__lock:
-            socket: AbstractSocket = self.__socket
-            return socket.setsockopt(*args, **kwargs)
-
     def getblocking(self) -> bool:
         with self.__lock:
             socket: AbstractSocket = self.__socket
@@ -544,32 +490,6 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
         with self.__lock:
             socket: AbstractSocket = self.__socket
             return socket.getsockname()
-
-    @overload
-    def getsockopt(self, level: int, optname: int) -> int:
-        ...
-
-    @overload
-    def getsockopt(self, level: int, optname: int, buflen: int) -> bytes:
-        ...
-
-    def getsockopt(self, *args: Any, **kwargs: Any) -> int | bytes:
-        with self.__lock:
-            socket: AbstractSocket = self.__socket
-            return socket.getsockopt(*args, **kwargs)
-
-    @overload
-    def setsockopt(self, level: int, optname: int, value: int | bytes) -> None:
-        ...
-
-    @overload
-    def setsockopt(self, level: int, optname: int, value: None, optlen: int) -> None:
-        ...
-
-    def setsockopt(self, *args: Any, **kwargs: Any) -> None:
-        with self.__lock:
-            socket: AbstractSocket = self.__socket
-            return socket.setsockopt(*args, **kwargs)
 
     def getblocking(self) -> bool:
         with self.__lock:
