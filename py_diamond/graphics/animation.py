@@ -12,6 +12,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
+import weakref
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Callable, Iterator, Literal, NamedTuple, TypeAlias, TypeVar, final
 
@@ -39,7 +40,7 @@ class TransformAnimation:
     )
 
     def __init__(self, transformable: Transformable) -> None:
-        self.__transformable: Transformable = transformable
+        self.__transformable: Transformable = weakref.proxy(transformable)
         self.__animations_order: list[_AnimationType] = ["scale", "rotate", "rotate_point", "move"]
         self.__animations: dict[_AnimationType, _AbstractAnimationClass] = {}
         self.__actual_state: _TransformState | None = None

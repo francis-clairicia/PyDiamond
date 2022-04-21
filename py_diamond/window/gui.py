@@ -24,6 +24,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
+import weakref
 from abc import abstractmethod
 from enum import auto, unique
 from operator import truth
@@ -288,7 +289,7 @@ class BoundFocus:
     def __init__(self, focusable: SupportsFocus, scene: Scene | None) -> None:
         if not isinstance(focusable, _HasFocusMethods):
             raise NoFocusSupportError(repr(focusable))
-        self.__f: SupportsFocus = focusable
+        self.__f: weakref.ReferenceType[SupportsFocus] = weakref.ref(focusable)
         self.__scene: GUIScene | None = scene if isinstance(scene, GUIScene) else None
 
     def is_bound_to(self, scene: GUIScene) -> bool:
@@ -452,7 +453,10 @@ class BoundFocus:
 
     @property
     def __self__(self) -> SupportsFocus:
-        return self.__f
+        f: SupportsFocus | None = self.__f()
+        if f is None:
+            raise ReferenceError("weakly-referenced object no longer exists")
+        return f
 
 
 class _BoundFocusProxyMeta(type):
@@ -463,11 +467,15 @@ class _BoundFocusProxyMeta(type):
             )
 
         if "BoundFocusProxy" not in globals() and name == "BoundFocusProxy":
+            FOCUS_OBJ_ATTR = f"_{name}__focus"
+
+            def get_underlying_object(self: BoundFocusProxy) -> BoundFocus:
+                return self.__getattribute__(FOCUS_OBJ_ATTR)  # type: ignore[no-any-return]
 
             def proxy_method_wrapper(method_name: str, func: Callable[..., Any]) -> Callable[..., Any]:
                 @wraps(func)
                 def wrapper(self: BoundFocusProxy, /, *args: Any, **kwargs: Any) -> Any:
-                    focus: BoundFocus = self.original
+                    focus: BoundFocus = get_underlying_object(self)
                     method: Callable[..., Any] = getattr(focus, method_name)
                     return method(*args, **kwargs)
 
@@ -478,7 +486,7 @@ class _BoundFocusProxyMeta(type):
 
                     @wraps(obj.fget)
                     def getter(self: BoundFocusProxy, /) -> Any:
-                        focus: BoundFocus = self.original
+                        focus: BoundFocus = get_underlying_object(self)
                         return getattr(focus, name)
 
                     obj = obj.getter(getter)
@@ -487,7 +495,7 @@ class _BoundFocusProxyMeta(type):
 
                     @wraps(obj.fset)
                     def setter(self: BoundFocusProxy, value: Any, /) -> None:
-                        focus: BoundFocus = self.original
+                        focus: BoundFocus = get_underlying_object(self)
                         return setattr(focus, name, value)
 
                     obj = obj.setter(setter)
@@ -496,7 +504,7 @@ class _BoundFocusProxyMeta(type):
 
                     @wraps(obj.fdel)
                     def deleter(self: BoundFocusProxy, /) -> None:
-                        focus: BoundFocus = self.original
+                        focus: BoundFocus = get_underlying_object(self)
                         return delattr(focus, name)
 
                     obj = obj.deleter(deleter)
@@ -521,18 +529,13 @@ class BoundFocusProxy(BoundFocus, metaclass=_BoundFocusProxyMeta):
         self.__focus: BoundFocus = focus
 
     def __getattr__(self, name: str, /) -> Any:
-        focus: BoundFocus = self.original
-        return getattr(focus, name)
+        return self.__focus.__getattribute__(name)
 
     def __setattr__(self, name: str, value: Any, /) -> None:
-        return self.original.__setattr__(name, value)
+        return self.__focus.__setattr__(name, value)
 
     def __delattr__(self, name: str, /) -> None:
-        return self.original.__delattr__(name)
-
-    @property
-    def original(self) -> BoundFocus:
-        return self.__focus
+        return self.__focus.__delattr__(name)
 
 
 _SIDE_WITH_KEY_EVENT: Final[dict[int, BoundFocus.Side]] = {
