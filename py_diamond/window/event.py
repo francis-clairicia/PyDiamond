@@ -178,7 +178,7 @@ class _BuiltinEventMeta(_EventMeta):
         return super()._should_be_registered()
 
 
-@dataclass(frozen=True, kw_only=True)
+@dataclass(frozen=True, kw_only=True)  # TODO (3.11) dataclass_transform (PEP-681)
 class BuiltinEvent(Event, metaclass=_BuiltinEventMeta):
     @unique
     class Type(IntEnum):

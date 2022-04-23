@@ -29,7 +29,20 @@ from abc import abstractmethod
 from enum import auto, unique
 from operator import truth
 from types import FunctionType, LambdaType
-from typing import Any, Callable, ClassVar, Final, Mapping, Protocol, Sequence, TypedDict, final, overload, runtime_checkable
+from typing import (
+    Any,
+    Callable,
+    ClassVar,
+    Final,
+    Literal,
+    Mapping,
+    Protocol,
+    Sequence,
+    TypedDict,
+    final,
+    overload,
+    runtime_checkable,
+)
 
 from ..graphics.drawable import Drawable, LayeredGroup
 from ..graphics.renderer import Renderer
@@ -81,8 +94,7 @@ class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
         return (
             ((obj := self.focus_get()) is not None and obj._focus_handle_event(event))
             or super().handle_event(event)
-            or isinstance(event, KeyDownEvent)
-            and self.__handle_key_event(event)
+            or (isinstance(event, KeyDownEvent) and self.__handle_key_event(event))
         )
 
     @no_theme_decorator
@@ -92,52 +104,39 @@ class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
         focus_index: int = self.__focus_index
         if focus_index < 0:
             return None
-        for index, focusable in enumerate(self.__container):
-            if index == focus_index:
-                if not focusable.focus.take():
-                    self.focus_set(self.focus_next())
-                    return self.focus_get()
-                return focusable
-        self.__focus_index = -1
-        return None
+        focusable = next((f for idx, f in enumerate(self.__container) if idx == focus_index), None)
+        if focusable is None:
+            self.__focus_index = -1
+            return None
+        if not focusable.focus.take():
+            self.focus_set(self.focus_next())
+            return self.focus_get()
+        return focusable
 
     @no_theme_decorator
     def focus_next(self) -> SupportsFocus | None:
-        if not self.looping():
-            return None
-        focusable_list: Sequence[SupportsFocus] = self.__container
-        if not focusable_list:
-            self.__focus_index = -1
-            return None
-        focus_index: int = max(self.__focus_index, -1)
-        if any(obj.focus.take() for obj in focusable_list):
-            size = len(focusable_list)
-            while True:
-                focus_index = (focus_index + 1) % size
-                obj = focusable_list[focus_index]
-                if obj.focus.take():
-                    return obj
-        self.__focus_index = -1
-        return None
+        return self.__internal_focus_next(offset=1)
 
     @no_theme_decorator
     def focus_prev(self) -> SupportsFocus | None:
+        return self.__internal_focus_next(offset=-1)
+
+    @no_theme_decorator
+    def __internal_focus_next(self, offset: Literal[1, -1]) -> SupportsFocus | None:
         if not self.looping():
             return None
         focusable_list: Sequence[SupportsFocus] = self.__container
-        if not focusable_list:
-            self.__focus_index = -1
-            return None
-        focus_index: int = self.__focus_index
-        if focus_index < 0:
-            focus_index = 1
-        if any(obj.focus.take() for obj in focusable_list):
+        eligible_focusable_list = [obj for obj in focusable_list if obj.focus.take()]
+        if eligible_focusable_list:
+            if len(eligible_focusable_list) == 1:
+                return eligible_focusable_list[0]
+            focus_index: int = self.__focus_index
+            if focus_index < 0:
+                focus_index = -offset
             size = len(focusable_list)
-            while True:
-                focus_index = (focus_index - 1) % size
-                obj = focusable_list[focus_index]
-                if obj.focus.take():
-                    return obj
+            while (obj := focusable_list[(focus_index := (focus_index + offset) % size)]) not in eligible_focusable_list:
+                continue
+            return obj
         self.__focus_index = -1
         return None
 
@@ -153,15 +152,20 @@ class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
     def focus_set(self, focusable: SupportsFocus | None) -> bool | None:
         if not self.looping():
             return None if focusable is None else False
-        if focusable is None:
-            if (focusable := self.focus_get()) is not None:
-                self.__focus_index = -1
-                self.__on_focus_leave(focusable)
-            return None
         focusable_list: Sequence[SupportsFocus] = self.__container
+        focus_index: int = self.__focus_index
+        if focusable is None:
+            self.__focus_index = -1
+            if focus_index >= 0:
+                try:
+                    focusable = focusable_list[focus_index]
+                except IndexError:
+                    pass
+                else:
+                    self.__on_focus_leave(focusable)
+            return None
         if focusable not in focusable_list or not focusable.focus.take():
             return False
-        focus_index: int = self.__focus_index
         self.__focus_index = focusable_list.index(focusable)
         if focus_index >= 0:
             try:
@@ -311,11 +315,13 @@ class BoundFocus:
 
     def take(self, status: bool | None = None) -> bool | None:
         f: SupportsFocus = self.__self__
+        scene: GUIScene | None = self.__scene
         if status is not None:
             status = bool(status)
             setattr(f, "_take_focus_", status)
+            if scene is not None:
+                scene.focus_get()  # Force update
             return None
-        scene: GUIScene | None = self.__scene
         if scene is None:
             return False
         taken: bool = truth(getattr(f, "_take_focus_", False))
@@ -595,8 +601,7 @@ class FocusableContainer(Sequence[SupportsFocus]):
         return self.__list.__repr__()
 
     def __len__(self) -> int:
-        list_length = self.__list.__len__
-        return list_length()
+        return self.__list.__len__()
 
     @overload
     def __getitem__(self, index: int, /) -> SupportsFocus:
@@ -608,8 +613,6 @@ class FocusableContainer(Sequence[SupportsFocus]):
 
     def __getitem__(self, index: int | slice, /) -> SupportsFocus | Sequence[SupportsFocus]:
         focusable_list: list[SupportsFocus] = self.__list
-        if isinstance(index, slice):
-            return tuple(focusable_list[index])
         return focusable_list[index]
 
     def add(self, focusable: SupportsFocus) -> None:

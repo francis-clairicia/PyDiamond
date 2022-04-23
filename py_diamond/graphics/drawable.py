@@ -148,6 +148,7 @@ class MDrawable(Drawable, Movable, metaclass=MDrawableMeta):
         Movable.__init__(self)
 
 
+# TODO: Weak references
 class DrawableGroup(Sequence[Drawable]):
 
     __slots__ = ("__list",)
@@ -158,8 +159,7 @@ class DrawableGroup(Sequence[Drawable]):
         self.add(*objects)
 
     def __len__(self) -> int:
-        drawable_list_length = self.__list.__len__
-        return drawable_list_length()
+        return self.__list.__len__()
 
     @overload
     def __getitem__(self, index: int, /) -> Drawable:
@@ -171,8 +171,6 @@ class DrawableGroup(Sequence[Drawable]):
 
     def __getitem__(self, index: int | slice, /) -> Drawable | Sequence[Drawable]:
         drawable_list: list[Drawable] = self.__list
-        if isinstance(index, slice):
-            return tuple(drawable_list[index])
         return drawable_list[index]
 
     def __bool__(self) -> bool:

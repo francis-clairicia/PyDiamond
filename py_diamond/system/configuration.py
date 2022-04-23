@@ -24,6 +24,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
+import re
 import sys
 from contextlib import ExitStack, contextmanager, suppress
 from copy import copy, deepcopy
@@ -38,7 +39,6 @@ from typing import (
     Callable,
     ClassVar,
     Dict,
-    Final,
     FrozenSet,
     Generic,
     Iterable,
@@ -129,7 +129,7 @@ def initializer(func: _Func) -> _Func:
     return _ConfigInitializer(func)  # type: ignore[return-value]
 
 
-_FORBIDDEN_OPTIONS: Final[Sequence[str]] = ("self",)
+_ALLOWED_OPTIONS_PATTERN = re.compile(r"(?!__)(?:[a-zA-Z]+\w*|_\w+)(?<!__)")
 _MISSING: Any = object()
 _NO_DEFAULT: Any = object()
 
@@ -157,10 +157,10 @@ class Configuration:
         for option in known_options:
             if not option:
                 raise ValueError("Configuration option must not be empty")
-            if option in _FORBIDDEN_OPTIONS:
-                raise ValueError(f"{option!r}: Forbidden option name")
-            if option.startswith("__") or option.endswith("__"):
-                raise ValueError(f"{option!r}: Only one leading/trailing underscore is accepted")
+            if not _ALLOWED_OPTIONS_PATTERN.fullmatch(option):
+                if option.startswith("__") or option.endswith("__"):
+                    raise ValueError(f"{option!r}: Only one leading/trailing underscore is accepted")
+                raise ValueError(f"{option!r}: Forbidden option format")
         if parent is None:
             parent = []
         elif isinstance(parent, Configuration):
@@ -183,9 +183,11 @@ class Configuration:
             raise TypeError(f"This configuration object is bound to an another class: {self.__bound_class.__name__!r}")
         if getattr(owner, name) is not self:
             raise AttributeError("The attribute name does not correspond")
+        info: _ConfigInfo = self.__info
+        if name in info.options:
+            raise OptionError(name, "Configuration attribute name is an option")
         self.__bound_class = owner
         self.__attr_name = name
-        info: _ConfigInfo = self.__info
         attribute_class_owner: Dict[str, type] = info.attribute_class_owner
         no_parent_ownership: Set[str] = self.__no_parent_ownership
         for option in info.options:
@@ -1385,40 +1387,24 @@ def _make_function_wrapper(func: Any, *, check_override: bool = True, no_object:
     if getattr(func, "__boundconfiguration_wrapper__", False):
         return cast(Callable[..., Any], func)
 
-    if not isinstance(func, (BuiltinFunctionType, BuiltinMethodType)):
+    if isinstance(func, (BuiltinFunctionType, BuiltinMethodType)):
+        no_object = True
+    if callable(func) and not _can_be_overriden(func):
+        check_override = False
 
-        if no_object:
+    if no_object:
 
-            if callable(func):
+        if callable(func):
 
-                @wraps(func)
-                def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-                    return func(*args, **kwargs)
-
-            elif check_override:
-
-                @wraps(func)
-                def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-                    _func: Callable[..., Any] = getattr(func, "__get__", lambda *args: func)(self, type(self))
-                    if _can_be_overriden(_func):
-                        _func = getattr(self, _func.__name__, _func)
-                    return _func(*args, **kwargs)
-
-            else:
-
-                @wraps(func)
-                def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-                    _func: Callable[..., Any] = getattr(func, "__get__", lambda *args: func)(self, type(self))
-                    return _func(*args, **kwargs)
+            @wraps(func)
+            def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
+                return func(*args, **kwargs)
 
         elif check_override:
 
             @wraps(func)
             def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-                _func: Callable[..., Any]
-                _func = getattr(func, "__get__", lambda *args: func)(self, type(self))
-                if _func is func:
-                    _func = MethodType(func, self)
+                _func: Callable[..., Any] = getattr(func, "__get__", lambda *args: func)(self, type(self))
                 if _can_be_overriden(_func):
                     _func = getattr(self, _func.__name__, _func)
                 return _func(*args, **kwargs)
@@ -1427,17 +1413,30 @@ def _make_function_wrapper(func: Any, *, check_override: bool = True, no_object:
 
             @wraps(func)
             def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-                _func: Callable[..., Any]
-                _func = getattr(func, "__get__", lambda *args: func)(self, type(self))
-                if _func is func:
-                    _func = MethodType(func, self)
+                _func: Callable[..., Any] = getattr(func, "__get__", lambda *args: func)(self, type(self))
                 return _func(*args, **kwargs)
+
+    elif check_override:
+
+        @wraps(func)
+        def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
+            _func: Callable[..., Any]
+            _func = getattr(func, "__get__", lambda *args: func)(self, type(self))
+            if _func is func:
+                _func = MethodType(func, self)
+            if _can_be_overriden(_func):
+                _func = getattr(self, _func.__name__, _func)
+            return _func(*args, **kwargs)
 
     else:
 
         @wraps(func)
         def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-            return func(*args, **kwargs)
+            _func: Callable[..., Any]
+            _func = getattr(func, "__get__", lambda *args: func)(self, type(self))
+            if _func is func:
+                _func = MethodType(func, self)
+            return _func(*args, **kwargs)
 
     setattr(wrapper, "__boundconfiguration_wrapper__", True)
     return wrapper

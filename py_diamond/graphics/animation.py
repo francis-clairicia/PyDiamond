@@ -12,9 +12,9 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-import weakref
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Callable, Iterator, Literal, NamedTuple, TypeAlias, TypeVar, final
+from weakref import WeakKeyDictionary, proxy as weakproxy
 
 from ..math import Vector2
 from ..window.time import Time
@@ -39,8 +39,18 @@ class TransformAnimation:
         "__wait",
     )
 
-    def __init__(self, transformable: Transformable) -> None:
-        self.__transformable: Transformable = weakref.proxy(transformable)
+    __bound_animations: WeakKeyDictionary[Transformable, TransformAnimation] = WeakKeyDictionary()
+
+    def __new__(cls, transformable: Transformable) -> TransformAnimation:
+        try:
+            self = cls.__bound_animations[transformable]
+        except KeyError:
+            cls.__bound_animations[transformable] = self = super().__new__(cls)
+            self.__internal_init(transformable)
+        return self
+
+    def __internal_init(self, transformable: Transformable) -> None:
+        self.__transformable: Transformable = weakproxy(transformable)
         self.__animations_order: list[_AnimationType] = ["scale", "rotate", "rotate_point", "move"]
         self.__animations: dict[_AnimationType, _AbstractAnimationClass] = {}
         self.__actual_state: _TransformState | None = None

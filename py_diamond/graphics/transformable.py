@@ -289,6 +289,7 @@ class Transformable(Movable, metaclass=TransformableMeta):
     def scale(self, scale: float) -> None:
         self.set_scale(scale)
 
+    @final
     @cached_property
     def animation(self) -> TransformAnimation:
         from .animation import TransformAnimation
