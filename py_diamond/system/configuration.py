@@ -30,7 +30,6 @@ from contextlib import ExitStack, contextmanager, suppress
 from copy import copy, deepcopy
 from enum import Enum
 from functools import cache, wraps
-from itertools import filterfalse
 from threading import RLock
 from types import BuiltinFunctionType, BuiltinMethodType, MethodType
 from typing import (
@@ -129,7 +128,7 @@ def initializer(func: _Func) -> _Func:
     return _ConfigInitializer(func)  # type: ignore[return-value]
 
 
-_ALLOWED_OPTIONS_PATTERN = re.compile(r"(?!__)(?:[a-zA-Z]+\w*|_\w+)(?<!__)")
+_ALLOWED_OPTIONS_PATTERN = re.compile(r"(?!__)(?:[a-zA-Z]\w*|_\w+)(?<!__)")
 _MISSING: Any = object()
 _NO_DEFAULT: Any = object()
 
@@ -186,7 +185,7 @@ class Configuration:
         info: _ConfigInfo = self.__info
         if name in info.options:
             raise OptionError(name, "Configuration attribute name is an option")
-        self.__bound_class = owner
+        self.__bound_class = info.owner = owner
         self.__attr_name = name
         attribute_class_owner: Dict[str, type] = info.attribute_class_owner
         no_parent_ownership: Set[str] = self.__no_parent_ownership
@@ -247,6 +246,7 @@ class Configuration:
         ...
 
     def set_autocopy(self, arg1: Union[bool, str], /, **kwargs: Optional[bool]) -> None:
+        self.__check_locked()
         info: _ConfigInfo = self.__info
         if isinstance(arg1, bool) and not kwargs:
             info.autocopy = arg1
@@ -268,6 +268,7 @@ class Configuration:
             raise TypeError("Invalid argument")
 
     def remove_parent_ownership(self, option: str) -> None:
+        self.__check_locked()
         self.check_option_validity(option)
         info: _ConfigInfo = self.__info
         self.__no_parent_ownership.add(option)
@@ -278,11 +279,11 @@ class Configuration:
                 getattr(descriptor, "__set_name__")(self.__bound_class, option)
 
     @overload
-    def __get__(self, obj: None, objtype: Optional[type] = None, /) -> Configuration:
+    def __get__(self, obj: None, objtype: type, /) -> Configuration:
         ...
 
     @overload
-    def __get__(self, obj: _T, objtype: Optional[type] = None, /) -> BoundConfiguration[_T]:
+    def __get__(self, obj: _T, objtype: Optional[type[_T]] = None, /) -> BoundConfiguration[_T]:
         ...
 
     def __get__(self, obj: Optional[_T], objtype: Optional[type] = None, /) -> Union[Configuration, BoundConfiguration[_T]]:
@@ -307,6 +308,12 @@ class Configuration:
             return bound_config
         return BoundConfiguration(self, obj)
 
+    def __set__(self, obj: object, value: Any, /) -> None:
+        raise AttributeError("Ready-only property")
+
+    def __delete__(self, obj: object, /) -> None:
+        raise AttributeError("Ready-only property")
+
     @overload
     def get(self, obj: object, option: str) -> Any:
         ...
@@ -319,16 +326,10 @@ class Configuration:
         option = self.check_option_validity(option, use_alias=True)
         info: _ConfigInfo = self.__info
         descr: Optional[_Descriptor] = info.value_descriptors.get(option)
-        value: Any
+        if descr is None:
+            descr = _PrivateAttributeOptionProperty(info, option)
         try:
-            if isinstance(descr, _Descriptor):
-                value = descr.__get__(obj, type(obj))
-            else:
-                get_private_attribute = self.__get_option_private_attribute
-                try:
-                    value = getattr(obj, get_private_attribute(option, type(obj)))
-                except AttributeError as exc:
-                    raise UnregisteredOptionError(option) from exc
+            value: Any = descr.__get__(obj, type(obj))
         except (AttributeError, OptionError):
             if default is _NO_DEFAULT:
                 raise
@@ -352,6 +353,9 @@ class Configuration:
         converter: Optional[Callable[[object, Any], Any]] = info.value_converter.get(option)
         actual_value: Any
 
+        if descr is None:
+            descr = _PrivateAttributeOptionProperty(info, option)
+
         if callable(value_validator):
             value_validator(obj, value)
         converter_applied: bool = False
@@ -359,38 +363,21 @@ class Configuration:
             value = converter(obj, value)
             converter_applied = True
 
-        if isinstance(descr, _Descriptor):
-            if not isinstance(descr, _MutableDescriptor):
-                raise OptionError(option, "Cannot be set")
-            _descr: _MutableDescriptor = descr
+        if not isinstance(descr, _MutableDescriptor):
+            raise OptionError(option, "Cannot be set")
 
-            def set_value(value: Any) -> None:
-                with self.__updating_option(obj, option):
-                    _descr.__set__(obj, value)
-
-            try:
-                actual_value = descr.__get__(obj, type(obj))
-            except (AttributeError, UnregisteredOptionError):
-                actual_value = _MISSING
-        else:
-            if option in info.readonly:
-                raise OptionError(option, "Cannot be set")
-            get_private_attribute = self.__get_option_private_attribute
-
-            def set_value(value: Any) -> None:
-                setattr(obj, get_private_attribute(option, type(obj)), value)
-
-            try:
-                actual_value = getattr(obj, get_private_attribute(option, type(obj)), _MISSING)
-            except (AttributeError, UnregisteredOptionError):
-                actual_value = _MISSING
+        try:
+            actual_value = descr.__get__(obj, type(obj))
+        except (AttributeError, UnregisteredOptionError):
+            actual_value = _MISSING
 
         if actual_value is _MISSING or actual_value != value:
             if not converter_applied and info.value_autocopy_set.get(option, info.autocopy):
                 copy_func = info.get_copy_func(type(value))
                 with suppress(Exception):
                     value = copy_func(value)
-            set_value(value)
+            with self.__updating_option(obj, option):
+                descr.__set__(obj, value)
             if self.has_initialization_context(obj):
                 register = Configuration.__init_context[obj]
                 register[option] = value
@@ -414,19 +401,12 @@ class Configuration:
         option = self.check_option_validity(option, use_alias=True)
         info: _ConfigInfo = self.__info
         descr = info.value_descriptors.get(option)
-        if isinstance(descr, _Descriptor):
-            if not isinstance(descr, _RemovableDescriptor):
-                raise OptionError(option, "Cannot be deleted")
-            with self.__updating_option(obj, option):
-                descr.__delete__(obj)
-        else:
-            if option in info.readonly:
-                raise OptionError(option, "Cannot be deleted")
-            get_private_attribute = self.__get_option_private_attribute
-            try:
-                delattr(obj, get_private_attribute(option, type(obj)))
-            except AttributeError as exc:
-                raise UnregisteredOptionError(option) from exc
+        if descr is None:
+            descr = _PrivateAttributeOptionProperty(info, option)
+        if not isinstance(descr, _RemovableDescriptor):
+            raise OptionError(option, "Cannot be deleted")
+        with self.__updating_option(obj, option):
+            descr.__delete__(obj)
 
         if self.has_initialization_context(obj):
             register = Configuration.__init_context[obj]
@@ -494,16 +474,13 @@ class Configuration:
     def update_all_options(self, obj: object) -> None:
         objtype: type = type(obj)
         info: _ConfigInfo = self.__info
-        get_private_attribute = self.__get_option_private_attribute
 
         for option in info.options:
             actual_descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
-            value: Any
+            if actual_descriptor is None:
+                actual_descriptor = _PrivateAttributeOptionProperty(info, option)
             try:
-                if actual_descriptor is not None:
-                    value = actual_descriptor.__get__(obj, objtype)
-                else:
-                    value = getattr(obj, get_private_attribute(option, objtype))
+                value: Any = actual_descriptor.__get__(obj, objtype)
             except (AttributeError, UnregisteredOptionError):
                 pass
             else:
@@ -521,16 +498,13 @@ class Configuration:
     def update_option(self, obj: object, option: str) -> None:
         objtype: type = type(obj)
         info: _ConfigInfo = self.__info
-        get_private_attribute = self.__get_option_private_attribute
 
         self.check_option_validity(option)
         actual_descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
-        value: Any
+        if actual_descriptor is None:
+            actual_descriptor = _PrivateAttributeOptionProperty(info, option)
         try:
-            if actual_descriptor is not None:
-                value = actual_descriptor.__get__(obj, objtype)
-            else:
-                value = getattr(obj, get_private_attribute(option, objtype))
+            value: Any = actual_descriptor.__get__(obj, objtype)
         except (AttributeError, UnregisteredOptionError):
             pass
         else:
@@ -580,30 +554,55 @@ class Configuration:
         return obj in Configuration.__init_context
 
     @overload
-    def getter(self, option: str, /, *, use_override: bool = True) -> Callable[[_Getter], _Getter]:
+    def getter(self, option: str, /, *, use_override: bool = True, readonly: bool = False) -> Callable[[_Getter], _Getter]:
         ...
 
     @overload
-    def getter(self, option: str, func: _Getter, /, *, use_override: bool = True) -> None:
+    def getter(self, option: str, func: _Getter, /, *, use_override: bool = True, readonly: bool = False) -> None:
         ...
 
     def getter(
-        self, option: str, func: Optional[_Getter] = None, /, *, use_override: bool = True
+        self, option: str, func: Optional[_Getter] = None, /, *, use_override: bool = True, readonly: bool = False
     ) -> Optional[Callable[[_Getter], _Getter]]:
+        self.__check_locked()
         self.check_option_validity(option)
         info: _ConfigInfo = self.__info
         actual_descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
-        if actual_descriptor is not None and not isinstance(actual_descriptor, _ConfigProperty):
-            raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
-        actual_property: Optional[_ConfigProperty] = actual_descriptor
+        if not isinstance(actual_descriptor, _ReadOnlyOptionProperty):
+            if actual_descriptor is not None and not isinstance(actual_descriptor, _ConfigProperty):
+                raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
+            actual_property: Optional[_ConfigProperty] = actual_descriptor
+            if (
+                actual_property is not None
+                and readonly
+                and (actual_property.fset is not None or actual_property.fdel is not None)
+            ):
+                raise OptionError(option, "Trying to flag option as read-only with custom setter/deleter")
 
-        def decorator(func: _Getter, /) -> _Getter:
-            wrapper = _make_function_wrapper(func, check_override=bool(use_override))
-            if actual_property is None:
-                info.value_descriptors[option] = _ConfigProperty(wrapper)
-            else:
-                info.value_descriptors[option] = actual_property.getter(wrapper)
-            return func
+            def decorator(func: _Getter, /) -> _Getter:
+                wrapper = _make_function_wrapper(func, check_override=bool(use_override))
+                new_config_property: property
+                if actual_property is None:
+                    new_config_property = _ConfigProperty(wrapper)
+                else:
+                    new_config_property = actual_property.getter(wrapper)
+                if readonly:
+                    info.value_descriptors[option] = _ReadOnlyOptionProperty(new_config_property)
+                else:
+                    info.value_descriptors[option] = new_config_property
+                return func
+
+        else:
+            readony_descriptor: _ReadOnlyOptionProperty = actual_descriptor
+            actual_descriptor = readony_descriptor.get_descriptor()
+            if not isinstance(actual_descriptor, _ConfigProperty):
+                raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
+            config_property: _ConfigProperty = actual_descriptor
+
+            def decorator(func: _Getter, /) -> _Getter:
+                wrapper = _make_function_wrapper(func, check_override=bool(use_override))
+                readony_descriptor.set_new_descriptor(config_property.getter(wrapper))
+                return func
 
         if func is None:
             return decorator
@@ -611,28 +610,43 @@ class Configuration:
         return None
 
     @overload
-    def getter_key(self, option: str, /, *, use_override: bool = True) -> Callable[[_KeyGetter], _KeyGetter]:
+    def getter_key(
+        self, option: str, /, *, use_override: bool = True, readonly: bool = False
+    ) -> Callable[[_KeyGetter], _KeyGetter]:
         ...
 
     @overload
-    def getter_key(self, option: str, /, *, use_key: str, use_override: bool = True) -> Callable[[_KeyGetter], _KeyGetter]:
+    def getter_key(
+        self, option: str, /, *, use_key: str, use_override: bool = True, readonly: bool = False
+    ) -> Callable[[_KeyGetter], _KeyGetter]:
         ...
 
     @overload
-    def getter_key(self, option: str, func: _KeyGetter, /, *, use_override: bool = True) -> None:
+    def getter_key(self, option: str, func: _KeyGetter, /, *, use_override: bool = True, readonly: bool = False) -> None:
         ...
 
     @overload
-    def getter_key(self, option: str, func: _KeyGetter, /, *, use_key: str, use_override: bool = True) -> None:
+    def getter_key(
+        self, option: str, func: _KeyGetter, /, *, use_key: str, use_override: bool = True, readonly: bool = False
+    ) -> None:
         ...
 
     def getter_key(
-        self, option: str, func: Optional[_KeyGetter] = None, /, *, use_key: Optional[str] = None, use_override: bool = True
+        self,
+        option: str,
+        func: Optional[_KeyGetter] = None,
+        /,
+        *,
+        use_key: Optional[str] = None,
+        use_override: bool = True,
+        readonly: bool = False,
     ) -> Optional[Callable[[_KeyGetter], _KeyGetter]]:
+        self.__check_locked()
+
         def decorator(func: _KeyGetter, /) -> _KeyGetter:
             key: str = use_key or option
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
-            self.getter(option, _wrap_function_wrapper(func, lambda self: wrapper(self, key)))
+            self.getter(option, _wrap_function_wrapper(func, lambda self: wrapper(self, key)), readonly=readonly)
             return func
 
         if func is None:
@@ -651,13 +665,14 @@ class Configuration:
     def setter(
         self, option: str, func: Optional[_Setter] = None, /, *, use_override: bool = True
     ) -> Optional[Callable[[_Setter], _Setter]]:
+        self.__check_locked()
         self.check_option_validity(option)
         info: _ConfigInfo = self.__info
-        if option in info.readonly:
-            raise OptionError(option, "Read-only option")
         actual_descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
         if actual_descriptor is None:
             raise OptionError(option, "Attributing setter for this option which has no getter")
+        if isinstance(actual_descriptor, _ReadOnlyOptionProperty):
+            raise OptionError(option, "Read-only option")
         if not isinstance(actual_descriptor, _ConfigProperty):
             raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
         actual_property: _ConfigProperty = actual_descriptor
@@ -691,6 +706,8 @@ class Configuration:
     def setter_key(
         self, option: str, func: Optional[_KeySetter] = None, /, *, use_key: Optional[str] = None, use_override: bool = True
     ) -> Optional[Callable[[_KeySetter], _KeySetter]]:
+        self.__check_locked()
+
         def decorator(func: _KeySetter, /) -> _KeySetter:
             key: str = use_key or option
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
@@ -713,13 +730,14 @@ class Configuration:
     def deleter(
         self, option: str, func: Optional[_Deleter] = None, /, *, use_override: bool = True
     ) -> Optional[Callable[[_Deleter], _Deleter]]:
+        self.__check_locked()
         self.check_option_validity(option)
         info: _ConfigInfo = self.__info
-        if option in info.readonly:
-            raise OptionError(option, "Read-only option")
         actual_descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
         if actual_descriptor is None:
             raise OptionError(option, "Attributing deleter for this option which has no getter")
+        if isinstance(actual_descriptor, _ReadOnlyOptionProperty):
+            raise OptionError(option, "Read-only option")
         if not isinstance(actual_descriptor, _ConfigProperty):
             raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
         actual_property: _ConfigProperty = actual_descriptor
@@ -753,6 +771,8 @@ class Configuration:
     def deleter_key(
         self, option: str, func: Optional[_KeyDeleter] = None, /, *, use_key: Optional[str] = None, use_override: bool = True
     ) -> Optional[Callable[[_KeyDeleter], _KeyDeleter]]:
+        self.__check_locked()
+
         def decorator(func: _KeyDeleter, /) -> _KeyDeleter:
             key: str = use_key or option
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
@@ -765,18 +785,18 @@ class Configuration:
         return None
 
     def use_descriptor(self, option: str, descriptor: _Descriptor) -> None:
+        self.__check_locked()
         self.check_option_validity(option)
         info: _ConfigInfo = self.__info
         if option in info.value_descriptors:
             actual_descriptor: _Descriptor = info.value_descriptors[option]
+            if isinstance(actual_descriptor, _ReadOnlyOptionProperty):
+                actual_descriptor = actual_descriptor.get_descriptor()
             if isinstance(actual_descriptor, _ConfigProperty):
                 raise OptionError(option, "Already uses custom getter register with getter() method")
-            raise OptionError(option, "Already bound to a descriptor: {type(actual_descriptor).__name__}")
-        if option in info.readonly and isinstance(descriptor, (_MutableDescriptor, _RemovableDescriptor)):
-            if not isinstance(descriptor, property) or descriptor.fset is not None or descriptor.fdel is not None:
-                raise OptionError(option, "Read-only option")
+            raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
         info.value_descriptors[option] = descriptor
-        if self.__bound_class is not None and hasattr(descriptor, "__set_name__"):
+        if hasattr(descriptor, "__set_name__"):
             getattr(descriptor, "__set_name__")(info.attribute_class_owner[option], option)
 
     @overload
@@ -790,6 +810,7 @@ class Configuration:
     def main_update(
         self, func: Optional[_Updater] = None, /, *, use_override: bool = True
     ) -> Union[_Updater, Callable[[_Updater], _Updater]]:
+        self.__check_locked()
         info: _ConfigInfo = self.__info
 
         def decorator(func: _Updater, /) -> _Updater:
@@ -813,6 +834,7 @@ class Configuration:
     def on_update(
         self, option: str, func: Optional[_Updater] = None, /, *, use_override: bool = True
     ) -> Optional[Union[_Updater, Callable[[_Updater], _Updater]]]:
+        self.__check_locked()
         info: _ConfigInfo = self.__info
         self.check_option_validity(option)
 
@@ -847,6 +869,8 @@ class Configuration:
     def on_update_key(
         self, option: str, func: Optional[_KeyUpdater] = None, /, *, use_key: Optional[str] = None, use_override: bool = True
     ) -> Optional[Callable[[_KeyUpdater], _KeyUpdater]]:
+        self.__check_locked()
+
         def decorator(func: _KeyUpdater, /) -> _KeyUpdater:
             key: str = use_key or option
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
@@ -869,6 +893,7 @@ class Configuration:
     def on_update_value(
         self, option: str, func: Optional[_ValueUpdater] = None, /, *, use_override: bool = True
     ) -> Optional[Callable[[_ValueUpdater], _ValueUpdater]]:
+        self.__check_locked()
         info: _ConfigInfo = self.__info
         self.check_option_validity(option)
 
@@ -905,6 +930,8 @@ class Configuration:
     def on_update_key_value(
         self, option: str, func: Optional[_KeyValueUpdater] = None, /, *, use_key: Optional[str] = None, use_override: bool = True
     ) -> Optional[Callable[[_KeyValueUpdater], _KeyValueUpdater]]:
+        self.__check_locked()
+
         def decorator(func: _KeyValueUpdater, /) -> _KeyValueUpdater:
             key: str = use_key or option
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
@@ -932,6 +959,7 @@ class Configuration:
         *,
         use_override: bool = True,
     ) -> Optional[Callable[[_ValueValidator], _ValueValidator]]:
+        self.__check_locked()
         info: _ConfigInfo = self.__info
         self.check_option_validity(option)
 
@@ -971,6 +999,7 @@ class Configuration:
         *,
         accept_none: bool = False,
     ) -> Optional[Callable[[_StaticValueValidator], _StaticValueValidator]]:
+        self.__check_locked()
         info: _ConfigInfo = self.__info
         self.check_option_validity(option)
 
@@ -1023,6 +1052,7 @@ class Configuration:
         *,
         use_override: bool = True,
     ) -> Optional[Callable[[_ValueConverter], _ValueConverter]]:
+        self.__check_locked()
         info: _ConfigInfo = self.__info
         self.check_option_validity(option)
 
@@ -1053,6 +1083,7 @@ class Configuration:
     def value_converter_static(
         self, option: str, func: Optional[Union[_StaticValueConverter, type]] = None, /, *, accept_none: bool = False
     ) -> Optional[Callable[[_StaticValueConverter], _StaticValueConverter]]:
+        self.__check_locked()
         info: _ConfigInfo = self.__info
         self.check_option_validity(option)
 
@@ -1077,37 +1108,34 @@ class Configuration:
         return None
 
     def enum(self, option: str, enum: Type[Enum], *, return_value: bool = False) -> None:
+        self.__check_locked()
         self.value_converter_static(option, enum)
         self.__info.enum_return_value[option] = bool(return_value)
 
-    def attribute(self, func: Callable[..., _T]) -> OptionAttribute[_T]:
-        option = self.check_option_validity(func.__name__, use_alias=True)
-        self.getter(option, func)
-        attr: OptionAttribute[_T] = OptionAttribute()
-        attr.__doc__ = func.__doc__
-        return attr
-
-    def set_alias(self, option: str, alias: str) -> None:
+    def set_alias(self, option: str, alias: str, /, *aliases: str) -> None:
+        self.__check_locked()
         info: _ConfigInfo = self.__info
         self.check_option_validity(option)
-        if not isinstance(alias, str):
-            raise InvalidAliasError(alias, "Invalid type")
-        if alias == option:
-            raise InvalidAliasError(alias, "Same name with option")
-        if not alias:
-            raise InvalidAliasError(alias, "Empty string alias")
-        if alias in info.options:
-            raise InvalidAliasError(alias, "Alias name is a configuration option")
-        aliases: Dict[str, str] = info.aliases
-        if alias in aliases:
-            raise InvalidAliasError(alias, f"Already bound to option {aliases[alias]!r}")
-        aliases[alias] = option
+        for alias in set((alias, *aliases)):
+            if not isinstance(alias, str):
+                raise InvalidAliasError(alias, "Invalid type")
+            if alias == option:
+                raise InvalidAliasError(alias, "Same name with option")
+            if not alias:
+                raise InvalidAliasError(alias, "Empty string alias")
+            if alias in info.options:
+                raise InvalidAliasError(alias, "Alias name is a configuration option")
+            if alias in info.aliases:
+                raise InvalidAliasError(alias, f"Already bound to option {info.aliases[alias]!r}")
+            info.aliases[alias] = option
 
     def remove_alias(self, alias: str) -> None:
+        self.__check_locked()
         aliases: Dict[str, str] = self.__info.aliases
         aliases.pop(alias)
 
     def remove_all_aliases(self, option: str) -> None:
+        self.__check_locked()
         self.check_option_validity(option)
         aliases: Dict[str, str] = self.__info.aliases
         for alias, opt in list(aliases.items()):
@@ -1115,6 +1143,7 @@ class Configuration:
                 aliases.pop(alias)
 
     def register_copy_func(self, cls: type, func: Callable[[Any], Any], *, allow_subclass: bool = False) -> None:
+        self.__check_locked()
         if not isinstance(cls, type):
             raise TypeError("'cls' argument must be a type")
         if not callable(func):
@@ -1124,32 +1153,32 @@ class Configuration:
         info.value_copy_allow_subclass[cls] = bool(allow_subclass)
 
     def remove_copy_func(self, cls: type) -> None:
+        self.__check_locked()
         info: _ConfigInfo = self.__info
         info.value_copy.pop(cls, None)
         info.value_copy_allow_subclass.pop(cls, None)
 
     def readonly(self, *options: str) -> None:
+        self.__check_locked()
         info: _ConfigInfo = self.__info
         parents: Tuple[Configuration, ...] = self.__parents__
         for option in options:
             self.check_option_validity(option)
-            if not parents or not any(option in p.known_options() for p in parents):
-                descriptor = info.value_descriptors.get(option)
-                if not isinstance(descriptor, (_MutableDescriptor, _RemovableDescriptor)):
-                    continue
+            if any(option in p.known_options() for p in parents):
+                continue
+            descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
+            if isinstance(descriptor, _ReadOnlyOptionProperty):
+                continue
+            if isinstance(descriptor, (_MutableDescriptor, _RemovableDescriptor)):
                 if not isinstance(descriptor, property) or descriptor.fset is not None or descriptor.fdel is not None:
                     raise OptionError(option, "Trying to flag option as read-only with custom setter/deleter")
-            info.readonly.add(option)
+            if descriptor is None:
+                descriptor = _PrivateAttributeOptionProperty(info, option)
+            info.value_descriptors[option] = _ReadOnlyOptionProperty(descriptor)
 
-    def __get_option_private_attribute(self, option: str, objtype: type) -> str:
-        owner: type
-        infos: _ConfigInfo = self.__info
-        config_owner: Optional[type] = self.__bound_class
-        if objtype is config_owner:
-            owner = infos.attribute_class_owner.get(option, objtype)
-        else:
-            owner = objtype
-        return mangle_private_attribute(owner, option)
+    def __check_locked(self) -> None:
+        if self.__bound_class is not None:
+            raise TypeError(f"Attempt to modify template after the class creation")
 
     @staticmethod
     @contextmanager
@@ -1182,10 +1211,18 @@ class Configuration:
     def owner(self) -> Optional[type]:
         return self.__bound_class
 
+    @property
+    def name(self) -> Optional[str]:
+        return self.__attr_name
+
 
 class OptionAttribute(Generic[_T]):
 
-    __slots__ = ("__name", "__doc__")
+    __slots__ = ("__name", "__config_name", "__doc__")
+
+    def __init__(self, doc: str | None = None) -> None:
+        super().__init__()
+        self.__doc__ = doc
 
     def __set_name__(self, owner: type, name: str, /) -> None:
         if len(name) == 0:
@@ -1195,10 +1232,13 @@ class OptionAttribute(Generic[_T]):
                 raise ValueError(f"Assigning {self.__name!r} config attribute to {name}")
         self.__name: str = name
         config: Configuration = _retrieve_configuration(owner)
+        if config.name is None:
+            raise TypeError("OptionAttribute must be declared after the Configuration object")
         config.check_option_validity(name, use_alias=True)
+        self.__config_name: str = config.name
 
     @overload
-    def __get__(self, obj: None, objtype: Optional[type] = None, /) -> OptionAttribute[_T]:
+    def __get__(self, obj: None, objtype: type, /) -> OptionAttribute[_T]:
         ...
 
     @overload
@@ -1209,9 +1249,9 @@ class OptionAttribute(Generic[_T]):
         if obj is None:
             return self
         name: str = self.__name
-        config: Configuration = _retrieve_configuration(objtype if objtype is not None else type(obj))
+        config: BoundConfiguration[Any] = getattr(obj, self.__config_name)
         try:
-            value: _T = config.get(obj, name)
+            value: _T = config.get(name)
         except OptionError as exc:
             error: str = str(exc)
             raise AttributeError(error) from exc
@@ -1219,18 +1259,18 @@ class OptionAttribute(Generic[_T]):
 
     def __set__(self, obj: object, value: _T, /) -> None:
         name: str = self.__name
-        config: Configuration = _retrieve_configuration(type(obj))
+        config: BoundConfiguration[Any] = getattr(obj, self.__config_name)
         try:
-            config.set(obj, name, value)
+            config.set(name, value)
         except OptionError as exc:
             error: str = str(exc)
             raise AttributeError(error) from exc
 
     def __delete__(self, obj: object, /) -> None:
         name: str = self.__name
-        config: Configuration = _retrieve_configuration(type(obj))
+        config: BoundConfiguration[Any] = getattr(obj, self.__config_name)
         try:
-            config.delete(obj, name)
+            config.delete(name)
         except OptionError as exc:
             error: str = str(exc)
             raise AttributeError(error) from exc
@@ -1553,6 +1593,7 @@ _VT = TypeVar("_VT")
 class _ConfigInfo:
 
     __slots__ = (
+        "owner",
         "parents",
         "options",
         "main_update",
@@ -1593,6 +1634,7 @@ class _ConfigInfo:
                         raise ConfigError(f"Conflict of setting {setting!r} for {key!r}")
                 d1[key] = value
 
+        self.owner: Optional[type] = None
         self.parents: Tuple[_ConfigInfo, ...] = tuple(parents)
         self.options: FrozenSet[str] = frozenset(known_options)
         self.main_update: Optional[Callable[[object], None]] = None
@@ -1611,10 +1653,8 @@ class _ConfigInfo:
         self.value_copy: Dict[type, Callable[[Any], Any]] = dict()
         self.value_copy_allow_subclass: Dict[type, bool] = dict()
         self.enum_return_value: Dict[str, bool] = dict()
-        self.readonly: Set[str] = set()
         self.cached_attribute: bool = cached_attribute or False
 
-        checked_readonly_options: List[str] = []
         for p in parents:
             self.options |= p.options
             if autocopy is None:
@@ -1633,15 +1673,6 @@ class _ConfigInfo:
                 self.value_copy_allow_subclass, p.value_copy_allow_subclass, on_conflict="raise", setting="copy_allow_subclass"
             )
             merge_dict(self.enum_return_value, p.enum_return_value, on_conflict="raise", setting="enum_return_value")
-            readonly = self.readonly | p.readonly
-            for option in filterfalse(checked_readonly_options.__contains__, readonly):
-                checked_readonly_options.append(option)
-                descriptor = self.value_descriptors.get(option)
-                if not isinstance(descriptor, (_MutableDescriptor, _RemovableDescriptor)):
-                    continue
-                if not isinstance(descriptor, property) or descriptor.fset is not None or descriptor.fdel is not None:
-                    raise OptionError(option, "Trying to flag option as read-only with custom setter/deleter")
-            self.readonly = readonly
 
     def get_main_update_funcs(self) -> Iterator[Callable[[object], None]]:
         def get_iterator() -> Iterator[Callable[[object], None]]:
@@ -1731,11 +1762,62 @@ class _ConfigProperty(property):
     pass
 
 
-import copyreg
+class _PrivateAttributeOptionProperty:
+    def __init__(self, info: _ConfigInfo, option: str) -> None:
+        self.__info: _ConfigInfo = info
+        self.__name: str = option
 
-copyreg.pickle(_ConfigProperty, lambda p: (_ConfigProperty, (p.fget, p.fset, p.fdel, p.__doc__)))  # type: ignore[arg-type, return-value]
+    def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Any:
+        if obj is None:
+            return self
+        if objtype is None:
+            objtype = type(obj)
+        attribute: str = self.__get_option_private_attribute(objtype)
+        try:
+            return getattr(obj, attribute)
+        except AttributeError as exc:
+            name: str = self.__name
+            raise UnregisteredOptionError(name) from exc
 
-del copyreg
+    def __set__(self, obj: object, value: Any, /) -> None:
+        attribute: str = self.__get_option_private_attribute(type(obj))
+        return setattr(obj, attribute, value)
+
+    def __delete__(self, obj: object, /) -> None:
+        attribute: str = self.__get_option_private_attribute(type(obj))
+        try:
+            return delattr(obj, attribute)
+        except AttributeError as exc:
+            name: str = self.__name
+            raise UnregisteredOptionError(name) from exc
+
+    def __get_option_private_attribute(self, objtype: type) -> str:
+        option: str = self.__name
+        owner: type
+        info: _ConfigInfo = self.__info
+        config_owner: Optional[type] = info.owner
+        if objtype is config_owner:
+            owner = info.attribute_class_owner.get(option, objtype)
+        else:
+            owner = objtype
+        return mangle_private_attribute(owner, option)
+
+
+class _ReadOnlyOptionProperty:
+    def __init__(self, default_descriptor: _Descriptor) -> None:
+        self.__descriptor: Callable[[], _Descriptor]
+        self.set_new_descriptor(default_descriptor)
+
+    def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Any:
+        descriptor: _Descriptor = self.__descriptor()
+        return descriptor.__get__(obj, objtype)
+
+    def get_descriptor(self) -> _Descriptor:
+        return self.__descriptor()
+
+    def set_new_descriptor(self, descriptor: _Descriptor) -> None:
+        self.__descriptor = lambda: descriptor
+
 
 del (
     _Func,
