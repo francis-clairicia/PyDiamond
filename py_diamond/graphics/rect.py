@@ -20,7 +20,7 @@ from pygame.rect import Rect
 from ..math.vector2 import Vector2
 
 
-@dataclass(init=False, repr=False, frozen=True)
+@dataclass(init=False, repr=False, eq=False, frozen=True)
 class ImmutableRect(Rect):
     @overload
     def __init__(self, left: float, top: float, width: float, height: float) -> None:

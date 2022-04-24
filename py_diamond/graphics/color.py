@@ -101,7 +101,7 @@ if TYPE_CHECKING:
     from pygame._common import _ColorValue  # pyright: reportMissingModuleSource=false
 
 
-@dataclass(init=False, repr=False, frozen=True)
+@dataclass(init=False, repr=False, eq=False, frozen=True)
 class ImmutableColor(Color):
     @overload
     def __init__(self, r: int, g: int, b: int, a: int = 255) -> None:
