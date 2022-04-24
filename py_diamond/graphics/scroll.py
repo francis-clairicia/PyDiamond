@@ -18,7 +18,7 @@ from operator import truth
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Sequence
 
 from ..system._mangling import mangle_private_attribute
-from ..system.configuration import Configuration, OptionAttribute, initializer
+from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
 from ..window.clickable import Clickable
 from ..window.event import MouseButtonDownEvent, MouseButtonUpEvent, MouseMotionEvent, MouseWheelEvent
@@ -52,7 +52,7 @@ class ScrollBar(TDrawable, Clickable, metaclass=ScrollBarMeta):
         HORIZONTAL = auto()
         VERTICAL = auto()
 
-    config: Configuration = Configuration(
+    config: ConfigurationTemplate = ConfigurationTemplate(
         "local_width",
         "local_height",
         "local_size",
@@ -293,7 +293,7 @@ class ScrollBar(TDrawable, Clickable, metaclass=ScrollBarMeta):
         self.__end = end
         self.__master._update()
 
-    config.enum("orient", Orient, return_value=True)
+    config.add_enum_converter("orient", Orient, return_value_on_get=True)
 
     @config.getter_key("cursor_color", use_key="color")
     def __get_cursor_shape_options(self, option: str) -> Any:

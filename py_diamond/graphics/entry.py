@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 from string import printable as ASCII_PRINTABLE
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Sequence, TypeAlias
 
-from ..system.configuration import Configuration, OptionAttribute, initializer
+from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.utils import (
     cached_property_read_only as cached_property,
     valid_integer,
@@ -63,7 +63,7 @@ class Entry(TDrawable, Pressable, metaclass=EntryMeta):
         },
     }
 
-    config: Configuration = Configuration(
+    config: ConfigurationTemplate = ConfigurationTemplate(
         "cursor",
         "interval",
         "bg",
@@ -362,12 +362,12 @@ class Entry(TDrawable, Pressable, metaclass=EntryMeta):
             outline = self.outline
         shape.config(outline=outline, outline_color=outline_color)
 
-    @config.value_converter("cursor")
+    @config.add_value_converter("cursor")
     def __cursor_validator(self, cursor: Any) -> int:
         return valid_integer(value=cursor, min_value=0, max_value=len(self.get()))
 
-    config.value_converter_static("interval", valid_integer(min_value=0))
-    config.value_converter_static("fixed_width", valid_optional_float(min_value=0))
+    config.add_value_converter_static("interval", valid_integer(min_value=0))
+    config.add_value_converter_static("fixed_width", valid_optional_float(min_value=0))
 
     @config.getter_key("fg", use_key="color")
     @config.getter_key("font")
@@ -426,10 +426,10 @@ class Entry(TDrawable, Pressable, metaclass=EntryMeta):
         height: float = entry_size[1] + self.__cursor_height_offset
         self.__outline_shape.local_size = self.__shape.local_size = (width, height)
 
-    config.value_converter_static("outline", valid_integer(min_value=0))
-    config.value_validator_static("outline_color", Color)
-    config.value_validator_static("highlight_color", Color)
-    config.value_converter_static("highlight_thickness", valid_integer(min_value=0))
+    config.add_value_converter_static("outline", valid_integer(min_value=0))
+    config.add_value_validator_static("outline_color", Color)
+    config.add_value_validator_static("highlight_color", Color)
+    config.add_value_converter_static("highlight_thickness", valid_integer(min_value=0))
 
     config.on_update("outline", __update_shape_outline)
     config.on_update("outline_color", __update_shape_outline)
@@ -482,8 +482,8 @@ class _TextEntry(Text):
         #     return text.subsurface(0, 0, max_width, text.get_height()).copy()
         return text
 
-    config = Configuration("max_width", parent=Text.config)
+    config = ConfigurationTemplate("max_width", parent=Text.config)
 
-    config.value_converter_static("max_width", valid_optional_integer(min_value=0))
+    config.add_value_converter_static("max_width", valid_optional_integer(min_value=0))
 
     max_width: OptionAttribute[int | None] = OptionAttribute()

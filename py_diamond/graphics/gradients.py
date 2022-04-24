@@ -21,7 +21,7 @@ __license__ = "GNU GPL v3.0"
 
 from typing import Any, Sequence
 
-from ..system.configuration import Configuration, OptionAttribute, initializer
+from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ._gradients import (  # type: ignore[attr-defined]
     horizontal as _gradient_horizontal,
     radial as _gradient_radial,
@@ -35,7 +35,7 @@ from .surface import Surface, create_surface
 
 
 class GradientShape(AbstractShape):
-    config = Configuration("first_color", "second_color", parent=AbstractShape.config)
+    config = ConfigurationTemplate("first_color", "second_color", parent=AbstractShape.config)
 
     first_color: OptionAttribute[Color] = OptionAttribute()
     second_color: OptionAttribute[Color] = OptionAttribute()
@@ -46,12 +46,12 @@ class GradientShape(AbstractShape):
         self.second_color = second_color
         super().__init__(**kwargs)
 
-    config.value_validator_static("first_color", Color)
-    config.value_validator_static("second_color", Color)
+    config.add_value_validator_static("first_color", Color)
+    config.add_value_validator_static("second_color", Color)
 
 
 class HorizontalGradientShape(AbstractRectangleShape, GradientShape):
-    config = Configuration(parent=[AbstractRectangleShape.config, GradientShape.config])
+    config = ConfigurationTemplate(parent=[AbstractRectangleShape.config, GradientShape.config])
 
     @initializer
     def __init__(self, width: float, height: float, first_color: Color, second_color: Color) -> None:
@@ -65,7 +65,7 @@ class HorizontalGradientShape(AbstractRectangleShape, GradientShape):
 
 
 class VerticalGradientShape(AbstractRectangleShape, GradientShape):
-    config = Configuration(parent=[AbstractRectangleShape.config, GradientShape.config])
+    config = ConfigurationTemplate(parent=[AbstractRectangleShape.config, GradientShape.config])
 
     @initializer
     def __init__(self, width: float, height: float, first_color: Color, second_color: Color) -> None:
@@ -79,7 +79,7 @@ class VerticalGradientShape(AbstractRectangleShape, GradientShape):
 
 
 class SquaredGradientShape(AbstractSquareShape, GradientShape):
-    config = Configuration(parent=[AbstractSquareShape.config, GradientShape.config])
+    config = ConfigurationTemplate(parent=[AbstractSquareShape.config, GradientShape.config])
 
     @initializer
     def __init__(self, size: float, first_color: Color, second_color: Color) -> None:
@@ -93,7 +93,7 @@ class SquaredGradientShape(AbstractSquareShape, GradientShape):
 
 
 class RadialGradientShape(AbstractCircleShape, GradientShape):
-    config = Configuration(parent=[AbstractCircleShape.config, GradientShape.config])
+    config = ConfigurationTemplate(parent=[AbstractCircleShape.config, GradientShape.config])
 
     @initializer
     def __init__(self, radius: float, first_color: Color, second_color: Color) -> None:
@@ -107,7 +107,7 @@ class RadialGradientShape(AbstractCircleShape, GradientShape):
 
 
 class MultiColorShape(AbstractShape):
-    config = Configuration("colors", parent=AbstractShape.config)
+    config = ConfigurationTemplate("colors", parent=AbstractShape.config)
 
     colors: OptionAttribute[tuple[Color, ...]] = OptionAttribute()
 
@@ -116,7 +116,7 @@ class MultiColorShape(AbstractShape):
         self.colors = colors
         super().__init__(**kwargs)
 
-    @config.value_validator_static("colors")
+    @config.add_value_validator_static("colors")
     @staticmethod
     def __valid_colors(value: Any) -> None:
         value = tuple(value)
@@ -127,7 +127,7 @@ class MultiColorShape(AbstractShape):
 
 
 class HorizontalMultiColorShape(AbstractRectangleShape, MultiColorShape):
-    config = Configuration(parent=[AbstractRectangleShape.config, MultiColorShape.config])
+    config = ConfigurationTemplate(parent=[AbstractRectangleShape.config, MultiColorShape.config])
 
     @initializer
     def __init__(self, width: float, height: float, colors: tuple[Color, ...]) -> None:
@@ -154,7 +154,7 @@ class HorizontalMultiColorShape(AbstractRectangleShape, MultiColorShape):
 
 
 class VerticalMultiColorShape(AbstractRectangleShape, MultiColorShape):
-    config = Configuration(parent=[AbstractRectangleShape.config, MultiColorShape.config])
+    config = ConfigurationTemplate(parent=[AbstractRectangleShape.config, MultiColorShape.config])
 
     @initializer
     def __init__(self, width: float, height: float, colors: tuple[Color, ...]) -> None:

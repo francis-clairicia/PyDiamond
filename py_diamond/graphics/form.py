@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from typing import TYPE_CHECKING, Any, Callable, Mapping, TypeAlias, overload
 
-from ..system.configuration import Configuration, OptionAttribute, initializer
+from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.utils import valid_integer
 from .color import BLACK, TRANSPARENT, Color
 from .drawable import Drawable, MDrawable
@@ -30,7 +30,7 @@ class Form(MDrawable):
     Justify: TypeAlias = Grid.Justify
     Padding: TypeAlias = Grid.Padding
 
-    config: Configuration = Configuration(
+    config: ConfigurationTemplate = ConfigurationTemplate(
         "bg_color", "outline", "outline_color", "label_justify", "entry_justify", "padx", "pady"
     )
 
@@ -141,8 +141,8 @@ class Form(MDrawable):
     def __set_grid_option(self, option: str, value: Any) -> None:
         return self.__grid.config.set(option, value)
 
-    config.enum("label_justify", Justify)
-    config.enum("entry_justify", Justify)
+    config.add_enum_converter("label_justify", Justify)
+    config.add_enum_converter("entry_justify", Justify)
 
     @config.on_update_key_value("label_justify")
     @config.on_update_key_value("entry_justify")
@@ -153,8 +153,8 @@ class Form(MDrawable):
         for row in range(grid.nb_rows):
             grid.modify(row=row, column=column, justify=justify)
 
-    config.value_converter_static("padx", valid_integer(min_value=0))
-    config.value_converter_static("pady", valid_integer(min_value=0))
+    config.add_value_converter_static("padx", valid_integer(min_value=0))
+    config.add_value_converter_static("pady", valid_integer(min_value=0))
 
     @config.on_update_key_value("padx")
     @config.on_update_key_value("pady")

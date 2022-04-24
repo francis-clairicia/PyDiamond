@@ -7,11 +7,11 @@
 __all__ = [
     "AutoLowerNameEnum",
     "AutoUpperNameEnum",
-    "BoundConfiguration",
     "ClassNamespace",
     "ClassNamespaceMeta",
     "ConfigError",
     "Configuration",
+    "ConfigurationTemplate",
     "EmptyOptionNameError",
     "InitializationError",
     "InvalidAliasError",
@@ -31,6 +31,7 @@ __all__ = [
     "UnknownOptionError",
     "UnregisteredOptionError",
     "cache",
+    "cached_property_read_only",
     "concreteclass",
     "concreteclasscheck",
     "concreteclassmethod",
@@ -55,7 +56,6 @@ __all__ = [
     "valid_optional_float",
     "valid_optional_integer",
     "wraps",
-    "cached_property_read_only",
 ]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -65,9 +65,9 @@ __license__ = "GNU GPL v3.0"
 
 ############ Package initialization ############
 from .configuration import (
-    BoundConfiguration,
     ConfigError,
     Configuration,
+    ConfigurationTemplate,
     EmptyOptionNameError,
     InitializationError,
     InvalidAliasError,

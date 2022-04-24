@@ -1,16 +1,28 @@
 # -*- coding: Utf-8 -*
 
+from contextlib import contextmanager
 from os.path import dirname
 from sys import path as SYS_PATH
-from typing import Any
+from time import monotonic as time
+from typing import Any, Iterator
 
 SYS_PATH.append(dirname(dirname(__file__)))
 
-from py_diamond.system.configuration import Configuration, OptionAttribute, initializer
+from py_diamond.system.configuration import ConfigurationTemplate, OptionAttribute, initializer
+
+
+@contextmanager
+def benchmark() -> Iterator[None]:
+    start_time = time()
+    try:
+        yield
+    finally:
+        elapsed = time() - start_time
+        print(f"===== Elapsed time: {elapsed:.6f}s =====")
 
 
 class Configurable:
-    config = Configuration("a", "b", "c", "d", autocopy=True)
+    config = ConfigurationTemplate("a", "b", "c", "d", autocopy=True)
     config.set_autocopy("d", copy_on_get=False, copy_on_set=False)
 
     a: OptionAttribute[int] = OptionAttribute()
@@ -18,6 +30,7 @@ class Configurable:
     c: OptionAttribute[int] = OptionAttribute()
     d: OptionAttribute[dict[str, int]] = OptionAttribute()
 
+    @benchmark()
     @initializer
     def __init__(self) -> None:
         self.a = 42
@@ -33,9 +46,9 @@ class Configurable:
 
     config.on_update_key_value("d", lambda self, name, val: print((self, name, val)))
 
-    @config.value_converter_static("a")
-    @config.value_converter_static("b")
-    @config.value_converter_static("c")
+    @config.add_value_converter_static("a")
+    @config.add_value_converter_static("b")
+    @config.add_value_converter_static("c")
     @staticmethod
     def __valid_int(val: Any) -> int:
         return max(int(val), 0)
@@ -46,9 +59,14 @@ class Configurable:
     def __update(self) -> None:
         print("UPDATE CALL")
 
-    config.value_validator_static("d", dict)
+    config.add_value_validator_static("d", dict)
 
-    @config.main_update
+    @config.add_value_validator_static("d")
+    @staticmethod
+    def __valid_dict(val: dict[Any, Any]) -> None:
+        print(f"Dict is here: {val}")
+
+    @config.add_main_update
     def _update(self) -> None:
         if self.config.has_initialization_context():
             print("Init object")
@@ -57,17 +75,17 @@ class Configurable:
 
 
 class SubConfigurable(Configurable):
-    config = Configuration("e", parent=Configurable.config)
+    config = ConfigurationTemplate("e", parent=Configurable.config)
     config.remove_parent_ownership("b")
     e: OptionAttribute[int] = OptionAttribute()
 
-    config.value_converter_static("e", int)
+    config.add_value_converter_static("e", int)
 
     def _update(self) -> None:
         super()._update()
         print("Override")
 
-    @config.main_update
+    @config.add_main_update
     def _custom_update(self) -> None:
         print("After parent update")
         print("-----")
@@ -94,7 +112,7 @@ class SubConfigurable(Configurable):
 
 
 class C:
-    config: Configuration = Configuration("a", "b", "c")
+    config: ConfigurationTemplate = ConfigurationTemplate("a", "b", "c")
 
     @initializer
     def __init__(self) -> None:
@@ -105,7 +123,7 @@ class C:
 
 
 class A:
-    __config: Configuration = Configuration("a")
+    __config: ConfigurationTemplate = ConfigurationTemplate("a")
 
     a: OptionAttribute[int] = OptionAttribute()
 
@@ -121,9 +139,9 @@ class Rect:
     def __init__(self) -> None:
         self.config.set("size", (4, 5))
 
-    config = Configuration("width", "height", "size")
+    config = ConfigurationTemplate("width", "height", "size")
 
-    @config.main_update
+    @config.add_main_update
     def update(self) -> None:
         print("UPDATE")
 
@@ -137,13 +155,13 @@ class Rect:
 
 
 class SubRect(Rect):
-    config = Configuration(parent=Rect.config)
+    config = ConfigurationTemplate(parent=Rect.config)
 
 
 class Klass:
-    config = Configuration("a", "b", "c")
+    config = ConfigurationTemplate("a", "b", "c")
 
-    @config.main_update
+    @config.add_main_update
     def update(self) -> None:
         print("UPDATE")
 
@@ -162,29 +180,36 @@ class Klass:
 
 def main() -> None:
     rect = SubRect()
+    print(rect.config.get("size"))
     # c = Klass()
     c = SubConfigurable()
     print("--------")
-    c.config["a"] = 4
-    c.config(a=6, b=5, c=-9)
-    print("After")
-    c.config(a=6, b=5, c=-9)
-    print("Close")
-    c.config(a=6, b=5, c=-5)
-    print(c.config.known_options())
-    print(c.config["a"])
-    c.config.set("a", 6)
-    c.config(a=6, b=5, c=-12)
+    with benchmark():
+        c.config["a"] = 4
+        c.config(a=6, b=5, c=-9)
+        print("After")
+        c.config(a=6, b=5, c=-9)
+        print("Close")
+        c.config(a=6, b=5, c=-5)
+        print(c.config.info.options)
+        print(c.config["a"])
+        c.config.set("a", 6)
+        c.config(a=6, b=5, c=-12)
+        c.a += 2
+        print(c.a)
+        c.config.set("e", "4")
+        assert isinstance(c.e, int)
+        c.d = d = {"a": 5}
+        print(c.d is d)
+        try:
+            c.d = 5  # type: ignore[assignment]
+        except TypeError as exc:
+            print(f"Works as expected: {exc}")
+        print(vars(c))
 
-    c.a += 2
-    print(c.a)
-
-    c.config.set("e", "4")
-    assert isinstance(c.e, int)
-
-    c.d = d = {"a": 5}
-    print(c.d is d)
-    print(vars(c))
+    a = A()
+    del a
+    print("----")
 
 
 if __name__ == "__main__":

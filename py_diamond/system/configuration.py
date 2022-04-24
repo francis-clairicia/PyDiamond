@@ -7,9 +7,9 @@
 from __future__ import annotations
 
 __all__ = [
-    "BoundConfiguration",
     "ConfigError",
     "Configuration",
+    "ConfigurationTemplate",
     "EmptyOptionNameError",
     "InitializationError",
     "InvalidAliasError",
@@ -25,13 +25,12 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 import re
-import sys
-from contextlib import ExitStack, contextmanager, suppress
+from contextlib import ExitStack, contextmanager, nullcontext, suppress
 from copy import copy, deepcopy
 from enum import Enum
 from functools import cache, wraps
 from threading import RLock
-from types import BuiltinFunctionType, BuiltinMethodType, MethodType
+from types import BuiltinFunctionType, BuiltinMethodType, MappingProxyType, MethodType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -40,11 +39,11 @@ from typing import (
     Dict,
     FrozenSet,
     Generic,
-    Iterable,
     Iterator,
     List,
     Literal,
-    MutableMapping,
+    Mapping,
+    NamedTuple,
     Optional,
     Protocol,
     Sequence,
@@ -54,19 +53,13 @@ from typing import (
     TypeVar,
     Union,
     cast,
+    final,
     overload,
     runtime_checkable,
 )
+from weakref import ReferenceType as WeakReferenceType, WeakKeyDictionary, ref as weakref
 
 from ._mangling import mangle_private_attribute
-
-if sys.version_info >= (3, 10):
-    from typing import TypeGuard
-else:
-    from typing_extensions import TypeGuard
-
-if TYPE_CHECKING:
-    from _typeshed import SupportsKeysAndGetItem
 
 _Func = TypeVar("_Func", bound=Callable[..., Any])
 _Updater = TypeVar("_Updater", bound=Callable[[Any], None])
@@ -133,25 +126,21 @@ _MISSING: Any = object()
 _NO_DEFAULT: Any = object()
 
 
-class Configuration:
-    __update_stack: ClassVar[Dict[object, List[str]]] = dict()
-    __init_context: ClassVar[Dict[object, _InitializationRegister]] = dict()
-
+class ConfigurationTemplate:
     __slots__ = (
-        "__all_parents",
-        "__info",
+        "__template",
         "__no_parent_ownership",
         "__bound_class",
         "__attr_name",
         "__lock",
+        "__build",
     )
 
     def __init__(
         self,
         *known_options: str,
         autocopy: Optional[bool] = None,
-        parent: Optional[Union[Configuration, Sequence[Configuration]]] = None,
-        cached_attribute: bool | None = None,
+        parent: Optional[Union[ConfigurationTemplate, Sequence[ConfigurationTemplate]]] = None,
     ) -> None:
         for option in known_options:
             if not option:
@@ -162,61 +151,101 @@ class Configuration:
                 raise ValueError(f"{option!r}: Forbidden option format")
         if parent is None:
             parent = []
-        elif isinstance(parent, Configuration):
+        elif isinstance(parent, ConfigurationTemplate):
             parent = [parent]
         else:
             parent = list(dict.fromkeys(parent))
 
-        self.__all_parents: Tuple[Configuration, ...] = tuple(parent)
-        self.__info: _ConfigInfo = _ConfigInfo(known_options, autocopy, list(p.__info for p in parent), cached_attribute)
+        self.__template: _ConfigInfoTemplate = _ConfigInfoTemplate(known_options, autocopy, list(p.__template for p in parent))
         self.__no_parent_ownership: Set[str] = set()
         self.__bound_class: Optional[type] = None
         self.__attr_name: Optional[str] = None
         self.__lock = RLock()
+        self.__build: Optional[ConfigurationInfo] = None
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({{{', '.join(repr(s) for s in sorted(self.known_options()))}}})"
 
     def __set_name__(self, owner: type, name: str, /) -> None:
         if self.__bound_class is not None:
-            raise TypeError(f"This configuration object is bound to an another class: {self.__bound_class.__name__!r}")
+            raise TypeError(f"This configuration object is bound to a class: {self.__bound_class.__name__!r}")
         if getattr(owner, name) is not self:
             raise AttributeError("The attribute name does not correspond")
-        info: _ConfigInfo = self.__info
-        if name in info.options:
-            raise OptionError(name, "Configuration attribute name is an option")
-        self.__bound_class = info.owner = owner
+        template: _ConfigInfoTemplate = self.__template
+        if name in template.options:
+            raise OptionError(name, "ConfigurationTemplate attribute name is an option")
+        self.__bound_class = owner
         self.__attr_name = name
-        attribute_class_owner: Dict[str, type] = info.attribute_class_owner
+        attribute_class_owner: Dict[str, type] = template.attribute_class_owner
         no_parent_ownership: Set[str] = self.__no_parent_ownership
-        for option in info.options:
+        for option in template.options:
             if option in no_parent_ownership:
                 attribute_class_owner[option] = owner
             else:
                 attribute_class_owner.setdefault(option, owner)
-            descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
-            if hasattr(descriptor, "__set_name__"):
+            descriptor: Optional[_Descriptor] = template.value_descriptors.get(option)
+            if descriptor not in template.parent_descriptors and hasattr(descriptor, "__set_name__"):
                 getattr(descriptor, "__set_name__")(attribute_class_owner[option], option)
-        former_config: Optional[Configuration] = _register_configuration(owner, self)
+        former_config: Optional[ConfigurationTemplate] = _register_configuration(owner, self)
         for obj in _all_members(owner).values():
             if isinstance(obj, OptionAttribute):
                 with suppress(AttributeError):
                     self.check_option_validity(obj.name)
-            elif isinstance(obj, Configuration) and obj is not self:
+            elif isinstance(obj, ConfigurationTemplate) and obj is not self:
                 _register_configuration(owner, former_config)
-                raise TypeError(f"A class can't have several {Configuration.__name__!r} objects")
+                raise TypeError(f"A class can't have several {ConfigurationTemplate.__name__!r} objects")
+        self.__build = template.build()
+
+    @overload
+    def __get__(self, obj: None, objtype: type, /) -> ConfigurationTemplate:
+        ...
+
+    @overload
+    def __get__(self, obj: _T, objtype: Optional[type] = None, /) -> Configuration[_T]:
+        ...
+
+    def __get__(self, obj: Optional[_T], objtype: Optional[type] = None, /) -> Union[ConfigurationTemplate, Configuration[_T]]:
+        if obj is None:
+            return self
+        attr_name = self.__attr_name
+        info = self.__build
+        if not attr_name or info is None:
+            raise TypeError("Cannot use ConfigurationTemplate instance without calling __set_name__ on it.")
+        if objtype is None:
+            objtype = type(obj)
+        if getattr(objtype, attr_name, None) is not self:
+            return Configuration(weakref(obj), info)
+        try:
+            obj_cache = obj.__dict__
+        except AttributeError:
+            return Configuration(weakref(obj), info)
+        bound_config: Configuration[_T] = obj_cache.get(attr_name, _MISSING)
+        if bound_config is _MISSING:
+            with self.__lock:
+                bound_config = obj_cache.get(attr_name, _MISSING)
+                if bound_config is _MISSING:
+                    bound_config = Configuration(weakref(obj), info)
+                    with suppress(Exception):
+                        obj_cache[attr_name] = bound_config
+        return bound_config
+
+    def __set__(self, obj: object, value: Any, /) -> None:
+        raise AttributeError("Ready-only property")
+
+    def __delete__(self, obj: object, /) -> None:
+        raise AttributeError("Ready-only property")
 
     def known_options(self) -> FrozenSet[str]:
-        return self.__info.options
+        return self.__template.options
 
     def known_aliases(self) -> FrozenSet[str]:
-        return frozenset(self.__info.aliases)
+        return frozenset(self.__template.aliases)
 
     def check_option_validity(self, option: str, *, use_alias: bool = False) -> str:
-        info = self.__info
+        template = self.__template
         if use_alias:
-            option = info.aliases.get(option, option)
-        if option not in info.options:
+            option = template.aliases.get(option, option)
+        if option not in template.options:
             if not option:
                 raise EmptyOptionNameError()
             raise UnknownOptionError(option)
@@ -247,311 +276,30 @@ class Configuration:
 
     def set_autocopy(self, arg1: Union[bool, str], /, **kwargs: Optional[bool]) -> None:
         self.__check_locked()
-        info: _ConfigInfo = self.__info
+        template: _ConfigInfoTemplate = self.__template
         if isinstance(arg1, bool) and not kwargs:
-            info.autocopy = arg1
+            template.autocopy = arg1
         elif isinstance(arg1, str) and ("copy_on_get" in kwargs or "copy_on_set" in kwargs):
             self.check_option_validity(arg1)
             if "copy_on_get" in kwargs:
                 copy_on_get: Optional[bool] = kwargs["copy_on_get"]
                 if copy_on_get is None:
-                    info.value_autocopy_get.pop(arg1, None)
+                    template.value_autocopy_get.pop(arg1, None)
                 else:
-                    info.value_autocopy_get[arg1] = bool(copy_on_get)
+                    template.value_autocopy_get[arg1] = bool(copy_on_get)
             if "copy_on_set" in kwargs:
                 copy_on_set: Optional[bool] = kwargs["copy_on_set"]
                 if copy_on_set is None:
-                    info.value_autocopy_set.pop(arg1, None)
+                    template.value_autocopy_set.pop(arg1, None)
                 else:
-                    info.value_autocopy_set[arg1] = bool(copy_on_set)
+                    template.value_autocopy_set[arg1] = bool(copy_on_set)
         else:
             raise TypeError("Invalid argument")
 
     def remove_parent_ownership(self, option: str) -> None:
         self.__check_locked()
         self.check_option_validity(option)
-        info: _ConfigInfo = self.__info
         self.__no_parent_ownership.add(option)
-        if self.__bound_class is not None:
-            info.attribute_class_owner[option] = self.__bound_class
-            descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
-            if hasattr(descriptor, "__set_name__"):
-                getattr(descriptor, "__set_name__")(self.__bound_class, option)
-
-    @overload
-    def __get__(self, obj: None, objtype: type, /) -> Configuration:
-        ...
-
-    @overload
-    def __get__(self, obj: _T, objtype: Optional[type[_T]] = None, /) -> BoundConfiguration[_T]:
-        ...
-
-    def __get__(self, obj: Optional[_T], objtype: Optional[type] = None, /) -> Union[Configuration, BoundConfiguration[_T]]:
-        if obj is None:
-            return self
-        attr_name = self.__attr_name
-        if not attr_name:
-            raise TypeError("Cannot use Configuration instance without calling __set_name__ on it.")
-        if self.__info.cached_attribute:
-            try:
-                obj_cache = obj.__dict__
-            except AttributeError:
-                return BoundConfiguration(self, obj)
-            bound_config: BoundConfiguration[_T] = obj_cache.get(attr_name, _MISSING)
-            if bound_config is _MISSING:
-                with self.__lock:
-                    bound_config = obj_cache.get(attr_name, _MISSING)
-                    if bound_config is _MISSING:
-                        bound_config = BoundConfiguration(self, obj)
-                        with suppress(Exception):
-                            obj_cache[attr_name] = bound_config
-            return bound_config
-        return BoundConfiguration(self, obj)
-
-    def __set__(self, obj: object, value: Any, /) -> None:
-        raise AttributeError("Ready-only property")
-
-    def __delete__(self, obj: object, /) -> None:
-        raise AttributeError("Ready-only property")
-
-    @overload
-    def get(self, obj: object, option: str) -> Any:
-        ...
-
-    @overload
-    def get(self, obj: object, option: str, default: _DT) -> Union[Any, _DT]:
-        ...
-
-    def get(self, obj: object, option: str, default: _DT = _NO_DEFAULT) -> Any:
-        option = self.check_option_validity(option, use_alias=True)
-        info: _ConfigInfo = self.__info
-        descr: Optional[_Descriptor] = info.value_descriptors.get(option)
-        if descr is None:
-            descr = _PrivateAttributeOptionProperty(info, option)
-        try:
-            value: Any = descr.__get__(obj, type(obj))
-        except (AttributeError, OptionError):
-            if default is _NO_DEFAULT:
-                raise
-            return default
-        if info.enum_return_value.get(option, False) and isinstance(value, Enum):
-            return value.value
-        if info.value_autocopy_get.get(option, info.autocopy):
-            copy_func = info.get_copy_func(type(value))
-            with suppress(Exception):
-                value = copy_func(value)
-        return value
-
-    def has_key(self, obj: object, option: str) -> bool:
-        return self.get(obj, option, _MISSING) is not _MISSING
-
-    def set(self, obj: object, option: str, value: Any) -> None:
-        option = self.check_option_validity(option, use_alias=True)
-        info: _ConfigInfo = self.__info
-        descr: Optional[_Descriptor] = info.value_descriptors.get(option)
-        value_validator: Optional[Callable[[object, Any], None]] = info.value_validator.get(option)
-        converter: Optional[Callable[[object, Any], Any]] = info.value_converter.get(option)
-        actual_value: Any
-
-        if descr is None:
-            descr = _PrivateAttributeOptionProperty(info, option)
-
-        if callable(value_validator):
-            value_validator(obj, value)
-        converter_applied: bool = False
-        if callable(converter):
-            value = converter(obj, value)
-            converter_applied = True
-
-        if not isinstance(descr, _MutableDescriptor):
-            raise OptionError(option, "Cannot be set")
-
-        try:
-            actual_value = descr.__get__(obj, type(obj))
-        except (AttributeError, UnregisteredOptionError):
-            actual_value = _MISSING
-
-        if actual_value is _MISSING or actual_value != value:
-            if not converter_applied and info.value_autocopy_set.get(option, info.autocopy):
-                copy_func = info.get_copy_func(type(value))
-                with suppress(Exception):
-                    value = copy_func(value)
-            with self.__updating_option(obj, option):
-                descr.__set__(obj, value)
-            if self.has_initialization_context(obj):
-                register = Configuration.__init_context[obj]
-                register[option] = value
-                return
-            for value_update in info.get_option_value_update_funcs(option):
-                value_update(obj, value)
-            update_stack = Configuration.__update_stack.get(obj, [])
-            if option in update_stack:
-                return
-            main_update_list: List[Callable[[object], None]] = list(info.get_main_update_funcs())
-            for update in info.get_option_update_funcs(option):
-                if update in main_update_list:
-                    continue
-                with self.__updating_option(obj, option):
-                    update(obj)
-            if not update_stack:
-                for main_update in main_update_list:
-                    main_update(obj)
-
-    def delete(self, obj: object, option: str) -> None:
-        option = self.check_option_validity(option, use_alias=True)
-        info: _ConfigInfo = self.__info
-        descr = info.value_descriptors.get(option)
-        if descr is None:
-            descr = _PrivateAttributeOptionProperty(info, option)
-        if not isinstance(descr, _RemovableDescriptor):
-            raise OptionError(option, "Cannot be deleted")
-        with self.__updating_option(obj, option):
-            descr.__delete__(obj)
-
-        if self.has_initialization_context(obj):
-            register = Configuration.__init_context[obj]
-            register.pop(option, None)
-            return
-
-        update_stack = Configuration.__update_stack.get(obj, [])
-        if option in update_stack:
-            return
-        main_update_list: List[Callable[[object], None]] = list(info.get_main_update_funcs())
-        for update in info.get_option_update_funcs(option):
-            if update in main_update_list:
-                continue
-            with self.__updating_option(obj, option):
-                update(obj)
-        if not update_stack:
-            for main_update in main_update_list:
-                main_update(obj)
-
-    def __call__(self, __obj: object, /, **kwargs: Any) -> None:
-        if not kwargs:
-            return
-        option: str
-        value: Any
-        if len(kwargs) == 1:
-            option, value = next(iter(kwargs.items()))
-            return self.set(__obj, option, value)
-        if self.has_initialization_context(__obj):
-            for option, value in kwargs.items():
-                self.set(__obj, option, value)
-            return
-
-        info: _ConfigInfo = self.__info
-        need_update: List[str] = []
-
-        @contextmanager
-        def check_if_update_needed(option: str) -> Iterator[None]:
-            nonlocal need_update
-            if option in need_update:
-                yield
-                return
-            former_value: Any = self.get(__obj, option, _MISSING)
-            yield
-            actual_value: Any = self.get(__obj, option, _MISSING)
-            if actual_value is not _MISSING and (former_value is _MISSING or actual_value != former_value):
-                need_update.append(option)
-
-        for option, value in kwargs.items():
-            with self.__updating_option(__obj, option), check_if_update_needed(option):
-                self.set(__obj, option, value)
-        if not need_update:
-            return
-        update_stack = Configuration.__update_stack.get(__obj, [])
-        main_update_list: List[Callable[[object], None]] = list(info.get_main_update_funcs())
-        for option in filter(lambda opt: opt in need_update and opt not in update_stack, kwargs):
-            for update in info.get_option_update_funcs(option):
-                if update in main_update_list:
-                    continue
-                with self.__updating_option(__obj, option):
-                    update(__obj)
-        if not update_stack:
-            for main_update in main_update_list:
-                main_update(__obj)
-
-    def update_all_options(self, obj: object) -> None:
-        objtype: type = type(obj)
-        info: _ConfigInfo = self.__info
-
-        for option in info.options:
-            actual_descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
-            if actual_descriptor is None:
-                actual_descriptor = _PrivateAttributeOptionProperty(info, option)
-            try:
-                value: Any = actual_descriptor.__get__(obj, objtype)
-            except (AttributeError, UnregisteredOptionError):
-                pass
-            else:
-                for value_update in info.get_option_value_update_funcs(option):
-                    value_update(obj, value)
-        main_update_list: List[Callable[[object], None]] = list(info.get_main_update_funcs())
-        for option in info.options:
-            for update in info.get_option_update_funcs(option):
-                if update in main_update_list:
-                    continue
-                update(obj)
-        for main_update in main_update_list:
-            main_update(obj)
-
-    def update_option(self, obj: object, option: str) -> None:
-        objtype: type = type(obj)
-        info: _ConfigInfo = self.__info
-
-        self.check_option_validity(option)
-        actual_descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
-        if actual_descriptor is None:
-            actual_descriptor = _PrivateAttributeOptionProperty(info, option)
-        try:
-            value: Any = actual_descriptor.__get__(obj, objtype)
-        except (AttributeError, UnregisteredOptionError):
-            pass
-        else:
-            for value_update in info.get_option_value_update_funcs(option):
-                value_update(obj, value)
-        main_update_list: List[Callable[[object], None]] = list(info.get_main_update_funcs())
-        for update in info.get_option_update_funcs(option):
-            if update in main_update_list:
-                continue
-            update(obj)
-        for main_update in main_update_list:
-            main_update(obj)
-
-    @contextmanager
-    def initialization(self, obj: object) -> Iterator[None]:
-        if self.has_initialization_context(obj):
-            yield
-            return
-
-        if obj in Configuration.__update_stack:
-            raise InitializationError("Cannot use initialization context while updating an option value")
-
-        def cleanup() -> None:
-            Configuration.__init_context.pop(obj, None)
-
-        with ExitStack() as stack:
-            initialization_register: _InitializationRegister = {}
-            Configuration.__init_context[obj] = initialization_register
-            stack.callback(cleanup)
-            yield
-            info: _ConfigInfo = self.__info
-            for option, value in initialization_register.items():
-                for value_update in info.get_option_value_update_funcs(option):
-                    value_update(obj, value)
-            main_update_list: List[Callable[[object], None]] = list(info.get_main_update_funcs())
-            for option in initialization_register:
-                for update in info.get_option_update_funcs(option):
-                    if update in main_update_list:
-                        continue
-                    with self.__updating_option(obj, option):
-                        update(obj)
-            for main_update in main_update_list:
-                main_update(obj)
-
-    @staticmethod
-    def has_initialization_context(obj: object) -> bool:
-        return obj in Configuration.__init_context
 
     @overload
     def getter(self, option: str, /, *, use_override: bool = True, readonly: bool = False) -> Callable[[_Getter], _Getter]:
@@ -566,9 +314,9 @@ class Configuration:
     ) -> Optional[Callable[[_Getter], _Getter]]:
         self.__check_locked()
         self.check_option_validity(option)
-        info: _ConfigInfo = self.__info
-        actual_descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
-        if not isinstance(actual_descriptor, _ReadOnlyOptionProperty):
+        template: _ConfigInfoTemplate = self.__template
+        actual_descriptor: Optional[_Descriptor] = template.value_descriptors.get(option)
+        if not isinstance(actual_descriptor, _ReadOnlyOptionPayload):
             if actual_descriptor is not None and not isinstance(actual_descriptor, _ConfigProperty):
                 raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
             actual_property: Optional[_ConfigProperty] = actual_descriptor
@@ -587,21 +335,21 @@ class Configuration:
                 else:
                     new_config_property = actual_property.getter(wrapper)
                 if readonly:
-                    info.value_descriptors[option] = _ReadOnlyOptionProperty(new_config_property)
+                    template.value_descriptors[option] = _ReadOnlyOptionPayload(new_config_property)
                 else:
-                    info.value_descriptors[option] = new_config_property
+                    template.value_descriptors[option] = new_config_property
                 return func
 
         else:
-            readony_descriptor: _ReadOnlyOptionProperty = actual_descriptor
-            actual_descriptor = readony_descriptor.get_descriptor()
+            readonly_descriptor: _ReadOnlyOptionPayload = actual_descriptor
+            actual_descriptor = readonly_descriptor.get_descriptor()
             if not isinstance(actual_descriptor, _ConfigProperty):
                 raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
             config_property: _ConfigProperty = actual_descriptor
 
             def decorator(func: _Getter, /) -> _Getter:
                 wrapper = _make_function_wrapper(func, check_override=bool(use_override))
-                readony_descriptor.set_new_descriptor(config_property.getter(wrapper))
+                readonly_descriptor.set_new_descriptor(config_property.getter(wrapper))
                 return func
 
         if func is None:
@@ -667,11 +415,11 @@ class Configuration:
     ) -> Optional[Callable[[_Setter], _Setter]]:
         self.__check_locked()
         self.check_option_validity(option)
-        info: _ConfigInfo = self.__info
-        actual_descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
+        template: _ConfigInfoTemplate = self.__template
+        actual_descriptor: Optional[_Descriptor] = template.value_descriptors.get(option)
         if actual_descriptor is None:
             raise OptionError(option, "Attributing setter for this option which has no getter")
-        if isinstance(actual_descriptor, _ReadOnlyOptionProperty):
+        if isinstance(actual_descriptor, _ReadOnlyOptionPayload):
             raise OptionError(option, "Read-only option")
         if not isinstance(actual_descriptor, _ConfigProperty):
             raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
@@ -679,7 +427,7 @@ class Configuration:
 
         def decorator(func: _Setter, /) -> _Setter:
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
-            info.value_descriptors[option] = actual_property.setter(wrapper)
+            template.value_descriptors[option] = actual_property.setter(wrapper)
             return func
 
         if func is None:
@@ -732,11 +480,11 @@ class Configuration:
     ) -> Optional[Callable[[_Deleter], _Deleter]]:
         self.__check_locked()
         self.check_option_validity(option)
-        info: _ConfigInfo = self.__info
-        actual_descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
+        template: _ConfigInfoTemplate = self.__template
+        actual_descriptor: Optional[_Descriptor] = template.value_descriptors.get(option)
         if actual_descriptor is None:
             raise OptionError(option, "Attributing deleter for this option which has no getter")
-        if isinstance(actual_descriptor, _ReadOnlyOptionProperty):
+        if isinstance(actual_descriptor, _ReadOnlyOptionPayload):
             raise OptionError(option, "Read-only option")
         if not isinstance(actual_descriptor, _ConfigProperty):
             raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
@@ -744,7 +492,7 @@ class Configuration:
 
         def decorator(func: _Deleter, /) -> _Deleter:
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
-            info.value_descriptors[option] = actual_property.deleter(wrapper)
+            template.value_descriptors[option] = actual_property.deleter(wrapper)
             return func
 
         if func is None:
@@ -787,36 +535,38 @@ class Configuration:
     def use_descriptor(self, option: str, descriptor: _Descriptor) -> None:
         self.__check_locked()
         self.check_option_validity(option)
-        info: _ConfigInfo = self.__info
-        if option in info.value_descriptors:
-            actual_descriptor: _Descriptor = info.value_descriptors[option]
-            if isinstance(actual_descriptor, _ReadOnlyOptionProperty):
-                actual_descriptor = actual_descriptor.get_descriptor()
+        template: _ConfigInfoTemplate = self.__template
+        if option in template.value_descriptors:
+            actual_descriptor: _Descriptor = template.value_descriptors[option]
+            if isinstance(actual_descriptor, _ReadOnlyOptionPayload):
+                underlying_descriptor = actual_descriptor.get_descriptor()
+                if underlying_descriptor is None:
+                    raise OptionError(option, "Already uses custom getter register with getter() method")
+                actual_descriptor = underlying_descriptor
             if isinstance(actual_descriptor, _ConfigProperty):
                 raise OptionError(option, "Already uses custom getter register with getter() method")
             raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
-        info.value_descriptors[option] = descriptor
-        if hasattr(descriptor, "__set_name__"):
-            getattr(descriptor, "__set_name__")(info.attribute_class_owner[option], option)
+        template.value_descriptors[option] = descriptor
 
     @overload
-    def main_update(self, func: _Updater, /, *, use_override: bool = True) -> _Updater:
+    def add_main_update(self, func: _Updater, /, *, use_override: bool = True) -> _Updater:
         ...
 
     @overload
-    def main_update(self, /, *, use_override: bool = True) -> Callable[[_Updater], _Updater]:
+    def add_main_update(self, /, *, use_override: bool = True) -> Callable[[_Updater], _Updater]:
         ...
 
-    def main_update(
+    def add_main_update(
         self, func: Optional[_Updater] = None, /, *, use_override: bool = True
     ) -> Union[_Updater, Callable[[_Updater], _Updater]]:
         self.__check_locked()
-        info: _ConfigInfo = self.__info
+        template: _ConfigInfoTemplate = self.__template
 
         def decorator(func: _Updater, /) -> _Updater:
-            if info.main_update is not None:
-                raise ConfigError("Already has main updater")
-            info.main_update = _make_function_wrapper(func, check_override=bool(use_override))
+            wrapper = _make_function_wrapper(func, check_override=bool(use_override))
+            if wrapper in template.main_updater:
+                raise ConfigError("Function already registered")
+            template.main_updater.append(wrapper)
             return func
 
         if func is None:
@@ -835,14 +585,15 @@ class Configuration:
         self, option: str, func: Optional[_Updater] = None, /, *, use_override: bool = True
     ) -> Optional[Union[_Updater, Callable[[_Updater], _Updater]]]:
         self.__check_locked()
-        info: _ConfigInfo = self.__info
+        template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
 
         def decorator(func: _Updater, /) -> _Updater:
-            if option in info.self_update:
-                raise OptionError(option, "Already has updater")
-            info.update[option] = _make_function_wrapper(func, check_override=bool(use_override))
-            info.self_update[option] = info.update[option]
+            updater_list = template.option_updater.setdefault(option, [])
+            wrapper = _make_function_wrapper(func, check_override=bool(use_override))
+            if wrapper in updater_list:
+                raise OptionError(option, "Function already registered")
+            updater_list.append(wrapper)
             return func
 
         if func is None:
@@ -894,14 +645,15 @@ class Configuration:
         self, option: str, func: Optional[_ValueUpdater] = None, /, *, use_override: bool = True
     ) -> Optional[Callable[[_ValueUpdater], _ValueUpdater]]:
         self.__check_locked()
-        info: _ConfigInfo = self.__info
+        template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
 
         def decorator(func: _ValueUpdater, /) -> _ValueUpdater:
-            if option in info.self_value_update:
-                raise OptionError(option, "Already has updater")
-            info.value_update[option] = _make_function_wrapper(func, check_override=bool(use_override))
-            info.self_value_update[option] = info.value_update[option]
+            updater_list = template.option_value_updater.setdefault(option, [])
+            wrapper = _make_function_wrapper(func, check_override=bool(use_override))
+            if wrapper in updater_list:
+                raise OptionError(option, "Function already registered")
+            updater_list.append(wrapper)
             return func
 
         if func is None:
@@ -944,14 +696,14 @@ class Configuration:
         return None
 
     @overload
-    def value_validator(self, option: str, /, *, use_override: bool = True) -> Callable[[_ValueValidator], _ValueValidator]:
+    def add_value_validator(self, option: str, /, *, use_override: bool = True) -> Callable[[_ValueValidator], _ValueValidator]:
         ...
 
     @overload
-    def value_validator(self, option: str, func: _ValueValidator, /, *, use_override: bool = True) -> None:
+    def add_value_validator(self, option: str, func: _ValueValidator, /, *, use_override: bool = True) -> None:
         ...
 
-    def value_validator(
+    def add_value_validator(
         self,
         option: str,
         func: Optional[_ValueValidator] = None,
@@ -960,14 +712,18 @@ class Configuration:
         use_override: bool = True,
     ) -> Optional[Callable[[_ValueValidator], _ValueValidator]]:
         self.__check_locked()
-        info: _ConfigInfo = self.__info
+        template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
 
         if isinstance(func, type):
             raise TypeError("Use value_validator_static() to check types")
 
         def decorator(func: _ValueValidator, /) -> _ValueValidator:
-            info.value_validator[option] = _make_function_wrapper(func, check_override=bool(use_override))
+            value_validator_list = template.value_validator.setdefault(option, [])
+            wrapper = _make_function_wrapper(func, check_override=bool(use_override))
+            if wrapper in value_validator_list:
+                raise OptionError(option, "Function already registered")
+            value_validator_list.append(wrapper)
             return func
 
         if func is None:
@@ -976,22 +732,22 @@ class Configuration:
         return None
 
     @overload
-    def value_validator_static(self, option: str, /) -> Callable[[_StaticValueValidator], _StaticValueValidator]:
+    def add_value_validator_static(self, option: str, /) -> Callable[[_StaticValueValidator], _StaticValueValidator]:
         ...
 
     @overload
-    def value_validator_static(self, option: str, objtype: type, /, *, accept_none: bool = False) -> None:
+    def add_value_validator_static(self, option: str, objtype: type, /, *, accept_none: bool = False) -> None:
         ...
 
     @overload
-    def value_validator_static(self, option: str, objtypes: Sequence[type], /, *, accept_none: bool = False) -> None:
+    def add_value_validator_static(self, option: str, objtypes: Sequence[type], /, *, accept_none: bool = False) -> None:
         ...
 
     @overload
-    def value_validator_static(self, option: str, func: _StaticValueValidator, /) -> None:
+    def add_value_validator_static(self, option: str, func: _StaticValueValidator, /) -> None:
         ...
 
-    def value_validator_static(
+    def add_value_validator_static(
         self,
         option: str,
         func: Optional[Union[_StaticValueValidator, type, Sequence[type]]] = None,
@@ -1000,11 +756,15 @@ class Configuration:
         accept_none: bool = False,
     ) -> Optional[Callable[[_StaticValueValidator], _StaticValueValidator]]:
         self.__check_locked()
-        info: _ConfigInfo = self.__info
+        template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
 
         def decorator(func: _StaticValueValidator, /) -> _StaticValueValidator:
-            info.value_validator[option] = _make_function_wrapper(func, check_override=False, no_object=True)
+            value_validator_list = template.value_validator.setdefault(option, [])
+            wrapper = _make_function_wrapper(func, check_override=False, no_object=True)
+            if wrapper in value_validator_list:
+                raise OptionError(option, "Function already registered")
+            value_validator_list.append(wrapper)
             return func
 
         if isinstance(func, (type, Sequence)):
@@ -1016,19 +776,9 @@ class Configuration:
                 if len(_type) == 1:
                     _type = _type[0]
 
-            def type_checker(val: Any, /) -> None:
-                if (accept_none and val is None) or isinstance(val, _type):
-                    return
-                expected: str
-                if isinstance(_type, type):
-                    expected = repr(_type.__qualname__)
-                else:
-                    expected = f"one of those: ({', '.join(repr(t.__qualname__) for t in _type)})"
-                cls: type = type(val)
-                got: str = repr(cls.__qualname__ if cls.__module__ != object.__module__ else val)
-                raise TypeError(f"Invalid value type. expected {expected}, got {got}")
+            type_checker: Any = _make_type_checker(_type, accept_none)
 
-            decorator(type_checker)  # type: ignore[arg-type]
+            decorator(type_checker)
             return None
 
         if func is None:
@@ -1037,14 +787,14 @@ class Configuration:
         return None
 
     @overload
-    def value_converter(self, option: str, /, *, use_override: bool = True) -> Callable[[_ValueConverter], _ValueConverter]:
+    def add_value_converter(self, option: str, /, *, use_override: bool = True) -> Callable[[_ValueConverter], _ValueConverter]:
         ...
 
     @overload
-    def value_converter(self, option: str, func: _ValueConverter, /, *, use_override: bool = True) -> None:
+    def add_value_converter(self, option: str, func: _ValueConverter, /, *, use_override: bool = True) -> None:
         ...
 
-    def value_converter(
+    def add_value_converter(
         self,
         option: str,
         func: Optional[_ValueConverter] = None,
@@ -1053,14 +803,18 @@ class Configuration:
         use_override: bool = True,
     ) -> Optional[Callable[[_ValueConverter], _ValueConverter]]:
         self.__check_locked()
-        info: _ConfigInfo = self.__info
+        template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
 
         if isinstance(func, type):
             raise TypeError("Use value_converter_static() to convert value using type")
 
         def decorator(func: _ValueConverter) -> _ValueConverter:
-            info.value_converter[option] = _make_function_wrapper(func, check_override=bool(use_override))
+            value_converter_list = template.value_converter.setdefault(option, [])
+            wrapper = _make_function_wrapper(func, check_override=bool(use_override))
+            if wrapper in value_converter_list:
+                raise OptionError(option, "Function already registered")
+            value_converter_list.append(wrapper)
             return func
 
         if func is None:
@@ -1069,37 +823,44 @@ class Configuration:
         return None
 
     @overload
-    def value_converter_static(self, option: str, /) -> Callable[[_StaticValueConverter], _StaticValueConverter]:
+    def add_value_converter_static(self, option: str, /) -> Callable[[_StaticValueConverter], _StaticValueConverter]:
         ...
 
     @overload
-    def value_converter_static(self, option: str, convert_to_type: Type[Any], /, *, accept_none: bool = False) -> None:
+    def add_value_converter_static(self, option: str, convert_to_type: Type[Any], /, *, accept_none: bool = False) -> None:
         ...
 
     @overload
-    def value_converter_static(self, option: str, func: _StaticValueConverter, /) -> None:
+    def add_value_converter_static(self, option: str, func: _StaticValueConverter, /) -> None:
         ...
 
-    def value_converter_static(
+    def add_value_converter_static(
         self, option: str, func: Optional[Union[_StaticValueConverter, type]] = None, /, *, accept_none: bool = False
     ) -> Optional[Callable[[_StaticValueConverter], _StaticValueConverter]]:
         self.__check_locked()
-        info: _ConfigInfo = self.__info
+        template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
 
         def decorator(func: _StaticValueConverter, /) -> _StaticValueConverter:
-            info.value_converter[option] = _make_function_wrapper(func, check_override=False, no_object=True)
+            value_converter_list = template.value_converter.setdefault(option, [])
+            wrapper = _make_function_wrapper(func, check_override=False, no_object=True)
+            if wrapper in value_converter_list:
+                raise OptionError(option, "Function already registered")
+            value_converter_list.append(wrapper)
             return func
 
         if isinstance(func, type):
-            _type: Callable[[Any], Any] = func
 
-            def value_converter(val: Any) -> Any:
-                if accept_none and val is None:
-                    return None
-                return _type(val)
+            if issubclass(func, Enum):
+                if option in template.enum_converter_registered:
+                    enum = template.enum_converter_registered[option]
+                    raise ValueError(f"Enum converter already set for option {option!r}: {enum.__qualname__!r}")
+                enum = func
+                template.enum_converter_registered[option] = enum
 
-            decorator(value_converter)  # type: ignore[arg-type]
+            value_converter: Any = _make_value_converter(func, accept_none)
+
+            decorator(value_converter)
             return None
 
         if func is None:
@@ -1107,14 +868,49 @@ class Configuration:
         decorator(func)
         return None
 
-    def enum(self, option: str, enum: Type[Enum], *, return_value: bool = False) -> None:
+    @overload
+    def add_enum_converter(self, option: str, enum: Type[Enum], *, store_value: bool = False) -> None:
+        ...
+
+    @overload
+    def add_enum_converter(self, option: str, enum: Type[Enum], *, return_value_on_get: bool) -> None:
+        ...
+
+    def add_enum_converter(self, option: str, enum: Type[Enum], **kwargs: bool) -> None:
         self.__check_locked()
-        self.value_converter_static(option, enum)
-        self.__info.enum_return_value[option] = bool(return_value)
+        template: _ConfigInfoTemplate = self.__template
+        self.check_option_validity(option)
+
+        if not issubclass(enum, Enum):
+            raise TypeError("Not an Enum class")
+
+        if "store_value" in kwargs and "return_value_on_get" in kwargs:
+            raise TypeError("Invalid arguments")
+
+        store_value: bool = kwargs.pop("store_value", False)
+        return_value_on_get: Optional[bool] = kwargs.pop("return_value_on_get", None)
+
+        if kwargs:
+            raise TypeError("Invalid arguments")
+
+        if option in template.enum_converter_registered:
+            enum = template.enum_converter_registered[option]
+            raise ValueError(f"Enum converter already set for option {option!r}: {enum.__qualname__!r}")
+
+        def value_converter(val: Any, /, *, enum: Type[Enum] = enum, store_value: bool = bool(store_value)) -> Any:
+            val = enum(val)
+            if store_value:
+                val = val.value
+            return val
+
+        self.add_value_converter_static(option, value_converter)
+        template.enum_converter_registered[option] = enum
+        if return_value_on_get is not None:
+            template.enum_return_value[option] = bool(return_value_on_get)
 
     def set_alias(self, option: str, alias: str, /, *aliases: str) -> None:
         self.__check_locked()
-        info: _ConfigInfo = self.__info
+        template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
         for alias in set((alias, *aliases)):
             if not isinstance(alias, str):
@@ -1123,24 +919,11 @@ class Configuration:
                 raise InvalidAliasError(alias, "Same name with option")
             if not alias:
                 raise InvalidAliasError(alias, "Empty string alias")
-            if alias in info.options:
+            if alias in template.options:
                 raise InvalidAliasError(alias, "Alias name is a configuration option")
-            if alias in info.aliases:
-                raise InvalidAliasError(alias, f"Already bound to option {info.aliases[alias]!r}")
-            info.aliases[alias] = option
-
-    def remove_alias(self, alias: str) -> None:
-        self.__check_locked()
-        aliases: Dict[str, str] = self.__info.aliases
-        aliases.pop(alias)
-
-    def remove_all_aliases(self, option: str) -> None:
-        self.__check_locked()
-        self.check_option_validity(option)
-        aliases: Dict[str, str] = self.__info.aliases
-        for alias, opt in list(aliases.items()):
-            if opt == option:
-                aliases.pop(alias)
+            if alias in template.aliases:
+                raise InvalidAliasError(alias, f"Already bound to option {template.aliases[alias]!r}")
+            template.aliases[alias] = option
 
     def register_copy_func(self, cls: type, func: Callable[[Any], Any], *, allow_subclass: bool = False) -> None:
         self.__check_locked()
@@ -1148,64 +931,26 @@ class Configuration:
             raise TypeError("'cls' argument must be a type")
         if not callable(func):
             raise TypeError("'func' is not callable")
-        info: _ConfigInfo = self.__info
-        info.value_copy[cls] = func
-        info.value_copy_allow_subclass[cls] = bool(allow_subclass)
-
-    def remove_copy_func(self, cls: type) -> None:
-        self.__check_locked()
-        info: _ConfigInfo = self.__info
-        info.value_copy.pop(cls, None)
-        info.value_copy_allow_subclass.pop(cls, None)
+        template: _ConfigInfoTemplate = self.__template
+        template.value_copy[cls] = func
+        template.value_copy_allow_subclass[cls] = bool(allow_subclass)
 
     def readonly(self, *options: str) -> None:
         self.__check_locked()
-        info: _ConfigInfo = self.__info
-        parents: Tuple[Configuration, ...] = self.__parents__
+        template: _ConfigInfoTemplate = self.__template
         for option in options:
             self.check_option_validity(option)
-            if any(option in p.known_options() for p in parents):
-                continue
-            descriptor: Optional[_Descriptor] = info.value_descriptors.get(option)
-            if isinstance(descriptor, _ReadOnlyOptionProperty):
+            descriptor: Optional[_Descriptor] = template.value_descriptors.get(option)
+            if isinstance(descriptor, _ReadOnlyOptionPayload):
                 continue
             if isinstance(descriptor, (_MutableDescriptor, _RemovableDescriptor)):
                 if not isinstance(descriptor, property) or descriptor.fset is not None or descriptor.fdel is not None:
                     raise OptionError(option, "Trying to flag option as read-only with custom setter/deleter")
-            if descriptor is None:
-                descriptor = _PrivateAttributeOptionProperty(info, option)
-            info.value_descriptors[option] = _ReadOnlyOptionProperty(descriptor)
+            template.value_descriptors[option] = _ReadOnlyOptionPayload()
 
     def __check_locked(self) -> None:
         if self.__bound_class is not None:
             raise TypeError(f"Attempt to modify template after the class creation")
-
-    @staticmethod
-    @contextmanager
-    def __updating_option(obj: object, option: str) -> Iterator[None]:
-        if Configuration.has_initialization_context(obj):
-            yield
-            return
-
-        update_stack: List[str] = Configuration.__update_stack.setdefault(obj, [])
-        if option in update_stack:
-            yield
-            return
-
-        def cleanup() -> None:
-            with suppress(ValueError):
-                update_stack.remove(option)
-            if not update_stack:
-                Configuration.__update_stack.pop(obj, None)
-
-        with ExitStack() as stack:
-            stack.callback(cleanup)
-            update_stack.append(option)
-            yield
-
-    @property
-    def __parents__(self) -> Tuple[Configuration, ...]:
-        return self.__all_parents
 
     @property
     def owner(self) -> Optional[type]:
@@ -1231,9 +976,9 @@ class OptionAttribute(Generic[_T]):
             if self.__name != name:
                 raise ValueError(f"Assigning {self.__name!r} config attribute to {name}")
         self.__name: str = name
-        config: Configuration = _retrieve_configuration(owner)
+        config: ConfigurationTemplate = _retrieve_configuration(owner)
         if config.name is None:
-            raise TypeError("OptionAttribute must be declared after the Configuration object")
+            raise TypeError("OptionAttribute must be declared after the ConfigurationTemplate object")
         config.check_option_validity(name, use_alias=True)
         self.__config_name: str = config.name
 
@@ -1249,7 +994,7 @@ class OptionAttribute(Generic[_T]):
         if obj is None:
             return self
         name: str = self.__name
-        config: BoundConfiguration[Any] = getattr(obj, self.__config_name)
+        config: Configuration[Any] = getattr(obj, self.__config_name)
         try:
             value: _T = config.get(name)
         except OptionError as exc:
@@ -1259,7 +1004,7 @@ class OptionAttribute(Generic[_T]):
 
     def __set__(self, obj: object, value: _T, /) -> None:
         name: str = self.__name
-        config: BoundConfiguration[Any] = getattr(obj, self.__config_name)
+        config: Configuration[Any] = getattr(obj, self.__config_name)
         try:
             config.set(name, value)
         except OptionError as exc:
@@ -1268,7 +1013,7 @@ class OptionAttribute(Generic[_T]):
 
     def __delete__(self, obj: object, /) -> None:
         name: str = self.__name
-        config: BoundConfiguration[Any] = getattr(obj, self.__config_name)
+        config: Configuration[Any] = getattr(obj, self.__config_name)
         try:
             config.delete(name)
         except OptionError as exc:
@@ -1280,39 +1025,127 @@ class OptionAttribute(Generic[_T]):
         return self.__name
 
 
-_InitializationRegister = Dict[str, Any]
+class ConfigurationInfo(NamedTuple):
+    options: FrozenSet[str]
+    option_value_updater: Mapping[str, Callable[[object, Any], None]]
+    option_updater: Mapping[str, Callable[[object], None]]
+    many_options_updater: Optional[Callable[[object, Sequence[str]], None]]
+    main_updater: Optional[Callable[[object], None]]
+    value_converter: Mapping[str, Callable[[object, Any], Any]]
+    value_validator: Mapping[str, Callable[[object, Any], None]]
+    value_descriptors: Mapping[str, _Descriptor]
+    autocopy: bool
+    value_autocopy_get: Mapping[str, bool]
+    value_autocopy_set: Mapping[str, bool]
+    attribute_class_owner: Mapping[str, type]
+    aliases: Mapping[str, str]
+    value_copy: Mapping[type, Callable[[Any], Any]]
+    value_copy_allow_subclass: Mapping[type, bool]
+    readonly_options: FrozenSet[str]
+    enum_return_value: FrozenSet[str]
 
+    class __ReadOnlyOptionWrapper:  # type: ignore[misc]
+        def __init__(self, default_descriptor: _Descriptor) -> None:
+            self.__descriptor: Callable[[], _Descriptor] = lambda: default_descriptor
 
-class BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
-
-    __slots__ = ("__config", "__obj")
-
-    def __init__(self, config: Configuration, obj: _T) -> None:
-        super().__init__()
-        self.__config: Callable[[], Configuration] = lambda: config
-        self.__obj: _T = obj
-
-    def __iter__(self) -> Iterator[str]:
-        return iter(self.known_options())
-
-    def __len__(self) -> int:
-        return len(self.known_options())
-
-    def known_options(self) -> FrozenSet[str]:
-        config = self.__config()
-        return config.known_options()
-
-    def known_aliases(self) -> FrozenSet[str]:
-        config = self.__config()
-        return config.known_aliases()
+        def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Any:
+            descriptor: _Descriptor = self.__descriptor()
+            return descriptor.__get__(obj, objtype)
 
     def check_option_validity(self, option: str, *, use_alias: bool = False) -> str:
-        config = self.__config()
-        return config.check_option_validity(option, use_alias=use_alias)
+        if use_alias:
+            option = self.aliases.get(option, option)
+        if option not in self.options:
+            if not option:
+                raise EmptyOptionNameError()
+            raise UnknownOptionError(option)
+        return option
 
     def is_option_valid(self, option: str, *, use_alias: bool = False) -> bool:
-        config = self.__config()
-        return config.is_option_valid(option, use_alias=use_alias)
+        try:
+            self.check_option_validity(option, use_alias=use_alias)
+        except OptionError:
+            return False
+        return True
+
+    def get_value_descriptor(self, option: str, objtype: type) -> _Descriptor:
+        descriptor: Optional[_Descriptor] = self.value_descriptors.get(option, None)
+        if descriptor is None:
+            descriptor = _PrivateAttributeOptionProperty()
+            descriptor.__set_name__(self.attribute_class_owner.get(option, objtype), option)
+        if option in self.readonly_options:
+            descriptor = self.__ReadOnlyOptionWrapper(descriptor)
+        return descriptor
+
+    def get_copy_func(self, cls: type) -> Callable[[Any], Any]:
+        try:
+            return self.value_copy[cls]
+        except KeyError:
+            if self.value_copy_allow_subclass.get(cls, False):
+                for _type, func in self.value_copy.items():
+                    if issubclass(cls, _type):
+                        return func
+        return _copy_object
+
+
+_InitializationRegister = Dict[str, Any]
+_UpdateRegister = List[str]
+
+
+@final
+class Configuration(Generic[_T]):
+    __update_stack: ClassVar[Dict[object, List[str]]] = dict()
+    __init_context: ClassVar[Dict[object, _InitializationRegister]] = dict()
+    __update_context: ClassVar[Dict[object, _UpdateRegister]] = dict()
+    __lock_cache: ClassVar[WeakKeyDictionary[object, RLock]] = WeakKeyDictionary()
+    __default_lock: ClassVar[RLock] = RLock()
+
+    __slots__ = ("__info", "__obj")
+
+    class __OptionUpdateContext(NamedTuple):
+        first_update: bool
+        init_context: Optional[_InitializationRegister]
+        updated: _UpdateRegister
+
+    __DELETED: Any = object()
+
+    def __init__(self, obj: Union[_T, WeakReferenceType[_T]], info: ConfigurationInfo) -> None:
+        self.__obj: Callable[[], Optional[_T]] = obj if isinstance(obj, WeakReferenceType) else lambda obj=obj: obj  # type: ignore[misc]
+        self.__info: ConfigurationInfo = info
+
+    def __contains__(self, option: str) -> bool:
+        try:
+            return self.get(option, _MISSING) is not _MISSING
+        except (EmptyOptionNameError, UnknownOptionError):
+            return False
+
+    @overload
+    def get(self, option: str) -> Any:
+        ...
+
+    @overload
+    def get(self, option: str, default: _DT) -> Union[Any, _DT]:
+        ...
+
+    def get(self, option: str, default: Any = _NO_DEFAULT) -> Any:
+        obj: _T = self.__self__
+        info: ConfigurationInfo = self.__info
+        option = info.check_option_validity(option, use_alias=True)
+        descriptor = info.get_value_descriptor(option, type(obj))
+        try:
+            with self.__lazy_lock(obj):
+                value: Any = descriptor.__get__(obj, type(obj))
+        except (AttributeError, OptionError):
+            if default is _NO_DEFAULT:
+                raise
+            return default
+        if option in info.enum_return_value and isinstance(value, Enum):
+            return value.value
+        if info.value_autocopy_get.get(option, info.autocopy):
+            copy_func = info.get_copy_func(type(value))
+            with suppress(Exception):
+                value = copy_func(value)
+        return value
 
     def __getitem__(self, option: str, /) -> Any:
         try:
@@ -1320,18 +1153,49 @@ class BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
         except OptionError as exc:
             raise KeyError(option) from exc
 
-    @overload
-    def get(self, option: str, /) -> Any:
-        ...
+    def set(self, option: str, value: Any) -> None:
+        obj: _T = self.__self__
+        info: ConfigurationInfo = self.__info
+        option = info.check_option_validity(option, use_alias=True)
+        descriptor = info.get_value_descriptor(option, type(obj))
 
-    @overload
-    def get(self, option: str, default: _DT, /) -> _DT:
-        ...
+        if not isinstance(descriptor, _MutableDescriptor):
+            raise OptionError(option, "Cannot be set")
 
-    def get(self, option: str, default: _DT = _NO_DEFAULT, /) -> Union[Any, _DT]:
-        config = self.__config()
-        obj = self.__obj
-        return config.get(obj, option, default)
+        with self.__updating_option(obj, option, info) as update_context:
+            value_validator: Optional[Callable[[object, Any], None]] = info.value_validator.get(option, None)
+            value_converter: Optional[Callable[[object, Any], Any]] = info.value_converter.get(option, None)
+            if value_validator is not None:
+                value_validator(obj, value)
+            converter_applied: bool = False
+            if value_converter is not None:
+                value = value_converter(obj, value)
+                converter_applied = True
+
+            try:
+                actual_value = descriptor.__get__(obj, type(obj))
+            except (AttributeError, UnregisteredOptionError):
+                pass
+            else:
+                if actual_value == value:
+                    return
+
+            if not converter_applied and info.value_autocopy_set.get(option, info.autocopy):
+                copy_func = info.get_copy_func(type(value))
+                with suppress(Exception):
+                    value = copy_func(value)
+
+            descriptor.__set__(obj, value)
+            update_context.updated.append(option)
+
+            register = update_context.init_context
+            if register is not None:
+                register[option] = value
+                return
+
+            value_updater = info.option_value_updater.get(option, None)
+            if value_updater is not None:
+                value_updater(obj, value)
 
     def __setitem__(self, option: str, value: Any, /) -> None:
         try:
@@ -1339,10 +1203,22 @@ class BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
         except OptionError as exc:
             raise KeyError(option) from exc
 
-    def set(self, option: str, value: Any) -> None:
-        config = self.__config()
-        obj = self.__obj
-        return config.set(obj, option, value)
+    def delete(self, option: str) -> None:
+        obj: _T = self.__self__
+        info: ConfigurationInfo = self.__info
+        option = info.check_option_validity(option, use_alias=True)
+        descriptor = info.get_value_descriptor(option, type(obj))
+
+        if not isinstance(descriptor, _RemovableDescriptor):
+            raise OptionError(option, "Cannot be deleted")
+
+        with self.__updating_option(obj, option, info) as update_context:
+            descriptor.__delete__(obj)
+            update_context.updated.append(option)
+            register = update_context.init_context
+            if register is not None:
+                register[option] = self.__DELETED
+                return
 
     def __delitem__(self, option: str, /) -> None:
         try:
@@ -1350,72 +1226,246 @@ class BoundConfiguration(MutableMapping[str, Any], Generic[_T]):
         except OptionError as exc:
             raise KeyError(option) from exc
 
-    def delete(self, option: str) -> None:
-        config = self.__config()
-        obj = self.__obj
-        return config.delete(obj, option)
-
     def __call__(self, **kwargs: Any) -> None:
-        config = self.__config()
-        obj = self.__obj
-        return config(obj, **kwargs)
+        obj: _T = self.__self__
 
-    @overload
-    def update(self, __m: SupportsKeysAndGetItem[str, Any], /, **kwargs: Any) -> None:
-        ...
-
-    @overload
-    def update(self, __m: Iterable[Tuple[str, Any]], /, **kwargs: Any) -> None:
-        ...
-
-    @overload
-    def update(self, /, **kwargs: Any) -> None:
-        ...
-
-    def update(
-        self, __m: Optional[Union[SupportsKeysAndGetItem[str, Any], Iterable[Tuple[str, Any]]]] = None, /, **kwargs: Any
-    ) -> None:
-        options: Dict[str, Any] = {}
-
-        if _supports_key(__m):
-            for key in __m.keys():
-                options[key] = __m[key]
-        elif __m is not None:
-            for key, value in __m:  # type: ignore[union-attr]
-                options[key] = value
-        options.update(kwargs)
-        config = self.__config()
-        obj = self.__obj
-        if not options:
-            if __m is None:
-                config.update_all_options(obj)
+        nb_options = len(kwargs)
+        if nb_options < 1:
             return
-        return config(obj, **options)
 
-    def update_all_options(self) -> None:
-        config = self.__config()
-        obj = self.__obj
-        return config.update_all_options(obj)
+        option: str
+        value: Any
+        if nb_options == 1:
+            option, value = next(iter(kwargs.items()))
+            return self.set(option, value)
 
-    def update_option(self, option: str) -> None:
-        config = self.__config()
-        obj = self.__obj
-        return config.update_option(obj, option)
+        # TODO (3.11): Exception groups
+        info = self.__info
+        options = [info.check_option_validity(option, use_alias=True) for option in kwargs]
+        with self.__updating_many_options(obj, *options, info=self.__info):
+            for option, value in kwargs.items():
+                self.set(option, value)
 
     @contextmanager
     def initialization(self) -> Iterator[None]:
-        config = self.__config()
-        obj = self.__obj
-        with config.initialization(obj) as out:
-            yield out
+        obj: _T = self.__self__
+
+        with self.__lazy_lock(obj):
+            if obj in Configuration.__init_context:
+                yield
+                return
+
+            if obj in Configuration.__update_stack:
+                raise InitializationError("Cannot use initialization context while updating an option value")
+
+            def cleanup(objref: WeakReferenceType[object] = weakref(obj)) -> None:
+                obj = objref()
+                if obj is not None:
+                    Configuration.__init_context.pop(obj, None)
+
+            with ExitStack() as stack:
+                initialization_register: _InitializationRegister = {}
+                Configuration.__init_context[obj] = initialization_register
+                stack.callback(cleanup)
+                yield
+                update_register: _InitializationRegister = {}
+                Configuration.__init_context[obj] = update_register
+                info: ConfigurationInfo = self.__info
+                with self.__updating_many_options(obj, *initialization_register, info=info, call_updaters=False):
+                    for option, value in initialization_register.items():
+                        value_update = info.option_value_updater.get(option, None)
+                        if value_update is not None:
+                            value_update(obj, value)
+                            if option in update_register:
+                                raise OptionError(option, "Value modified after update in initialization context")
+                    many_options_updater = info.many_options_updater
+                    if many_options_updater is not None:
+                        many_options_updater(obj, tuple(initialization_register))
+                        if update_register:
+                            raise OptionError("", "Options were modified after update in initialization context")
+                    else:
+                        for option in initialization_register:
+                            option_updater = info.option_updater.get(option, None)
+                            if option_updater is not None:
+                                option_updater(obj)
+                                if option in update_register:
+                                    raise OptionError(option, "Value modified after update in initialization context")
+                    main_updater = info.main_updater
+                    if main_updater is not None:
+                        main_updater(obj)
+                        if update_register:
+                            raise OptionError("", "Options were modified after update in initialization context")
 
     def has_initialization_context(self) -> bool:
-        obj = self.__obj
-        return Configuration.has_initialization_context(obj)
+        return self.__self__ in Configuration.__init_context
+
+    def update_option(self, option: str) -> None:
+        obj: _T = self.__self__
+        info: ConfigurationInfo = self.__info
+        option = info.check_option_validity(option, use_alias=True)
+        return self.__update_single_option(obj, option, info)
+
+    def update_options(self, *options: str) -> None:
+        obj: _T = self.__self__
+        info: ConfigurationInfo = self.__info
+        options = tuple(dict.fromkeys(info.check_option_validity(option, use_alias=True) for option in options))
+        return self.__update_options(obj, *options, info=info)
+
+    def update_all_options(self) -> None:
+        obj: _T = self.__self__
+        info: ConfigurationInfo = self.__info
+        return self.__update_options(obj, *info.options, info=info)
+
+    @property
+    def info(self) -> ConfigurationInfo:
+        return self.__info
 
     @property
     def __self__(self) -> _T:
-        return self.__obj
+        obj: Optional[_T] = self.__obj()
+        if obj is None:
+            raise ReferenceError("weakly-referenced object no longer exists")
+        return obj
+
+    @staticmethod
+    def __update_options(obj: object, *options: str, info: ConfigurationInfo) -> None:
+        nb_options = len(options)
+        if nb_options < 1:
+            return
+        if nb_options == 1:
+            return Configuration.__update_single_option(obj, options[0], info)
+
+        objtype: type = type(obj)
+        with Configuration.__updating_many_options(obj, *options, info=info, call_updaters=False):
+            for option in options:
+                descriptor = info.get_value_descriptor(option, objtype)
+                try:
+                    value: Any = descriptor.__get__(obj, type(obj))
+                except (AttributeError, UnregisteredOptionError):
+                    pass
+                else:
+                    value_update = info.option_value_updater.get(option, None)
+                    if value_update is not None:
+                        value_update(obj, value)
+            many_options_updater = info.many_options_updater
+            if many_options_updater is not None:
+                many_options_updater(obj, options)
+            else:
+                for option in options:
+                    option_updater = info.option_updater.get(option, None)
+                    if option_updater is not None:
+                        option_updater(obj)
+            main_updater = info.main_updater
+            if main_updater is not None:
+                main_updater(obj)
+
+    @staticmethod
+    def __update_single_option(obj: object, option: str, info: ConfigurationInfo) -> None:
+        descriptor = info.get_value_descriptor(option, type(obj))
+
+        with Configuration.__updating_option(obj, option, info, call_updaters=False):
+            try:
+                value: Any = descriptor.__get__(obj, type(obj))
+            except (AttributeError, UnregisteredOptionError):
+                pass
+            else:
+                value_update = info.option_value_updater.get(option, None)
+                if value_update is not None:
+                    value_update(obj, value)
+            option_updater = info.option_updater.get(option, None)
+            if option_updater is not None:
+                option_updater(obj)
+            main_updater = info.main_updater
+            if main_updater is not None:
+                main_updater(obj)
+
+    @staticmethod
+    @contextmanager
+    def __updating_option(
+        obj: object, option: str, info: ConfigurationInfo, *, call_updaters: bool = True
+    ) -> Iterator[__OptionUpdateContext]:
+        UpdateContext = Configuration.__OptionUpdateContext
+
+        with Configuration.__lazy_lock(obj):
+            register = Configuration.__init_context.get(obj, None)
+            if register is not None:
+                yield UpdateContext(first_update=False, init_context=register, updated=[])
+                return
+
+            update_register: _UpdateRegister = Configuration.__update_context.setdefault(obj, [])
+            update_stack: List[str] = Configuration.__update_stack.setdefault(obj, [])
+            if option in update_stack:
+                yield UpdateContext(first_update=False, init_context=None, updated=update_register)
+                return
+
+            def cleanup(objref: WeakReferenceType[object] = weakref(obj)) -> None:
+                obj = objref()
+                with suppress(ValueError):
+                    update_stack.remove(option)
+                if not update_stack and obj is not None:
+                    Configuration.__update_stack.pop(obj, None)
+
+            update_stack.append(option)
+            with ExitStack() as stack:
+                stack.callback(cleanup)
+                yield UpdateContext(first_update=True, init_context=None, updated=update_register)
+            if update_stack:
+                return
+            update_register = list(dict.fromkeys(Configuration.__update_context.pop(obj, update_register)))
+            if not call_updaters:
+                return
+            main_updater = info.main_updater
+            if update_register:
+                many_options_updater = info.many_options_updater if len(update_register) > 1 else None
+                if many_options_updater is not None:
+                    many_options_updater(obj, update_register)
+                else:
+                    for option in update_register:
+                        option_updater = info.option_updater.get(option, None)
+                        if option_updater is not None and option_updater is not main_updater:
+                            option_updater(obj)
+                if main_updater is not None:
+                    main_updater(obj)
+
+    @staticmethod
+    @contextmanager
+    def __updating_many_options(
+        obj: object, *options: str, info: ConfigurationInfo, call_updaters: bool = True
+    ) -> Iterator[None]:
+        nb_options = len(options)
+        if nb_options < 1:
+            yield
+            return
+
+        with Configuration.__lazy_lock(obj):
+            if obj in Configuration.__init_context:
+                yield
+                return
+            if nb_options == 1:
+                with Configuration.__updating_option(obj, options[0], info):
+                    yield
+                return
+            with ExitStack() as stack:
+                for option in options:
+                    stack.enter_context(Configuration.__updating_option(obj, option, info, call_updaters=call_updaters))
+                yield
+
+    @staticmethod
+    def __lazy_lock(obj: object) -> Union[RLock, nullcontext[None]]:
+        lock_cache = Configuration.__lock_cache
+        try:
+            lock: RLock = lock_cache.get(obj, _MISSING)
+        except TypeError:
+            return nullcontext()
+        if lock is _MISSING:
+            with Configuration.__default_lock:
+                lock = lock_cache.get(obj, _MISSING)
+                if lock is _MISSING:
+                    try:
+                        lock_cache[obj] = lock = RLock()
+                    except Exception:
+                        return nullcontext()
+        return lock
 
 
 def _no_type_check_cache(func: _Func) -> _Func:
@@ -1505,8 +1555,31 @@ def _wrap_function_wrapper(func: Any, wrapper: Callable[..., Any]) -> Callable[.
     return wrapper
 
 
-def _supports_key(__m: object) -> TypeGuard[SupportsKeysAndGetItem[str, Any]]:
-    return hasattr(__m, "keys") and hasattr(__m, "__getitem__")
+@_no_type_check_cache
+def _make_type_checker(_type: Union[type, Tuple[type, ...]], accept_none: bool) -> Callable[[Any], None]:
+    def type_checker(val: Any, /) -> None:
+        if (accept_none and val is None) or isinstance(val, _type):
+            return
+        expected: str
+        if isinstance(_type, type):
+            expected = f"a {_type.__qualname__} object type"
+        else:
+            expected = f"one of those object types: ({', '.join(t.__qualname__ for t in _type)})"
+        cls: type = type(val)
+        got: str = repr(cls.__qualname__ if cls.__module__ != object.__module__ else val)
+        raise TypeError(f"Invalid value type. expected {expected}, got {got}")
+
+    return type_checker
+
+
+@_no_type_check_cache
+def _make_value_converter(_type: type, accept_none: bool) -> Callable[[Any], Any]:
+    def value_converter(val: Any, /, *, _type: Callable[[Any], Any] = _type) -> Any:
+        if accept_none and val is None:
+            return None
+        return _type(val)
+
+    return value_converter
 
 
 def _get_cls_mro(cls: type) -> List[type]:
@@ -1544,13 +1617,13 @@ def _all_members(cls: type) -> Dict[str, Any]:
     return members
 
 
-def _register_configuration(cls: type, config: Optional[Configuration]) -> Optional[Configuration]:
+def _register_configuration(cls: type, config: Optional[ConfigurationTemplate]) -> Optional[ConfigurationTemplate]:
     if not isinstance(cls, type):
         raise TypeError(f"{cls} is not a type")
-    former_config: Optional[Configuration] = None
+    former_config: Optional[ConfigurationTemplate] = None
     with suppress(TypeError):
         former_config = _retrieve_configuration(cls)
-    if isinstance(config, Configuration):
+    if isinstance(config, ConfigurationTemplate):
         setattr(cls, "_bound_configuration_", config)
     else:
         with suppress(AttributeError):
@@ -1558,31 +1631,31 @@ def _register_configuration(cls: type, config: Optional[Configuration]) -> Optio
     return former_config
 
 
-def _retrieve_configuration(cls: type) -> Configuration:
+def _retrieve_configuration(cls: type) -> ConfigurationTemplate:
     try:
-        config: Configuration = getattr(cls, "_bound_configuration_")
-        if not isinstance(config, Configuration):
+        config: ConfigurationTemplate = getattr(cls, "_bound_configuration_")
+        if not isinstance(config, ConfigurationTemplate):
             raise AttributeError
     except AttributeError:
-        raise TypeError(f"{cls.__name__} does not have a {Configuration.__name__} object") from None
+        raise TypeError(f"{cls.__name__} does not have a {ConfigurationTemplate.__name__} object") from None
     return config
 
 
 @runtime_checkable
 class _Descriptor(Protocol):
-    def __get__(self, obj: object, objtype: Optional[type], /) -> Any:
+    def __get__(self, __obj: object, __objtype: Optional[type], /) -> Any:
         pass
 
 
 @runtime_checkable
 class _MutableDescriptor(_Descriptor, Protocol):
-    def __set__(self, obj: object, value: Any, /) -> None:
+    def __set__(self, __obj: object, __value: Any, /) -> None:
         pass
 
 
 @runtime_checkable
 class _RemovableDescriptor(_Descriptor, Protocol):
-    def __delete__(self, obj: object, /) -> None:
+    def __delete__(self, __obj: object, /) -> None:
         pass
 
 
@@ -1590,77 +1663,35 @@ _KT = TypeVar("_KT")
 _VT = TypeVar("_VT")
 
 
-class _ConfigInfo:
-
-    __slots__ = (
-        "owner",
-        "parents",
-        "options",
-        "main_update",
-        "value_descriptors",
-        "update",
-        "self_update",
-        "value_converter",
-        "value_update",
-        "self_value_update",
-        "value_validator",
-        "autocopy",
-        "value_autocopy_get",
-        "value_autocopy_set",
-        "attribute_class_owner",
-        "aliases",
-        "value_copy",
-        "value_copy_allow_subclass",
-        "enum_return_value",
-        "readonly",
-        "cached_attribute",
-    )
-
-    def __init__(
-        self,
-        known_options: Sequence[str],
-        autocopy: Optional[bool],
-        parents: Sequence[_ConfigInfo],
-        cached_attribute: Optional[bool],
-    ) -> None:
-        def merge_dict(
-            d1: Dict[_KT, _VT], d2: Dict[_KT, _VT], /, *, on_conflict: Literal["override", "raise", "skip"], setting: str
-        ) -> None:
-            for key, value in d2.items():
-                if key in d1:
-                    if d1[key] == value or on_conflict == "skip":
-                        continue
-                    if on_conflict == "raise":
-                        raise ConfigError(f"Conflict of setting {setting!r} for {key!r}")
-                d1[key] = value
-
-        self.owner: Optional[type] = None
-        self.parents: Tuple[_ConfigInfo, ...] = tuple(parents)
+class _ConfigInfoTemplate:
+    def __init__(self, known_options: Sequence[str], autocopy: Optional[bool], parents: Sequence[_ConfigInfoTemplate]) -> None:
         self.options: FrozenSet[str] = frozenset(known_options)
-        self.main_update: Optional[Callable[[object], None]] = None
+        self.main_updater: List[Callable[[object], None]] = list()
+        self.option_updater: Dict[str, List[Callable[[object], None]]] = dict()
+        self.option_value_updater: Dict[str, List[Callable[[object, Any], None]]] = dict()
         self.value_descriptors: Dict[str, _Descriptor] = dict()
-        self.update: Dict[str, Callable[[object], None]] = dict()
-        self.self_update: Dict[str, Callable[[object], None]] = dict()
-        self.value_converter: Dict[str, Callable[[object, Any], Any]] = dict()
-        self.value_update: Dict[str, Callable[[object, Any], None]] = dict()
-        self.self_value_update: Dict[str, Callable[[object, Any], None]] = dict()
-        self.value_validator: Dict[str, Callable[[object, Any], None]] = dict()
-        self.autocopy: bool = autocopy or False
+        self.value_converter: Dict[str, List[Callable[[object, Any], Any]]] = dict()
+        self.value_validator: Dict[str, List[Callable[[object, Any], None]]] = dict()
+        self.autocopy: bool = bool(autocopy) if autocopy is not None else False
         self.value_autocopy_get: Dict[str, bool] = dict()
         self.value_autocopy_set: Dict[str, bool] = dict()
         self.attribute_class_owner: Dict[str, type] = dict()
         self.aliases: Dict[str, str] = dict()
         self.value_copy: Dict[type, Callable[[Any], Any]] = dict()
         self.value_copy_allow_subclass: Dict[type, bool] = dict()
+        self.enum_converter_registered: Dict[str, type[Enum]] = dict()
         self.enum_return_value: Dict[str, bool] = dict()
-        self.cached_attribute: bool = cached_attribute or False
 
+        merge_dict = self.__merge_dict
+        merge_list = self.__merge_list
+        merge_updater_dict = self.__merge_updater_dict
         for p in parents:
             self.options |= p.options
             if autocopy is None:
                 self.autocopy |= p.autocopy
-            if cached_attribute is None:
-                self.cached_attribute &= p.cached_attribute
+            merge_list(self.main_updater, p.main_updater, on_duplicate="skip", setting="main_update")
+            merge_updater_dict(self.option_updater, p.option_updater, setting="update")
+            merge_updater_dict(self.option_value_updater, p.option_value_updater, setting="value_update")
             merge_dict(self.value_descriptors, p.value_descriptors, on_conflict="raise", setting="descriptor")
             merge_dict(self.value_converter, p.value_converter, on_conflict="raise", setting="value_converter")
             merge_dict(self.value_validator, p.value_validator, on_conflict="raise", setting="value_validator")
@@ -1670,49 +1701,260 @@ class _ConfigInfo:
             merge_dict(self.aliases, p.aliases, on_conflict="raise", setting="aliases")
             merge_dict(self.value_copy, p.value_copy, on_conflict="raise", setting="value_copy_func")
             merge_dict(
-                self.value_copy_allow_subclass, p.value_copy_allow_subclass, on_conflict="raise", setting="copy_allow_subclass"
+                self.value_copy_allow_subclass,
+                p.value_copy_allow_subclass,
+                on_conflict="raise",
+                setting="copy_allow_subclass",
+            )
+            merge_dict(
+                self.enum_converter_registered,
+                p.enum_converter_registered,
+                on_conflict="raise",
+                setting="enum_converter_registered",
             )
             merge_dict(self.enum_return_value, p.enum_return_value, on_conflict="raise", setting="enum_return_value")
 
-    def get_main_update_funcs(self) -> Iterator[Callable[[object], None]]:
-        def get_iterator() -> Iterator[Callable[[object], None]]:
-            for parent in self.parents:
-                yield from parent.get_main_update_funcs()
-            main_update = self.main_update
-            if callable(main_update):
-                yield main_update
+        self.parent_descriptors: FrozenSet[_Descriptor] = frozenset(self.value_descriptors.values())
 
-        yield from dict.fromkeys(get_iterator())
+    @staticmethod
+    def __merge_dict(
+        d1: Dict[_KT, _VT],
+        d2: Dict[_KT, _VT],
+        /,
+        *,
+        on_conflict: Literal["override", "raise", "skip"],
+        setting: str,
+    ) -> None:
+        for key, value in d2.items():
+            if key in d1:
+                if d1[key] == value or on_conflict == "skip":
+                    continue
+                if on_conflict == "raise":
+                    raise ConfigError(f"Conflict of setting {setting!r} for {key!r} key")
+            d1[key] = value
 
-    def get_option_update_funcs(self, option: str) -> Iterator[Callable[[object], None]]:
-        def get_iterator() -> Iterator[Callable[[object], None]]:
-            for parent in self.parents:
-                yield from parent.get_option_update_funcs(option)
-            update_func = self.update.get(option)
-            if callable(update_func):
-                yield update_func
+    @staticmethod
+    def __merge_list(
+        l1: List[_T],
+        l2: List[_T],
+        /,
+        *,
+        on_duplicate: Literal["keep", "put_at_end", "raise", "skip"],
+        setting: str,
+    ) -> None:
+        for value in l2:
+            if value in l1:
+                if on_duplicate == "skip":
+                    continue
+                if on_duplicate == "put_at_end":
+                    l1.remove(value)
+                elif on_duplicate == "raise":
+                    raise ConfigError(f"Conflict of setting {setting!r}: Duplicate of value {value!r}")
+            l1.append(value)
 
-        yield from dict.fromkeys(get_iterator())
+    @classmethod
+    def __merge_updater_dict(
+        cls,
+        d1: Dict[str, List[_Func]],
+        d2: Dict[str, List[_Func]],
+        /,
+        *,
+        setting: str,
+    ) -> None:
+        merge_list = cls.__merge_list
+        for key, l2 in d2.items():
+            l1 = d1.setdefault(key, [])
+            merge_list(l1, l2, on_duplicate="skip", setting=setting)
 
-    def get_option_value_update_funcs(self, option: str) -> Iterator[Callable[[object, Any], None]]:
-        def get_iterator() -> Iterator[Callable[[object, Any], None]]:
-            for parent in self.parents:
-                yield from parent.get_option_value_update_funcs(option)
-            update_func = self.value_update.get(option)
-            if callable(update_func):
-                yield update_func
+    def build(self) -> ConfigurationInfo:
+        options: FrozenSet[str] = self.options
+        option_value_updater: Mapping[str, Callable[[object, Any], None]] = self.__build_option_value_updater_dict()
+        option_updater: Mapping[str, Callable[[object], None]] = self.__build_option_updater_dict()
+        many_options_updater: Optional[Callable[[object, Sequence[str]], None]] = self.__build_many_options_updater()
+        main_updater: Optional[Callable[[object], None]] = self.__build_main_updater()
+        value_converter: Mapping[str, Callable[[object, Any], Any]] = self.__build_value_converter_dict()
+        value_validator: Mapping[str, Callable[[object, Any], None]] = self.__build_value_validator_dict()
+        value_descriptors: Mapping[str, _Descriptor] = self.__build_value_descriptor_dict()
+        autocopy: bool = bool(self.autocopy)
+        value_autocopy_get: Mapping[str, bool] = MappingProxyType(self.value_autocopy_get.copy())
+        value_autocopy_set: Mapping[str, bool] = MappingProxyType(self.value_autocopy_set.copy())
+        attribute_class_owner: Mapping[str, type] = MappingProxyType(self.attribute_class_owner.copy())
+        aliases: Mapping[str, str] = MappingProxyType(self.aliases.copy())
+        value_copy: Mapping[type, Callable[[Any], Any]] = MappingProxyType(self.value_copy.copy())
+        value_copy_allow_subclass: Mapping[type, bool] = MappingProxyType(self.value_copy_allow_subclass.copy())
+        readonly_options: FrozenSet[str] = self.__build_readonly_options_set()
+        enum_return_value: FrozenSet[str] = self.__build_enum_return_value_set()
 
-        yield from dict.fromkeys(get_iterator())
+        return ConfigurationInfo(
+            options=options,
+            option_value_updater=option_value_updater,
+            option_updater=option_updater,
+            many_options_updater=many_options_updater,
+            main_updater=main_updater,
+            value_converter=value_converter,
+            value_validator=value_validator,
+            value_descriptors=value_descriptors,
+            autocopy=autocopy,
+            value_autocopy_get=value_autocopy_get,
+            value_autocopy_set=value_autocopy_set,
+            attribute_class_owner=attribute_class_owner,
+            aliases=aliases,
+            value_copy=value_copy,
+            value_copy_allow_subclass=value_copy_allow_subclass,
+            readonly_options=readonly_options,
+            enum_return_value=enum_return_value,
+        )
 
-    def get_copy_func(self, cls: type) -> Callable[[Any], Any]:
-        try:
-            return self.value_copy[cls]
-        except KeyError:
-            if self.value_copy_allow_subclass.get(cls, False):
-                for _type, func in self.value_copy.items():
-                    if issubclass(cls, _type):
-                        return func
-        return _copy_object
+    def __build_option_value_updater_dict(self) -> MappingProxyType[str, Callable[[object, Any], None]]:
+        build_option_value_updater = self.__build_option_value_updater_func
+
+        return MappingProxyType(
+            {
+                option: build_option_value_updater(updater_list)
+                for option, updater_list in self.option_value_updater.items()
+                if len(updater_list) > 0
+            }
+        )
+
+    @staticmethod
+    def __build_option_value_updater_func(updater_list: Sequence[Callable[[object, Any], None]]) -> Callable[[object, Any], None]:
+        if len(updater_list) == 1:
+            return updater_list[0]
+
+        def option_value_updater_func(
+            obj: object, value: Any, /, *, updater_list: Sequence[Callable[[object, Any], None]] = tuple(updater_list)
+        ) -> None:
+            for option_value_updater in updater_list:
+                option_value_updater(obj, value)
+
+        return option_value_updater_func
+
+    def __build_main_updater(self) -> Optional[Callable[[object], None]]:
+        main_updater_list = self.main_updater
+        if not main_updater_list:
+            return None
+        build_updater = self.__build_updater_func
+        return build_updater(main_updater_list)
+
+    def __build_option_updater_dict(self) -> MappingProxyType[str, Callable[[object], None]]:
+        build_updater = self.__build_updater_func
+        main_updater_list = self.main_updater
+
+        return MappingProxyType(
+            {
+                option: build_updater(filtered_updater_list)
+                for option, updater_list in self.option_updater.items()
+                if len((filtered_updater_list := [f for f in updater_list if f not in main_updater_list])) > 0
+            }
+        )
+
+    @staticmethod
+    def __build_updater_func(updater_list: Sequence[Callable[[object], None]]) -> Callable[[object], None]:
+        if len(updater_list) == 1:
+            return updater_list[0]
+
+        def updater_func(obj: object, /, *, updater_list: Sequence[Callable[[object], None]] = tuple(updater_list)) -> None:
+            for updater in updater_list:
+                updater(obj)
+
+        return updater_func
+
+    def __build_many_options_updater(self) -> Optional[Callable[[object, Sequence[str]], None]]:
+        main_updater_list = self.main_updater
+        option_updater_dict = {
+            option: filtered_updater_list
+            for option, updater_list in self.option_updater.items()
+            if len((filtered_updater_list := [f for f in updater_list if f not in main_updater_list])) > 0
+        }
+        if len(option_updater_dict) < 2:
+            return None
+
+        merge_list = _ConfigInfoTemplate.__merge_list
+
+        def many_options_updater_func(
+            obj: object,
+            options: Sequence[str],
+            /,
+            *,
+            option_updater_dict: Dict[str, List[Callable[[object], None]]] = option_updater_dict,
+        ) -> None:
+            updater_list: List[Callable[[object], None]] = []
+            for option in options:
+                merge_list(updater_list, option_updater_dict.get(option, []), on_duplicate="skip", setting="")
+            for updater in updater_list:
+                updater(obj)
+
+        return many_options_updater_func
+
+    def __build_value_converter_dict(self) -> MappingProxyType[str, Callable[[object, Any], Any]]:
+        build_converter = self.__build_value_converter_func
+
+        return MappingProxyType(
+            {
+                option: build_converter(converter_list)
+                for option, converter_list in self.value_converter.items()
+                if len(converter_list) > 0
+            }
+        )
+
+    @staticmethod
+    def __build_value_converter_func(converter_list: Sequence[Callable[[object, Any], Any]]) -> Callable[[object, Any], Any]:
+        if len(converter_list) == 1:
+            return converter_list[0]
+
+        def value_converter_func(
+            obj: object, value: Any, /, *, converter_list: Sequence[Callable[[object, Any], Any]] = tuple(converter_list)
+        ) -> Any:
+            for converter in converter_list:
+                value = converter(obj, value)
+            return value
+
+        return value_converter_func
+
+    def __build_value_validator_dict(self) -> MappingProxyType[str, Callable[[object, Any], None]]:
+        build_value_validator = self.__build_value_validator_func
+
+        return MappingProxyType(
+            {
+                option: build_value_validator(validator_list)
+                for option, validator_list in self.value_validator.items()
+                if len(validator_list) > 0
+            }
+        )
+
+    @staticmethod
+    def __build_value_validator_func(validator_list: Sequence[Callable[[object, Any], None]]) -> Callable[[object, Any], None]:
+        if len(validator_list) == 1:
+            return validator_list[0]
+
+        def value_validator_func(
+            obj: object, value: Any, /, *, validator_list: Sequence[Callable[[object, Any], None]] = tuple(validator_list)
+        ) -> None:
+            for value_validator in validator_list:
+                value_validator(obj, value)
+
+        return value_validator_func
+
+    def __build_value_descriptor_dict(self) -> MappingProxyType[str, _Descriptor]:
+        value_descriptors: Dict[str, _Descriptor] = {}
+
+        for option, descriptor in self.value_descriptors.items():
+            if isinstance(descriptor, _ReadOnlyOptionPayload):
+                underlying_descriptor = descriptor.get_descriptor()
+                if underlying_descriptor is None:
+                    continue
+                descriptor = underlying_descriptor
+            value_descriptors[option] = descriptor
+
+        return MappingProxyType(value_descriptors)
+
+    def __build_readonly_options_set(self) -> FrozenSet[str]:
+        return frozenset(
+            option for option, descriptor in self.value_descriptors.items() if isinstance(descriptor, _ReadOnlyOptionPayload)
+        )
+
+    def __build_enum_return_value_set(self) -> FrozenSet[str]:
+        return frozenset(option for option, value in self.enum_return_value.items() if value)
 
 
 def _copy_object(obj: _T) -> _T:
@@ -1733,25 +1975,33 @@ class _ConfigInitializer:
 
     @property
     def __call__(self) -> Callable[..., Any]:
-        return self.__get__(None)
+        return self.__make_initializer()
 
     def __getattr__(self, name: str, /) -> Any:
         func: Any = self.__func__
         return getattr(func, name)
 
     def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Callable[..., Any]:
+        config_initializer = self.__make_initializer()
+        method_func: Callable[..., Any] = getattr(config_initializer, "__get__")(obj, objtype)
+        return method_func
+
+    def __make_initializer(self) -> Callable[..., Any]:
         init_func: Callable[..., Any] = self.__func__
         func_get: Callable[[object, Optional[type]], Callable[..., Any]] = getattr(init_func, "__get__")
 
         @wraps(init_func)
         def config_initializer(self: object, /, *args: Any, **kwargs: Any) -> Any:
-            config: Configuration = _retrieve_configuration(objtype if objtype is not None else type(self))
-            method: Callable[..., Any] = func_get(self, objtype)
-            with config.initialization(self):
+            config_template: ConfigurationTemplate = _retrieve_configuration(type(self))
+            config_name = config_template.name
+            if config_name is None:
+                raise TypeError("ConfigurationTemplate object was not initialized using __set_name__")
+            config: Configuration[object] = getattr(self, config_name)
+            method: Callable[..., Any] = func_get(self, type(self))
+            with config.initialization():
                 return method(*args, **kwargs)
 
-        method_func: Callable[..., Any] = getattr(config_initializer, "__get__")(obj, objtype)
-        return method_func
+        return config_initializer
 
     @property
     def __wrapped__(self) -> Callable[..., Any]:
@@ -1763,16 +2013,14 @@ class _ConfigProperty(property):
 
 
 class _PrivateAttributeOptionProperty:
-    def __init__(self, info: _ConfigInfo, option: str) -> None:
-        self.__info: _ConfigInfo = info
-        self.__name: str = option
+    def __set_name__(self, owner: type, name: str, /) -> None:
+        self.__owner: type = owner
+        self.__name: str = name
 
     def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Any:
         if obj is None:
             return self
-        if objtype is None:
-            objtype = type(obj)
-        attribute: str = self.__get_option_private_attribute(objtype)
+        attribute: str = mangle_private_attribute(self.__owner, self.__name)
         try:
             return getattr(obj, attribute)
         except AttributeError as exc:
@@ -1780,42 +2028,35 @@ class _PrivateAttributeOptionProperty:
             raise UnregisteredOptionError(name) from exc
 
     def __set__(self, obj: object, value: Any, /) -> None:
-        attribute: str = self.__get_option_private_attribute(type(obj))
+        attribute: str = mangle_private_attribute(self.__owner, self.__name)
         return setattr(obj, attribute, value)
 
     def __delete__(self, obj: object, /) -> None:
-        attribute: str = self.__get_option_private_attribute(type(obj))
+        attribute: str = mangle_private_attribute(self.__owner, self.__name)
         try:
             return delattr(obj, attribute)
         except AttributeError as exc:
             name: str = self.__name
             raise UnregisteredOptionError(name) from exc
 
-    def __get_option_private_attribute(self, objtype: type) -> str:
-        option: str = self.__name
-        owner: type
-        info: _ConfigInfo = self.__info
-        config_owner: Optional[type] = info.owner
-        if objtype is config_owner:
-            owner = info.attribute_class_owner.get(option, objtype)
-        else:
-            owner = objtype
-        return mangle_private_attribute(owner, option)
 
-
-class _ReadOnlyOptionProperty:
-    def __init__(self, default_descriptor: _Descriptor) -> None:
-        self.__descriptor: Callable[[], _Descriptor]
+class _ReadOnlyOptionPayload:
+    def __init__(self, default_descriptor: Optional[_Descriptor] = None) -> None:
+        self.__descriptor: Callable[[], Optional[_Descriptor]]
         self.set_new_descriptor(default_descriptor)
 
-    def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Any:
-        descriptor: _Descriptor = self.__descriptor()
-        return descriptor.__get__(obj, objtype)
+    def __set_name__(self, owner: type, name: str, /) -> None:
+        descriptor: Any = self.__descriptor()
+        if hasattr(descriptor, "__set_name__"):
+            getattr(descriptor, "__set_name__")(owner, name)
 
-    def get_descriptor(self) -> _Descriptor:
+    def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Any:
+        raise TypeError("Cannot be used at runtime")
+
+    def get_descriptor(self) -> Optional[_Descriptor]:
         return self.__descriptor()
 
-    def set_new_descriptor(self, descriptor: _Descriptor) -> None:
+    def set_new_descriptor(self, descriptor: Optional[_Descriptor]) -> None:
         self.__descriptor = lambda: descriptor
 
 

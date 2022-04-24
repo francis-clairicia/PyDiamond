@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 from operator import truth
 from typing import TYPE_CHECKING, Callable, ClassVar, Sequence
 
-from ..system.configuration import Configuration, initializer
+from ..system.configuration import ConfigurationTemplate, initializer
 from ..window.clickable import Clickable
 from ..window.event import MouseButtonDownEvent, MouseMotionEvent
 from .color import BLACK, GRAY, WHITE, Color
@@ -39,7 +39,7 @@ class ScaleBar(ProgressBar, Clickable):
         "percent_callback",
     )
 
-    config = Configuration(parent=ProgressBar.config)
+    config = ConfigurationTemplate(parent=ProgressBar.config)
 
     @initializer
     def __init__(

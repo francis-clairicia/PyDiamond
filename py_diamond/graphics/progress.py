@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 from enum import auto, unique
 from typing import TYPE_CHECKING, Any, ClassVar, Sequence
 
-from ..system.configuration import Configuration, OptionAttribute, initializer
+from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
 from ..system.utils import valid_float
 from .color import BLACK, GRAY, TRANSPARENT, WHITE, Color
@@ -48,7 +48,7 @@ class ProgressBar(RectangleShape):
         HORIZONTAL = auto()
         VERTICAL = auto()
 
-    config = Configuration("value", "percent", "scale_color", "orient", parent=RectangleShape.config)
+    config = ConfigurationTemplate("value", "percent", "scale_color", "orient", parent=RectangleShape.config)
 
     value: OptionAttribute[float] = OptionAttribute()
     percent: OptionAttribute[float] = OptionAttribute()
@@ -257,13 +257,13 @@ class ProgressBar(RectangleShape):
         outline_rect: RectangleShape = self.__outline_rect
         outline_rect.scale = scale_rect.scale = self.scale
 
-    config.enum("orient", Orient, return_value=True)
+    config.add_enum_converter("orient", Orient, return_value_on_get=True)
 
-    @config.value_converter("value")
+    @config.add_value_converter("value")
     def __valid_value(self, value: Any) -> float:
         return valid_float(value=value, min_value=self.__start, max_value=self.__end)
 
-    config.value_converter_static("percent", valid_float(min_value=0, max_value=1))
+    config.add_value_converter_static("percent", valid_float(min_value=0, max_value=1))
 
     config.getter("scale_color", lambda self: self.__scale_rect.config.get("color"))
     config.setter("scale_color", lambda self, color: self.__scale_rect.config.set("color", color))

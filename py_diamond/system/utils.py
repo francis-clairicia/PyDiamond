@@ -6,6 +6,7 @@
 
 __all__ = [
     "cache",
+    "cached_property_read_only",
     "concreteclass",
     "concreteclasscheck",
     "concreteclassmethod",
@@ -22,7 +23,6 @@ __all__ = [
     "valid_optional_float",
     "valid_optional_integer",
     "wraps",
-    "cached_property_read_only",
 ]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"

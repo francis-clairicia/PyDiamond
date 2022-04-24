@@ -71,7 +71,7 @@ if TYPE_CHECKING:
     from _typeshed import Self
 
 
-class ShapeScene(MainScene):
+class ShapeScene(MainScene, busy_loop=True):
     @classmethod
     def __theme_init__(cls) -> None:
         super().__theme_init__()
@@ -177,7 +177,7 @@ class ShapeScene(MainScene):
         )
 
 
-class AnimationScene(MainScene):
+class AnimationScene(MainScene, busy_loop=True):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.rectangle = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)

@@ -18,7 +18,7 @@ from enum import auto, unique
 from operator import itemgetter
 from typing import Any, Callable, Container, Iterator, Literal, Sequence, TypeVar, overload
 
-from ..system.configuration import Configuration, OptionAttribute, initializer
+from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
 from ..system.utils import flatten, valid_integer
 from ..window.gui import GUIScene, SupportsFocus
@@ -48,7 +48,7 @@ class Grid(MDrawable, Container[Drawable]):
         x: int = 0
         y: int = 0
 
-    config: Configuration = Configuration("bg_color", "outline", "outline_color", "justify")
+    config: ConfigurationTemplate = ConfigurationTemplate("bg_color", "outline", "outline_color", "justify")
 
     bg_color: OptionAttribute[Color] = OptionAttribute()
     outline: OptionAttribute[int] = OptionAttribute()
@@ -417,7 +417,7 @@ class Grid(MDrawable, Container[Drawable]):
     def __set_outline_option(self, option: str, value: Any) -> None:
         return self.__outline.config.set(option, value)
 
-    config.enum("justify", Justify)
+    config.add_enum_converter("justify", Justify)
 
     @property
     def master(self) -> GUIScene | None:

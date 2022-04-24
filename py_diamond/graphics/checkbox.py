@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 from operator import truth
 from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
 
-from ..system.configuration import Configuration, OptionAttribute
+from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..window.clickable import Clickable
 from .color import BLACK, Color
 from .drawable import TDrawable, TDrawableMeta
@@ -43,7 +43,7 @@ class CheckBoxMeta(TDrawableMeta, ThemedObjectMeta):
 
 @RectangleShape.register_themed_subclass
 class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=CheckBoxMeta):
-    config: Configuration = Configuration(
+    config: ConfigurationTemplate = ConfigurationTemplate(
         "value",
         "local_width",
         "local_height",
@@ -71,6 +71,7 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Che
     border_bottom_left_radius: OptionAttribute[int] = OptionAttribute()
     border_bottom_right_radius: OptionAttribute[int] = OptionAttribute()
 
+    @initializer
     def __init__(
         self,
         master: Scene | Window,

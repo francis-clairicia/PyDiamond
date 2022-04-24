@@ -17,7 +17,7 @@ from operator import truth
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, Sequence, TypeAlias, TypedDict, overload
 
 from ..math import Vector2
-from ..system.configuration import Configuration, OptionAttribute, initializer
+from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
 from ..system.utils import cached_property_read_only as cached_property, valid_float, valid_integer, valid_optional_float
 from ..window.clickable import Clickable
@@ -88,7 +88,7 @@ class Button(TDrawable, Pressable, metaclass=ButtonMeta):
         "center": "centery",
     }
 
-    config: Configuration = Configuration(
+    config: ConfigurationTemplate = ConfigurationTemplate(
         "text",
         "text_font",
         "text_justify",
@@ -619,14 +619,14 @@ class Button(TDrawable, Pressable, metaclass=ButtonMeta):
     config.on_update("compound", __update_shape_size)
     config.on_update("distance_text_img", __update_shape_size)
 
-    config.value_converter_static("fixed_width", valid_optional_float(min_value=0))
-    config.value_converter_static("fixed_height", valid_optional_float(min_value=0))
+    config.add_value_converter_static("fixed_width", valid_optional_float(min_value=0))
+    config.add_value_converter_static("fixed_height", valid_optional_float(min_value=0))
 
     config.on_update("fixed_width", __update_shape_size)
     config.on_update("fixed_height", __update_shape_size)
 
-    config.value_converter_static("x_add_size", valid_float(min_value=0))
-    config.value_converter_static("y_add_size", valid_float(min_value=0))
+    config.add_value_converter_static("x_add_size", valid_float(min_value=0))
+    config.add_value_converter_static("y_add_size", valid_float(min_value=0))
     config.on_update("x_add_size", __update_shape_size)
     config.on_update("y_add_size", __update_shape_size)
 
@@ -678,12 +678,12 @@ class Button(TDrawable, Pressable, metaclass=ButtonMeta):
         clickable_state, button_state = Button.__STATE[option]
         self.__bg_dict[clickable_state][button_state] = color
 
-    config.value_validator_static("background", Color)
-    config.value_validator_static("hover_background", Color, accept_none=True)
-    config.value_validator_static("active_background", Color, accept_none=True)
-    config.value_validator_static("disabled_background", Color)
-    config.value_validator_static("disabled_hover_background", Color, accept_none=True)
-    config.value_validator_static("disabled_active_background", Color, accept_none=True)
+    config.add_value_validator_static("background", Color)
+    config.add_value_validator_static("hover_background", Color, accept_none=True)
+    config.add_value_validator_static("active_background", Color, accept_none=True)
+    config.add_value_validator_static("disabled_background", Color)
+    config.add_value_validator_static("disabled_hover_background", Color, accept_none=True)
+    config.add_value_validator_static("disabled_active_background", Color, accept_none=True)
 
     config.on_update("background", __update_state)
     config.on_update("hover_background", __update_state)
@@ -719,12 +719,12 @@ class Button(TDrawable, Pressable, metaclass=ButtonMeta):
         clickable_state, button_state = Button.__STATE[option]
         self.__fg_dict[clickable_state][button_state] = color
 
-    config.value_validator_static("foreground", Color)
-    config.value_validator_static("hover_foreground", Color, accept_none=True)
-    config.value_validator_static("active_foreground", Color, accept_none=True)
-    config.value_validator_static("disabled_foreground", Color)
-    config.value_validator_static("disabled_hover_foreground", Color, accept_none=True)
-    config.value_validator_static("disabled_active_foreground", Color, accept_none=True)
+    config.add_value_validator_static("foreground", Color)
+    config.add_value_validator_static("hover_foreground", Color, accept_none=True)
+    config.add_value_validator_static("active_foreground", Color, accept_none=True)
+    config.add_value_validator_static("disabled_foreground", Color)
+    config.add_value_validator_static("disabled_hover_foreground", Color, accept_none=True)
+    config.add_value_validator_static("disabled_active_foreground", Color, accept_none=True)
 
     config.on_update("foreground", __update_state)
     config.on_update("hover_foreground", __update_state)
@@ -760,12 +760,12 @@ class Button(TDrawable, Pressable, metaclass=ButtonMeta):
         clickable_state, button_state = Button.__STATE[option]
         self.__img_dict[clickable_state][button_state] = img
 
-    config.value_validator_static("img", Surface, accept_none=True)
-    config.value_validator_static("hover_img", Surface, accept_none=True)
-    config.value_validator_static("active_img", Surface, accept_none=True)
-    config.value_validator_static("disabled_img", Surface, accept_none=True)
-    config.value_validator_static("disabled_hover_img", Surface, accept_none=True)
-    config.value_validator_static("disabled_active_img", Surface, accept_none=True)
+    config.add_value_validator_static("img", Surface, accept_none=True)
+    config.add_value_validator_static("hover_img", Surface, accept_none=True)
+    config.add_value_validator_static("active_img", Surface, accept_none=True)
+    config.add_value_validator_static("disabled_img", Surface, accept_none=True)
+    config.add_value_validator_static("disabled_hover_img", Surface, accept_none=True)
+    config.add_value_validator_static("disabled_active_img", Surface, accept_none=True)
 
     config.on_update("img", __update_state)
     config.on_update("hover_img", __update_state)
@@ -774,12 +774,12 @@ class Button(TDrawable, Pressable, metaclass=ButtonMeta):
     config.on_update("disabled_hover_img", __update_state)
     config.on_update("disabled_active_img", __update_state)
 
-    config.enum("text_align_x", HorizontalAlign, return_value=True)
-    config.enum("text_align_y", VerticalAlign, return_value=True)
+    config.add_enum_converter("text_align_x", HorizontalAlign, return_value_on_get=True)
+    config.add_enum_converter("text_align_y", VerticalAlign, return_value_on_get=True)
 
-    @config.value_converter_static("text_offset")
-    @config.value_converter_static("text_hover_offset")
-    @config.value_converter_static("text_active_offset")
+    @config.add_value_converter_static("text_offset")
+    @config.add_value_converter_static("text_hover_offset")
+    @config.add_value_converter_static("text_active_offset")
     @staticmethod
     def __text_offset_validator(offset: tuple[float, float]) -> tuple[float, float]:
         return (float(offset[0]), float(offset[1]))
@@ -800,10 +800,10 @@ class Button(TDrawable, Pressable, metaclass=ButtonMeta):
     def __set_shape_option(self, option: str, value: Any) -> None:
         return self.__shape.config.set(option, value)
 
-    config.value_converter_static("outline", valid_integer(min_value=0))
-    config.value_validator_static("outline_color", Color)
-    config.value_validator_static("highlight_color", Color)
-    config.value_converter_static("highlight_thickness", valid_integer(min_value=0))
+    config.add_value_converter_static("outline", valid_integer(min_value=0))
+    config.add_value_validator_static("outline_color", Color)
+    config.add_value_validator_static("highlight_color", Color)
+    config.add_value_converter_static("highlight_thickness", valid_integer(min_value=0))
 
     config.on_update("outline", __update_shape_outline)
     config.on_update("outline_color", __update_shape_outline)
@@ -829,7 +829,7 @@ class Button(TDrawable, Pressable, metaclass=ButtonMeta):
 
 @Button.register_themed_subclass
 class ImageButton(TDrawable, Clickable, metaclass=ButtonMeta):
-    config: Configuration = Configuration(
+    config: ConfigurationTemplate = ConfigurationTemplate(
         "img",
         "x_add_size",
         "y_add_size",
@@ -1070,14 +1070,14 @@ class ImageButton(TDrawable, Clickable, metaclass=ButtonMeta):
             self.__shape.local_size = new_size
             self.center = center
 
-    @config.value_converter_static("hover_offset")
-    @config.value_converter_static("active_offset")
+    @config.add_value_converter_static("hover_offset")
+    @config.add_value_converter_static("active_offset")
     @staticmethod
     def __img_offset_validator(offset: tuple[float, float]) -> tuple[float, float]:
         return (float(offset[0]), float(offset[1]))
 
-    config.value_converter_static("x_add_size", valid_float(min_value=0))
-    config.value_converter_static("y_add_size", valid_float(min_value=0))
+    config.add_value_converter_static("x_add_size", valid_float(min_value=0))
+    config.add_value_converter_static("y_add_size", valid_float(min_value=0))
     config.on_update("x_add_size", __update_shape_size)
     config.on_update("y_add_size", __update_shape_size)
 
@@ -1123,12 +1123,12 @@ class ImageButton(TDrawable, Clickable, metaclass=ButtonMeta):
         clickable_state, button_state = ImageButton.__STATE[option]
         self.__bg_dict[clickable_state][button_state] = color
 
-    config.value_validator_static("background", Color)
-    config.value_validator_static("hover_background", Color, accept_none=True)
-    config.value_validator_static("active_background", Color, accept_none=True)
-    config.value_validator_static("disabled_background", Color)
-    config.value_validator_static("disabled_hover_background", Color, accept_none=True)
-    config.value_validator_static("disabled_active_background", Color, accept_none=True)
+    config.add_value_validator_static("background", Color)
+    config.add_value_validator_static("hover_background", Color, accept_none=True)
+    config.add_value_validator_static("active_background", Color, accept_none=True)
+    config.add_value_validator_static("disabled_background", Color)
+    config.add_value_validator_static("disabled_hover_background", Color, accept_none=True)
+    config.add_value_validator_static("disabled_active_background", Color, accept_none=True)
 
     config.on_update("background", __update_state)
     config.on_update("hover_background", __update_state)
@@ -1164,12 +1164,12 @@ class ImageButton(TDrawable, Clickable, metaclass=ButtonMeta):
         clickable_state, button_state = ImageButton.__STATE[option]
         self.__img_dict[clickable_state][button_state] = img
 
-    config.value_validator_static("img", Surface)
-    config.value_validator_static("hover_img", Surface, accept_none=True)
-    config.value_validator_static("active_img", Surface, accept_none=True)
-    config.value_validator_static("disabled_img", Surface, accept_none=True)
-    config.value_validator_static("disabled_hover_img", Surface, accept_none=True)
-    config.value_validator_static("disabled_active_img", Surface, accept_none=True)
+    config.add_value_validator_static("img", Surface)
+    config.add_value_validator_static("hover_img", Surface, accept_none=True)
+    config.add_value_validator_static("active_img", Surface, accept_none=True)
+    config.add_value_validator_static("disabled_img", Surface, accept_none=True)
+    config.add_value_validator_static("disabled_hover_img", Surface, accept_none=True)
+    config.add_value_validator_static("disabled_active_img", Surface, accept_none=True)
 
     config.on_update("img", __update_state)
     config.on_update("hover_img", __update_state)

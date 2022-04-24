@@ -19,7 +19,7 @@ from typing import Final, TypeAlias
 
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom
 
-from ..system.configuration import Configuration, OptionAttribute, initializer
+from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
 from ..system.utils import valid_float, valid_integer
 from .color import BLACK, Color
@@ -46,7 +46,7 @@ class Text(TDrawable, metaclass=TextMeta):
         RIGHT = auto()
         CENTER = auto()
 
-    config: Configuration = Configuration(
+    config: ConfigurationTemplate = ConfigurationTemplate(
         "message",
         "font",
         "color",
@@ -256,20 +256,20 @@ class Text(TDrawable, metaclass=TextMeta):
 
         return render
 
-    config.enum("justify", Justify, return_value=True)
+    config.add_enum_converter("justify", Justify, return_value_on_get=True)
 
-    config.value_validator_static("message", str)
-    config.value_converter_static("font", create_font)
-    config.value_converter_static("wrap", valid_integer(min_value=0))
-    config.value_validator_static("color", Color)
-    config.value_converter_static("shadow_x", float)
-    config.value_converter_static("shadow_y", float)
-    config.value_converter_static("shadow", tuple)
-    config.value_validator_static("shadow_color", Color)
+    config.add_value_validator_static("message", str)
+    config.add_value_converter_static("font", create_font)
+    config.add_value_converter_static("wrap", valid_integer(min_value=0))
+    config.add_value_validator_static("color", Color)
+    config.add_value_converter_static("shadow_x", float)
+    config.add_value_converter_static("shadow_y", float)
+    config.add_value_converter_static("shadow", tuple)
+    config.add_value_validator_static("shadow_color", Color)
 
     config.set_autocopy("font", copy_on_get=False, copy_on_set=False)
 
-    @config.main_update
+    @config.add_main_update
     def __update_surface(self) -> None:
         if self.config.has_initialization_context():
             self.__default_image = self._render()
@@ -293,7 +293,7 @@ class TextImage(Text):
         BOTTOM = auto()
         CENTER = auto()
 
-    config = Configuration("img", "compound", "distance", parent=Text.config)
+    config = ConfigurationTemplate("img", "compound", "distance", parent=Text.config)
 
     img: OptionAttribute[Surface | None] = OptionAttribute()
     compound: OptionAttribute[str] = OptionAttribute()
@@ -460,10 +460,10 @@ class TextImage(Text):
 
     config.set_autocopy("img", copy_on_get=False, copy_on_set=False)
 
-    config.enum("compound", Compound, return_value=True)
+    config.add_enum_converter("compound", Compound, return_value_on_get=True)
 
-    config.value_validator_static("img", Surface, accept_none=True)
-    config.value_converter_static("distance", valid_float(min_value=0))
+    config.add_value_validator_static("img", Surface, accept_none=True)
+    config.add_value_converter_static("distance", valid_float(min_value=0))
 
     @config.getter("img")
     def __get_img_surface(self) -> Surface | None:
