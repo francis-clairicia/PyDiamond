@@ -93,8 +93,8 @@ class OptionError(ConfigError):
 
 
 class UnknownOptionError(OptionError):
-    def __init__(self, name: str) -> None:
-        super().__init__(name, "Unknown config option")
+    def __init__(self, name: str, message: str = "Unknown config option") -> None:
+        super().__init__(name, message)
 
 
 class UnregisteredOptionError(OptionError):
@@ -102,7 +102,7 @@ class UnregisteredOptionError(OptionError):
         super().__init__(name, "Unregistered option")
 
 
-class EmptyOptionNameError(OptionError):
+class EmptyOptionNameError(UnknownOptionError):
     def __init__(self) -> None:
         super().__init__("", "Empty string option given")
 
@@ -204,26 +204,34 @@ class ConfigurationTemplate:
     def __get__(self, obj: _T, objtype: Optional[type] = None, /) -> Configuration[_T]:
         ...
 
-    def __get__(self, obj: Optional[_T], objtype: Optional[type] = None, /) -> Union[ConfigurationTemplate, Configuration[_T]]:
+    def __get__(self, obj: Any, objtype: Optional[type] = None, /) -> Union[ConfigurationTemplate, Configuration[Any]]:
         if obj is None:
+            if objtype is None:
+                raise TypeError("__get__(None, None) is invalid")
             return self
+        print("----------------->", obj)
         attr_name = self.__attr_name
         info = self.__build
-        if not attr_name or info is None:
+        bound_class = self.__bound_class
+        if not attr_name or info is None or bound_class is None:
             raise TypeError("Cannot use ConfigurationTemplate instance without calling __set_name__ on it.")
-        try:
-            objref: WeakReferenceType[_T] = weakref(obj)
-        except TypeError:
-            return Configuration(obj, info)
         if objtype is None:
             objtype = type(obj)
+        elif not isinstance(obj, objtype):
+            raise TypeError("Invalid __get__ second argument")
+        if not issubclass(objtype, bound_class):
+            raise TypeError(f"{objtype.__qualname__} is not a subclass of {bound_class.__qualname__}")
+        try:
+            objref: WeakReferenceType[Any] = weakref(obj)
+        except TypeError:
+            return Configuration(obj, info)
         if getattr(objtype, attr_name, None) is not self:
             return Configuration(objref, info)
         try:
             obj_cache = obj.__dict__
         except AttributeError:
             return Configuration(objref, info)
-        bound_config: Configuration[_T] = obj_cache.get(attr_name, _MISSING)
+        bound_config: Configuration[Any] = obj_cache.get(attr_name, _MISSING)
         if bound_config is _MISSING:
             with self.__lock:
                 bound_config = obj_cache.get(attr_name, _MISSING)
@@ -232,12 +240,6 @@ class ConfigurationTemplate:
                     with suppress(Exception):
                         obj_cache[attr_name] = bound_config
         return bound_config
-
-    def __set__(self, obj: object, value: Any, /) -> None:
-        raise AttributeError("Ready-only property")
-
-    def __delete__(self, obj: object, /) -> None:
-        raise AttributeError("Ready-only property")
 
     def known_options(self) -> FrozenSet[str]:
         return self.__template.options
@@ -957,10 +959,12 @@ class ConfigurationTemplate:
             raise TypeError(f"Attempt to modify template after the class creation")
 
     @property
+    @final
     def owner(self) -> Optional[type]:
         return self.__bound_class
 
     @property
+    @final
     def name(self) -> Optional[str]:
         return self.__attr_name
 
@@ -1025,10 +1029,12 @@ class OptionAttribute(Generic[_T]):
             raise AttributeError(error) from exc
 
     @property
+    @final
     def name(self) -> str:
         return self.__name
 
 
+@final
 class ConfigurationInfo(NamedTuple):
     options: FrozenSet[str]
     option_value_updater: Mapping[str, Callable[[object, Any], None]]
@@ -1096,7 +1102,6 @@ _InitializationRegister = Dict[str, Any]
 _UpdateRegister = List[str]
 
 
-@final
 class Configuration(Generic[_T]):
     __update_stack: ClassVar[Dict[object, List[str]]] = dict()
     __init_context: ClassVar[Dict[object, _InitializationRegister]] = dict()
@@ -1117,11 +1122,16 @@ class Configuration(Generic[_T]):
         self.__obj: Callable[[], Optional[_T]] = obj if isinstance(obj, WeakReferenceType) else lambda obj=obj: obj  # type: ignore[misc]
         self.__info: ConfigurationInfo = info
 
+    def __repr__(self) -> str:
+        option_dict = self.as_dict()
+        return f"{type(self).__name__}({', '.join(f'{k}={option_dict[k]!r}' for k in sorted(option_dict))})"
+
     def __contains__(self, option: str) -> bool:
         try:
-            return self.get(option, _MISSING) is not _MISSING
-        except (EmptyOptionNameError, UnknownOptionError):
+            self.get(option)
+        except (AttributeError, OptionError):
             return False
+        return True
 
     @overload
     def get(self, option: str) -> Any:
@@ -1139,7 +1149,7 @@ class Configuration(Generic[_T]):
         with self.__lazy_lock(obj):
             try:
                 value: Any = descriptor.__get__(obj, type(obj))
-            except (AttributeError, OptionError):
+            except (AttributeError, UnregisteredOptionError):
                 if default is _NO_DEFAULT:
                     raise
                 return default
@@ -1156,6 +1166,14 @@ class Configuration(Generic[_T]):
             return self.get(option)
         except OptionError as exc:
             raise KeyError(option) from exc
+
+    def as_dict(self) -> Dict[str, Any]:
+        obj: _T = self.__self__
+        info: ConfigurationInfo = self.__info
+        with self.__lazy_lock(obj):
+            get = self.get
+            null = object()
+            return {opt: value for opt in info.options if (value := get(opt, null)) is not null}
 
     def set(self, option: str, value: Any) -> None:
         obj: _T = self.__self__
@@ -1181,7 +1199,7 @@ class Configuration(Generic[_T]):
             except (AttributeError, UnregisteredOptionError):
                 pass
             else:
-                if actual_value == value:
+                if actual_value is value or actual_value == value:
                     return
 
             if not converter_applied and info.value_autocopy_set.get(option, info.autocopy):
@@ -1301,6 +1319,7 @@ class Configuration(Generic[_T]):
                         if update_register:
                             raise OptionError("", "Options were modified after update in initialization context")
 
+    @final
     def has_initialization_context(self) -> bool:
         return self.__self__ in Configuration.__init_context
 
@@ -1322,10 +1341,12 @@ class Configuration(Generic[_T]):
         return self.__update_options(obj, *info.options, info=info)
 
     @property
+    @final
     def info(self) -> ConfigurationInfo:
         return self.__info
 
     @property
+    @final
     def __self__(self) -> _T:
         obj: Optional[_T] = self.__obj()
         if obj is None:
@@ -1406,7 +1427,7 @@ class Configuration(Generic[_T]):
             def cleanup() -> None:
                 with suppress(ValueError):
                     update_stack.remove(option)
-                if not update_stack and obj is not None:
+                if not update_stack:
                     Configuration.__update_stack.pop(obj, None)
 
             update_stack.append(option)
@@ -1418,8 +1439,8 @@ class Configuration(Generic[_T]):
             update_register = list(dict.fromkeys(Configuration.__update_context.pop(obj, update_register)))
             if not call_updaters:
                 return
-            main_updater = info.main_updater
             if update_register:
+                main_updater = info.main_updater
                 many_options_updater = info.many_options_updater if len(update_register) > 1 else None
                 if many_options_updater is not None:
                     many_options_updater(obj, update_register)
@@ -1771,7 +1792,7 @@ class _ConfigInfoTemplate:
             merge_list(l1, l2, on_duplicate="skip", setting=setting)
 
     def build(self) -> ConfigurationInfo:
-        options: FrozenSet[str] = self.options
+        options: FrozenSet[str] = self.options.copy()
         option_value_updater: Mapping[str, Callable[[object, Any], None]] = self.__build_option_value_updater_dict()
         option_updater: Mapping[str, Callable[[object], None]] = self.__build_option_updater_dict()
         many_options_updater: Optional[Callable[[object, Sequence[str]], None]] = self.__build_many_options_updater()

@@ -205,6 +205,7 @@ def main() -> None:
             c.d = 5  # type: ignore[assignment]
         except TypeError as exc:
             print(f"Works as expected: {exc}")
+        print(c.config.as_dict())
         print(vars(c))
 
     a = A()
