@@ -59,7 +59,7 @@ from typing import (
 )
 from weakref import ReferenceType as WeakReferenceType, WeakKeyDictionary, ref as weakref
 
-from ._mangling import mangle_private_attribute
+from ._mangling import mangle_private_attribute as _private_attribute
 
 _Func = TypeVar("_Func", bound=Callable[..., Any])
 _Updater = TypeVar("_Updater", bound=Callable[[Any], None])
@@ -1719,8 +1719,18 @@ class _ConfigInfoTemplate:
             merge_dict(self.value_descriptors, p.value_descriptors, on_conflict="raise", setting="descriptor")
             merge_dict(self.value_converter, p.value_converter, on_conflict="raise", setting="value_converter")
             merge_dict(self.value_validator, p.value_validator, on_conflict="raise", setting="value_validator")
-            merge_dict(self.value_autocopy_get, p.value_autocopy_get, on_conflict="skip", setting="autocopy_get")
-            merge_dict(self.value_autocopy_set, p.value_autocopy_set, on_conflict="skip", setting="autocopy_set")
+            merge_dict(
+                self.value_autocopy_get,
+                p.value_autocopy_get,
+                on_conflict=lambda _, v1, v2: v1 | v2,
+                setting="autocopy_get",
+            )
+            merge_dict(
+                self.value_autocopy_set,
+                p.value_autocopy_set,
+                on_conflict=lambda _, v1, v2: v1 | v2,
+                setting="autocopy_set",
+            )
             merge_dict(self.attribute_class_owner, p.attribute_class_owner, on_conflict="skip", setting="class_owner")
             merge_dict(self.aliases, p.aliases, on_conflict="raise", setting="aliases")
             merge_dict(self.value_copy, p.value_copy, on_conflict="raise", setting="value_copy_func")
@@ -1746,7 +1756,7 @@ class _ConfigInfoTemplate:
         d2: Dict[_KT, _VT],
         /,
         *,
-        on_conflict: Literal["override", "raise", "skip"],
+        on_conflict: Union[Literal["override", "raise", "skip"], Callable[[_KT, _VT, _VT], _VT]],
         setting: str,
     ) -> None:
         for key, value in d2.items():
@@ -1755,6 +1765,8 @@ class _ConfigInfoTemplate:
                     continue
                 if on_conflict == "raise":
                     raise ConfigError(f"Conflict of setting {setting!r} for {key!r} key")
+                if callable(on_conflict):
+                    value = on_conflict(key, d1[key], value)
             d1[key] = value
 
     @staticmethod
@@ -2044,7 +2056,7 @@ class _PrivateAttributeOptionProperty:
     def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Any:
         if obj is None:
             return self
-        attribute: str = mangle_private_attribute(self.__owner, self.__name)
+        attribute: str = _private_attribute(self.__owner, self.__name)
         try:
             return getattr(obj, attribute)
         except AttributeError as exc:
@@ -2052,11 +2064,11 @@ class _PrivateAttributeOptionProperty:
             raise UnregisteredOptionError(name) from exc
 
     def __set__(self, obj: object, value: Any, /) -> None:
-        attribute: str = mangle_private_attribute(self.__owner, self.__name)
+        attribute: str = _private_attribute(self.__owner, self.__name)
         return setattr(obj, attribute, value)
 
     def __delete__(self, obj: object, /) -> None:
-        attribute: str = mangle_private_attribute(self.__owner, self.__name)
+        attribute: str = _private_attribute(self.__owner, self.__name)
         try:
             return delattr(obj, attribute)
         except AttributeError as exc:
