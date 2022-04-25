@@ -211,20 +211,24 @@ class ConfigurationTemplate:
         info = self.__build
         if not attr_name or info is None:
             raise TypeError("Cannot use ConfigurationTemplate instance without calling __set_name__ on it.")
+        try:
+            objref: WeakReferenceType[_T] = weakref(obj)
+        except TypeError:
+            return Configuration(obj, info)
         if objtype is None:
             objtype = type(obj)
         if getattr(objtype, attr_name, None) is not self:
-            return Configuration(weakref(obj), info)
+            return Configuration(objref, info)
         try:
             obj_cache = obj.__dict__
         except AttributeError:
-            return Configuration(weakref(obj), info)
+            return Configuration(objref, info)
         bound_config: Configuration[_T] = obj_cache.get(attr_name, _MISSING)
         if bound_config is _MISSING:
             with self.__lock:
                 bound_config = obj_cache.get(attr_name, _MISSING)
                 if bound_config is _MISSING:
-                    bound_config = Configuration(weakref(obj), info)
+                    bound_config = Configuration(objref, info)
                     with suppress(Exception):
                         obj_cache[attr_name] = bound_config
         return bound_config
@@ -1132,20 +1136,20 @@ class Configuration(Generic[_T]):
         info: ConfigurationInfo = self.__info
         option = info.check_option_validity(option, use_alias=True)
         descriptor = info.get_value_descriptor(option, type(obj))
-        try:
-            with self.__lazy_lock(obj):
+        with self.__lazy_lock(obj):
+            try:
                 value: Any = descriptor.__get__(obj, type(obj))
-        except (AttributeError, OptionError):
-            if default is _NO_DEFAULT:
-                raise
-            return default
-        if option in info.enum_return_value and isinstance(value, Enum):
-            return value.value
-        if info.value_autocopy_get.get(option, info.autocopy):
-            copy_func = info.get_copy_func(type(value))
-            with suppress(Exception):
-                value = copy_func(value)
-        return value
+            except (AttributeError, OptionError):
+                if default is _NO_DEFAULT:
+                    raise
+                return default
+            if option in info.enum_return_value and isinstance(value, Enum):
+                return value.value
+            if info.value_autocopy_get.get(option, info.autocopy):
+                copy_func = info.get_copy_func(type(value))
+                with suppress(Exception):
+                    value = copy_func(value)
+            return value
 
     def __getitem__(self, option: str, /) -> Any:
         try:
@@ -1258,8 +1262,7 @@ class Configuration(Generic[_T]):
             if obj in Configuration.__update_stack:
                 raise InitializationError("Cannot use initialization context while updating an option value")
 
-            def cleanup(objref: WeakReferenceType[object] = weakref(obj)) -> None:
-                obj = objref()
+            def cleanup() -> None:
                 if obj is not None:
                     Configuration.__init_context.pop(obj, None)
 
@@ -1273,6 +1276,8 @@ class Configuration(Generic[_T]):
                 info: ConfigurationInfo = self.__info
                 with self.__updating_many_options(obj, *initialization_register, info=info, call_updaters=False):
                     for option, value in initialization_register.items():
+                        if value is self.__DELETED:
+                            continue
                         value_update = info.option_value_updater.get(option, None)
                         if value_update is not None:
                             value_update(obj, value)
@@ -1398,8 +1403,7 @@ class Configuration(Generic[_T]):
                 yield UpdateContext(first_update=False, init_context=None, updated=update_register)
                 return
 
-            def cleanup(objref: WeakReferenceType[object] = weakref(obj)) -> None:
-                obj = objref()
+            def cleanup() -> None:
                 with suppress(ValueError):
                     update_stack.remove(option)
                 if not update_stack and obj is not None:
