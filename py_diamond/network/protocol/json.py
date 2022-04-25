@@ -10,11 +10,12 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
+from functools import cached_property
 from json import JSONDecodeError, JSONDecoder, JSONEncoder
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, final
 
-from ...system.utils import cached_property_read_only as cached_property, concreteclass
+from ...system.utils import concreteclass
 from .base import AutoParsedNetworkProtocol
 
 if not TYPE_CHECKING:

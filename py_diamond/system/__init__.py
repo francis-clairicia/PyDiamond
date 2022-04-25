@@ -31,7 +31,6 @@ __all__ = [
     "UnknownOptionError",
     "UnregisteredOptionError",
     "cache",
-    "cached_property_read_only",
     "concreteclass",
     "concreteclasscheck",
     "concreteclassmethod",
@@ -88,7 +87,6 @@ from .singleton import Singleton, SingletonMeta
 from .threading import RThread, Thread, rthread, thread
 from .utils import (
     cache,
-    cached_property_read_only,
     concreteclass,
     concreteclasscheck,
     concreteclassmethod,

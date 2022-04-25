@@ -12,16 +12,12 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
+from functools import cached_property
 from string import printable as ASCII_PRINTABLE
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Sequence, TypeAlias
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
-from ..system.utils import (
-    cached_property_read_only as cached_property,
-    valid_integer,
-    valid_optional_float,
-    valid_optional_integer,
-)
+from ..system.utils import valid_integer, valid_optional_float, valid_optional_integer
 from ..window.clock import Clock
 from ..window.cursor import SystemCursor
 from ..window.event import KeyDownEvent, TextInputEvent

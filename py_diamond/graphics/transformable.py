@@ -13,12 +13,12 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, final
 
 from pygame import error as _pg_error
 
 from ..math import Vector2
-from ..system.utils import cached_property_read_only as cached_property
 from .movable import Movable, MovableMeta
 from .rect import Rect
 

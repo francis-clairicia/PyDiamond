@@ -209,7 +209,6 @@ class ConfigurationTemplate:
             if objtype is None:
                 raise TypeError("__get__(None, None) is invalid")
             return self
-        print("----------------->", obj)
         attr_name = self.__attr_name
         info = self.__build
         bound_class = self.__bound_class

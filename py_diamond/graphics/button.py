@@ -13,13 +13,14 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from enum import auto, unique
+from functools import cached_property
 from operator import truth
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, Sequence, TypeAlias, TypedDict, overload
 
 from ..math import Vector2
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
-from ..system.utils import cached_property_read_only as cached_property, valid_float, valid_integer, valid_optional_float
+from ..system.utils import valid_float, valid_integer, valid_optional_float
 from ..window.clickable import Clickable
 from ..window.gui import BoundFocus
 from ..window.pressable import Pressable

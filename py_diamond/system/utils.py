@@ -6,7 +6,6 @@
 
 __all__ = [
     "cache",
-    "cached_property_read_only",
     "concreteclass",
     "concreteclasscheck",
     "concreteclassmethod",
@@ -30,17 +29,11 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from contextlib import ContextDecorator, suppress
-from functools import (
-    WRAPPER_ASSIGNMENTS,
-    WRAPPER_UPDATES,
-    cached_property as _cached_property,
-    lru_cache as _lru_cache,
-    update_wrapper as _update_wrapper,
-)
+from functools import WRAPPER_ASSIGNMENTS, WRAPPER_UPDATES, lru_cache as _lru_cache, update_wrapper as _update_wrapper
 from inspect import isabstract
 from itertools import chain
 from operator import truth
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Literal, ParamSpec, Sequence, TypeAlias, TypeVar, overload
+from typing import Any, Callable, Iterable, Iterator, Literal, ParamSpec, Sequence, TypeAlias, TypeVar, overload
 
 _P = ParamSpec("_P")
 _T = TypeVar("_T")
@@ -154,18 +147,6 @@ def forbidden_call(func: Callable[_P, _R]) -> Callable[_P, _R]:
 
 class dsuppress(suppress, ContextDecorator):
     pass
-
-
-if TYPE_CHECKING:
-    cached_property_read_only = _cached_property
-
-else:
-
-    class cached_property_read_only(_cached_property[_T]):
-        # A cached_property become writabe after computing
-        # To avoid that behaviour we force the class to be a read-only data descriptor
-        def __set__(self, obj: object, value: Any, /) -> None:
-            raise AttributeError("Ready-only property")
 
 
 @overload
