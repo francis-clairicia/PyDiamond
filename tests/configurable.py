@@ -206,6 +206,7 @@ def main() -> None:
         except TypeError as exc:
             print(f"Works as expected: {exc}")
         print(c.config.as_dict())
+        print(c.config.as_dict(sorted_keys=True))
         print(vars(c))
 
     a = A()

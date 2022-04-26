@@ -1166,13 +1166,17 @@ class Configuration(Generic[_T]):
         except OptionError as exc:
             raise KeyError(option) from exc
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self, *, sorted_keys: bool = False) -> Dict[str, Any]:
         obj: _T = self.__self__
         info: ConfigurationInfo = self.__info
         with self.__lazy_lock(obj):
             get = self.get
             null = object()
-            return {opt: value for opt in info.options if (value := get(opt, null)) is not null}
+            return {
+                opt: value
+                for opt in (info.options if not sorted_keys else sorted(info.options))
+                if (value := get(opt, null)) is not null
+            }
 
     def set(self, option: str, value: Any) -> None:
         obj: _T = self.__self__
