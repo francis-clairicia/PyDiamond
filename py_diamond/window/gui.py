@@ -10,12 +10,7 @@ __all__ = [
     "BoundFocus",
     "BoundFocusProxy",
     "FocusableContainer",
-    "GUIAutoLayeredMainScene",
-    "GUIAutoLayeredScene",
-    "GUIMainScene",
-    "GUIMainSceneMeta",
     "GUIScene",
-    "GUISceneMeta",
     "NoFocusSupportError",
     "SupportsFocus",
 ]
@@ -62,14 +57,10 @@ from .event import (
     MouseWheelEvent,
 )
 from .keyboard import Keyboard
-from .scene import AbstractAutoLayeredScene, AbstractLayeredScene, LayeredMainSceneMeta, LayeredSceneMeta, MainScene, Scene
+from .scene import AbstractLayeredScene, Scene
 
 
-class GUISceneMeta(LayeredSceneMeta):
-    pass
-
-
-class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
+class GUIScene(AbstractLayeredScene):
     def __init__(self) -> None:
         super().__init__()
         self.__container: FocusableContainer = FocusableContainer(self)
@@ -225,22 +216,6 @@ class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
     @property
     def _focus_container(self) -> FocusableContainer:
         return self.__container
-
-
-class GUIAutoLayeredScene(GUIScene, AbstractAutoLayeredScene):
-    pass
-
-
-class GUIMainSceneMeta(GUISceneMeta, LayeredMainSceneMeta):
-    pass
-
-
-class GUIMainScene(GUIScene, MainScene, metaclass=GUIMainSceneMeta):
-    pass
-
-
-class GUIAutoLayeredMainScene(GUIMainScene, AbstractAutoLayeredScene):
-    pass
 
 
 @runtime_checkable

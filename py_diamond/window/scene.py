@@ -7,14 +7,14 @@
 from __future__ import annotations
 
 __all__ = [
-    "AbstractAutoLayeredScene",
+    "AbstractAutoLayeredDrawableScene",
+    "AbstractLayeredMainScene",
     "AbstractLayeredScene",
-    "LayeredMainScene",
     "LayeredMainSceneMeta",
-    "LayeredScene",
     "LayeredSceneMeta",
     "MainScene",
     "MainSceneMeta",
+    "RenderedLayeredScene",
     "ReturningSceneTransition",
     "Scene",
     "SceneMeta",
@@ -402,7 +402,7 @@ class LayeredSceneMeta(SceneMeta):
                 f"{name!r} must be inherits from a {AbstractLayeredScene.__name__} class in order to use {LayeredSceneMeta.__name__} metaclass"
             )
 
-        if "render" in namespace:
+        if "LayeredScene" in globals() and "render" in namespace:
             raise TypeError("render() method must not be overriden")
 
         setattr_wrapper_cls = metacls.__setattr_wrapper
@@ -477,6 +477,12 @@ class AbstractLayeredScene(Scene, metaclass=LayeredSceneMeta):
         super().destroy()
         self.group.clear()
 
+
+class RenderedLayeredScene(AbstractLayeredScene):
+    def __init__(self) -> None:
+        super().__init__()
+        self.__group: LayeredGroup = LayeredGroup()
+
     @no_theme_decorator
     def render_before(self) -> None:
         pass
@@ -492,18 +498,12 @@ class AbstractLayeredScene(Scene, metaclass=LayeredSceneMeta):
         self.window.draw(group)
         self.render_after()
 
-
-class LayeredScene(AbstractLayeredScene):
-    def __init__(self) -> None:
-        super().__init__()
-        self.__group: LayeredGroup = LayeredGroup()
-
     @property
     def group(self) -> LayeredGroup:
         return self.__group
 
 
-class AbstractAutoLayeredScene(AbstractLayeredScene, add_drawable_attributes=True):
+class AbstractAutoLayeredDrawableScene(AbstractLayeredScene, add_drawable_attributes=True):
     pass
 
 
@@ -511,7 +511,7 @@ class LayeredMainSceneMeta(LayeredSceneMeta, MainSceneMeta):
     pass
 
 
-class LayeredMainScene(LayeredScene, MainScene, metaclass=LayeredMainSceneMeta):
+class AbstractLayeredMainScene(AbstractLayeredScene, MainScene, metaclass=LayeredMainSceneMeta):
     pass
 
 

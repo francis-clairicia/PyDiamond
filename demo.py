@@ -52,14 +52,15 @@ from py_diamond.resource.loader import FontLoader, ImageLoader, MusicLoader, Sou
 from py_diamond.resource.manager import ResourceManager
 from py_diamond.window.display import Window
 from py_diamond.window.event import BuiltinEvent, Event, KeyUpEvent, MouseButtonEvent, MusicEndEvent
-from py_diamond.window.gui import GUIAutoLayeredMainScene, GUIAutoLayeredScene, GUIScene
+from py_diamond.window.gui import GUIScene
 from py_diamond.window.keyboard import Keyboard
 from py_diamond.window.mouse import Mouse
 from py_diamond.window.scene import (
-    AbstractAutoLayeredScene,
+    AbstractAutoLayeredDrawableScene,
+    AbstractLayeredMainScene,
     Dialog,
-    LayeredMainScene,
     MainScene,
+    RenderedLayeredScene,
     Scene,
     SceneTransition,
     SceneTransitionCoroutine,
@@ -599,7 +600,9 @@ class EntryScene(MainScene):
 LOREM_IPSUM = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin euismod justo ac pharetra fermentum. Duis neque massa, commodo eu est vel, dignissim interdum eros. Nulla augue ex, blandit ac magna dapibus, dignissim venenatis massa. Donec tempus laoreet eros tristique rhoncus. Sed eget metus vitae purus ultricies semper. Suspendisse sodales rhoncus quam ac aliquam. Duis quis elit rhoncus, condimentum dolor nec, elementum lorem. Integer placerat dui orci, in ultricies nulla viverra ac. Morbi at justo eu libero rutrum dignissim a in velit. Suspendisse magna odio, fermentum vel tortor eget, condimentum sagittis ex. Vivamus tristique venenatis purus, at pharetra erat lobortis id. Pellentesque tincidunt bibendum erat, ac faucibus ligula semper vitae. Vestibulum ac quam in nulla tristique congue id quis lectus. Sed fermentum hendrerit velit."
 
 
-class ScrollBarScene(LayeredMainScene, AbstractAutoLayeredScene, framerate=60, fixed_framerate=50):
+class ScrollBarScene(
+    RenderedLayeredScene, AbstractAutoLayeredDrawableScene, AbstractLayeredMainScene, framerate=60, fixed_framerate=50
+):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
@@ -629,7 +632,7 @@ class ScrollBarScene(LayeredMainScene, AbstractAutoLayeredScene, framerate=60, f
         self.window.draw(self.area)
 
 
-class TestGUIScene(GUIAutoLayeredScene):
+class TestGUIScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableScene):
     @classmethod
     def __theme_init__(cls) -> None:
         super().__theme_init__()
@@ -668,7 +671,7 @@ class TestGUIScene(GUIAutoLayeredScene):
         return super().update()
 
 
-class GridScene(GUIScene):
+class GridScene(GUIScene, RenderedLayeredScene):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
@@ -716,7 +719,7 @@ class GridScene(GUIScene):
         self.text.midtop = (self.grid.centerx, self.grid.bottom + 10)
 
 
-class FormScene(GUIAutoLayeredScene):
+class FormScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableScene):
     @classmethod
     def __theme_init__(cls) -> None:
         super().__theme_init__()
@@ -816,7 +819,7 @@ class AudioScene(MainScene):
         return super().on_quit()
 
 
-class GUIAudioScene(GUIAutoLayeredMainScene):
+class GUIAudioScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableScene, AbstractLayeredMainScene):
     @classmethod
     def __theme_init__(cls) -> None:
         super().__theme_init__()
@@ -891,7 +894,7 @@ class MyDialog(Dialog):
         pass
 
 
-class TestDialogScene(GUIAutoLayeredScene):
+class TestDialogScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableScene):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK

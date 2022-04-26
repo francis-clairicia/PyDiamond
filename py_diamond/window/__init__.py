@@ -5,8 +5,9 @@
 """PyDiamond's window module"""
 
 __all__ = [
-    "AbstractAutoLayeredScene",
+    "AbstractAutoLayeredDrawableScene",
     "AbstractCursor",
+    "AbstractLayeredMainScene",
     "AbstractLayeredScene",
     "BoundFocus",
     "BoundFocusProxy",
@@ -20,12 +21,7 @@ __all__ = [
     "EventManager",
     "EventType",
     "FocusableContainer",
-    "GUIAutoLayeredMainScene",
-    "GUIAutoLayeredScene",
-    "GUIMainScene",
-    "GUIMainSceneMeta",
     "GUIScene",
-    "GUISceneMeta",
     "JoyAxisMotionEvent",
     "JoyBallMotionEvent",
     "JoyButtonDownEvent",
@@ -38,9 +34,7 @@ __all__ = [
     "KeyEvent",
     "KeyUpEvent",
     "Keyboard",
-    "LayeredMainScene",
     "LayeredMainSceneMeta",
-    "LayeredScene",
     "LayeredSceneMeta",
     "MainScene",
     "MainSceneMeta",
@@ -54,6 +48,7 @@ __all__ = [
     "MusicEndEvent",
     "NoFocusSupportError",
     "Pressable",
+    "RenderedLayeredScene",
     "ReturningSceneTransition",
     "Scene",
     "SceneMeta",
@@ -158,31 +153,19 @@ from .event import (
     WindowSizeChangedEvent,
     WindowTakeFocusEvent,
 )
-from .gui import (
-    BoundFocus,
-    BoundFocusProxy,
-    FocusableContainer,
-    GUIAutoLayeredMainScene,
-    GUIAutoLayeredScene,
-    GUIMainScene,
-    GUIMainSceneMeta,
-    GUIScene,
-    GUISceneMeta,
-    NoFocusSupportError,
-    SupportsFocus,
-)
+from .gui import BoundFocus, BoundFocusProxy, FocusableContainer, GUIScene, NoFocusSupportError, SupportsFocus
 from .keyboard import Keyboard
 from .mouse import Mouse
 from .pressable import Pressable
 from .scene import (
-    AbstractAutoLayeredScene,
+    AbstractAutoLayeredDrawableScene,
+    AbstractLayeredMainScene,
     AbstractLayeredScene,
-    LayeredMainScene,
     LayeredMainSceneMeta,
-    LayeredScene,
     LayeredSceneMeta,
     MainScene,
     MainSceneMeta,
+    RenderedLayeredScene,
     ReturningSceneTransition,
     Scene,
     SceneMeta,
