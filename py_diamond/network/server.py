@@ -169,10 +169,6 @@ class AbstractNetworkServer(Object):
     def shutdown(self) -> None:
         raise NotImplementedError
 
-    @abstractmethod
-    def fileno(self) -> int:
-        raise NotImplementedError
-
     @property
     @abstractmethod
     def server_address(self) -> SocketAddress:
@@ -360,11 +356,6 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
 
     def _verify_new_client(self, client: TCPNetworkClient[_T], address: SocketAddress) -> bool:
         return True
-
-    def fileno(self) -> int:
-        with self.__lock:
-            socket: AbstractSocket = self.__socket
-            return socket.fileno()
 
     @final
     @property
@@ -584,11 +575,6 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_T]):
         with self.__lock:
             self.__loop = False
         self.__is_shutdown.wait()
-
-    def fileno(self) -> int:
-        with self.__lock:
-            socket: AbstractSocket = self.__socket
-            return socket.fileno()
 
     @final
     @property
