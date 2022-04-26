@@ -65,7 +65,7 @@ def thread(
     def decorator(func: Callable[..., Any], /) -> Callable[..., Thread]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Thread:
-            thread = thread_cls(target=func, args=args, kwargs=kwargs, name=name, daemon=daemon, **thread_cls_kwargs)
+            thread = thread_cls(group=None, target=func, args=args, kwargs=kwargs, name=name, daemon=daemon, **thread_cls_kwargs)
             if auto_start:
                 thread.start()
             return thread
@@ -88,20 +88,20 @@ class RThread(Thread, Generic[_R]):
         *,
         daemon: bool | None = None,
     ) -> None:
-        self._return: _R
+        self.__return: _R
         used_target: Callable[..., None] | None = None
         if target is not None:
             _target: Callable[..., _R] = target
 
             def used_target(*args: Any, **kwargs: Any) -> None:
-                self._return = _target(*args, **kwargs)
+                self.__return = _target(*args, **kwargs)
 
         super().__init__(group=group, target=used_target, name=name, args=args, kwargs=kwargs, daemon=daemon)
 
     def join(self, timeout: float | None = None) -> _R:  # type: ignore[override]
         super().join(timeout)
-        ret: _R = self._return
-        del self._return
+        ret: _R = self.__return
+        del self.__return
         return ret
 
 

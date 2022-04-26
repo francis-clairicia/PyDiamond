@@ -129,22 +129,31 @@ class AbstractNetworkServer(Object):
     def serve_forever(self, poll_interval: float = ...) -> None:
         raise NotImplementedError
 
-    def serve_forever_in_thread(self, poll_interval: float = 0.5) -> Thread:
+    def serve_forever_in_thread(
+        self,
+        poll_interval: float = 0.5,
+        *,
+        daemon: bool | None = None,
+        name: str | None = None,
+    ) -> Thread:
         if self.running():
             raise RuntimeError("Server already running")
 
-        @thread
+        @thread(daemon=daemon, name=name)
         def run(self: AbstractNetworkServer, poll_interval: float) -> None:
             try:
                 self.serve_forever(poll_interval)
+            except SystemExit:
+                raise
             except:
                 from traceback import print_exc
 
                 print(f"Exception not handled in {type(self).__name__} running in thread {current_thread().name!r}")
                 print_exc()
 
-        if self.__t is not None:
-            self.__t.join()
+        t: Thread | None = self.__t
+        if t is not None and t.is_alive():
+            t.join()
         self.__t = t = run(self, poll_interval)
         return t
 
