@@ -182,6 +182,7 @@ class AnimationScene(MainScene, busy_loop=True):
         super().awake(**kwargs)
         self.rectangle = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
         self.animation = self.rectangle.animation
+        self.event.bind_key_release(Keyboard.Key.RETURN, lambda _: self.__handle_return_event())
 
     def on_start_loop_before_transition(self) -> None:
         window: Window = self.window
@@ -195,7 +196,7 @@ class AnimationScene(MainScene, busy_loop=True):
         self.animation.smooth_set_position(center=window.center, speed=370)
         self.animation.smooth_rotation_around_point(360, window.center, speed=200)
         self.animation.smooth_rotation(360 * 2, speed=410)
-        self.animation.on_stop(self.move_to_left)
+        self.animation.on_stop(self.__move_to_left)
         self.animation.start()
 
     def fixed_update(self) -> None:
@@ -207,11 +208,15 @@ class AnimationScene(MainScene, busy_loop=True):
     def render(self) -> None:
         self.window.draw(self.rectangle)
 
-    def move_to_left(self) -> None:
+    def __move_to_left(self) -> None:
         self.animation.smooth_set_angle(270, speed=500)
         self.animation.smooth_translation((-self.window.centerx / 2, -50), speed=500)
         self.animation.smooth_scale_to_width(100)
         self.animation.wait_until_finish(self)
+
+    def __handle_return_event(self) -> None:
+        self.on_start_loop_before_transition()
+        self.on_start_loop()
 
 
 class GradientScene(Scene):

@@ -70,9 +70,6 @@ class GUISceneMeta(LayeredSceneMeta):
 
 
 class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
-
-    __slots__ = ("__group", "__focus_index", "__container")
-
     def __init__(self) -> None:
         super().__init__()
         self.__container: FocusableContainer = FocusableContainer(self)
@@ -231,7 +228,7 @@ class GUIScene(AbstractLayeredScene, metaclass=GUISceneMeta):
 
 
 class GUIAutoLayeredScene(GUIScene, AbstractAutoLayeredScene):
-    __slots__ = ()
+    pass
 
 
 class GUIMainSceneMeta(GUISceneMeta, LayeredMainSceneMeta):
@@ -239,11 +236,11 @@ class GUIMainSceneMeta(GUISceneMeta, LayeredMainSceneMeta):
 
 
 class GUIMainScene(GUIScene, MainScene, metaclass=GUIMainSceneMeta):
-    __slots__ = ()
+    pass
 
 
 class GUIAutoLayeredMainScene(GUIMainScene, AbstractAutoLayeredScene):
-    __slots__ = ()
+    pass
 
 
 @runtime_checkable

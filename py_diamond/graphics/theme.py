@@ -530,7 +530,7 @@ class ThemedObjectMeta(ABCMeta):
             return theme_kwargs
 
         all_parents_classes = (
-            tuple(ThemedObjectMeta.__get_all_parent_classes(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_THEMES))
+            ThemedObjectMeta.__get_all_parent_classes(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_THEMES)
             if parent_themes
             else ()
         )

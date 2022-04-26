@@ -112,7 +112,7 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
             raise TypeError("Multiple inheritance with other class than Scene is not supported")
 
         for attr_name in namespace:
-            if attr_name in ("__new__", "__del_scene__"):
+            if attr_name in ("__new__", "__del_scene__", "__slots__"):
                 raise TypeError(f"{name} method must not be overridden")
 
         cls = super().__new__(metacls, name, bases, namespace, **kwargs)
@@ -171,16 +171,6 @@ class ReturningSceneTransition(SceneTransition):
 class Scene(metaclass=SceneMeta):
     __instances: ClassVar[set[type[Scene]]] = set()
 
-    __slots__ = (
-        "__manager",
-        "__event",
-        "__bg_color",
-        "__callback_after",
-        "__callback_after_dict",
-        "__stack",
-        "__dict__",
-    )
-
     @final
     def __new__(cls) -> Any:
         instances: set[type[Scene]] = Scene.__instances
@@ -203,7 +193,8 @@ class Scene(metaclass=SceneMeta):
         self.__callback_after_dict: dict[Scene, _WindowCallbackList] = getattr_pv(
             manager.window, "callback_after_scenes", owner=SceneWindow
         )
-        self.__stack: ExitStack = ExitStack()
+        self.__stack_quit: ExitStack = ExitStack()
+        self.__stack_destroy: ExitStack = ExitStack()
 
     @classmethod
     def __theme_init__(cls) -> None:
@@ -357,8 +348,12 @@ class Scene(metaclass=SceneMeta):
         return self.__event
 
     @property
-    def exit_stack(self) -> ExitStack:
-        return self.__stack
+    def on_quit_exit_stack(self) -> ExitStack:
+        return self.__stack_quit
+
+    @property
+    def destroy_exit_stack(self) -> ExitStack:
+        return self.__stack_destroy
 
     @property
     def background_color(self) -> Color:
@@ -386,7 +381,7 @@ class MainSceneMeta(SceneMeta):
 
 
 class MainScene(Scene, metaclass=MainSceneMeta):
-    __slots__ = ()
+    pass
 
 
 class LayeredSceneMeta(SceneMeta):
@@ -473,9 +468,6 @@ class LayeredSceneMeta(SceneMeta):
 
 
 class AbstractLayeredScene(Scene, metaclass=LayeredSceneMeta):
-
-    __slots__ = ()
-
     @property
     @abstractmethod
     def group(self) -> LayeredGroup:
@@ -502,9 +494,6 @@ class AbstractLayeredScene(Scene, metaclass=LayeredSceneMeta):
 
 
 class LayeredScene(AbstractLayeredScene):
-
-    __slots__ = ("__group",)
-
     def __init__(self) -> None:
         super().__init__()
         self.__group: LayeredGroup = LayeredGroup()
@@ -515,15 +504,15 @@ class LayeredScene(AbstractLayeredScene):
 
 
 class AbstractAutoLayeredScene(AbstractLayeredScene, add_drawable_attributes=True):
-    __slots__ = ()
+    pass
 
 
 class LayeredMainSceneMeta(LayeredSceneMeta, MainSceneMeta):
-    __slots__ = ()
+    pass
 
 
 class LayeredMainScene(LayeredScene, MainScene, metaclass=LayeredMainSceneMeta):
-    __slots__ = ()
+    pass
 
 
 class DialogMeta(SceneMeta):
@@ -570,8 +559,6 @@ class DialogMeta(SceneMeta):
 
 
 class Dialog(Scene, metaclass=DialogMeta):
-    __slots__ = ("__master",)
-
     if not TYPE_CHECKING:
 
         __new__ = object.__new__
@@ -696,10 +683,10 @@ class SceneWindow(Window):
 
         try:
             while looping():
+                if on_start_loop is not None:
+                    on_start_loop()
+                    on_start_loop = None
                 try:
-                    if on_start_loop is not None:
-                        on_start_loop()
-                        on_start_loop = None
                     process_events()
                     update_scene()
                     render_scene()
@@ -709,9 +696,11 @@ class SceneWindow(Window):
                         raise TypeError("Previous scene must not be None") from None
                     with ExitStack() as all_scenes_stack:
                         for scene in reversed(exc.closing_scenes):
-                            all_scenes_stack.enter_context(scene.exit_stack)
+                            all_scenes_stack.enter_context(scene.destroy_exit_stack)
+                            all_scenes_stack.enter_context(scene.on_quit_exit_stack)
                         if not self.__scenes.started(exc.previous_scene):
-                            all_scenes_stack.enter_context(exc.previous_scene.exit_stack)
+                            all_scenes_stack.enter_context(exc.previous_scene.destroy_exit_stack)
+                        all_scenes_stack.enter_context(exc.previous_scene.on_quit_exit_stack)
                         try:
                             scene_transition(
                                 exc.previous_scene,
@@ -772,13 +761,14 @@ class SceneWindow(Window):
                         animating = False
                     self.refresh()
                 del next_fixed_transition, next_transition, transition
-        previous_scene.on_quit()
+        with previous_scene.on_quit_exit_stack:
+            previous_scene.on_quit()
         if not self.__scenes.started(previous_scene):
             self.__scenes._destroy_awaken_scene(previous_scene)
         for scene in closing_scenes:
-            with scene.exit_stack:
+            with scene.on_quit_exit_stack:
                 scene.on_quit()
-                self.__scenes._destroy_awaken_scene(scene)
+            self.__scenes._destroy_awaken_scene(scene)
         self.__callback_after_scenes.pop(previous_scene, None)
         self.__accumulator = 0
         self.clear_all_events()
@@ -786,7 +776,7 @@ class SceneWindow(Window):
 
     def refresh(self) -> float:
         real_delta_time: float = super().refresh()
-        self.__accumulator += min(real_delta_time / 1000, 2 * Time.fixed_delta())
+        self.__accumulator += max(real_delta_time, 1) / 1000
         return real_delta_time
 
     def _fixed_updates_call(self, *funcs: Callable[[], None]) -> None:
@@ -917,7 +907,7 @@ class _SceneManager:
     def __init__(self, window: SceneWindow) -> None:
         def new_scene(cls: type[Scene]) -> Scene:
             scene: Scene = cls.__new__(cls)
-            setattr(scene, self.__scene_manager_attribute, self)
+            scene.__dict__[self.__scene_manager_attribute] = self
             scene.__init__()  # type: ignore[misc]
             return scene
 
@@ -942,16 +932,15 @@ class _SceneManager:
         self.__awaken.add(scene)
 
     def _destroy_awaken_scene(self, scene: Scene) -> None:
-        with scene.exit_stack:
+        with scene.destroy_exit_stack:
             try:
                 self.__awaken.remove(scene)
             except KeyError:
                 return
-            all_attributes: list[str] = list(scene.__dict__)
             scene.destroy()
             scene.event.unbind_all()
-        for attr in all_attributes:
-            delattr(scene, attr)
+        scene.__dict__.clear()
+        scene.__dict__[self.__scene_manager_attribute] = self
         scene.__init__()  # type: ignore[misc]
 
     def __iter__(self) -> Iterator[Scene]:
@@ -975,17 +964,15 @@ class _SceneManager:
         return scene in self.__awaken
 
     def clear(self) -> None:
-        with ExitStack() as all_scenes_exit_stack:
-            for scene in reversed(self.__stack):
-                all_scenes_exit_stack.enter_context(scene.exit_stack)
-            while self.__stack:
-                scene = self.__stack.pop(0)
+        while self.__stack:
+            scene = self.__stack.pop(0)
+            with scene.on_quit_exit_stack:
                 with suppress(Exception):
                     scene.on_quit_before_transition()
                 with suppress(Exception):
                     scene.on_quit()
-                with suppress(Exception):
-                    self._destroy_awaken_scene(scene)
+            with scene.destroy_exit_stack, suppress(Exception):
+                self._destroy_awaken_scene(scene)
         gc.collect()
 
     def render(self, scene: type[Scene]) -> None:
@@ -1077,8 +1064,8 @@ class _SceneManager:
             awake_kwargs = {}
         master: Scene = self.__dialogs[0] if self.__dialogs else self.__stack[0]
         obj: Dialog = dialog.__new__(dialog)
-        setattr(obj, self.__scene_manager_attribute, self)
-        setattr(obj, self.__dialog_master_attribute, master)
+        obj.__dict__[self.__scene_manager_attribute] = self
+        obj.__dict__[self.__dialog_master_attribute] = master
         obj.__init__()  # type: ignore[misc]
         return self.__open_dialog(obj, awake_kwargs=awake_kwargs)
 
@@ -1108,8 +1095,10 @@ class _SceneManager:
             except _SceneManager.DialogStop:
                 pass
             finally:
-                dialog.on_quit_before_transition()
-                dialog.on_quit()
+                with dialog.on_quit_exit_stack:
+                    dialog.on_quit_before_transition()
+                    with dialog.on_quit_exit_stack:
+                        dialog.on_quit()
 
     @property
     def window(self) -> SceneWindow:

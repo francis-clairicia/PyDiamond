@@ -210,7 +210,7 @@ class TransformAnimation:
         self.__actual_state = self.__previous_state = None
 
     def wait_until_finish(self, scene: Scene) -> None:
-        if not scene.looping():
+        if not scene.looping() or not self.has_animation_started():
             return
         window: SceneWindow = scene.window
         self.__on_stop = None
