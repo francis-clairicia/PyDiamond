@@ -902,13 +902,7 @@ class ConfigurationTemplate:
             enum = template.enum_converter_registered[option]
             raise ValueError(f"Enum converter already set for option {option!r}: {enum.__qualname__!r}")
 
-        def value_converter(val: Any, /, *, enum: Type[Enum] = enum, store_value: bool = bool(store_value)) -> Any:
-            val = enum(val)
-            if store_value:
-                val = val.value
-            return val
-
-        self.add_value_converter_static(option, value_converter)
+        self.add_value_converter_static(option, _make_enum_converter(enum, store_value=store_value))
         template.enum_converter_registered[option] = enum
         if return_value_on_get is not None:
             template.enum_return_value[option] = bool(return_value_on_get)
@@ -1610,6 +1604,23 @@ def _make_value_converter(_type: type, accept_none: bool) -> Callable[[Any], Any
     return value_converter
 
 
+@_no_type_check_cache
+def _make_enum_converter(enum: Type[Enum], store_value: bool) -> Callable[[Any], Any]:
+    if not store_value:
+
+        def value_converter(val: Any, /, *, enum: Type[Enum] = enum) -> Any:
+            val = enum(val)
+            return val
+
+    else:
+
+        def value_converter(val: Any, /, *, enum: Type[Enum] = enum) -> Any:
+            val = enum(val)
+            return val.value
+
+    return value_converter
+
+
 def _get_cls_mro(cls: type) -> List[type]:
     try:
         mro: List[type] = list(getattr(cls, "__mro__"))
@@ -1721,8 +1732,20 @@ class _ConfigInfoTemplate:
             merge_updater_dict(self.option_updater, p.option_updater, setting="update")
             merge_updater_dict(self.option_value_updater, p.option_value_updater, setting="value_update")
             merge_dict(self.value_descriptors, p.value_descriptors, on_conflict="raise", setting="descriptor")
-            merge_dict(self.value_converter, p.value_converter, on_conflict="raise", setting="value_converter")
-            merge_dict(self.value_validator, p.value_validator, on_conflict="raise", setting="value_validator")
+            merge_dict(
+                self.value_converter,
+                p.value_converter,
+                on_conflict="raise",
+                setting="value_converter",
+                copy=list.copy,
+            )
+            merge_dict(
+                self.value_validator,
+                p.value_validator,
+                on_conflict="raise",
+                setting="value_validator",
+                copy=list.copy,
+            )
             merge_dict(
                 self.value_autocopy_get,
                 p.value_autocopy_get,
@@ -1762,6 +1785,7 @@ class _ConfigInfoTemplate:
         *,
         on_conflict: Union[Literal["override", "raise", "skip"], Callable[[_KT, _VT, _VT], _VT]],
         setting: str,
+        copy: Optional[Callable[[_VT], _VT]] = None,
     ) -> None:
         for key, value in d2.items():
             if key in d1:
@@ -1771,6 +1795,8 @@ class _ConfigInfoTemplate:
                     raise ConfigError(f"Conflict of setting {setting!r} for {key!r} key")
                 if callable(on_conflict):
                     value = on_conflict(key, d1[key], value)
+            if copy is not None:
+                value = copy(value)
             d1[key] = value
 
     @staticmethod
@@ -1781,6 +1807,7 @@ class _ConfigInfoTemplate:
         *,
         on_duplicate: Literal["keep", "put_at_end", "raise", "skip"],
         setting: str,
+        copy: Optional[Callable[[_T], _T]] = None,
     ) -> None:
         for value in l2:
             if value in l1:
@@ -1790,6 +1817,8 @@ class _ConfigInfoTemplate:
                     l1.remove(value)
                 elif on_duplicate == "raise":
                     raise ConfigError(f"Conflict of setting {setting!r}: Duplicate of value {value!r}")
+            if copy is not None:
+                value = copy(value)
             l1.append(value)
 
     @classmethod
