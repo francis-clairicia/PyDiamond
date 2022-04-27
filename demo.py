@@ -966,7 +966,7 @@ class MainWindow(SceneWindow):
 
     def __init__(self) -> None:
         # super().__init__("my window", (0, 0))
-        super().__init__("my window", (1366, 768))
+        super().__init__("my window", (1366, 768), vsync=True)
 
     def __window_init__(self) -> None:
         super().__window_init__()
@@ -977,7 +977,7 @@ class MainWindow(SceneWindow):
 
         self.text_framerate.show()
         self.set_default_framerate(120)
-        self.set_default_fixed_framerate(100)
+        self.set_default_fixed_framerate(60)
         self.index: int = 0
         self.prev_button: Button = Button(self, "Previous", callback=self.__previous_scene)
         self.next_button: Button = Button(self, "Next", callback=self.__next_scene)

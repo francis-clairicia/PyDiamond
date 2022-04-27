@@ -635,7 +635,7 @@ class SceneWindow(Window):
         *,
         resizable: bool = False,
         fullscreen: bool = False,
-        vsync: bool = True,
+        vsync: bool = False,
     ) -> None:
         super().__init__(title=title, size=size, resizable=resizable, fullscreen=fullscreen, vsync=vsync)
         self.__callback_after_scenes: dict[Scene, _WindowCallbackList] = dict()

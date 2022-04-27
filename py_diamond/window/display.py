@@ -115,7 +115,7 @@ class Window(Object):
         *,
         resizable: bool = False,
         fullscreen: bool = False,
-        vsync: bool = True,
+        vsync: bool = False,
     ) -> None:
         self.set_title(title)
         self.__size: tuple[int, int] = (max(size[0], 0), max(size[1], 0))
