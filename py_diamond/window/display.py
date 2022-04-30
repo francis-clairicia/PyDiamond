@@ -50,7 +50,7 @@ from pygame.mixer import music as _pg_music
 from ..audio.music import MusicStream
 from ..graphics.color import BLACK, WHITE, Color
 from ..graphics.rect import ImmutableRect
-from ..graphics.renderer import Renderer, SurfaceRenderer
+from ..graphics.renderer import AbstractRenderer, SurfaceRenderer
 from ..graphics.surface import Surface, create_surface, save_image
 from ..graphics.text import Text
 from ..system._mangling import getattr_pv, setattr_pv
@@ -76,15 +76,12 @@ from .time import Time
 if TYPE_CHECKING:
     from pygame._common import _ColorValue  # pyright: reportMissingModuleSource=false
 
-if not TYPE_CHECKING:
-    from ..system.object import final as final
-
 _P = ParamSpec("_P")
 
 
 class _SupportsDrawing(Protocol):
     @abstractmethod
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, target: AbstractRenderer) -> None:
         raise NotImplementedError
 
 

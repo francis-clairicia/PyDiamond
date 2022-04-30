@@ -39,8 +39,8 @@ from typing import (
     runtime_checkable,
 )
 
-from ..graphics.drawable import Drawable, LayeredGroup
-from ..graphics.renderer import Renderer
+from ..graphics.drawable import Drawable, LayeredDrawableGroup
+from ..graphics.renderer import AbstractRenderer
 from ..graphics.theme import no_theme_decorator
 from ..system._mangling import getattr_pv
 from ..system.enum import AutoLowerNameEnum
@@ -210,7 +210,7 @@ class GUIScene(AbstractLayeredScene):
 
     @property
     @final
-    def group(self) -> LayeredGroup:
+    def group(self) -> LayeredDrawableGroup:
         return self.__group
 
     @property
@@ -524,7 +524,7 @@ _SIDE_WITH_KEY_EVENT: Final[dict[int, BoundFocus.Side]] = {
 }
 
 
-class _GUILayeredGroup(LayeredGroup):
+class _GUILayeredGroup(LayeredDrawableGroup):
 
     __slots__ = ("__master",)
 
@@ -532,7 +532,7 @@ class _GUILayeredGroup(LayeredGroup):
         self.__master: GUIScene = master
         super().__init__()
 
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, target: AbstractRenderer) -> None:
         master: GUIScene = self.__master
         master._focus_container.update()
         super().draw_onto(target)

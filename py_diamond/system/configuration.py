@@ -60,6 +60,7 @@ from typing import (
 from weakref import ReferenceType as WeakReferenceType, WeakKeyDictionary, ref as weakref
 
 from ._mangling import mangle_private_attribute as _private_attribute
+from .object import Object
 
 _Func = TypeVar("_Func", bound=Callable[..., Any])
 _Updater = TypeVar("_Updater", bound=Callable[[Any], None])
@@ -126,7 +127,7 @@ _MISSING: Any = object()
 _NO_DEFAULT: Any = object()
 
 
-class ConfigurationTemplate:
+class ConfigurationTemplate(Object):
     __slots__ = (
         "__template",
         "__no_parent_ownership",
@@ -962,7 +963,7 @@ class ConfigurationTemplate:
         return self.__attr_name
 
 
-class OptionAttribute(Generic[_T]):
+class OptionAttribute(Generic[_T], Object):
 
     __slots__ = ("__name", "__config_name", "__doc__")
 
@@ -1095,7 +1096,7 @@ _InitializationRegister = Dict[str, Any]
 _UpdateRegister = List[str]
 
 
-class Configuration(Generic[_T]):
+class Configuration(Generic[_T], Object):
     __update_stack: ClassVar[Dict[object, List[str]]] = dict()
     __init_context: ClassVar[Dict[object, _InitializationRegister]] = dict()
     __update_context: ClassVar[Dict[object, _UpdateRegister]] = dict()

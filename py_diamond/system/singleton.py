@@ -12,14 +12,15 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from abc import ABCMeta
 from types import MethodType
 from typing import Any, Callable, TypeVar
+
+from .object import Object, ObjectMeta
 
 _T = TypeVar("_T")
 
 
-class SingletonMeta(ABCMeta):
+class SingletonMeta(ObjectMeta):
     def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> SingletonMeta:
         kwargs.pop("abstract", None)
 
@@ -92,7 +93,7 @@ class SingletonMeta(ABCMeta):
             return MethodType(self, obj)
 
 
-class Singleton(metaclass=SingletonMeta, abstract=True):
+class Singleton(Object, metaclass=SingletonMeta, abstract=True):
     pass
 
 

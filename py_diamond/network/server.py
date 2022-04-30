@@ -47,13 +47,10 @@ try:
 except ImportError:
     from selectors import SelectSelector as _Selector
 
-if not TYPE_CHECKING:
-    from ..system.object import final as final
-
 _T = TypeVar("_T")
 
 
-class ConnectedClient(Object, Generic[_T]):
+class ConnectedClient(Generic[_T], Object):
     def __init__(self, address: SocketAddress) -> None:
         super().__init__()
         self.__addr: SocketAddress = address
@@ -72,7 +69,7 @@ class ConnectedClient(Object, Generic[_T]):
         return self.__addr
 
 
-class AbstractRequestHandler(Object, Generic[_T]):
+class AbstractRequestHandler(Generic[_T], Object):
     @final
     def __init__(self, request: _T, client: ConnectedClient[_T], server: AbstractNetworkServer) -> None:
         self.request: _T = request

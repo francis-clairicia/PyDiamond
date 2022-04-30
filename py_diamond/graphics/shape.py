@@ -41,7 +41,7 @@ from ..system.utils import valid_float, valid_integer
 from .color import BLACK, Color
 from .drawable import TDrawable, TDrawableMeta
 from .rect import Rect
-from .renderer import Renderer, SurfaceRenderer
+from .renderer import AbstractRenderer, SurfaceRenderer
 from .surface import Surface, create_surface
 from .theme import ThemedObjectMeta, ThemeType
 
@@ -63,7 +63,7 @@ class AbstractShape(TDrawable, metaclass=ShapeMeta):
         self.__shape_image: Surface = self.__image.copy()
         self.__local_size: tuple[float, float] = (0, 0)
 
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, target: AbstractRenderer) -> None:
         image: Surface = self.__image
         center: tuple[float, float] = self.center
         target.draw(image, image.get_rect(center=center))

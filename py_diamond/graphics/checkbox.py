@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from ..window.cursor import AbstractCursor
     from ..window.display import Window
     from ..window.scene import Scene
-    from .renderer import Renderer
+    from .renderer import AbstractRenderer
 
 _OnValue = TypeVar("_OnValue")
 _OffValue = TypeVar("_OffValue")
@@ -148,7 +148,7 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Che
         if callback_at_init and callable(callback):
             callback(self.__value)
 
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, target: AbstractRenderer) -> None:
         shape: RectangleShape = self.__shape
         active_img: Image | None = self.__active_img
         active: TDrawable

@@ -2,13 +2,13 @@
 # Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine
 #
 #
-"""PyDiamond's environment module"""
+"""PyDiamond's patch plugins module
+  
+All the submodules will be automatically imported by the PatchCollector singleton
+"""
 
-__all__ = ["check_booleans"]
+__all__ = []  # type: list[str]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
-
-
-from .check import check_booleans

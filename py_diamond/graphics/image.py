@@ -22,7 +22,7 @@ from .rect import Rect
 from .surface import Surface, create_surface, load_image, save_image
 
 if TYPE_CHECKING:
-    from .renderer import Renderer
+    from .renderer import AbstractRenderer
 
 
 class Image(TDrawable):
@@ -76,7 +76,7 @@ class Image(TDrawable):
             self.scale_to_height(height)
         self.topleft = (0, 0)
 
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, target: AbstractRenderer) -> None:
         image: Surface = self.__image
         topleft: tuple[float, float] = self.topleft
         target.draw(image, topleft)

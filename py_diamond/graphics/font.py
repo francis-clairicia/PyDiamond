@@ -12,10 +12,12 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import Iterable
+from typing import Iterable, final
 
 from pygame.font import Font as _Font, get_default_font as _pg_font_get_default_font
 from pygame.sysfont import SysFont as _pg_sysfont
+
+from ..system.object import Object
 
 
 def SysFont(name: str | bytes | Iterable[str | bytes], size: int, bold: bool = False, italic: bool = False) -> Font:
@@ -54,7 +56,8 @@ def SysFont(name: str | bytes | Iterable[str | bytes], size: int, bold: bool = F
     return font
 
 
-class Font(_Font):
+@final
+class Font(_Font, Object):
     @staticmethod
     def get_default_font() -> str:
         return _pg_font_get_default_font()

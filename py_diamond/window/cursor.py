@@ -12,7 +12,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 from enum import Enum, EnumMeta
 from types import MethodType
 from typing import Any, Callable, ClassVar, Sequence, overload
@@ -22,10 +22,11 @@ from pygame.cursors import Cursor as _Cursor, compile as _pg_cursors_compile, lo
 from pygame.mouse import set_cursor as _pg_mouse_set_cursor
 
 from ..graphics.surface import Surface
+from ..system.object import Object, ObjectMeta
 from ..system.utils import wraps
 
 
-class _CursorMeta(ABCMeta):
+class _CursorMeta(ObjectMeta):
     __cursor_setter: ClassVar[Callable[[], None] | None] = None
     __default_cursor: ClassVar[AbstractCursor | None] = None
 
@@ -63,7 +64,7 @@ class _CursorMeta(ABCMeta):
         _CursorMeta.__default_cursor = cursor
 
 
-class AbstractCursor(metaclass=_CursorMeta):
+class AbstractCursor(Object, metaclass=_CursorMeta):
     @abstractmethod
     def set(self) -> None:
         raise NotImplementedError

@@ -41,7 +41,7 @@ from py_diamond.graphics.gradients import (
 from py_diamond.graphics.grid import Grid
 from py_diamond.graphics.image import Image
 from py_diamond.graphics.progress import ProgressBar
-from py_diamond.graphics.renderer import Renderer
+from py_diamond.graphics.renderer import AbstractRenderer
 from py_diamond.graphics.scale import ScaleBar
 from py_diamond.graphics.scroll import ScrollArea, ScrollBar
 from py_diamond.graphics.shape import CircleShape, CrossShape, PolygonShape, RectangleShape, ThemedShapeMeta
@@ -218,6 +218,52 @@ class AnimationScene(MainScene, busy_loop=True):
     def __handle_return_event(self) -> None:
         self.on_start_loop_before_transition()
         self.on_start_loop()
+
+
+class AnimationStateFullScene(MainScene, busy_loop=True, fixed_framerate=30):
+    def awake(self, **kwargs: Any) -> None:
+        super().awake(**kwargs)
+        self.background_color = BLUE_DARK
+        self.rectangle = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
+        self.text = Text(font=(FontResources.cooperblack, 25), italic=True, color=WHITE, justify="center")
+        self.use_interpolation = False
+        self.event.bind_key_press(Keyboard.Key.RETURN, lambda _: self.__toogle_interpolation_use())
+
+    def on_start_loop_before_transition(self) -> None:
+        window: Window = self.window
+        self.rectangle.angle = 0
+        self.rectangle.scale = 1
+        self.rectangle.center = (window.centerx / 2, window.centery)
+
+    def on_start_loop(self) -> None:
+        window: Window = self.window
+        self.rectangle.animation.clear()
+        self.rectangle.animation.infinite_rotation(speed=410)
+        self.rectangle.animation.infinite_rotation_around_point(pivot=window.center, speed=50)
+        self.rectangle.animation.start()
+        self.use_interpolation = True
+
+    def fixed_update(self) -> None:
+        self.rectangle.animation.fixed_update(use_of_linear_interpolation=self.use_interpolation)
+
+    def update_alpha(self, interpolation: float) -> None:
+        self.rectangle.animation.set_interpolation(interpolation)
+
+    def update(self) -> None:
+        self.text.message = "\n".join(
+            [
+                f"Animation interpolation: {'On' if self.use_interpolation else 'Off'}",
+                "Press Enter to switch",
+                f"Fixed framerate: {self.window.used_fixed_framerate()}fps",
+            ]
+        )
+        self.text.center = self.window.center
+
+    def render(self) -> None:
+        self.window.draw(self.rectangle, self.text)
+
+    def __toogle_interpolation_use(self) -> None:
+        self.use_interpolation = not self.use_interpolation
 
 
 class GradientScene(Scene):
@@ -915,7 +961,7 @@ class SceneTransitionTranslation(SceneTransition):
         self.__side: Literal["left", "right"] = side
 
     def show_new_scene(
-        self, target: Renderer, previous_scene_image: Surface, actual_scene_image: Surface
+        self, target: AbstractRenderer, previous_scene_image: Surface, actual_scene_image: Surface
     ) -> SceneTransitionCoroutine:
         previous_scene = Image(previous_scene_image, copy=False)
         actual_scene = Image(actual_scene_image, copy=False)
@@ -943,6 +989,7 @@ class MainWindow(SceneWindow):
     all_scenes: ClassVar[list[type[Scene]]] = [
         ShapeScene,
         AnimationScene,
+        AnimationStateFullScene,
         GradientScene,
         RainbowScene,
         TextScene,

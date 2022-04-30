@@ -12,10 +12,10 @@ __license__ = "GNU GPL v3.0"
 
 from pygame.mixer import Channel, Sound as _PygameSound
 
-from ..system.duplicate import NoDuplicateMeta
+from ..system.duplicate import NoDuplicate
 
 
-class Sound(_PygameSound, metaclass=NoDuplicateMeta):
+class Sound(_PygameSound, NoDuplicate):
     def __init__(self, file: str | bytes) -> None:
         if not isinstance(file, bytes):
             file = file.encode("utf-8")

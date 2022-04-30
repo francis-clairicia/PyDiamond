@@ -10,7 +10,7 @@ __all__ = [
     "Drawable",
     "DrawableGroup",
     "DrawableMeta",
-    "LayeredGroup",
+    "LayeredDrawableGroup",
     "MDrawable",
     "MDrawableMeta",
     "TDrawable",
@@ -21,33 +21,34 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 from bisect import insort_right
 from contextlib import suppress
 from itertools import dropwhile, filterfalse, takewhile
 from typing import TYPE_CHECKING, Any, Callable, Iterator, Sequence, TypeVar, overload
 
 from ..system._mangling import getattr_pv
+from ..system.object import Object, ObjectMeta
 from ..system.utils import wraps
 from .movable import Movable, MovableMeta
 from .transformable import Transformable, TransformableMeta
 
 if TYPE_CHECKING:
-    from .renderer import Renderer
+    from .renderer import AbstractRenderer
 
 _T = TypeVar("_T")
 
 
-def _draw_decorator(func: Callable[[Drawable, Renderer], None], /) -> Callable[[Drawable, Renderer], None]:
+def _draw_decorator(func: Callable[[Drawable, AbstractRenderer], None], /) -> Callable[[Drawable, AbstractRenderer], None]:
     @wraps(func)
-    def wrapper(self: Drawable, /, target: Renderer) -> None:
+    def wrapper(self: Drawable, /, target: AbstractRenderer) -> None:
         if self.is_shown():
             func(self, target)
 
     return wrapper
 
 
-class DrawableMeta(ABCMeta):
+class DrawableMeta(ObjectMeta):
     def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> DrawableMeta:
         try:
             Drawable
@@ -59,20 +60,20 @@ class DrawableMeta(ABCMeta):
                     f"{name!r} must be inherits from a {Drawable.__name__} class in order to use {DrawableMeta.__name__} metaclass"
                 )
 
-            draw_method: Callable[[Drawable, Renderer], None] | None = namespace.get("draw_onto")
+            draw_method: Callable[[Drawable, AbstractRenderer], None] | None = namespace.get("draw_onto")
             if callable(draw_method):
                 namespace["draw_onto"] = _draw_decorator(draw_method)
 
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
 
-class Drawable(metaclass=DrawableMeta):
+class Drawable(Object, metaclass=DrawableMeta):
     def __init__(self) -> None:
         self.__shown: bool = True
         self.__groups: set[DrawableGroup] = set()
 
     @abstractmethod
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, target: AbstractRenderer) -> None:
         raise NotImplementedError
 
     def show(self) -> None:
@@ -149,7 +150,7 @@ class MDrawable(Drawable, Movable, metaclass=MDrawableMeta):
 
 
 # TODO: Weak references
-class DrawableGroup(Sequence[Drawable]):
+class DrawableGroup(Sequence[Drawable], Object):
 
     __slots__ = ("__list",)
 
@@ -176,7 +177,7 @@ class DrawableGroup(Sequence[Drawable]):
     def __bool__(self) -> bool:
         return self.__len__() > 0
 
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, target: AbstractRenderer) -> None:
         for drawable in self.__list:
             drawable.draw_onto(target)
 
@@ -225,7 +226,7 @@ class DrawableGroup(Sequence[Drawable]):
                 yield obj
 
 
-class LayeredGroup(DrawableGroup):
+class LayeredDrawableGroup(DrawableGroup):
 
     __slots__ = ("__default_layer", "__layer_dict")
 

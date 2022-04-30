@@ -13,6 +13,7 @@ __license__ = "GNU GPL v3.0"
 from threading import Thread as _Thread
 from typing import Any, Callable, Generic, Iterable, Mapping, ParamSpec, TypeVar, overload
 
+from .object import Object
 from .utils import wraps
 
 _P = ParamSpec("_P")
@@ -20,7 +21,7 @@ _T = TypeVar("_T", bound="Thread")
 _R = TypeVar("_R")
 
 
-class Thread(_Thread):
+class Thread(_Thread, Object):
     pass
 
 

@@ -18,9 +18,9 @@ from pygame.mask import Mask, from_surface as _pg_mask_from_surface
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom, smoothscale as _surface_smoothscale
 
 from ..window.clock import Clock
-from .drawable import DrawableGroup, LayeredGroup, TDrawable
+from .drawable import DrawableGroup, LayeredDrawableGroup, TDrawable
 from .rect import Rect
-from .renderer import BlendMode, Renderer
+from .renderer import AbstractRenderer, BlendMode
 from .surface import Surface, create_surface
 
 
@@ -55,7 +55,7 @@ class Sprite(TDrawable):
     def update(self, *args: Any, **kwargs: Any) -> None:
         pass
 
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, target: AbstractRenderer) -> None:
         image: Surface = self.__image
         topleft: tuple[float, float] = self.topleft
         blend_mode: BlendMode = self.__blend_mode
@@ -268,7 +268,7 @@ class SpriteGroup(DrawableGroup):
             ...
 
 
-class LayeredSpriteGroup(LayeredGroup, SpriteGroup):
+class LayeredSpriteGroup(LayeredDrawableGroup, SpriteGroup):
     __slots__ = ()
 
     def __init__(self, *objects: Sprite, default_layer: int = 0, **kwargs: Any) -> None:

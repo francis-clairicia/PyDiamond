@@ -18,8 +18,7 @@ from typing import Iterator, NamedTuple
 import pygame.mixer as _pg_mixer
 from pygame import error as _pg_error
 
-from ..system.namespace import ClassNamespaceMeta
-from .music import MusicStream
+from ..system.namespace import ClassNamespace
 from .sound import Channel
 
 
@@ -29,7 +28,7 @@ class MixerParams(NamedTuple):
     channels: int
 
 
-class Mixer(metaclass=ClassNamespaceMeta, frozen=True):
+class Mixer(ClassNamespace, frozen=True):
     @staticmethod
     @contextmanager
     def init(frequency: int = 44100, size: int = -16, channels: int = 2, buffersize: int = 512) -> Iterator[MixerParams]:
@@ -39,6 +38,9 @@ class Mixer(metaclass=ClassNamespaceMeta, frozen=True):
         with ExitStack() as stack:
             _pg_mixer.init(frequency=frequency, size=size, channels=channels, buffer=buffersize)
             stack.callback(_pg_mixer.quit)
+
+            from .music import MusicStream
+
             stack.callback(MusicStream.stop)
             yield Mixer.get_init()
 

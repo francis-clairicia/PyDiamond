@@ -24,7 +24,7 @@ from .text import Text
 from .theme import NoTheme, ThemeType
 
 if TYPE_CHECKING:
-    from .renderer import Renderer
+    from .renderer import AbstractRenderer
 
 
 class ProgressBar(RectangleShape):
@@ -127,7 +127,7 @@ class ProgressBar(RectangleShape):
         self.hide_label()
         self.hide_value()
 
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, target: AbstractRenderer) -> None:
         scale_rect: RectangleShape = self.__scale_rect
         outline_rect: RectangleShape = self.__outline_rect
 

@@ -25,7 +25,7 @@ from ..window.gui import GUIScene, SupportsFocus
 from .color import BLACK, TRANSPARENT, Color
 from .drawable import Drawable, MDrawable
 from .movable import Movable
-from .renderer import Renderer
+from .renderer import AbstractRenderer
 from .shape import RectangleShape
 from .theme import NoTheme
 
@@ -94,7 +94,7 @@ class Grid(MDrawable, Container[Drawable]):
         max_height_rows: dict[int, float] = self.__max_height_rows
         return (max_width_columns.get(column, 0), max_height_rows.get(row, 0))
 
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, target: AbstractRenderer) -> None:
         bg: RectangleShape = self.__bg
         outline: RectangleShape = self.__outline
         outline.local_size = bg.local_size = self.get_size()
@@ -565,7 +565,7 @@ class _GridCell(MDrawable):
             self.__obj_size = (width, height)
         return (width, height)
 
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, target: AbstractRenderer) -> None:
         obj: MDrawable | None = self.__object
         if obj is None:
             return

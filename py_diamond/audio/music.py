@@ -18,12 +18,12 @@ from typing import Final
 from pygame.event import Event as _PygameEvent, custom_type as _pg_event_custom_type, post as _pg_event_post
 from pygame.mixer import get_init as _pg_mixer_get_init, music as _pg_music
 
-from ..system.duplicate import NoDuplicateMeta
-from ..system.namespace import ClassNamespaceMeta
+from ..system.duplicate import NoDuplicate
+from ..system.namespace import ClassNamespace
 from ..system.utils import forbidden_call
 
 
-class Music(metaclass=NoDuplicateMeta):
+class Music(NoDuplicate):
     __slots__ = ("__f",)
 
     def __init__(self, filepath: str) -> None:
@@ -43,7 +43,7 @@ class Music(metaclass=NoDuplicateMeta):
         return self.__f
 
 
-class MusicStream(metaclass=ClassNamespaceMeta, frozen=True):
+class MusicStream(ClassNamespace, frozen=True):
     MUSICEND: Final[int] = _pg_event_custom_type()
     _pg_music.set_endevent(_pg_event_custom_type())
     _pg_music.set_endevent = forbidden_call(_pg_music.set_endevent)

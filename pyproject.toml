@@ -14,7 +14,8 @@ authors = [
 license = {file = "LICENSE"}
 dependencies = [
     "pygame >=2.1.2,<2.2",
-    "cryptography >=36.0,<36.1"
+    "cryptography >=36.0,<36.1",
+    "typing_extensions ==4.2.0"
 ]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",

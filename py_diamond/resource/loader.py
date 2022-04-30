@@ -10,19 +10,20 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 from typing import Generic, TypeVar
 
 from ..audio.music import Music
 from ..audio.sound import Sound
 from ..graphics.font import Font
 from ..graphics.surface import Surface, load_image
+from ..system.object import Object
 from ..system.path import set_constant_file
 
 _T = TypeVar("_T")
 
 
-class ResourceLoader(Generic[_T], metaclass=ABCMeta):
+class ResourceLoader(Generic[_T], Object):
 
     __slots__ = ("__filepath",)
 

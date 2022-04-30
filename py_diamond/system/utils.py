@@ -6,6 +6,7 @@
 
 __all__ = [
     "cache",
+    "classmethodonly",
     "concreteclass",
     "concreteclasscheck",
     "concreteclassmethod",
@@ -33,7 +34,7 @@ from functools import WRAPPER_ASSIGNMENTS, WRAPPER_UPDATES, lru_cache as _lru_ca
 from inspect import isabstract
 from itertools import chain
 from operator import truth
-from typing import Any, Callable, Iterable, Iterator, Literal, ParamSpec, Sequence, TypeAlias, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Literal, ParamSpec, Sequence, TypeAlias, TypeVar, overload
 
 _P = ParamSpec("_P")
 _T = TypeVar("_T")
@@ -105,6 +106,22 @@ def setdefaultattr(obj: object, name: str, value: _T) -> Any | _T:
     except AttributeError:
         setattr(obj, name, value)
     return value
+
+
+if TYPE_CHECKING:
+
+    classmethodonly = classmethod
+
+else:
+    _R_co = TypeVar("_R_co", covariant=True)
+
+    class classmethodonly(classmethod):
+        def __get__(self, __obj: _T, __type: type[_T] | None = ...) -> Callable[..., _R_co]:
+            if __obj is not None:
+                raise TypeError(f"This method should not be called from instance")
+            return super().__get__(__obj, __type)
+
+    del _R_co
 
 
 # def concreteclassmethod(func: Callable[Concatenate[type[_T], _P], _R]) -> Callable[Concatenate[type[_T], _P], _R]:

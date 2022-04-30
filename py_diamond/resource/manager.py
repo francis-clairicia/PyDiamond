@@ -53,22 +53,25 @@ class _ResourceDescriptor:
         self.unload()
 
     def load(self) -> Any:
-        def load_all_resources(resource_loader: _ResourceLoader) -> Any:
-            if isinstance(resource_loader, ResourceLoader):
-                return resource_loader.load()
-            if isinstance(resource_loader, tuple):
-                return tuple(load_all_resources(loader) for loader in resource_loader)
-            if isinstance(resource_loader, dict):
-                return MappingProxyType({key: load_all_resources(value) for key, value in resource_loader.items()})
-            raise TypeError(f"Unexpected resource loader type: {type(resource_loader).__name__!r} ({resource_loader!r})")
-
         try:
             return self.__resource
         except AttributeError:
             pass
+        load_all_resources = _ResourceDescriptor.__load_all_resources
         resource: Any = load_all_resources(self.__loader)
         self.__resource = resource
         return resource
+
+    @staticmethod
+    def __load_all_resources(resource_loader: _ResourceLoader) -> Any:
+        load_all_resources = _ResourceDescriptor.__load_all_resources
+        if isinstance(resource_loader, ResourceLoader):
+            return resource_loader.load()
+        if isinstance(resource_loader, tuple):
+            return tuple(load_all_resources(loader) for loader in resource_loader)
+        if isinstance(resource_loader, dict):
+            return MappingProxyType({key: load_all_resources(value) for key, value in resource_loader.items()})
+        raise TypeError(f"Unexpected resource loader type: {type(resource_loader).__name__!r} ({resource_loader!r})")
 
     def unload(self) -> None:
         with suppress(AttributeError):
@@ -108,8 +111,6 @@ class ResourceManagerMeta(type):
         namespace["__resources_directory__"] = directory
 
         for resource_name, resource_path in resources.items():
-            if resource_name not in annotations:
-                raise TypeError(f"Missing type annotation for {resource_name!r}")
             namespace[resource_name] = _ResourceDescriptor(resource_path, namespace["__resource_loader__"], directory)
 
         return super().__new__(metacls, name, bases, namespace, **kwargs)

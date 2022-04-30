@@ -76,9 +76,6 @@ from .mouse import Mouse
 if TYPE_CHECKING:
     from _typeshed import Self
 
-if not TYPE_CHECKING:
-    from ..system.object import final as final
-
 _T = TypeVar("_T")
 
 

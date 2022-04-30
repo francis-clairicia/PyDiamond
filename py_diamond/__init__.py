@@ -39,6 +39,14 @@ py_diamond.environ.check_booleans(
     ]
 )
 
+#### Apply various patch that must be ran before importing the main modules
+from py_diamond._patch import collector
+
+collector.run_patches()
+
+del collector
+####
+
 import py_diamond.audio
 import py_diamond.graphics
 import py_diamond.math

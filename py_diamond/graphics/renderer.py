@@ -2,17 +2,17 @@
 # Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine
 #
 #
-"""Renderer module"""
+"""AbstractRenderer module"""
 
 from __future__ import annotations
 
-__all__ = ["Renderer", "SurfaceRenderer"]
+__all__ = ["AbstractRenderer", "SurfaceRenderer"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 from enum import IntEnum, unique
 from typing import TYPE_CHECKING, Any, Sequence, overload
 
@@ -29,6 +29,8 @@ from pygame.draw import (
     rect as _draw_rect,
 )
 
+from ..system.object import Object
+from ..system.utils import concreteclass
 from .rect import Rect
 from .surface import Surface, create_surface
 
@@ -53,7 +55,7 @@ class BlendMode(IntEnum):
     ALPHA_SDL2 = _pg_constants.BLEND_ALPHA_SDL2
 
 
-class Renderer(metaclass=ABCMeta):
+class AbstractRenderer(Object):
 
     __slots__ = ()
 
@@ -184,7 +186,8 @@ class Renderer(metaclass=ABCMeta):
         raise NotImplementedError
 
 
-class SurfaceRenderer(Renderer):
+@concreteclass
+class SurfaceRenderer(AbstractRenderer):
 
     __slots__ = ("__target",)
 

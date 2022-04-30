@@ -43,9 +43,6 @@ try:
 except ImportError:
     from selectors import SelectSelector as _Selector
 
-if not TYPE_CHECKING:
-    from ..system.object import final as final
-
 
 _T = TypeVar("_T")
 

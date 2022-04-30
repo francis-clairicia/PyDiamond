@@ -14,6 +14,8 @@ __license__ = "GNU GPL v3.0"
 
 from typing import TYPE_CHECKING, Any, TypeVar
 
+from .object import Object, ObjectMeta
+
 
 def __non_copyable_copy__(self: Any) -> Any:
     raise TypeError("Non copyable class")
@@ -23,7 +25,7 @@ def __non_copyable_deepcopy__(self: Any, memo: dict[int, Any]) -> Any:
     raise TypeError("Non copyable class")
 
 
-class NonCopyableMeta(type):
+class NonCopyableMeta(ObjectMeta):
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="NonCopyableMeta")
 
@@ -47,5 +49,5 @@ class NonCopyableMeta(type):
         return super().__setattr__(name, value)
 
 
-class NonCopyable(metaclass=NonCopyableMeta):
+class NonCopyable(Object, metaclass=NonCopyableMeta):
     pass

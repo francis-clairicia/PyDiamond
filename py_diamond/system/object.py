@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Object", "ObjectMeta", "final", "override"]
+__all__ = ["Object", "ObjectMeta", "override"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -18,7 +18,7 @@ from itertools import chain
 from operator import truth
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Sequence, TypeVar, overload
 
-from .utils import isabstractmethod
+# from .utils import isabstractmethod
 
 _T = TypeVar("_T")
 
@@ -49,7 +49,7 @@ class ObjectMeta(ABCMeta):
     ) -> __Self:
         # Verify final bases
         final_bases: list[type]
-        if final_bases := list(filter(lambda base: getattr(base, "__finaloverride__", False), bases)):
+        if final_bases := list(filter(lambda base: getattr(base, "__final__", False), bases)):
             raise TypeError(
                 f"{name!r}: Base classes marked as final class: {', '.join(base.__qualname__ for base in final_bases)}"
             )
@@ -58,33 +58,33 @@ class ObjectMeta(ABCMeta):
         bases_final_methods_dict: dict[type, list[str]] = {base: list(getattr(base, "__finalmethods__", ())) for base in bases}
         bases_final_methods_set: list[str] = list(chain.from_iterable(bases_final_methods_dict.values()))
 
-        conflict_final_methods: dict[str, list[type]] = {
-            method: bases_list
-            for method in bases_final_methods_set
-            if len(
-                (
-                    bases_list := [
-                        base
-                        for actual_base, previous_bases in _iter_keeping_former(bases)
-                        if method in bases_final_methods_dict.get(actual_base, [])
-                        for base in chain((actual_base,), previous_bases)
-                        if base is actual_base
-                        or (
-                            hasattr(base, method)
-                            and not isabstractmethod(getattr(base, method))
-                            and (getattr(actual_base, method) is not getattr(base, method))
-                        )
-                    ]
-                )
-            )
-            > 1
-        }
+        # conflict_final_methods: dict[str, list[type]] = {
+        #     method: bases_list
+        #     for method in bases_final_methods_set
+        #     if len(
+        #         (
+        #             bases_list := [
+        #                 base
+        #                 for actual_base, previous_bases in _iter_keeping_former(bases)
+        #                 if method in bases_final_methods_dict.get(actual_base, [])
+        #                 for base in chain((actual_base,), previous_bases)
+        #                 if base is actual_base
+        #                 or (
+        #                     hasattr(base, method)
+        #                     and not isabstractmethod(getattr(base, method))
+        #                     and (getattr(actual_base, method) is not getattr(base, method))
+        #                 )
+        #             ]
+        #         )
+        #     )
+        #     > 1
+        # }
 
-        if conflict_final_methods:
-            conflict_message = ", ".join(
-                f"{method} in {tuple(b.__qualname__ for b in bases)}" for method, bases in conflict_final_methods.items()
-            )
-            raise TypeError(f"{name!r}: Final methods conflict between base classes: {conflict_message}")
+        # if conflict_final_methods:
+        #     conflict_message = ", ".join(
+        #         f"{method} in {tuple(b.__qualname__ for b in bases)}" for method, bases in conflict_final_methods.items()
+        #     )
+        #     raise TypeError(f"{name!r}: Final methods conflict between base classes: {conflict_message}")
 
         # Verify final override
         if final_methods_overriden := list(filter(bases_final_methods_set.__contains__, namespace)):
@@ -107,15 +107,6 @@ class ObjectMeta(ABCMeta):
             )
         )
 
-        # Verify Object binding
-        try:
-            if not any(issubclass(base, Object) for base in bases):
-                raise TypeError(
-                    f"{name!r} must be inherits from a {Object.__name__} class in order to use {ObjectMeta.__name__} metaclass"
-                )
-        except NameError:
-            pass
-
         cls = super().__new__(metacls, name, bases, namespace, **kwargs)
         cls.__finalmethods__ = frozenset(
             filter(lambda attr_name: ObjectMeta.__is_final_override(getattr(cls, attr_name, None)), cls_final_methods)
@@ -129,7 +120,7 @@ class ObjectMeta(ABCMeta):
 
     @staticmethod
     def __is_final_override(obj: Any) -> bool:
-        return truth(ObjectMeta.__check_attr(obj, "__finaloverride__"))
+        return truth(ObjectMeta.__check_attr(obj, "__final__"))
 
     @staticmethod
     def __check_attr(obj: Any, attr: str) -> bool:
@@ -176,21 +167,7 @@ def override(__o: Any = ..., /, *, final: bool = False) -> Any:
         if not callable(__o) and not hasattr(__o, "__get__"):
             raise TypeError("override() must only decorate functions and descriptors")
         setattr(__o, "__mustoverride__", True)
-        setattr(__o, "__finaloverride__", final)
+        setattr(__o, "__final__", final)
         return __o
 
     return decorator if __o is Ellipsis else decorator(__o)
-
-
-def final(__o: _T, /) -> _T:
-    if isinstance(__o, property):
-        for func in (__o.fget, __o.fset, __o.fdel):
-            if callable(func):
-                final(func)
-        return __o  # type: ignore[return-value]
-    if isinstance(__o, (classmethod, staticmethod)):
-        final(__o.__func__)
-    if isinstance(__o, cached_property):
-        final(__o.func)
-    setattr(__o, "__finaloverride__", True)
-    return __o  # type: ignore[no-any-return]

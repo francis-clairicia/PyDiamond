@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from ..window.display import Window
     from ..window.scene import Scene
     from .font import Font
-    from .renderer import Renderer
+    from .renderer import AbstractRenderer
 
     _TupleFont: TypeAlias = tuple[str | None, int]
     _TextFont: TypeAlias = Font | _TupleFont
@@ -224,7 +224,7 @@ class Entry(TDrawable, Pressable, metaclass=EntryMeta):
     def get_local_size(self) -> tuple[float, float]:
         return self.__shape.get_local_size()
 
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, target: AbstractRenderer) -> None:
         shape: RectangleShape = self.__shape
         outline_shape: RectangleShape = self.__outline_shape
         text: Text = self.__text

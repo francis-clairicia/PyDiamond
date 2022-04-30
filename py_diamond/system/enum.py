@@ -24,15 +24,6 @@ else:
     if TYPE_CHECKING:
         from _typeshed import Self
 
-    def __int_enum_monkeypatch() -> None:
-        from enum import IntEnum
-
-        setattr(IntEnum, "__str__", int.__str__)
-        setattr(IntEnum, "__format__", int.__format__)
-
-    __int_enum_monkeypatch()
-    del __int_enum_monkeypatch
-
     class StrEnum(str, Enum):
         value: str
 

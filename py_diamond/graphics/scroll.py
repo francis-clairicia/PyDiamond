@@ -24,10 +24,10 @@ from ..window.clickable import Clickable
 from ..window.event import MouseButtonDownEvent, MouseButtonUpEvent, MouseMotionEvent, MouseWheelEvent
 from ..window.mouse import Mouse
 from .color import BLACK, GRAY, TRANSPARENT, WHITE, Color
-from .drawable import Drawable, LayeredGroup, TDrawable, TDrawableMeta
+from .drawable import Drawable, LayeredDrawableGroup, TDrawable, TDrawableMeta
 from .movable import Movable
 from .rect import Rect
-from .renderer import Renderer, SurfaceRenderer
+from .renderer import AbstractRenderer, SurfaceRenderer
 from .shape import RectangleShape
 from .surface import Surface, create_surface
 from .theme import NoTheme, ThemedObjectMeta, ThemeType
@@ -171,7 +171,7 @@ class ScrollBar(TDrawable, Clickable, metaclass=ScrollBarMeta):
     def get_size(self) -> tuple[float, float]:
         return self.__outline_shape.get_size()
 
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, target: AbstractRenderer) -> None:
         bg_shape: RectangleShape = self.__bg_shape
         cursor_shape: RectangleShape = self.__cursor_shape
         outline_shape: RectangleShape = self.__outline_shape
@@ -374,7 +374,7 @@ class ScrollBar(TDrawable, Clickable, metaclass=ScrollBarMeta):
         return (self.__start, self.__end)
 
 
-class ScrollArea(LayeredGroup, Movable):
+class ScrollArea(LayeredDrawableGroup, Movable):
     __h_flip: ClassVar[bool] = False
     __v_flip: ClassVar[bool] = False
 
@@ -387,7 +387,7 @@ class ScrollArea(LayeredGroup, Movable):
         default_layer: int = 0,
         bg_color: Color = TRANSPARENT,
     ) -> None:
-        LayeredGroup.__init__(self, *objects, default_layer=default_layer)
+        LayeredDrawableGroup.__init__(self, *objects, default_layer=default_layer)
         Movable.__init__(self)
         self.__master: Scene | Window = master
         self.__view_rect: Rect = Rect(0, 0, width, height)
@@ -418,7 +418,7 @@ class ScrollArea(LayeredGroup, Movable):
             raise TypeError("ScrollArea only accepts Drawable and Movable objects")
         return super().add(*objects, layer=layer)
 
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, target: AbstractRenderer) -> None:
         whole_area, area_view = self.__update_whole_area()
         super().draw_onto(SurfaceRenderer(whole_area))
         target.draw(area_view, self.topleft)

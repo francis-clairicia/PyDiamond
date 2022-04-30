@@ -27,7 +27,7 @@ from .drawable import TDrawable, TDrawableMeta
 from .font import Font, SysFont
 from .image import Image
 from .rect import Rect
-from .renderer import Renderer, SurfaceRenderer
+from .renderer import AbstractRenderer, SurfaceRenderer
 from .surface import Surface, create_surface
 from .theme import ThemedObjectMeta, ThemeType
 
@@ -99,7 +99,7 @@ class Text(TDrawable, metaclass=TextMeta):
         self.shadow = (shadow_x, shadow_y)
         self.shadow_color = shadow_color
 
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, target: AbstractRenderer) -> None:
         image: Surface = self.__image
         topleft: tuple[float, float] = self.topleft
         target.draw(image, topleft)

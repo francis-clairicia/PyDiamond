@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     from ..window.display import Window
     from ..window.scene import Scene
     from .font import Font
-    from .renderer import Renderer
+    from .renderer import AbstractRenderer
 
     _TupleFont: TypeAlias = tuple[str | None, int]
     _TextFont: TypeAlias = Font | _TupleFont
@@ -372,7 +372,7 @@ class Button(TDrawable, Pressable, metaclass=ButtonMeta):
             focus_on_hover=focus_on_hover,
         )
 
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, target: AbstractRenderer) -> None:
         angle: float = self.angle
         scale: float = self.scale
 
@@ -987,7 +987,7 @@ class ImageButton(TDrawable, Clickable, metaclass=ButtonMeta):
         self.hover_offset = hover_offset
         self.active_offset = active_offset
 
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, target: AbstractRenderer) -> None:
         scale: float = self.scale
 
         def compute_offset(offset: tuple[float, float]) -> tuple[float, float]:

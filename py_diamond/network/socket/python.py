@@ -30,7 +30,7 @@ from socket import (
     socket,
 )
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Callable, Final, ParamSpec, TypeVar, final
+from typing import Any, Callable, Final, ParamSpec, TypeVar, final
 
 from ...system._mangling import delattr_pv, getattr_pv, hasattr_pv, setattr_pv
 from ...system.utils import concreteclass, wraps
@@ -46,10 +46,6 @@ from .base import (
     SocketAddress,
 )
 from .constants import AF_INET, AF_INET6, AddressFamily, ShutdownFlag
-
-if not TYPE_CHECKING:
-    from ...system.object import final as final
-
 
 _MISSING: Any = object()
 

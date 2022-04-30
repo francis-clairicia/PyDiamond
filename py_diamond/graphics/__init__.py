@@ -47,7 +47,7 @@ __all__ = [
     "ImageButton",
     "ImmutableColor",
     "ImmutableRect",
-    "LayeredGroup",
+    "LayeredDrawableGroup",
     "LayeredSpriteGroup",
     "MAGENTA",
     "MDrawable",
@@ -69,7 +69,7 @@ __all__ = [
     "RadialGradientShape",
     "Rect",
     "RectangleShape",
-    "Renderer",
+    "AbstractRenderer",
     "ScaleBar",
     "ScrollArea",
     "ScrollBar",
@@ -170,7 +170,16 @@ from .color import (
     Color,
     ImmutableColor,
 )
-from .drawable import Drawable, DrawableGroup, DrawableMeta, LayeredGroup, MDrawable, MDrawableMeta, TDrawable, TDrawableMeta
+from .drawable import (
+    Drawable,
+    DrawableGroup,
+    DrawableMeta,
+    LayeredDrawableGroup,
+    MDrawable,
+    MDrawableMeta,
+    TDrawable,
+    TDrawableMeta,
+)
 from .entry import Entry, EntryMeta
 from .font import Font, SysFont
 from .form import Form
@@ -189,7 +198,7 @@ from .image import Image
 from .movable import Movable, MovableMeta
 from .progress import ProgressBar
 from .rect import ImmutableRect, Rect
-from .renderer import Renderer, SurfaceRenderer
+from .renderer import AbstractRenderer, SurfaceRenderer
 from .scale import ScaleBar
 from .scroll import ScrollArea, ScrollBar, ScrollBarMeta
 from .shape import (

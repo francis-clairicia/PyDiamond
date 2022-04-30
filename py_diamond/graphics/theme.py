@@ -25,7 +25,6 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from abc import ABCMeta
 from contextlib import nullcontext, suppress
 from dataclasses import dataclass
 from functools import cached_property
@@ -55,6 +54,7 @@ from typing import (
 )
 
 from ..system._mangling import PRIVATE_ATTRIBUTE_PATTERN
+from ..system.object import Object, ObjectMeta
 from ..system.utils import cache, concreteclassmethod, isabstractmethod, wraps
 
 _ClassTheme: TypeAlias = MutableMapping[str, MappingProxyType[str, Any]]
@@ -72,7 +72,7 @@ _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES: set[type] = set()
 
 
 @final
-class ThemeNamespace(ContextManager["ThemeNamespace"]):
+class ThemeNamespace(ContextManager["ThemeNamespace"], Object):
 
     __THEMES_DEFAULT_DICT: ClassVar[_ClassThemeDict] = _THEMES
     __THEMES_DICT_NAMESPACE: ClassVar[dict[str, _ClassThemeDict]] = {}
@@ -324,7 +324,7 @@ NoTheme: _NoThemeType = _NoThemeType()
 ThemeType: TypeAlias = str | Iterable[str]
 
 
-class ThemedObjectMeta(ABCMeta):
+class ThemedObjectMeta(ObjectMeta):
     __virtual_themed_class_bases__: tuple[ThemedObjectMeta, ...]
     __theme_ignore__: Sequence[str]
     __theme_associations__: dict[type, dict[str, str]]
@@ -652,11 +652,11 @@ def abstract_theme_class(cls: _ThemedObjectClass) -> _ThemedObjectClass:
 
 
 @abstract_theme_class
-class ThemedObject(metaclass=ThemedObjectMeta):
+class ThemedObject(Object, metaclass=ThemedObjectMeta):
     pass
 
 
-class ClassWithThemeNamespaceMeta(ABCMeta):
+class ClassWithThemeNamespaceMeta(ObjectMeta):
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="ClassWithThemeNamespaceMeta")
 
@@ -864,7 +864,7 @@ def _mangle_closed_namespace_name(cls: type) -> str:
     return f"_{cls.__name__.strip('_')}__{id(cls):#x}"
 
 
-class ClassWithThemeNamespace(metaclass=ClassWithThemeNamespaceMeta):
+class ClassWithThemeNamespace(Object, metaclass=ClassWithThemeNamespaceMeta):
     @classmethod
     def __theme_init__(cls) -> None:
         pass

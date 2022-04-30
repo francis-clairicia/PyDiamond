@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Callable, Iterator, Literal, NamedTuple, TypeA
 from weakref import WeakKeyDictionary, proxy as weakproxy
 
 from ..math import Vector2
+from ..system.object import Object
 from ..window.time import Time
 
 if TYPE_CHECKING:
@@ -27,7 +28,7 @@ _AnimationType: TypeAlias = Literal["move", "rotate", "rotate_point", "scale"]
 
 
 @final
-class TransformAnimation:
+class TransformAnimation(Object):
 
     __slots__ = (
         "__transformable",

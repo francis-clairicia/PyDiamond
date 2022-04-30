@@ -14,8 +14,10 @@ __license__ = "GNU GPL v3.0"
 
 from typing import TYPE_CHECKING, Any, TypeVar
 
+from .object import Object, ObjectMeta
 
-class ClassNamespaceMeta(type):
+
+class ClassNamespaceMeta(ObjectMeta):
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="ClassNamespaceMeta")
 
@@ -82,5 +84,5 @@ class ClassNamespaceMeta(type):
         return super().__delattr__(name)
 
 
-class ClassNamespace(metaclass=ClassNamespaceMeta):
+class ClassNamespace(Object, metaclass=ClassNamespaceMeta):
     pass

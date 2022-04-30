@@ -12,10 +12,11 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 from typing import Any, Callable, final
 
 from ..math import Vector2
+from ..system.object import Object, ObjectMeta
 from ..system.utils import wraps
 from .rect import ImmutableRect, Rect
 
@@ -50,7 +51,7 @@ def _position_decorator(func: Callable[[Movable, Any], None], position: str) -> 
     return wrapper
 
 
-class MovableMeta(ABCMeta):
+class MovableMeta(ObjectMeta):
     def __new__(
         metacls,
         name: str,
@@ -79,7 +80,7 @@ class MovableMeta(ABCMeta):
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
 
-class Movable(metaclass=MovableMeta):
+class Movable(Object, metaclass=MovableMeta):
     def __init__(self) -> None:
         self.__x: float = 0
         self.__y: float = 0

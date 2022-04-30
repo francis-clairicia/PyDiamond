@@ -10,7 +10,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 from enum import auto, unique
 from operator import truth
 from typing import ClassVar
@@ -18,6 +18,7 @@ from typing import ClassVar
 from ..audio.sound import Sound
 from ..graphics.drawable import Drawable
 from ..system.enum import AutoLowerNameEnum
+from ..system.object import Object
 from .cursor import AbstractCursor, SystemCursor
 from .display import Window
 from .event import Event, EventManager, MouseButtonDownEvent, MouseButtonEvent, MouseButtonUpEvent, MouseMotionEvent
@@ -26,7 +27,7 @@ from .mouse import Mouse
 from .scene import Scene
 
 
-class Clickable(metaclass=ABCMeta):
+class Clickable(Object):
     @unique
     class State(AutoLowerNameEnum):
         NORMAL = auto()

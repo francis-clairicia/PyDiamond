@@ -20,7 +20,7 @@ from .color import BLACK, TRANSPARENT, Color
 from .drawable import Drawable, MDrawable
 from .entry import Entry
 from .grid import Grid
-from .renderer import Renderer
+from .renderer import AbstractRenderer
 
 if TYPE_CHECKING:
     from ..window.gui import GUIScene
@@ -68,7 +68,7 @@ class Form(MDrawable):
     def get_size(self) -> tuple[float, float]:
         return self.__grid.get_size()
 
-    def draw_onto(self, target: Renderer) -> None:
+    def draw_onto(self, target: AbstractRenderer) -> None:
         grid: Grid = self.__grid
         grid.topleft = self.topleft
         grid.draw_onto(target)
