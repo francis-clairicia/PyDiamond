@@ -18,19 +18,21 @@ from types import MappingProxyType
 from typing import Any, Callable, Mapping, Sequence, TypeAlias
 
 from ..system.path import set_constant_directory
-from .loader import ResourceLoader
+from .loader import AbstractResourceLoader
 
 _ResourcePath: TypeAlias = str | Sequence["_ResourcePath"] | Mapping[Any, "_ResourcePath"]  # type: ignore[misc]
-_ResourceLoader: TypeAlias = ResourceLoader[Any] | tuple["_ResourceLoader", ...] | dict[Any, "_ResourceLoader"]  # type: ignore[misc]
+_ResourceLoader: TypeAlias = AbstractResourceLoader[Any] | tuple["_ResourceLoader", ...] | dict[Any, "_ResourceLoader"]  # type: ignore[misc]
 
 
 class _ResourceDescriptor:
-    def __init__(self, path: _ResourcePath, loader: Callable[[str], ResourceLoader[Any]], directory: str | None = None) -> None:
+    def __init__(
+        self, path: _ResourcePath, loader: Callable[[str], AbstractResourceLoader[Any]], directory: str | None = None
+    ) -> None:
         def get_resources_loader(path: _ResourcePath) -> _ResourceLoader:
             if isinstance(path, str):
                 if isinstance(directory, str):
                     path = join(directory, path)
-                resource_loader: ResourceLoader[Any] = loader(path)
+                resource_loader: AbstractResourceLoader[Any] = loader(path)
                 self.__nb_resources += 1
                 return resource_loader
             if isinstance(path, (list, tuple, set, frozenset, Sequence)):
@@ -65,7 +67,7 @@ class _ResourceDescriptor:
     @staticmethod
     def __load_all_resources(resource_loader: _ResourceLoader) -> Any:
         load_all_resources = _ResourceDescriptor.__load_all_resources
-        if isinstance(resource_loader, ResourceLoader):
+        if isinstance(resource_loader, AbstractResourceLoader):
             return resource_loader.load()
         if isinstance(resource_loader, tuple):
             return tuple(load_all_resources(loader) for loader in resource_loader)
@@ -120,7 +122,7 @@ class ResourceManagerMeta(type):
 
         cls.__resources_directory__: str | None
         cls.__resources_files__: dict[str, _ResourceDescriptor]
-        cls.__resource_loader__: Callable[[str], ResourceLoader[Any]]
+        cls.__resource_loader__: Callable[[str], AbstractResourceLoader[Any]]
         cls.__resources: dict[str, _ResourceDescriptor] = {
             name: value for name, value in vars(cls).items() if isinstance(value, _ResourceDescriptor)
         }
@@ -170,4 +172,4 @@ class ResourceManagerMeta(type):
 class ResourceManager(metaclass=ResourceManagerMeta):
     __resources_directory__: str | None = None
     __resources_files__: dict[str, _ResourcePath]
-    __resource_loader__: Callable[[str], ResourceLoader[Any]]
+    __resource_loader__: Callable[[str], AbstractResourceLoader[Any]]

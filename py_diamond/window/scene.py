@@ -28,7 +28,7 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 import gc
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 from contextlib import ExitStack, contextmanager, suppress
 from inspect import isgeneratorfunction
 from itertools import chain
@@ -49,7 +49,6 @@ from typing import (
     TypeAlias,
     TypeVar,
     cast,
-    final,
     overload,
 )
 
@@ -59,7 +58,8 @@ from ..graphics.renderer import AbstractRenderer, SurfaceRenderer
 from ..graphics.surface import Surface
 from ..graphics.theme import ClassWithThemeNamespaceMeta, closed_namespace, no_theme_decorator
 from ..system._mangling import getattr_pv, mangle_private_attribute
-from ..system.utils import cache, concreteclassmethod, wraps
+from ..system.object import Object, final
+from ..system.utils import cache, concreteclassmethod, isconcreteclass, wraps
 from .display import Window, WindowCallback, WindowError, _WindowCallbackList
 from .event import Event, EventManager
 from .mouse import Mouse
@@ -80,7 +80,7 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
         "__del_scene__",
         "render",
         "fixed_update",
-        "update_alpha",
+        "interpolation_update",
         "is_awaken",
         "looping",
         "start",
@@ -116,7 +116,7 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
                 raise TypeError(f"{name} method must not be overridden")
 
         cls = super().__new__(metacls, name, bases, namespace, **kwargs)
-        if not cls.__abstractmethods__:
+        if isconcreteclass(cls):
             _ALL_SCENES.append(cast(type[Scene], cls))
             cls.__framerate = max(int(framerate), 0)
             cls.__fixed_framerate = max(int(fixed_framerate), 0)
@@ -152,7 +152,7 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
 SceneTransitionCoroutine: TypeAlias = Generator[None, float | None, None]
 
 
-class SceneTransition(metaclass=ABCMeta):
+class SceneTransition(Object):
     @abstractmethod
     def show_new_scene(
         self, target: AbstractRenderer, previous_scene_image: Surface, actual_scene_image: Surface
@@ -177,7 +177,8 @@ class Scene(metaclass=SceneMeta):
         if cls in instances:
             raise TypeError(f"Trying to instantiate two scene of same type {f'{cls.__module__}.{cls.__name__}'!r}")
         scene = super().__new__(cls)
-        instances.add(cls)
+        if not issubclass(cls, Dialog):
+            instances.add(cls)
         return scene
 
     def __init__(self) -> None:
@@ -218,7 +219,7 @@ class Scene(metaclass=SceneMeta):
     def fixed_update(self) -> None:
         pass
 
-    def update_alpha(self, interpolation: float) -> None:
+    def interpolation_update(self, interpolation: float) -> None:
         pass
 
     def update(self) -> None:
@@ -375,7 +376,7 @@ class MainSceneMeta(SceneMeta):
             )
 
         cls = super().__new__(metacls, name, bases, namespace, **kwargs)
-        if not cls.__abstractmethods__:
+        if isconcreteclass(cls):
             closed_namespace(cls)
         return cls
 
@@ -526,9 +527,6 @@ class DialogMeta(SceneMeta):
         **kwargs: Any,
     ) -> __Self:
         if "Dialog" not in globals():
-            if name == "Dialog":
-                new_class = cast(type, SceneMeta).__base__.__new__
-                return new_class(metacls, name, bases, namespace, **kwargs)
             return super().__new__(metacls, name, bases, namespace, **kwargs)
 
         if not any(issubclass(cls, Dialog) for cls in bases):
@@ -787,7 +785,7 @@ class SceneWindow(Window):
         if scene is None:
             return
         self._fixed_updates_call(scene.fixed_update)
-        self._interpolation_updates_call(scene.update_alpha)
+        self._interpolation_updates_call(scene.interpolation_update)
         scene.update()
 
     def render_scene(self) -> None:
@@ -930,8 +928,9 @@ class _SceneManager:
             scene.destroy()
             scene.event.unbind_all()
         scene.__dict__.clear()
-        scene.__dict__[self.__scene_manager_attribute] = self
-        scene.__init__()  # type: ignore[misc]
+        if not isinstance(scene, Dialog):
+            scene.__dict__[self.__scene_manager_attribute] = self
+            scene.__init__()  # type: ignore[misc]
 
     def __iter__(self) -> Iterator[Scene]:
         return self.from_top_to_bottom()
@@ -966,7 +965,7 @@ class _SceneManager:
         gc.collect()
 
     def render(self, scene: type[Scene]) -> None:
-        if scene.__abstractmethods__:
+        if not isconcreteclass(scene):
             raise TypeError(f"{scene.__name__} is an abstract class")
         if issubclass(scene, Dialog):
             raise TypeError(f"Trying to draw a Dialog scene")
@@ -993,7 +992,7 @@ class _SceneManager:
         remove_actual: bool = False,
         awake_kwargs: dict[str, Any] | None = None,
     ) -> NoReturn:
-        if scene.__abstractmethods__:
+        if not isconcreteclass(scene):
             raise TypeError(f"{scene.__name__} is an abstract class")
         if issubclass(scene, Dialog):
             raise TypeError(f"{scene.__name__} must be opened with open_dialog()")
@@ -1046,6 +1045,8 @@ class _SceneManager:
         *,
         awake_kwargs: dict[str, Any] | None = None,
     ) -> None:
+        if not isconcreteclass(dialog):
+            raise TypeError(f"{dialog.__name__} is an abstract class")
         if not self.__stack:
             raise TypeError("Trying to open dialog without opened scene")
         if not issubclass(dialog, Dialog):

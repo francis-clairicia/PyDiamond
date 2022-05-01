@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 from types import MethodType
 from typing import Any, Callable, TypeVar
 
-from .object import Object, ObjectMeta
+from .object import Object, ObjectMeta, final
 
 _T = TypeVar("_T")
 
@@ -60,6 +60,7 @@ class SingletonMeta(ObjectMeta):
             raise TypeError("Cannot modify singleton constructors")
         return super().__delattr__(name)
 
+    @final
     @property
     def instance(cls: type[_T]) -> _T:
         try:

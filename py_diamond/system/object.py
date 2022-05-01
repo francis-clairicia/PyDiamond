@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Object", "ObjectMeta", "override"]
+__all__ = ["Object", "ObjectMeta", "final", "override"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -17,6 +17,8 @@ from functools import cached_property
 from itertools import chain
 from operator import truth
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Sequence, TypeVar, overload
+
+from typing_extensions import final
 
 # from .utils import isabstractmethod
 

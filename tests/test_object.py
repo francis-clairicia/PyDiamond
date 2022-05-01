@@ -1,9 +1,8 @@
 # -*- coding: Utf-8 -*
 
 import pytest
-from typing_extensions import final
 
-from py_diamond.system.object import Object, override
+from py_diamond.system.object import Object, final, override
 
 # pyright: reportUnusedClass=false
 

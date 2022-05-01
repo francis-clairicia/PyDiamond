@@ -24,26 +24,14 @@ from abc import abstractmethod
 from enum import auto, unique
 from operator import truth
 from types import FunctionType, LambdaType
-from typing import (
-    Any,
-    Callable,
-    ClassVar,
-    Final,
-    Literal,
-    Mapping,
-    Protocol,
-    Sequence,
-    TypedDict,
-    final,
-    overload,
-    runtime_checkable,
-)
+from typing import Any, Callable, ClassVar, Final, Literal, Mapping, Protocol, Sequence, TypedDict, overload, runtime_checkable
 
 from ..graphics.drawable import Drawable, LayeredDrawableGroup
 from ..graphics.renderer import AbstractRenderer
 from ..graphics.theme import no_theme_decorator
 from ..system._mangling import getattr_pv
 from ..system.enum import AutoLowerNameEnum
+from ..system.object import final
 from ..system.utils import setdefaultattr, wraps
 from .event import (
     Event,

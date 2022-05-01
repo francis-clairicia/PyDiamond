@@ -30,9 +30,10 @@ from socket import (
     socket,
 )
 from threading import RLock
-from typing import Any, Callable, Final, ParamSpec, TypeVar, final
+from typing import Any, Callable, Final, ParamSpec, TypeVar
 
 from ...system._mangling import delattr_pv, getattr_pv, hasattr_pv, setattr_pv
+from ...system.object import final
 from ...system.utils import concreteclass, wraps
 from .base import (
     AbstractSocket,

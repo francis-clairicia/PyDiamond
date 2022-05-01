@@ -16,9 +16,9 @@ from abc import abstractmethod
 from selectors import EVENT_READ, EVENT_WRITE
 from sys import exc_info
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Callable, Final, Generic, Iterator, TypeVar, final, overload
+from typing import TYPE_CHECKING, Any, Callable, Final, Generic, Iterator, TypeVar, overload
 
-from ..system.object import Object
+from ..system.object import Object, final
 from ..system.utils import concreteclass, concreteclasscheck
 from .protocol.base import AbstractNetworkProtocol, ValidationError
 from .protocol.pickle import PicklingNetworkProtocol

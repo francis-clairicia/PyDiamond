@@ -7,6 +7,7 @@
 __all__ = [
     "AbstractCircleShape",
     "AbstractRectangleShape",
+    "AbstractRenderer",
     "AbstractShape",
     "AnimatedSprite",
     "BLACK",
@@ -69,7 +70,6 @@ __all__ = [
     "RadialGradientShape",
     "Rect",
     "RectangleShape",
-    "AbstractRenderer",
     "ScaleBar",
     "ScrollArea",
     "ScrollBar",

@@ -13,10 +13,10 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
-from typing import Any, Callable, final
+from typing import Any, Callable
 
 from ..math import Vector2
-from ..system.object import Object, ObjectMeta
+from ..system.object import Object, ObjectMeta, final
 from ..system.utils import wraps
 from .rect import ImmutableRect, Rect
 

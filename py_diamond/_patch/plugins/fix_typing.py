@@ -38,11 +38,16 @@ def patch_final(f: _T, /) -> _T:
     return _default_final(f)  # type: ignore[no-any-return]
 
 
+setattr(patch_final, "__fix_typing__", True)
+
+
 def plugin__override_final_function() -> None:
 
     import typing
 
     import typing_extensions
 
-    setattr(typing, "final", patch_final)
-    setattr(typing_extensions, "final", patch_final)
+    if not getattr(typing.final, "__fix_typing__", False):
+        setattr(typing, "final", patch_final)
+    if not getattr(typing_extensions.final, "__fix_typing__", False):
+        setattr(typing_extensions, "final", patch_final)

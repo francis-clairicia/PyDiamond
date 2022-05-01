@@ -53,14 +53,13 @@ from typing import (
     TypeVar,
     Union,
     cast,
-    final,
     overload,
     runtime_checkable,
 )
 from weakref import ReferenceType as WeakReferenceType, WeakKeyDictionary, ref as weakref
 
 from ._mangling import mangle_private_attribute as _private_attribute
-from .object import Object
+from .object import Object, final
 
 _Func = TypeVar("_Func", bound=Callable[..., Any])
 _Updater = TypeVar("_Updater", bound=Callable[[Any], None])

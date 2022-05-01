@@ -203,7 +203,7 @@ class AnimationScene(MainScene, busy_loop=True):
     def fixed_update(self) -> None:
         self.animation.fixed_update(use_of_linear_interpolation=True)
 
-    def update_alpha(self, interpolation: float) -> None:
+    def interpolation_update(self, interpolation: float) -> None:
         self.animation.set_interpolation(interpolation)
 
     def render(self) -> None:
@@ -246,7 +246,7 @@ class AnimationStateFullScene(MainScene, busy_loop=True, fixed_framerate=30):
     def fixed_update(self) -> None:
         self.rectangle.animation.fixed_update(use_of_linear_interpolation=self.use_interpolation)
 
-    def update_alpha(self, interpolation: float) -> None:
+    def interpolation_update(self, interpolation: float) -> None:
         self.rectangle.animation.set_interpolation(interpolation)
 
     def update(self) -> None:
@@ -343,7 +343,7 @@ class TextScene(Scene):
     def fixed_update(self) -> None:
         self.text.animation.fixed_update(use_of_linear_interpolation=True)
 
-    def update_alpha(self, interpolation: float) -> None:
+    def interpolation_update(self, interpolation: float) -> None:
         self.text.animation.set_interpolation(interpolation)
 
     def render(self) -> None:
@@ -406,7 +406,7 @@ class AnimatedSpriteScene(MainScene):
         self.sprite.animation.fixed_update(use_of_linear_interpolation=True)
         self.sprite.update()
 
-    def update_alpha(self, interpolation: float) -> None:
+    def interpolation_update(self, interpolation: float) -> None:
         self.sprite.animation.set_interpolation(interpolation)
 
     def render(self) -> None:
@@ -484,7 +484,7 @@ class TextImageScene(MainScene):
     def fixed_update(self) -> None:
         self.text.animation.fixed_update(use_of_linear_interpolation=True)
 
-    def update_alpha(self, interpolation: float) -> None:
+    def interpolation_update(self, interpolation: float) -> None:
         self.text.animation.set_interpolation(interpolation)
 
     def render(self) -> None:
@@ -531,7 +531,7 @@ class ButtonScene(MainScene):
     def fixed_update(self) -> None:
         self.button.animation.fixed_update(use_of_linear_interpolation=True)
 
-    def update_alpha(self, interpolation: float) -> None:
+    def interpolation_update(self, interpolation: float) -> None:
         self.button.animation.set_interpolation(interpolation)
 
     def __increase_counter(self) -> None:

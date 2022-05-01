@@ -61,14 +61,14 @@ from contextlib import suppress
 from dataclasses import Field, asdict, dataclass, field, fields
 from enum import IntEnum, unique
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, Sequence, SupportsInt, TypeAlias, TypeVar, cast, final
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, Sequence, SupportsInt, TypeAlias, TypeVar, cast
 
 import pygame.constants as _pg_constants
 from pygame.event import Event as _PygameEvent, custom_type as _pg_event_custom_type, event_name as _pg_event_name
 
 from ..audio.music import Music, MusicStream
 from ..system.namespace import ClassNamespaceMeta
-from ..system.object import Object, ObjectMeta
+from ..system.object import Object, ObjectMeta, final
 from ..system.utils import isconcreteclass
 from .keyboard import Keyboard
 from .mouse import Mouse

@@ -14,8 +14,9 @@ from io import BytesIO
 from pickle import HIGHEST_PROTOCOL, STOP as STOP_OPCODE, Pickler, Unpickler, UnpicklingError
 from pickletools import optimize as pickletools_optimize
 from types import TracebackType
-from typing import IO, Any, Generator, final
+from typing import IO, Any, Generator
 
+from ...system.object import final
 from ...system.utils import concreteclass
 from .base import AbstractNetworkProtocol, ValidationError
 

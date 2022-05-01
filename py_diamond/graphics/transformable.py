@@ -14,11 +14,12 @@ __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, final
+from typing import TYPE_CHECKING, Any
 
 from pygame import error as _pg_error
 
 from ..math import Vector2
+from ..system.object import final
 from .movable import Movable, MovableMeta
 from .rect import Rect
 

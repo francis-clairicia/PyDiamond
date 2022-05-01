@@ -49,7 +49,7 @@ class Sprite(TDrawable):
     def fixed_update(self, *args: Any, **kwargs: Any) -> None:
         pass
 
-    def update_alpha(self, interpolation: float) -> None:
+    def interpolation_update(self, interpolation: float) -> None:
         pass
 
     def update(self, *args: Any, **kwargs: Any) -> None:

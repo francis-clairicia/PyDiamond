@@ -13,8 +13,9 @@ __license__ = "GNU GPL v3.0"
 from functools import cached_property
 from json import JSONDecodeError, JSONDecoder, JSONEncoder
 from types import TracebackType
-from typing import Any, final
+from typing import Any
 
+from ...system.object import final
 from ...system.utils import concreteclass
 from .base import AutoParsedNetworkProtocol
 

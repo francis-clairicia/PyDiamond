@@ -4,7 +4,7 @@
 #
 """Resource loader module"""
 
-__all__ = ["FontLoader", "ImageLoader", "MusicLoader", "ResourceLoader", "SoundLoader"]
+__all__ = ["AbstractResourceLoader", "FontLoader", "ImageLoader", "MusicLoader", "SoundLoader"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -23,7 +23,7 @@ from ..system.path import set_constant_file
 _T = TypeVar("_T")
 
 
-class ResourceLoader(Generic[_T], Object):
+class AbstractResourceLoader(Generic[_T], Object):
 
     __slots__ = ("__filepath",)
 
@@ -49,7 +49,7 @@ class ResourceLoader(Generic[_T], Object):
         raise NotImplementedError
 
 
-class ImageLoader(ResourceLoader[Surface]):
+class ImageLoader(AbstractResourceLoader[Surface]):
 
     __slots__ = ()
 
@@ -61,7 +61,7 @@ class ImageLoader(ResourceLoader[Surface]):
         return Surface
 
 
-class SoundLoader(ResourceLoader[Sound]):
+class SoundLoader(AbstractResourceLoader[Sound]):
 
     __slots__ = ()
 
@@ -73,7 +73,7 @@ class SoundLoader(ResourceLoader[Sound]):
         return Sound
 
 
-class FontLoader(ResourceLoader[str]):
+class FontLoader(AbstractResourceLoader[str]):
 
     __slots__ = ()
 
@@ -86,7 +86,7 @@ class FontLoader(ResourceLoader[str]):
         return str
 
 
-class MusicLoader(ResourceLoader[Music]):
+class MusicLoader(AbstractResourceLoader[Music]):
 
     __slots__ = ()
 

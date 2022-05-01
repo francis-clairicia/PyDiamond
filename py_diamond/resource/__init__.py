@@ -5,10 +5,10 @@
 """PyDiamond's resource module"""
 
 __all__ = [
+    "AbstractResourceLoader",
     "FontLoader",
     "ImageLoader",
     "MusicLoader",
-    "ResourceLoader",
     "ResourceManager",
     "ResourceManagerMeta",
     "SoundLoader",
@@ -20,5 +20,5 @@ __license__ = "GNU GPL v3.0"
 
 
 ############ Package initialization ############
-from .loader import FontLoader, ImageLoader, MusicLoader, ResourceLoader, SoundLoader
+from .loader import AbstractResourceLoader, FontLoader, ImageLoader, MusicLoader, SoundLoader
 from .manager import ResourceManager, ResourceManagerMeta

@@ -26,9 +26,9 @@ from abc import abstractmethod
 from contextlib import suppress
 from selectors import EVENT_READ
 from threading import Event, RLock, current_thread
-from typing import TYPE_CHECKING, Any, Generic, Sequence, TypeVar, final, overload
+from typing import TYPE_CHECKING, Any, Generic, Sequence, TypeVar, overload
 
-from ..system.object import Object
+from ..system.object import Object, final
 from ..system.threading import Thread, thread
 from ..system.utils import concreteclass, concreteclasscheck, dsuppress
 from .client import DisconnectedClientError, TCPNetworkClient, UDPNetworkClient

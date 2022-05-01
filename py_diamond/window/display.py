@@ -32,7 +32,6 @@ from typing import (
     Protocol,
     Sequence,
     TypeVar,
-    final,
     overload,
 )
 
@@ -54,7 +53,7 @@ from ..graphics.renderer import AbstractRenderer, SurfaceRenderer
 from ..graphics.surface import Surface, create_surface, save_image
 from ..graphics.text import Text
 from ..system._mangling import getattr_pv, setattr_pv
-from ..system.object import Object
+from ..system.object import Object, final
 from ..system.path import set_constant_file
 from ..system.utils import wraps
 from .clock import Clock

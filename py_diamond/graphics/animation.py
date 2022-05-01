@@ -13,11 +13,11 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Callable, Iterator, Literal, NamedTuple, TypeAlias, TypeVar, final
+from typing import TYPE_CHECKING, Callable, Iterator, Literal, NamedTuple, TypeAlias, TypeVar
 from weakref import WeakKeyDictionary, proxy as weakproxy
 
 from ..math import Vector2
-from ..system.object import Object
+from ..system.object import Object, final
 from ..window.time import Time
 
 if TYPE_CHECKING:
