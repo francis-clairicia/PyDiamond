@@ -274,7 +274,7 @@ class AbstractRectangleShape(AbstractShape):
         self.local_size = width, height
         super().__init__(**kwargs)
 
-    def get_local_vertices(self) -> Sequence[Vector2]:
+    def get_local_vertices(self) -> tuple[Vector2, Vector2, Vector2, Vector2]:
         w, h = self.local_size
         return (Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h))
 
@@ -288,7 +288,10 @@ class AbstractRectangleShape(AbstractShape):
 
 class AbstractSquareShape(AbstractShape):
     config = ConfigurationTemplate("local_size", parent=AbstractShape.config)
+    config.set_alias("local_size", "local_width", "local_height")
 
+    local_width: OptionAttribute[float] = OptionAttribute()
+    local_height: OptionAttribute[float] = OptionAttribute()
     local_size: OptionAttribute[float] = OptionAttribute()
 
     @initializer
@@ -296,7 +299,7 @@ class AbstractSquareShape(AbstractShape):
         self.local_size = size
         super().__init__(**kwargs)
 
-    def get_local_vertices(self) -> Sequence[Vector2]:
+    def get_local_vertices(self) -> tuple[Vector2, Vector2, Vector2, Vector2]:
         w = h = self.local_size
         return (Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h))
 

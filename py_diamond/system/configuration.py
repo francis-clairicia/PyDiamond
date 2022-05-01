@@ -190,7 +190,7 @@ class ConfigurationTemplate(Object):
         for obj in _all_members(owner).values():
             if isinstance(obj, OptionAttribute):
                 with suppress(AttributeError):
-                    self.check_option_validity(obj.name)
+                    self.check_option_validity(obj.name, use_alias=True)
             elif isinstance(obj, ConfigurationTemplate) and obj is not self:
                 _register_configuration(owner, former_config)
                 raise TypeError(f"A class can't have several {ConfigurationTemplate.__name__!r} objects")
@@ -962,6 +962,7 @@ class ConfigurationTemplate(Object):
         return self.__attr_name
 
 
+@final
 class OptionAttribute(Generic[_T], Object):
 
     __slots__ = ("__name", "__config_name", "__doc__")
