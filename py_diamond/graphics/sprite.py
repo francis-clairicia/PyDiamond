@@ -118,13 +118,13 @@ class Sprite(TDrawable):
         if former_state != actual_state:
             self.apply_rotation_scale()
 
-    def is_colliding(self, other: Sprite) -> tuple[int, int] | None:
+    def is_colliding(self, other: Sprite, *, relative: bool = False) -> tuple[int, int] | None:
         this_rect: Rect = self.rect
         other_rect: Rect = other.rect
         xoffset: int = other_rect.x - this_rect.x
         yoffset: int = other_rect.y - this_rect.y
         intersection: tuple[int, int] | None = self.mask.overlap(other.mask, (xoffset, yoffset))
-        if intersection is not None:
+        if intersection is not None and not relative:
             intersection = (intersection[0] + this_rect.x, intersection[1] + this_rect.y)
         return intersection
 

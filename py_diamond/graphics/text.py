@@ -423,35 +423,38 @@ class TextImage(Text):
         offset: float = self.distance
         render_width: float
         render_height: float
-        # TODO: Match case
         compound: TextImage.Compound = self.__compound
-        if compound in [TextImage.Compound.LEFT, TextImage.Compound.RIGHT]:
-            render_width = text_width + img_width + offset
-            render_height = max(text_height, img_height)
-        elif compound in [TextImage.Compound.TOP, TextImage.Compound.BOTTOM]:
-            render_width = max(text_width, img_width)
-            render_height = text_height + img_height + offset
-        else:
-            render_width = max(text_width, img_width)
-            render_height = max(text_height, img_height)
+        match compound:
+            case TextImage.Compound.LEFT | TextImage.Compound.RIGHT:
+                render_width = text_width + img_width + offset
+                render_height = max(text_height, img_height)
+            case TextImage.Compound.TOP | TextImage.Compound.BOTTOM:
+                render_width = max(text_width, img_width)
+                render_height = text_height + img_height + offset
+            case TextImage.Compound.CENTER:
+                render_width = max(text_width, img_width)
+                render_height = max(text_height, img_height)
+            case _:
+                raise ValueError(f"Unknown compound value: {compound!r}")
+
         render: Surface = create_surface((render_width, render_height))
         render_rect: Rect = render.get_rect()
 
-        # TODO: Match case
-        if compound == TextImage.Compound.LEFT:
-            text_rect.midleft = render_rect.midleft
-            img.midright = render_rect.midright
-        elif compound == TextImage.Compound.RIGHT:
-            text_rect.midright = render_rect.midright
-            img.midleft = render_rect.midleft
-        elif compound == TextImage.Compound.TOP:
-            text_rect.midtop = render_rect.midtop
-            img.midbottom = render_rect.midbottom
-        elif compound == TextImage.Compound.BOTTOM:
-            text_rect.midbottom = render_rect.midbottom
-            img.midtop = render_rect.midtop
-        else:
-            img.center = text_rect.center = render_rect.center
+        match compound:
+            case TextImage.Compound.LEFT:
+                text_rect.midleft = render_rect.midleft
+                img.midright = render_rect.midright
+            case TextImage.Compound.RIGHT:
+                text_rect.midright = render_rect.midright
+                img.midleft = render_rect.midleft
+            case TextImage.Compound.TOP:
+                text_rect.midtop = render_rect.midtop
+                img.midbottom = render_rect.midbottom
+            case TextImage.Compound.BOTTOM:
+                text_rect.midbottom = render_rect.midbottom
+                img.midtop = render_rect.midtop
+            case TextImage.Compound.CENTER:
+                img.center = text_rect.center = render_rect.center
 
         img.draw_onto(SurfaceRenderer(render))
         render.blit(text, text_rect)

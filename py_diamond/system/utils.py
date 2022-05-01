@@ -4,6 +4,8 @@
 #
 """Utility module"""
 
+from __future__ import annotations
+
 __all__ = [
     "cache",
     "classmethodonly",
@@ -13,6 +15,7 @@ __all__ = [
     "dsuppress",
     "flatten",
     "forbidden_call",
+    "isabstract",
     "isabstractmethod",
     "isconcreteclass",
     "lru_cache",
@@ -22,6 +25,7 @@ __all__ = [
     "valid_integer",
     "valid_optional_float",
     "valid_optional_integer",
+    "weakref_unwrap",
     "wraps",
 ]
 
@@ -30,15 +34,60 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from contextlib import ContextDecorator, suppress
-from functools import WRAPPER_ASSIGNMENTS, WRAPPER_UPDATES, lru_cache as _lru_cache, update_wrapper as _update_wrapper
+from functools import lru_cache as _lru_cache, wraps
 from inspect import isabstract
 from itertools import chain
 from operator import truth
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Literal, ParamSpec, Sequence, TypeAlias, TypeVar, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Concatenate,
+    Iterable,
+    Iterator,
+    Literal,
+    ParamSpec,
+    TypeAlias,
+    TypeGuard,
+    TypeVar,
+    overload,
+)
+from weakref import ReferenceType as WeakReferenceType
 
 _P = ParamSpec("_P")
 _T = TypeVar("_T")
 _R = TypeVar("_R")
+
+
+if TYPE_CHECKING:
+    from functools import _CacheInfo
+    from typing import Generic, TypedDict, final, type_check_only
+
+    @type_check_only
+    class _CacheParameters(TypedDict):
+        maxsize: int | None
+        typed: bool
+
+    @final
+    @type_check_only
+    class _lru_cache_wrapper(Generic[_P, _R]):
+        __wrapped__: Callable[_P, _R]
+        __call__: Callable[_P, _R]
+
+        def cache_info(self) -> _CacheInfo:
+            ...
+
+        def cache_clear(self) -> None:
+            ...
+
+        def cache_parameters(self) -> _CacheParameters:
+            ...
+
+        def __copy__(self) -> _lru_cache_wrapper[_P, _R]:
+            ...
+
+        def __deepcopy__(self, __memo: Any, /) -> _lru_cache_wrapper[_P, _R]:
+            ...
 
 
 @overload
@@ -52,7 +101,7 @@ def lru_cache(*, maxsize: int | None = 128, typed: bool = False) -> Callable[[Ca
 
 
 def lru_cache(func: Callable[..., Any] | None = None, /, *, maxsize: int | None = 128, typed: bool = False) -> Callable[..., Any]:
-    decorator = _lru_cache(maxsize=maxsize, typed=typed)
+    decorator = _lru_cache(maxsize=maxsize, typed=bool(typed))
     if func is not None:
         return decorator(func)
     return decorator
@@ -76,6 +125,8 @@ def tp_cache(func: Callable[..., Any] | None = None, /, *, maxsize: int | None =
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         cached: Callable[..., Any] = lru_cache(maxsize=maxsize, typed=typed)(func)
 
+        assert is_lru_cache(cached)
+
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
@@ -84,6 +135,12 @@ def tp_cache(func: Callable[..., Any] | None = None, /, *, maxsize: int | None =
                 pass
             return func(*args, **kwargs)
 
+        setattr(wrapper, "cache_clear", cached.cache_clear)
+        setattr(wrapper, "cache_info", cached.cache_info)
+        setattr(wrapper, "cache_parameters", cached.cache_parameters)
+
+        assert is_lru_cache(wrapper)
+
         return wrapper
 
     if func is not None:
@@ -91,13 +148,12 @@ def tp_cache(func: Callable[..., Any] | None = None, /, *, maxsize: int | None =
     return decorator
 
 
-def wraps(
-    wrapped_func: Callable[_P, _R], *, assigned: Sequence[str] = WRAPPER_ASSIGNMENTS, updated: Sequence[str] = WRAPPER_UPDATES
-) -> Callable[[Callable[..., _R]], Callable[_P, _R]]:
-    def decorator(wrapper: Callable[..., Any]) -> Callable[..., Any]:
-        return _update_wrapper(wrapper, wrapped_func, assigned=assigned, updated=updated)
-
-    return decorator
+def is_lru_cache(f: Callable[_P, _R]) -> TypeGuard[_lru_cache_wrapper[_P, _R]]:
+    return (
+        callable(f)
+        and all(callable(getattr(f, method, None)) for method in ("cache_info", "cache_clear", "cache_parameters"))
+        and hasattr(f, "__wrapped__")
+    )
 
 
 def setdefaultattr(obj: object, name: str, value: _T) -> Any | _T:
@@ -121,20 +177,20 @@ else:
                 raise TypeError(f"This method should not be called from instance")
             return super().__get__(__obj, __type)
 
-    del _R_co
+
+_TT = TypeVar("_TT", bound=type)
 
 
-# def concreteclassmethod(func: Callable[Concatenate[type[_T], _P], _R]) -> Callable[Concatenate[type[_T], _P], _R]:
-def concreteclassmethod(func: Callable[_P, _R]) -> Callable[_P, _R]:
+def concreteclassmethod(func: Callable[Concatenate[_TT, _P], _R]) -> Callable[Concatenate[_TT, _P], _R]:
     @wraps(func)
-    def wrapper(cls: Any, /, *args: Any, **kwargs: Any) -> Any:
+    def wrapper(cls: _TT, /, *args: _P.args, **kwargs: _P.kwargs) -> _R:
         concreteclasscheck(cls)
         return func(cls, *args, **kwargs)
 
     return wrapper
 
 
-def concreteclass(cls: type[_T]) -> type[_T]:
+def concreteclass(cls: _TT) -> _TT:
     concreteclasscheck(cls)
     return cls
 
@@ -164,6 +220,13 @@ def forbidden_call(func: Callable[_P, _R]) -> Callable[_P, _R]:
 
 class dsuppress(suppress, ContextDecorator):
     pass
+
+
+def weakref_unwrap(ref: WeakReferenceType[_T]) -> _T:
+    obj = ref()
+    if obj is None:
+        raise ReferenceError("weakly-referenced object no longer exists")
+    return obj
 
 
 @overload
@@ -401,6 +464,3 @@ def __valid_number(value_type: type[_Number], optional: bool, /, **kwargs: Any) 
     else:
         raise TypeError("Invalid arguments")
     return valid_number
-
-
-del _P, _T, _R

@@ -30,7 +30,7 @@ from socket import (
     socket,
 )
 from threading import RLock
-from typing import Any, Callable, Final, ParamSpec, TypeVar
+from typing import Any, Callable, Concatenate, Final, ParamSpec, TypeVar
 
 from ...system._mangling import delattr_pv, getattr_pv, hasattr_pv, setattr_pv
 from ...system.object import final
@@ -53,11 +53,14 @@ _MISSING: Any = object()
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
+_SocketVar = TypeVar("_SocketVar", bound="_AbstractPythonSocket")
 
 
-def _thread_safe_python_socket_method(func: Callable[_P, _R]) -> Callable[_P, _R]:
+def _thread_safe_python_socket_method(
+    func: Callable[Concatenate[_SocketVar, _P], _R]
+) -> Callable[Concatenate[_SocketVar, _P], _R]:
     @wraps(func)
-    def wrapper(self: Any, /, *args: Any, **kwargs: Any) -> Any:
+    def wrapper(self: _SocketVar, /, *args: Any, **kwargs: Any) -> Any:
         lock: RLock = getattr_pv(self, "lock", owner=_AbstractPythonSocket)
         with lock:
             return func(self, *args, **kwargs)
@@ -447,4 +450,4 @@ class PythonUDPClientSocket(_AbstractPythonUDPSocket, AbstractUDPClientSocket):
         return self
 
 
-del _thread_safe_python_socket_method, _P, _R
+del _thread_safe_python_socket_method

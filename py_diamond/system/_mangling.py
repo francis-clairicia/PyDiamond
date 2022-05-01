@@ -118,6 +118,3 @@ def setdefaultattr_pv(obj: object, name: str, value: _T, *, owner: type | None =
         except AttributeError as exc:
             raise AttributeError(f"Error when setting private attribute {name!r}: {exc}") from None
     return value
-
-
-del _T

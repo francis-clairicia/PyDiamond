@@ -96,6 +96,3 @@ class SingletonMeta(ObjectMeta):
 
 class Singleton(Object, metaclass=SingletonMeta, abstract=True):
     pass
-
-
-del _T

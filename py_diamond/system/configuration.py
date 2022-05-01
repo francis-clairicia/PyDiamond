@@ -2127,26 +2127,3 @@ class _ReadOnlyOptionPayload:
 
     def set_new_descriptor(self, descriptor: Optional[_Descriptor]) -> None:
         self.__descriptor = lambda: descriptor
-
-
-del (
-    _Func,
-    _Updater,
-    _KeyUpdater,
-    _ValueUpdater,
-    _KeyValueUpdater,
-    _Getter,
-    _Setter,
-    _Deleter,
-    _KeyGetter,
-    _KeySetter,
-    _KeyDeleter,
-    _ValueValidator,
-    _StaticValueValidator,
-    _ValueConverter,
-    _StaticValueConverter,
-    _T,
-    _DT,
-    _KT,
-    _VT,
-)

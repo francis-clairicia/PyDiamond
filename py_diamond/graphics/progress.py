@@ -12,8 +12,9 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
+from dataclasses import dataclass
 from enum import auto, unique
-from typing import TYPE_CHECKING, Any, ClassVar, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Sequence
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
@@ -117,12 +118,14 @@ class ProgressBar(RectangleShape):
 
         self.orient = orient
 
-        self.__label_text = Text()
-        self.__label_text_side = str()
-        self.__value_text = Text()
-        self.__value_text_side = str()
-        self.__value_text_round_n = 0
-        self.__value_text_type = str()
+        # self.__label_text = Text()
+        # self.__label_text_side = str()
+        # self.__value_text = Text()
+        # self.__value_text_side = str()
+        # self.__value_text_round_n = 0
+        # self.__value_text_type = str()
+        self.__text_label = _ProgressTextLabel(Text(), None)
+        self.__text_value = _ProgressTextValue(Text(), None, 0, None)
 
         self.hide_label()
         self.hide_value()
@@ -145,58 +148,42 @@ class ProgressBar(RectangleShape):
         outline_rect.draw_onto(target)
 
         offset = 10
-        movements: dict[str, dict[str, float | tuple[float, float]]]
-        if self.__value_text.is_shown() and self.__value_text_type in ("value", "percent"):
-            movements = {
-                ProgressBar.Side.TOP.value: {"bottom": self.top - offset, "centerx": self.centerx},
-                ProgressBar.Side.BOTTOM.value: {
-                    "top": self.bottom + offset,
-                    "centerx": self.centerx,
-                },
-                ProgressBar.Side.LEFT.value: {
-                    "right": self.left - offset,
-                    "centery": self.centery,
-                },
-                ProgressBar.Side.RIGHT.value: {
-                    "left": self.right + offset,
-                    "centery": self.centery,
-                },
-                ProgressBar.Side.INSIDE.value: {"center": self.center},
-            }
-            side = self.__value_text_side
-            round_n = self.__value_text_round_n
-            if side in movements:
-                if self.__value_text_type == "value":
-                    value = self.__value
-                    self.__value_text.message = f"{round(value, round_n) if round_n > 0 else round(value)}"
-                elif self.__value_text_type == "percent":
-                    value = self.__percent * 100
-                    self.__value_text.message = f"{round(value, round_n) if round_n > 0 else round(value)}%"
-                self.__value_text.set_position(**movements[side])
-                self.__value_text.draw_onto(target)
-        if self.__label_text.is_shown():
-            movements = {
-                ProgressBar.Side.TOP.value: {
-                    "bottom": self.top - offset,
-                    "centerx": self.centerx,
-                },
-                ProgressBar.Side.BOTTOM.value: {
-                    "top": self.bottom + offset,
-                    "centerx": self.centerx,
-                },
-                ProgressBar.Side.LEFT.value: {
-                    "right": self.left - offset,
-                    "centery": self.centery,
-                },
-                ProgressBar.Side.RIGHT.value: {
-                    "left": self.right + offset,
-                    "centery": self.centery,
-                },
-            }
-            side = self.__label_text_side
-            if side in movements:
-                self.__label_text.set_position(**movements[side])
-                self.__label_text.draw_onto(target)
+        match self.__text_value:
+            case _ProgressTextValue(
+                text=text,
+                type="value" | "percent" as text_type,
+                round_n=int(round_n),
+                side=ProgressBar.Side(side),
+            ) if text.is_shown():
+                self.__place_text(text, side, offset=offset)
+
+                match text_type:
+                    case "value":
+                        value = self.__value
+                        text.message = f"{round(value, round_n) if round_n > 0 else round(value)}"
+                    case "percent":
+                        value = self.__percent * 100
+                        text.message = f"{round(value, round_n) if round_n > 0 else round(value)}%"
+
+                text.draw_onto(target)
+
+        match self.__text_label:
+            case _ProgressTextLabel(text=text, side=ProgressBar.Side(side)) if text.is_shown():
+                self.__place_text(text, side, offset=offset)
+                text.draw_onto(target)
+
+    def __place_text(self, text: Text, side: Side, *, offset: int = 0) -> None:
+        match side:
+            case ProgressBar.Side.LEFT:
+                text.midright = (self.left - offset, self.centery)
+            case ProgressBar.Side.RIGHT:
+                text.midleft = (self.right + offset, self.centery)
+            case ProgressBar.Side.TOP:
+                text.midbottom = (self.centerx, self.top - offset)
+            case ProgressBar.Side.BOTTOM:
+                text.midtop = (self.centerx, self.bottom + offset)
+            case ProgressBar.Side.INSIDE:
+                text.center = self.center
 
     def set_bounds(self, from_: float, to: float) -> None:
         from_ = float(from_)
@@ -208,42 +195,43 @@ class ProgressBar(RectangleShape):
         self.value = from_
 
     def show_value(self, side: str, round_n: int = 0, **kwargs: Any) -> None:
-        self.__value_text.config(**kwargs)
-        self.__value_text_side = ProgressBar.Side(side).value
-        self.__value_text_round_n = int(round_n)
-        self.__value_text_type = "value"
-        self.__value_text.show()
+        self.__text_value.text.config(**kwargs)
+        self.__text_value.side = ProgressBar.Side(side)
+        self.__text_value.round_n = int(round_n)
+        self.__text_value.type = "value"
+        self.__text_value.text.show()
 
     def hide_value(self) -> None:
-        self.__value_text.hide()
-        self.__value_text_side = str()
-        self.__value_text_round_n = 0
-        self.__value_text_type = str()
+        self.__text_value.text.hide()
+        self.__text_value.side = None
+        self.__text_value.round_n = 0
+        self.__text_value.type = None
 
     def show_percent(self, side: str, round_n: int = 0, **kwargs: Any) -> None:
         self.show_value(side, round_n, **kwargs)
-        self.__value_text_type = "percent"
+        self.__text_value.type = "percent"
 
     def hide_percent(self) -> None:
         self.hide_value()
 
     def config_value_text(self, **kwargs: Any) -> None:
-        kwargs.pop("message", None)
-        self.__value_text.config(**kwargs)
+        if "message" in kwargs:
+            raise TypeError("'message' argument must not be supplied")
+        self.__text_value.text.config(**kwargs)
 
     def show_label(self, label: str, side: str, **kwargs: Any) -> None:
-        self.__label_text.config(message=label, **kwargs)
-        self.__label_text_side = ProgressBar.Side(side).value
-        self.__label_text.show()
+        self.__text_label.text.config(message=label, **kwargs)
+        self.__text_label.side = ProgressBar.Side(side)
+        self.__text_label.text.show()
 
     def hide_label(self) -> None:
-        self.__label_text.hide()
-        self.__label_text_side = str()
+        self.__text_label.text.hide()
+        self.__text_label.side = None
 
     def config_label_text(self, message: str | None = None, **kwargs: Any) -> None:
         if message is not None:
             kwargs["message"] = message
-        self.__label_text.config(**kwargs)
+        self.__text_label.text.config(**kwargs)
 
     def _apply_both_rotation_and_scale(self) -> None:
         raise NotImplementedError
@@ -322,3 +310,17 @@ class ProgressBar(RectangleShape):
     @property
     def to_value(self) -> float:
         return self.__end
+
+
+@dataclass
+class _ProgressTextLabel:
+    text: Text
+    side: ProgressBar.Side | None
+
+
+@dataclass
+class _ProgressTextValue:
+    text: Text
+    side: ProgressBar.Side | None
+    round_n: int
+    type: Literal["value", "percent"] | None

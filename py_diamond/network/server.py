@@ -652,6 +652,3 @@ class UDPNetworkServer(AbstractUDPNetworkServer[_T]):
     @property
     def request_handler_cls(self) -> type[AbstractUDPRequestHandler[_T]]:
         return self.__request_handler_cls
-
-
-del _T

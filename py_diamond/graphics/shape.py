@@ -239,8 +239,6 @@ class PolygonShape(OutlinedShape, SingleColorShape, metaclass=ThemedShapeMeta):
     def set_points(self, points: PointList) -> None:
         self.config.set("points", points)
 
-    config.set_autocopy("points", copy_on_set=False)
-
     @config.add_value_converter_static("points")
     @staticmethod
     def __valid_points(points: PointList) -> tuple[Vector2, ...]:

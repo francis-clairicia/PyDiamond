@@ -307,44 +307,43 @@ class Entry(TDrawable, Pressable, metaclass=EntryMeta):
         return Keyboard.IME.text_input_enabled()
 
     def __key_press(self, event: KeyDownEvent | TextInputEvent) -> bool:
-        if not self.__edit() or not isinstance(event, (KeyDownEvent, TextInputEvent)):
+        if not self.__edit():
             return False
         self.__show_cursor = True
         self.__cursor_animation_clock.restart()
         text: Text = self.__text
-        if isinstance(event, KeyDownEvent):
-            # TODO: Match case
-            if event.key == Keyboard.Key.ESCAPE:
+        match event:
+            case KeyDownEvent(key=Keyboard.Key.ESCAPE):
                 self.stop_edit()
                 return True
-            if event.key == Keyboard.Key.BACKSPACE:
-                if self.cursor > 0:
-                    text.message = text.message[: self.cursor - 1] + text.message[self.cursor :]
-                    self.cursor -= 1
-                return True
-            if event.key == Keyboard.Key.DELETE:
-                text.message = text.message[: self.cursor] + text.message[self.cursor + 1 :]
-                return True
-            if event.key == Keyboard.Key.LEFT:
+            case KeyDownEvent(key=Keyboard.Key.BACKSPACE) if self.cursor > 0:
+                text.message = text.message[: self.cursor - 1] + text.message[self.cursor :]
                 self.cursor -= 1
                 return True
-            if event.key == Keyboard.Key.RIGHT:
+            case KeyDownEvent(key=Keyboard.Key.BACKSPACE):
+                return True
+            case KeyDownEvent(key=Keyboard.Key.DELETE):
+                text.message = text.message[: self.cursor] + text.message[self.cursor + 1 :]
+                return True
+            case KeyDownEvent(key=Keyboard.Key.LEFT):
+                self.cursor -= 1
+                return True
+            case KeyDownEvent(key=Keyboard.Key.RIGHT):
                 self.cursor += 1
                 return True
-            if event.key == Keyboard.Key.HOME:
+            case KeyDownEvent(key=Keyboard.Key.HOME):
                 self.cursor = 0
                 return True
-            if event.key == Keyboard.Key.END:
+            case KeyDownEvent(key=Keyboard.Key.END):
                 self.cursor = len(text.message)
                 return True
-            return False
-
-        entered_text: str = event.text
-        new_text: str = text.message[: self.cursor] + entered_text + text.message[self.cursor :]
-        if (max_nb_char := self.__nb_chars) == 0 or len(new_text) <= max_nb_char:
-            text.message = new_text
-            self.cursor += len(entered_text)
-        return True
+            case TextInputEvent(text=entered_text):
+                new_text: str = text.message[: self.cursor] + entered_text + text.message[self.cursor :]
+                if (max_nb_char := self.__nb_chars) == 0 or len(new_text) <= max_nb_char:
+                    text.message = new_text
+                    self.cursor += len(entered_text)
+                return True
+        return False
 
     def __update_shape_outline(self) -> None:
         shape: RectangleShape = self.__outline_shape

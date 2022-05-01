@@ -134,26 +134,29 @@ class Clickable(Object):
 
         valid_click: bool = truth(self._valid_mouse_button(event.button) and self._mouse_in_hitbox(event.pos))
 
-        if isinstance(event, MouseButtonDownEvent):
-            if valid_click:
+        match event:
+            case MouseButtonDownEvent() if valid_click:
                 self.active = True
                 self._on_click_down(event)
                 return True
-            self._on_click_out(event)
-        elif isinstance(event, MouseButtonUpEvent):
-            active = self.active
-            self.active = False
-            if not active:
+            case MouseButtonDownEvent():
+                self._on_click_out(event)
                 return False
-            self._on_click_up(event)
-            if valid_click:
-                self.play_click_sound()
+            case MouseButtonUpEvent() if self.active:
+                self.active = False
+                self._on_click_up(event)
+                if not valid_click:
+                    return False
                 if isinstance(self, SupportsFocus):
                     self.focus.set()
+                self.play_click_sound()
                 self._on_hover()
                 if self.state != Clickable.State.DISABLED:
                     self.invoke()
                 return True
+            case MouseButtonUpEvent():
+                self.active = False
+                return False
         return False
 
     def __handle_mouse_motion(self, event: MouseMotionEvent) -> None:

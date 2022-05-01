@@ -90,7 +90,16 @@ class Cursor(AbstractCursor):
 
     def __init__(self, *args: Any) -> None:
         super().__init__()
-        self.__cursor: _Cursor = _Cursor(*args)
+        self.__cursor: _Cursor
+        match args:
+            case (size, hotspot, xormask, andmask):
+                self.__cursor = _Cursor(size, hotspot, xormask, andmask)
+            case (hotspot, Surface() as surface):
+                self.__cursor = _Cursor(hotspot, surface)
+            case _Cursor() as cursor:
+                self.__cursor = cursor
+            case _:
+                raise TypeError(f"Invalid arguments")
 
     @staticmethod
     def compile(hotspot: tuple[int, int], strings: Sequence[str], black: str = "X", white: str = ".", xor: str = "o") -> Cursor:

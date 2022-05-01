@@ -17,10 +17,11 @@ from dataclasses import dataclass
 from enum import auto, unique
 from operator import itemgetter
 from typing import Any, Callable, Container, Iterator, Literal, Sequence, TypeVar, overload
+from weakref import ref as weakref
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
-from ..system.utils import flatten, valid_integer
+from ..system.utils import flatten, valid_integer, weakref_unwrap
 from ..window.gui import GUIScene, SupportsFocus
 from .color import BLACK, TRANSPARENT, Color
 from .drawable import Drawable, MDrawable
@@ -107,11 +108,10 @@ class Grid(MDrawable, Container[Drawable]):
     def rows(self, column: int | None = None) -> Iterator[int]:
         all_rows: dict[int, _GridRow] = self.__rows
         if column is None:
-            yield from all_rows
-            return
+            return iter(all_rows.keys())
         if column not in self.__columns:
             raise IndexError("'column' is undefined")
-        yield from map(
+        return map(
             lambda c: c.row,
             filter(lambda c: c.column == column, flatten(row.iter_cells() for row in all_rows.values())),
         )
@@ -119,14 +119,13 @@ class Grid(MDrawable, Container[Drawable]):
     def columns(self, row: int | None = None) -> Iterator[int]:
         if row is None:
             all_columns: dict[int, _GridColumnPlaceholder] = self.__columns
-            yield from all_columns
-            return
+            return iter(all_columns.keys())
         all_rows: dict[int, _GridRow] = self.__rows
         try:
             grid_row: _GridRow = all_rows[row]
         except KeyError as exc:
             raise IndexError("'row' is undefined") from exc
-        yield from map(lambda c: c.column, grid_row.iter_cells())
+        return map(lambda c: c.column, grid_row.iter_cells())
 
     def cells(self) -> Iterator[tuple[int, int]]:
         return ((row, column) for row in self.rows() for column in self.columns(row))
@@ -317,29 +316,7 @@ class Grid(MDrawable, Container[Drawable]):
         if self.master is None:
             return
 
-        def find_closest(
-            cells: Sequence[_GridCell], attr: Literal["row", "column"], cell_to_link: _GridCell
-        ) -> SupportsFocus | None:
-            closest: _GridCell | None = None
-            closest_obj: SupportsFocus | None = None
-            value: int = getattr(cell_to_link, attr)
-            for cell in cells:
-                obj: Any = cell.get_object()
-                if not isinstance(obj, SupportsFocus):
-                    continue
-                if (cell_value := int(getattr(cell, attr))) == value:
-                    return obj
-                if closest is None:
-                    closest = cell
-                    closest_obj = obj
-                closest_value: int = int(getattr(closest, attr))
-                closest_diff: int = abs(closest_value - value)
-                actual_diff: int = abs(cell_value - value)
-                if actual_diff < closest_diff or (actual_diff == closest_diff and cell_value < closest_value):
-                    closest = cell
-                    closest_obj = obj
-            return closest_obj
-
+        find_closest = self.__find_closest
         all_column_indexes: Sequence[int] = sorted(all_columns)
         for index, column in enumerate(all_column_indexes):
             for cell in all_columns[column]:
@@ -373,6 +350,30 @@ class Grid(MDrawable, Container[Drawable]):
                     obj.focus.set_obj_on_side(on_top=top_obj)
                 if bottom_obj is not None:
                     obj.focus.set_obj_on_side(on_bottom=bottom_obj)
+
+    @staticmethod
+    def __find_closest(
+        cells: Sequence[_GridCell], attr: Literal["row", "column"], cell_to_link: _GridCell
+    ) -> SupportsFocus | None:
+        closest: _GridCell | None = None
+        closest_obj: SupportsFocus | None = None
+        value: int = getattr(cell_to_link, attr)
+        for cell in cells:
+            obj: Any = cell.get_object()
+            if not isinstance(obj, SupportsFocus):
+                continue
+            if (cell_value := int(getattr(cell, attr))) == value:
+                return obj
+            if closest is None:
+                closest = cell
+                closest_obj = obj
+            closest_value: int = int(getattr(closest, attr))
+            closest_diff: int = abs(closest_value - value)
+            actual_diff: int = abs(cell_value - value)
+            if actual_diff < closest_diff or (actual_diff == closest_diff and cell_value < closest_value):
+                closest = cell
+                closest_obj = obj
+        return closest_obj
 
     def __remove_useless_cells(
         self,
@@ -442,16 +443,16 @@ class _GridRow:
     __slots__ = ("__master", "__cells", "__columns", "__row")
 
     def __init__(self, master: Grid, row: int, column_dict: dict[int, _GridColumnPlaceholder]) -> None:
-        self.move_to_row(row)
-        self.__master: Grid = master
+        self.__master: weakref[Grid] = weakref(master)
         self.__cells: dict[int, _GridCell] = dict()
         self.__columns: dict[int, _GridColumnPlaceholder] = column_dict
+        self.move_to_row(row)
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} row={self.row}>"
 
     def iter_cells(self) -> Iterator[_GridCell]:
-        yield from self.__cells.values()
+        return iter(self.__cells.values())
 
     def get_cell(self, column: int) -> _GridCell | None:
         return self.__cells.get(column, None)
@@ -483,12 +484,11 @@ class _GridRow:
 
     @property
     def master(self) -> GUIScene | None:
-        grid: Grid = self.grid
-        return grid.master
+        return self.grid.master
 
     @property
     def grid(self) -> Grid:
-        return self.__master
+        return weakref_unwrap(self.__master)
 
     @property
     def row(self) -> int:
@@ -645,15 +645,19 @@ class _GridCell(MDrawable):
         obj: MDrawable | None = self.__object
         if obj is None:
             return
-        # TODO: Match case
-        move: dict[Grid.Justify, dict[str, float | tuple[float, float]]] = {
-            Grid.Justify.LEFT: {"left": self.left + self.__padx, "centery": self.centery},
-            Grid.Justify.RIGHT: {"right": self.right - self.__padx, "centery": self.centery},
-            Grid.Justify.TOP: {"top": self.top + self.__pady, "centerx": self.centerx},
-            Grid.Justify.BOTTOM: {"bottom": self.bottom - self.__pady, "centerx": self.centerx},
-            Grid.Justify.CENTER: {"center": self.center},
-        }
-        obj.set_position(**move[self.__justify])
+        match self.__justify:
+            case Grid.Justify.LEFT:
+                obj.midleft = (self.left + self.__padx, self.centery)
+            case Grid.Justify.RIGHT:
+                obj.midright = (self.right - self.__padx, self.centery)
+            case Grid.Justify.TOP:
+                obj.midtop = (self.centerx, self.top + self.__pady)
+            case Grid.Justify.BOTTOM:
+                obj.midbottom = (self.centerx, self.bottom - self.__pady)
+            case Grid.Justify.CENTER:
+                obj.center = self.center
+            case _:
+                raise ValueError("Unknown Justify value")
 
     @property
     def master(self) -> GUIScene | None:
@@ -674,6 +678,3 @@ class _GridCell(MDrawable):
     def column(self) -> int:
         grid_col: _GridColumnPlaceholder = self.__column
         return grid_col.column
-
-
-del _D

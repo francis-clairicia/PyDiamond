@@ -13,6 +13,7 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from typing import TYPE_CHECKING, Any, Callable, Mapping, TypeAlias, overload
+from weakref import WeakValueDictionary
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.utils import valid_integer
@@ -63,7 +64,7 @@ class Form(MDrawable):
         self.entry_justify = entry_justify
         self.padx = padx
         self.pady = pady
-        self.__entry_dict: dict[str, Entry] = {}
+        self.__entry_dict: WeakValueDictionary[str, Entry] = WeakValueDictionary()
 
     def get_size(self) -> tuple[float, float]:
         return self.__grid.get_size()
@@ -83,7 +84,7 @@ class Form(MDrawable):
             raise TypeError("Invalid arguments")
         if not name:
             raise ValueError("Empty name")
-        entry_dict: dict[str, Entry] = self.__entry_dict
+        entry_dict: WeakValueDictionary[str, Entry] = self.__entry_dict
         if name in entry_dict:
             raise ValueError(f"{name!r} already set")
         grid: Grid = self.__grid
@@ -97,8 +98,7 @@ class Form(MDrawable):
         return entry
 
     def remove_entry(self, name: str) -> None:
-        entry_dict: dict[str, Entry] = self.__entry_dict
-        entry: Entry = entry_dict.pop(name)
+        entry: Entry = self.__entry_dict.pop(name)
         grid: Grid = self.__grid
         entry_pos: tuple[int, int] | None = grid.get_position(entry)
         if entry_pos is not None:
@@ -116,7 +116,7 @@ class Form(MDrawable):
         ...
 
     def get(self, name: str | None = None) -> str | Mapping[str, str]:
-        entry_dict: dict[str, Entry] = self.__entry_dict
+        entry_dict: WeakValueDictionary[str, Entry] = self.__entry_dict
         if name is not None:
             return entry_dict[name].get()
         return {n: e.get() for n, e in entry_dict.items()}
@@ -148,7 +148,6 @@ class Form(MDrawable):
     @config.on_update_key_value("entry_justify")
     def __update_grid_justify(self, option: str, justify: Justify) -> None:
         grid: Grid = self.__grid
-        # TODO: Match case
         column: int = {"label_justify": 0, "entry_justify": 1}[option]
         for row in range(grid.nb_rows):
             grid.modify(row=row, column=column, justify=justify)

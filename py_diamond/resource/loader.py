@@ -96,6 +96,3 @@ class MusicLoader(AbstractResourceLoader[Music]):
     @property
     def type(self) -> type[Music]:
         return Music
-
-
-del _T

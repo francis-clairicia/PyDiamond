@@ -115,7 +115,7 @@ class Movable(Object, metaclass=MovableMeta):
     def get_rect(self, **kwargs: float | tuple[float, float]) -> Rect:
         r: Rect = Rect(self.topleft, self.get_size())
         for name, value in kwargs.items():
-            if not hasattr(r, name):
+            if name not in _ALL_VALID_POSITIONS:
                 raise AttributeError(f"{type(r).__name__!r} has no attribute {name!r}")
             setattr(r, name, value)
         return r

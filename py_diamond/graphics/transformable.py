@@ -20,7 +20,7 @@ from pygame import error as _pg_error
 
 from ..math import Vector2
 from ..system.object import final
-from .movable import Movable, MovableMeta
+from .movable import _ALL_VALID_POSITIONS, Movable, MovableMeta
 from .rect import Rect
 
 if TYPE_CHECKING:
@@ -269,7 +269,7 @@ class Transformable(Movable, metaclass=TransformableMeta):
     def get_local_rect(self, **kwargs: float | tuple[float, float]) -> Rect:
         r: Rect = Rect((0, 0), self.get_local_size())
         for name, value in kwargs.items():
-            if not hasattr(r, name):
+            if name not in _ALL_VALID_POSITIONS:
                 raise AttributeError(f"{type(r).__name__!r} has no attribute {name!r}")
             setattr(r, name, value)
         return r

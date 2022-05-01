@@ -119,11 +119,15 @@ class MultiColorShape(AbstractShape):
     @config.add_value_validator_static("colors")
     @staticmethod
     def __valid_colors(value: Any) -> None:
-        value = tuple(value)
-        if any(not isinstance(v, Color) for v in value):
-            raise TypeError("Must be a tuple of Color")
-        if len(value) < 2:
-            raise ValueError("Must have at least 2 colors")
+        match value:
+            case tuple() if all(isinstance(v, Color) for v in value) and len(value) >= 2:
+                return
+            case tuple():
+                if len(value) < 2:
+                    raise ValueError("Must have at least 2 colors")
+                raise TypeError("Must be a tuple of Color")
+            case _:
+                raise TypeError("Invalid value type")
 
 
 class HorizontalMultiColorShape(AbstractRectangleShape, MultiColorShape):

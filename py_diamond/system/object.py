@@ -126,23 +126,26 @@ class ObjectMeta(ABCMeta):
 
     @staticmethod
     def __check_attr(obj: Any, attr: str) -> bool:
-        # TODO: Match case
-        if isinstance(obj, property):
-            return getattr(obj, attr, False) or any(getattr(func, attr, False) for func in (obj.fget, obj.fset, obj.fdel))
-        if isinstance(obj, (classmethod, staticmethod)):
-            return getattr(obj, attr, False) or getattr(obj.__func__, attr, False)
-        if isinstance(obj, cached_property):
-            return getattr(obj, attr, False) or getattr(obj.func, attr, False)
-        return getattr(obj, attr, False)
+        if getattr(obj, attr, False):
+            return True
+        match obj:
+            case property(fget=fget, fset=fset, fdel=fdel):
+                return any(getattr(func, attr, False) for func in (fget, fset, fdel))
+            case classmethod(__func__=func) | staticmethod(__func__=func) | cached_property(func=func):
+                return True if getattr(func, attr, False) else False
+            case _:
+                return False
 
 
-class Object(object, metaclass=ObjectMeta):
+class Object(metaclass=ObjectMeta):
+    __slots__ = ()
+
     def __del__(self) -> None:
         pass
 
 
 @overload
-def override(__o: _T, /) -> _T:
+def override(f: _T, /) -> _T:
     ...
 
 
@@ -151,25 +154,28 @@ def override(*, final: bool = False) -> Callable[[_T], _T]:
     ...
 
 
-def override(__o: Any = ..., /, *, final: bool = False) -> Any:
+def override(f: Any = ..., /, *, final: bool = False) -> Any:
     final = bool(final)
 
-    def decorator(__o: Any) -> Any:
-        if isinstance(__o, property):
-            for func in (__o.fget, __o.fset, __o.fdel):
-                if callable(func):
-                    decorator(func)
-            return __o
-        if isinstance(__o, (classmethod, staticmethod)):
-            decorator(__o.__func__)
-        elif isinstance(__o, cached_property):
-            decorator(__o.func)
-        elif isinstance(__o, type):
-            raise TypeError("override() must not decorate classes")
-        if not callable(__o) and not hasattr(__o, "__get__"):
-            raise TypeError("override() must only decorate functions and descriptors")
-        setattr(__o, "__mustoverride__", True)
-        setattr(__o, "__final__", final)
-        return __o
+    def apply_markers(f: Any) -> None:
+        setattr(f, "__mustoverride__", True)
+        setattr(f, "__final__", final)
 
-    return decorator if __o is Ellipsis else decorator(__o)
+    def decorator(f: Any) -> Any:
+        match f:
+            case property(fget=fget, fset=fset, fdel=fdel):
+                for func in (fget, fset, fdel):
+                    if callable(func):
+                        apply_markers(func)
+            case classmethod(__func__=func) | staticmethod(__func__=func) | cached_property(func=func):
+                apply_markers(f)
+                apply_markers(func)
+            case type():
+                raise TypeError("override() must not decorate classes")
+            case _ if not callable(f) and not hasattr(f, "__get__"):
+                raise TypeError("override() must only decorate functions and descriptors")
+            case _:
+                apply_markers(f)
+        return f
+
+    return decorator if f is Ellipsis else decorator(f)

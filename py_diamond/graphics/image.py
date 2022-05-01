@@ -54,27 +54,36 @@ class Image(TDrawable):
         height: float | None = None,
     ) -> None:
         super().__init__()
-        if image is None:
-            image = create_surface((0, 0))
 
         self.__default_image: Surface
         self.__image: Surface
         self.__smooth_scale: bool = False
 
-        if isinstance(image, Surface):
-            self.__default_image = image.copy() if copy else image
-            self.__image = self.__default_image.copy()
-        else:
-            self.__default_image = Surface((0, 0))
-            self.__image = self.__default_image.copy()
-            self.load(image)
-        if width is not None and height is not None:
-            self.scale_to_size((width, height))
-        elif width is not None:
-            self.scale_to_width(width)
-        elif height is not None:
-            self.scale_to_height(height)
-        self.topleft = (0, 0)
+        match image:
+            case None:
+                image = create_surface((0, 0))
+            case Surface():
+                if copy:
+                    image = image.copy()
+            case str():
+                image = load_image(image)
+            case _:
+                raise TypeError(f"Invalid argument: {image!r}")
+
+        self.__default_image = image
+        self.__image = image.copy()
+
+        match (width, height):
+            case (int() | float() as width, int() | float() as height):
+                self.scale_to_size((width, height))
+            case (int() | float() as width, None):
+                self.scale_to_width(width)
+            case (None, int() | float() as height):
+                self.scale_to_height(height)
+            case (None, None):
+                pass
+            case _:
+                raise TypeError(f"Invalid argument: {image!r}")
 
     def draw_onto(self, target: AbstractRenderer) -> None:
         image: Surface = self.__image

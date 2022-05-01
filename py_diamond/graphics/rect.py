@@ -13,36 +13,17 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from dataclasses import dataclass
-from typing import Any, overload
+from typing import TYPE_CHECKING
 
 from pygame.rect import Rect
-
-from ..math.vector2 import Vector2
 
 
 @dataclass(init=False, repr=False, eq=False, frozen=True)
 class ImmutableRect(Rect):
-    @overload
-    def __init__(self, left: float, top: float, width: float, height: float) -> None:
-        ...
+    if not TYPE_CHECKING:
 
-    @overload
-    def __init__(
-        self,
-        left_top: list[float] | tuple[float, float] | Vector2,
-        width_height: list[float] | tuple[float, float] | Vector2,
-    ) -> None:
-        ...
-
-    @overload
-    def __init__(
-        self,
-        left_top_width_height: Rect | tuple[float, float, float, float] | list[float],
-    ) -> None:
-        ...
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            super().__init__(*args, **kwargs)
 
     @staticmethod
     def convert(pygame_rect: Rect) -> ImmutableRect:

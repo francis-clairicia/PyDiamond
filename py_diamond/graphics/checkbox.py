@@ -317,6 +317,3 @@ class BooleanCheckBox(CheckBox[bool, bool]):
             border_bottom_right_radius=border_bottom_right_radius,
             theme=theme,
         )
-
-
-del _OnValue, _OffValue

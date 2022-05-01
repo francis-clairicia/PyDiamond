@@ -1117,6 +1117,3 @@ class _SceneWindowCallback(WindowCallback):
     @property
     def scene(self) -> Scene:
         return self.__scene
-
-
-del _S, _P, _T

@@ -38,7 +38,7 @@ __license__ = "GNU GPL v3.0"
 
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Final, Mapping, overload
+from typing import TYPE_CHECKING, Final, Mapping
 
 from pygame.color import Color as _Color
 from pygame.colordict import THECOLORS as _PG_ALL_COLORS
@@ -97,22 +97,12 @@ class Color(_Color):
         return Color(self.r, self.g, self.b, value)
 
 
-if TYPE_CHECKING:
-    from pygame._common import _ColorValue  # pyright: reportMissingModuleSource=false
-
-
 @dataclass(init=False, repr=False, eq=False, frozen=True)
 class ImmutableColor(Color):
-    @overload
-    def __init__(self, r: int, g: int, b: int, a: int = 255) -> None:
-        ...
+    if not TYPE_CHECKING:
 
-    @overload
-    def __init__(self, rgbvalue: _ColorValue) -> None:
-        ...
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            super().__init__(*args, **kwargs)
 
 
 COLOR_DICT: Final[Mapping[str, Color]] = MappingProxyType({c: ImmutableColor(c) for c in _PG_ALL_COLORS})

@@ -652,6 +652,8 @@ class Button(TDrawable, Pressable, metaclass=ButtonMeta):
         "disabled_active_img": (Clickable.State.DISABLED, "active"),
     }
 
+    assert (lambda config, states: all(key in config.known_options() for key in states))(config, __STATE)
+
     config.set_autocopy("background", copy_on_get=True, copy_on_set=True)
     config.set_autocopy("hover_background", copy_on_get=True, copy_on_set=True)
     config.set_autocopy("active_background", copy_on_get=True, copy_on_set=True)
@@ -1096,6 +1098,8 @@ class ImageButton(TDrawable, Clickable, metaclass=ButtonMeta):
         "disabled_hover_img": (Clickable.State.DISABLED, "hover"),
         "disabled_active_img": (Clickable.State.DISABLED, "active"),
     }
+
+    assert (lambda config, states: all(key in config.known_options() for key in states))(config, __STATE)
 
     config.set_autocopy("background", copy_on_get=True, copy_on_set=True)
     config.set_autocopy("hover_background", copy_on_get=True, copy_on_set=True)

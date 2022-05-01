@@ -834,19 +834,20 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
             return obj
 
         theme_namespace_decorator = ClassWithThemeNamespaceMeta.__theme_namespace_decorator
-        if isinstance(obj, property):
-            if callable(obj.fget):
-                obj = obj.getter(theme_namespace_decorator(obj.fget))
-            if callable(obj.fset):
-                obj = obj.setter(theme_namespace_decorator(obj.fset))
-            if callable(obj.fdel):
-                obj = obj.deleter(theme_namespace_decorator(obj.fdel))
-        elif isinstance(obj, cached_property):
-            setattr(obj, "func", theme_namespace_decorator(obj.func))
-        elif isinstance(obj, classmethod):
-            obj = type(obj)(theme_namespace_decorator(obj.__func__, use_cls=True))
-        elif isinstance(obj, (FunctionType, LambdaType)):
-            obj = theme_namespace_decorator(obj)
+        match obj:
+            case property(fget=fget, fset=fset, fdel=fdel):
+                if callable(fget):
+                    obj = obj.getter(theme_namespace_decorator(fget))
+                if callable(fset):
+                    obj = obj.setter(theme_namespace_decorator(fset))
+                if callable(fdel):
+                    obj = obj.deleter(theme_namespace_decorator(fdel))
+            case cached_property(func=func):
+                setattr(obj, "func", theme_namespace_decorator(func))
+            case classmethod(__func__=func):
+                obj = type(obj)(theme_namespace_decorator(func, use_cls=True))
+            case FunctionType() | LambdaType():
+                obj = theme_namespace_decorator(obj)
         return obj
 
     @staticmethod
@@ -934,6 +935,3 @@ def apply_theme_decorator(func: _T) -> _T:
         delattr(func, "__no_theme_decorator__")
     setattr(func, "__apply_theme_decorator__", True)
     return func
-
-
-del _T, _ThemedObjectClass

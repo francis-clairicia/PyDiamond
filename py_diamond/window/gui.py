@@ -32,7 +32,7 @@ from ..graphics.theme import no_theme_decorator
 from ..system._mangling import getattr_pv
 from ..system.enum import AutoLowerNameEnum
 from ..system.object import final
-from ..system.utils import setdefaultattr, wraps
+from ..system.utils import setdefaultattr, weakref_unwrap, wraps
 from .event import (
     Event,
     KeyDownEvent,
@@ -419,10 +419,7 @@ class BoundFocus:
 
     @property
     def __self__(self) -> SupportsFocus:
-        f: SupportsFocus | None = self.__f()
-        if f is None:
-            raise ReferenceError("weakly-referenced object no longer exists")
-        return f
+        return weakref_unwrap(self.__f)
 
 
 class _BoundFocusProxyMeta(type):

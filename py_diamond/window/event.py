@@ -696,5 +696,3 @@ class EventManager:
 
 
 del _pg_constants, _EventMeta, _BuiltinEventMeta, MusicStream
-
-del _T, _TE

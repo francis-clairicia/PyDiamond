@@ -66,19 +66,19 @@ class Pressable(Clickable):
             self.hover = hover = self.focus.has()
             valid_click = valid_click and hover
 
-        if isinstance(event, KeyDownEvent):
-            if valid_click:
+        match event:
+            case KeyDownEvent() if valid_click:
                 self.active = True
                 self._on_press_down(event)
                 return True
-            self._on_press_out(event)
-        elif isinstance(event, KeyUpEvent):
-            active = self.active
-            self.active = False
-            if not active:
+            case KeyDownEvent():
+                self._on_press_out(event)
                 return False
-            self._on_press_up(event)
-            if valid_click:
+            case KeyUpEvent() if self.active:
+                self.active = False
+                self._on_press_up(event)
+                if not valid_click:
+                    return False
                 if isinstance(self, SupportsFocus):
                     self.focus.set()
                 self.play_click_sound()
@@ -86,6 +86,9 @@ class Pressable(Clickable):
                 if self.state != Clickable.State.DISABLED:
                     self.invoke()
                 return True
+            case KeyUpEvent():
+                self.active = False
+                return False
         return False
 
     def _valid_key(self, key: int) -> bool:

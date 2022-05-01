@@ -756,6 +756,3 @@ class _WindowCallbackList(list[WindowCallback]):
             return
         for callback in tuple(self):
             callback()
-
-
-del _P

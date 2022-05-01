@@ -26,9 +26,10 @@ from bisect import insort_right
 from contextlib import suppress
 from itertools import dropwhile, filterfalse, takewhile
 from typing import TYPE_CHECKING, Any, Callable, Iterator, Sequence, TypeVar, overload
+from weakref import WeakKeyDictionary, WeakSet
 
 from ..system._mangling import getattr_pv
-from ..system.object import Object, ObjectMeta
+from ..system.object import Object, ObjectMeta, final
 from ..system.utils import wraps
 from .movable import Movable, MovableMeta
 from .transformable import Transformable, TransformableMeta
@@ -64,13 +65,20 @@ class DrawableMeta(ObjectMeta):
             if callable(draw_method):
                 namespace["draw_onto"] = _draw_decorator(draw_method)
 
-        return super().__new__(metacls, name, bases, namespace, **kwargs)
+        cls = super().__new__(metacls, name, bases, namespace, **kwargs)
+
+        if not hasattr(cls, "__weakref__"):
+            raise TypeError("A Drawable object must be weak-referencable")
+
+        return cls
 
 
 class Drawable(Object, metaclass=DrawableMeta):
+    __slots__ = ("__weakref__", "__dict__")
+
     def __init__(self) -> None:
         self.__shown: bool = True
-        self.__groups: set[DrawableGroup] = set()
+        self.__groups: WeakSet[DrawableGroup] = WeakSet()
 
     @abstractmethod
     def draw_onto(self, target: AbstractRenderer) -> None:
@@ -89,7 +97,7 @@ class Drawable(Object, metaclass=DrawableMeta):
         return self.__shown
 
     def add_to_group(self, *groups: DrawableGroup) -> None:
-        actual_groups: set[DrawableGroup] = self.__groups
+        actual_groups: WeakSet[DrawableGroup] = self.__groups
         for g in filterfalse(actual_groups.__contains__, groups):
             actual_groups.add(g)
             if self not in g:
@@ -102,7 +110,7 @@ class Drawable(Object, metaclass=DrawableMeta):
     def remove_from_group(self, *groups: DrawableGroup) -> None:
         if not groups:
             return
-        actual_groups: set[DrawableGroup] = self.__groups
+        actual_groups: WeakSet[DrawableGroup] = self.__groups
         for g in groups:
             if g not in actual_groups:
                 raise ValueError(f"sprite not in {g!r}")
@@ -113,7 +121,7 @@ class Drawable(Object, metaclass=DrawableMeta):
                     g.remove(self)
 
     def kill(self) -> None:
-        actual_groups: set[DrawableGroup] = self.__groups.copy()
+        actual_groups: WeakSet[DrawableGroup] = self.__groups.copy()
         self.__groups.clear()
         for g in actual_groups:
             if self in g:
@@ -124,6 +132,7 @@ class Drawable(Object, metaclass=DrawableMeta):
     def is_alive(self) -> bool:
         return len(self.__groups) > 0
 
+    @final
     @property
     def groups(self) -> frozenset[DrawableGroup]:
         return frozenset(self.__groups)
@@ -149,10 +158,9 @@ class MDrawable(Drawable, Movable, metaclass=MDrawableMeta):
         Movable.__init__(self)
 
 
-# TODO: Weak references
 class DrawableGroup(Sequence[Drawable], Object):
 
-    __slots__ = ("__list",)
+    __slots__ = ("__list", "__weakref__")
 
     def __init__(self, *objects: Drawable, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -221,9 +229,7 @@ class DrawableGroup(Sequence[Drawable], Object):
         return not self
 
     def find(self, objtype: type[_T]) -> Iterator[_T]:
-        for obj in self:
-            if isinstance(obj, objtype):
-                yield obj
+        return filter(lambda obj: isinstance(obj, objtype), self)  # type: ignore[arg-type]
 
 
 class LayeredDrawableGroup(DrawableGroup):
@@ -232,13 +238,13 @@ class LayeredDrawableGroup(DrawableGroup):
 
     def __init__(self, *objects: Drawable, default_layer: int = 0, **kwargs: Any) -> None:
         self.__default_layer: int = default_layer
-        self.__layer_dict: dict[Drawable, int] = {}
+        self.__layer_dict: WeakKeyDictionary[Drawable, int] = WeakKeyDictionary()
         super().__init__(*objects, **kwargs)
 
     def add(self, *objects: Drawable, layer: int | None = None) -> None:
         if not objects:
             return
-        layer_dict: dict[Drawable, int] = self.__layer_dict
+        layer_dict: WeakKeyDictionary[Drawable, int] = self.__layer_dict
         drawable_list: list[Drawable] = getattr_pv(self, "list", owner=DrawableGroup)
         if layer is None:
             layer = self.__default_layer
@@ -263,7 +269,7 @@ class LayeredDrawableGroup(DrawableGroup):
         return d
 
     def get_layer(self, obj: Drawable) -> int:
-        layer_dict: dict[Drawable, int] = self.__layer_dict
+        layer_dict: WeakKeyDictionary[Drawable, int] = self.__layer_dict
         try:
             return layer_dict[obj]
         except KeyError:
@@ -271,7 +277,7 @@ class LayeredDrawableGroup(DrawableGroup):
 
     def change_layer(self, obj: Drawable, layer: int) -> None:
         layer = int(layer)
-        layer_dict: dict[Drawable, int] = self.__layer_dict
+        layer_dict: WeakKeyDictionary[Drawable, int] = self.__layer_dict
         actual_layer: int | None = layer_dict.get(obj, None)
         if (actual_layer is None and layer == self.__default_layer) or (actual_layer is not None and actual_layer == layer):
             return
@@ -284,12 +290,10 @@ class LayeredDrawableGroup(DrawableGroup):
         insort_right(drawable_list, obj, key=layer_dict.__getitem__)
 
     def get_top_layer(self) -> int:
-        layer_dict: dict[Drawable, int] = self.__layer_dict
-        return layer_dict[self[-1]]
+        return self.__layer_dict[self[-1]]
 
     def get_bottom_layer(self) -> int:
-        layer_dict: dict[Drawable, int] = self.__layer_dict
-        return layer_dict[self[0]]
+        return self.__layer_dict[self[0]]
 
     def get_top_drawable(self) -> Drawable:
         return self[-1]
@@ -337,6 +341,3 @@ class LayeredDrawableGroup(DrawableGroup):
     @property
     def layers(self) -> Sequence[int]:
         return sorted(set(self.__layer_dict.values()))
-
-
-del _T
