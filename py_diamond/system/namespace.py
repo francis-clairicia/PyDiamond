@@ -37,11 +37,10 @@ class ClassNamespaceMeta(ObjectMeta):
             if attr in namespace:
                 raise TypeError(f"A ClassNamespace class is not instantiable, so no need to define {attr!r}")
         if not frozen:
-            for b in bases:
-                if isinstance(b, ClassNamespaceMeta):
-                    frozen = getattr(b, "_frozen_class_namespace_")
-                    if frozen:
-                        break
+            frozen = next(
+                (True for b in bases if isinstance(b, ClassNamespaceMeta) and getattr(b, "_frozen_class_namespace_", False)),
+                False,
+            )
         namespace["__slots__"] = ()
         namespace["_frozen_class_namespace_"] = bool(frozen)
         namespace["_class_namespace_was_init_"] = False

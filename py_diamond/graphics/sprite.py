@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any, Final, Iterable, Iterator, Sequence, Type
 from pygame.mask import Mask, from_surface as _pg_mask_from_surface
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom, smoothscale as _surface_smoothscale
 
+from ..system.object import final
 from ..window.clock import Clock
 from .drawable import DrawableGroup, LayeredDrawableGroup, TDrawable
 from .rect import Rect
@@ -96,7 +97,9 @@ class Sprite(TDrawable):
             w, h = self.get_local_size()
             w = round(w * scale)
             h = round(h * scale)
-            image = _surface_smoothscale(image, (w, h))
+            self.__image = _surface_smoothscale(image, (w, h))
+        else:
+            self.__image = image.copy()
         self.__update_mask()
 
     def __update_mask(self) -> None:
@@ -123,7 +126,7 @@ class Sprite(TDrawable):
         other_rect: Rect = other.rect
         xoffset: int = other_rect.x - this_rect.x
         yoffset: int = other_rect.y - this_rect.y
-        intersection: tuple[int, int] | None = self.mask.overlap(other.mask, (xoffset, yoffset))
+        intersection: tuple[int, int] | None = self.__mask.overlap(other.__mask, (xoffset, yoffset))
         if intersection is not None and not relative:
             intersection = (intersection[0] + this_rect.x, intersection[1] + this_rect.y)
         return intersection
@@ -144,6 +147,7 @@ class Sprite(TDrawable):
         return self.__image.copy()
 
     @property
+    @final
     def mask(self) -> Mask:
         return self.__mask
 
