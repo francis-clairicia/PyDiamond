@@ -60,7 +60,7 @@ class Sprite(TDrawable):
         image: Surface = self.__image
         topleft: tuple[float, float] = self.topleft
         blend_mode: BlendMode = self.__blend_mode
-        target.draw(image, topleft, special_flags=blend_mode)
+        target.draw_surface(image, topleft, special_flags=blend_mode)
 
     def get_local_size(self) -> tuple[float, float]:
         return self.__default_image.get_size()

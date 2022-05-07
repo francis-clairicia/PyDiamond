@@ -252,7 +252,7 @@ class Window(Object):
     def refresh(self) -> float:
         screen = SurfaceRenderer(_pg_display.get_surface())
         text_framerate: _TextFramerate = self.__text_framerate
-        screen.draw(self.__surface, (0, 0))
+        screen.draw_surface(self.__surface, (0, 0))
         if text_framerate.is_shown():
             if not text_framerate.message or self.__framerate_update_clock.elapsed_time(text_framerate.refresh_rate):
                 text_framerate.message = f"{round(self.framerate)} FPS"

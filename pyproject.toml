@@ -36,7 +36,6 @@ Source = "https://github.com/francis-clairicia/PyDiamond"
 [tool.isort]
 profile = "black"
 line_length = 130
-skip_gitignore = true
 combine_as_imports = true
 
 [tool.black]

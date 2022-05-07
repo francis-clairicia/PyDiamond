@@ -88,7 +88,7 @@ class Image(TDrawable):
     def draw_onto(self, target: AbstractRenderer) -> None:
         image: Surface = self.__image
         topleft: tuple[float, float] = self.topleft
-        target.draw(image, topleft)
+        target.draw_surface(image, topleft)
 
     def get(self, apply_rotation_scale: bool = False) -> Surface:
         if apply_rotation_scale:

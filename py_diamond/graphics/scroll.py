@@ -425,7 +425,7 @@ class ScrollArea(LayeredDrawableGroup, MDrawable):
     def draw_onto(self, target: AbstractRenderer) -> None:
         whole_area = self.__update_whole_area()
         super().draw_onto(SurfaceRenderer(whole_area))
-        target.draw(whole_area, self.topleft, area=self.__view_rect)
+        target.draw_surface(whole_area, self.topleft, area=self.__view_rect)
 
     def _bind(self, scrollbar: ScrollBar) -> None:
         if scrollbar.scroll_area is not self:
@@ -461,9 +461,9 @@ class ScrollArea(LayeredDrawableGroup, MDrawable):
             view_rect.top = int(whole_area_rect.height * start)
             view_rect.height = int(whole_area_rect.height * (end - start))
 
-    def __handle_wheel_event(self, event: MouseWheelEvent) -> None:
+    def __handle_wheel_event(self, event: MouseWheelEvent) -> bool:
         if not self.rect.collidepoint(Mouse.get_pos()):
-            return
+            return False
         view_rect: Rect = self.__view_rect
         whole_area: Surface = self.__whole_area
         whole_area_rect = whole_area.get_rect()
@@ -492,6 +492,7 @@ class ScrollArea(LayeredDrawableGroup, MDrawable):
         if need_update:
             self.__update_whole_area()
             self.__update_scrollbars_cursor()
+        return True
 
     def __update_whole_area(self) -> Surface:
         whole_area: Surface = self.__whole_area

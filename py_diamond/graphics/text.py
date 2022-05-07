@@ -103,7 +103,7 @@ class Text(TDrawable, metaclass=TextMeta):
     def draw_onto(self, target: AbstractRenderer) -> None:
         image: Surface = self.__image
         topleft: tuple[float, float] = self.topleft
-        target.draw(image, topleft)
+        target.draw_surface(image, topleft)
 
     def get_local_size(self) -> tuple[float, float]:
         return self.__default_image.get_size()

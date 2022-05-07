@@ -72,7 +72,7 @@ class AbstractRenderer(Object):
         raise NotImplementedError
 
     @abstractmethod
-    def draw(
+    def draw_surface(
         self,
         obj: Surface,
         dest: tuple[float, float] | Rect,
@@ -204,7 +204,7 @@ class SurfaceRenderer(AbstractRenderer):
         target: Surface = self.__target
         target.fill(color)
 
-    def draw(
+    def draw_surface(
         self,
         obj: Surface,
         dest: tuple[float, float] | Rect,

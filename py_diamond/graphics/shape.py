@@ -66,7 +66,7 @@ class AbstractShape(TDrawable, metaclass=ShapeMeta):
     def draw_onto(self, target: AbstractRenderer) -> None:
         image: Surface = self.__image
         center: tuple[float, float] = self.center
-        target.draw(image, image.get_rect(center=center))
+        target.draw_surface(image, image.get_rect(center=center))
 
     def get_local_size(self) -> tuple[float, float]:
         return self.__local_size
