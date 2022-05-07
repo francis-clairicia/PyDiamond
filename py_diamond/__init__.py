@@ -22,13 +22,26 @@ import sys
 
 ############ Environment initialization ############
 if sys.version_info < (3, 10):
-    raise ImportError("This framework must be ran with python >= 3.10 (actual={}.{}.{})".format(*sys.version_info[0:3]))
+    raise ImportError(
+        "This framework must be run with python >= 3.10 (actual={}.{}.{})".format(*sys.version_info[0:3]),
+        name=__name__,
+        path=__file__,
+    )
+
 
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")  # Must be set before importing pygame
 os.environ.setdefault("PYGAME_FREETYPE", "1")  # Must be set before importing pygame
 os.environ.setdefault("SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1")  # Must be set before importing pygame
 
 ############ Package initialization ############
+#### Apply various patch that must be run before importing the main modules
+from py_diamond._patch import collector
+
+collector.run_patches()
+
+del collector
+####
+
 import py_diamond.environ
 
 py_diamond.environ.check_booleans(
@@ -39,13 +52,14 @@ py_diamond.environ.check_booleans(
     ]
 )
 
-#### Apply various patch that must be ran before importing the main modules
-from py_diamond._patch import collector
-
-collector.run_patches()
-
-del collector
-####
+try:
+    import pygame
+except ImportError as exc:
+    raise ImportError(
+        "'pygame' package must be installed in order to use the PyDiamond engine",
+        name=exc.name,
+        path=exc.path,
+    ) from exc
 
 import py_diamond.audio
 import py_diamond.graphics
@@ -64,4 +78,4 @@ py_diamond.environ.check_booleans(
 )
 
 ############ Cleanup ############
-del os, sys, py_diamond
+del os, sys, py_diamond, pygame

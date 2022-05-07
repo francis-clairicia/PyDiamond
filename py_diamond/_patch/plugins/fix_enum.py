@@ -13,9 +13,14 @@ __license__ = "GNU GPL v3.0"
 
 import sys
 
-if sys.version_info < (3, 11):
+from .._base import BasePatch
 
-    def plugin__int_enum_monkeypatch() -> None:
+
+class IntEnumMonkeyPatch(BasePatch):
+    def must_be_run(self) -> bool:
+        return super().must_be_run() and sys.version_info < (3, 11)
+
+    def run(self) -> None:
         from enum import IntEnum
 
         setattr(IntEnum, "__str__", int.__str__)
