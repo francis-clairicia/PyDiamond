@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
 from enum import IntEnum, unique
-from typing import TYPE_CHECKING, Any, Sequence, overload
+from typing import TYPE_CHECKING, Sequence, overload
 
 import pygame.constants as _pg_constants
 from pygame.draw import (
@@ -71,26 +71,16 @@ class AbstractRenderer(Object):
     def fill(self, color: _ColorValue) -> None:
         raise NotImplementedError
 
-    @overload
     @abstractmethod
     def draw(
         self,
         obj: Surface,
-        dest: tuple[float, float],
+        dest: tuple[float, float] | Rect,
         /,
         *,
         area: Rect | None = None,
         special_flags: BlendMode = BlendMode.NONE,
     ) -> Rect:
-        ...
-
-    @overload
-    @abstractmethod
-    def draw(self, obj: Surface, dest: Rect, /, *, area: Rect | None = None, special_flags: BlendMode = BlendMode.NONE) -> Rect:
-        ...
-
-    @abstractmethod
-    def draw(self, obj: Surface, /, *args: Any, **kwargs: Any) -> Rect:
         raise NotImplementedError
 
     @abstractmethod
@@ -214,25 +204,17 @@ class SurfaceRenderer(AbstractRenderer):
         target: Surface = self.__target
         target.fill(color)
 
-    @overload
     def draw(
         self,
         obj: Surface,
-        dest: tuple[float, float],
+        dest: tuple[float, float] | Rect,
         /,
         *,
         area: Rect | None = None,
         special_flags: BlendMode = BlendMode.NONE,
     ) -> Rect:
-        ...
-
-    @overload
-    def draw(self, obj: Surface, dest: Rect, /, *, area: Rect | None = None, special_flags: BlendMode = BlendMode.NONE) -> Rect:
-        ...
-
-    def draw(self, obj: Surface, /, *args: Any, **kwargs: Any) -> Rect:
         target: Surface = self.__target
-        return target.blit(obj, *args, **kwargs)
+        return target.blit(obj, dest, area, special_flags)
 
     def draw_rect(
         self,

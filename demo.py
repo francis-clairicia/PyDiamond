@@ -646,9 +646,7 @@ class EntryScene(MainScene):
 LOREM_IPSUM = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin euismod justo ac pharetra fermentum. Duis neque massa, commodo eu est vel, dignissim interdum eros. Nulla augue ex, blandit ac magna dapibus, dignissim venenatis massa. Donec tempus laoreet eros tristique rhoncus. Sed eget metus vitae purus ultricies semper. Suspendisse sodales rhoncus quam ac aliquam. Duis quis elit rhoncus, condimentum dolor nec, elementum lorem. Integer placerat dui orci, in ultricies nulla viverra ac. Morbi at justo eu libero rutrum dignissim a in velit. Suspendisse magna odio, fermentum vel tortor eget, condimentum sagittis ex. Vivamus tristique venenatis purus, at pharetra erat lobortis id. Pellentesque tincidunt bibendum erat, ac faucibus ligula semper vitae. Vestibulum ac quam in nulla tristique congue id quis lectus. Sed fermentum hendrerit velit."
 
 
-class ScrollBarScene(
-    RenderedLayeredScene, AbstractAutoLayeredDrawableScene, AbstractLayeredMainScene, framerate=60, fixed_framerate=50
-):
+class ScrollBarScene(RenderedLayeredScene, AbstractAutoLayeredDrawableScene, AbstractLayeredMainScene):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
@@ -672,10 +670,6 @@ class ScrollBarScene(
         super().on_quit()
         ScrollArea.set_vertical_flip(False)
         ScrollArea.set_horizontal_flip(False)
-
-    def render_before(self) -> None:
-        super().render_before()
-        self.window.draw(self.area)
 
 
 class TestGUIScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableScene):

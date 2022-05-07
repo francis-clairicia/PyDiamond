@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 from contextlib import suppress
 from enum import auto, unique
 from operator import truth
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Sequence, final
 
 from ..system._mangling import mangle_private_attribute
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
@@ -24,7 +24,7 @@ from ..window.clickable import Clickable
 from ..window.event import MouseButtonDownEvent, MouseButtonUpEvent, MouseMotionEvent, MouseWheelEvent
 from ..window.mouse import Mouse
 from .color import BLACK, GRAY, TRANSPARENT, WHITE, Color
-from .drawable import Drawable, LayeredDrawableGroup, TDrawable, TDrawableMeta
+from .drawable import Drawable, LayeredDrawableGroup, MDrawable, TDrawable, TDrawableMeta
 from .movable import Movable
 from .rect import Rect
 from .renderer import AbstractRenderer, SurfaceRenderer
@@ -177,7 +177,6 @@ class ScrollBar(TDrawable, Clickable, metaclass=ScrollBarMeta):
         outline_shape: RectangleShape = self.__outline_shape
         outline: int = outline_shape.outline
 
-        bg_shape.center = outline_shape.center = self.center
         bg_shape.draw_onto(target)
 
         cursor_start: float = self.__start
@@ -248,6 +247,10 @@ class ScrollBar(TDrawable, Clickable, metaclass=ScrollBarMeta):
                 cursor_rect.top = int(event.pos[1] - cursor_click * cursor_rect.height)
             self.__set_cursor_bounds(cursor_rect)
         return super()._on_mouse_motion(event)
+
+    def _on_move(self) -> None:
+        self.__bg_shape.center = self.__outline_shape.center = self.center
+        return super()._on_move()
 
     def _apply_both_rotation_and_scale(self) -> None:
         raise NotImplementedError
@@ -353,9 +356,9 @@ class ScrollBar(TDrawable, Clickable, metaclass=ScrollBarMeta):
     def __update_all_shape(self) -> None:
         outline_shape: RectangleShape = self.__outline_shape
         outline_shape.local_size = self.local_size
-        self.__update_cursor_shape()
+        self._update()
 
-    def __update_cursor_shape(self) -> None:
+    def _update(self) -> None:
         width, height = self.local_size
         orient: str = self.orient
         cursor_shape: RectangleShape = self.__cursor_shape
@@ -366,15 +369,17 @@ class ScrollBar(TDrawable, Clickable, metaclass=ScrollBarMeta):
             cursor_shape.local_size = (width, height * cursor_size_percent)
 
     @property
+    @final
     def scroll_area(self) -> ScrollArea:
         return self.__master
 
     @property
+    @final
     def bounds(self) -> tuple[float, float]:
         return (self.__start, self.__end)
 
 
-class ScrollArea(LayeredDrawableGroup, Movable):
+class ScrollArea(LayeredDrawableGroup, MDrawable):
     __h_flip: ClassVar[bool] = False
     __v_flip: ClassVar[bool] = False
 
@@ -388,11 +393,10 @@ class ScrollArea(LayeredDrawableGroup, Movable):
         bg_color: Color = TRANSPARENT,
     ) -> None:
         LayeredDrawableGroup.__init__(self, *objects, default_layer=default_layer)
-        Movable.__init__(self)
+        MDrawable.__init__(self)
         self.__master: Scene | Window = master
         self.__view_rect: Rect = Rect(0, 0, width, height)
         self.__whole_area: Surface = create_surface((width, height))
-        self.__area_view: Surface = self.__whole_area.subsurface(0, 0, width, height)
         self.__h_scroll: ScrollBar | None = None
         self.__v_scroll: ScrollBar | None = None
         self.__bg_color: Color = bg_color
@@ -419,9 +423,9 @@ class ScrollArea(LayeredDrawableGroup, Movable):
         return super().add(*objects, layer=layer)
 
     def draw_onto(self, target: AbstractRenderer) -> None:
-        whole_area, area_view = self.__update_whole_area()
+        whole_area = self.__update_whole_area()
         super().draw_onto(SurfaceRenderer(whole_area))
-        target.draw(area_view, self.topleft)
+        target.draw(whole_area, self.topleft, area=self.__view_rect)
 
     def _bind(self, scrollbar: ScrollBar) -> None:
         if scrollbar.scroll_area is not self:
@@ -456,7 +460,6 @@ class ScrollArea(LayeredDrawableGroup, Movable):
             start, end = v_scroll.bounds
             view_rect.top = int(whole_area_rect.height * start)
             view_rect.height = int(whole_area_rect.height * (end - start))
-        self.__area_view = whole_area.subsurface(view_rect)
 
     def __handle_wheel_event(self, event: MouseWheelEvent) -> None:
         if not self.rect.collidepoint(Mouse.get_pos()):
@@ -488,12 +491,10 @@ class ScrollArea(LayeredDrawableGroup, Movable):
             need_update = True
         if need_update:
             self.__update_whole_area()
-            self.__area_view = whole_area.subsurface(view_rect)
             self.__update_scrollbars_cursor()
 
-    def __update_whole_area(self) -> tuple[Surface, Surface]:
+    def __update_whole_area(self) -> Surface:
         whole_area: Surface = self.__whole_area
-        area_view: Surface = self.__area_view
         view_rect: Rect = self.__view_rect
         width: int = view_rect.width
         height: int = view_rect.height
@@ -506,20 +507,14 @@ class ScrollArea(LayeredDrawableGroup, Movable):
             whole_area_rect = whole_area.get_rect()
             view_rect.right = min(view_rect.right, whole_area_rect.right)
             view_rect.bottom = min(view_rect.bottom, whole_area_rect.bottom)
-            self.__area_view = area_view = whole_area.subsurface(view_rect)
             self.__update_scrollbars_cursor()
         else:
             whole_area.fill(self.__bg_color)
-        return whole_area, area_view
+        return whole_area
 
     def __update_scrollbars_cursor(self) -> None:
-        def update_cursor_shape(scrollbar: ScrollBar) -> None:
-            updater: Callable[[], None] = getattr(scrollbar, updater_attr)
-            updater()
-
         start_attr: str = mangle_private_attribute(ScrollBar, "start")
         end_attr: str = mangle_private_attribute(ScrollBar, "end")
-        updater_attr: str = mangle_private_attribute(ScrollBar, "update_cursor_shape")
         whole_area_rect = self.__whole_area.get_rect()
         view_rect: Rect = self.__view_rect
         start: float
@@ -531,13 +526,13 @@ class ScrollArea(LayeredDrawableGroup, Movable):
             end = view_rect.right / whole_area_rect.width
             setattr(h_scroll, start_attr, start)
             setattr(h_scroll, end_attr, end)
-            update_cursor_shape(h_scroll)
+            h_scroll._update()
         if v_scroll is not None:
             start = view_rect.top / whole_area_rect.height
             end = view_rect.bottom / whole_area_rect.height
             setattr(v_scroll, start_attr, start)
             setattr(v_scroll, end_attr, end)
-            update_cursor_shape(v_scroll)
+            v_scroll._update()
 
     @property
     def master(self) -> Scene | Window:

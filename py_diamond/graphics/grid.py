@@ -16,7 +16,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from enum import auto, unique
 from operator import itemgetter
-from typing import Any, Callable, Container, Iterator, Literal, Sequence, TypeVar, overload
+from typing import Any, Container, Iterator, Literal, Sequence, TypeGuard, TypeVar, overload
 from weakref import ref as weakref
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
@@ -66,6 +66,8 @@ class Grid(MDrawable, Container[Drawable]):
         outline_color: Color = BLACK,
         justify: Justify = Justify.CENTER,
     ) -> None:
+        if master is not None and not isinstance(master, GUIScene):
+            raise TypeError("Only GUIScene are accepted")
         super().__init__()
         self.__rows: dict[int, _GridRow] = dict()
         self.__columns: dict[int, _GridColumnPlaceholder] = dict()
@@ -199,11 +201,11 @@ class Grid(MDrawable, Container[Drawable]):
             for cell in grid_row.iter_cells():
                 if cell.row == row and cell.column == column:
                     drawable: Drawable | None = cell.get_object()
+                    if drawable is None:
+                        break
                     cell.set_object(None)
                     self.__set_obj_on_side_internal()
                     self._update()
-                    if drawable is None:
-                        break
                     return drawable
         if default is not _MISSING:
             return default
@@ -605,8 +607,7 @@ class _GridCell(MDrawable):
             if master is not None and isinstance(obj, SupportsFocus) and obj in master._focus_container:
                 master._focus_container.remove(obj)
         else:
-            ismovable: Callable[[object], bool] = lambda o: isinstance(o, Movable)
-            if not ismovable(drawable):
+            if not _is_movable(drawable):
                 raise TypeError("'drawable' must be Movable too")
             obj = drawable
             if self.__object is not obj:
@@ -678,3 +679,7 @@ class _GridCell(MDrawable):
     def column(self) -> int:
         grid_col: _GridColumnPlaceholder = self.__column
         return grid_col.column
+
+
+def _is_movable(obj: Any) -> TypeGuard[Movable]:
+    return isinstance(obj, Movable)

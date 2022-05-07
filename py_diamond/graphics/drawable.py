@@ -158,7 +158,7 @@ class MDrawable(Drawable, Movable, metaclass=MDrawableMeta):
         Movable.__init__(self)
 
 
-class DrawableGroup(Sequence[Drawable], Object):
+class DrawableGroup(Sequence[Drawable], Drawable):
 
     __slots__ = ("__list", "__weakref__")
 
@@ -222,11 +222,8 @@ class DrawableGroup(Sequence[Drawable], Object):
         return d
 
     def clear(self) -> None:
-        while not self.empty():
+        while self:
             self.pop()
-
-    def empty(self) -> bool:
-        return not self
 
     def find(self, objtype: type[_T]) -> Iterator[_T]:
         return filter(lambda obj: isinstance(obj, objtype), self)  # type: ignore[arg-type]
@@ -332,7 +329,7 @@ class LayeredDrawableGroup(DrawableGroup):
         drawable_list_layer1: Sequence[Drawable] = self.remove_from_layer(layer1)
         for d in self.get_from_layer(layer2):
             change_layer(d, layer2)
-        self.add(layer=layer2, *drawable_list_layer1)
+        self.add(*drawable_list_layer1, layer=layer2)
 
     @property
     def default_layer(self) -> int:

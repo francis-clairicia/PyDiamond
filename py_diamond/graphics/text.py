@@ -16,6 +16,7 @@ from enum import auto, unique
 from operator import truth
 from textwrap import wrap as textwrap
 from typing import Final, TypeAlias
+from weakref import proxy as weakproxy
 
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom
 
@@ -178,10 +179,17 @@ class Text(TDrawable, metaclass=TextMeta):
             Text.create_font(font, bold=bold, italic=italic, underline=underline),
         )
 
-    def set_custom_line_font(self, index: int, font: Font) -> None:
+    def set_custom_line_font(
+        self,
+        index: int,
+        font: _TextFont | None,
+        bold: bool | None = None,
+        italic: bool | None = None,
+        underline: bool | None = None,
+    ) -> None:
         if index < 0:
             raise ValueError(f"Negative index: {index}")
-        self.__custom_font[index] = Text.create_font(font)
+        self.__custom_font[index] = Text.create_font(font, bold=bold, italic=italic, underline=underline)
         self.config.update_all_options()
 
     def remove_custom_line_font(self, index: int) -> None:
@@ -493,7 +501,7 @@ class TextImage(Text):
 class _BoundImage(Image):
     def __init__(self, text: TextImage, image: Surface) -> None:
         super().__init__(image)
-        self.__text: TextImage = text
+        self.__text: TextImage = weakproxy(text)
 
     def _apply_both_rotation_and_scale(self) -> None:
         super()._apply_both_rotation_and_scale()
