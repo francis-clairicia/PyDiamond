@@ -23,5 +23,5 @@ class IntEnumMonkeyPatch(BasePatch):
     def run(self) -> None:
         from enum import IntEnum
 
-        setattr(IntEnum, "__str__", int.__str__)
-        setattr(IntEnum, "__format__", int.__format__)
+        for attr in ("__repr__", "__str__", "__format__"):
+            setattr(IntEnum, attr, getattr(int, attr))

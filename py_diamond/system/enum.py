@@ -34,6 +34,7 @@ else:
 
         if not TYPE_CHECKING:
 
+            __repr__ = str.__repr__
             __str__ = str.__str__
             __format__ = str.__format__
 

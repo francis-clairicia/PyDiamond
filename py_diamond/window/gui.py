@@ -55,8 +55,8 @@ class GUIScene(AbstractLayeredScene):
         self.__group: _GUILayeredGroup = _GUILayeredGroup(self)
         self.__focus_index: int = -1
         handle_key_event = self.__handle_key_event
-        set_focus_mode_key: Callable[[KeyEvent], None] = lambda event: BoundFocus.set_mode(BoundFocus.Mode.KEY)
-        set_focus_mode_mouse: Callable[[MouseEvent], None] = lambda event: BoundFocus.set_mode(BoundFocus.Mode.MOUSE)
+        set_focus_mode_key: Callable[[KeyEvent], None] = lambda _: BoundFocus.set_mode(BoundFocus.Mode.KEY)
+        set_focus_mode_mouse: Callable[[MouseEvent], None] = lambda _: BoundFocus.set_mode(BoundFocus.Mode.MOUSE)
         self.event.bind(KeyDownEvent, set_focus_mode_key)
         self.event.bind(KeyUpEvent, set_focus_mode_key)
         self.event.bind(MouseButtonDownEvent, set_focus_mode_mouse)
@@ -432,13 +432,10 @@ class _BoundFocusProxyMeta(type):
         if "BoundFocusProxy" not in globals() and name == "BoundFocusProxy":
             FOCUS_OBJ_ATTR = f"_{name}__focus"
 
-            def get_underlying_object(self: BoundFocusProxy) -> BoundFocus:
-                return self.__getattribute__(FOCUS_OBJ_ATTR)  # type: ignore[no-any-return]
-
             def proxy_method_wrapper(method_name: str, func: Callable[..., Any]) -> Callable[..., Any]:
                 @wraps(func)
                 def wrapper(self: BoundFocusProxy, /, *args: Any, **kwargs: Any) -> Any:
-                    focus: BoundFocus = get_underlying_object(self)
+                    focus: BoundFocus = object.__getattribute__(self, FOCUS_OBJ_ATTR)
                     method: Callable[..., Any] = getattr(focus, method_name)
                     return method(*args, **kwargs)
 
@@ -449,7 +446,7 @@ class _BoundFocusProxyMeta(type):
 
                     @wraps(obj.fget)
                     def getter(self: BoundFocusProxy, /) -> Any:
-                        focus: BoundFocus = get_underlying_object(self)
+                        focus: BoundFocus = object.__getattribute__(self, FOCUS_OBJ_ATTR)
                         return getattr(focus, name)
 
                     obj = obj.getter(getter)
@@ -458,7 +455,7 @@ class _BoundFocusProxyMeta(type):
 
                     @wraps(obj.fset)
                     def setter(self: BoundFocusProxy, value: Any, /) -> None:
-                        focus: BoundFocus = get_underlying_object(self)
+                        focus: BoundFocus = object.__getattribute__(self, FOCUS_OBJ_ATTR)
                         return setattr(focus, name, value)
 
                     obj = obj.setter(setter)
@@ -467,14 +464,20 @@ class _BoundFocusProxyMeta(type):
 
                     @wraps(obj.fdel)
                     def deleter(self: BoundFocusProxy, /) -> None:
-                        focus: BoundFocus = get_underlying_object(self)
+                        focus: BoundFocus = object.__getattribute__(self, FOCUS_OBJ_ATTR)
                         return delattr(focus, name)
 
                     obj = obj.deleter(deleter)
 
                 return obj
 
+            ignored_attributes = [
+                "__init__",
+            ]
+
             for attr_name, attr_obj in vars(BoundFocus).items():
+                if attr_name in ignored_attributes:
+                    continue
                 if isinstance(attr_obj, property):
                     namespace[attr_name] = proxy_property_wrapper(attr_name, attr_obj)
                 elif isinstance(attr_obj, (FunctionType, LambdaType)):
@@ -514,17 +517,17 @@ class _GUILayeredGroup(LayeredDrawableGroup):
     __slots__ = ("__master",)
 
     def __init__(self, master: GUIScene) -> None:
-        self.__master: GUIScene = master
+        self.__master: weakref.ReferenceType[GUIScene] = weakref.ref(master)
         super().__init__()
 
     def draw_onto(self, target: AbstractRenderer) -> None:
-        master: GUIScene = self.__master
+        master: GUIScene = weakref_unwrap(self.__master)
         master._focus_container.update()
         super().draw_onto(target)
 
     def add(self, *objects: Drawable, layer: int | None = None) -> None:
         super().add(*objects, layer=layer)
-        master: GUIScene = self.__master
+        master: GUIScene = weakref_unwrap(self.__master)
         container: FocusableContainer = master._focus_container
         for obj in objects:
             if isinstance(obj, SupportsFocus) and obj.focus.is_bound_to(master):
@@ -532,14 +535,14 @@ class _GUILayeredGroup(LayeredDrawableGroup):
 
     def remove(self, *objects: Drawable) -> None:
         super().remove(*objects)
-        container: FocusableContainer = self.__master._focus_container
+        container: FocusableContainer = weakref_unwrap(self.__master)._focus_container
         for obj in objects:
             if isinstance(obj, SupportsFocus) and obj in container:
                 container.remove(obj)
 
     def pop(self, index: int = -1) -> Drawable:
         obj: Drawable = super().pop(index=index)
-        container: FocusableContainer = self.__master._focus_container
+        container: FocusableContainer = weakref_unwrap(self.__master)._focus_container
         if isinstance(obj, SupportsFocus) and obj in container:
             container.remove(obj)
         return obj
@@ -551,7 +554,7 @@ class FocusableContainer(Sequence[SupportsFocus]):
 
     def __init__(self, master: GUIScene) -> None:
         super().__init__()
-        self.__master: GUIScene = master
+        self.__master: weakref.ReferenceType[GUIScene] = weakref.ref(master)
         self.__list: list[SupportsFocus] = []
 
     def __repr__(self) -> str:
@@ -577,7 +580,7 @@ class FocusableContainer(Sequence[SupportsFocus]):
             return
         if not isinstance(focusable, SupportsFocus):
             raise TypeError("'focusable' must be a SupportsFocus object")
-        master: GUIScene = self.__master
+        master: GUIScene = weakref_unwrap(self.__master)
         if not focusable.focus.is_bound_to(master):
             raise ValueError("'focusable' is not bound to this scene")
         self.__list.append(focusable)
