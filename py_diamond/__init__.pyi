@@ -1,6 +1,8 @@
 ############ Module declaration ############
 from typing import Final
 
+__all__: list[str] = []
+
 __author__: Final[str]
 __copyright__: Final[str]
 __credits__: Final[str]
