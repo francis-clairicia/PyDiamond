@@ -143,13 +143,15 @@ class Grid(MDrawable, Container[Drawable]):
         justify: str | None = None,
     ) -> _D:
         try:
-            cell: _GridCell = self.__find_cell(obj)
+            cell: _GridCell | None = self.__find_cell(obj)
         except ValueError:
-            pass
-        else:
+            cell = None
+        if cell is not None:
             if cell.row == row and cell.column == column:
                 return obj
             cell.set_object(None)
+        elif self.master is not None and isinstance(obj, SupportsFocus) and not obj.focus.is_bound_to(self.master):  # type: ignore[unreachable]
+            raise ValueError(f"'obj' do not have the same GUIScene master that self")
 
         grid_row: _GridRow
         try:
@@ -485,10 +487,6 @@ class _GridRow:
         self.__cells = {c.column: c for c in sorted(self.__cells.values(), key=lambda c: c.column)}
 
     @property
-    def master(self) -> GUIScene | None:
-        return self.grid.master
-
-    @property
     def grid(self) -> Grid:
         return weakref_unwrap(self.__master)
 
@@ -596,7 +594,6 @@ class _GridCell(MDrawable):
         pady: int | None = None,
         justify: str | None = None,
     ) -> None:
-        master: GUIScene | None = self.master
         obj: Any
         if drawable is None:
             obj = self.__object
@@ -604,8 +601,6 @@ class _GridCell(MDrawable):
                 return
             self.__object = None
             self.__obj_size = (0, 0)
-            if master is not None and isinstance(obj, SupportsFocus) and obj in master._focus_container:
-                master._focus_container.remove(obj)
         else:
             if not _is_movable(drawable):
                 raise TypeError("'drawable' must be Movable too")
@@ -613,8 +608,6 @@ class _GridCell(MDrawable):
             if self.__object is not obj:
                 self.set_object(None)
                 self.__object = obj
-                if master is not None and isinstance(obj, SupportsFocus):
-                    master._focus_container.add(obj)
             if padx is None:
                 padx = self.grid.padding.x
             if pady is None:
@@ -659,11 +652,6 @@ class _GridCell(MDrawable):
                 obj.center = self.center
             case _:
                 raise ValueError("Unknown Justify value")
-
-    @property
-    def master(self) -> GUIScene | None:
-        grid_row: _GridRow = self.__master
-        return grid_row.master
 
     @property
     def grid(self) -> Grid:

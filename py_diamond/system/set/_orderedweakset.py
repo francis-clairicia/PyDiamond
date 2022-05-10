@@ -47,7 +47,7 @@ class OrderedWeakSet(WeakSet, Sequence):  # type: ignore[type-arg]
         def _commit_removals(self) -> None:  # Private method from WeakSet
             ...
 
-    def __getitem__(self, index: int | slice) -> object | OrderedWeakSet:  # type: ignore[override]
+    def __getitem__(self, index: int | slice) -> Any | OrderedWeakSet:
         if self._pending_removals:
             self._commit_removals()
         if isinstance(index, slice):
@@ -62,9 +62,10 @@ class OrderedWeakSet(WeakSet, Sequence):  # type: ignore[type-arg]
             raise TypeError(msg) from None
         if index < 0:
             index += len(self)
-        obj: object = next((obj for idx, obj in enumerate(self) if idx == index), None)
-        if obj is None:
-            raise IndexError("index out of range")
+            if index < 0:
+                raise IndexError("index out of range")
+        while (obj := self.data[index]()) is None:  # type: ignore[operator]
+            index += 1
         return obj
 
     def __delitem__(self, index: int) -> None:

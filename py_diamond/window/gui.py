@@ -24,14 +24,27 @@ from abc import abstractmethod
 from enum import auto, unique
 from operator import truth
 from types import FunctionType, LambdaType
-from typing import Any, Callable, ClassVar, Final, Literal, Mapping, Protocol, Sequence, TypedDict, overload, runtime_checkable
+from typing import (
+    Any,
+    Callable,
+    ClassVar,
+    Final,
+    Iterator,
+    Literal,
+    Mapping,
+    Protocol,
+    Sequence,
+    TypedDict,
+    overload,
+    runtime_checkable,
+)
 
-from ..graphics.drawable import Drawable, LayeredDrawableGroup
-from ..graphics.renderer import AbstractRenderer
+from ..graphics.drawable import Drawable
 from ..graphics.theme import no_theme_decorator
 from ..system._mangling import getattr_pv
 from ..system.enum import AutoLowerNameEnum
 from ..system.object import final
+from ..system.set import OrderedWeakSet
 from ..system.utils import setdefaultattr, weakref_unwrap, wraps
 from .event import (
     Event,
@@ -45,14 +58,13 @@ from .event import (
     MouseWheelEvent,
 )
 from .keyboard import Keyboard
-from .scene import AbstractLayeredScene, Scene
+from .scene import Scene
 
 
-class GUIScene(AbstractLayeredScene):
+class GUIScene(Scene):
     def __init__(self) -> None:
         super().__init__()
         self.__container: FocusableContainer = FocusableContainer(self)
-        self.__group: _GUILayeredGroup = _GUILayeredGroup(self)
         self.__focus_index: int = -1
         handle_key_event = self.__handle_key_event
         set_focus_mode_key: Callable[[KeyEvent], None] = lambda _: BoundFocus.set_mode(BoundFocus.Mode.KEY)
@@ -66,11 +78,15 @@ class GUIScene(AbstractLayeredScene):
         self.event.bind_key_press(Keyboard.Key.TAB, handle_key_event)
         self.event.bind_key_press(Keyboard.Key.ESCAPE, handle_key_event)
 
+    def update(self) -> None:
+        super().update()
+        self.__container.update()
+
     def handle_event(self, event: Event) -> bool:
         return (
             ((obj := self.focus_get()) is not None and obj._focus_handle_event(event))
             or super().handle_event(event)
-            or (isinstance(event, KeyDownEvent) and self.__handle_key_event(event))
+            or (isinstance(event, KeyDownEvent) and self.__handle_key_event(event))  # Must be handled after event manager
         )
 
     @no_theme_decorator
@@ -80,21 +96,22 @@ class GUIScene(AbstractLayeredScene):
         focus_index: int = self.__focus_index
         if focus_index < 0:
             return None
-        focusable = next((f for idx, f in enumerate(self.__container) if idx == focus_index), None)
-        if focusable is None:
+        try:
+            focusable: SupportsFocus = self.__container[focus_index]
+        except IndexError:
             self.__focus_index = -1
             return None
         if not focusable.focus.take():
-            self.focus_set(self.focus_next())
+            self.focus_next()
             return self.focus_get()
         return focusable
 
     @no_theme_decorator
-    def focus_next(self) -> SupportsFocus | None:
+    def get_next_focusable(self) -> SupportsFocus | None:
         return self.__internal_focus_next(offset=1)
 
     @no_theme_decorator
-    def focus_prev(self) -> SupportsFocus | None:
+    def get_previous_focusable(self) -> SupportsFocus | None:
         return self.__internal_focus_next(offset=-1)
 
     @no_theme_decorator
@@ -109,8 +126,9 @@ class GUIScene(AbstractLayeredScene):
             focus_index: int = self.__focus_index
             if focus_index < 0:
                 focus_index = -offset
-            size = len(focusable_list)
-            while (obj := focusable_list[(focus_index := (focus_index + offset) % size)]) not in eligible_focusable_list:
+            while (
+                obj := focusable_list[(focus_index := (focus_index + offset) % len(focusable_list))]
+            ) not in eligible_focusable_list:
                 continue
             return obj
         self.__focus_index = -1
@@ -155,6 +173,16 @@ class GUIScene(AbstractLayeredScene):
         self.__on_focus_set(focusable)
         return True
 
+    @final
+    @no_theme_decorator
+    def focus_next(self) -> None:
+        self.focus_set(self.get_next_focusable())
+
+    @final
+    @no_theme_decorator
+    def focus_prev(self) -> None:
+        self.focus_set(self.get_previous_focusable())
+
     @no_theme_decorator
     def __on_focus_set(self, focusable: SupportsFocus) -> None:
         focusable._on_focus_set()
@@ -172,7 +200,9 @@ class GUIScene(AbstractLayeredScene):
     @no_theme_decorator
     def __handle_key_event(self, event: KeyDownEvent) -> bool:
         if event.key == Keyboard.Key.TAB:
-            self.focus_set(self.focus_next() if not event.mod & Keyboard.Modifiers.SHIFT else self.focus_prev())
+            self.focus_set(
+                self.get_next_focusable() if not event.mod & Keyboard.Modifiers.SHIFT else self.get_previous_focusable()
+            )
             return True
         if event.key == Keyboard.Key.ESCAPE:
             self.focus_set(None)
@@ -189,7 +219,7 @@ class GUIScene(AbstractLayeredScene):
             return
         obj: SupportsFocus | None = self.focus_get()
         if obj is None:
-            self.focus_set(self.focus_next())
+            self.focus_next()
             return
         while (obj := obj.focus.get_obj_on_side(side)) is not None and not obj.focus.take():  # type: ignore[union-attr]
             continue
@@ -198,10 +228,6 @@ class GUIScene(AbstractLayeredScene):
 
     @property
     @final
-    def group(self) -> LayeredDrawableGroup:
-        return self.__group
-
-    @property
     def _focus_container(self) -> FocusableContainer:
         return self.__container
 
@@ -254,7 +280,12 @@ class BoundFocus:
         if not isinstance(focusable, _HasFocusMethods):
             raise NoFocusSupportError(repr(focusable))
         self.__f: weakref.ReferenceType[SupportsFocus] = weakref.ref(focusable)
-        self.__scene: GUIScene | None = scene if isinstance(scene, GUIScene) else None
+        if scene is not None and not isinstance(scene, Scene):
+            raise TypeError(f"Must be a Scene or None, got {scene.__class__.__name__!r}")
+        scene = scene if isinstance(scene, GUIScene) else None
+        self.__scene: GUIScene | None = scene
+        if scene is not None:
+            scene._focus_container.add(self)
 
     def is_bound_to(self, scene: GUIScene) -> bool:
         return (bound_scene := self.__scene) is not None and bound_scene is scene
@@ -512,42 +543,6 @@ _SIDE_WITH_KEY_EVENT: Final[dict[int, BoundFocus.Side]] = {
 }
 
 
-class _GUILayeredGroup(LayeredDrawableGroup):
-
-    __slots__ = ("__master",)
-
-    def __init__(self, master: GUIScene) -> None:
-        self.__master: weakref.ReferenceType[GUIScene] = weakref.ref(master)
-        super().__init__()
-
-    def draw_onto(self, target: AbstractRenderer) -> None:
-        master: GUIScene = weakref_unwrap(self.__master)
-        master._focus_container.update()
-        super().draw_onto(target)
-
-    def add(self, *objects: Drawable, layer: int | None = None) -> None:
-        super().add(*objects, layer=layer)
-        master: GUIScene = weakref_unwrap(self.__master)
-        container: FocusableContainer = master._focus_container
-        for obj in objects:
-            if isinstance(obj, SupportsFocus) and obj.focus.is_bound_to(master):
-                container.add(obj)
-
-    def remove(self, *objects: Drawable) -> None:
-        super().remove(*objects)
-        container: FocusableContainer = weakref_unwrap(self.__master)._focus_container
-        for obj in objects:
-            if isinstance(obj, SupportsFocus) and obj in container:
-                container.remove(obj)
-
-    def pop(self, index: int = -1) -> Drawable:
-        obj: Drawable = super().pop(index=index)
-        container: FocusableContainer = weakref_unwrap(self.__master)._focus_container
-        if isinstance(obj, SupportsFocus) and obj in container:
-            container.remove(obj)
-        return obj
-
-
 class FocusableContainer(Sequence[SupportsFocus]):
 
     __slots__ = ("__master", "__list")
@@ -555,13 +550,22 @@ class FocusableContainer(Sequence[SupportsFocus]):
     def __init__(self, master: GUIScene) -> None:
         super().__init__()
         self.__master: weakref.ReferenceType[GUIScene] = weakref.ref(master)
-        self.__list: list[SupportsFocus] = []
+        self.__list: OrderedWeakSet[SupportsFocus] = OrderedWeakSet()
 
     def __repr__(self) -> str:
         return self.__list.__repr__()
 
     def __len__(self) -> int:
         return self.__list.__len__()
+
+    def __iter__(self) -> Iterator[SupportsFocus]:
+        return self.__list.__iter__()
+
+    def __reversed__(self) -> Iterator[SupportsFocus]:
+        return self.__list.__reversed__()
+
+    def __contains__(self, value: object) -> bool:
+        return self.__list.__contains__(value)
 
     @overload
     def __getitem__(self, index: int, /) -> SupportsFocus:
@@ -572,26 +576,41 @@ class FocusableContainer(Sequence[SupportsFocus]):
         ...
 
     def __getitem__(self, index: int | slice, /) -> SupportsFocus | Sequence[SupportsFocus]:
-        focusable_list: list[SupportsFocus] = self.__list
-        return focusable_list[index]
+        return self.__list[index]
 
-    def add(self, focusable: SupportsFocus) -> None:
+    def add(self, focusable: SupportsFocus | BoundFocus) -> None:
+        master: GUIScene = weakref_unwrap(self.__master)
+        bound_focus: BoundFocus
+        if isinstance(focusable, BoundFocus):
+            bound_focus = focusable
+            focusable = bound_focus.__self__
+        else:
+            if not isinstance(focusable, SupportsFocus):
+                raise TypeError("'focusable' must be a SupportsFocus object")
+            bound_focus = focusable.focus
         if focusable in self:
             return
-        if not isinstance(focusable, SupportsFocus):
-            raise TypeError("'focusable' must be a SupportsFocus object")
-        master: GUIScene = weakref_unwrap(self.__master)
-        if not focusable.focus.is_bound_to(master):
+        if not bound_focus.is_bound_to(master):
             raise ValueError("'focusable' is not bound to this scene")
-        self.__list.append(focusable)
-
-    def remove(self, focusable: SupportsFocus) -> None:
-        focusable_list: list[SupportsFocus] = self.__list
-        focusable_list.remove(focusable)
+        self.__list.add(focusable)
 
     def update(self) -> None:
         for f in self:
             f._focus_update()
+
+    @overload
+    def index(self, value: Any) -> int:
+        ...
+
+    @overload
+    def index(self, value: Any, start: int = ..., stop: int = ...) -> int:
+        ...
+
+    def index(self, value: Any, *args: Any, **kwargs: Any) -> int:
+        return self.__list.index(value, *args, **kwargs)
+
+    def count(self, value: Any) -> int:
+        return self.__list.count(value)
 
 
 del _BoundFocusProxyMeta

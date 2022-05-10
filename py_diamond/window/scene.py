@@ -62,7 +62,6 @@ from ..system.object import Object, final
 from ..system.utils import cache, concreteclassmethod, isconcreteclass, wraps
 from .display import Window, WindowCallback, WindowError, _WindowCallbackList
 from .event import Event, EventManager
-from .mouse import Mouse
 from .time import Time
 
 _P = ParamSpec("_P")
@@ -240,7 +239,7 @@ class Scene(Object, metaclass=SceneMeta):
         self.__manager.render(scene)
 
     def handle_event(self, event: Event) -> bool:
-        return False
+        return self.event.process_event(event)
 
     @final
     def is_awaken(self) -> bool:
@@ -765,16 +764,19 @@ class SceneWindow(Window):
         if actual_scene in self.__callback_after_scenes:
             self.__callback_after_scenes[actual_scene].process()
 
-    def process_events(self) -> Iterator[Event]:
+    def _process_event(self, event: Event) -> bool:
+        if super()._process_event(event):
+            return True
         actual_scene: Scene | None = self.__scenes.top()
-        manager: EventManager | None = actual_scene.event if actual_scene is not None else None
-        manager_process_event: Callable[[Event], bool] = manager.process_event if manager is not None else lambda _: False
-        process_event: Callable[[Event], bool] = actual_scene.handle_event if actual_scene is not None else lambda _: False
-        for event in super().process_events():
-            if not process_event(event) and not manager_process_event(event):
-                yield event
-        if manager is not None:
-            manager.handle_mouse_position(Mouse.get_pos())
+        if actual_scene is None:
+            return False
+        return actual_scene.handle_event(event)
+
+    def _handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
+        super()._handle_mouse_position(mouse_pos)
+        actual_scene: Scene | None = self.__scenes.top()
+        if actual_scene is not None:
+            actual_scene.event.handle_mouse_position(mouse_pos)
 
     def used_framerate(self) -> int:
         framerate = super().used_framerate()

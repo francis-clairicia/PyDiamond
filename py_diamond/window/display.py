@@ -333,9 +333,7 @@ class Window(Object):
         if self.__process_callbacks:
             self._process_callbacks()
 
-        manager: EventManager = self.event
-
-        process_event = manager.process_event
+        process_event = self._process_event
         make_event = EventFactory.from_pygame_event
         for pg_event in _pg_event.get():
             if pg_event.type == _PG_QUIT:
@@ -366,7 +364,13 @@ class Window(Object):
                 del former_surface, new_surface
             if not process_event(event):
                 yield event
-        manager.handle_mouse_position(Mouse.get_pos())
+        self._handle_mouse_position(Mouse.get_pos())
+
+    def _process_event(self, event: Event) -> bool:
+        return self.event.process_event(event)
+
+    def _handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
+        return self.event.handle_mouse_position(mouse_pos)
 
     def post_event(self, event: Event) -> bool:
         event_dict = event.to_dict()

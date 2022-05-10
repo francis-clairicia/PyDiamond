@@ -614,15 +614,9 @@ class ThemedObjectMeta(ObjectMeta):
             raise TypeError("Abstract theme classes cannot have themes.")
         subclass.__virtual_themed_class_bases__ = (*subclass.__virtual_themed_class_bases__, cls)
         if not getattr(subclass, "_no_parent_theme_", False):
-            try:
-                _CLASSES_NOT_USING_PARENT_THEMES.remove(subclass)
-            except (ValueError, KeyError):
-                pass
+            _CLASSES_NOT_USING_PARENT_THEMES.discard(subclass)
         if not getattr(subclass, "_no_parent_default_theme_", False):
-            try:
-                _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.remove(subclass)
-            except (ValueError, KeyError):
-                pass
+            _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.discard(subclass)
         return subclass
 
     @staticmethod

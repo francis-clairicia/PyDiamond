@@ -58,7 +58,7 @@ __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
 from contextlib import suppress
-from dataclasses import Field, asdict, dataclass, field, fields
+from dataclasses import Field, asdict as dataclass_asdict, dataclass, field, fields
 from enum import IntEnum, unique
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, Sequence, SupportsInt, TypeAlias, TypeVar, cast
@@ -164,7 +164,7 @@ class _BuiltinEventMeta(_EventMeta):
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
     @classmethod
-    def check_event_types_association(metacls) -> None:
+    def _check_event_types_association(metacls) -> None:
         for event_type in BuiltinEvent.Type:
             if event_type not in metacls.__associations:
                 raise TypeError(f"{event_type.name} event does not have an associated BuiltinEvent class")
@@ -237,7 +237,7 @@ class BuiltinEvent(Event, metaclass=_BuiltinEventMeta):
 
     @final
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return dataclass_asdict(self)
 
     type: ClassVar[BuiltinEvent.Type] = field(init=False)
 
@@ -487,7 +487,7 @@ class MusicEndEvent(BuiltinEvent):
     next: Music | None
 
 
-_BuiltinEventMeta.check_event_types_association()
+_BuiltinEventMeta._check_event_types_association()
 
 _EventCallback: TypeAlias = Callable[[Event], bool | None]
 _TE = TypeVar("_TE", bound=Event)
@@ -549,11 +549,11 @@ class EventManager:
     @staticmethod
     def __bind(handler_dict: dict[_T, list[_EventCallback]], key: _T, callback: Callable[[_TE], bool | None]) -> None:
         try:
-            event_list: list[_EventCallback] = handler_dict[key]
+            handler_list: list[_EventCallback] = handler_dict[key]
         except KeyError:
-            handler_dict[key] = event_list = []
-        if callback not in event_list:
-            event_list.append(cast(_EventCallback, callback))
+            handler_dict[key] = handler_list = []
+        if callback not in handler_list:
+            handler_list.append(cast(_EventCallback, callback))
 
     @staticmethod
     def __unbind(handler_dict: dict[_T, list[_EventCallback]], key: _T, callback: Callable[[_TE], bool | None]) -> None:
@@ -629,6 +629,8 @@ class EventManager:
             mouse_pos_handler_list.remove(callback_to_remove)
 
     def bind_event_manager(self, manager: EventManager) -> None:
+        if manager is self:
+            raise ValueError("Trying to add yourself")
         other_manager_list: list[EventManager] = self.__other_manager_list
         if manager not in other_manager_list:
             other_manager_list.append(manager)
