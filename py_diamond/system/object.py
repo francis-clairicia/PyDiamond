@@ -47,6 +47,8 @@ class ObjectMeta(ABCMeta):
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, Any],
+        *,
+        no_slots: bool = False,
         **kwargs: Any,
     ) -> __Self:
         # Verify final bases
@@ -108,6 +110,9 @@ class ObjectMeta(ABCMeta):
                 (attr_name for attr_name, attr_obj in namespace.items() if ObjectMeta.__is_final_override(attr_obj)),
             )
         )
+
+        if no_slots and "__slots__" in namespace:
+            raise TypeError("__slots__ override is forbidden")
 
         cls = super().__new__(metacls, name, bases, namespace, **kwargs)
         cls.__finalmethods__ = frozenset(

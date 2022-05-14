@@ -22,6 +22,8 @@ __license__ = "GNU GPL v3.0"
 import re
 from typing import Any, Final, Pattern, TypeVar, overload
 
+from .utils import cache
+
 _T = TypeVar("_T")
 
 _NO_DEFAULT: Any = object()
@@ -29,6 +31,7 @@ _NO_DEFAULT: Any = object()
 PRIVATE_ATTRIBUTE_PATTERN: Final[Pattern[str]] = re.compile(r"^_\w+__\w+(?<!__)$")
 
 
+@cache
 def mangle_private_attribute(cls: type, name: str) -> str:
     if not name:
         raise ValueError(f"Empty attribute string")

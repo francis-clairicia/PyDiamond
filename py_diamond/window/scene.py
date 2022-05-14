@@ -108,10 +108,6 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
         if not all(issubclass(cls, Scene) for cls in bases):
             raise TypeError("Multiple inheritance with other class than Scene is not supported")
 
-        for attr_name in namespace:
-            if attr_name in ("__slots__",):
-                raise TypeError(f"{attr_name} method must not be overridden")
-
         cls = super().__new__(metacls, name, bases, namespace, **kwargs)
         if isconcreteclass(cls):
             _ALL_SCENES.append(cast(type[Scene], cls))
@@ -165,7 +161,10 @@ class ReturningSceneTransition(SceneTransition):
         raise NotImplementedError
 
 
-class Scene(Object, metaclass=SceneMeta):
+class Scene(Object, metaclass=SceneMeta, no_slots=True):
+    if TYPE_CHECKING:
+        __slots__: Final[Sequence[str]] = ("__dict__",)
+
     __instances: ClassVar[set[type[Scene]]] = set()
 
     @final
