@@ -23,6 +23,9 @@ class SortedDictKeysView(KeysView, Reversible):  # type: ignore[type-arg]
     __slots__ = ()
     _mapping: dict[Any, Any]
 
+    def __init_subclass__(cls) -> None:
+        raise TypeError("Cannot be subclassed")
+
     def __reversed__(self) -> Iterator[Any]:
         yield from reversed(self._mapping)
 
@@ -30,6 +33,9 @@ class SortedDictKeysView(KeysView, Reversible):  # type: ignore[type-arg]
 class SortedDictValuesView(ValuesView, Reversible):  # type: ignore[type-arg]
     __slots__ = ()
     _mapping: dict[Any, Any]
+
+    def __init_subclass__(cls) -> None:
+        raise TypeError("Cannot be subclassed")
 
     def __reversed__(self) -> Iterator[Any]:
         mapping = self._mapping
@@ -39,6 +45,9 @@ class SortedDictValuesView(ValuesView, Reversible):  # type: ignore[type-arg]
 class SortedDictItemsView(ItemsView, Reversible):  # type: ignore[type-arg]
     __slots__ = ()
     _mapping: dict[Any, Any]
+
+    def __init_subclass__(cls) -> None:
+        raise TypeError("Cannot be subclassed")
 
     def __reversed__(self) -> Iterator[tuple[Any, Any]]:
         mapping = self._mapping

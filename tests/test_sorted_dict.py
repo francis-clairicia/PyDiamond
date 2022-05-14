@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from py_diamond.system.dict import SortedDict
+from py_diamond.system.collections import SortedDict
 
 ########################
 # Initialization

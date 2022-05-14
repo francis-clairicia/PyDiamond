@@ -42,9 +42,9 @@ from typing import (
 from ..graphics.drawable import Drawable
 from ..graphics.theme import no_theme_decorator
 from ..system._mangling import getattr_pv
+from ..system.collections import OrderedWeakSet
 from ..system.enum import AutoLowerNameEnum
 from ..system.object import final
-from ..system.set import OrderedWeakSet
 from ..system.utils import setdefaultattr, weakref_unwrap, wraps
 from .event import (
     Event,

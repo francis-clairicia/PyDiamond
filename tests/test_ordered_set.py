@@ -16,7 +16,7 @@ import sys
 
 import pytest
 
-from py_diamond.system.set import OrderedSet
+from py_diamond.system.collections import OrderedSet
 
 
 def test_pickle():

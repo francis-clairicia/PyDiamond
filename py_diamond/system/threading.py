@@ -86,7 +86,6 @@ class Thread(threading.Thread, Object, no_slots=True):
         super().join(timeout)
         if timeout is not None and self.is_alive() and terminate_on_timeout:
             self.terminate()
-        
 
 
 @overload

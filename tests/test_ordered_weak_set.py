@@ -2,7 +2,7 @@
 
 import pytest
 
-from py_diamond.system.set import OrderedWeakSet
+from py_diamond.system.collections import OrderedWeakSet
 
 
 class Dummy:

@@ -7,14 +7,66 @@ __all__ = [
     "OrderedSet",
     "OrderedSetIndexError",
     "OrderedWeakSet",
+    "SortedDict",
+    "SortedDictItemsView",
+    "SortedDictKeysView",
+    "SortedDictValuesView",
 ]
 
-from typing import AbstractSet as Set, Any, Callable, Iterable, Iterator, MutableSet, Sequence, SupportsIndex, TypeVar, overload
+from typing import (
+    AbstractSet as Set,
+    Any,
+    Callable,
+    Iterable,
+    Iterator,
+    MutableSet,
+    Reversible,
+    Sequence,
+    SupportsIndex,
+    TypeVar,
+    final,
+    overload,
+)
 from weakref import WeakSet
 
-from _typeshed import Self, SupportsRichComparison
+from _collections_abc import dict_items, dict_keys, dict_values
+from _typeshed import Self, SupportsRichComparison, SupportsRichComparisonT
+
+_C_KT = TypeVar("_C_KT", bound=SupportsRichComparison)
+_VT = TypeVar("_VT")
+
+_C_KT_co = TypeVar("_C_KT_co", bound=SupportsRichComparison, covariant=True)
+_VT_co = TypeVar("_VT_co", covariant=True)
 
 _T = TypeVar("_T")
+
+@final
+class SortedDictKeysView(dict_keys[_C_KT_co, _VT_co], Reversible[_C_KT_co]):  # type: ignore[misc]
+    def __reversed__(self) -> Iterator[_C_KT_co]: ...
+
+@final
+class SortedDictItemsView(dict_items[_C_KT_co, _VT_co], Reversible[tuple[_C_KT_co, _VT_co]]):  # type: ignore[misc]
+    def __reversed__(self) -> Iterator[tuple[_C_KT_co, _VT_co]]: ...
+
+@final
+class SortedDictValuesView(dict_values[_C_KT_co, _VT_co], Reversible[_VT_co]):  # type: ignore[misc]
+    def __reversed__(self) -> Iterator[_VT_co]: ...
+
+class SortedDict(dict[_C_KT, _VT]):
+    @classmethod  # type: ignore[override]
+    @overload
+    def fromkeys(
+        cls, __iterable: Iterable[SupportsRichComparisonT], __value: None = ...
+    ) -> SortedDict[SupportsRichComparisonT, Any | None]: ...
+    @classmethod
+    @overload
+    def fromkeys(cls, __iterable: Iterable[SupportsRichComparisonT], __value: _T) -> SortedDict[SupportsRichComparisonT, _T]: ...
+    def copy(self: Self) -> Self: ...
+    def __copy__(self: Self) -> Self: ...
+    def __deepcopy__(self: Self, memo: dict[int, Any] | None = ...) -> Self: ...
+    def keys(self) -> SortedDictKeysView[_C_KT, _VT]: ...
+    def values(self) -> SortedDictValuesView[_C_KT, _VT]: ...
+    def items(self) -> SortedDictItemsView[_C_KT, _VT]: ...
 
 class OrderedSetIndexError(KeyError, IndexError): ...
 
