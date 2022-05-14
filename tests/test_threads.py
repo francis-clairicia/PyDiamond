@@ -1,9 +1,11 @@
 # -*- coding: Utf-8 -*
 
+import os
+import time
 from threading import current_thread
 from typing import Any
 
-from py_diamond.system.threading import RThread, Thread, rthread, thread
+from py_diamond.system.threading import Thread, thread
 
 
 def test_thread_decorator() -> None:
@@ -63,13 +65,13 @@ def test_thread_name() -> None:
     assert t.name == "my_thread"
 
 
-def test_custom_thread_class() -> None:
-    class CustomThread(Thread):
-        def __init__(self, *args: Any, **kwargs: Any) -> None:
-            assert "custom_var" in kwargs
-            self.custom_var: str = kwargs.pop("custom_var")
-            super().__init__(*args, **kwargs)
+class CustomThread(Thread):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.custom_var: str = kwargs.pop("custom_var")
+        super().__init__(*args, **kwargs)
 
+
+def test_custom_thread_class() -> None:
     @thread(auto_start=False, thread_cls=CustomThread, custom_var="value")
     def my_func() -> None:
         pass
@@ -79,11 +81,24 @@ def test_custom_thread_class() -> None:
     assert t.custom_var == "value"
 
 
-def test_rthread() -> None:
-    @rthread
-    def my_add(a: int, b: int) -> int:
-        return a + b
+def test_terminate() -> None:
+    @thread(daemon=False)
+    def infinite_loop() -> None:
+        while True:
+            os.sched_yield()
 
-    t: RThread[int] = my_add(5, 8)
-    assert isinstance(t, RThread)
-    assert t.join() == 13
+    t = infinite_loop()
+    time.sleep(0.5)
+    t.terminate()
+    assert not t.is_alive()
+
+
+def test_join_timeout_call_terminate() -> None:
+    @thread(daemon=False)
+    def infinite_loop() -> None:
+        while True:
+            os.sched_yield()
+
+    t = infinite_loop()
+    t.join(timeout=0.5, terminate_on_timeout=True)
+    assert not t.is_alive()
