@@ -7,6 +7,7 @@ See in 'ordered-set' project: https://github.com/rspeer/ordered-set/blob/34f2cba
 """
 
 import collections
+import copy
 import itertools as it
 import operator
 import pickle
@@ -33,6 +34,21 @@ def test_empty_pickle():
     empty_oset = OrderedSet()
     empty_roundtrip = pickle.loads(pickle.dumps(empty_oset))
     assert empty_roundtrip == empty_oset
+
+
+def test_deepcopy() -> None:
+    set1 = OrderedSet()
+    a = object()
+    set1.add(a)
+    roundtrip = copy.deepcopy(set1)
+    assert len(roundtrip) == 1
+    assert set1[0] is a
+    assert roundtrip[0] is not a
+
+
+def test_unhashable():
+    with pytest.raises(TypeError, match=r"unhashable type: 'OrderedSet'"):
+        hash(OrderedSet())
 
 
 def test_order():

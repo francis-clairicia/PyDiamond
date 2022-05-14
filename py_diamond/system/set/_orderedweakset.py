@@ -69,7 +69,8 @@ class OrderedWeakSet(WeakSet, Sequence):  # type: ignore[type-arg]
         return obj
 
     def __delitem__(self, index: int) -> None:
-        assert not isinstance(index, slice), "Slice are not accepted"  # type: ignore[unreachable]
+        if isinstance(index, slice):  # type: ignore[unreachable]
+            raise TypeError("Slice are not accepted")
         self.discard(self[index])
 
     def __reversed__(self) -> Iterator[object]:

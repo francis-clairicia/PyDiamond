@@ -84,7 +84,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
         if memo is None:
             memo = {}
         copy_self = self._from_iterable([])
-        memo[id(copy_self)] = copy_self
+        memo[id(self)] = copy_self
         copy_self.update(deepcopy(item, memo) for item in self)
         return copy_self
 
