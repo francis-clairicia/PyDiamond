@@ -118,7 +118,7 @@ class AbstractNetworkServer(Object):
             if t is not current_thread() and t.is_alive():
                 self.shutdown()
                 t.join()
-        elif self.running():
+        else:
             self.shutdown()
         self.server_close()
 
@@ -138,15 +138,7 @@ class AbstractNetworkServer(Object):
 
         @thread(daemon=daemon, name=name)
         def run(self: AbstractNetworkServer, poll_interval: float) -> None:
-            try:
-                self.serve_forever(poll_interval)
-            except SystemExit:
-                raise
-            except:
-                from traceback import print_exc
-
-                print(f"Exception not handled in {type(self).__name__} running in thread {current_thread().name!r}")
-                print_exc()
+            self.serve_forever(poll_interval)
 
         t: Thread | None = self.__t
         if t is not None and t.is_alive():
@@ -280,10 +272,10 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
                 raise
 
         def shutdown_client(client: TCPNetworkClient[_T], selector: BaseSelector) -> None:
-            with suppress(Exception):
-                client.close()
             with suppress(KeyError):
                 selector.unregister(client)
+            with suppress(Exception):
+                client.close()
             clients_dict.pop(client, None)
 
         def remove_closed_clients(selector: BaseSelector) -> None:

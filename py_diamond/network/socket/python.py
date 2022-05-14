@@ -304,8 +304,7 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
             raise RuntimeError("Closed socket")
         if not data:
             return 0
-        sock.sendall(data, flags)
-        return len(data)
+        return sock.send(data, flags)
 
     @final
     @_thread_safe_python_socket_method

@@ -13,10 +13,12 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
+from io import DEFAULT_BUFFER_SIZE
+from os import fstat
 from selectors import EVENT_READ, EVENT_WRITE
 from sys import exc_info
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Callable, Final, Generic, Iterator, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Callable, Generic, Iterator, TypeVar, overload
 
 from ..system.object import Object, final
 from ..system.utils import concreteclass, concreteclasscheck
@@ -109,14 +111,13 @@ class NoValidPacket(ValueError):
 
 @concreteclass
 class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
-    __DEFAULT_RECV_CHUNK_SIZE: Final[int] = 4096
-
     __slots__ = (
         "__socket",
         "__buffer_recv",
         "__protocol",
         "__queue",
         "__lock",
+        "__chunk_size",
     )
 
     @overload
@@ -168,6 +169,10 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
         self.__protocol: AbstractNetworkProtocol = protocol_cls()
         self.__queue: list[_T] = []
         self.__lock: RLock = RLock()
+        self.__chunk_size: int = DEFAULT_BUFFER_SIZE
+        socket_stat = fstat(socket.fileno())
+        if socket_stat.st_blksize > 0:
+            self.__chunk_size = socket_stat.st_blksize
         super().__init__()
 
     def close(self) -> None:
@@ -232,9 +237,9 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
         protocol: AbstractNetworkProtocol = self.__protocol
         queue: list[_T] = self.__queue
         block = block and not queue
+        chunk_size: int = self.__chunk_size
 
         def read_socket() -> Iterator[bytes]:
-            chunk_size: int = self.get_recv_chunk_size()
             if chunk_size <= 0:
                 return
             with _Selector() as selector:
@@ -284,9 +289,6 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
     def has_saved_packets(self) -> bool:
         with self.__lock:
             return True if self.__queue else False
-
-    def get_recv_chunk_size(self) -> int:
-        return self.__DEFAULT_RECV_CHUNK_SIZE
 
     def getsockname(self) -> SocketAddress:
         with self.__lock:
