@@ -69,12 +69,14 @@ from pygame.event import Event as _PygameEvent, custom_type as _pg_event_custom_
 from ..audio.music import Music, MusicStream
 from ..system.namespace import ClassNamespaceMeta
 from ..system.object import Object, ObjectMeta, final
-from ..system.utils import isconcreteclass
+from ..system.utils import concreteclass, isconcreteclass
 from .keyboard import Keyboard
 from .mouse import Mouse
 
 if TYPE_CHECKING:
     from _typeshed import Self
+
+    from ..graphics.surface import Surface
 
 _T = TypeVar("_T")
 
@@ -151,7 +153,7 @@ class _BuiltinEventMeta(_EventMeta):
         else:
             if len(bases) != 1 or not issubclass(bases[0], BuiltinEvent):
                 raise TypeError(f"{name!r} must only inherits from BuiltinEvent without multiple inheritance")
-            cls = super().__new__(metacls, name, bases, namespace, **kwargs)
+            cls = concreteclass(super().__new__(metacls, name, bases, namespace, **kwargs))
             event_type: Any = getattr(cls, "type", None)
             if isinstance(event_type, Field):
                 event_type = event_type.default
@@ -175,8 +177,9 @@ class _BuiltinEventMeta(_EventMeta):
         return super()._should_be_registered()
 
 
-@dataclass(frozen=True, kw_only=True)  # TODO (3.11) dataclass_transform (PEP-681)
-class BuiltinEvent(Event, metaclass=_BuiltinEventMeta):
+# TODO (3.11) dataclass_transform (PEP-681)
+@dataclass(frozen=True, kw_only=True)  # type: ignore[misc]
+class BuiltinEvent(Event, metaclass=_BuiltinEventMeta):  # See Issue #5374: https://github.com/python/mypy/issues/5374
     @unique
     class Type(IntEnum):
         # pygame's built-in events
@@ -213,6 +216,7 @@ class BuiltinEvent(Event, metaclass=_BuiltinEventMeta):
 
         # PyDiamond's events
         MUSICEND = MusicStream.MUSICEND
+        SCREENSHOT = _pg_event_custom_type()
 
         def __repr__(self) -> str:
             return f"<{self.name} ({self.real_name}): {self.value}>"
@@ -221,21 +225,14 @@ class BuiltinEvent(Event, metaclass=_BuiltinEventMeta):
         def real_name(self) -> str:
             return _pg_event_name(self)
 
-    if not TYPE_CHECKING:
-
-        def __new__(cls: type[Self], *args: Any, **kwargs: Any) -> Self:
-            if cls is BuiltinEvent:
-                raise TypeError("Cannot instantiate base class BuiltinEvent")
-            return super().__new__(cls)
-
-    @final
     @classmethod
+    @abstractmethod
     def from_dict(cls: type[Self], event_dict: dict[str, Any]) -> Self:
         event_fields: Sequence[str] = tuple(f.name for f in fields(cls))
         kwargs: dict[str, Any] = {k: event_dict[k] for k in filter(event_fields.__contains__, event_dict)}
         return cls(**kwargs)
 
-    @final
+    @abstractmethod
     def to_dict(self) -> dict[str, Any]:
         return dataclass_asdict(self)
 
@@ -251,6 +248,13 @@ class KeyDownEvent(BuiltinEvent):
     unicode: str
     scancode: int
 
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> KeyDownEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
+
 
 @final
 @dataclass(frozen=True, kw_only=True)
@@ -258,6 +262,13 @@ class KeyUpEvent(BuiltinEvent):
     type: ClassVar[Literal[BuiltinEvent.Type.KEYUP]] = field(default=BuiltinEvent.Type.KEYUP, init=False)
     key: int
     mod: int
+
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> KeyUpEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
 
 
 KeyEvent: TypeAlias = KeyDownEvent | KeyUpEvent
@@ -270,6 +281,13 @@ class MouseButtonDownEvent(BuiltinEvent):
     pos: tuple[int, int]
     button: int
 
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> MouseButtonDownEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
+
 
 @final
 @dataclass(frozen=True, kw_only=True)
@@ -277,6 +295,13 @@ class MouseButtonUpEvent(BuiltinEvent):
     type: ClassVar[Literal[BuiltinEvent.Type.MOUSEBUTTONUP]] = field(default=BuiltinEvent.Type.MOUSEBUTTONUP, init=False)
     pos: tuple[int, int]
     button: int
+
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> MouseButtonUpEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
 
 
 MouseButtonEvent: TypeAlias = MouseButtonDownEvent | MouseButtonUpEvent
@@ -290,6 +315,13 @@ class MouseMotionEvent(BuiltinEvent):
     rel: tuple[int, int]
     buttons: tuple[bool, bool, bool]
 
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> MouseMotionEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
+
 
 @final
 @dataclass(frozen=True, kw_only=True)
@@ -298,6 +330,13 @@ class MouseWheelEvent(BuiltinEvent):
     flipped: bool
     x: int
     y: int
+
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> MouseWheelEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
 
 
 MouseEvent: TypeAlias = MouseButtonEvent | MouseWheelEvent | MouseMotionEvent
@@ -311,6 +350,13 @@ class JoyAxisMotionEvent(BuiltinEvent):
     axis: int
     value: float
 
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> JoyAxisMotionEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
+
 
 @final
 @dataclass(frozen=True, kw_only=True)
@@ -319,6 +365,13 @@ class JoyBallMotionEvent(BuiltinEvent):
     instance_id: int
     ball: int
     rel: float
+
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> JoyBallMotionEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
 
 
 @final
@@ -329,6 +382,13 @@ class JoyHatMotionEvent(BuiltinEvent):
     hat: int
     value: tuple[int, int]
 
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> JoyHatMotionEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
+
 
 @final
 @dataclass(frozen=True, kw_only=True)
@@ -337,6 +397,13 @@ class JoyButtonDownEvent(BuiltinEvent):
     instance_id: int
     button: int
 
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> JoyButtonDownEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
+
 
 @final
 @dataclass(frozen=True, kw_only=True)
@@ -344,6 +411,13 @@ class JoyButtonUpEvent(BuiltinEvent):
     type: ClassVar[Literal[BuiltinEvent.Type.JOYBUTTONUP]] = field(default=BuiltinEvent.Type.JOYBUTTONUP, init=False)
     instance_id: int
     button: int
+
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> JoyButtonUpEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
 
 
 JoyButtonEvent: TypeAlias = JoyButtonDownEvent | JoyButtonUpEvent
@@ -355,12 +429,26 @@ class JoyDeviceAddedEvent(BuiltinEvent):
     type: ClassVar[Literal[BuiltinEvent.Type.JOYDEVICEADDED]] = field(default=BuiltinEvent.Type.JOYDEVICEADDED, init=False)
     device_index: int
 
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> JoyDeviceAddedEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
+
 
 @final
 @dataclass(frozen=True, kw_only=True)
 class JoyDeviceRemovedEvent(BuiltinEvent):
     type: ClassVar[Literal[BuiltinEvent.Type.JOYDEVICEREMOVED]] = field(default=BuiltinEvent.Type.JOYDEVICEREMOVED, init=False)
     instance_id: int
+
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> JoyDeviceRemovedEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
 
 
 @final
@@ -371,12 +459,26 @@ class TextEditingEvent(BuiltinEvent):
     start: int
     length: int
 
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> TextEditingEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
+
 
 @final
 @dataclass(frozen=True, kw_only=True)
 class TextInputEvent(BuiltinEvent):
     type: ClassVar[Literal[BuiltinEvent.Type.TEXTINPUT]] = field(default=BuiltinEvent.Type.TEXTINPUT, init=False)
     text: str
+
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> TextInputEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
 
 
 TextEvent: TypeAlias = TextEditingEvent | TextInputEvent
@@ -388,11 +490,25 @@ class UserEvent(BuiltinEvent):
     type: ClassVar[Literal[BuiltinEvent.Type.USEREVENT]] = field(default=BuiltinEvent.Type.USEREVENT, init=False)
     code: int
 
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> UserEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
+
 
 @final
 @dataclass(frozen=True, kw_only=True)
 class WindowShownEvent(BuiltinEvent):
     type: ClassVar[Literal[BuiltinEvent.Type.WINDOWSHOWN]] = field(default=BuiltinEvent.Type.WINDOWSHOWN, init=False)
+
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> WindowShownEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
 
 
 @final
@@ -400,11 +516,25 @@ class WindowShownEvent(BuiltinEvent):
 class WindowHiddenEvent(BuiltinEvent):
     type: ClassVar[Literal[BuiltinEvent.Type.WINDOWHIDDEN]] = field(default=BuiltinEvent.Type.WINDOWHIDDEN, init=False)
 
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> WindowHiddenEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
+
 
 @final
 @dataclass(frozen=True, kw_only=True)
 class WindowExposedEvent(BuiltinEvent):
     type: ClassVar[Literal[BuiltinEvent.Type.WINDOWEXPOSED]] = field(default=BuiltinEvent.Type.WINDOWEXPOSED, init=False)
+
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> WindowExposedEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
 
 
 @final
@@ -414,6 +544,13 @@ class WindowMovedEvent(BuiltinEvent):
     x: int
     y: int
 
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> WindowMovedEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
+
 
 @final
 @dataclass(frozen=True, kw_only=True)
@@ -421,6 +558,13 @@ class WindowResizedEvent(BuiltinEvent):
     type: ClassVar[Literal[BuiltinEvent.Type.WINDOWRESIZED]] = field(default=BuiltinEvent.Type.WINDOWRESIZED, init=False)
     x: int
     y: int
+
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> WindowResizedEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
 
 
 @final
@@ -430,11 +574,25 @@ class WindowSizeChangedEvent(BuiltinEvent):
     x: int
     y: int
 
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> WindowSizeChangedEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
+
 
 @final
 @dataclass(frozen=True, kw_only=True)
 class WindowMinimizedEvent(BuiltinEvent):
     type: ClassVar[Literal[BuiltinEvent.Type.WINDOWMINIMIZED]] = field(default=BuiltinEvent.Type.WINDOWMINIMIZED, init=False)
+
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> WindowMinimizedEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
 
 
 @final
@@ -442,11 +600,25 @@ class WindowMinimizedEvent(BuiltinEvent):
 class WindowMaximizedEvent(BuiltinEvent):
     type: ClassVar[Literal[BuiltinEvent.Type.WINDOWMAXIMIZED]] = field(default=BuiltinEvent.Type.WINDOWMAXIMIZED, init=False)
 
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> WindowMaximizedEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
+
 
 @final
 @dataclass(frozen=True, kw_only=True)
 class WindowRestoredEvent(BuiltinEvent):
     type: ClassVar[Literal[BuiltinEvent.Type.WINDOWRESTORED]] = field(default=BuiltinEvent.Type.WINDOWRESTORED, init=False)
+
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> WindowRestoredEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
 
 
 @final
@@ -454,11 +626,25 @@ class WindowRestoredEvent(BuiltinEvent):
 class WindowEnterEvent(BuiltinEvent):
     type: ClassVar[Literal[BuiltinEvent.Type.WINDOWENTER]] = field(default=BuiltinEvent.Type.WINDOWENTER, init=False)
 
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> WindowEnterEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
+
 
 @final
 @dataclass(frozen=True, kw_only=True)
 class WindowLeaveEvent(BuiltinEvent):
     type: ClassVar[Literal[BuiltinEvent.Type.WINDOWLEAVE]] = field(default=BuiltinEvent.Type.WINDOWLEAVE, init=False)
+
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> WindowLeaveEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
 
 
 @final
@@ -466,17 +652,38 @@ class WindowLeaveEvent(BuiltinEvent):
 class WindowFocusGainedEvent(BuiltinEvent):
     type: ClassVar[Literal[BuiltinEvent.Type.WINDOWFOCUSGAINED]] = field(default=BuiltinEvent.Type.WINDOWFOCUSGAINED, init=False)
 
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> WindowFocusGainedEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
+
 
 @final
 @dataclass(frozen=True, kw_only=True)
 class WindowFocusLostEvent(BuiltinEvent):
     type: ClassVar[Literal[BuiltinEvent.Type.WINDOWFOCUSLOST]] = field(default=BuiltinEvent.Type.WINDOWFOCUSLOST, init=False)
 
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> WindowFocusLostEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
+
 
 @final
 @dataclass(frozen=True, kw_only=True)
 class WindowTakeFocusEvent(BuiltinEvent):
     type: ClassVar[Literal[BuiltinEvent.Type.WINDOWTAKEFOCUS]] = field(default=BuiltinEvent.Type.WINDOWTAKEFOCUS, init=False)
+
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> WindowTakeFocusEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
 
 
 @final
@@ -485,6 +692,28 @@ class MusicEndEvent(BuiltinEvent):
     type: ClassVar[Literal[BuiltinEvent.Type.MUSICEND]] = field(default=BuiltinEvent.Type.MUSICEND, init=False)
     finished: Music
     next: Music | None
+
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> MusicEndEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
+
+
+@final
+@dataclass(frozen=True, kw_only=True)
+class ScreenshotEvent(BuiltinEvent):
+    type: ClassVar[Literal[BuiltinEvent.Type.SCREENSHOT]] = field(default=BuiltinEvent.Type.SCREENSHOT, init=False)
+    filepath: str
+    screen: Surface
+
+    @classmethod
+    def from_dict(cls, event_dict: dict[str, Any]) -> ScreenshotEvent:
+        return super().from_dict(event_dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return super().to_dict()
 
 
 _BuiltinEventMeta._check_event_types_association()

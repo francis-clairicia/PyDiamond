@@ -85,18 +85,27 @@ class Image(TDrawable):
                 raise TypeError(f"Invalid argument: {image!r}")
 
     def draw_onto(self, target: AbstractRenderer) -> None:
-        image: Surface = self.__image
-        topleft: tuple[float, float] = self.topleft
-        target.draw_surface(image, topleft)
+        target.draw_surface(self.__image, self.topleft)
 
     def get(self, apply_rotation_scale: bool = False) -> Surface:
         if apply_rotation_scale:
             return self.__image.copy()
         return self.__default_image.copy()
 
+    @overload
     def set(self, image: Surface, copy: bool = True) -> None:
+        ...
+
+    @overload
+    def set(self, image: None) -> None:
+        ...
+
+    def set(self, image: Surface | None, copy: bool = True) -> None:
         center: tuple[float, float] = self.center
-        self.__default_image = image.copy() if copy else image
+        if image is None:
+            self.__default_image = create_surface((0, 0))
+        else:
+            self.__default_image = image.copy() if copy else image
         self.apply_rotation_scale()
         self.center = center
 

@@ -19,6 +19,7 @@ from inspect import isgeneratorfunction
 from itertools import count as itertools_count, filterfalse
 from operator import truth
 from os.path import exists as path_exists
+from threading import RLock
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -44,17 +45,16 @@ from pygame.constants import (
     RESIZABLE as _PG_RESIZABLE,
     VIDEORESIZE as _PG_VIDEORESIZE,
 )
-from pygame.mixer import music as _pg_music
 
 from ..audio.music import MusicStream
-from ..graphics.color import BLACK, WHITE, Color
+from ..graphics.color import BLACK, Color
 from ..graphics.rect import ImmutableRect
 from ..graphics.renderer import AbstractRenderer, SurfaceRenderer
 from ..graphics.surface import Surface, create_surface, save_image
-from ..graphics.text import Text
-from ..system._mangling import getattr_pv, setattr_pv
+from ..system._mangling import setattr_pv
 from ..system.object import Object, final
 from ..system.path import set_constant_file
+from ..system.threading import Thread, thread
 from ..system.utils import wraps
 from .clock import Clock
 from .cursor import AbstractCursor
@@ -65,7 +65,9 @@ from .event import (
     EventFactoryError,
     EventManager,
     EventType,
+    ScreenshotEvent,
     UnknownEventTypeError,
+    UserEvent,
     WindowSizeChangedEvent,
 )
 from .keyboard import Keyboard
@@ -129,7 +131,6 @@ class Window(Object):
         self.__main_clock: _FramerateManager = _FramerateManager()
         self.__event: EventManager = EventManager()
 
-        self.__framerate_update_clock: Clock = Clock(start=True)
         self.__default_framerate: int = self.DEFAULT_FRAMERATE
         self.__default_fixed_framerate: int = self.DEFAULT_FIXED_FRAMERATE
         self.__busy_loop: bool = False
@@ -137,8 +138,10 @@ class Window(Object):
         self.__callback_after: _WindowCallbackList = _WindowCallbackList()
         self.__process_callbacks: bool = True
 
-        self.__text_framerate: _TextFramerate
         self.__stack = ExitStack()
+
+        self.__screenshot_threads: list[Thread] = []
+        self.__screenshot_lock = RLock()
 
     def __window_init__(self) -> None:
         pass
@@ -159,9 +162,10 @@ class Window(Object):
             raise WindowError("Trying to open already opened window")
 
         def cleanup() -> None:
+            screenshot_threads = self.__screenshot_threads
+            while screenshot_threads:
+                screenshot_threads.pop(0).join(timeout=1, terminate_on_timeout=True)
             self.__window_quit__()
-            with suppress(AttributeError):
-                del self.__text_framerate
             self.__callback_after.clear()
             self.__surface = Surface((0, 0))
             self.__clear_surface = Surface((0, 0))
@@ -187,10 +191,7 @@ class Window(Object):
             self.__surface = create_surface(size)
             self.__clear_surface = create_surface(size)
             self.__rect = ImmutableRect.convert(self.__surface.get_rect())
-            self.__text_framerate = _TextFramerate()
             stack.callback(cleanup)
-            self.__text_framerate.hide()
-            self.__text_framerate.midtop = (self.centerx, self.top + 10)
             self.__window_init__()
             self.clear_all_events()
             self.__main_clock.tick()
@@ -208,6 +209,9 @@ class Window(Object):
 
     @final
     def close(self) -> NoReturn:
+        screenshot_threads = self.__screenshot_threads
+        while screenshot_threads:
+            screenshot_threads.pop(0).join(timeout=1, terminate_on_timeout=True)
         _pg_display.quit()
         raise Window.__Exit
 
@@ -251,12 +255,9 @@ class Window(Object):
 
     def refresh(self) -> float:
         screen = SurfaceRenderer(_pg_display.get_surface())
-        text_framerate: _TextFramerate = self.__text_framerate
+        screen.fill((0, 0, 0))
         screen.draw_surface(self.__surface, (0, 0))
-        if text_framerate.is_shown():
-            if not text_framerate.message or self.__framerate_update_clock.elapsed_time(text_framerate.refresh_rate):
-                text_framerate.message = f"{round(self.framerate)} FPS"
-            text_framerate.draw_onto(screen)
+        self.system_display(screen)
         AbstractCursor.update()
         _pg_display.flip()
 
@@ -271,6 +272,9 @@ class Window(Object):
         fixed_framerate: int = self.used_fixed_framerate()
         setattr_pv(Time, "fixed_delta", 1 / fixed_framerate if fixed_framerate > 0 else Time.delta())
         return real_time
+
+    def system_display(self, screen: AbstractRenderer) -> None:
+        pass
 
     def draw(self, *targets: _SupportsDrawing) -> None:
         renderer: SurfaceRenderer = SurfaceRenderer(self.__surface)
@@ -294,22 +298,26 @@ class Window(Object):
         return self.__surface.copy()
 
     def screenshot(self) -> None:
-        screen: Surface = self.__surface.copy()
-        filename_fmt: str = "Screenshot_%Y-%m-%d_%H-%M-%S"
-        extension: str = ".png"
+        screen: Surface = self.get_screen_copy()
+        self.__screenshot_threads.append(self.__screenshot_thread(screen))
 
-        date = datetime.now()
-        file = set_constant_file(date.strftime(f"{filename_fmt}{extension}"), raise_error=False, relative_to_cwd=True)
-        if path_exists(file):
-            for i in itertools_count(start=1):
-                file = set_constant_file(date.strftime(f"{filename_fmt}_{i}{extension}"), raise_error=False, relative_to_cwd=True)
-                if not path_exists(file):
-                    break
-        save_image(screen, file)
-        self._on_screenshot(file, screen)
+    @thread(daemon=True)
+    def __screenshot_thread(self, screen: Surface) -> None:
+        with self.__screenshot_lock:
+            filename_fmt: str = "Screenshot_%Y-%m-%d_%H-%M-%S"
+            extension: str = ".png"
 
-    def _on_screenshot(self, filepath: str, screen: Surface) -> None:
-        pass
+            date = datetime.now()
+            file = set_constant_file(date.strftime(f"{filename_fmt}{extension}"), raise_error=False, relative_to_cwd=True)
+            if path_exists(file):
+                for i in itertools_count(start=1):
+                    file = set_constant_file(
+                        date.strftime(f"{filename_fmt}_{i}{extension}"), raise_error=False, relative_to_cwd=True
+                    )
+                    if not path_exists(file):
+                        break
+            save_image(screen, file)
+            self.post_event(ScreenshotEvent(filepath=file, screen=screen))
 
     def handle_events(self) -> None:
         for _ in self.process_events():
@@ -330,6 +338,9 @@ class Window(Object):
         Keyboard.update()
         Mouse.update()
 
+        if screenshot_threads := self.__screenshot_threads:
+            self.__screenshot_threads[:] = [t for t in screenshot_threads if t.is_alive()]
+
         if self.__process_callbacks:
             self._process_callbacks()
 
@@ -343,14 +354,13 @@ class Window(Object):
                 if not self.event_is_allowed(BuiltinEvent.Type.WINDOWSIZECHANGED):
                     _pg_display.set_mode(self.__surface.get_size(), flags=self.__flags, vsync=int(self.__vsync))
                 continue
-            if pg_event.type == _pg_music.get_endevent():
-                update_music_stream: Callable[[], None] = getattr_pv(MusicStream, "update")
-                update_music_stream()
+            if MusicStream._handle_event(pg_event):
                 continue
             try:
                 event = make_event(pg_event)
             except UnknownEventTypeError:
-                _pg_event.set_blocked(pg_event.type)
+                if pg_event.type < UserEvent.type:  # Built-in pygame event
+                    _pg_event.set_blocked(pg_event.type)
                 continue
             except EventFactoryError:
                 continue
@@ -602,10 +612,6 @@ class Window(Object):
         return self.__main_clock.get_fps()
 
     @property
-    def text_framerate(self) -> _TextFramerate:
-        return self.__text_framerate
-
-    @property
     def event(self) -> EventManager:
         return self.__event
 
@@ -692,20 +698,6 @@ class Window(Object):
     @property
     def midright(self) -> tuple[int, int]:
         return self.__rect.midright
-
-
-class _TextFramerate(Text, no_theme=True):
-    def __init__(self) -> None:
-        super().__init__(color=WHITE)
-        self.__refresh_rate: int = 200
-
-    @property
-    def refresh_rate(self) -> int:
-        return self.__refresh_rate
-
-    @refresh_rate.setter
-    def refresh_rate(self, value: int) -> None:
-        self.__refresh_rate = max(int(value), 0)
 
 
 class _FramerateManager:

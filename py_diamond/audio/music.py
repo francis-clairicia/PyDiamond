@@ -13,10 +13,15 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from dataclasses import dataclass, field
-from typing import Final
+from typing import TYPE_CHECKING, Final, final
 
 from pygame.event import Event as _PygameEvent, custom_type as _pg_event_custom_type, post as _pg_event_post
 from pygame.mixer import get_init as _pg_mixer_get_init, music as _pg_music
+
+if TYPE_CHECKING:
+    _PygameEventType = _PygameEvent
+else:
+    from pygame.event import EventType as _PygameEventType
 
 from ..system.duplicate import NoDuplicate
 from ..system.namespace import ClassNamespace
@@ -43,6 +48,7 @@ class Music(NoDuplicate):
         return self.__f
 
 
+@final
 class MusicStream(ClassNamespace, frozen=True):
     MUSICEND: Final[int] = _pg_event_custom_type()
     _pg_music.set_endevent(_pg_event_custom_type())
@@ -123,6 +129,14 @@ class MusicStream(ClassNamespace, frozen=True):
         if not queue:
             _pg_music.queue(music.filepath.encode("utf-8"), loops=repeat)
         queue.append(_MusicPayload(music, repeat=repeat))
+
+    @staticmethod
+    def _handle_event(event: _PygameEvent) -> bool:
+        match event:
+            case _PygameEventType(type=event_type) if event_type == _pg_music.get_endevent():
+                MusicStream.__update()
+                return True
+        return False
 
     @staticmethod
     def __update() -> None:

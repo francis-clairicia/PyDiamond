@@ -42,7 +42,7 @@ from py_diamond.graphics.gradients import (
 from py_diamond.graphics.grid import Grid
 from py_diamond.graphics.image import Image
 from py_diamond.graphics.progress import ProgressBar
-from py_diamond.graphics.renderer import AbstractRenderer
+from py_diamond.graphics.renderer import AbstractRenderer, SurfaceRenderer
 from py_diamond.graphics.scale import ScaleBar
 from py_diamond.graphics.scroll import ScrollArea, ScrollBar
 from py_diamond.graphics.shape import CircleShape, CrossShape, PolygonShape, RectangleShape, ThemedShapeMeta
@@ -51,8 +51,17 @@ from py_diamond.graphics.surface import Surface
 from py_diamond.graphics.text import Text, TextImage
 from py_diamond.resource.loader import FontLoader, ImageLoader, MusicLoader, SoundLoader
 from py_diamond.resource.manager import ResourceManager
-from py_diamond.window.display import Window
-from py_diamond.window.event import BuiltinEvent, Event, KeyDownEvent, KeyUpEvent, MouseButtonEvent, MusicEndEvent
+from py_diamond.window.clock import Clock
+from py_diamond.window.display import Window, WindowCallback
+from py_diamond.window.event import (
+    BuiltinEvent,
+    Event,
+    KeyDownEvent,
+    KeyUpEvent,
+    MouseButtonEvent,
+    MusicEndEvent,
+    ScreenshotEvent,
+)
 from py_diamond.window.gui import GUIScene
 from py_diamond.window.keyboard import Keyboard
 from py_diamond.window.mouse import Mouse
@@ -365,6 +374,8 @@ class VerticalRainbow(VerticalMultiColorShape):
 
 
 class RainbowScene(MainScene):
+    window: MainWindow
+
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.all_rainbows: list[MultiColorShape] = [HorizontalRainbow(*self.window.size), VerticalRainbow(*self.window.size)]
@@ -712,13 +723,15 @@ LOREM_IPSUM = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin eu
 
 
 class ScrollBarScene(RenderedLayeredScene, AbstractAutoLayeredDrawableScene, AbstractLayeredMainScene):
+    window: MainWindow
+
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.area = ScrollArea(master=self, width=self.window.width - 25, height=self.window.height - 25)
         self.hscroll = ScrollBar(self.area, self.window.width, 25, outline=3, orient="horizontal")
         self.hscroll.midbottom = self.window.midbottom
-        next_button: Button = getattr(self.window, "next_button")
+        next_button: Button = self.window.next_button
         self.vscroll = ScrollBar(
             self.area, 25, self.window.height - self.hscroll.height - (next_button.bottom + 10), outline=3, orient="vertical"
         )
@@ -1043,6 +1056,20 @@ class SceneTransitionTranslation(SceneTransition):
             previous_scene.draw_onto(target)
 
 
+class TextFramerate(Text, no_theme=True):
+    def __init__(self) -> None:
+        super().__init__(color=WHITE)
+        self.__refresh_rate: int = 200
+
+    @property
+    def refresh_rate(self) -> int:
+        return self.__refresh_rate
+
+    @refresh_rate.setter
+    def refresh_rate(self, value: int) -> None:
+        self.__refresh_rate = max(int(value), 0)
+
+
 class MainWindow(SceneWindow):
 
     all_scenes: ClassVar[list[type[Scene]]] = [
@@ -1082,7 +1109,9 @@ class MainWindow(SceneWindow):
         Button.set_default_theme("default")
         Button.set_theme("default", {"font": (FontResources.cooperblack, 20), "border_radius": 5})
 
-        self.text_framerate.show()
+        self.__framerate_update_clock: Clock = Clock(start=True)
+        self.text_framerate: TextFramerate = TextFramerate()
+        self.text_framerate.midtop = (self.centerx, self.top + 10)
         self.set_default_framerate(120)
         self.set_default_fixed_framerate(60)
         self.index: int = 0
@@ -1091,12 +1120,15 @@ class MainWindow(SceneWindow):
         self.prev_button.topleft = self.left + 10, self.top + 10
         self.next_button.topright = self.right - 10, self.top + 10
 
-        self.event.bind_key_release(Keyboard.Key.F11, lambda e: self.screenshot())
+        self.event.bind_key_release(Keyboard.Key.F11, lambda _: self.screenshot())
+        self.event.bind(ScreenshotEvent, self.__show_screenshot)
+        self.screenshot_image: Image | None = None
+        self.screenshot_callback: WindowCallback | None = None
 
     def __window_quit__(self) -> None:
         super().__window_quit__()
         try:
-            del self.prev_button, self.next_button
+            del self.prev_button, self.next_button, self.text_framerate
         except AttributeError:
             pass
 
@@ -1108,6 +1140,16 @@ class MainWindow(SceneWindow):
         super().render_scene()
         self.draw(self.prev_button, self.next_button)
 
+    def system_display(self, screen: AbstractRenderer) -> None:
+        super().system_display(screen)
+        text_framerate: TextFramerate = self.text_framerate
+        if text_framerate.is_shown():
+            if not text_framerate.message or self.__framerate_update_clock.elapsed_time(text_framerate.refresh_rate):
+                text_framerate.message = f"{round(self.framerate)} FPS"
+            text_framerate.draw_onto(screen)
+        if screenshot_img := self.screenshot_image:
+            screenshot_img.draw_onto(screen)
+
     def __next_scene(self) -> None:
         self.index = (self.index + 1) % len(self.all_scenes)
         self.start_scene(self.all_scenes[self.index], remove_actual=True, transition=SceneTransitionTranslation("left"))
@@ -1115,6 +1157,19 @@ class MainWindow(SceneWindow):
     def __previous_scene(self) -> None:
         self.index = (self.index - 1) % len(self.all_scenes)
         self.start_scene(self.all_scenes[self.index], remove_actual=True, transition=SceneTransitionTranslation("right"))
+
+    def __show_screenshot(self, event: ScreenshotEvent) -> None:
+        if self.screenshot_callback is not None:
+            self.screenshot_callback.kill()
+        SurfaceRenderer(event.screen).draw_rect(WHITE, event.screen.get_rect(), width=3)
+        self.screenshot_image = img = Image(event.screen, width=self.width * 0.2, height=self.height * 0.2)
+        img.topright = (self.right - 20, self.top + 20)
+
+        @self.after(3000)
+        def screenshot_alive() -> None:
+            self.screenshot_image = None
+
+        self.screenshot_callback = screenshot_alive
 
 
 def main() -> None:
