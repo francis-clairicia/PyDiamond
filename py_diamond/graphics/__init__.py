@@ -10,6 +10,8 @@ __all__ = [
     "AbstractRenderer",
     "AbstractShape",
     "AnimatedSprite",
+    "AnimationInterpolator",
+    "AnimationInterpolatorPool",
     "BLACK",
     "BLUE",
     "BLUE_DARK",
@@ -129,7 +131,6 @@ SDL_IMAGE_VERSION = typing.cast(tuple[int, int, int], pygame.image.get_sdl_image
 if SDL_IMAGE_VERSION is None:
     raise ImportError("SDL_image library is not loaded", name=__name__, path=__file__)
 
-
 if SDL_IMAGE_VERSION < (2, 0, 0):
     raise ImportError(
         "Your SDL_image version is too old: '{0}.{1}.{2}' < '2.0.0'".format(*SDL_IMAGE_VERSION),
@@ -155,7 +156,7 @@ del os, typing, pygame, copyreg
 
 
 ############ Package initialization ############
-from .animation import TransformAnimation
+from .animation import AnimationInterpolator, AnimationInterpolatorPool, TransformAnimation
 from .button import Button, ButtonMeta, ImageButton
 from .checkbox import BooleanCheckBox, CheckBox, CheckBoxMeta
 from .color import (

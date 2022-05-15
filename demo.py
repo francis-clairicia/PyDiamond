@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterator, Lite
 from py_diamond.audio.mixer import Mixer
 from py_diamond.audio.music import Music, MusicStream
 from py_diamond.audio.sound import Sound
+from py_diamond.graphics.animation import AnimationInterpolatorPool
 from py_diamond.graphics.button import Button, ImageButton
 from py_diamond.graphics.checkbox import CheckBox
 from py_diamond.graphics.color import (
@@ -84,10 +85,6 @@ class ShapeScene(MainScene, busy_loop=True):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
-        # self.__r: RectangleShape = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
-        # self.__p: PolygonShape = PolygonShape(WHITE, outline=3, outline_color=RED)
-        # self.__c: CircleShape = CircleShape(30, WHITE, outline=3, outline_color=RED)
-        # self.__x: CrossShape = CrossShape(*self.__r.get_local_size(), outline_color=RED, outline=20)
         self.__r: RectangleShape = RectangleShape(50, 50, WHITE)
         self.__p: PolygonShape = PolygonShape(WHITE)
         self.__c: CircleShape = CircleShape(30, WHITE, outline=4)
@@ -141,27 +138,40 @@ class ShapeScene(MainScene, busy_loop=True):
         # self.__r.hide()
         # self.window.after(3000, self.window.close)
 
+        self.__interpolator_pool = AnimationInterpolatorPool(
+            self.__r,
+            self.__p,
+            self.__x,
+            self.__c,
+        )
+
     def fixed_update(self) -> None:
         degrees: float = 30 * Time.fixed_delta()
 
-        self.__r.rotate(degrees)
-        self.__p.rotate_around_point(-degrees, pivot=self.__r.center)
-        self.__p.rotate(degrees * 3)
-        self.__x.rotate_around_point(degrees, pivot=self.__r.center)
-        self.__x.rotate(-degrees * 3)
-        self.__c.rotate_around_point(-degrees, pivot=self.__r.center)
-        # self.__scale += 0.02 * self.__scale_growth
-        # if self.__scale >= 2:
-        #     self.__scale_growth = -1
-        # elif self.__scale <= 0.2:
-        #     self.__scale_growth = 1
-        # # self.__r.scale = self.__scale
-        # self.__p.scale = self.__scale
-        # self.__x.scale = self.__scale
-        # self.__c.scale = self.__scale
+        with self.__interpolator_pool.fixed_update():
+            self.__r.rotate(degrees)
+            self.__p.rotate_around_point(-degrees, pivot=self.__r.center)
+            self.__p.rotate(degrees * 3)
+            self.__x.rotate_around_point(degrees, pivot=self.__r.center)
+            self.__x.rotate(-degrees * 3)
+            self.__c.rotate_around_point(-degrees, pivot=self.__r.center)
+            self.__scale += 1 * self.__scale_growth * Time.fixed_delta()
+            if self.__scale >= 2:
+                self.__scale_growth = -1
+            elif self.__scale <= 0.2:
+                self.__scale_growth = 1
+            # self.__r.scale = self.__scale
+            self.__p.scale = self.__scale
+            self.__x.scale = self.__scale
+            self.__c.scale = self.__scale
+
+    def interpolation_update(self, interpolation: float) -> None:
+        self.__interpolator_pool.interpolation_update(interpolation)
+
+    def update(self) -> None:
         self.__x_center.center = self.__x.center
         self.__c_center.center = self.__c.center
-        # self.__shape_copy.set_points(self.__c.get_vertices())
+        self.__shape_copy.set_points(self.__c.get_vertices())
 
     def render(self) -> None:
         self.window.draw(
@@ -171,9 +181,9 @@ class ShapeScene(MainScene, busy_loop=True):
             self.__c_center,
             self.__c_trajectory,
             self.__x,
-            # self.__shape_copy,
             self.__x_center,
             self.__x_trajectory,
+            self.__shape_copy,
         )
 
 

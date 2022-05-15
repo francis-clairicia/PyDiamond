@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 from typing import TYPE_CHECKING, Any, Final, Iterable, Iterator, Sequence, TypeVar, overload
 
 from pygame.mask import Mask, from_surface as _pg_mask_from_surface
-from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom, smoothscale as _surface_smoothscale
+from pygame.transform import rotate as _surface_rotate, scale as _surface_fastscale, smoothscale as _surface_smoothscale
 
 from ..system.object import final
 from ..window.clock import Clock
@@ -69,38 +69,33 @@ class Sprite(TDrawable):
         angle: float = self.angle
         scale: float = self.scale
         image: Surface = self.__default_image
-
-        if not self.__smooth_scale:
-            self.__image = _surface_rotozoom(image, angle, scale)
-        else:
-            if scale != 1:
-                w, h = self.get_local_size()
-                w = round(w * scale)
-                h = round(h * scale)
-                image = _surface_smoothscale(image, (w, h))
-            self.__image = _surface_rotate(image, angle)
-        self.__update_mask()
+        if scale != 1:
+            w, h = image.get_size()
+            if self.__smooth_scale:
+                image = _surface_smoothscale(image, (w * scale, h * scale))
+            else:
+                image = _surface_fastscale(image, (w * scale, h * scale))
+        if angle != 0:
+            image = _surface_rotate(image, angle)
+        self.__image = image
 
     def _apply_only_rotation(self) -> None:
         angle: float = self.angle
         image: Surface = self.__default_image
-        self.__image = _surface_rotate(image, angle)
-        self.__update_mask()
+        if angle != 0:
+            image = _surface_rotate(image, angle)
+        self.__image = image
 
     def _apply_only_scale(self) -> None:
         scale: float = self.scale
         image: Surface = self.__default_image
-
-        if not self.__smooth_scale:
-            self.__image = _surface_rotozoom(image, 0, scale)
-        elif scale != 1:
-            w, h = self.get_local_size()
-            w = round(w * scale)
-            h = round(h * scale)
-            self.__image = _surface_smoothscale(image, (w, h))
-        else:
-            self.__image = image.copy()
-        self.__update_mask()
+        if scale != 1:
+            w, h = image.get_size()
+            if self.__smooth_scale:
+                image = _surface_smoothscale(image, (w * scale, h * scale))
+            else:
+                image = _surface_fastscale(image, (w * scale, h * scale))
+        self.__image = image
 
     def __update_mask(self) -> None:
         self.__mask = _pg_mask_from_surface(self.__image, self.__mask_threshold)

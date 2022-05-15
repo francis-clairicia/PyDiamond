@@ -127,9 +127,7 @@ class Image(TDrawable):
         image: Surface = self.__default_image
         if scale != 1:
             w, h = image.get_size()
-            w = round(w * scale)
-            h = round(h * scale)
-            image = _surface_smoothscale(image, (w, h))
+            image = _surface_smoothscale(image, (w * scale, h * scale))
         if angle != 0:
             image = _surface_rotate(image, angle)
         self.__image = image
@@ -146,6 +144,5 @@ class Image(TDrawable):
         image: Surface = self.__default_image
         if scale != 1:
             w, h = image.get_size()
-            w = round(w * scale)
-            h = round(h * scale)
+            image = _surface_smoothscale(image, (w * scale, h * scale))
         self.__image = image

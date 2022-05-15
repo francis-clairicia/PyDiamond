@@ -65,18 +65,10 @@ class Transformable(Movable, metaclass=TransformableMeta):
         self.__angle: float = 0
         self.__scale: float = 1
 
-    def rotate(
-        self, angle_offset: float, pivot: tuple[float, float] | Vector2 | str | None = None, *, apply: bool = True
-    ) -> None:
-        self.set_rotation(self.__angle + angle_offset, pivot=pivot, apply=apply)
+    def rotate(self, angle_offset: float, pivot: tuple[float, float] | Vector2 | str | None = None) -> None:
+        self.set_rotation(self.__angle + angle_offset, pivot=pivot)
 
-    def set_rotation(
-        self,
-        angle: float,
-        pivot: tuple[float, float] | Vector2 | str | None = None,
-        *,
-        apply: bool = True,
-    ) -> None:
+    def set_rotation(self, angle: float, pivot: tuple[float, float] | Vector2 | str | None = None) -> None:
         angle = float(angle)
         angle %= 360
         former_angle: float = self.__angle
@@ -84,17 +76,16 @@ class Transformable(Movable, metaclass=TransformableMeta):
             return
         self.__angle = angle
         center: Vector2 = Vector2(self.center)
-        if apply:
+        try:
             try:
-                try:
-                    self._apply_both_rotation_and_scale()
-                except NotImplementedError:
-                    self._apply_only_rotation()
+                self._apply_both_rotation_and_scale()
             except NotImplementedError:
-                self.__angle = 0
-                raise NotImplementedError from None
-            except _pg_error:
-                pass
+                self._apply_only_rotation()
+        except NotImplementedError:
+            self.__angle = 0
+            raise NotImplementedError from None
+        except _pg_error:
+            pass
         if pivot is not None and pivot != "center" and pivot != (center.x, center.y):
             if isinstance(pivot, str):
                 pivot = self.get_pivot_from_attribute(pivot)
@@ -123,13 +114,11 @@ class Transformable(Movable, metaclass=TransformableMeta):
             raise AttributeError(f"Bad pivot attribute: {pivot!r}")
         return Vector2(getattr(self, pivot))
 
-    def set_scale(self, scale: float, *, apply: bool = True) -> None:
+    def set_scale(self, scale: float) -> None:
         scale = max(float(scale), 0)
         if self.__scale == scale:
             return
         self.__scale = scale
-        if not apply:
-            return
         center: tuple[float, float] = self.center
         try:
             try:
@@ -143,19 +132,19 @@ class Transformable(Movable, metaclass=TransformableMeta):
             pass
         self.center = center
 
-    def scale_to_width(self, width: float, *, apply: bool = True) -> None:
+    def scale_to_width(self, width: float) -> None:
         w: float = self.get_local_size()[0]
-        self.set_scale(width / w if w > 0 else 0, apply=apply)
+        self.set_scale(width / w if w > 0 else 0)
 
-    def scale_to_height(self, height: float, *, apply: bool = True) -> None:
+    def scale_to_height(self, height: float) -> None:
         h: float = self.get_local_size()[1]
-        self.set_scale(height / h if h > 0 else 0, apply=apply)
+        self.set_scale(height / h if h > 0 else 0)
 
-    def scale_to_size(self, size: tuple[float, float], *, apply: bool = True) -> None:
+    def scale_to_size(self, size: tuple[float, float]) -> None:
         w, h = self.get_local_size()
         scale_width: float = size[0] / w if w > 0 else 0
         scale_height: float = size[1] / h if h > 0 else 0
-        self.set_scale(min(scale_width, scale_height), apply=apply)
+        self.set_scale(min(scale_width, scale_height))
 
     def set_min_width(self, width: float) -> None:
         if self.width < width:

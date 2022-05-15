@@ -491,9 +491,8 @@ class TextImage(Text):
         img: Image | None = self.__img
         if img is None:
             self.__img = img = _BoundImage(self, surface)
-            img.set_scale(self.__img_scale, apply=False)
-            img.set_rotation(self.__img_angle, apply=False)
-            img.apply_rotation_scale()
+            img.set_scale(self.__img_scale)
+            img.set_rotation(self.__img_angle)
         else:
             img.set(surface)
 

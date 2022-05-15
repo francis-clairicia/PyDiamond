@@ -6,14 +6,15 @@
 
 from __future__ import annotations
 
-__all__ = ["TransformAnimation"]
+__all__ = ["AnimationInterpolator", "AnimationInterpolatorPool", "TransformAnimation"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Callable, Iterator, Literal, NamedTuple, TypeAlias, TypeVar
+from contextlib import ExitStack, contextmanager, nullcontext
+from typing import TYPE_CHECKING, Callable, ContextManager, Iterator, Literal, NamedTuple, TypeAlias, TypeVar
 from weakref import WeakKeyDictionary, proxy as weakproxy
 
 from ..math import Vector2
@@ -28,14 +29,91 @@ _AnimationType: TypeAlias = Literal["move", "rotate", "rotate_point", "scale"]
 
 
 @final
+class AnimationInterpolator(Object):
+    __slots__ = (
+        "__transformable",
+        "__actual_state",
+        "__previous_state",
+        "__state_update",
+    )
+
+    def __init__(self, transformable: Transformable) -> None:
+        super().__init__()
+        self.__transformable: Transformable = transformable
+        self.__actual_state: _TransformState | None = None
+        self.__previous_state: _TransformState | None = None
+        self.__state_update: bool = False
+
+    @contextmanager
+    def fixed_update(self) -> Iterator[None]:
+        if self.__state_update:
+            yield
+            return
+        self.__state_update = True
+        try:
+            transformable: Transformable = self.__transformable
+            self.__previous_state = state = self.__actual_state
+            if state is not None:
+                state.apply_on(transformable)
+            else:
+                self.__previous_state = _TransformState.from_transformable(transformable)
+            yield
+            self.__actual_state = _TransformState.from_transformable(transformable)
+        finally:
+            self.__state_update = False
+
+    def interpolation_update(self, interpolation: float) -> None:
+        if self.__state_update:
+            raise RuntimeError(f"interpolation_update() during state update")
+        previous: _TransformState | None = self.__previous_state
+        actual: _TransformState | None = self.__actual_state
+        if not previous or not actual:
+            return
+        interpolation = min(max(interpolation, 0), 1)
+        transformable: Transformable = self.__transformable
+        previous.interpolate(actual, interpolation).apply_on(transformable)
+
+    def reset(self) -> None:
+        if self.__state_update:
+            raise RuntimeError(f"reset() during state update")
+        self.__actual_state = self.__previous_state = None
+
+
+@final
+class AnimationInterpolatorPool(Object):
+    __slots__ = ("__interpolators",)
+
+    def __init__(self, *transformables: Transformable) -> None:
+        super().__init__()
+        self.__interpolators: WeakKeyDictionary[Transformable, AnimationInterpolator] = WeakKeyDictionary()
+        self.add(*transformables)
+
+    @contextmanager
+    def fixed_update(self) -> Iterator[None]:
+        with ExitStack() as stack:
+            for interpolator in self.__interpolators.values():
+                stack.enter_context(interpolator.fixed_update())
+            yield
+
+    def interpolation_update(self, interpolation: float) -> None:
+        for interpolator in self.__interpolators.values():
+            interpolator.interpolation_update(interpolation)
+
+    def add(self, *transformables: Transformable) -> None:
+        self.__interpolators.update({t: AnimationInterpolator(weakproxy(t)) for t in transformables})
+
+    def remove(self, transformable: Transformable) -> None:
+        del self.__interpolators[transformable]
+
+
+@final
 class TransformAnimation(Object):
 
     __slots__ = (
         "__transformable",
         "__animations_order",
         "__animations",
-        "__actual_state",
-        "__previous_state",
+        "__interpolator",
         "__on_stop",
         "__wait",
     )
@@ -54,8 +132,7 @@ class TransformAnimation(Object):
         self.__transformable: Transformable = weakproxy(transformable)
         self.__animations_order: list[_AnimationType] = ["scale", "rotate", "rotate_point", "move"]
         self.__animations: dict[_AnimationType, _AbstractAnimationClass] = {}
-        self.__actual_state: _TransformState | None = None
-        self.__previous_state: _TransformState | None = None
+        self.__interpolator = AnimationInterpolator(self.__transformable)
         self.__on_stop: Callable[[], None] | None = None
         self.__wait: bool = True
 
@@ -158,34 +235,30 @@ class TransformAnimation(Object):
     def fixed_update(self, *, use_of_linear_interpolation: bool = False) -> None:
         if not self.started():
             return
-        transformable: Transformable = self.__transformable
-        self.__previous_state = state = self.__actual_state
-        if use_of_linear_interpolation and state is not None:
-            state.apply_on(transformable, apply_rotation_scale=False)
+        animation_interpolator = self.__interpolator
+        animation_context: ContextManager[None]
+        if use_of_linear_interpolation:
+            animation_context = animation_interpolator.fixed_update()
         else:
-            self.__previous_state = self.__actual_state = None
-        for animation in self.__iter_animations():
-            if animation.started():
-                animation.fixed_update(apply_rotation_scale=not use_of_linear_interpolation)
-            else:
-                animation.default()
-        if self.has_animation_started():
-            if use_of_linear_interpolation:
-                self.__actual_state = _TransformState.from_transformable(transformable)
-        else:
+            animation_interpolator.reset()
+            animation_context = nullcontext(None)
+        with animation_context:
+            for animation in self.__iter_animations():
+                if animation.started():
+                    animation.fixed_update()
+                else:
+                    animation.default()
+        if not self.has_animation_started():
+            self.clear(pause=False)
             self.__wait = True
             if on_stop := self.__on_stop:
                 on_stop()
                 self.__on_stop = None
 
     def set_interpolation(self, interpolation: float) -> None:
-        previous: _TransformState | None = self.__previous_state
-        actual: _TransformState | None = self.__actual_state
-        if not self.started() or not previous or not actual:
+        if not self.started():
             return
-        interpolation = min(max(interpolation, 0), 1)
-        transformable: Transformable = self.__transformable
-        previous.interpolate(actual, interpolation).apply_on(transformable)
+        self.__interpolator.interpolation_update(interpolation)
 
     def has_animation_started(self) -> bool:
         return any(animation.started() for animation in self.__animations.values())
@@ -208,7 +281,7 @@ class TransformAnimation(Object):
         if pause:
             self.pause()
         self.__animations.clear()
-        self.__actual_state = self.__previous_state = None
+        self.__interpolator.reset()
 
     def wait_until_finish(self, scene: Scene) -> None:
         if not scene.looping() or not self.has_animation_started():
@@ -229,8 +302,6 @@ class TransformAnimation(Object):
             animation: _AbstractAnimationClass | None = self.__animations.get(animation_name)
             if animation is not None:
                 yield animation
-        if not self.has_animation_started():
-            self.clear(pause=False)
 
 
 @final
@@ -254,11 +325,9 @@ class _TransformState(NamedTuple):
         shortest_angle = ((end - start) + 180) % 360 - 180
         return (start + shortest_angle * alpha) % 360
 
-    def apply_on(self, t: Transformable, *, apply_rotation_scale: bool = True) -> None:
-        t.set_rotation(self.angle, apply=False)
-        t.set_scale(self.scale, apply=False)
-        if apply_rotation_scale:
-            t.apply_rotation_scale()
+    def apply_on(self, t: Transformable) -> None:
+        t.set_rotation(self.angle)
+        t.set_scale(self.scale)
         t.center = self.center
 
 
@@ -286,7 +355,7 @@ class _AbstractAnimationClass(metaclass=ABCMeta):
         self.default()
 
     @abstractmethod
-    def fixed_update(self, *, apply_rotation_scale: bool) -> None:
+    def fixed_update(self) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -313,7 +382,7 @@ class _AnimationSetPosition(_AbstractAnimationClass):
     def started(self) -> bool:
         return super().started() and len(self.__position) > 0
 
-    def fixed_update(self, *, apply_rotation_scale: bool) -> None:
+    def fixed_update(self) -> None:
         transformable = self.transformable
         actual_position = Vector2(transformable.center)
         projection = transformable.get_rect(**self.__position)
@@ -344,7 +413,7 @@ class _AnimationMove(_AbstractAnimationClass):
     def started(self) -> bool:
         return super().started() and self.__vector.length_squared() > 0
 
-    def fixed_update(self, *, apply_rotation_scale: bool) -> None:
+    def fixed_update(self) -> None:
         transformable = self.transformable
         direction = self.__vector.xy
         length: float = direction.length()
@@ -377,7 +446,7 @@ class _AnimationInfiniteMove(_AbstractAnimationClass):
     def started(self) -> bool:
         return super().started() and self.__vector.length_squared() > 0
 
-    def fixed_update(self, *, apply_rotation_scale: bool) -> None:
+    def fixed_update(self) -> None:
         transformable = self.transformable
         direction = self.__vector.xy
         speed = self.speed
@@ -409,7 +478,7 @@ class _AnimationSetRotation(_AbstractAnimationClass):
         self.__pivot = Vector2(pivot) if pivot is not None else None
         self.__counter_clockwise: bool = counter_clockwise
 
-    def fixed_update(self, *, apply_rotation_scale: bool) -> None:
+    def fixed_update(self) -> None:
         transformable = self.transformable
         actual_angle: float = transformable.angle
         speed: float = self.speed
@@ -424,7 +493,7 @@ class _AnimationSetRotation(_AbstractAnimationClass):
         if remaining < 0:
             remaining += 360
         if remaining > speed:
-            transformable.rotate(offset, self.__pivot, apply=apply_rotation_scale)
+            transformable.rotate(offset, self.__pivot)
         else:
             self.stop()
 
@@ -450,7 +519,7 @@ class _AnimationRotation(_AbstractAnimationClass):
     def started(self) -> bool:
         return super().started() and self.__angle != 0
 
-    def fixed_update(self, *, apply_rotation_scale: bool) -> None:
+    def fixed_update(self) -> None:
         transformable: Transformable = self.transformable
         actual_angle: float = self.__actual_angle
         angle: float = self.__angle
@@ -458,7 +527,7 @@ class _AnimationRotation(_AbstractAnimationClass):
         offset: float = min(angle - actual_angle, speed) * self.__orientation
         if offset == 0:
             return self.stop()
-        transformable.rotate(offset, apply=apply_rotation_scale)
+        transformable.rotate(offset)
         self.__actual_angle += abs(offset)
 
     def default(self) -> None:
@@ -480,10 +549,10 @@ class _AnimationInfiniteRotate(_AbstractAnimationClass):
         super().__init__(transformable, speed)
         self.__orientation: int = 1 if counter_clockwise else -1
 
-    def fixed_update(self, *, apply_rotation_scale: bool) -> None:
+    def fixed_update(self) -> None:
         transformable = self.transformable
         offset: float = self.speed * self.__orientation
-        transformable.rotate(offset, apply=apply_rotation_scale)
+        transformable.rotate(offset)
 
     def default(self) -> None:
         pass
@@ -520,7 +589,7 @@ class _AnimationRotationAroundPoint(_AbstractAnimationClass):
     def started(self) -> bool:
         return super().started() and self.__angle != 0
 
-    def fixed_update(self, *, apply_rotation_scale: bool) -> None:
+    def fixed_update(self) -> None:
         transformable: Transformable = self.transformable
         actual_angle: float = self.__actual_angle
         angle: float = self.__angle
@@ -529,7 +598,7 @@ class _AnimationRotationAroundPoint(_AbstractAnimationClass):
         if offset == 0:
             return self.stop()
         if self.__rotate_object:
-            transformable.rotate(offset, self.__pivot, apply=apply_rotation_scale)
+            transformable.rotate(offset, self.__pivot)
         else:
             transformable.rotate_around_point(offset, self.__pivot)
         self.__actual_angle += abs(offset)
@@ -560,11 +629,11 @@ class _AnimationInfiniteRotateAroundPoint(_AbstractAnimationClass):
         self.__orientation: int = 1 if counter_clockwise else -1
         self.__rotate_object: bool = rotate_object
 
-    def fixed_update(self, *, apply_rotation_scale: bool) -> None:
+    def fixed_update(self) -> None:
         transformable = self.transformable
         offset: float = self.speed * self.__orientation
         if self.__rotate_object:
-            transformable.rotate(offset, self.__pivot, apply=apply_rotation_scale)
+            transformable.rotate(offset, self.__pivot)
         else:
             transformable.rotate_around_point(offset, self.__pivot)
 
@@ -588,8 +657,8 @@ class _AbstractAnimationScale(_AbstractAnimationClass):
             return area[0]
         return area[1]
 
-    def set_transformable_size(self, value: float, *, apply_scale: float = True) -> None:
-        getattr(self.transformable, f"scale_to_{self.__field}")(value, apply=apply_scale)
+    def set_transformable_size(self, value: float) -> None:
+        getattr(self.transformable, f"scale_to_{self.__field}")(value)
 
 
 class _AnimationSetSize(_AbstractAnimationScale):
@@ -600,7 +669,7 @@ class _AnimationSetSize(_AbstractAnimationScale):
         super().__init__(transformable, speed, field)
         self.__value: float = value
 
-    def fixed_update(self, *, apply_rotation_scale: bool) -> None:
+    def fixed_update(self) -> None:
         speed: float = self.speed
         actual_size: float = self.get_transformable_size()
         requested_size: float = self.__value
@@ -612,7 +681,7 @@ class _AnimationSetSize(_AbstractAnimationScale):
         else:
             remaining = requested_size - actual_size
         if remaining > speed:
-            self.set_transformable_size(actual_size + offset, apply_scale=apply_rotation_scale)
+            self.set_transformable_size(actual_size + offset)
         else:
             self.stop()
 
@@ -633,7 +702,7 @@ class _AnimationSizeGrowth(_AbstractAnimationScale):
     def started(self) -> bool:
         return super().started() and self.__value != 0
 
-    def fixed_update(self, *, apply_rotation_scale: bool) -> None:
+    def fixed_update(self) -> None:
         actual_value: float = self.__actual_value
         value: float = self.__value
         speed: float = self.speed
@@ -641,7 +710,7 @@ class _AnimationSizeGrowth(_AbstractAnimationScale):
         if offset == 0:
             return self.stop()
         actual_size: float = self.get_transformable_size()
-        self.set_transformable_size(actual_size + offset, apply_scale=apply_rotation_scale)
+        self.set_transformable_size(actual_size + offset)
         self.__actual_value += abs(offset)
 
     def default(self) -> None:
