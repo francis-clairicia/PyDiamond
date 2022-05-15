@@ -133,7 +133,7 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Che
             width=self.__cross_aspect_ratio * width,
             height=self.__cross_aspect_ratio * height,
             color=outline_color,
-            line_width=0.2,
+            line_width_percent=0.2,
             theme=NoTheme,
         )
         self.__on_changed_value: Callable[[_OnValue | _OffValue], None] | None = callback

@@ -21,6 +21,8 @@ __license__ = "GNU GPL v3.0"
 
 from typing import Any, Sequence
 
+from pygame.transform import rotate as _surface_rotate, smoothscale as _surface_scale
+
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ._gradients import (  # type: ignore[attr-defined]
     horizontal as _gradient_horizontal,
@@ -57,11 +59,19 @@ class HorizontalGradientShape(AbstractRectangleShape, GradientShape):
     def __init__(self, width: float, height: float, first_color: Color, second_color: Color) -> None:
         super().__init__(width=width, height=height, first_color=first_color, second_color=second_color)
 
-    def _make(self) -> Surface:
-        size: tuple[int, int] = (int(self.local_width), int(self.local_height))
-        if size[0] == 0 or size[1] == 0:
+    def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
+        width, height = self.local_size
+        if apply_scale:
+            scale: float = self.scale
+            width *= scale
+            height *= scale
+        size: tuple[int, int] = (int(width), int(height))
+        if size[0] < 1 or size[1] < 1:
             return create_surface(size)
-        return _gradient_horizontal(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore[no-any-return,arg-type]
+        surface: Surface = _gradient_horizontal(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore[arg-type]
+        if apply_rotation:
+            surface = _surface_rotate(surface, self.angle)
+        return surface
 
 
 class VerticalGradientShape(AbstractRectangleShape, GradientShape):
@@ -71,11 +81,19 @@ class VerticalGradientShape(AbstractRectangleShape, GradientShape):
     def __init__(self, width: float, height: float, first_color: Color, second_color: Color) -> None:
         super().__init__(width=width, height=height, first_color=first_color, second_color=second_color)
 
-    def _make(self) -> Surface:
-        size: tuple[int, int] = (int(self.local_width), int(self.local_height))
-        if size[0] == 0 or size[1] == 0:
+    def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
+        width, height = self.local_size
+        if apply_scale:
+            scale: float = self.scale
+            width *= scale
+            height *= scale
+        size: tuple[int, int] = (int(width), int(height))
+        if size[0] < 1 or size[1] < 1:
             return create_surface(size)
-        return _gradient_vertical(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore[no-any-return,arg-type]
+        surface: Surface = _gradient_vertical(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore[arg-type]
+        if apply_rotation:
+            surface = _surface_rotate(surface, self.angle)
+        return surface
 
 
 class SquaredGradientShape(AbstractSquareShape, GradientShape):
@@ -85,11 +103,14 @@ class SquaredGradientShape(AbstractSquareShape, GradientShape):
     def __init__(self, size: float, first_color: Color, second_color: Color) -> None:
         super().__init__(size=size, first_color=first_color, second_color=second_color)
 
-    def _make(self) -> Surface:
-        size: int = int(self.local_size)
-        if size == 0:
+    def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
+        size: int = int(self.local_size * self.scale if apply_scale else self.local_size)
+        if size < 1:
             return create_surface((0, 0))
-        return _gradient_squared(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore[no-any-return,arg-type]
+        surface: Surface = _gradient_squared(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore[arg-type]
+        if apply_rotation:
+            surface = _surface_rotate(surface, self.angle)
+        return surface
 
 
 class RadialGradientShape(AbstractCircleShape, GradientShape):
@@ -99,11 +120,14 @@ class RadialGradientShape(AbstractCircleShape, GradientShape):
     def __init__(self, radius: float, first_color: Color, second_color: Color) -> None:
         super().__init__(radius=radius, first_color=first_color, second_color=second_color)
 
-    def _make(self) -> Surface:
-        radius: int = int(self.radius)
-        if radius == 0:
+    def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
+        radius: int = int(self.radius * self.scale if apply_scale else self.radius)
+        if radius < 1:
             return create_surface((0, 0))
-        return _gradient_radial(radius, tuple(self.first_color), tuple(self.second_color))  # type: ignore[no-any-return,arg-type]
+        surface: Surface = _gradient_radial(radius, tuple(self.first_color), tuple(self.second_color))  # type: ignore[arg-type]
+        if apply_rotation:
+            surface = _surface_rotate(surface, self.angle)
+        return surface
 
 
 class MultiColorShape(AbstractShape):
@@ -138,13 +162,18 @@ class HorizontalMultiColorShape(AbstractRectangleShape, MultiColorShape):
         super().__init__(width=width, height=height, colors=colors)
         self.__shapes: Sequence[HorizontalGradientShape]
 
-    def _make(self) -> Surface:
+    def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
         width, height = self.local_size
         renderer: SurfaceRenderer = SurfaceRenderer((width, height))
         for i, gradient in enumerate(self.__shapes):
             gradient.topleft = (gradient.width * i, 0)
             gradient.draw_onto(renderer)
-        return renderer.surface
+        surface = renderer.surface
+        if apply_scale:
+            surface = _surface_scale(surface, (width * self.scale, height * self.scale))
+        if apply_rotation:
+            surface = _surface_rotate(surface, self.angle)
+        return surface
 
     @config.on_update_value("colors")
     def __update_shape(self, colors: tuple[Color, ...]) -> None:
@@ -165,13 +194,18 @@ class VerticalMultiColorShape(AbstractRectangleShape, MultiColorShape):
         super().__init__(width=width, height=height, colors=colors)
         self.__shapes: Sequence[VerticalGradientShape]
 
-    def _make(self) -> Surface:
+    def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
         width, height = self.local_size
         renderer: SurfaceRenderer = SurfaceRenderer((width, height))
         for i, gradient in enumerate(self.__shapes):
             gradient.topleft = (0, gradient.height * i)
             gradient.draw_onto(renderer)
-        return renderer.surface
+        surface = renderer.surface
+        if apply_scale:
+            surface = _surface_scale(surface, (width * self.scale, height * self.scale))
+        if apply_rotation:
+            surface = _surface_rotate(surface, self.angle)
+        return surface
 
     @config.on_update_value("colors")
     def __update_shape(self, colors: tuple[Color, ...]) -> None:

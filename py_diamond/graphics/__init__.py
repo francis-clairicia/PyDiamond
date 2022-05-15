@@ -120,6 +120,7 @@ import typing
 
 import pygame
 
+############ pygame graphics initialization ############
 if pygame.version.vernum < (2, 1):
     raise ImportError(f"Your pygame version is too old: {pygame.version.ver!r} < '2.1.0'", name=__name__, path=__file__)
 
@@ -135,6 +136,10 @@ if SDL_IMAGE_VERSION < (2, 0, 0):
         name=__name__,
         path=__file__,
     )
+
+pygame.transform.set_smoothscale_backend(
+    os.environ.setdefault("PYGAME_SMOOTHSCALE_BACKEND", pygame.transform.get_smoothscale_backend())
+)
 
 ############ Surface pickling register ############
 copyreg.pickle(

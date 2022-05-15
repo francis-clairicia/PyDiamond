@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from argparse import ArgumentParser
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterator, Literal, Mapping, Sequence
 
 from py_diamond.audio.mixer import Mixer
 from py_diamond.audio.music import Music, MusicStream
@@ -51,7 +51,7 @@ from py_diamond.graphics.text import Text, TextImage
 from py_diamond.resource.loader import FontLoader, ImageLoader, MusicLoader, SoundLoader
 from py_diamond.resource.manager import ResourceManager
 from py_diamond.window.display import Window
-from py_diamond.window.event import BuiltinEvent, Event, KeyUpEvent, MouseButtonEvent, MusicEndEvent
+from py_diamond.window.event import BuiltinEvent, Event, KeyDownEvent, KeyUpEvent, MouseButtonEvent, MusicEndEvent
 from py_diamond.window.gui import GUIScene
 from py_diamond.window.keyboard import Keyboard
 from py_diamond.window.mouse import Mouse
@@ -116,7 +116,6 @@ class ShapeScene(MainScene, busy_loop=True):
         )
         self.__shape_copy: PolygonShape = PolygonShape(TRANSPARENT, outline_color=WHITE)
         self.__r.center = self.window.center
-        self.__r.set_position(center=self.window.center)
         self.__p.center = self.__r.centerx - self.window.centery / 4, self.window.centery
         self.__x.center = self.__r.centerx - self.window.centery / 2, self.window.centery
         # self.__x.topleft = (50, 50)
@@ -220,14 +219,17 @@ class AnimationScene(MainScene, busy_loop=True):
         self.on_start_loop()
 
 
-class AnimationStateFullScene(MainScene, busy_loop=True, fixed_framerate=30):
+class AnimationStateFullScene(MainScene, busy_loop=True):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.rectangle = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
         self.text = Text(font=(FontResources.cooperblack, 25), italic=True, color=WHITE, justify="center")
         self.use_interpolation = False
+        self.event.bind_key_press(Keyboard.Key.UP, self.__increase_fixed_framerate)
+        self.event.bind_key_press(Keyboard.Key.DOWN, self.__increase_fixed_framerate)
         self.event.bind_key_press(Keyboard.Key.RETURN, lambda _: self.__toogle_interpolation_use())
+        self.fixed_framerate = 30
 
     def on_start_loop_before_transition(self) -> None:
         window: Window = self.window
@@ -242,6 +244,10 @@ class AnimationStateFullScene(MainScene, busy_loop=True, fixed_framerate=30):
         self.rectangle.animation.infinite_rotation_around_point(pivot=window.center, speed=50)
         self.rectangle.animation.start()
         self.use_interpolation = True
+        Keyboard.set_repeat(100, 100)
+
+    def on_quit(self) -> None:
+        Keyboard.set_repeat(None)
 
     def fixed_update(self) -> None:
         self.rectangle.animation.fixed_update(use_of_linear_interpolation=self.use_interpolation)
@@ -255,6 +261,8 @@ class AnimationStateFullScene(MainScene, busy_loop=True, fixed_framerate=30):
                 f"Animation interpolation: {'On' if self.use_interpolation else 'Off'}",
                 "Press Enter to switch",
                 f"Fixed framerate: {self.window.used_fixed_framerate()}fps",
+                "- Key up: +1",
+                "- Key down: -1",
             ]
         )
         self.text.center = self.window.center
@@ -262,8 +270,54 @@ class AnimationStateFullScene(MainScene, busy_loop=True, fixed_framerate=30):
     def render(self) -> None:
         self.window.draw(self.rectangle, self.text)
 
+    def use_fixed_framerate(self) -> int:
+        return self.fixed_framerate
+
+    def __increase_fixed_framerate(self, event: KeyDownEvent) -> None:
+        match event.key:
+            case Keyboard.Key.UP if self.fixed_framerate < self.window.used_framerate():
+                self.fixed_framerate += 1
+            case Keyboard.Key.DOWN if self.fixed_framerate > 1:
+                self.fixed_framerate -= 1
+
     def __toogle_interpolation_use(self) -> None:
         self.use_interpolation = not self.use_interpolation
+
+
+class ShapeTransformTestScene(MainScene):
+    def awake(self, **kwargs: Any) -> None:
+        super().awake(**kwargs)
+        self.background_color = BLUE_DARK
+        self.shape = CrossShape(50, 50, type="diagonal", color=RED, outline_color=WHITE, outline=2)
+        # self.shape = RectangleShape(50, 50, color=RED, outline_color=WHITE, outline=2, border_radius=5)
+        # self.shape = CircleShape(25, color=RED, outline_color=BLACK, outline=2, draw_bottom_left=False)
+        # self.shape = CircleShape(25, color=RED, outline_color=BLACK, outline=2)
+
+    def on_start_loop(self) -> None:
+        window_size = self.window.size
+        polygon = self.shape
+
+        # @self.every(10)
+        # def _() -> Iterator[None]:
+        #     while polygon.get_height() < window_size[1]:
+        #         polygon.local_width += 2
+        #         polygon.local_height += 2
+        #         yield
+
+        @self.every(20)
+        def _() -> Iterator[None]:
+            while polygon.height < window_size[1]:
+                polygon.scale += 0.02
+                yield
+            for angle in range(360):
+                polygon.angle = angle + 1
+                yield
+
+    def update(self) -> None:
+        self.shape.center = self.window.center
+
+    def render(self) -> None:
+        self.window.draw(self.shape)
 
 
 class GradientScene(Scene):
@@ -431,7 +485,7 @@ class EventScene(MainScene):
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.cross: CrossShape = CrossShape(50, 50, type="diagonal", color=RED, outline_color=WHITE, outline=3)
-        self.circle: CircleShape = CircleShape(4, color=YELLOW)
+        self.circle: CircleShape = CircleShape(3, color=YELLOW)
         self.event.bind_mouse_position(lambda pos: self.cross.set_position(center=pos))
         self.event.bind_mouse_button(Mouse.Button.LEFT, self.__switch_color)
         self.event.bind(MyCustomEvent, self.__update_window_title)
@@ -589,11 +643,12 @@ class ProgressScene(MainScene):
         self.__restart()
 
     def on_start_loop(self) -> None:
+        @self.every(20)
         def increment() -> None:
             self.hprogress.value += 1
             self.vprogress.value += 1
 
-        self.callback = self.every(20, increment)
+        self.callback = increment
 
     def on_quit(self) -> None:
         self.callback.kill()
@@ -984,6 +1039,7 @@ class MainWindow(SceneWindow):
         ShapeScene,
         AnimationScene,
         AnimationStateFullScene,
+        ShapeTransformTestScene,
         GradientScene,
         RainbowScene,
         TextScene,

@@ -527,12 +527,27 @@ class Window(Object):
             if do_not_reinitialize_on_success:
                 stack.pop_all()
 
+    @overload
     def after(
         self, __milliseconds: float, __callback: Callable[_P, None], /, *args: _P.args, **kwargs: _P.kwargs
     ) -> WindowCallback:
-        window_callback: WindowCallback = WindowCallback(self, __milliseconds, __callback, args, kwargs)  # type: ignore[arg-type]
-        self.__callback_after.append(window_callback)
-        return window_callback
+        ...
+
+    @overload
+    def after(self, __milliseconds: float, /) -> Callable[[Callable[[], None]], WindowCallback]:
+        ...
+
+    def after(
+        self, __milliseconds: float, __callback: Callable[..., None] | None = None, /, *args: Any, **kwargs: Any
+    ) -> WindowCallback | Callable[[Callable[..., None]], WindowCallback]:
+        def decorator(__callback: Callable[..., None], /) -> WindowCallback:
+            window_callback: WindowCallback = WindowCallback(self, __milliseconds, __callback, args, kwargs)
+            self.__callback_after.append(window_callback)
+            return window_callback
+
+        if __callback is not None:
+            return decorator(__callback)
+        return decorator
 
     @overload
     def every(
@@ -546,26 +561,37 @@ class Window(Object):
     ) -> WindowCallback:
         ...
 
-    def every(self, __milliseconds: float, __callback: Callable[..., Any], /, *args: Any, **kwargs: Any) -> WindowCallback:
-        window_callback: WindowCallback
+    @overload
+    def every(self, __milliseconds: float, /) -> Callable[[Callable[[], Iterator[None] | None]], WindowCallback]:
+        ...
 
-        if isgeneratorfunction(__callback):
-            generator: Iterator[None] = __callback(*args, **kwargs)
+    def every(
+        self, __milliseconds: float, __callback: Callable[..., Any] | None = None, /, *args: Any, **kwargs: Any
+    ) -> WindowCallback | Callable[[Callable[..., Any]], WindowCallback]:
+        def decorator(__callback: Callable[..., Any], /) -> WindowCallback:
+            window_callback: WindowCallback
 
-            @wraps(__callback)
-            def wrapper() -> None:
-                try:
-                    next(generator)
-                except ValueError:
-                    pass
-                except StopIteration:
-                    window_callback.kill()
+            if isgeneratorfunction(__callback):
+                generator: Iterator[None] = __callback(*args, **kwargs)
 
-            window_callback = WindowCallback(self, __milliseconds, wrapper, loop=True)
-        else:
-            window_callback = WindowCallback(self, __milliseconds, __callback, args, kwargs, loop=True)
-        self.__callback_after.append(window_callback)
-        return window_callback
+                @wraps(__callback)
+                def wrapper() -> None:
+                    try:
+                        next(generator)
+                    except ValueError:
+                        pass
+                    except StopIteration:
+                        window_callback.kill()
+
+                window_callback = WindowCallback(self, __milliseconds, wrapper, loop=True)
+            else:
+                window_callback = WindowCallback(self, __milliseconds, __callback, args, kwargs, loop=True)
+            self.__callback_after.append(window_callback)
+            return window_callback
+
+        if __callback is not None:
+            return decorator(__callback)
+        return decorator
 
     def remove_window_callback(self, window_callback: WindowCallback) -> None:
         with suppress(ValueError):
@@ -741,8 +767,12 @@ class WindowCallback:
         self.__loop: bool = bool(loop)
 
     def __call__(self) -> None:
+        try:
+            clock = self.__clock
+        except AttributeError:  # killed
+            return
         loop: bool = self.__loop
-        if self.__clock.elapsed_time(self.__wait_time, restart=loop):
+        if clock.elapsed_time(self.__wait_time, restart=loop):
             args = self.__args
             kwargs = self.__kwargs
             callback = self.__callback
@@ -751,7 +781,9 @@ class WindowCallback:
                 self.kill()
 
     def kill(self) -> None:
-        self.__master.remove_window_callback(self)
+        with suppress(AttributeError):
+            self.__master.remove_window_callback(self)
+            del self.__master, self.__args, self.__kwargs, self.__callback, self.__clock
 
 
 class _WindowCallbackList(list[WindowCallback]):

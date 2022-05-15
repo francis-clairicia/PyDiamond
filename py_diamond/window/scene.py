@@ -248,6 +248,12 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
     def looping(self) -> bool:
         return self.__manager.top() is self
 
+    def use_framerate(self) -> int:
+        return self.__class__.get_required_framerate()
+
+    def use_fixed_framerate(self) -> int:
+        return self.__class__.get_required_fixed_framerate()
+
     @overload
     def start(  # type: ignore[misc]
         self,
@@ -287,16 +293,31 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
     def stop(self) -> NoReturn:
         self.__manager.go_back()
 
+    @overload
     def after(
         self, __milliseconds: float, __callback: Callable[_P, None], /, *args: _P.args, **kwargs: _P.kwargs
     ) -> WindowCallback:
-        window_callback: WindowCallback = _SceneWindowCallback(self, __milliseconds, __callback, args, kwargs)  # type: ignore[arg-type]
-        callback_dict: dict[Scene, _WindowCallbackList] = self.__callback_after_dict
-        callback_list: _WindowCallbackList = self.__callback_after
+        ...
 
-        callback_dict[self] = callback_list
-        callback_list.append(window_callback)
-        return window_callback
+    @overload
+    def after(self, __milliseconds: float, /) -> Callable[[Callable[[], None]], WindowCallback]:
+        ...
+
+    def after(
+        self, __milliseconds: float, __callback: Callable[..., None] | None = None, /, *args: Any, **kwargs: Any
+    ) -> WindowCallback | Callable[[Callable[..., None]], WindowCallback]:
+        def decorator(__callback: Callable[..., None], /) -> WindowCallback:
+            window_callback: WindowCallback = _SceneWindowCallback(self, __milliseconds, __callback, args, kwargs)
+            callback_dict: dict[Scene, _WindowCallbackList] = self.__callback_after_dict
+            callback_list: _WindowCallbackList = self.__callback_after
+
+            callback_dict[self] = callback_list
+            callback_list.append(window_callback)
+            return window_callback
+
+        if __callback is not None:
+            return decorator(__callback)
+        return decorator
 
     @overload
     def every(
@@ -310,31 +331,42 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
     ) -> WindowCallback:
         ...
 
-    def every(self, __milliseconds: float, __callback: Callable[..., Any], /, *args: Any, **kwargs: Any) -> WindowCallback:
-        window_callback: WindowCallback
-        callback_dict: dict[Scene, _WindowCallbackList] = self.__callback_after_dict
-        callback_list: _WindowCallbackList = self.__callback_after
-        callback_dict[self] = callback_list
+    @overload
+    def every(self, __milliseconds: float, /) -> Callable[[Callable[[], Iterator[None] | None]], WindowCallback]:
+        ...
 
-        if isgeneratorfunction(__callback):
-            generator: Iterator[None] = __callback(*args, **kwargs)
+    def every(
+        self, __milliseconds: float, __callback: Callable[..., Any] | None = None, /, *args: Any, **kwargs: Any
+    ) -> WindowCallback | Callable[[Callable[..., Any]], WindowCallback]:
+        def decorator(__callback: Callable[..., Any], /) -> WindowCallback:
+            window_callback: WindowCallback
+            callback_dict: dict[Scene, _WindowCallbackList] = self.__callback_after_dict
+            callback_list: _WindowCallbackList = self.__callback_after
+            callback_dict[self] = callback_list
 
-            @wraps(__callback)
-            def wrapper() -> None:
-                try:
-                    next(generator)
-                except ValueError:
-                    pass
-                except StopIteration:
-                    window_callback.kill()
+            if isgeneratorfunction(__callback):
+                generator: Iterator[None] = __callback(*args, **kwargs)
 
-            window_callback = _SceneWindowCallback(self, __milliseconds, wrapper, loop=True)
+                @wraps(__callback)
+                def wrapper() -> None:
+                    try:
+                        next(generator)
+                    except ValueError:
+                        pass
+                    except StopIteration:
+                        window_callback.kill()
 
-        else:
-            window_callback = _SceneWindowCallback(self, __milliseconds, __callback, args, kwargs, loop=True)
+                window_callback = _SceneWindowCallback(self, __milliseconds, wrapper, loop=True)
 
-        callback_list.append(window_callback)
-        return window_callback
+            else:
+                window_callback = _SceneWindowCallback(self, __milliseconds, __callback, args, kwargs, loop=True)
+
+            callback_list.append(window_callback)
+            return window_callback
+
+        if __callback is not None:
+            return decorator(__callback)
+        return decorator
 
     @property
     def window(self) -> SceneWindow:
@@ -780,7 +812,7 @@ class SceneWindow(Window):
     def used_framerate(self) -> int:
         framerate = super().used_framerate()
         for scene in self.__scenes.from_top_to_bottom():
-            f: int = scene.__class__.get_required_framerate()
+            f: int = scene.use_framerate()
             if f > 0:
                 framerate = f
                 break
@@ -789,7 +821,7 @@ class SceneWindow(Window):
     def used_fixed_framerate(self) -> int:
         framerate = super().used_fixed_framerate()
         for scene in self.__scenes.from_top_to_bottom():
-            f: int = scene.__class__.get_required_fixed_framerate()
+            f: int = scene.use_fixed_framerate()
             if f > 0:
                 framerate = f
                 break
@@ -1061,10 +1093,18 @@ class _SceneWindowCallback(WindowCallback):
         super().__init__(master.window, wait_time, callback, args, kwargs, loop)
 
     def __call__(self) -> None:
-        scene = self.__scene
+        try:
+            scene = self.__scene
+        except AttributeError:  # killed
+            return
         if not scene.looping():
             return
         return super().__call__()
+
+    def kill(self) -> None:
+        super().kill()
+        with suppress(AttributeError):
+            del self.__scene
 
     @property
     def scene(self) -> Scene:

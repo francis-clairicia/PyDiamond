@@ -79,11 +79,11 @@ class Transformable(Movable, metaclass=TransformableMeta):
     ) -> None:
         angle = float(angle)
         angle %= 360
-        if self.__angle == angle:
-            return
-        center: Vector2 = Vector2(self.center)
         former_angle: float = self.__angle
+        if former_angle == angle:
+            return
         self.__angle = angle
+        center: Vector2 = Vector2(self.center)
         if apply:
             try:
                 try:
@@ -125,7 +125,7 @@ class Transformable(Movable, metaclass=TransformableMeta):
 
     def set_scale(self, scale: float, *, apply: bool = True) -> None:
         scale = max(float(scale), 0)
-        if self.scale == scale:
+        if self.__scale == scale:
             return
         self.__scale = scale
         if not apply:
@@ -145,17 +145,17 @@ class Transformable(Movable, metaclass=TransformableMeta):
 
     def scale_to_width(self, width: float, *, apply: bool = True) -> None:
         w: float = self.get_local_size()[0]
-        self.set_scale(width / w, apply=apply)
+        self.set_scale(width / w if w > 0 else 0, apply=apply)
 
     def scale_to_height(self, height: float, *, apply: bool = True) -> None:
         h: float = self.get_local_size()[1]
-        self.set_scale(height / h, apply=apply)
+        self.set_scale(height / h if h > 0 else 0, apply=apply)
 
-    def scale_to_size(self, size: tuple[float, float]) -> None:
+    def scale_to_size(self, size: tuple[float, float], *, apply: bool = True) -> None:
         w, h = self.get_local_size()
-        scale_width: float = size[0] / w
-        scale_height: float = size[1] / h
-        self.set_scale(min(scale_width, scale_height))
+        scale_width: float = size[0] / w if w > 0 else 0
+        scale_height: float = size[1] / h if h > 0 else 0
+        self.set_scale(min(scale_width, scale_height), apply=apply)
 
     def set_min_width(self, width: float) -> None:
         if self.width < width:
@@ -290,8 +290,8 @@ class Transformable(Movable, metaclass=TransformableMeta):
     def scale(self, scale: float) -> None:
         self.set_scale(scale)
 
-    @final
     @cached_property
+    @final
     def animation(self) -> TransformAnimation:
         from .animation import TransformAnimation
 

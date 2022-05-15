@@ -29,15 +29,14 @@ from enum import auto, unique
 from math import radians, sin, tan
 from operator import truth
 from types import MappingProxyType
-from typing import Any, Sequence, TypeAlias
+from typing import Any, Sequence, TypeAlias, final
 
-from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom
+from pygame.transform import rotate as _surface_rotate
 
 from ..math import Vector2
-from ..system._mangling import getattr_pv
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, UnregisteredOptionError, initializer
 from ..system.enum import AutoLowerNameEnum
-from ..system.utils import valid_float, valid_integer
+from ..system.utils import concreteclass, valid_float, valid_integer
 from .color import BLACK, Color
 from .drawable import TDrawable, TDrawableMeta
 from .rect import Rect
@@ -55,18 +54,16 @@ class ThemedShapeMeta(ShapeMeta, ThemedObjectMeta):
 
 
 class AbstractShape(TDrawable, metaclass=ShapeMeta):
-    config = ConfigurationTemplate(autocopy=True)
+    config = ConfigurationTemplate()
 
+    @initializer
     def __init__(self) -> None:
         TDrawable.__init__(self)
-        self.__image: Surface = create_surface((0, 0))
-        self.__shape_image: Surface = self.__image.copy()
+        self.__image: Surface
         self.__local_size: tuple[float, float] = (0, 0)
 
     def draw_onto(self, target: AbstractRenderer) -> None:
-        image: Surface = self.__image
-        center: tuple[float, float] = self.center
-        target.draw_surface(image, image.get_rect(center=center))
+        target.draw_surface(self.__image, self.topleft)
 
     def get_local_size(self) -> tuple[float, float]:
         return self.__local_size
@@ -75,45 +72,52 @@ class AbstractShape(TDrawable, metaclass=ShapeMeta):
         return self.__image.get_size()
 
     def _apply_both_rotation_and_scale(self) -> None:
-        angle: float = self.angle
-        scale: float = self.scale
-        self.__image = _surface_rotozoom(self.__shape_image, angle, scale)
+        self.__compute_shape_size()
+        self.__image = self._make(apply_rotation=True, apply_scale=True)
 
     def _apply_only_rotation(self) -> None:
-        angle: float = self.angle
-        self.__image = _surface_rotate(self.__shape_image, angle)
+        self.__compute_shape_size()
+        self.__image = self._make(apply_rotation=True, apply_scale=False)
 
     def _apply_only_scale(self) -> None:
-        scale: float = self.scale
-        self.__image = _surface_rotozoom(self.__shape_image, 0, scale)
+        self.__compute_shape_size()
+        self.__image = self._make(apply_rotation=False, apply_scale=True)
+
+    @staticmethod
+    def compute_size_by_vertices(vertices: Sequence[tuple[float, float]] | Sequence[Vector2]) -> tuple[float, float]:
+        if not vertices:
+            return (0, 0)
+
+        left: float = min((point[0] for point in vertices))
+        top: float = min((point[1] for point in vertices))
+        right: float = max((point[0] for point in vertices))
+        bottom: float = max((point[1] for point in vertices))
+
+        return (right - left, bottom - top)
 
     def __compute_shape_size(self) -> None:
-        all_points: Sequence[Vector2] = self.get_local_vertices()
-
-        if not all_points:
-            self.__local_size = (0, 0)
-            return
-
-        left: float = min((point.x for point in all_points), default=0)
-        top: float = min((point.y for point in all_points), default=0)
-        right: float = max((point.x for point in all_points), default=0)
-        bottom: float = max((point.y for point in all_points), default=0)
-        w: float = right - left
-        h: float = bottom - top
-        self.__local_size = (w, h)
+        self.__local_size = AbstractShape.compute_size_by_vertices(self.get_local_vertices())
 
     @abstractmethod
-    def _make(self) -> Surface:
+    def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
         raise NotImplementedError
 
     @abstractmethod
     def get_local_vertices(self) -> Sequence[Vector2]:
         raise NotImplementedError
 
-    def get_vertices(self) -> Sequence[Vector2]:
+    def get_vertices(
+        self,
+        *,
+        center: Vector2 | tuple[float, float] | None = None,
+        apply_rotation: bool = True,
+        apply_scale: bool = True,
+    ) -> Sequence[Vector2]:
         angle: float = self.angle
         scale: float = self.scale
         all_points: Sequence[Vector2] = self.get_local_vertices()
+        if not apply_rotation and not apply_scale:
+            return all_points
         vertices: list[Vector2] = []
 
         if all_points:
@@ -126,27 +130,34 @@ class AbstractShape(TDrawable, metaclass=ShapeMeta):
 
             local_center: Vector2 = Vector2(left + w / 2, top + h / 2)
 
-            center: Vector2 = Vector2(self.center)
-            for point in all_points:
-                offset: Vector2 = (point - local_center).rotate(-angle)
+            if center is None:
                 try:
-                    offset.scale_to_length(offset.length() * scale)
-                except ValueError:
-                    offset = Vector2(0, 0)
+                    center = Vector2(self.center)
+                except AttributeError:
+                    center = local_center
+            else:
+                center = Vector2(center)
+
+            for point in all_points:
+                offset: Vector2 = point - local_center
+                if apply_rotation:
+                    offset.rotate_ip(-angle)
+                if apply_scale:
+                    try:
+                        offset.scale_to_length(offset.length() * scale)
+                    except ValueError:
+                        offset = Vector2(0, 0)
                 vertices.append(center + offset)
 
-        return tuple(vertices)
+        return vertices
 
     @config.add_main_update
     def __update_shape(self) -> None:
         if self.config.has_initialization_context():
-            self.__compute_shape_size()
-            self.__shape_image = self._make()
             self.apply_rotation_scale()
         else:
             center: tuple[float, float] = self.center
-            self.__compute_shape_size()
-            self.__shape_image = self._make()
+            del self.__image
             self.apply_rotation_scale()
             self.center = center
 
@@ -161,6 +172,7 @@ class SingleColorShape(AbstractShape):
         self.color = color
         super().__init__(**kwargs)
 
+    config.set_autocopy("color", copy_on_get=True, copy_on_set=True)
     config.add_value_validator_static("color", Color)
 
 
@@ -176,16 +188,12 @@ class OutlinedShape(AbstractShape):
         self.outline_color = outline_color
         super().__init__(**kwargs)
 
-    def get_local_size(self) -> tuple[float, float]:
-        w, h = super().get_local_size()
-        if self.outline == 0:
-            return (w, h)
-        return (w + 1, h + 1)
-
+    config.set_autocopy("outline_color", copy_on_get=True, copy_on_set=True)
     config.add_value_converter_static("outline", valid_integer(min_value=0))
     config.add_value_validator_static("outline_color", Color)
 
 
+@concreteclass
 class PolygonShape(OutlinedShape, SingleColorShape, metaclass=ThemedShapeMeta):
     PointList: TypeAlias = Sequence[Vector2] | Sequence[tuple[float, float]] | Sequence[tuple[int, int]]
 
@@ -204,62 +212,62 @@ class PolygonShape(OutlinedShape, SingleColorShape, metaclass=ThemedShapeMeta):
         theme: ThemeType | None = None,
     ) -> None:
         super().__init__(color=color, outline=outline, outline_color=outline_color)
-        self.__center: Vector2 = Vector2(0, 0)
         self.set_points(points)
 
-    def _make(self) -> Surface:
+    def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
         outline: int = self.outline
-        all_points: Sequence[Vector2] = self.points
+        if apply_scale:
+            outline = int(outline * self.scale)
+        all_points: Sequence[Vector2] = self.get_vertices(apply_rotation=apply_rotation, apply_scale=apply_scale)
+        nb_points = len(all_points)
 
-        if len(all_points) < 2:
+        if nb_points < 2 or (nb_points == 2 and outline < 1):
             return create_surface((0, 0))
 
-        w, h = self.get_local_size()
-        image: SurfaceRenderer = SurfaceRenderer((w, h))
+        PolygonShape.normalize_points(all_points)
 
-        center_diff: Vector2 = Vector2(w / 2, h / 2) - self.__center
+        w, h = PolygonShape.compute_size_by_vertices(all_points)
+        image: SurfaceRenderer = SurfaceRenderer((w + outline * 2, h + outline * 2))
+
         for p in all_points:
-            p.x += center_diff.x
-            p.y += center_diff.y
+            p.x += outline
+            p.y += outline
 
-        if len(all_points) == 2:
-            if outline > 0:
-                start, end = all_points
-                image.draw_line(self.outline_color, start, end, width=outline)
+        rect: Rect
+        if nb_points == 2:
+            start, end = all_points
+            rect = image.draw_line(self.outline_color, start, end, width=outline)
         else:
-            image.draw_polygon(self.color, all_points)
+            rect = image.draw_polygon(self.color, all_points)
             if outline > 0:
-                image.draw_polygon(self.outline_color, all_points, width=outline)
+                rect = image.draw_polygon(self.outline_color, all_points, width=outline)
 
-        return image.surface
+        return image.surface.subsurface(rect)
 
+    @final
     def get_local_vertices(self) -> Sequence[Vector2]:
         return self.points
 
+    @final
     def set_points(self, points: PointList) -> None:
         self.config.set("points", points)
+
+    config.set_autocopy("points", copy_on_get=True, copy_on_set=False)
 
     @config.add_value_converter_static("points")
     @staticmethod
     def __valid_points(points: PointList) -> tuple[Vector2, ...]:
-        points = [Vector2(p) for p in points]
+        points = tuple(Vector2(p) for p in points)
+        PolygonShape.normalize_points(points)
+        return points
+
+    @staticmethod
+    def normalize_points(points: Sequence[Vector2]) -> None:
         left: float = min((point.x for point in points), default=0)
         top: float = min((point.y for point in points), default=0)
         for p in points:
             p.x -= left
             p.y -= top
-        return tuple(points)
-
-    @config.on_update_value("points")
-    def __on_update_points(self, points: Sequence[Vector2]) -> None:
-        left: float = 0
-        top: float = 0
-        right: float = max((point.x for point in points), default=0)
-        bottom: float = max((point.y for point in points), default=0)
-        w: float = right - left
-        h: float = bottom - top
-
-        self.__center = Vector2(left + w / 2, top + h / 2)
 
 
 class AbstractRectangleShape(AbstractShape):
@@ -274,9 +282,14 @@ class AbstractRectangleShape(AbstractShape):
         self.local_size = width, height
         super().__init__(**kwargs)
 
+    @final
     def get_local_vertices(self) -> tuple[Vector2, Vector2, Vector2, Vector2]:
         w, h = self.local_size
         return (Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h))
+
+    @final
+    def get_local_size(self) -> tuple[float, float]:
+        return self.local_size
 
     config.add_value_converter_static("local_width", valid_float(min_value=0))
     config.add_value_converter_static("local_height", valid_float(min_value=0))
@@ -299,13 +312,20 @@ class AbstractSquareShape(AbstractShape):
         self.local_size = size
         super().__init__(**kwargs)
 
+    @final
     def get_local_vertices(self) -> tuple[Vector2, Vector2, Vector2, Vector2]:
         w = h = self.local_size
         return (Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h))
 
+    @final
+    def get_local_size(self) -> tuple[float, float]:
+        size = self.local_size
+        return (size, size)
+
     config.add_value_converter_static("local_size", valid_float(min_value=0))
 
 
+@concreteclass
 class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape, metaclass=ThemedShapeMeta):
     config = ConfigurationTemplate(
         "border_radius",
@@ -352,17 +372,26 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape, me
         self.border_bottom_left_radius = border_bottom_left_radius
         self.border_bottom_right_radius = border_bottom_right_radius
 
-    def _make(self) -> Surface:
+    def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
         outline: int = self.outline
-        w: float = self.local_width
-        h: float = self.local_height
-        image: SurfaceRenderer = SurfaceRenderer(self.get_local_size())
-        rect: Rect = Rect(0, 0, w, h)
+        w, h = self.get_local_size()
         draw_params = self.__draw_params
+        if apply_scale:
+            scale: float = self.scale
+            outline = int(outline * scale)
+            w *= scale
+            h *= scale
+            draw_params = {param: round(value * scale) if value > 0 else value for param, value in draw_params.items()}
+        image: SurfaceRenderer = SurfaceRenderer((w, h))
+        rect: Rect = image.get_rect()
         image.draw_rect(self.color, rect, **draw_params)
         if outline > 0:
             image.draw_rect(self.outline_color, rect, width=outline, **draw_params)
-        return image.surface
+
+        surface = image.surface
+        if apply_rotation:
+            surface = _surface_rotate(surface, self.angle)
+        return surface
 
     config.add_value_converter_static("border_radius", valid_integer(min_value=-1))
     config.add_value_converter_static("border_top_left_radius", valid_integer(min_value=-1))
@@ -410,9 +439,15 @@ class AbstractCircleShape(AbstractShape):
         radius: Vector2 = Vector2(r, 0)
         return tuple(center + radius.rotate(-i) for i in range(360))
 
+    @final
+    def get_local_size(self) -> tuple[float, float]:
+        diameter: float = self.radius * 2
+        return (diameter, diameter)
+
     config.add_value_converter_static("radius", valid_float(min_value=0))
 
 
+@concreteclass
 class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclass=ThemedShapeMeta):
     config = ConfigurationTemplate(
         "draw_top_left",
@@ -450,10 +485,16 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclas
         self.draw_bottom_left = draw_bottom_left
         self.draw_bottom_right = draw_bottom_right
 
-    def _make(self) -> Surface:
+    def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
         radius: float = self.radius
         outline: int = self.outline
         width, height = self.get_local_size()
+        if apply_scale:
+            scale: float = self.scale
+            outline = int(outline * scale)
+            radius *= scale
+            width *= scale
+            height *= scale
         image: SurfaceRenderer = SurfaceRenderer((width, height))
         width, height = image.get_size()
         center: tuple[float, float] = (width / 2, height / 2)
@@ -461,10 +502,13 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclas
         image.draw_circle(self.color, center, radius, **draw_params)
         if outline > 0:
             image.draw_circle(self.outline_color, center, radius, width=outline, **draw_params)
-        return image.surface
+        surface = image.surface
+        if apply_rotation and not all(drawn for drawn in draw_params.values()):
+            surface = _surface_rotate(surface, self.angle)
+        return surface
 
     def get_local_vertices(self) -> Sequence[Vector2]:
-        return self.__points
+        return [v.copy() for v in self.__points]
 
     config.add_value_converter_static("draw_top_left", truth)
     config.add_value_converter_static("draw_top_right", truth)
@@ -519,23 +563,25 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclas
         self.__points = tuple(all_points)
 
     @property
+    @final
     def params(self) -> MappingProxyType[str, bool]:
         return MappingProxyType(self.__draw_params)
 
 
+@concreteclass
 class CrossShape(OutlinedShape, SingleColorShape, metaclass=ThemedShapeMeta):
     config = ConfigurationTemplate(
         "local_width",
         "local_height",
         "local_size",
-        "line_width",
+        "line_width_percent",
         parent=[OutlinedShape.config, SingleColorShape.config],
     )
 
     local_width: OptionAttribute[float] = OptionAttribute()
     local_height: OptionAttribute[float] = OptionAttribute()
     local_size: OptionAttribute[tuple[float, float]] = OptionAttribute()
-    line_width: OptionAttribute[float] = OptionAttribute()
+    line_width_percent: OptionAttribute[float] = OptionAttribute()
 
     @unique
     class Type(AutoLowerNameEnum):
@@ -550,7 +596,7 @@ class CrossShape(OutlinedShape, SingleColorShape, metaclass=ThemedShapeMeta):
         color: Color,
         type: str,
         *,
-        line_width: float = 0.3,
+        line_width_percent: float = 0.3,
         outline_color: Color = BLACK,
         outline: int = 0,
         theme: ThemeType | None = None,
@@ -559,47 +605,48 @@ class CrossShape(OutlinedShape, SingleColorShape, metaclass=ThemedShapeMeta):
         self.__type: CrossShape.Type = CrossShape.Type(type)
         self.__points: tuple[Vector2, ...] = ()
         self.local_size = width, height
-        self.line_width = line_width
+        self.line_width_percent = line_width_percent
 
-    def _make(self) -> Surface:
-        p = PolygonShape(
-            self.color,
-            outline=self.outline,
-            outline_color=self.outline_color,
-            points=self.__points,
-        )
-        image: Surface = getattr_pv(p, "image", owner=AbstractShape)
-        return image
+    def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
+        outline: int = self.outline
+        scale: float = self.scale
+        if apply_scale:
+            outline = int(outline * scale)
+        all_points: Sequence[Vector2] = self.get_vertices(apply_rotation=apply_rotation, apply_scale=apply_scale)
+        if not all_points:
+            return create_surface((0, 0))
+
+        PolygonShape.normalize_points(all_points)
+
+        w, h = PolygonShape.compute_size_by_vertices(all_points)
+        image: SurfaceRenderer = SurfaceRenderer((w + outline * 2, h + outline * 2))
+
+        for p in all_points:
+            p.x += outline
+            p.y += outline
+
+        rect = image.draw_polygon(self.color, all_points)
+        if outline > 0:
+            rect = image.draw_polygon(self.outline_color, all_points, width=outline)
+
+        return image.surface.subsurface(rect)
+
+    def get_local_size(self) -> tuple[float, float]:
+        return self.compute_size_by_vertices(self.__points)
 
     def get_local_vertices(self) -> Sequence[Vector2]:
-        return self.__points
+        return [v.copy() for v in self.__points]
 
-    def __get_diagonal_cross_points(self) -> tuple[Vector2, ...]:
-        rect: Rect = Rect((0, 0), self.local_size)
-        line_width: float = self.line_width
+    @staticmethod
+    def get_diagonal_cross_points(local_size: tuple[float, float], line_width: float) -> tuple[Vector2, ...]:
+        rect: Rect = Rect((0, 0), local_size)
 
-        line_width = min(self.local_width * line_width, self.local_height * line_width) / 2
-        if line_width == 0:
+        if line_width <= 0:
             return ()
+        line_width /= 2
 
-        diagonal: Vector2 = Vector2(rect.bottomleft) - Vector2(rect.topright)
-
-        def compute_width_offset() -> float:
-            alpha: float = radians(diagonal.rotate(90).angle_to(Vector2(-1, 0)))
-            try:
-                return tan(alpha) * (line_width) / sin(alpha)
-            except ZeroDivisionError:
-                return 0
-
-        def compute_height_offset() -> float:
-            alpha: float = radians(diagonal.rotate(-90).angle_to(Vector2(0, 1)))
-            try:
-                return tan(alpha) * (line_width) / sin(alpha)
-            except ZeroDivisionError:
-                return 0
-
-        w_offset: float = compute_width_offset()
-        h_offset: float = compute_height_offset()
+        w_offset: float = CrossShape.__compute_diagonal_width_offset(local_size, line_width)
+        h_offset: float = CrossShape.__compute_diagonal_height_offset(local_size, line_width)
         if w_offset == 0 or h_offset == 0:
             return ()
         return (
@@ -621,13 +668,31 @@ class CrossShape(OutlinedShape, SingleColorShape, metaclass=ThemedShapeMeta):
             Vector2(rect.left, rect.top + h_offset),
         )
 
-    def __get_plus_cross_points(self) -> tuple[Vector2, ...]:
-        rect: Rect = self.get_local_rect()
-        line_width: float = self.line_width
+    @staticmethod
+    def __compute_diagonal_width_offset(local_size: tuple[float, float], half_line_width: float) -> float:
+        diagonal: Vector2 = Vector2((0, local_size[0])) - Vector2((local_size[1], 0))
+        alpha: float = radians(diagonal.rotate(90).angle_to(Vector2(-1, 0)))
+        try:
+            return tan(alpha) * half_line_width / sin(alpha)
+        except ZeroDivisionError:
+            return 0
 
-        line_width = min(self.local_width * line_width, self.local_height * line_width) / 2
-        if line_width == 0:
+    @staticmethod
+    def __compute_diagonal_height_offset(local_size: tuple[float, float], half_line_width: float) -> float:
+        diagonal: Vector2 = Vector2((0, local_size[0])) - Vector2((local_size[1], 0))
+        alpha: float = radians(diagonal.rotate(-90).angle_to(Vector2(0, 1)))
+        try:
+            return tan(alpha) * half_line_width / sin(alpha)
+        except ZeroDivisionError:
+            return 0
+
+    @staticmethod
+    def get_plus_cross_points(local_size: tuple[float, float], line_width: float) -> tuple[Vector2, ...]:
+        rect: Rect = Rect((0, 0), local_size)
+
+        if line_width <= 0:
             return ()
+        line_width /= 2
         return (
             Vector2(rect.centerx - line_width, rect.top),
             Vector2(rect.centerx + line_width, rect.top),
@@ -646,7 +711,7 @@ class CrossShape(OutlinedShape, SingleColorShape, metaclass=ThemedShapeMeta):
     config.add_value_converter_static("local_width", valid_float(min_value=0))
     config.add_value_converter_static("local_height", valid_float(min_value=0))
     config.add_value_converter_static("local_size", tuple)
-    config.add_value_converter_static("line_width", valid_float(min_value=0))
+    config.add_value_converter_static("line_width_percent", valid_float(min_value=0, max_value=1))
 
     @property
     def type(self) -> str:
@@ -657,14 +722,19 @@ class CrossShape(OutlinedShape, SingleColorShape, metaclass=ThemedShapeMeta):
 
     @config.on_update("local_width")
     @config.on_update("local_height")
-    @config.on_update("local_size")
-    @config.on_update("line_width")
+    @config.on_update("line_width_percent")
     def __compute_vertices(self) -> None:
-        compute_vertices = {
-            CrossShape.Type.DIAGONAL: self.__get_diagonal_cross_points,
-            CrossShape.Type.PLUS: self.__get_plus_cross_points,
-        }
-        self.__points = compute_vertices[self.__type]()
+        match self.__type:
+            case CrossShape.Type.DIAGONAL:
+                get_points = self.get_diagonal_cross_points
+            case CrossShape.Type.PLUS:
+                get_points = self.get_plus_cross_points
+            case _:
+                raise ValueError(f"Unknown cross type, got {self.__type!r}")
+        local_width, local_height = local_size = self.local_size
+        line_width_percent = self.line_width_percent
+        line_width = min(local_width * line_width_percent, local_height * line_width_percent)
+        self.__points = get_points(local_size, line_width)
 
 
 class DiagonalCrossShape(CrossShape):
@@ -674,7 +744,7 @@ class DiagonalCrossShape(CrossShape):
         height: float,
         color: Color,
         *,
-        line_width: float = 0.3,
+        line_width_percent: float = 0.3,
         outline_color: Color = BLACK,
         outline: int = 0,
         theme: ThemeType | None = None,
@@ -684,7 +754,7 @@ class DiagonalCrossShape(CrossShape):
             height,
             color,
             CrossShape.Type.DIAGONAL,
-            line_width=line_width,
+            line_width_percent=line_width_percent,
             outline_color=outline_color,
             outline=outline,
             theme=theme,
@@ -698,7 +768,7 @@ class PlusCrossShape(CrossShape):
         height: float,
         color: Color,
         *,
-        line_width: float = 0.3,
+        line_width_percent: float = 0.3,
         outline_color: Color = BLACK,
         outline: int = 0,
         theme: ThemeType | None = None,
@@ -708,7 +778,7 @@ class PlusCrossShape(CrossShape):
             height,
             color,
             CrossShape.Type.PLUS,
-            line_width=line_width,
+            line_width_percent=line_width_percent,
             outline_color=outline_color,
             outline=outline,
             theme=theme,
