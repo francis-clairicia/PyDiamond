@@ -171,9 +171,14 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
         self.__lock: RLock = RLock()
         self.__chunk_size: int = DEFAULT_BUFFER_SIZE
         if sys.platform != "win32":  # Will not work on Windows
-            socket_stat = fstat(socket.fileno())
-            if socket_stat.st_blksize > 0:
-                self.__chunk_size = socket_stat.st_blksize
+            try:
+                socket_stat = fstat(socket.fileno())
+            except OSError:
+                pass
+            else:
+                blksize: int
+                if (blksize := getattr(socket_stat, "st_blksize", 0)) > 0:
+                    self.__chunk_size = blksize
         super().__init__()
 
     def close(self) -> None:
