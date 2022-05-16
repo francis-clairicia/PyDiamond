@@ -32,14 +32,16 @@ PyDiamond is dependent of pygame and Python (obviously). Some features of pygame
 
 Dependency version:
 - CPython >= 3.10
-- pygame >= 2.1.2
-- cryptography >= 36.0
+- pygame >= 2.1.2 ; < 2.2.0
+- cryptography >= 36.0 ; < 36.1
+- typing_extensions == 4.2.0
 - SDL >= 2.0.16
 - SDL_image >= 2.0.0
 - SDL_mixer >= 2.0.0
 
 ## Credits
-- DR0ID for the gradient module
+- Gradient module by DR0ID
+- [OrderedSet](https://github.com/rspeer/ordered-set) collection by rspeer
 
 ## License
 This project is licensed under the terms of the [GNU General Public License v3.0](./LICENSE).
