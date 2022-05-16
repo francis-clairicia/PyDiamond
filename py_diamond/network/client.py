@@ -12,11 +12,11 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
+import sys
 from abc import abstractmethod
 from io import DEFAULT_BUFFER_SIZE
 from os import fstat
 from selectors import EVENT_READ, EVENT_WRITE
-from sys import exc_info
 from threading import RLock
 from typing import TYPE_CHECKING, Any, Callable, Generic, Iterator, TypeVar, overload
 
@@ -39,11 +39,11 @@ if TYPE_CHECKING:
     from selectors import BaseSelector
 
     _Selector: type[BaseSelector]
-
-try:
-    from selectors import PollSelector as _Selector
-except ImportError:
-    from selectors import SelectSelector as _Selector
+else:
+    try:
+        from selectors import PollSelector as _Selector
+    except ImportError:
+        from selectors import SelectSelector as _Selector
 
 
 _T = TypeVar("_T")
@@ -170,9 +170,10 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
         self.__queue: list[_T] = []
         self.__lock: RLock = RLock()
         self.__chunk_size: int = DEFAULT_BUFFER_SIZE
-        socket_stat = fstat(socket.fileno())
-        if socket_stat.st_blksize > 0:
-            self.__chunk_size = socket_stat.st_blksize
+        if sys.platform != "win32":  # Will not work on Windows
+            socket_stat = fstat(socket.fileno())
+            if socket_stat.st_blksize > 0:
+                self.__chunk_size = socket_stat.st_blksize
         super().__init__()
 
     def close(self) -> None:
@@ -277,7 +278,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
             try:
                 packet: _T = protocol.deserialize(data)
             except Exception:
-                if not protocol.handle_deserialize_error(data, *exc_info()):
+                if not protocol.handle_deserialize_error(data, *sys.exc_info()):
                     raise
                 continue
             try:
@@ -472,7 +473,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
             try:
                 packet: _T = protocol.deserialize(data)
             except Exception:
-                if not protocol.handle_deserialize_error(data, *exc_info()):
+                if not protocol.handle_deserialize_error(data, *sys.exc_info()):
                     raise
                 continue
             try:

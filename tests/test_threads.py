@@ -1,6 +1,5 @@
 # -*- coding: Utf-8 -*
 
-import os
 import time
 from threading import current_thread
 from typing import Any
@@ -85,7 +84,7 @@ def test_terminate() -> None:
     @thread(daemon=False)
     def infinite_loop() -> None:
         while True:
-            os.sched_yield()
+            time.sleep(0.01)
 
     t = infinite_loop()
     time.sleep(0.5)
@@ -97,7 +96,7 @@ def test_join_timeout_call_terminate() -> None:
     @thread(daemon=False)
     def infinite_loop() -> None:
         while True:
-            os.sched_yield()
+            time.sleep(0.01)
 
     t = infinite_loop()
     t.join(timeout=0.5, terminate_on_timeout=True)

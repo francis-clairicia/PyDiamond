@@ -181,7 +181,9 @@ def test_request_handling() -> None:
             assert client_2.recv_packet() == 0
             assert client_3.recv_packet_no_wait() is None
             client_1.send_packet(350)
+            sleep(0.1)
             client_2.send_packet(-634)
+            sleep(0.1)
             client_3.send_packet(0)
             sleep(0.3)
             assert list(client_1.recv_packets()) == [-634, 0]

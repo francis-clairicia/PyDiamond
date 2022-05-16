@@ -41,11 +41,11 @@ if TYPE_CHECKING:
     from selectors import BaseSelector
 
     _Selector: type[BaseSelector]
-
-try:
-    from selectors import PollSelector as _Selector
-except ImportError:
-    from selectors import SelectSelector as _Selector
+else:
+    try:
+        from selectors import PollSelector as _Selector
+    except ImportError:
+        from selectors import SelectSelector as _Selector
 
 _T = TypeVar("_T")
 

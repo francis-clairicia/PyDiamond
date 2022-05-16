@@ -514,6 +514,6 @@ class _BoundImage(Image):
         super()._apply_only_scale()
         self.__text.config.update_all_options()
 
-    def set(self, image: Surface, copy: bool = True) -> None:
-        super().set(image, copy=copy)
+    def set(self, image: Surface | None, copy: bool = True) -> None:
+        super().set(image, copy=copy)  # type: ignore[arg-type]
         self.__text.config.update_all_options()

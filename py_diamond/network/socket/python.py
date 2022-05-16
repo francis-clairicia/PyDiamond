@@ -294,6 +294,8 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
         sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
         if sock is _MISSING:
             raise RuntimeError("Closed socket")
+        if OS_NAME in ("nt", "cygwin"):  # Flags not supported on Windows
+            return sock.recv(bufsize)
         return sock.recv(bufsize, flags)
 
     @final
@@ -304,6 +306,8 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
             raise RuntimeError("Closed socket")
         if not data:
             return 0
+        if OS_NAME in ("nt", "cygwin"):  # Flags not supported on Windows
+            return sock.send(data)
         return sock.send(data, flags)
 
     @final
@@ -370,7 +374,10 @@ class _AbstractPythonUDPSocket(_AbstractPythonSocket):
         sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
         if sock is _MISSING:
             raise RuntimeError("Closed socket")
-        data, addr = sock.recvfrom(bufsize, flags)
+        if OS_NAME in ("nt", "cygwin"):  # Flags not supported on Windows
+            data, addr = sock.recvfrom(bufsize)
+        else:
+            data, addr = sock.recvfrom(bufsize, flags)
         sender: SocketAddress
         if int(sock.family) == AF_INET6:
             sender = IPv6SocketAddress(*addr)
@@ -388,6 +395,8 @@ class _AbstractPythonUDPSocket(_AbstractPythonSocket):
             raise RuntimeError("Closed socket")
         if not data_length:
             return 0
+        if OS_NAME in ("nt", "cygwin"):  # Flags not supported on Windows
+            return sock.sendto(data, address)
         return sock.sendto(data, flags, address)
 
 
