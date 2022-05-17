@@ -24,28 +24,19 @@ __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
 from contextlib import suppress
-from selectors import EVENT_READ
+from selectors import EVENT_READ, BaseSelector
 from threading import Event, RLock, current_thread
 from typing import TYPE_CHECKING, Any, Generic, Sequence, TypeVar, overload
 
 from ..system.object import Object, final
-from ..system.threading import Thread, thread
+from ..system.threading import Thread, thread_factory
 from ..system.utils import concreteclass, concreteclasscheck, dsuppress
 from .client import DisconnectedClientError, TCPNetworkClient, UDPNetworkClient
 from .protocol.base import AbstractNetworkProtocol
 from .protocol.pickle import PicklingNetworkProtocol
+from .selector import DefaultSelector as _Selector
 from .socket.base import AbstractSocket, AbstractTCPServerSocket, AbstractUDPServerSocket, SocketAddress
 from .socket.python import PythonTCPServerSocket, PythonUDPServerSocket
-
-if TYPE_CHECKING:
-    from selectors import BaseSelector
-
-    _Selector: type[BaseSelector]
-else:
-    try:
-        from selectors import PollSelector as _Selector
-    except ImportError:
-        from selectors import SelectSelector as _Selector
 
 _T = TypeVar("_T")
 
@@ -136,7 +127,7 @@ class AbstractNetworkServer(Object):
         if self.running():
             raise RuntimeError("Server already running")
 
-        @thread(daemon=daemon, name=name)
+        @thread_factory(daemon=daemon, name=name)
         def run(self: AbstractNetworkServer, poll_interval: float) -> None:
             self.serve_forever(poll_interval)
 

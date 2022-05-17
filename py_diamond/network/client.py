@@ -24,6 +24,7 @@ from ..system.object import Object, final
 from ..system.utils import concreteclass, concreteclasscheck
 from .protocol.base import AbstractNetworkProtocol, ValidationError
 from .protocol.pickle import PicklingNetworkProtocol
+from .selector import DefaultSelector as _Selector
 from .socket.base import (
     AbstractSocket,
     AbstractTCPClientSocket,
@@ -34,17 +35,6 @@ from .socket.base import (
 )
 from .socket.constants import SHUT_WR
 from .socket.python import PythonTCPClientSocket, PythonUDPClientSocket
-
-if TYPE_CHECKING:
-    from selectors import BaseSelector
-
-    _Selector: type[BaseSelector]
-else:
-    try:
-        from selectors import PollSelector as _Selector
-    except ImportError:
-        from selectors import SelectSelector as _Selector
-
 
 _T = TypeVar("_T")
 

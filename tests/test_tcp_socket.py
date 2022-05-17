@@ -13,7 +13,7 @@ from py_diamond.network.socket import (
     PythonTCPServerSocket,
     SocketAddress,
 )
-from py_diamond.system.threading import Thread, thread
+from py_diamond.system.threading import Thread, thread_factory
 
 from .random_port import random_port
 
@@ -23,7 +23,7 @@ def test_ipv4_client_server_connection() -> None:
     host: str = "localhost"
     port: int = random_port()
 
-    @thread
+    @thread_factory
     def launch_server() -> None:
         nonlocal server_started
         with PythonTCPServerSocket.bind((host, port), family=AF_INET, backlog=1) as s:
@@ -65,7 +65,7 @@ def test_ipv6_client_server_connection() -> None:
     host: str = "localhost"
     port: int = random_port()
 
-    @thread
+    @thread_factory
     def launch_server() -> None:
         nonlocal server_started
         with PythonTCPServerSocket.bind((host, port), family=AF_INET6, backlog=1) as s:
@@ -112,7 +112,7 @@ def test_dualstack_ipv6_client_server_connection() -> None:
     host: str = "localhost"
     port: int = random_port()
 
-    @thread
+    @thread_factory
     def launch_server() -> None:
         nonlocal server_started
         with PythonTCPServerSocket.bind((host, port), family=AF_INET6, backlog=1, dualstack_ipv6=True) as s:

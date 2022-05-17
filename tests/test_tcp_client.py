@@ -15,7 +15,7 @@ from py_diamond.network.protocol import (
     ValidationError,
 )
 from py_diamond.network.socket import PythonTCPClientSocket, PythonTCPServerSocket
-from py_diamond.system.threading import Thread, thread
+from py_diamond.system.threading import Thread, thread_factory
 
 from .random_port import random_port
 
@@ -24,7 +24,7 @@ class SafePicklingProtocol(PicklingNetworkProtocol, SecuredNetworkProtocol):
     SECRET_KEY = SecuredNetworkProtocol.generate_key()
 
 
-@thread
+@thread_factory
 def launch_server(host: str, port: int, server_started_event: Event, shutdow_requested: Event) -> None:
     with PythonTCPServerSocket.bind((host, port), backlog=1) as s, DefaultSelector() as selector:
         server_started_event.set()

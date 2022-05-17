@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Thread", "thread"]
+__all__ = ["Thread", "thread_factory"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -28,8 +28,11 @@ class Thread(threading.Thread, Object, no_slots=True):
         __slots__: Final[Sequence[str]] = ("__dict__",)
 
     def terminate(self) -> None:
-        if self is threading.current_thread():
+        if self is threading.main_thread():  # Can occur in case of fork/spawn
             raise RuntimeError("Cannot terminate myself")
+        if self is threading.current_thread():
+            raise SystemExit
+
         thread_id: int | None = self.ident
         if thread_id is None:
             raise RuntimeError("Thread not started")
@@ -55,19 +58,19 @@ class Thread(threading.Thread, Object, no_slots=True):
 
 
 @overload
-def thread(func: Callable[_P, None], /) -> Callable[_P, Thread]:
+def thread_factory(func: Callable[_P, None], /) -> Callable[_P, Thread]:
     ...
 
 
 @overload
-def thread(
+def thread_factory(
     *, daemon: bool | None = None, auto_start: bool = True, name: str | None = None
 ) -> Callable[[Callable[_P, None]], Callable[_P, Thread]]:
     ...
 
 
 @overload
-def thread(
+def thread_factory(
     *,
     thread_cls: type[_T],
     daemon: bool | None = None,
@@ -78,7 +81,7 @@ def thread(
     ...
 
 
-def thread(
+def thread_factory(
     func: Callable[..., Any] | None = None,
     /,
     *,

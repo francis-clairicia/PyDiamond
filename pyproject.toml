@@ -40,7 +40,7 @@ dev = [
   "black >=22.3.0"
 ]
 tests = [
-  "pytest >=6.2.5"
+  "pytest ==7.1.2"
 ]
 
 ############################ Development tools configuration ############################
@@ -75,6 +75,6 @@ strict_equality = true
 enable_error_code = ["truthy-bool", "ignore-without-code"]
 
 [tool.pytest.ini_options]
-minversion = "6.2.5"
+minversion = "7.1.2"
 addopts = "-ra -v"
 testpaths = ["tests"]

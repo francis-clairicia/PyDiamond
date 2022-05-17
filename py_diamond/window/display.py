@@ -54,7 +54,7 @@ from ..graphics.surface import Surface, create_surface, save_image
 from ..system._mangling import setattr_pv
 from ..system.object import Object, final
 from ..system.path import set_constant_file
-from ..system.threading import Thread, thread
+from ..system.threading import Thread, thread_factory
 from ..system.utils import wraps
 from .clock import Clock
 from .cursor import AbstractCursor
@@ -99,6 +99,7 @@ class Window(Object):
     DEFAULT_FIXED_FRAMERATE: Final[int] = 50
 
     __main_window: ClassVar[bool] = True
+    __screenshot_lock = RLock()
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Any:
         if not Window.__main_window:
@@ -141,7 +142,6 @@ class Window(Object):
         self.__stack = ExitStack()
 
         self.__screenshot_threads: list[Thread] = []
-        self.__screenshot_lock = RLock()
 
     def __window_init__(self) -> None:
         pass
@@ -301,7 +301,7 @@ class Window(Object):
         screen: Surface = self.get_screen_copy()
         self.__screenshot_threads.append(self.__screenshot_thread(screen))
 
-    @thread(daemon=True)
+    @thread_factory(daemon=True)
     def __screenshot_thread(self, screen: Surface) -> None:
         with self.__screenshot_lock:
             filename_fmt: str = "Screenshot_%Y-%m-%d_%H-%M-%S"

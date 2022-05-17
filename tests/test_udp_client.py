@@ -7,12 +7,12 @@ from typing import Any
 from py_diamond.network.client import UDPNetworkClient
 from py_diamond.network.protocol import PicklingNetworkProtocol, SecuredNetworkProtocol
 from py_diamond.network.socket import IPv4SocketAddress, PythonUDPClientSocket, PythonUDPServerSocket
-from py_diamond.system.threading import Thread, thread
+from py_diamond.system.threading import Thread, thread_factory
 
 from .random_port import random_port
 
 
-@thread
+@thread_factory
 def launch_server(host: str, port: int, server_started: Event, shutdown_requested: Event) -> None:
     with PythonUDPServerSocket.bind((host, port)) as server, DefaultSelector() as selector:
         selector.register(server, EVENT_READ)
