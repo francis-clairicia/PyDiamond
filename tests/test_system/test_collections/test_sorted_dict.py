@@ -199,6 +199,58 @@ def test_setitem_no_duplicate() -> None:
     sd["a"] = 1
     sd["a"] = 3
 
+    assert sd["a"] == 3
+    assert list(sd) == ["a"]
+    assert len(sd) == 1
+
+
+def test_setdefault_successive_assignment() -> None:
+    sd: SortedDict[str, int] = SortedDict({"z": 5, "p": 2, "h": 23, "k": -4})
+
+    sd.setdefault("c", 12)
+    sd.setdefault("a", 65)
+
+    assert sd["c"] == 12
+    assert sd["a"] == 65
+    assert list(sd) == ["a", "c", "h", "k", "p", "z"]
+
+
+def test_setdefault_do_not_accept_unhashable_keys() -> None:
+    sd: SortedDict[Any, Any] = SortedDict()
+
+    with pytest.raises(TypeError, match=r"unhashable type: 'dict'"):
+        sd.setdefault({}, None)
+
+
+def test_setdefault_do_not_accept_non_comparable_keys() -> None:
+    sd: SortedDict[Any, Any] = SortedDict()
+
+    sd[object()] = None  # The 1st will work because there is no comparison to do
+    with pytest.raises(TypeError, match=r"'[<>]' not supported between instances of 'object' and 'object'"):
+        sd.setdefault(object(), None)
+
+
+def test_setdefault_non_comparable_do_not_keep_key() -> None:
+    sd: SortedDict[Any, Any] = SortedDict()
+
+    a = object()
+    b = object()
+
+    sd[a] = None
+    with pytest.raises(TypeError, match=r"'[<>]' not supported between instances of 'object' and 'object'"):
+        sd.setdefault(b, None)
+
+    assert b not in sd
+    assert len(sd) == 1
+
+
+def test_setdefault_no_duplicate() -> None:
+    sd: SortedDict[Any, Any] = SortedDict()
+
+    sd.setdefault("a", 1)
+    sd.setdefault("a", 3)
+
+    assert sd["a"] == 1
     assert list(sd) == ["a"]
     assert len(sd) == 1
 
