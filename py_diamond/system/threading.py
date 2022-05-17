@@ -14,7 +14,6 @@ __license__ = "GNU GPL v3.0"
 
 import ctypes
 import threading
-from contextlib import ExitStack
 from typing import TYPE_CHECKING, Any, Callable, Final, ParamSpec, Sequence, TypeVar, overload
 
 from .object import Object
@@ -28,39 +27,6 @@ class Thread(threading.Thread, Object, no_slots=True):
     if TYPE_CHECKING:
         __slots__: Final[Sequence[str]] = ("__dict__",)
 
-    class Exit(BaseException):
-        """
-        Specific exception raised by terminate() to stop a thread
-        """
-
-    def start(self) -> None:
-        default_thread_run: Callable[[], None] = self.run
-
-        def thread_run() -> None:
-            try:
-                return default_thread_run()
-            except Thread.Exit:  # Exception raised within run() or sent by other thread using terminate()
-                return
-
-        with ExitStack() as stack:
-            if "run" in self.__dict__:  # setattr() was previously called to override default run
-
-                def __clear_run() -> None:
-                    self.__dict__["run"] = default_thread_run
-
-            else:
-
-                def __clear_run() -> None:
-                    attr_dict = self.__dict__
-                    if attr_dict.get("run") is thread_run:
-                        attr_dict.pop("run")
-
-            self.__dict__["run"] = thread_run
-
-            stack.callback(__clear_run)
-
-            return super().start()
-
     def terminate(self) -> None:
         if self is threading.current_thread():
             raise RuntimeError("Cannot terminate myself")
@@ -73,7 +39,7 @@ class Thread(threading.Thread, Object, no_slots=True):
         # Asynchronously raise an exception in a thread
         # Ref: https://docs.python.org/3/c-api/init.html?highlight=pythreadstate_setasyncexc#c.PyThreadState_SetAsyncExc
         PyThreadState_SetAsyncExc = ctypes.pythonapi.PyThreadState_SetAsyncExc
-        match PyThreadState_SetAsyncExc(ctypes.c_ulong(thread_id), ctypes.py_object(Thread.Exit)):
+        match PyThreadState_SetAsyncExc(ctypes.c_ulong(thread_id), ctypes.py_object(SystemExit)):
             case 0:  # Invalid ID
                 raise RuntimeError("Invalid thread ID")
             case 1:  # In case of success, join the thread
