@@ -69,6 +69,8 @@ def _thread_safe_python_socket_method(
 
 
 class _AbstractPythonSocket(AbstractSocket):
+    __slots__ = ("__lock", "__socket", "__family")
+
     def __init__(self) -> None:
         setattr_pv(self, "lock", RLock(), owner=_AbstractPythonSocket)
         super().__init__()
@@ -161,6 +163,8 @@ class _AbstractPythonSocket(AbstractSocket):
 
 
 class _AbstractPythonTCPSocket(_AbstractPythonSocket):
+    __slots__ = ()
+
     @final
     @_thread_safe_python_socket_method
     def shutdown(self, how: ShutdownFlag) -> None:
@@ -174,6 +178,8 @@ class _AbstractPythonTCPSocket(_AbstractPythonSocket):
 @final
 @concreteclass
 class PythonTCPServerSocket(_AbstractPythonTCPSocket, AbstractTCPServerSocket):
+    __slots__ = ("__backlog",)
+
     DEFAULT_BACKLOG: Final[int] = 128
 
     def __init__(self) -> None:
@@ -245,6 +251,8 @@ class PythonTCPServerSocket(_AbstractPythonTCPSocket, AbstractTCPServerSocket):
 @final
 @concreteclass
 class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
+    __slots__ = ("__peer")
+
     @final
     @classmethod
     def connect(
@@ -365,6 +373,8 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
 
 
 class _AbstractPythonUDPSocket(_AbstractPythonSocket):
+    __slots__ = ()
+
     MAX_PACKET_SIZE: Final[int] = 8192
 
     @final
@@ -403,6 +413,8 @@ class _AbstractPythonUDPSocket(_AbstractPythonSocket):
 @final
 @concreteclass
 class PythonUDPServerSocket(_AbstractPythonUDPSocket, AbstractUDPServerSocket):
+    __slots__ = ()
+
     @final
     @classmethod
     def bind(
@@ -447,6 +459,8 @@ class PythonUDPServerSocket(_AbstractPythonUDPSocket, AbstractUDPServerSocket):
 @final
 @concreteclass
 class PythonUDPClientSocket(_AbstractPythonUDPSocket, AbstractUDPClientSocket):
+    __slots__ = ()
+
     @final
     @classmethod
     def create(cls, family: int = AF_INET, *, host: str = "") -> PythonUDPClientSocket:

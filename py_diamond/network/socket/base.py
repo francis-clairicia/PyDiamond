@@ -53,6 +53,8 @@ class SocketMeta(NonCopyableMeta, ObjectMeta):
 
 
 class AbstractSocket(Object, metaclass=SocketMeta):
+    __slots__ = ()
+
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="AbstractSocket")
 
@@ -122,12 +124,16 @@ class AbstractSocket(Object, metaclass=SocketMeta):
 
 
 class AbstractTCPSocket(AbstractSocket):
+    __slots__ = ()
+
     @abstractmethod
     def shutdown(self, how: ShutdownFlag) -> None:
         raise NotImplementedError
 
 
 class AbstractTCPServerSocket(AbstractTCPSocket):
+    __slots__ = ()
+
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="AbstractTCPServerSocket")
 
@@ -157,6 +163,8 @@ class AbstractTCPServerSocket(AbstractTCPSocket):
 
 
 class AbstractTCPClientSocket(AbstractTCPSocket):
+    __slots__ = ()
+
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="AbstractTCPClientSocket")
 
@@ -216,6 +224,8 @@ class ReceivedDatagram(NamedTuple):
 
 
 class AbstractUDPSocket(AbstractSocket):
+    __slots__ = ()
+
     @abstractmethod
     def recvfrom(self, flags: int = ...) -> ReceivedDatagram:
         raise NotImplementedError
@@ -226,6 +236,8 @@ class AbstractUDPSocket(AbstractSocket):
 
 
 class AbstractUDPServerSocket(AbstractUDPSocket):
+    __slots__ = ()
+
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="AbstractUDPServerSocket")
 
@@ -241,6 +253,8 @@ class AbstractUDPServerSocket(AbstractUDPSocket):
 
 
 class AbstractUDPClientSocket(AbstractUDPSocket):
+    __slots__ = ()
+
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="AbstractUDPClientSocket")
 

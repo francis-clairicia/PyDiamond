@@ -30,8 +30,10 @@ class AddressFamily(IntEnum):
     AF_INET = socket.AF_INET
     AF_INET6 = socket.AF_INET6
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return f"{type(self).__name__}.{self.name}"
+
+    __str__ = __repr__
 
 
 @unique
@@ -40,8 +42,10 @@ class ShutdownFlag(IntEnum):
     SHUT_RDWR = socket.SHUT_RDWR
     SHUT_WR = socket.SHUT_WR
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return f"{type(self).__name__}.{self.name}"
+
+    __str__ = __repr__
 
 
 AF_INET: Final[Literal[AddressFamily.AF_INET]] = AddressFamily.AF_INET

@@ -31,6 +31,7 @@ def test_thread_no_auto_start() -> None:
         variable = val
 
     t: Thread = my_func(28)
+    assert not t.is_alive()
     assert variable is None
     t.start()
     t.join()
