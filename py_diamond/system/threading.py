@@ -17,7 +17,7 @@ import threading
 from typing import TYPE_CHECKING, Any, Callable, Final, ParamSpec, Sequence, TypeVar, overload
 
 from .object import Object
-from .utils import wraps
+from .utils.functools import wraps
 
 _P = ParamSpec("_P")
 _T = TypeVar("_T", bound="Thread")

@@ -30,7 +30,7 @@ from pygame.draw import (
 )
 
 from ..system.object import Object
-from ..system.utils import concreteclass
+from ..system.utils.abc import concreteclass
 from .rect import Rect
 from .surface import Surface, create_surface
 

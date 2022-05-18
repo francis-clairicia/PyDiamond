@@ -22,7 +22,7 @@ from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rot
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
-from ..system.utils import valid_float, valid_integer
+from ..system.validation import valid_float, valid_integer
 from .color import BLACK, Color
 from .drawable import TDrawable, TDrawableMeta
 from .font import Font, SysFont

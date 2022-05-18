@@ -55,7 +55,7 @@ from ..system._mangling import setattr_pv
 from ..system.object import Object, final
 from ..system.path import set_constant_file
 from ..system.threading import Thread, thread_factory
-from ..system.utils import wraps
+from ..system.utils.functools import wraps
 from .clock import Clock
 from .cursor import AbstractCursor
 from .event import (

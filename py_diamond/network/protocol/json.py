@@ -16,7 +16,7 @@ from types import TracebackType
 from typing import Any
 
 from ...system.object import final
-from ...system.utils import concreteclass
+from ...system.utils.abc import concreteclass
 from .base import AutoParsedNetworkProtocol
 
 

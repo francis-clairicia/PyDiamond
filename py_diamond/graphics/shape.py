@@ -36,7 +36,8 @@ from pygame.transform import rotate as _surface_rotate
 from ..math import Vector2
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, UnregisteredOptionError, initializer
 from ..system.enum import AutoLowerNameEnum
-from ..system.utils import concreteclass, valid_float, valid_integer
+from ..system.utils.abc import concreteclass
+from ..system.validation import valid_float, valid_integer
 from .color import BLACK, Color
 from .drawable import TDrawable, TDrawableMeta
 from .rect import Rect

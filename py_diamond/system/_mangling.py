@@ -22,7 +22,7 @@ __license__ = "GNU GPL v3.0"
 import re
 from typing import Any, Final, Pattern, TypeVar, overload
 
-from .utils import cache
+from .utils.functools import cache
 
 _T = TypeVar("_T")
 

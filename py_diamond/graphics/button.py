@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, Seque
 from ..math import Vector2
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
-from ..system.utils import valid_float, valid_integer, valid_optional_float
+from ..system.validation import valid_float, valid_integer, valid_optional_float
 from ..window.clickable import Clickable
 from ..window.gui import BoundFocus
 from ..window.pressable import Pressable

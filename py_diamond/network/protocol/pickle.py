@@ -17,7 +17,7 @@ from types import TracebackType
 from typing import IO, Any, Generator
 
 from ...system.object import final
-from ...system.utils import concreteclass
+from ...system.utils.abc import concreteclass
 from .base import AbstractNetworkProtocol, ValidationError
 
 

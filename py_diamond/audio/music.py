@@ -25,7 +25,7 @@ else:
 
 from ..system.duplicate import NoDuplicate
 from ..system.namespace import ClassNamespace
-from ..system.utils import forbidden_call
+from ..system.utils.functools import forbidden_call
 
 
 class Music(NoDuplicate):

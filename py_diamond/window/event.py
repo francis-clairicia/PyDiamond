@@ -69,7 +69,7 @@ from pygame.event import Event as _PygameEvent, custom_type as _pg_event_custom_
 from ..audio.music import Music, MusicStream
 from ..system.namespace import ClassNamespaceMeta
 from ..system.object import Object, ObjectMeta, final
-from ..system.utils import concreteclass, isconcreteclass
+from ..system.utils.abc import concreteclass, isconcreteclass
 from .keyboard import Keyboard
 from .mouse import Mouse
 

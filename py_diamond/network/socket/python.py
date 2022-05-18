@@ -34,7 +34,8 @@ from typing import Any, Callable, Concatenate, Final, ParamSpec, TypeVar
 
 from ...system._mangling import delattr_pv, getattr_pv, hasattr_pv, setattr_pv
 from ...system.object import final
-from ...system.utils import concreteclass, wraps
+from ...system.utils.abc import concreteclass
+from ...system.utils.functools import wraps
 from .base import (
     AbstractSocket,
     AbstractTCPClientSocket,
@@ -60,7 +61,7 @@ def _thread_safe_python_socket_method(
     func: Callable[Concatenate[_SocketVar, _P], _R]
 ) -> Callable[Concatenate[_SocketVar, _P], _R]:
     @wraps(func)
-    def wrapper(self: _SocketVar, /, *args: Any, **kwargs: Any) -> Any:
+    def wrapper(self: _SocketVar, /, *args: _P.args, **kwargs: _P.kwargs) -> Any:
         lock: RLock = getattr_pv(self, "lock", owner=_AbstractPythonSocket)
         with lock:
             return func(self, *args, **kwargs)
@@ -251,7 +252,7 @@ class PythonTCPServerSocket(_AbstractPythonTCPSocket, AbstractTCPServerSocket):
 @final
 @concreteclass
 class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
-    __slots__ = ("__peer")
+    __slots__ = "__peer"
 
     @final
     @classmethod
@@ -356,20 +357,20 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
             pass
         else:
             return
-        address: tuple[Any, ...] = getattr_pv(self, "peer")
+        try:
+            address: tuple[Any, ...] = getattr_pv(self, "peer")
+        except AttributeError:
+            raise ConnectionError("Cannot reconnect to remote host: No peername stored") from None
         try:
             sock.settimeout(timeout)
             sock.connect(address)
+        except TimeoutError:
+            raise
         except OSError:
             sock.close()
             raise
         finally:
             sock.settimeout(None)
-
-    @final
-    @_thread_safe_python_socket_method
-    def try_reconnect(self, timeout: float | None = None) -> bool:
-        return super().try_reconnect(timeout)
 
 
 class _AbstractPythonUDPSocket(_AbstractPythonSocket):
@@ -398,11 +399,11 @@ class _AbstractPythonUDPSocket(_AbstractPythonSocket):
     @final
     @_thread_safe_python_socket_method
     def sendto(self, data: bytes, address: SocketAddress, flags: int = 0) -> int:
-        if (data_length := len(data)) > self.MAX_PACKET_SIZE:
-            raise ValueError(f"Datagram too big ({data_length} > {self.MAX_PACKET_SIZE})")
         sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
         if sock is _MISSING:
             raise RuntimeError("Closed socket")
+        if (data_length := len(data)) > self.MAX_PACKET_SIZE:
+            raise ValueError(f"Datagram too big ({data_length} > {self.MAX_PACKET_SIZE})")
         if not data_length:
             return 0
         if OS_NAME in ("nt", "cygwin"):  # Flags not supported on Windows

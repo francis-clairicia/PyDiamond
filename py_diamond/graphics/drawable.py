@@ -30,7 +30,7 @@ from weakref import WeakKeyDictionary, WeakSet
 
 from ..system._mangling import getattr_pv
 from ..system.object import Object, ObjectMeta, final
-from ..system.utils import wraps
+from ..system.utils.functools import wraps
 from .movable import Movable, MovableMeta
 from .transformable import Transformable, TransformableMeta
 

@@ -55,7 +55,8 @@ from typing import (
 
 from ..system._mangling import PRIVATE_ATTRIBUTE_PATTERN
 from ..system.object import Object, ObjectMeta
-from ..system.utils import cache, concreteclassmethod, isabstractmethod, wraps
+from ..system.utils.abc import concreteclassmethod, isabstractmethod
+from ..system.utils.functools import cache, wraps
 
 _ClassTheme: TypeAlias = MutableMapping[str, MappingProxyType[str, Any]]
 _ClassThemeProxy: TypeAlias = MappingProxyType[str, MappingProxyType[str, Any]]

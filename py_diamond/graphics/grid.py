@@ -21,7 +21,9 @@ from weakref import ref as weakref
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
-from ..system.utils import flatten, valid_integer, weakref_unwrap
+from ..system.utils.itertools import flatten
+from ..system.utils.weakref import weakref_unwrap
+from ..system.validation import valid_integer
 from ..window.gui import GUIScene, SupportsFocus
 from .color import BLACK, TRANSPARENT, Color
 from .drawable import Drawable, MDrawable

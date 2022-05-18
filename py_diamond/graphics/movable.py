@@ -17,7 +17,7 @@ from typing import Any, Callable
 
 from ..math import Vector2
 from ..system.object import Object, ObjectMeta, final
-from ..system.utils import wraps
+from ..system.utils.functools import wraps
 from .rect import ImmutableRect, Rect
 
 _ALL_VALID_POSITIONS: tuple[str, ...] = (

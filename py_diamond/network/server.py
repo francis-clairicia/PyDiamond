@@ -30,7 +30,8 @@ from typing import TYPE_CHECKING, Any, Generic, Sequence, TypeVar, overload
 
 from ..system.object import Object, final
 from ..system.threading import Thread, thread_factory
-from ..system.utils import concreteclass, concreteclasscheck, dsuppress
+from ..system.utils.abc import concreteclass, concreteclasscheck
+from ..system.utils.functools import dsuppress
 from .client import DisconnectedClientError, TCPNetworkClient, UDPNetworkClient
 from .protocol.base import AbstractNetworkProtocol
 from .protocol.pickle import PicklingNetworkProtocol

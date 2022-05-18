@@ -15,7 +15,7 @@ import os
 import sys
 from typing import Any, Callable, NoReturn, ParamSpec, TypeVar
 
-from .utils import wraps
+from .utils.functools import wraps
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")

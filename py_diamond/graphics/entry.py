@@ -17,7 +17,7 @@ from string import printable as ASCII_PRINTABLE
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Sequence, TypeAlias
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
-from ..system.utils import valid_integer, valid_optional_float, valid_optional_integer
+from ..system.validation import valid_integer, valid_optional_float, valid_optional_integer
 from ..window.clock import Clock
 from ..window.cursor import SystemCursor
 from ..window.event import KeyDownEvent, TextInputEvent

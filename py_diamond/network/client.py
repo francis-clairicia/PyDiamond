@@ -21,7 +21,7 @@ from threading import RLock
 from typing import TYPE_CHECKING, Any, Callable, Generic, Iterator, TypeVar, overload
 
 from ..system.object import Object, final
-from ..system.utils import concreteclass, concreteclasscheck
+from ..system.utils.abc import concreteclass, concreteclasscheck
 from .protocol.base import AbstractNetworkProtocol, ValidationError
 from .protocol.pickle import PicklingNetworkProtocol
 from .selector import DefaultSelector as _Selector

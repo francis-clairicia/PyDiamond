@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Generator, Ite
 from cryptography.fernet import Fernet, InvalidToken
 
 from ...system.object import Object, ObjectMeta
-from ...system.utils import isabstractmethod, isconcreteclass
+from ...system.utils.abc import isabstractmethod, isconcreteclass
 
 
 class ValidationError(Exception):

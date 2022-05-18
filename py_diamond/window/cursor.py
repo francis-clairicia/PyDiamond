@@ -23,7 +23,7 @@ from pygame.mouse import set_cursor as _pg_mouse_set_cursor
 
 from ..graphics.surface import Surface
 from ..system.object import Object, ObjectMeta
-from ..system.utils import wraps
+from ..system.utils.functools import wraps
 
 
 class _CursorMeta(ObjectMeta):

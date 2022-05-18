@@ -13,7 +13,7 @@ __license__ = "GNU GPL v3.0"
 from typing import Any
 
 from .non_copyable import NonCopyable, NonCopyableMeta
-from .utils import cache
+from .utils.functools import cache
 
 
 class NoDuplicateMeta(NonCopyableMeta):

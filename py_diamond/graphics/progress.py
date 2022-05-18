@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, Sequence
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
-from ..system.utils import valid_float
+from ..system.validation import valid_float
 from .color import BLACK, GRAY, TRANSPARENT, WHITE, Color
 from .shape import RectangleShape
 from .text import Text

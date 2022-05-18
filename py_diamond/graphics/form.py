@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Callable, Mapping, TypeAlias, overload
 from weakref import WeakValueDictionary
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
-from ..system.utils import valid_integer
+from ..system.validation import valid_integer
 from .color import BLACK, TRANSPARENT, Color
 from .drawable import Drawable, MDrawable
 from .entry import Entry
