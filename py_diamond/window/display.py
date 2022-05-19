@@ -51,10 +51,10 @@ from ..graphics.color import BLACK, Color
 from ..graphics.rect import ImmutableRect
 from ..graphics.renderer import AbstractRenderer, SurfaceRenderer
 from ..graphics.surface import Surface, create_surface, save_image
-from ..system._mangling import setattr_pv
 from ..system.object import Object, final
 from ..system.path import set_constant_file
 from ..system.threading import Thread, thread_factory
+from ..system.utils._mangling import setattr_pv
 from ..system.utils.functools import wraps
 from .clock import Clock
 from .cursor import AbstractCursor

@@ -29,7 +29,6 @@ def test_ipv4_client_server_connection() -> None:
         with PythonTCPServerSocket.bind((host, port), family=AF_INET, backlog=1) as s:
             assert s.is_open()
             assert s.family == AF_INET
-            assert s.listening() == 1
             addr: SocketAddress = s.getsockname()
             assert isinstance(addr, IPv4SocketAddress)
             server_started = True
@@ -71,7 +70,6 @@ def test_ipv6_client_server_connection() -> None:
         with PythonTCPServerSocket.bind((host, port), family=AF_INET6, backlog=1) as s:
             assert s.is_open()
             assert s.family == AF_INET6
-            assert s.listening() == 1
             addr: SocketAddress = s.getsockname()
             assert isinstance(addr, IPv6SocketAddress)
             server_started = True
@@ -118,7 +116,6 @@ def test_dualstack_ipv6_client_server_connection() -> None:
         with PythonTCPServerSocket.bind((host, port), family=AF_INET6, backlog=1, dualstack_ipv6=True) as s:
             assert s.is_open()
             assert s.family == AF_INET6
-            assert s.listening() == 1
             addr: SocketAddress = s.getsockname()
             assert isinstance(addr, IPv6SocketAddress)
             server_started = True

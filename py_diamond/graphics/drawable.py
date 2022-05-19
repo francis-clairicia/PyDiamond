@@ -28,8 +28,9 @@ from itertools import dropwhile, filterfalse, takewhile
 from typing import TYPE_CHECKING, Any, Callable, Iterator, Sequence, TypeVar, overload
 from weakref import WeakKeyDictionary, WeakSet
 
-from ..system._mangling import getattr_pv
 from ..system.object import Object, ObjectMeta, final
+from ..system.utils._mangling import getattr_pv
+from ..system.utils.abc import isabstractmethod
 from ..system.utils.functools import wraps
 from .movable import Movable, MovableMeta
 from .transformable import Transformable, TransformableMeta
@@ -62,7 +63,7 @@ class DrawableMeta(ObjectMeta):
                 )
 
             draw_method: Callable[[Drawable, AbstractRenderer], None] | None = namespace.get("draw_onto")
-            if callable(draw_method):
+            if callable(draw_method) and not isabstractmethod(draw_method):
                 namespace["draw_onto"] = _draw_decorator(draw_method)
 
         cls = super().__new__(metacls, name, bases, namespace, **kwargs)

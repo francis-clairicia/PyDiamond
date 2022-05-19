@@ -57,8 +57,8 @@ from ..graphics.drawable import Drawable, LayeredDrawableGroup
 from ..graphics.renderer import AbstractRenderer, SurfaceRenderer
 from ..graphics.surface import Surface
 from ..graphics.theme import ClassWithThemeNamespaceMeta, closed_namespace, no_theme_decorator
-from ..system._mangling import getattr_pv, mangle_private_attribute
 from ..system.object import Object, final
+from ..system.utils._mangling import getattr_pv, mangle_private_attribute
 from ..system.utils.abc import concreteclassmethod, isconcreteclass
 from ..system.utils.functools import cache, wraps
 from .display import Window, WindowCallback, WindowError, _WindowCallbackList

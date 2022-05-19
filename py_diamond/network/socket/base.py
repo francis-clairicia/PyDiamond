@@ -70,11 +70,11 @@ class AbstractSocket(Object, metaclass=SocketMeta):
         return self.__repr__()
 
     def __del__(self) -> None:
-        super().__del__()
         try:
             self.close()
-        except:
+        except Exception:
             pass
+        super().__del__()
 
     def __enter__(self: __Self) -> __Self:
         if not self.is_open():
@@ -85,7 +85,7 @@ class AbstractSocket(Object, metaclass=SocketMeta):
         if self.is_open():
             try:
                 self.close()
-            except:
+            except Exception:
 
                 from sys import stderr
                 from traceback import print_exc
@@ -151,10 +151,6 @@ class AbstractTCPServerSocket(AbstractTCPSocket):
 
     @abstractmethod
     def accept(self) -> tuple[AbstractTCPClientSocket, SocketAddress]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def listening(self) -> int:
         raise NotImplementedError
 
     @abstractmethod

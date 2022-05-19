@@ -82,7 +82,7 @@ if TYPE_CHECKING:
     from _typeshed import Self
 
 
-class ShapeScene(MainScene, busy_loop=True):
+class ShapeScene(MainScene, busy_loop=True, fixed_framerate=100):
     @classmethod
     def __theme_init__(cls) -> None:
         super().__theme_init__()
@@ -175,7 +175,8 @@ class ShapeScene(MainScene, busy_loop=True):
             self.__c.scale = self.__scale
 
     def interpolation_update(self, interpolation: float) -> None:
-        self.__interpolator_pool.interpolation_update(interpolation)
+        # self.__interpolator_pool.interpolation_update(interpolation)
+        pass
 
     def update(self) -> None:
         self.__x_center.center = self.__x.center

@@ -53,8 +53,8 @@ from typing import (
     overload,
 )
 
-from ..system._mangling import PRIVATE_ATTRIBUTE_PATTERN
 from ..system.object import Object, ObjectMeta
+from ..system.utils._mangling import PRIVATE_ATTRIBUTE_PATTERN
 from ..system.utils.abc import concreteclassmethod, isabstractmethod
 from ..system.utils.functools import cache, wraps
 

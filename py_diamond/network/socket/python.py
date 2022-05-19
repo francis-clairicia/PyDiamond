@@ -24,6 +24,7 @@ from socket import (
     SOCK_DGRAM,
     SOCK_STREAM,
     SOL_SOCKET,
+    SOMAXCONN,
     create_connection as _create_connection,
     create_server as _create_server,
     has_ipv6 as HAS_IPV6,
@@ -32,8 +33,8 @@ from socket import (
 from threading import RLock
 from typing import Any, Callable, Concatenate, Final, ParamSpec, TypeVar
 
-from ...system._mangling import delattr_pv, getattr_pv, hasattr_pv, setattr_pv
 from ...system.object import final
+from ...system.utils._mangling import delattr_pv, getattr_pv, hasattr_pv, setattr_pv
 from ...system.utils.abc import concreteclass
 from ...system.utils.functools import wraps
 from .base import (
@@ -72,8 +73,10 @@ def _thread_safe_python_socket_method(
 class _AbstractPythonSocket(AbstractSocket):
     __slots__ = ("__lock", "__socket", "__family")
 
-    def __init__(self) -> None:
+    def __init__(self, family: int) -> None:
+        family = AddressFamily(family)
         setattr_pv(self, "lock", RLock(), owner=_AbstractPythonSocket)
+        setattr_pv(self, "family", family, owner=_AbstractPythonSocket)
         super().__init__()
 
     @_thread_safe_python_socket_method
@@ -179,13 +182,9 @@ class _AbstractPythonTCPSocket(_AbstractPythonSocket):
 @final
 @concreteclass
 class PythonTCPServerSocket(_AbstractPythonTCPSocket, AbstractTCPServerSocket):
-    __slots__ = ("__backlog",)
+    __slots__ = ()
 
-    DEFAULT_BACKLOG: Final[int] = 128
-
-    def __init__(self) -> None:
-        super().__init__()
-        setattr_pv(self, "backlog", 0)
+    DEFAULT_BACKLOG: Final[int] = max(SOMAXCONN, 128)
 
     @final
     @classmethod
@@ -197,15 +196,12 @@ class PythonTCPServerSocket(_AbstractPythonTCPSocket, AbstractTCPServerSocket):
         backlog: int | None = None,
         dualstack_ipv6: bool = False,
     ) -> PythonTCPServerSocket:
-        family = AddressFamily(family)
         if backlog is None:
             backlog = cls.DEFAULT_BACKLOG
 
-        self: PythonTCPServerSocket = cls()
+        self: PythonTCPServerSocket = cls(family)
         sock: socket = _create_server(address, family=family, backlog=backlog, reuse_port=False, dualstack_ipv6=dualstack_ipv6)
         setattr_pv(self, "socket", sock, owner=_AbstractPythonSocket)
-        setattr_pv(self, "family", AddressFamily(family), owner=_AbstractPythonSocket)
-        setattr_pv(self, "backlog", backlog)
         return self
 
     @final
@@ -223,21 +219,12 @@ class PythonTCPServerSocket(_AbstractPythonTCPSocket, AbstractTCPServerSocket):
                 sockaddr = IPv6SocketAddress(*addr)
             else:
                 sockaddr = IPv4SocketAddress(*addr)
-            tcp_client = PythonTCPClientSocket()
+            tcp_client = PythonTCPClientSocket(client.family)
             setattr_pv(tcp_client, "socket", client, owner=_AbstractPythonSocket)
-            setattr_pv(tcp_client, "family", AddressFamily(client.family), owner=_AbstractPythonSocket)
             return (tcp_client, sockaddr)
         except:
             client.close()
             raise
-
-    @final
-    @_thread_safe_python_socket_method
-    def listening(self) -> int:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
-            raise RuntimeError("Closed socket")
-        return int(getattr_pv(self, "backlog"))
 
     @final
     @_thread_safe_python_socket_method
@@ -252,7 +239,7 @@ class PythonTCPServerSocket(_AbstractPythonTCPSocket, AbstractTCPServerSocket):
 @final
 @concreteclass
 class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
-    __slots__ = "__peer"
+    __slots__ = ("__peer",)
 
     @final
     @classmethod
@@ -261,10 +248,10 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
     ) -> PythonTCPClientSocket:
         if family is not None:
             family = AddressFamily(family)
-        self: PythonTCPClientSocket = cls()
         sock: socket
         if family is None:
             sock = _create_connection(address, timeout=timeout)
+            family = AddressFamily(sock.family)
         else:
             sock = socket(family, SOCK_STREAM)
             try:
@@ -273,9 +260,9 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
             except:
                 sock.close()
                 raise
+        self: PythonTCPClientSocket = cls(family)
         sock.settimeout(None)
         setattr_pv(self, "socket", sock, owner=_AbstractPythonSocket)
-        setattr_pv(self, "family", AddressFamily(sock.family), owner=_AbstractPythonSocket)
         setattr_pv(self, "peer", sock.getpeername())
         return self
 
@@ -364,11 +351,6 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
         try:
             sock.settimeout(timeout)
             sock.connect(address)
-        except TimeoutError:
-            raise
-        except OSError:
-            sock.close()
-            raise
         finally:
             sock.settimeout(None)
 
@@ -424,7 +406,7 @@ class PythonUDPServerSocket(_AbstractPythonUDPSocket, AbstractUDPServerSocket):
         *,
         family: int = AF_INET,
     ) -> PythonUDPServerSocket:
-        self: PythonUDPServerSocket = cls()
+        self: PythonUDPServerSocket = cls(family)
         sock: socket = socket(family, SOCK_DGRAM)
 
         try:
@@ -453,7 +435,6 @@ class PythonUDPServerSocket(_AbstractPythonUDPSocket, AbstractUDPServerSocket):
             raise
 
         setattr_pv(self, "socket", sock, owner=_AbstractPythonSocket)
-        setattr_pv(self, "family", AddressFamily(sock.family), owner=_AbstractPythonSocket)
         return self
 
 
@@ -465,11 +446,11 @@ class PythonUDPClientSocket(_AbstractPythonUDPSocket, AbstractUDPClientSocket):
     @final
     @classmethod
     def create(cls, family: int = AF_INET, *, host: str = "") -> PythonUDPClientSocket:
-        self: PythonUDPClientSocket = cls()
+        family = AddressFamily(family)
+        self: PythonUDPClientSocket = cls(family)
         sock: socket = socket(family, SOCK_DGRAM)
         sock.bind((host, 0))
         setattr_pv(self, "socket", sock, owner=_AbstractPythonSocket)
-        setattr_pv(self, "family", AddressFamily(sock.family), owner=_AbstractPythonSocket)
         return self
 
 

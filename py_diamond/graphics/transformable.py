@@ -14,12 +14,15 @@ __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 from pygame import error as _pg_error
 
 from ..math import Vector2
 from ..system.object import final
+from ..system.utils._mangling import mangle_private_attribute
+from ..system.utils.abc import isabstractmethod
+from ..system.utils.functools import wraps
 from .movable import _ALL_VALID_POSITIONS, Movable, MovableMeta
 from .rect import Rect
 
@@ -39,6 +42,38 @@ _ALL_VALID_ROTATION_PIVOTS: tuple[str, ...] = (
 )
 
 
+def _freeze_state_decorator(func: Callable[[Transformable], dict[str, Any]]) -> Callable[[Transformable], dict[str, Any]]:
+    angle_attr: str = mangle_private_attribute(Transformable, "angle")
+    scale_attr: str = mangle_private_attribute(Transformable, "scale")
+
+    @wraps(func)
+    def wrapper(self: Transformable) -> dict[str, Any]:
+        state = {}
+        state.update(func(self))
+        state["angle"] = getattr(self, angle_attr)
+        state["scale"] = getattr(self, scale_attr)
+        state["center"] = self.center
+        return state
+
+    return wrapper
+
+
+def _set_frozen_state_decorator(
+    func: Callable[[Transformable, dict[str, Any]], None]
+) -> Callable[[Transformable, dict[str, Any]], None]:
+    angle_attr: str = mangle_private_attribute(Transformable, "angle")
+    scale_attr: str = mangle_private_attribute(Transformable, "scale")
+
+    @wraps(func)
+    def wrapper(self: Transformable, state: dict[str, Any], /) -> None:
+        setattr(self, angle_attr, float(state["angle"]) % 360)
+        setattr(self, scale_attr, max(float(state["scale"]), 0))
+        func(self, state)
+        self.center = state["center"]
+
+    return wrapper
+
+
 class TransformableMeta(MovableMeta):
     def __new__(
         metacls,
@@ -56,6 +91,16 @@ class TransformableMeta(MovableMeta):
                 raise TypeError(
                     f"{name!r} must be inherits from a {Transformable.__name__} class in order to use {TransformableMeta.__name__} metaclass"
                 )
+            decorator: Callable[[Any], Any]
+            method_name: str
+            for method_name, decorator in [  # type: ignore[assignment]
+                ("_freeze_state", _freeze_state_decorator),
+                ("_set_frozen_state", _set_frozen_state_decorator),
+            ]:
+                method = namespace.get(method_name, None)
+                if callable(method) and not isabstractmethod(method):
+                    namespace[method_name] = decorator(method)
+
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
 
@@ -205,6 +250,14 @@ class Transformable(Movable, metaclass=TransformableMeta):
     @abstractmethod
     def _apply_only_scale(self) -> None:
         raise NotImplementedError
+
+    # @abstractmethod
+    # def _freeze_state(self) -> dict[str, Any]:
+    #     raise NotImplementedError
+
+    # @abstractmethod
+    # def _set_frozen_state(self, state: dict[str, Any]) -> None:
+    #     raise NotImplementedError
 
     @abstractmethod
     def get_local_size(self) -> tuple[float, float]:

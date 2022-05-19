@@ -58,8 +58,8 @@ from typing import (
 )
 from weakref import ReferenceType as WeakReferenceType, WeakKeyDictionary, ref as weakref
 
-from ._mangling import mangle_private_attribute as _private_attribute
 from .object import Object, final
+from .utils._mangling import mangle_private_attribute as _private_attribute
 
 _Func = TypeVar("_Func", bound=Callable[..., Any])
 _Updater = TypeVar("_Updater", bound=Callable[[Any], None])

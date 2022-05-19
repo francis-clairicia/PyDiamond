@@ -41,10 +41,10 @@ from typing import (
 
 from ..graphics.drawable import Drawable
 from ..graphics.theme import no_theme_decorator
-from ..system._mangling import getattr_pv
 from ..system.collections import OrderedWeakSet
 from ..system.enum import AutoLowerNameEnum
 from ..system.object import final
+from ..system.utils._mangling import getattr_pv
 from ..system.utils.functools import setdefaultattr, wraps
 from ..system.utils.weakref import weakref_unwrap
 from .event import (

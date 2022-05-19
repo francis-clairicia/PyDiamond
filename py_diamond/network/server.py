@@ -345,14 +345,8 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
             socket: AbstractSocket = self.__socket
             return socket.getsockname()
 
-    @property
-    def backlog(self) -> int:
-        with self.__lock:
-            socket: AbstractTCPServerSocket = self.__socket
-            return socket.listening()
-
-    @backlog.setter
-    def backlog(self, backlog: int) -> None:
+    @final
+    def listen(self, backlog: int) -> None:
         with self.__lock:
             socket: AbstractTCPServerSocket = self.__socket
             return socket.listen(backlog)

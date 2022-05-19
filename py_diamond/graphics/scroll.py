@@ -17,9 +17,9 @@ from enum import auto, unique
 from operator import truth
 from typing import TYPE_CHECKING, Any, ClassVar, Sequence, final
 
-from ..system._mangling import mangle_private_attribute
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
+from ..system.utils._mangling import mangle_private_attribute
 from ..window.clickable import Clickable
 from ..window.event import MouseButtonDownEvent, MouseButtonUpEvent, MouseMotionEvent, MouseWheelEvent
 from ..window.mouse import Mouse
