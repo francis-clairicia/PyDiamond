@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from dataclasses import dataclass
 from enum import auto, unique
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Mapping, Sequence
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
@@ -135,13 +135,10 @@ class ProgressBar(RectangleShape):
         outline_rect: RectangleShape = self.__outline_rect
 
         outline_rect.center = self.center
-        outline: int = self.outline
         if self.orient == ProgressBar.Orient.HORIZONTAL:
-            midleft: tuple[float, float] = self.midleft
-            scale_rect.midleft = (midleft[0] + outline / 2, midleft[1])
+            scale_rect.midleft = self.midleft
         else:
-            midtop: tuple[float, float] = self.midtop
-            scale_rect.midtop = (midtop[0], midtop[1] + outline / 2)
+            scale_rect.midtop = self.midtop
 
         super().draw_onto(target)
         scale_rect.draw_onto(target)
@@ -155,8 +152,6 @@ class ProgressBar(RectangleShape):
                 round_n=int(round_n),
                 side=ProgressBar.Side(side),
             ) if text.is_shown():
-                self.__place_text(text, side, offset=offset)
-
                 match text_type:
                     case "value":
                         value = self.__value
@@ -165,6 +160,7 @@ class ProgressBar(RectangleShape):
                         value = self.__percent * 100
                         text.message = f"{round(value, round_n) if round_n > 0 else round(value)}%"
 
+                self.__place_text(text, side, offset=offset)
                 text.draw_onto(target)
 
         match self.__text_label:
@@ -244,6 +240,12 @@ class ProgressBar(RectangleShape):
         scale_rect: RectangleShape = self.__scale_rect
         outline_rect: RectangleShape = self.__outline_rect
         outline_rect.scale = scale_rect.scale = self.scale
+
+    def _freeze_state(self) -> Mapping[str, Any] | None:
+        return None
+
+    def _set_frozen_state(self, angle: float, scale: float, state: Mapping[str, Any] | None) -> bool:
+        return super()._set_frozen_state(angle, scale, state)
 
     config.add_enum_converter("orient", Orient, return_value_on_get=True)
 

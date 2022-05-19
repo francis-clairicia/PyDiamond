@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+from types import MappingProxyType
+
 __all__ = ["AnimationInterpolator", "AnimationInterpolatorPool", "TransformAnimation"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -13,8 +15,8 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta, abstractmethod
-from contextlib import ExitStack, contextmanager, nullcontext
-from typing import TYPE_CHECKING, Callable, ContextManager, Iterator, Literal, NamedTuple, TypeAlias, TypeVar
+from contextlib import ExitStack, contextmanager
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal, NamedTuple, TypeAlias, TypeVar
 from weakref import WeakKeyDictionary, proxy as weakproxy
 
 from ..math import Vector2
@@ -37,9 +39,18 @@ class AnimationInterpolator(Object):
         "__state_update",
     )
 
-    def __init__(self, transformable: Transformable) -> None:
-        super().__init__()
-        self.__transformable: Transformable = transformable
+    __cache: WeakKeyDictionary[Transformable, AnimationInterpolator] = WeakKeyDictionary()
+
+    def __new__(cls, transformable: Transformable) -> AnimationInterpolator:
+        try:
+            self = cls.__cache[transformable]
+        except KeyError:
+            cls.__cache[transformable] = self = super().__new__(cls)
+            self.__internal_init(transformable)
+        return self
+
+    def __internal_init(self, transformable: Transformable) -> None:
+        self.__transformable: Transformable = weakproxy(transformable)
         self.__actual_state: _TransformState | None = None
         self.__previous_state: _TransformState | None = None
         self.__state_update: bool = False
@@ -62,16 +73,16 @@ class AnimationInterpolator(Object):
         finally:
             self.__state_update = False
 
-    def interpolation_update(self, interpolation: float) -> None:
+    def update(self, interpolation: float) -> None:
         if self.__state_update:
-            raise RuntimeError(f"interpolation_update() during state update")
+            raise RuntimeError(f"update() during state update")
         previous: _TransformState | None = self.__previous_state
         actual: _TransformState | None = self.__actual_state
         if not previous or not actual:
             return
         interpolation = min(max(interpolation, 0), 1)
         transformable: Transformable = self.__transformable
-        previous.interpolate(actual, interpolation).apply_on(transformable)
+        previous.interpolate(actual, interpolation, transformable)
 
     def reset(self) -> None:
         if self.__state_update:
@@ -95,12 +106,12 @@ class AnimationInterpolatorPool(Object):
                 stack.enter_context(interpolator.fixed_update())
             yield
 
-    def interpolation_update(self, interpolation: float) -> None:
+    def update(self, interpolation: float) -> None:
         for interpolator in self.__interpolators.values():
-            interpolator.interpolation_update(interpolation)
+            interpolator.update(interpolation)
 
     def add(self, *transformables: Transformable) -> None:
-        self.__interpolators.update({t: AnimationInterpolator(weakproxy(t)) for t in transformables})
+        self.__interpolators.update({t: AnimationInterpolator(t) for t in transformables})
 
     def remove(self, transformable: Transformable) -> None:
         del self.__interpolators[transformable]
@@ -118,13 +129,13 @@ class TransformAnimation(Object):
         "__wait",
     )
 
-    __bound_animations: WeakKeyDictionary[Transformable, TransformAnimation] = WeakKeyDictionary()
+    __cache: WeakKeyDictionary[Transformable, TransformAnimation] = WeakKeyDictionary()
 
     def __new__(cls, transformable: Transformable) -> TransformAnimation:
         try:
-            self = cls.__bound_animations[transformable]
+            self = cls.__cache[transformable]
         except KeyError:
-            cls.__bound_animations[transformable] = self = super().__new__(cls)
+            cls.__cache[transformable] = self = super().__new__(cls)
             self.__internal_init(transformable)
         return self
 
@@ -132,9 +143,13 @@ class TransformAnimation(Object):
         self.__transformable: Transformable = weakproxy(transformable)
         self.__animations_order: list[_AnimationType] = ["scale", "rotate", "rotate_point", "move"]
         self.__animations: dict[_AnimationType, _AbstractAnimationClass] = {}
-        self.__interpolator = AnimationInterpolator(self.__transformable)
+        self.__interpolator = AnimationInterpolator(transformable)
         self.__on_stop: Callable[[], None] | None = None
         self.__wait: bool = True
+
+    @property
+    def interpolator(self) -> AnimationInterpolator:
+        return self.__interpolator
 
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="TransformAnimation")
@@ -232,17 +247,10 @@ class TransformAnimation(Object):
         self.__animations["scale"] = _AnimationSizeGrowth(transformable, height_offset, speed, "height")
         return self
 
-    def fixed_update(self, *, use_of_linear_interpolation: bool = False) -> None:
+    def fixed_update(self) -> None:
         if not self.started():
             return
-        animation_interpolator = self.__interpolator
-        animation_context: ContextManager[None]
-        if use_of_linear_interpolation:
-            animation_context = animation_interpolator.fixed_update()
-        else:
-            animation_interpolator.reset()
-            animation_context = nullcontext(None)
-        with animation_context:
+        with self.__interpolator.fixed_update():
             for animation in self.__iter_animations():
                 if animation.started():
                     animation.fixed_update()
@@ -255,10 +263,10 @@ class TransformAnimation(Object):
                 on_stop()
                 self.__on_stop = None
 
-    def set_interpolation(self, interpolation: float) -> None:
+    def update(self, interpolation: float) -> None:
         if not self.started():
             return
-        self.__interpolator.interpolation_update(interpolation)
+        self.__interpolator.update(interpolation)
 
     def has_animation_started(self) -> bool:
         return any(animation.started() for animation in self.__animations.values())
@@ -289,11 +297,13 @@ class TransformAnimation(Object):
         window: SceneWindow = scene.window
         self.__on_stop = None
         self.start()
+        fixed_update = self.fixed_update
+        interpolation_update = self.update
         with window.block_all_events_context(), window.no_window_callback_processing():
             while window.looping() and self.has_animation_started():
                 window.handle_events()
-                window._fixed_updates_call(lambda: self.fixed_update(use_of_linear_interpolation=True))
-                window._interpolation_updates_call(self.set_interpolation)
+                window._fixed_updates_call(fixed_update)
+                window._interpolation_updates_call(interpolation_update)
                 window.render_scene()
                 window.refresh()
 
@@ -308,27 +318,38 @@ class TransformAnimation(Object):
 class _TransformState(NamedTuple):
     angle: float
     scale: float
-    center: tuple[float, float]
+    center: Vector2
+    data: MappingProxyType[str, Any] | None
 
     @staticmethod
     def from_transformable(t: Transformable) -> _TransformState:
-        return _TransformState(t.angle, t.scale, t.center)
+        data: MappingProxyType[str, Any] | None = None
+        state = t._freeze_state()
+        if state is not None:
+            data = MappingProxyType(dict(state))
+        return _TransformState(t.angle, t.scale, Vector2(t.center), data)
 
-    def interpolate(self, other: _TransformState, alpha: float) -> _TransformState:
+    def interpolate(self, other: _TransformState, alpha: float, t: Transformable) -> None:
         angle = self.angle_interpolation(self.angle, other.angle, alpha)
-        scale = self.scale * (1.0 - alpha) + other.scale * alpha
-        center = Vector2(self.center).lerp(Vector2(other.center), alpha)
-        return _TransformState(angle, scale, (center.x, center.y))
+        scale = self.linear_interpolation(self.scale, other.scale, alpha)
+        center = self.center.lerp(other.center, alpha)
+        if not t._set_frozen_state(angle, scale, None):
+            t.apply_rotation_scale()
+        t.center = center  # type: ignore[assignment]
 
     @staticmethod
     def angle_interpolation(start: float, end: float, alpha: float) -> float:
         shortest_angle = ((end - start) + 180) % 360 - 180
         return (start + shortest_angle * alpha) % 360
 
+    @staticmethod
+    def linear_interpolation(start: float, end: float, alpha: float) -> float:
+        return start * (1.0 - alpha) + end * alpha
+
     def apply_on(self, t: Transformable) -> None:
-        t.set_rotation(self.angle)
-        t.set_scale(self.scale)
-        t.center = self.center
+        if not t._set_frozen_state(self.angle, self.scale, self.data):
+            t.apply_rotation_scale()
+        t.center = self.center  # type: ignore[assignment]
 
 
 class _AbstractAnimationClass(metaclass=ABCMeta):

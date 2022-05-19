@@ -41,11 +41,11 @@ _ALL_VALID_POSITIONS: tuple[str, ...] = (
 )
 
 
-def _position_decorator(func: Callable[[Movable, Any], None], position: str) -> Callable[[Movable, Any], None]:
-    @wraps(func)
+def _position_decorator(fset: Callable[[Movable, Any], None], fget: Callable[[Movable], Any]) -> Callable[[Movable, Any], None]:
+    @wraps(fset)
     def wrapper(self: Movable, /, value: Any) -> None:
-        if getattr(self, position) != value:
-            func(self, value)
+        if fget(self) != value:
+            fset(self, value)
             self._on_move()
 
     return wrapper
@@ -74,8 +74,10 @@ class MovableMeta(ObjectMeta):
                 continue
             if any(hasattr(cls, position) for cls in bases):
                 raise TypeError("Override of position attributes is not allowed")
-            if (prop := namespace[position]).fset:
-                namespace[position] = prop.setter(_position_decorator(prop.fset, position))
+            prop: property = namespace[position]
+            assert prop.fget
+            assert prop.fset
+            namespace[position] = final(prop.setter(_position_decorator(prop.fset, prop.fget)))  # type: ignore[type-var]
 
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
@@ -115,8 +117,6 @@ class Movable(Object, metaclass=MovableMeta):
     def get_rect(self, **kwargs: float | tuple[float, float]) -> Rect:
         r: Rect = Rect(self.topleft, self.get_size())
         for name, value in kwargs.items():
-            if name not in _ALL_VALID_POSITIONS:
-                raise AttributeError(f"{type(r).__name__!r} has no attribute {name!r}")
             setattr(r, name, value)
         return r
 

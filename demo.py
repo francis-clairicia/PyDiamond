@@ -82,7 +82,7 @@ if TYPE_CHECKING:
     from _typeshed import Self
 
 
-class ShapeScene(MainScene, busy_loop=True, fixed_framerate=100):
+class ShapeScene(MainScene, busy_loop=True):
     @classmethod
     def __theme_init__(cls) -> None:
         super().__theme_init__()
@@ -175,8 +175,7 @@ class ShapeScene(MainScene, busy_loop=True, fixed_framerate=100):
             self.__c.scale = self.__scale
 
     def interpolation_update(self, interpolation: float) -> None:
-        # self.__interpolator_pool.interpolation_update(interpolation)
-        pass
+        self.__interpolator_pool.update(interpolation)
 
     def update(self) -> None:
         self.__x_center.center = self.__x.center
@@ -220,10 +219,10 @@ class AnimationScene(MainScene, busy_loop=True):
         self.animation.start()
 
     def fixed_update(self) -> None:
-        self.animation.fixed_update(use_of_linear_interpolation=True)
+        self.animation.fixed_update()
 
     def interpolation_update(self, interpolation: float) -> None:
-        self.animation.set_interpolation(interpolation)
+        self.animation.update(interpolation)
 
     def render(self) -> None:
         self.window.draw(self.rectangle)
@@ -260,8 +259,8 @@ class AnimationStateFullScene(MainScene, busy_loop=True):
     def on_start_loop(self) -> None:
         window: Window = self.window
         self.rectangle.animation.clear()
-        self.rectangle.animation.infinite_rotation(speed=410)
-        self.rectangle.animation.infinite_rotation_around_point(pivot=window.center, speed=50)
+        self.rectangle.animation.infinite_rotation(speed=410, counter_clockwise=False)
+        self.rectangle.animation.infinite_rotation_around_point(pivot=window.center, speed=50, counter_clockwise=False)
         self.rectangle.animation.start()
         self.use_interpolation = True
         Keyboard.set_repeat(100, 100)
@@ -270,10 +269,11 @@ class AnimationStateFullScene(MainScene, busy_loop=True):
         Keyboard.set_repeat(None)
 
     def fixed_update(self) -> None:
-        self.rectangle.animation.fixed_update(use_of_linear_interpolation=self.use_interpolation)
+        self.rectangle.animation.fixed_update()
 
     def interpolation_update(self, interpolation: float) -> None:
-        self.rectangle.animation.set_interpolation(interpolation)
+        if self.use_interpolation:
+            self.rectangle.animation.update(interpolation)
 
     def update(self) -> None:
         self.text.message = "\n".join(
@@ -417,10 +417,10 @@ class TextScene(Scene):
         self.text.animation.start()
 
     def fixed_update(self) -> None:
-        self.text.animation.fixed_update(use_of_linear_interpolation=True)
+        self.text.animation.fixed_update()
 
     def interpolation_update(self, interpolation: float) -> None:
-        self.text.animation.set_interpolation(interpolation)
+        self.text.animation.update(interpolation)
 
     def render(self) -> None:
         self.window.draw(self.text)
@@ -479,11 +479,11 @@ class AnimatedSpriteScene(MainScene):
         self.sprite.animation.start()
 
     def fixed_update(self) -> None:
-        self.sprite.animation.fixed_update(use_of_linear_interpolation=True)
+        self.sprite.animation.fixed_update()
         self.sprite.update()
 
     def interpolation_update(self, interpolation: float) -> None:
-        self.sprite.animation.set_interpolation(interpolation)
+        self.sprite.animation.update(interpolation)
 
     def render(self) -> None:
         self.window.draw(self.sprite)
@@ -558,10 +558,10 @@ class TextImageScene(MainScene):
         self.text.animation.start()
 
     def fixed_update(self) -> None:
-        self.text.animation.fixed_update(use_of_linear_interpolation=True)
+        self.text.animation.fixed_update()
 
     def interpolation_update(self, interpolation: float) -> None:
-        self.text.animation.set_interpolation(interpolation)
+        self.text.animation.update(interpolation)
 
     def render(self) -> None:
         self.window.draw(self.text)
@@ -605,10 +605,10 @@ class ButtonScene(MainScene):
         self.button.animation.start()
 
     def fixed_update(self) -> None:
-        self.button.animation.fixed_update(use_of_linear_interpolation=True)
+        self.button.animation.fixed_update()
 
     def interpolation_update(self, interpolation: float) -> None:
-        self.button.animation.set_interpolation(interpolation)
+        self.button.animation.update(interpolation)
 
     def __increase_counter(self) -> None:
         self.counter += 1
@@ -644,7 +644,7 @@ class ProgressScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
-        self.hprogress = hprogress = ProgressBar(500, 75, from_=10, to=90, orient="horizontal")
+        self.hprogress = hprogress = ProgressBar(500, 75, from_=10, to=90, orient="horizontal", outline=10)
         self.vprogress = vprogress = ProgressBar(125, 500, from_=10, to=90, orient="vertical")
         self.restart = restart = ImageButton(
             self,
@@ -691,7 +691,7 @@ class ScaleBarScene(MainScene):
         self.scale = scale = ScaleBar(
             self, 500, 75, from_=10, to=90, value_callback=lambda value: self.text.config(message=f"Value: {value:.2f}")
         )
-        self.vscale = vscale = ScaleBar(self, 75, 500, from_=10, to=90, orient="vertical")
+        self.vscale = vscale = ScaleBar(self, 75, 500, from_=10, to=90, orient="vertical", outline=10)
 
         scale.center = self.window.width / 4, self.window.centery
         text.midtop = scale.centerx, scale.bottom + 20
@@ -1051,8 +1051,8 @@ class SceneTransitionTranslation(SceneTransition):
         previous_scene.animation.start()
         while previous_scene_shown():
             while (interpolation := (yield)) is None:
-                previous_scene.animation.fixed_update(use_of_linear_interpolation=True)
-            previous_scene.animation.set_interpolation(interpolation)
+                previous_scene.animation.fixed_update()
+            previous_scene.animation.update(interpolation)
             actual_scene.draw_onto(target)
             previous_scene.draw_onto(target)
 

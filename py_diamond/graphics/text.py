@@ -15,7 +15,7 @@ from contextlib import suppress
 from enum import auto, unique
 from operator import truth
 from textwrap import wrap as textwrap
-from typing import Final, TypeAlias
+from typing import Any, Final, Mapping, TypeAlias
 from weakref import proxy as weakproxy
 
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom
@@ -207,20 +207,45 @@ class Text(TDrawable, metaclass=TextMeta):
     def _apply_only_rotation(self) -> None:
         self.__image = _surface_rotate(self.__default_image, self.angle)
 
+    def _freeze_state(self) -> Mapping[str, Any] | None:
+        state = super()._freeze_state()
+        if state is None:
+            state = {}
+        else:
+            state = dict(state)
+        state["image"] = self.__image
+        return state
+
+    def _set_frozen_state(self, angle: float, scale: float, state: Mapping[str, Any] | None) -> bool:
+        res = super()._set_frozen_state(angle, scale, state)
+        if state is None:
+            return res
+        self.__image = state["image"]
+        return True
+
     __TEXT_JUSTIFY_DICT: Final[dict[Justify, str]] = {
         Justify.LEFT: "left",
         Justify.RIGHT: "right",
         Justify.CENTER: "centerx",
     }
 
-    def __render_text(self, color: Color) -> Surface:
+    @staticmethod
+    def static_render_text(
+        text: str,
+        color: Color,
+        font: Font,
+        *,
+        justify: Justify = Justify.CENTER,
+        custom_font: Mapping[int, Font] | None = None,
+    ) -> Surface:
+        if not text:
+            return create_surface((0, 0))
         render_lines: list[Surface] = list()
         render_width: float = 0
         render_height: float = 0
-        default_font: Font = self.font
-        custom_font: dict[int, Font] = self.__custom_font
-        for index, line in enumerate(self.get(wrapped=True).splitlines()):
-            font = custom_font.get(index, default_font)
+        default_font: Font = font
+        for index, line in enumerate(text.splitlines()):
+            font = custom_font.get(index, default_font) if custom_font is not None else default_font
             render = font.render(line, True, color)
             render_width = max(render_width, render.get_width())
             render_height += render.get_height()
@@ -229,24 +254,28 @@ class Text(TDrawable, metaclass=TextMeta):
             return create_surface((0, 0))
         if len(render_lines) == 1:
             return render_lines[0]
-        text: Surface = create_surface((render_width, render_height))
-        text_rect: Rect = text.get_rect()
+        text_surface: Surface = create_surface((render_width, render_height))
+        text_rect: Rect = text_surface.get_rect()
         top: int = 0
-        justify_pos: str = self.__TEXT_JUSTIFY_DICT[self.__justify]
+        justify_pos: str = Text.__TEXT_JUSTIFY_DICT[justify]
         params: dict[str, int] = {justify_pos: getattr(text_rect, justify_pos)}
         for render in render_lines:
-            text.blit(render, render.get_rect(**params, top=top))
+            text_surface.blit(render, render.get_rect(**params, top=top))
             top += render.get_height()
-        return text
+        return text_surface
 
     def _render(self) -> Surface:
-        text: Surface = self.__render_text(self.color)
+        message: str = self.get(wrapped=True)
+        render_text = self.static_render_text
+        text: Surface = render_text(message, self.color, self.font, justify=self.__justify, custom_font=self.__custom_font)
         shadow_x, shadow_y = self.shadow
         shadow_x = int(shadow_x)
         shadow_y = int(shadow_y)
         if shadow_x == 0 and shadow_y == 0:
             return text
-        shadow_text: Surface = self.__render_text(self.shadow_color)
+        shadow_text: Surface = render_text(
+            message, self.shadow_color, self.font, justify=self.__justify, custom_font=self.__custom_font
+        )
         render = create_surface((text.get_width() + abs(shadow_x), text.get_height() + abs(shadow_y)))
 
         text_x: float = 0

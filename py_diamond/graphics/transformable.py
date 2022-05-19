@@ -14,16 +14,13 @@ __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Mapping
 
 from pygame import error as _pg_error
 
 from ..math import Vector2
 from ..system.object import final
-from ..system.utils._mangling import mangle_private_attribute
-from ..system.utils.abc import isabstractmethod
-from ..system.utils.functools import wraps
-from .movable import _ALL_VALID_POSITIONS, Movable, MovableMeta
+from .movable import Movable, MovableMeta
 from .rect import Rect
 
 if TYPE_CHECKING:
@@ -40,38 +37,6 @@ _ALL_VALID_ROTATION_PIVOTS: tuple[str, ...] = (
     "midtop",
     "midbottom",
 )
-
-
-def _freeze_state_decorator(func: Callable[[Transformable], dict[str, Any]]) -> Callable[[Transformable], dict[str, Any]]:
-    angle_attr: str = mangle_private_attribute(Transformable, "angle")
-    scale_attr: str = mangle_private_attribute(Transformable, "scale")
-
-    @wraps(func)
-    def wrapper(self: Transformable) -> dict[str, Any]:
-        state = {}
-        state.update(func(self))
-        state["angle"] = getattr(self, angle_attr)
-        state["scale"] = getattr(self, scale_attr)
-        state["center"] = self.center
-        return state
-
-    return wrapper
-
-
-def _set_frozen_state_decorator(
-    func: Callable[[Transformable, dict[str, Any]], None]
-) -> Callable[[Transformable, dict[str, Any]], None]:
-    angle_attr: str = mangle_private_attribute(Transformable, "angle")
-    scale_attr: str = mangle_private_attribute(Transformable, "scale")
-
-    @wraps(func)
-    def wrapper(self: Transformable, state: dict[str, Any], /) -> None:
-        setattr(self, angle_attr, float(state["angle"]) % 360)
-        setattr(self, scale_attr, max(float(state["scale"]), 0))
-        func(self, state)
-        self.center = state["center"]
-
-    return wrapper
 
 
 class TransformableMeta(MovableMeta):
@@ -91,16 +56,11 @@ class TransformableMeta(MovableMeta):
                 raise TypeError(
                     f"{name!r} must be inherits from a {Transformable.__name__} class in order to use {TransformableMeta.__name__} metaclass"
                 )
-            decorator: Callable[[Any], Any]
-            method_name: str
-            for method_name, decorator in [  # type: ignore[assignment]
-                ("_freeze_state", _freeze_state_decorator),
-                ("_set_frozen_state", _set_frozen_state_decorator),
-            ]:
-                method = namespace.get(method_name, None)
-                if callable(method) and not isabstractmethod(method):
-                    namespace[method_name] = decorator(method)
-
+            frozen_state_methods = ["_set_frozen_state", "_freeze_state"]
+            if sum(1 for method in frozen_state_methods if method in namespace) not in (0, len(frozen_state_methods)):
+                raise TypeError(
+                    f"If you provide one of these methods, you must implements all of the following list: {', '.join(frozen_state_methods)}"
+                )
         return super().__new__(metacls, name, bases, namespace, **kwargs)
 
 
@@ -251,13 +211,13 @@ class Transformable(Movable, metaclass=TransformableMeta):
     def _apply_only_scale(self) -> None:
         raise NotImplementedError
 
-    # @abstractmethod
-    # def _freeze_state(self) -> dict[str, Any]:
-    #     raise NotImplementedError
+    def _freeze_state(self) -> Mapping[str, Any] | None:
+        return None
 
-    # @abstractmethod
-    # def _set_frozen_state(self, state: dict[str, Any]) -> None:
-    #     raise NotImplementedError
+    def _set_frozen_state(self, angle: float, scale: float, state: Mapping[str, Any] | None) -> bool:
+        self.__angle = float(angle) % 360
+        self.__scale = max(float(scale), 0)
+        return False
 
     @abstractmethod
     def get_local_size(self) -> tuple[float, float]:
@@ -272,7 +232,7 @@ class Transformable(Movable, metaclass=TransformableMeta):
         return self.get_local_size()[1]
 
     def get_size(self) -> tuple[float, float]:
-        return self.get_area_size()
+        return self.get_area_size(apply_scale=True, apply_rotation=True)
 
     @final
     def get_area_size(self, *, apply_scale: bool = True, apply_rotation: bool = True) -> tuple[float, float]:
@@ -291,13 +251,13 @@ class Transformable(Movable, metaclass=TransformableMeta):
             return (h, w)
 
         center: Vector2 = Vector2(w / 2, h / 2)
-        corners: list[Vector2] = [
+        all_points: list[Vector2] = [
             Vector2(0, 0),
             Vector2(w, 0),
             Vector2(w, h),
             Vector2(0, h),
         ]
-        all_points: list[Vector2] = [center + (point - center).rotate(-angle) for point in corners]
+        all_points = [center + (point - center).rotate(-angle) for point in all_points]
         left: float = min((point.x for point in all_points), default=0)
         right: float = max((point.x for point in all_points), default=0)
         top: float = min((point.y for point in all_points), default=0)
@@ -311,8 +271,6 @@ class Transformable(Movable, metaclass=TransformableMeta):
     def get_local_rect(self, **kwargs: float | tuple[float, float]) -> Rect:
         r: Rect = Rect((0, 0), self.get_local_size())
         for name, value in kwargs.items():
-            if name not in _ALL_VALID_POSITIONS:
-                raise AttributeError(f"{type(r).__name__!r} has no attribute {name!r}")
             setattr(r, name, value)
         return r
 

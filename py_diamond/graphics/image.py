@@ -12,7 +12,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING, Any, Mapping, overload
 
 from pygame.transform import rotate as _surface_rotate, smoothscale as _surface_smoothscale
 
@@ -155,3 +155,19 @@ class Image(TDrawable):
             w, h = image.get_size()
             image = _surface_smoothscale(image, (w * scale, h * scale))
         self.__image = image
+
+    def _freeze_state(self) -> Mapping[str, Any] | None:
+        state = super()._freeze_state()
+        if state is None:
+            state = {}
+        else:
+            state = dict(state)
+        state["image"] = self.__image
+        return state
+
+    def _set_frozen_state(self, angle: float, scale: float, state: Mapping[str, Any] | None) -> bool:
+        res = super()._set_frozen_state(angle, scale, state)
+        if state is None:
+            return res
+        self.__image = state["image"]
+        return True

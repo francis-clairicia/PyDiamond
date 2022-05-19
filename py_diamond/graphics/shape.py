@@ -29,7 +29,7 @@ from enum import auto, unique
 from math import radians, sin, tan
 from operator import truth
 from types import MappingProxyType
-from typing import Any, Sequence, TypeAlias, final
+from typing import Any, Mapping, Sequence, TypeAlias, final
 
 from pygame.transform import rotate as _surface_rotate
 
@@ -83,6 +83,22 @@ class AbstractShape(TDrawable, metaclass=ShapeMeta):
     def _apply_only_scale(self) -> None:
         self.__compute_shape_size()
         self.__image = self._make(apply_rotation=False, apply_scale=True)
+
+    def _freeze_state(self) -> Mapping[str, Any] | None:
+        state = super()._freeze_state()
+        if state is None:
+            state = {}
+        else:
+            state = dict(state)
+        state["image"] = self.__image
+        return state
+
+    def _set_frozen_state(self, angle: float, scale: float, state: Mapping[str, Any] | None) -> bool:
+        res = super()._set_frozen_state(angle, scale, state)
+        if state is None:
+            return res
+        self.__image = state["image"]
+        return True
 
     @staticmethod
     def compute_size_by_vertices(vertices: Sequence[tuple[float, float]] | Sequence[Vector2]) -> tuple[float, float]:
