@@ -28,7 +28,7 @@ import re
 from contextlib import ExitStack, contextmanager, nullcontext, suppress
 from copy import copy, deepcopy
 from enum import Enum
-from functools import cache, wraps
+from functools import cache, update_wrapper, wraps
 from threading import RLock
 from types import BuiltinFunctionType, BuiltinMethodType, MappingProxyType, MethodType
 from typing import (
@@ -135,6 +135,8 @@ class ConfigurationTemplate(Object):
         "__lock",
         "__build",
     )
+
+    # TODO: Postpone wrapper evaluation
 
     def __init__(
         self,
@@ -1495,61 +1497,58 @@ def _no_type_check_cache(func: _Func) -> _Func:
     return cache(func)  # type: ignore[return-value]
 
 
-@_no_type_check_cache
 def _make_function_wrapper(func: Any, *, check_override: bool = True, no_object: bool = False) -> Callable[..., Any]:
+    return _make_function_wrapper_impl(func, check_override=bool(check_override), no_object=bool(no_object))
+
+
+@_no_type_check_cache
+def _make_function_wrapper_impl(func: Any, *, check_override: bool, no_object: bool) -> Callable[..., Any]:
     if getattr(func, "__boundconfiguration_wrapper__", False):
         return cast(Callable[..., Any], func)
 
-    if isinstance(func, (BuiltinFunctionType, BuiltinMethodType)):
+    if isinstance(func, (BuiltinFunctionType, BuiltinMethodType)) or not hasattr(func, "__get__"):
         no_object = True
     if callable(func) and not _can_be_overriden(func):
         check_override = False
 
+    func_name: str
     if no_object:
 
-        if callable(func):
+        if check_override:
+            func_name = getattr(func, "__name__")
 
             @wraps(func)
             def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-                return func(*args, **kwargs)
-
-        elif check_override:
-
-            @wraps(func)
-            def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-                _func: Callable[..., Any] = getattr(func, "__get__", lambda *args: func)(self, type(self))
-                if _can_be_overriden(_func):
-                    _func = getattr(self, _func.__name__, _func)
+                _func: Callable[..., Any] = getattr(self, func_name, func)
                 return _func(*args, **kwargs)
 
         else:
 
             @wraps(func)
             def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-                _func: Callable[..., Any] = getattr(func, "__get__", lambda *args: func)(self, type(self))
-                return _func(*args, **kwargs)
-
-    elif check_override:
-
-        @wraps(func)
-        def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-            _func: Callable[..., Any]
-            _func = getattr(func, "__get__", lambda *args: func)(self, type(self))
-            if _func is func:
-                _func = MethodType(func, self)
-            if _can_be_overriden(_func):
-                _func = getattr(self, _func.__name__, _func)
-            return _func(*args, **kwargs)
+                return func(*args, **kwargs)
 
     else:
+        func_get_descriptor: Callable[[Any, type], Callable[..., Any]] = getattr(func, "__get__")
+        func_name = getattr(func, "__name__")
 
-        @wraps(func)
-        def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-            _func: Callable[..., Any]
-            _func = getattr(func, "__get__", lambda *args: func)(self, type(self))
-            if _func is func:
-                _func = MethodType(func, self)
-            return _func(*args, **kwargs)
+        if check_override:
+
+            @wraps(func)
+            def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
+                _func: Callable[..., Any]
+                try:
+                    _func = getattr(self, func_name)
+                except AttributeError:
+                    _func = func_get_descriptor(self, type(self))
+                return _func(*args, **kwargs)
+
+        else:
+
+            @wraps(func)
+            def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
+                _func: Callable[..., Any] = func_get_descriptor(self, type(self))
+                return _func(*args, **kwargs)
 
     setattr(wrapper, "__boundconfiguration_wrapper__", True)
     return wrapper
@@ -1559,12 +1558,26 @@ _LAMBDA_FUNC_NAME = (lambda: None).__name__
 
 
 def _can_be_overriden(func: Callable[..., Any]) -> bool:
+    if isinstance(func, (MethodType, staticmethod)):
+        return _can_be_overriden_impl(func.__func__)
+    return not isinstance(func, (BuiltinFunctionType, BuiltinMethodType)) and _can_be_overriden_impl(func)
+
+
+@_no_type_check_cache
+def _can_be_overriden_impl(func: Callable[..., Any]) -> bool:
     try:
         name: str = func.__name__
     except AttributeError:
         return False
     if name == _LAMBDA_FUNC_NAME:
         return False
+    try:
+        qualname: str = func.__qualname__
+    except AttributeError:
+        pass
+    else:
+        if "<locals>" in qualname:  # Inner function created from factory function
+            return False
     if name.startswith("__"):
         return name.endswith("__")
     return True
@@ -1572,8 +1585,7 @@ def _can_be_overriden(func: Callable[..., Any]) -> bool:
 
 @_no_type_check_cache
 def _wrap_function_wrapper(func: Any, wrapper: Callable[..., Any]) -> Callable[..., Any]:
-    wrap_decorator = wraps(func)
-    wrapper = wrap_decorator(wrapper)
+    wrapper = update_wrapper(wrapper=wrapper, wrapped=func)
     setattr(wrapper, "__boundconfiguration_wrapper__", True)
     return wrapper
 
