@@ -12,14 +12,14 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import TYPE_CHECKING, Any, Final, Iterable, Iterator, Mapping, Sequence, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Final, Iterable, Mapping, TypeVar
 
 from pygame.mask import Mask, from_surface as _pg_mask_from_surface
 from pygame.transform import rotate as _surface_rotate, scale as _surface_fastscale, smoothscale as _surface_smoothscale
 
 from ..system.object import final
 from ..window.clock import Clock
-from .drawable import DrawableGroup, LayeredDrawableGroup, TDrawable
+from .drawable import BaseDrawableGroup, BaseLayeredDrawableGroup, Drawable, TDrawable
 from .rect import Rect
 from .renderer import AbstractRenderer, BlendMode
 from .surface import Surface, create_surface
@@ -48,10 +48,10 @@ class Sprite(TDrawable):
         self.set_mask_threshold(mask_threshold)
 
     def fixed_update(self, *args: Any, **kwargs: Any) -> None:
-        pass
+        self.animation.fixed_update()
 
     def interpolation_update(self, interpolation: float) -> None:
-        pass
+        self.animation.update(interpolation)
 
     def update(self, *args: Any, **kwargs: Any) -> None:
         pass
@@ -206,13 +206,13 @@ class AnimatedSprite(Sprite):
     ) -> __Self:
         return cls.from_iterable((img.subsurface(rect) for rect in rect_list), mask_threshold=mask_threshold)
 
-    def update(self, *args: Any, **kwargs: Any) -> None:
+    def fixed_update(self, *args: Any, **kwargs: Any) -> None:
         if self.is_sprite_animating() and self.__clock.elapsed_time(self.__wait_time):
             self.__sprite_idx = sprite_idx = (self.__sprite_idx + 1) % len(self.__list)
             self.default_image = self.__list[sprite_idx]
             if sprite_idx == 0 and not self.__loop:
                 self.stop_sprite_animation(reset=True)
-        super().update(*args, **kwargs)
+        super().fixed_update(*args, **kwargs)
 
     def is_sprite_animating(self) -> bool:
         return self.__animation
@@ -248,98 +248,12 @@ class AnimatedSprite(Sprite):
         self.__wait_time = max(float(value), 0)
 
 
-class SpriteGroup(DrawableGroup):
+class SpriteGroup(BaseDrawableGroup[Sprite], Drawable):
     __slots__ = ()
 
-    if TYPE_CHECKING:
 
-        def __init__(self, *objects: Sprite, **kwargs: Any) -> None:
-            ...
-
-        def __iter__(self) -> Iterator[Sprite]:
-            ...
-
-        @overload
-        def __getitem__(self, index: int, /) -> Sprite:
-            ...
-
-        @overload
-        def __getitem__(self, index: slice, /) -> Sequence[Sprite]:
-            ...
-
-        def __getitem__(self, index: int | slice, /) -> Sprite | Sequence[Sprite]:
-            ...
-
-        def __reversed__(self) -> Iterator[Sprite]:
-            ...
-
-        def add(self, *objects: Sprite) -> None:  # type: ignore[override]
-            ...
-
-        def remove(self, *objects: Sprite) -> None:  # type: ignore[override]
-            ...
-
-        def pop(self, index: int = -1) -> Sprite:
-            ...
-
-
-class LayeredSpriteGroup(LayeredDrawableGroup, SpriteGroup):
+class LayeredSpriteGroup(BaseLayeredDrawableGroup[Sprite], SpriteGroup):
     __slots__ = ()
 
     def __init__(self, *objects: Sprite, default_layer: int = 0, **kwargs: Any) -> None:
         super().__init__(*objects, default_layer=default_layer, **kwargs)
-
-    if TYPE_CHECKING:
-
-        def __iter__(self) -> Iterator[Sprite]:
-            ...
-
-        @overload
-        def __getitem__(self, index: int, /) -> Sprite:
-            ...
-
-        @overload
-        def __getitem__(self, index: slice, /) -> Sequence[Sprite]:
-            ...
-
-        def __getitem__(self, index: int | slice, /) -> Sprite | Sequence[Sprite]:
-            ...
-
-        def __reversed__(self) -> Iterator[Sprite]:
-            ...
-
-        def add(self, *objects: Sprite, layer: int | None = None) -> None:  # type: ignore[override]
-            ...
-
-        def remove(self, *objects: Sprite) -> None:  # type: ignore[override]
-            ...
-
-        def pop(self, index: int = -1) -> Sprite:
-            ...
-
-        def get_layer(self, obj: Sprite) -> int:  # type: ignore[override]
-            ...
-
-        def change_layer(self, obj: Sprite, layer: int) -> None:  # type: ignore[override]
-            ...
-
-        def get_top_drawable(self) -> Sprite:
-            ...
-
-        def get_bottom_drawable(self) -> Sprite:
-            ...
-
-        def move_to_front(self, obj: Sprite) -> None:  # type: ignore[override]
-            ...
-
-        def move_to_back(self, obj: Sprite, after_last: bool = True) -> None:  # type: ignore[override]
-            ...
-
-        def iter_in_layer(self, layer: int) -> Iterator[Sprite]:
-            ...
-
-        def get_from_layer(self, layer: int) -> Sequence[Sprite]:
-            ...
-
-        def remove_from_layer(self, layer: int) -> Sequence[Sprite]:
-            ...

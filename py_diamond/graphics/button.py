@@ -55,7 +55,7 @@ class Button(TDrawable, Pressable, metaclass=ButtonMeta):
     Justify: TypeAlias = TextImage.Justify
     Compound: TypeAlias = TextImage.Compound
 
-    __theme_ignore__: ClassVar[Sequence[str]] = "callback"
+    __theme_ignore__: ClassVar[Sequence[str]] = ("callback",)
     __theme_associations__: ClassVar[dict[type, dict[str, str]]] = {
         TextImage: {
             "color": "fg",

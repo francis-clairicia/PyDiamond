@@ -16,6 +16,8 @@ __all__ = [
     "BLUE",
     "BLUE_DARK",
     "BLUE_LIGHT",
+    "BaseDrawableGroup",
+    "BaseLayeredDrawableGroup",
     "BooleanCheckBox",
     "Button",
     "ButtonMeta",
@@ -36,6 +38,7 @@ __all__ = [
     "EntryMeta",
     "Font",
     "Form",
+    "FormMeta",
     "GRAY",
     "GRAY_DARK",
     "GRAY_LIGHT",
@@ -44,6 +47,7 @@ __all__ = [
     "GREEN_LIGHT",
     "GradientShape",
     "Grid",
+    "GridElement",
     "HorizontalGradientShape",
     "HorizontalMultiColorShape",
     "Image",
@@ -74,6 +78,7 @@ __all__ = [
     "RectangleShape",
     "ScaleBar",
     "ScrollArea",
+    "ScrollAreaElement",
     "ScrollBar",
     "ScrollBarMeta",
     "ShapeMeta",
@@ -81,6 +86,8 @@ __all__ = [
     "Sprite",
     "SpriteGroup",
     "SquaredGradientShape",
+    "SupportsDrawableGroups",
+    "SupportsDrawing",
     "Surface",
     "SurfaceRenderer",
     "SysFont",
@@ -185,18 +192,22 @@ from .color import (
     ImmutableColor,
 )
 from .drawable import (
+    BaseDrawableGroup,
+    BaseLayeredDrawableGroup,
     Drawable,
     DrawableGroup,
     DrawableMeta,
     LayeredDrawableGroup,
     MDrawable,
     MDrawableMeta,
+    SupportsDrawableGroups,
+    SupportsDrawing,
     TDrawable,
     TDrawableMeta,
 )
 from .entry import Entry, EntryMeta
 from .font import Font, SysFont
-from .form import Form
+from .form import Form, FormMeta
 from .gradients import (
     GradientShape,
     HorizontalGradientShape,
@@ -207,14 +218,14 @@ from .gradients import (
     VerticalGradientShape,
     VerticalMultiColorShape,
 )
-from .grid import Grid
+from .grid import Grid, GridElement
 from .image import Image
 from .movable import Movable, MovableMeta
 from .progress import ProgressBar
 from .rect import ImmutableRect, Rect
 from .renderer import AbstractRenderer, SurfaceRenderer
 from .scale import ScaleBar
-from .scroll import ScrollArea, ScrollBar, ScrollBarMeta
+from .scroll import ScrollArea, ScrollAreaElement, ScrollBar, ScrollBarMeta
 from .shape import (
     AbstractCircleShape,
     AbstractRectangleShape,

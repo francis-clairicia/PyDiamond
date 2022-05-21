@@ -471,8 +471,6 @@ class TextImage(Text):
             case TextImage.Compound.CENTER:
                 render_width = max(text_width, img_width)
                 render_height = max(text_height, img_height)
-            case _:
-                raise ValueError(f"Unknown compound value: {compound!r}")
 
         render: Surface = create_surface((render_width, render_height))
         render_rect: Rect = render.get_rect()

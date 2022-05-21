@@ -6,16 +6,17 @@
 
 from __future__ import annotations
 
-__all__ = ["ScrollArea", "ScrollBar", "ScrollBarMeta"]
+__all__ = ["ScrollArea", "ScrollAreaElement", "ScrollBar", "ScrollBarMeta"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
+from abc import abstractmethod
 from contextlib import suppress
 from enum import auto, unique
 from operator import truth
-from typing import TYPE_CHECKING, Any, ClassVar, Sequence, final
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol, Sequence, final, runtime_checkable
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
@@ -24,8 +25,7 @@ from ..window.clickable import Clickable
 from ..window.event import MouseButtonDownEvent, MouseButtonUpEvent, MouseMotionEvent, MouseWheelEvent
 from ..window.mouse import Mouse
 from .color import BLACK, GRAY, TRANSPARENT, WHITE, Color
-from .drawable import Drawable, LayeredDrawableGroup, MDrawable, TDrawable, TDrawableMeta
-from .movable import Movable
+from .drawable import BaseLayeredDrawableGroup, MDrawable, SupportsDrawableGroups, TDrawable, TDrawableMeta
 from .rect import Rect
 from .renderer import AbstractRenderer, SurfaceRenderer
 from .shape import RectangleShape
@@ -379,20 +379,27 @@ class ScrollBar(TDrawable, Clickable, metaclass=ScrollBarMeta):
         return (self.__start, self.__end)
 
 
-class ScrollArea(LayeredDrawableGroup, MDrawable):
+@runtime_checkable
+class ScrollAreaElement(SupportsDrawableGroups, Protocol):
+    @abstractmethod
+    def get_rect(self) -> Rect:
+        raise NotImplementedError
+
+
+class ScrollArea(BaseLayeredDrawableGroup[ScrollAreaElement], MDrawable):
     __h_flip: ClassVar[bool] = False
     __v_flip: ClassVar[bool] = False
 
     def __init__(
         self,
-        *objects: Drawable,
+        *objects: ScrollAreaElement,
         master: Scene | Window,
         width: float,
         height: float,
         default_layer: int = 0,
         bg_color: Color = TRANSPARENT,
     ) -> None:
-        LayeredDrawableGroup.__init__(self, *objects, default_layer=default_layer)
+        BaseLayeredDrawableGroup.__init__(self, *objects, default_layer=default_layer)
         MDrawable.__init__(self)
         self.__master: Scene | Window = master
         self.__view_rect: Rect = Rect(0, 0, width, height)
@@ -417,9 +424,9 @@ class ScrollArea(LayeredDrawableGroup, MDrawable):
     def get_size(self) -> tuple[float, float]:
         return self.__view_rect.size
 
-    def add(self, *objects: Drawable, layer: int | None = None) -> None:
-        if any(not isinstance(obj, Movable) for obj in objects):
-            raise TypeError("ScrollArea only accepts Drawable and Movable objects")
+    def add(self, *objects: ScrollAreaElement, layer: int | None = None) -> None:
+        if any(not isinstance(obj, ScrollAreaElement) for obj in objects):
+            raise TypeError("Invalid arguments")
         return super().add(*objects, layer=layer)
 
     def draw_onto(self, target: AbstractRenderer) -> None:
@@ -499,9 +506,10 @@ class ScrollArea(LayeredDrawableGroup, MDrawable):
         view_rect: Rect = self.__view_rect
         width: int = view_rect.width
         height: int = view_rect.height
-        for m in self.find(Movable):  # type: ignore[misc]
-            width = max(width, int(m.right))
-            height = max(height, int(m.bottom))
+        for m in self:
+            m_rect = m.get_rect()
+            width = max(width, m_rect.right)
+            height = max(height, m_rect.bottom)
 
         if (width, height) != whole_area.get_size():
             self.__whole_area = whole_area = create_surface((width, height))

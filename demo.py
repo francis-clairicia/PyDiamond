@@ -479,11 +479,13 @@ class AnimatedSpriteScene(MainScene):
         self.sprite.animation.start()
 
     def fixed_update(self) -> None:
-        self.sprite.animation.fixed_update()
-        self.sprite.update()
+        self.sprite.fixed_update()
 
     def interpolation_update(self, interpolation: float) -> None:
-        self.sprite.animation.update(interpolation)
+        self.sprite.interpolation_update(interpolation)
+
+    def update(self) -> None:
+        self.sprite.update()
 
     def render(self) -> None:
         self.window.draw(self.sprite)
@@ -799,8 +801,8 @@ class GridScene(GUIScene, RenderedLayeredScene):
         self.text = Text("None", font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
         self.grid = Grid(self, bg_color=YELLOW)
 
-        self.grid.padding.x = 20
-        self.grid.padding.y = 20
+        self.grid.default_padding.x = 20
+        self.grid.default_padding.y = 20
 
         def create_button(text: str) -> Button:
             return Button(self, text, callback=lambda: self.text.config(message=text))
@@ -966,8 +968,8 @@ class GUIAudioScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableS
         self.text = Text("None")
         self.grid = Grid(self, bg_color=YELLOW)
 
-        self.grid.padding.x = 20
-        self.grid.padding.y = 20
+        self.grid.default_padding.x = 20
+        self.grid.default_padding.y = 20
 
         def create_button(text: str, state: str = "normal") -> Button:
             return Button(self, text, callback=lambda: self.text.config(message=text), state=state)

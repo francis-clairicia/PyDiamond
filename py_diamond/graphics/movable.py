@@ -13,7 +13,7 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
-from typing import Any, Callable
+from typing import Any, Callable, overload
 
 from ..math import Vector2
 from ..system.object import Object, ObjectMeta, final
@@ -86,6 +86,37 @@ class Movable(Object, metaclass=MovableMeta):
     def __init__(self) -> None:
         self.__x: float = 0
         self.__y: float = 0
+
+    @overload
+    def set_position(
+        self,
+        *,
+        x: float = ...,
+        y: float = ...,
+        left: float = ...,
+        right: float = ...,
+        top: float = ...,
+        bottom: float = ...,
+        centerx: float = ...,
+        centery: float = ...,
+    ) -> None:
+        ...
+
+    @overload
+    def set_position(
+        self,
+        *,
+        center: tuple[float, float] = ...,
+        topleft: tuple[float, float] = ...,
+        topright: tuple[float, float] = ...,
+        bottomleft: tuple[float, float] = ...,
+        bottomright: tuple[float, float] = ...,
+        midleft: tuple[float, float] = ...,
+        midright: tuple[float, float] = ...,
+        midtop: tuple[float, float] = ...,
+        midbottom: tuple[float, float] = ...,
+    ) -> None:
+        ...
 
     def set_position(self, **position: float | tuple[float, float]) -> None:
         for name in position:

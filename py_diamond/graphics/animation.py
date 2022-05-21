@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 from abc import ABCMeta, abstractmethod
 from contextlib import ExitStack, contextmanager
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal, NamedTuple, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal, NamedTuple, TypeAlias, TypeVar, overload
 from weakref import WeakKeyDictionary, proxy as weakproxy
 
 from ..math import Vector2
@@ -152,6 +152,39 @@ class TransformAnimation(Object):
 
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="TransformAnimation")
+
+    @overload
+    def smooth_set_position(
+        self: __Self,
+        speed: float = 100,
+        *,
+        x: float = ...,
+        y: float = ...,
+        left: float = ...,
+        right: float = ...,
+        top: float = ...,
+        bottom: float = ...,
+        centerx: float = ...,
+        centery: float = ...,
+    ) -> __Self:
+        ...
+
+    @overload
+    def smooth_set_position(
+        self: __Self,
+        speed: float = 100,
+        *,
+        center: tuple[float, float] = ...,
+        topleft: tuple[float, float] = ...,
+        topright: tuple[float, float] = ...,
+        bottomleft: tuple[float, float] = ...,
+        bottomright: tuple[float, float] = ...,
+        midleft: tuple[float, float] = ...,
+        midright: tuple[float, float] = ...,
+        midtop: tuple[float, float] = ...,
+        midbottom: tuple[float, float] = ...,
+    ) -> __Self:
+        ...
 
     def smooth_set_position(self: __Self, speed: float = 100, **position: float | tuple[float, float]) -> __Self:
         if not position:
@@ -423,7 +456,7 @@ class _AnimationSetPosition(_AbstractAnimationClass):
 
     def default(self) -> None:
         if self.__position:
-            self.transformable.set_position(**self.__position)
+            self.transformable.set_position(**self.__position)  # type: ignore[arg-type]
             self.__position.clear()
 
 

@@ -6,28 +6,39 @@
 
 from __future__ import annotations
 
-__all__ = ["Form"]
+__all__ = ["Form", "FormMeta"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import TYPE_CHECKING, Any, Callable, Mapping, TypeAlias, overload
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Mapping, Sequence, TypeAlias, TypeVar, overload
 from weakref import WeakValueDictionary
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.validation import valid_integer
 from .color import BLACK, TRANSPARENT, Color
-from .drawable import Drawable, MDrawable
+from .drawable import MDrawable, MDrawableMeta
 from .entry import Entry
-from .grid import Grid
+from .grid import Grid, GridElement
 from .renderer import AbstractRenderer
+from .theme import ThemedObjectMeta, ThemeType
 
 if TYPE_CHECKING:
     from ..window.gui import GUIScene
 
 
-class Form(MDrawable):
+_Label = TypeVar("_Label", bound=GridElement)
+
+
+class FormMeta(MDrawableMeta, ThemedObjectMeta):
+    pass
+
+
+class Form(MDrawable, metaclass=FormMeta):
+    __theme_ignore__: ClassVar[Sequence[str]] = ("on_submit",)
+
     Justify: TypeAlias = Grid.Justify
     Padding: TypeAlias = Grid.Padding
 
@@ -56,6 +67,7 @@ class Form(MDrawable):
         entry_justify: Justify = Justify.LEFT,
         padx: int = 10,
         pady: int = 10,
+        theme: ThemeType | None = None,
     ) -> None:
         super().__init__()
         self.__on_submit: Callable[[Mapping[str, str]], None] = on_submit
@@ -78,9 +90,13 @@ class Form(MDrawable):
         self,
         name: str,
         entry: Entry,
-        label: Drawable | None = None,
+        label: _Label | None = None,
     ) -> Entry:
-        if not isinstance(name, str) or not isinstance(entry, Entry) or (label is not None and not isinstance(label, Drawable)):
+        if (
+            not isinstance(name, str)
+            or not isinstance(entry, Entry)
+            or (label is not None and not isinstance(label, GridElement))
+        ):
             raise TypeError("Invalid arguments")
         if not name:
             raise ValueError("Empty name")
@@ -108,18 +124,18 @@ class Form(MDrawable):
             grid.unify()
 
     @overload
-    def get(self) -> Mapping[str, str]:
+    def get(self) -> MappingProxyType[str, str]:
         ...
 
     @overload
     def get(self, name: str) -> str:
         ...
 
-    def get(self, name: str | None = None) -> str | Mapping[str, str]:
+    def get(self, name: str | None = None) -> str | MappingProxyType[str, str]:
         entry_dict: WeakValueDictionary[str, Entry] = self.__entry_dict
         if name is not None:
             return entry_dict[name].get()
-        return {n: e.get() for n, e in entry_dict.items()}
+        return MappingProxyType({n: e.get() for n, e in entry_dict.items()})
 
     def submit(self) -> None:
         on_submit: Callable[[Mapping[str, str]], None] = self.__on_submit
@@ -159,10 +175,10 @@ class Form(MDrawable):
     @config.on_update_key_value("pady")
     def __upgrade_grid_padding(self, option: str, value: int) -> None:
         grid: Grid = self.__grid
-        option_dict: dict[str, Any] = {option: value}
+        padding: dict[str, Any] = {option: value}
         for row in range(grid.nb_rows):
             for column in range(grid.nb_columns):
-                grid.modify(row=row, column=column, **option_dict)
+                grid.modify(row=row, column=column, **padding)
 
     @property
     def master(self) -> GUIScene | None:

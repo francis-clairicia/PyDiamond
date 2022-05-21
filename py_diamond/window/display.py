@@ -12,7 +12,6 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from abc import abstractmethod
 from contextlib import ExitStack, contextmanager, suppress
 from datetime import datetime
 from inspect import isgeneratorfunction
@@ -30,7 +29,6 @@ from typing import (
     Iterator,
     NoReturn,
     ParamSpec,
-    Protocol,
     Sequence,
     TypeVar,
     overload,
@@ -77,13 +75,9 @@ from .time import Time
 if TYPE_CHECKING:
     from pygame._common import _ColorValue  # pyright: reportMissingModuleSource=false
 
+    from ..graphics.drawable import SupportsDrawing
+
 _P = ParamSpec("_P")
-
-
-class _SupportsDrawing(Protocol):
-    @abstractmethod
-    def draw_onto(self, target: AbstractRenderer) -> None:
-        raise NotImplementedError
 
 
 class WindowError(_pg_error):
@@ -276,7 +270,7 @@ class Window(Object):
     def system_display(self, screen: AbstractRenderer) -> None:
         pass
 
-    def draw(self, *targets: _SupportsDrawing) -> None:
+    def draw(self, *targets: SupportsDrawing) -> None:
         renderer: SurfaceRenderer = SurfaceRenderer(self.__surface)
 
         for target in targets:

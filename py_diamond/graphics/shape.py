@@ -746,8 +746,6 @@ class CrossShape(OutlinedShape, SingleColorShape, metaclass=ThemedShapeMeta):
                 get_points = self.get_diagonal_cross_points
             case CrossShape.Type.PLUS:
                 get_points = self.get_plus_cross_points
-            case _:
-                raise ValueError(f"Unknown cross type, got {self.__type!r}")
         local_width, local_height = local_size = self.local_size
         line_width_percent = self.line_width_percent
         line_width = min(local_width * line_width_percent, local_height * line_width_percent)
