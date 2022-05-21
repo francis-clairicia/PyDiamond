@@ -17,7 +17,6 @@ __all__ = [
     "RectangleShape",
     "ShapeMeta",
     "SingleColorShape",
-    "ThemedShapeMeta",
 ]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -43,14 +42,10 @@ from .drawable import TDrawable, TDrawableMeta
 from .rect import Rect
 from .renderer import AbstractRenderer, SurfaceRenderer
 from .surface import Surface, create_surface
-from .theme import ThemedObjectMeta, ThemeType
+from .theme import ThemeType
 
 
 class ShapeMeta(TDrawableMeta):
-    pass
-
-
-class ThemedShapeMeta(ShapeMeta, ThemedObjectMeta):
     pass
 
 
@@ -211,7 +206,7 @@ class OutlinedShape(AbstractShape):
 
 
 @concreteclass
-class PolygonShape(OutlinedShape, SingleColorShape, metaclass=ThemedShapeMeta):
+class PolygonShape(OutlinedShape, SingleColorShape):
     PointList: TypeAlias = Sequence[Vector2] | Sequence[tuple[float, float]] | Sequence[tuple[int, int]]
 
     config = ConfigurationTemplate("points", parent=[OutlinedShape.config, SingleColorShape.config])
@@ -343,7 +338,7 @@ class AbstractSquareShape(AbstractShape):
 
 
 @concreteclass
-class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape, metaclass=ThemedShapeMeta):
+class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape):
     config = ConfigurationTemplate(
         "border_radius",
         "border_top_left_radius",
@@ -368,7 +363,7 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape, me
         *,
         outline: int = 0,
         outline_color: Color = BLACK,
-        border_radius: int = 0,
+        border_radius: int = -1,
         border_top_left_radius: int = -1,
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
@@ -465,7 +460,7 @@ class AbstractCircleShape(AbstractShape):
 
 
 @concreteclass
-class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclass=ThemedShapeMeta):
+class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape):
     config = ConfigurationTemplate(
         "draw_top_left",
         "draw_top_right",
@@ -586,7 +581,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape, metaclas
 
 
 @concreteclass
-class CrossShape(OutlinedShape, SingleColorShape, metaclass=ThemedShapeMeta):
+class CrossShape(OutlinedShape, SingleColorShape):
     config = ConfigurationTemplate(
         "local_width",
         "local_height",

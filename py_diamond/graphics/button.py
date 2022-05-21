@@ -50,7 +50,6 @@ class ButtonMeta(TDrawableMeta, ThemedObjectMeta):
 
 
 @TextImage.register_themed_subclass
-@RectangleShape.register_themed_subclass
 class Button(TDrawable, Pressable, metaclass=ButtonMeta):
     Justify: TypeAlias = TextImage.Justify
     Compound: TypeAlias = TextImage.Compound
@@ -61,10 +60,11 @@ class Button(TDrawable, Pressable, metaclass=ButtonMeta):
             "color": "fg",
             "distance": "distance_text_img",
         },
-        RectangleShape: {
-            "color": "bg",
-        },
     }
+    __theme_override__: Sequence[str] = (
+        "outline",
+        "outline_color",
+    )
 
     @unique
     class HorizontalAlign(AutoLowerNameEnum):
@@ -268,7 +268,7 @@ class Button(TDrawable, Pressable, metaclass=ButtonMeta):
         text_offset: tuple[float, float] = (0, 0),
         text_hover_offset: tuple[float, float] = (0, 0),
         text_active_offset: tuple[float, float] = (0, 0),
-        border_radius: int = 0,
+        border_radius: int = -1,
         border_top_left_radius: int = -1,
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,

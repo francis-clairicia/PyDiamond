@@ -43,9 +43,8 @@ class ScrollBarMeta(TDrawableMeta, ThemedObjectMeta):
     pass
 
 
-@RectangleShape.register_themed_subclass
 class ScrollBar(TDrawable, Clickable, metaclass=ScrollBarMeta):
-    __theme_ignore__: ClassVar[Sequence[str]] = "orient"
+    __theme_ignore__: ClassVar[Sequence[str]] = ("orient",)
 
     @unique
     class Orient(AutoLowerNameEnum):
@@ -484,7 +483,7 @@ class ScrollArea(BaseLayeredDrawableGroup[ScrollAreaElement], MDrawable):
             if x > 0:
                 view_rect.right = min(view_rect.right, whole_area_rect.right)
             else:
-                view_rect.left = max(view_rect.left, 0)
+                view_rect.left = max(view_rect.left, whole_area_rect.left)
             need_update = True
         if event.y != 0:
             y: int = (1 if event.y > 0 else -1) if not self.__v_flip else (-1 if event.y > 0 else 1)
@@ -494,7 +493,7 @@ class ScrollArea(BaseLayeredDrawableGroup[ScrollAreaElement], MDrawable):
             if y > 0:
                 view_rect.bottom = min(view_rect.bottom, whole_area_rect.bottom)
             else:
-                view_rect.top = max(view_rect.top, 0)
+                view_rect.top = max(view_rect.top, whole_area_rect.top)
             need_update = True
         if need_update:
             self.__update_whole_area()

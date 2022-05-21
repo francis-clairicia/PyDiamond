@@ -70,6 +70,7 @@ __all__ = [
     "PlusCrossShape",
     "PolygonShape",
     "ProgressBar",
+    "ProgressBarMeta",
     "RED",
     "RED_DARK",
     "RED_LIGHT",
@@ -101,7 +102,6 @@ __all__ = [
     "ThemeType",
     "ThemedObject",
     "ThemedObjectMeta",
-    "ThemedShapeMeta",
     "TransformAnimation",
     "Transformable",
     "TransformableMeta",
@@ -221,7 +221,7 @@ from .gradients import (
 from .grid import Grid, GridElement
 from .image import Image
 from .movable import Movable, MovableMeta
-from .progress import ProgressBar
+from .progress import ProgressBar, ProgressBarMeta
 from .rect import ImmutableRect, Rect
 from .renderer import AbstractRenderer, SurfaceRenderer
 from .scale import ScaleBar
@@ -239,7 +239,6 @@ from .shape import (
     RectangleShape,
     ShapeMeta,
     SingleColorShape,
-    ThemedShapeMeta,
 )
 from .sprite import AnimatedSprite, LayeredSpriteGroup, Mask, Sprite, SpriteGroup
 from .surface import Surface, create_surface, load_image, save_image

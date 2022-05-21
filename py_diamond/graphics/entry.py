@@ -47,15 +47,11 @@ class EntryMeta(TDrawableMeta, ThemedObjectMeta):
 
 
 @Text.register_themed_subclass
-@RectangleShape.register_themed_subclass
 class Entry(TDrawable, Pressable, metaclass=EntryMeta):
     __theme_ignore__: ClassVar[Sequence[str]] = "on_validate"
     __theme_associations__: ClassVar[dict[type, dict[str, str]]] = {
         Text: {
             "color": "fg",
-        },
-        RectangleShape: {
-            "color": "bg",
         },
     }
 

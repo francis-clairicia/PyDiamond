@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["ProgressBar"]
+__all__ = ["ProgressBar", "ProgressBarMeta"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -18,17 +18,21 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, Mapping, Sequence
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
-from ..system.validation import valid_float
+from ..system.validation import valid_float, valid_integer
 from .color import BLACK, GRAY, TRANSPARENT, WHITE, Color
-from .shape import RectangleShape
+from .shape import RectangleShape, ShapeMeta
 from .text import Text
-from .theme import NoTheme, ThemeType
+from .theme import NoTheme, ThemedObjectMeta, ThemeType
 
 if TYPE_CHECKING:
     from .renderer import AbstractRenderer
 
 
-class ProgressBar(RectangleShape):
+class ProgressBarMeta(ShapeMeta, ThemedObjectMeta):
+    pass
+
+
+class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
     __theme_ignore__: ClassVar[Sequence[str]] = (
         "from_",
         "to",
@@ -49,12 +53,13 @@ class ProgressBar(RectangleShape):
         HORIZONTAL = auto()
         VERTICAL = auto()
 
-    config = ConfigurationTemplate("value", "percent", "scale_color", "orient", parent=RectangleShape.config)
+    config = ConfigurationTemplate("value", "percent", "scale_color", "orient", "cursor_thickness", parent=RectangleShape.config)
 
     value: OptionAttribute[float] = OptionAttribute()
     percent: OptionAttribute[float] = OptionAttribute()
     scale_color: OptionAttribute[Color] = OptionAttribute()
     orient: OptionAttribute[str] = OptionAttribute()
+    cursor_thickness: OptionAttribute[int] = OptionAttribute()
 
     @initializer
     def __init__(
@@ -68,6 +73,7 @@ class ProgressBar(RectangleShape):
         orient: str = "horizontal",
         color: Color = WHITE,
         scale_color: Color = GRAY,
+        cursor_thickness: int = 0,
         outline: int = 2,
         outline_color: Color = BLACK,
         border_radius: int = 0,
@@ -102,6 +108,8 @@ class ProgressBar(RectangleShape):
             border_bottom_right_radius=border_bottom_right_radius,
             theme=theme,
         )
+        self.cursor_thickness = cursor_thickness
+
         from_ = float(from_)
         to = float(to)
         if to <= from_:
@@ -118,12 +126,6 @@ class ProgressBar(RectangleShape):
 
         self.orient = orient
 
-        # self.__label_text = Text()
-        # self.__label_text_side = str()
-        # self.__value_text = Text()
-        # self.__value_text_side = str()
-        # self.__value_text_round_n = 0
-        # self.__value_text_type = str()
         self.__text_label = _ProgressTextLabel(Text(), None)
         self.__text_value = _ProgressTextValue(Text(), None, 0, None)
 
@@ -142,6 +144,19 @@ class ProgressBar(RectangleShape):
 
         super().draw_onto(target)
         scale_rect.draw_onto(target)
+
+        if (cursor_thickness := self.cursor_thickness) > 0:
+            cursor_start: tuple[float, float]
+            cursor_end: tuple[float, float]
+            outline: int = self.outline
+            if self.orient == ProgressBar.Orient.HORIZONTAL:
+                cursor_start, cursor_end = scale_rect.topright, scale_rect.bottomright
+                cursor_end = cursor_end[0], cursor_end[1] - (outline / 2)
+            else:
+                cursor_start, cursor_end = scale_rect.bottomleft, scale_rect.bottomright
+                cursor_end = cursor_end[0] - (outline / 2), cursor_end[1]
+            target.draw_line(outline_rect.outline_color, cursor_start, cursor_end, width=cursor_thickness)
+
         outline_rect.draw_onto(target)
 
         offset = 10
@@ -152,13 +167,17 @@ class ProgressBar(RectangleShape):
                 round_n=int(round_n),
                 side=ProgressBar.Side(side),
             ) if text.is_shown():
+                if round_n > 0:
+                    message_fmt = "{:." + str(round_n) + "f}"
+                else:
+                    message_fmt = "{:d}"
                 match text_type:
                     case "value":
                         value = self.__value
-                        text.message = f"{round(value, round_n) if round_n > 0 else round(value)}"
+                        text.message = message_fmt.format(value if round_n > 0 else round(value))
                     case "percent":
                         value = self.__percent * 100
-                        text.message = f"{round(value, round_n) if round_n > 0 else round(value)}%"
+                        text.message = f"{message_fmt.format(value if round_n > 0 else round(value))}%"
 
                 self.__place_text(text, side, offset=offset)
                 text.draw_onto(target)
@@ -254,6 +273,8 @@ class ProgressBar(RectangleShape):
         return valid_float(value=value, min_value=self.__start, max_value=self.__end)
 
     config.add_value_converter_static("percent", valid_float(min_value=0, max_value=1))
+
+    config.add_value_converter_static("cursor_thickness", valid_integer(min_value=0))
 
     config.getter("scale_color", lambda self: self.__scale_rect.config.get("color"))
     config.setter("scale_color", lambda self, color: self.__scale_rect.config.set("color", color))

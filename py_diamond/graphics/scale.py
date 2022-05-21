@@ -12,10 +12,11 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
+import sys
 from operator import truth
 from typing import TYPE_CHECKING, Callable, ClassVar, Sequence
 
-from ..system.configuration import ConfigurationTemplate, initializer
+from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..window.clickable import Clickable
 from ..window.event import MouseButtonDownEvent, MouseMotionEvent
 from .color import BLACK, GRAY, WHITE, Color
@@ -37,9 +38,13 @@ class ScaleBar(ProgressBar, Clickable):
         "orient",
         "value_callback",
         "percent_callback",
+        "resolution",
     )
+    __theme_override__: Sequence[str] = ("cursor_thickness",)
 
-    config = ConfigurationTemplate(parent=ProgressBar.config)
+    config = ConfigurationTemplate("resolution", parent=ProgressBar.config)
+
+    resolution: OptionAttribute[int | None] = OptionAttribute()
 
     @initializer
     def __init__(
@@ -54,6 +59,7 @@ class ScaleBar(ProgressBar, Clickable):
         orient: str = "horizontal",
         value_callback: Callable[[float], None] | None = None,
         percent_callback: Callable[[float], None] | None = None,
+        resolution: int | None = None,
         state: str = "normal",
         hover_sound: Sound | None = None,
         click_sound: Sound | None = None,
@@ -62,6 +68,7 @@ class ScaleBar(ProgressBar, Clickable):
         disabled_cursor: AbstractCursor | None = None,
         color: Color = WHITE,
         scale_color: Color = GRAY,
+        cursor_thickness: int = 2,
         outline: int = 2,
         outline_color: Color = BLACK,
         border_radius: int = 0,
@@ -73,6 +80,8 @@ class ScaleBar(ProgressBar, Clickable):
         # highlight_thickness=2,
         theme: ThemeType | None = None,
     ):
+        self.resolution = resolution
+
         ProgressBar.__init__(
             self,
             width=width,
@@ -83,6 +92,7 @@ class ScaleBar(ProgressBar, Clickable):
             orient=orient,
             color=color,
             scale_color=scale_color,
+            cursor_thickness=cursor_thickness,
             outline=outline,
             outline_color=outline_color,
             border_radius=border_radius,
@@ -130,11 +140,51 @@ class ScaleBar(ProgressBar, Clickable):
             self.__compute_scale_percent_by_mouse_pos(event.pos)
         return super()._on_mouse_motion(event)
 
+    def _apply_both_rotation_and_scale(self) -> None:
+        raise NotImplementedError
+
+    def _apply_only_rotation(self) -> None:
+        raise NotImplementedError
+
+    def _apply_only_scale(self) -> None:
+        super()._apply_only_scale()
+
     def __compute_scale_percent_by_mouse_pos(self, mouse_pos: tuple[float, float]) -> None:
         if self.orient == ScaleBar.Orient.HORIZONTAL:
             self.percent = (mouse_pos[0] - self.left) / self.width
         else:
             self.percent = (mouse_pos[1] - self.top) / self.height
+
+    config.add_value_validator_static("resolution", int, accept_none=True)
+
+    @config.add_value_validator_static("resolution")
+    @staticmethod
+    def __valid_resolution(value: int | None) -> None:
+        if value is None:
+            return
+        max_float_digits = sys.float_info.dig
+        if not (0 <= value <= max_float_digits):
+            raise ValueError(f"resolution must be between 0 and sys.float_info.dig (actually: {max_float_digits}) included")
+
+    @config.on_update("resolution")
+    def __on_update_resolution(self) -> None:
+        self.config.set("value", self.config.get("value"))
+
+    @config.add_value_converter("value")
+    def __apply_resolution_on_value(self, value: float) -> float:
+        resolution: int | None = self.resolution
+        if resolution is not None:
+            value = round(value, resolution)
+        return value
+
+    @config.add_value_converter("percent")
+    def __apply_resolution_on_percent(self, percent: float) -> float:
+        start: float = self.from_value
+        end: float = self.to_value
+        value: float = start + (percent * (end - start)) if end > start else 0
+        value = self.__apply_resolution_on_value(value)
+        percent = (value - start) / (end - start) if end > start else 0
+        return percent
 
     config.on_update("value", invoke)
     config.on_update("percent", invoke)

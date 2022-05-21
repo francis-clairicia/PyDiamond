@@ -329,6 +329,7 @@ class ThemedObjectMeta(ObjectMeta):
     __virtual_themed_class_bases__: tuple[ThemedObjectMeta, ...]
     __theme_ignore__: Sequence[str]
     __theme_associations__: dict[type, dict[str, str]]
+    __theme_override__: Sequence[str]
 
     def __new__(
         metacls,
@@ -370,10 +371,13 @@ class ThemedObjectMeta(ObjectMeta):
             if init_method is not None:
                 check_parameters(init_method)
 
-        ignored_parameters: str | Sequence[str] = namespace.pop("__theme_ignore__", ())
-        if isinstance(ignored_parameters, str):
-            ignored_parameters = (ignored_parameters,)
-        namespace["__theme_ignore__"] = tuple(ignored_parameters)
+        for attr_name in ("__theme_ignore__", "__theme_override__"):
+            sequence: str | Sequence[str] = namespace.pop(attr_name, ())
+            if isinstance(sequence, str):
+                sequence = (sequence,)
+            else:
+                sequence = tuple(sequence)
+            namespace[attr_name] = sequence
 
         namespace.setdefault("__theme_associations__", {})
         namespace["_no_use_of_themes_"] = truth(no_theme)
@@ -412,8 +416,9 @@ class ThemedObjectMeta(ObjectMeta):
             if any(t is NoTheme for t in theme):
                 raise ValueError("The 'NoTheme' special value is in the sequence")
 
-        default_theme: tuple[str, ...] = cls.get_default_themes()
-        theme_kwargs: dict[str, Any] = cls.get_theme_options(*default_theme, *theme, ignore_unusable=True)
+        theme_kwargs: dict[str, Any] = cls.get_theme_options(
+            *theme, parent_themes=True, use_default_themes=True, use_parent_default_themes=True, ignore_unusable=True
+        )
         if theme_kwargs:
             kwargs = theme_kwargs | kwargs
         return create_object(*args, **kwargs)
@@ -426,16 +431,18 @@ class ThemedObjectMeta(ObjectMeta):
         return super().__setattr__(name, value)
 
     @overload
-    def set_theme(cls, name: str, options: dict[str, Any], update: bool = False, ignore_unusable: bool = False) -> None:
+    def set_theme(cls, name: str, options: dict[str, Any], update: bool = False, ignore_unusable: bool = True) -> None:
         ...
 
     @overload
     def set_theme(cls, name: str, options: None) -> None:
         ...
 
-    def set_theme(cls, name: str, options: dict[str, Any] | None, update: bool = False, ignore_unusable: bool = False) -> None:
+    def set_theme(cls, name: str, options: dict[str, Any] | None, update: bool = False, ignore_unusable: bool = True) -> None:
         if cls.is_abstract_theme_class():
             raise TypeError("Abstract theme classes cannot set themes.")
+        if getattr(cls, "_no_use_of_themes_", False):
+            raise TypeError(f"{cls.__qualname__} do not use themes")
         if name is NoTheme:
             raise ValueError("Couldn't set 'NoTheme' as theme")
 
@@ -508,6 +515,8 @@ class ThemedObjectMeta(ObjectMeta):
     def set_default_theme(cls, name: str | None, /, *names: str, update: bool = False) -> None:
         if cls.is_abstract_theme_class():
             raise TypeError("Abstract theme classes cannot set themes.")
+        if getattr(cls, "_no_use_of_themes_", False):
+            raise TypeError(f"{cls.__qualname__} do not use themes")
 
         if name is None:
             if names:
@@ -522,9 +531,21 @@ class ThemedObjectMeta(ObjectMeta):
         else:
             _DEFAULT_THEME[cls] = tuple(dict.fromkeys((*_DEFAULT_THEME[cls], *default_themes)))
 
-    def get_theme_options(cls, *themes: str, parent_themes: bool = True, ignore_unusable: bool = False) -> dict[str, Any]:
+    def get_theme_options(
+        cls,
+        *themes: str,
+        parent_themes: bool = True,
+        use_default_themes: bool = True,
+        use_parent_default_themes: bool = True,
+        ignore_unusable: bool = False,
+    ) -> dict[str, Any]:
         if cls.is_abstract_theme_class():
             raise TypeError("Abstract theme classes does not have themes.")
+        if getattr(cls, "_no_use_of_themes_", False):
+            raise TypeError(f"{cls.__qualname__} do not use themes")
+
+        if use_default_themes:
+            themes = cls.get_default_themes(parent_default_themes=use_parent_default_themes) + themes
 
         theme_kwargs: dict[str, Any] = dict()
         if not themes:
@@ -536,13 +557,18 @@ class ThemedObjectMeta(ObjectMeta):
             else ()
         )
         theme_key_associations = cls.__theme_associations__
+        theme_key_override = cls.__theme_override__
         for t in dict.fromkeys(themes):
             for parent in all_parents_classes:
-                parent_theme_kwargs = parent.get_theme_options(t)
+                parent_theme_kwargs = parent.get_theme_options(
+                    t, parent_themes=True, use_default_themes=True, use_parent_default_themes=True, ignore_unusable=False
+                )
                 for parent_param, cls_param in theme_key_associations.get(parent, {}).items():
                     if parent_param not in parent_theme_kwargs:
                         continue
                     parent_theme_kwargs[cls_param] = parent_theme_kwargs.pop(parent_param)
+                for param in theme_key_override:
+                    parent_theme_kwargs.pop(param, None)
                 theme_kwargs |= parent_theme_kwargs
             with suppress(KeyError):
                 theme_kwargs |= _THEMES[cls][t]

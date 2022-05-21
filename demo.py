@@ -45,7 +45,7 @@ from py_diamond.graphics.progress import ProgressBar
 from py_diamond.graphics.renderer import AbstractRenderer, SurfaceRenderer
 from py_diamond.graphics.scale import ScaleBar
 from py_diamond.graphics.scroll import ScrollArea, ScrollBar
-from py_diamond.graphics.shape import CircleShape, CrossShape, PolygonShape, RectangleShape, ThemedShapeMeta
+from py_diamond.graphics.shape import CircleShape, CrossShape, PolygonShape, RectangleShape
 from py_diamond.graphics.sprite import AnimatedSprite, Sprite
 from py_diamond.graphics.surface import Surface
 from py_diamond.graphics.text import Text, TextImage
@@ -83,25 +83,18 @@ if TYPE_CHECKING:
 
 
 class ShapeScene(MainScene, busy_loop=True):
-    @classmethod
-    def __theme_init__(cls) -> None:
-        super().__theme_init__()
-        shape: ThemedShapeMeta
-        for shape in [RectangleShape, PolygonShape, CircleShape, CrossShape]:
-            shape.set_default_theme("default")
-            shape.set_theme("default", {"outline_color": RED, "outline": 3})
-
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
-        self.__r: RectangleShape = RectangleShape(50, 50, WHITE)
-        self.__p: PolygonShape = PolygonShape(WHITE)
-        self.__c: CircleShape = CircleShape(30, WHITE, outline=4)
+        self.__r: RectangleShape = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
+        self.__p: PolygonShape = PolygonShape(WHITE, outline=3, outline_color=RED)
+        self.__c: CircleShape = CircleShape(30, WHITE, outline=4, outline_color=RED)
         self.__x: CrossShape = CrossShape(
             50,
             50,
             type="diagonal",
             color=RED,
+            outline=3,
             outline_color=WHITE,
         )
         self.__p.set_points(
@@ -691,13 +684,21 @@ class ScaleBarScene(MainScene):
         self.background_color = BLUE_DARK
         self.text = text = Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
         self.scale = scale = ScaleBar(
-            self, 500, 75, from_=10, to=90, value_callback=lambda value: self.text.config(message=f"Value: {value:.2f}")
+            self,
+            500,
+            75,
+            from_=10,
+            to=90,
+            value_callback=lambda value: self.text.config(message=f"Value: {value}"),
+            cursor_thickness=10,
         )
         self.vscale = vscale = ScaleBar(self, 75, 500, from_=10, to=90, orient="vertical", outline=10)
 
+        scale.resolution = 0
+        vscale.resolution = None
         scale.center = self.window.width / 4, self.window.centery
         text.midtop = scale.centerx, scale.bottom + 20
-        vscale.show_value("right", round_n=2, font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
+        vscale.show_value("right", round_n=5, font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
         vscale.center = self.window.width * 3 / 4, self.window.centery
 
     def on_start_loop_before_transition(self) -> None:
