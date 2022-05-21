@@ -6,8 +6,6 @@
 
 from __future__ import annotations
 
-from types import MappingProxyType
-
 __all__ = ["AnimationInterpolator", "AnimationInterpolatorPool", "TransformAnimation"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -16,6 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from abc import ABCMeta, abstractmethod
 from contextlib import ExitStack, contextmanager
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal, NamedTuple, TypeAlias, TypeVar
 from weakref import WeakKeyDictionary, proxy as weakproxy
 
@@ -155,6 +154,8 @@ class TransformAnimation(Object):
         __Self = TypeVar("__Self", bound="TransformAnimation")
 
     def smooth_set_position(self: __Self, speed: float = 100, **position: float | tuple[float, float]) -> __Self:
+        if not position:
+            raise ValueError("Please give position parameter")
         transformable: Transformable = self.__transformable
         self.__animations["move"] = _AnimationSetPosition(transformable, speed, position)
         return self
@@ -286,8 +287,7 @@ class TransformAnimation(Object):
         self.__wait = True
 
     def clear(self, *, pause: bool = False) -> None:
-        if pause:
-            self.pause()
+        self.__wait = bool(pause)
         self.__animations.clear()
         self.__interpolator.reset()
 
@@ -326,7 +326,7 @@ class _TransformState(NamedTuple):
         data: MappingProxyType[str, Any] | None = None
         state = t._freeze_state()
         if state is not None:
-            data = MappingProxyType(dict(state))
+            data = MappingProxyType(state)
         return _TransformState(t.angle, t.scale, Vector2(t.center), data)
 
     def interpolate(self, other: _TransformState, alpha: float, t: Transformable) -> None:
@@ -335,21 +335,26 @@ class _TransformState(NamedTuple):
         center = self.center.lerp(other.center, alpha)
         if not t._set_frozen_state(angle, scale, None):
             t.apply_rotation_scale()
-        t.center = center  # type: ignore[assignment]
+        t.center = (center.x, center.y)
 
     @staticmethod
     def angle_interpolation(start: float, end: float, alpha: float) -> float:
+        if start == end:
+            return start
         shortest_angle = ((end - start) + 180) % 360 - 180
         return (start + shortest_angle * alpha) % 360
 
     @staticmethod
     def linear_interpolation(start: float, end: float, alpha: float) -> float:
+        if start == end:
+            return start
         return start * (1.0 - alpha) + end * alpha
 
     def apply_on(self, t: Transformable) -> None:
         if not t._set_frozen_state(self.angle, self.scale, self.data):
             t.apply_rotation_scale()
-        t.center = self.center  # type: ignore[assignment]
+        center = self.center
+        t.center = (center.x, center.y)
 
 
 class _AbstractAnimationClass(metaclass=ABCMeta):

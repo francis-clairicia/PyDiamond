@@ -604,3 +604,9 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
             self._map = {item: index for index, item in enumerate(items)}
 
     __class_getitem__ = classmethod(GenericAlias)
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()

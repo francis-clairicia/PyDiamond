@@ -104,7 +104,7 @@ class _EventMeta(ObjectMeta):
                 if not issubclass(bases[0], BuiltinEvent) and "type" in namespace:
                     raise TypeError("'type' attribute must not be set explicitly")
         cls = super().__new__(metacls, name, bases, namespace, **kwargs)
-        if isconcreteclass(cls) and cls._should_be_registered():
+        if isconcreteclass(cls):
             event_type: EventType
             if not hasattr(cls, "type"):
                 event_type = _pg_event_custom_type()
@@ -124,9 +124,6 @@ class _EventMeta(ObjectMeta):
                 raise TypeError(f"Event with type {int(event_type)} already exists: {event_cls}")
             metacls.__associations[event_type] = cast(type[Event], cls)
         return cls
-
-    def _should_be_registered(cls) -> bool:
-        return True
 
 
 class Event(Object, metaclass=_EventMeta):
@@ -170,11 +167,6 @@ class _BuiltinEventMeta(_EventMeta):
         for event_type in BuiltinEvent.Type:
             if event_type not in metacls.__associations:
                 raise TypeError(f"{event_type.name} event does not have an associated BuiltinEvent class")
-
-    def _should_be_registered(cls) -> bool:
-        if cls.__name__ == "BuiltinEvent" and cls.__name__ not in globals():
-            return False
-        return super()._should_be_registered()
 
 
 # TODO (3.11) dataclass_transform (PEP-681)

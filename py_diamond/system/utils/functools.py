@@ -154,6 +154,7 @@ def forbidden_call(func: Callable[_P, _R]) -> Callable[_P, _R]:
     def not_callable(*args: Any, **kwargs: Any) -> Any:
         raise TypeError(f"Call to function {func.__qualname__} is forbidden")
 
+    setattr(not_callable, "__forbidden_call__", True)
     return not_callable
 
 

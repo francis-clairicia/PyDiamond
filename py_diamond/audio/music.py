@@ -51,8 +51,9 @@ class Music(NoDuplicate):
 @final
 class MusicStream(ClassNamespace, frozen=True):
     MUSICEND: Final[int] = _pg_event_custom_type()
-    _pg_music.set_endevent(_pg_event_custom_type())
-    _pg_music.set_endevent = forbidden_call(_pg_music.set_endevent)
+    if not getattr(_pg_music.set_endevent, "__forbidden_call__", False):
+        _pg_music.set_endevent(_pg_event_custom_type())
+        _pg_music.set_endevent = forbidden_call(_pg_music.set_endevent)
 
     @dataclass
     class _PlayingMusic:

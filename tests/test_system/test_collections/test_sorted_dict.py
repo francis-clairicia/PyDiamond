@@ -537,7 +537,7 @@ def test_copy_method() -> None:
 
     copy_sd = sd.copy()
 
-    assert isinstance(copy_sd, type(sd))
+    assert type(copy_sd) is type(sd)
     assert copy_sd == sd
     assert copy_sd is not sd
 
@@ -550,7 +550,7 @@ def test_copy_module_compatiblity() -> None:
 
     copy_sd = copy(sd)
 
-    assert isinstance(copy_sd, type(sd))
+    assert type(copy_sd) is type(sd)
     assert copy_sd == sd
     assert copy_sd is not sd
 
@@ -563,7 +563,7 @@ def test_deepcopy() -> None:
 
     copy_sd = deepcopy(sd)
 
-    assert isinstance(copy_sd, type(sd))
+    assert type(copy_sd) is type(sd)
     assert copy_sd == sd
     assert copy_sd is not sd
 
