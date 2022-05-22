@@ -11,6 +11,7 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from operator import truth
+from weakref import WeakMethod
 
 from ..audio.sound import Sound
 from ..graphics.drawable import Drawable
@@ -50,8 +51,8 @@ class Pressable(Clickable):
             focus_on_hover=focus_on_hover,
         )
         if isinstance(self.scene, GUIScene):
-            self.event.bind(KeyDownEvent, self.__handle_key_press_event)
-            self.event.bind(KeyUpEvent, self.__handle_key_press_event)
+            self.event.bind(KeyDownEvent, WeakMethod(self.__handle_key_press_event))
+            self.event.bind(KeyUpEvent, WeakMethod(self.__handle_key_press_event))
 
     def __handle_key_press_event(self, event: KeyEvent) -> bool:
         if self._ignore_key_event(event):

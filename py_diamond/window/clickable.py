@@ -4,6 +4,8 @@
 #
 """Clickable objects module"""
 
+from __future__ import annotations
+
 __all__ = ["Clickable"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -13,7 +15,8 @@ __license__ = "GNU GPL v3.0"
 from abc import abstractmethod
 from enum import auto, unique
 from operator import truth
-from typing import ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
+from weakref import WeakMethod
 
 from ..audio.sound import Sound
 from ..graphics.drawable import Drawable
@@ -21,7 +24,7 @@ from ..system.enum import AutoLowerNameEnum
 from ..system.object import Object
 from .cursor import AbstractCursor, SystemCursor
 from .display import Window
-from .event import Event, EventManager, MouseButtonDownEvent, MouseButtonEvent, MouseButtonUpEvent, MouseMotionEvent
+from .event import BoundEventManager, Event, MouseButtonDownEvent, MouseButtonEvent, MouseButtonUpEvent, MouseMotionEvent
 from .gui import SupportsFocus
 from .mouse import Mouse
 from .scene import Scene
@@ -32,6 +35,9 @@ class Clickable(Object):
     class State(AutoLowerNameEnum):
         NORMAL = auto()
         DISABLED = auto()
+
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="Clickable")
 
     __default_focus_on_hover: ClassVar[bool] = False
 
@@ -77,12 +83,13 @@ class Clickable(Object):
         self.hover_sound = hover_sound
         self.click_sound = click_sound
         self.disabled_sound = disabled_sound
-        self.__event = event = EventManager()
-        master.event.bind_event_manager(event)
-        event.bind(MouseButtonDownEvent, self.__handle_click_event)
-        event.bind(MouseButtonUpEvent, self.__handle_click_event)
-        event.bind(MouseMotionEvent, self.__handle_mouse_motion)
-        event.bind_mouse_position(self.__handle_mouse_position)
+        self.__event: BoundEventManager[Any]
+        self.__event = event = BoundEventManager(self)
+        event.register_to_existing_manager(master.event)
+        event.bind(MouseButtonDownEvent, WeakMethod(self.__handle_click_event))
+        event.bind(MouseButtonUpEvent, WeakMethod(self.__handle_click_event))
+        event.bind(MouseMotionEvent, WeakMethod(self.__handle_mouse_motion))
+        event.bind_mouse_position(WeakMethod(self.__handle_mouse_position))
         if isinstance(self, SupportsFocus):
             self.focus.take(take_focus)
 
@@ -233,7 +240,7 @@ class Clickable(Object):
         return self.__scene
 
     @property
-    def event(self) -> EventManager:
+    def event(self: __Self) -> BoundEventManager[__Self]:
         return self.__event
 
     @property

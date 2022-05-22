@@ -15,6 +15,7 @@ __license__ = "GNU GPL v3.0"
 from functools import cached_property
 from string import printable as ASCII_PRINTABLE
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Sequence, TypeAlias
+from weakref import WeakMethod
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.validation import valid_integer, valid_optional_float, valid_optional_integer
@@ -48,7 +49,7 @@ class EntryMeta(TDrawableMeta, ThemedObjectMeta):
 
 @Text.register_themed_subclass
 class Entry(TDrawable, Pressable, metaclass=EntryMeta):
-    __theme_ignore__: ClassVar[Sequence[str]] = "on_validate"
+    __theme_ignore__: ClassVar[Sequence[str]] = ("on_validate",)
     __theme_associations__: ClassVar[dict[type, dict[str, str]]] = {
         Text: {
             "color": "fg",
@@ -213,12 +214,14 @@ class Entry(TDrawable, Pressable, metaclass=EntryMeta):
         self.__start_edit: bool = False
         self.__cursor_animation_clock = Clock()
 
-        key_press_event = self.__key_press
-        self.event.bind(KeyDownEvent, key_press_event)
-        self.event.bind(TextInputEvent, key_press_event)
+        self.event.bind(KeyDownEvent, WeakMethod(self.__key_press))
+        self.event.bind(TextInputEvent, WeakMethod(self.__key_press))
 
     def get_local_size(self) -> tuple[float, float]:
         return self.__shape.get_local_size()
+
+    def get_size(self) -> tuple[float, float]:
+        return self.__shape.get_size()
 
     def draw_onto(self, target: AbstractRenderer) -> None:
         shape: RectangleShape = self.__shape
