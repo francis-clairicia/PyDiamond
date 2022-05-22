@@ -29,7 +29,6 @@ from .drawable import BaseLayeredDrawableGroup, MDrawable, SupportsDrawableGroup
 from .rect import Rect
 from .renderer import AbstractRenderer, SurfaceRenderer
 from .shape import RectangleShape
-from .surface import Surface, create_surface
 from .theme import NoTheme, ThemedObjectMeta, ThemeType
 
 if TYPE_CHECKING:
@@ -402,7 +401,7 @@ class ScrollArea(BaseLayeredDrawableGroup[ScrollAreaElement], MDrawable):
         MDrawable.__init__(self)
         self.__master: Scene | Window = master
         self.__view_rect: Rect = Rect(0, 0, width, height)
-        self.__whole_area: Surface = create_surface((width, height))
+        self.__whole_area: SurfaceRenderer = SurfaceRenderer((width, height))
         self.__h_scroll: ScrollBar | None = None
         self.__v_scroll: ScrollBar | None = None
         self.__bg_color: Color = bg_color
@@ -430,8 +429,8 @@ class ScrollArea(BaseLayeredDrawableGroup[ScrollAreaElement], MDrawable):
 
     def draw_onto(self, target: AbstractRenderer) -> None:
         whole_area = self.__update_whole_area()
-        super().draw_onto(SurfaceRenderer(whole_area))
-        target.draw_surface(whole_area, self.topleft, area=self.__view_rect)
+        super().draw_onto(whole_area)
+        target.draw_surface(whole_area.surface, self.topleft, area=self.__view_rect)
 
     def _bind(self, scrollbar: ScrollBar) -> None:
         if scrollbar.scroll_area is not self:
@@ -451,7 +450,7 @@ class ScrollArea(BaseLayeredDrawableGroup[ScrollAreaElement], MDrawable):
         self.__update_scrollbars_cursor()
 
     def _update(self) -> None:
-        whole_area: Surface = self.__whole_area
+        whole_area: SurfaceRenderer = self.__whole_area
         whole_area_rect = whole_area.get_rect()
         view_rect: Rect = self.__view_rect
         start: float
@@ -471,7 +470,7 @@ class ScrollArea(BaseLayeredDrawableGroup[ScrollAreaElement], MDrawable):
         if not self.rect.collidepoint(Mouse.get_pos()):
             return False
         view_rect: Rect = self.__view_rect
-        whole_area: Surface = self.__whole_area
+        whole_area: SurfaceRenderer = self.__whole_area
         whole_area_rect = whole_area.get_rect()
         offset: int = 20
         need_update: bool = False
@@ -500,8 +499,8 @@ class ScrollArea(BaseLayeredDrawableGroup[ScrollAreaElement], MDrawable):
             self.__update_scrollbars_cursor()
         return True
 
-    def __update_whole_area(self) -> Surface:
-        whole_area: Surface = self.__whole_area
+    def __update_whole_area(self) -> SurfaceRenderer:
+        whole_area: SurfaceRenderer = self.__whole_area
         view_rect: Rect = self.__view_rect
         width: int = view_rect.width
         height: int = view_rect.height
@@ -511,13 +510,12 @@ class ScrollArea(BaseLayeredDrawableGroup[ScrollAreaElement], MDrawable):
             height = max(height, m_rect.bottom)
 
         if (width, height) != whole_area.get_size():
-            self.__whole_area = whole_area = create_surface((width, height))
+            self.__whole_area = whole_area = SurfaceRenderer((width, height))
             whole_area_rect = whole_area.get_rect()
             view_rect.right = min(view_rect.right, whole_area_rect.right)
             view_rect.bottom = min(view_rect.bottom, whole_area_rect.bottom)
             self.__update_scrollbars_cursor()
-        else:
-            whole_area.fill(self.__bg_color)
+        whole_area.fill(self.__bg_color)
         return whole_area
 
     def __update_scrollbars_cursor(self) -> None:

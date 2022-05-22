@@ -119,10 +119,11 @@ class Window(Object):
             self.__flags |= _PG_FULLSCREEN
             self.__size = (0, 0)
         self.__vsync: bool = bool(vsync)
-        self.__surface: Surface = Surface((0, 0))
+        self.__surface: SurfaceRenderer = SurfaceRenderer(Surface((0, 0)))
         self.__clear_surface: Surface = Surface((0, 0))
         self.__rect: ImmutableRect = ImmutableRect.convert(self.__surface.get_rect())
 
+        self.__display_renderer: SurfaceRenderer = SurfaceRenderer(Surface((0, 0)))
         self.__main_clock: _FramerateManager = _FramerateManager()
         self.__event: EventManager = EventManager()
 
@@ -161,9 +162,10 @@ class Window(Object):
                 screenshot_threads.pop(0).join(timeout=1, terminate_on_timeout=True)
             self.__window_quit__()
             self.__callback_after.clear()
-            self.__surface = Surface((0, 0))
+            self.__surface = SurfaceRenderer(Surface((0, 0)))
             self.__clear_surface = Surface((0, 0))
             self.__rect = ImmutableRect.convert(self.__surface.get_rect())
+            self.__display_renderer = SurfaceRenderer(Surface((0, 0)))
             self.__event.unbind_all()
 
         self.__event.unbind_all()
@@ -182,9 +184,10 @@ class Window(Object):
             vsync = int(truth(self.__vsync))
             screen: Surface = _pg_display.set_mode(size, flags=flags, vsync=vsync)
             size = screen.get_size()
-            self.__surface = create_surface(size)
+            self.__surface = SurfaceRenderer(size)
             self.__clear_surface = create_surface(size)
             self.__rect = ImmutableRect.convert(self.__surface.get_rect())
+            self.__display_renderer = SurfaceRenderer(screen)
             stack.callback(cleanup)
             self.__window_init__()
             self.clear_all_events()
@@ -214,12 +217,12 @@ class Window(Object):
         return _pg_display.get_surface() is not None
 
     def clear(self, color: _ColorValue = BLACK, *, blend_alpha: bool = False) -> None:
-        screen: Surface = self.__surface
+        screen: SurfaceRenderer = self.__surface
         color = Color(color)
         if blend_alpha and color.a < 255:
             fake_screen: Surface = self.__clear_surface
             fake_screen.fill(color)
-            screen.blit(fake_screen, (0, 0))
+            screen.draw_surface(fake_screen, (0, 0))
         else:
             screen.fill(color)
 
@@ -248,9 +251,9 @@ class Window(Object):
         self.__busy_loop = truth(status)
 
     def refresh(self) -> float:
-        screen = SurfaceRenderer(_pg_display.get_surface())
+        screen = self.__display_renderer
         screen.fill((0, 0, 0))
-        screen.draw_surface(self.__surface, (0, 0))
+        screen.draw_surface(self.__surface.surface, (0, 0))
         self.system_display(screen)
         AbstractCursor.update()
         _pg_display.flip()
@@ -271,7 +274,7 @@ class Window(Object):
         pass
 
     def draw(self, *targets: SupportsDrawing) -> None:
-        renderer: SurfaceRenderer = SurfaceRenderer(self.__surface)
+        renderer: SurfaceRenderer = self.__surface
 
         for target in targets:
             with suppress(_pg_error):
@@ -279,17 +282,18 @@ class Window(Object):
 
     @contextmanager
     def capture(self, draw_on_default_at_end: bool = True) -> Iterator[Surface]:
-        default_surface = self.__surface
-        self.__surface = captured_surface = self.get_screen_copy()
+        default_surface = self.__surface.surface
+        captured_surface = self.get_screen_copy()
+        self.__surface = SurfaceRenderer(captured_surface)
         try:
             yield captured_surface
         finally:
             if draw_on_default_at_end:
                 default_surface.blit(captured_surface, (0, 0))
-            self.__surface = default_surface
+            self.__surface = SurfaceRenderer(default_surface)
 
     def get_screen_copy(self) -> Surface:
-        return self.__surface.copy()
+        return self.__surface.surface.copy()
 
     def screenshot(self) -> None:
         screen: Surface = self.get_screen_copy()
@@ -346,7 +350,8 @@ class Window(Object):
                 continue
             if pg_event.type == _PG_VIDEORESIZE:
                 if not self.event_is_allowed(BuiltinEvent.Type.WINDOWSIZECHANGED):
-                    _pg_display.set_mode(self.__surface.get_size(), flags=self.__flags, vsync=int(self.__vsync))
+                    screen = _pg_display.set_mode(self.__surface.get_size(), flags=self.__flags, vsync=int(self.__vsync))
+                    self.__display_renderer = SurfaceRenderer(screen)
                 continue
             if MusicStream._handle_event(pg_event):
                 continue
@@ -359,9 +364,9 @@ class Window(Object):
             except EventFactoryError:
                 continue
             if isinstance(event, WindowSizeChangedEvent):
-                former_surface = self.__surface
-                new_surface = create_surface((event.x, event.y))
-                new_surface.blit(former_surface, (0, 0))
+                former_surface = self.__surface.surface
+                new_surface = SurfaceRenderer((event.x, event.y))
+                new_surface.draw_surface(former_surface, (0, 0))
                 self.__surface = new_surface
                 self.__clear_surface = create_surface(new_surface.get_size())
                 self.__rect = ImmutableRect.convert(new_surface.get_rect())
@@ -380,8 +385,7 @@ class Window(Object):
         event_dict = event.to_dict()
         event_dict.pop("type", None)
         event_type = int(event.__class__.type)
-        pg_event = _pg_event.Event(event_type, event_dict)
-        return _pg_event.post(pg_event)
+        return _pg_event.post(_pg_event.Event(event_type, event_dict))
 
     def _handle_close_event(self) -> None:
         self.close()
@@ -407,12 +411,12 @@ class Window(Object):
 
     @final
     def set_width(self, width: int) -> None:
-        height = self.__surface.get_height()
+        height = int(self.__surface.get_height())
         return self.set_size((width, height))
 
     @final
     def set_height(self, height: int) -> None:
-        width = self.__surface.get_width()
+        width = int(self.__surface.get_width())
         return self.set_size((width, height))
 
     @final

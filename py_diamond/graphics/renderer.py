@@ -68,6 +68,14 @@ class AbstractRenderer(Object):
         raise NotImplementedError
 
     @abstractmethod
+    def get_width(self) -> float:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_height(self) -> float:
+        raise NotImplementedError
+
+    @abstractmethod
     def fill(self, color: _ColorValue) -> None:
         raise NotImplementedError
 
@@ -199,6 +207,14 @@ class SurfaceRenderer(AbstractRenderer):
     def get_size(self) -> tuple[int, int]:
         target: Surface = self.__target
         return target.get_size()
+
+    def get_width(self) -> float:
+        target: Surface = self.__target
+        return target.get_width()
+
+    def get_height(self) -> float:
+        target: Surface = self.__target
+        return target.get_height()
 
     def fill(self, color: _ColorValue) -> None:
         target: Surface = self.__target
