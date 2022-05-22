@@ -26,14 +26,14 @@ from abc import abstractmethod
 from contextlib import suppress
 from selectors import EVENT_READ, BaseSelector
 from threading import Event, RLock, current_thread
-from typing import TYPE_CHECKING, Any, Generic, Sequence, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Callable, Generic, Sequence, TypeVar, overload
 
 from ..system.object import Object, final
 from ..system.threading import Thread, thread_factory
 from ..system.utils.abc import concreteclass, concreteclasscheck
 from ..system.utils.functools import dsuppress
 from .client import DisconnectedClientError, TCPNetworkClient, UDPNetworkClient
-from .protocol.base import AbstractNetworkProtocol
+from .protocol.base import AbstractNetworkProtocol, AbstractStreamNetworkProtocol
 from .protocol.pickle import PicklingNetworkProtocol
 from .selector import DefaultSelector as _Selector
 from .socket.base import AbstractSocket, AbstractTCPServerSocket, AbstractUDPServerSocket, SocketAddress
@@ -157,7 +157,7 @@ class AbstractNetworkServer(Object):
 
     @property
     @abstractmethod
-    def protocol_cls(self) -> type[AbstractNetworkProtocol]:
+    def protocol_cls(self) -> Callable[[], AbstractNetworkProtocol]:
         raise NotImplementedError
 
 
@@ -171,7 +171,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
         family: int = ...,
         backlog: int | None = ...,
         dualstack_ipv6: bool = ...,
-        protocol_cls: type[AbstractNetworkProtocol] = ...,
+        protocol_cls: Callable[[], AbstractStreamNetworkProtocol] = ...,
         socket_cls: type[AbstractTCPServerSocket] = ...,
     ) -> None:
         ...
@@ -182,7 +182,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
         socket: AbstractTCPServerSocket,
         /,
         *,
-        protocol_cls: type[AbstractNetworkProtocol] = ...,
+        protocol_cls: Callable[[], AbstractStreamNetworkProtocol] = ...,
     ) -> None:
         ...
 
@@ -191,10 +191,12 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
         __arg: AbstractTCPServerSocket | tuple[str, int] | tuple[str, int, int, int],
         /,
         *,
-        protocol_cls: type[AbstractNetworkProtocol] = PicklingNetworkProtocol,
+        protocol_cls: Callable[[], AbstractStreamNetworkProtocol] = PicklingNetworkProtocol,
         **kwargs: Any,
     ) -> None:
-        concreteclasscheck(protocol_cls)
+        protocol: AbstractStreamNetworkProtocol = protocol_cls()
+        if not isinstance(protocol, AbstractStreamNetworkProtocol):
+            raise TypeError("Invalid arguments")
         socket: AbstractTCPServerSocket
         if isinstance(__arg, AbstractTCPServerSocket):
             if kwargs:
@@ -208,7 +210,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
         else:
             raise TypeError("Invalid arguments")
         self.__socket: AbstractTCPServerSocket = socket
-        self.__protocol_cls: type[AbstractNetworkProtocol] = protocol_cls
+        self.__protocol_cls: Callable[[], AbstractStreamNetworkProtocol] = protocol_cls
         self.__lock: RLock = RLock()
         self.__loop: bool = False
         self.__is_shutdown: Event = Event()
@@ -234,7 +236,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
                 raise
             except OSError:
                 return
-            client: TCPNetworkClient[_T] = TCPNetworkClient(client_socket, protocol_cls=self.protocol_cls)
+            client: TCPNetworkClient[_T] = TCPNetworkClient(client_socket, protocol=self.protocol_cls())
             if not self._verify_new_client(client, address):
                 client.close()
                 return
@@ -359,7 +361,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
 
     @final
     @property
-    def protocol_cls(self) -> type[AbstractNetworkProtocol]:
+    def protocol_cls(self) -> Callable[[], AbstractStreamNetworkProtocol]:
         return self.__protocol_cls
 
     @property
@@ -399,7 +401,7 @@ class TCPNetworkServer(AbstractTCPNetworkServer[_T]):
         family: int = ...,
         backlog: int | None = ...,
         dualstack_ipv6: bool = ...,
-        protocol_cls: type[AbstractNetworkProtocol] = ...,
+        protocol_cls: Callable[[], AbstractStreamNetworkProtocol] = ...,
         socket_cls: type[AbstractTCPServerSocket] = ...,
     ) -> None:
         ...
@@ -411,7 +413,7 @@ class TCPNetworkServer(AbstractTCPNetworkServer[_T]):
         /,
         request_handler_cls: type[AbstractTCPRequestHandler[_T]],
         *,
-        protocol_cls: type[AbstractNetworkProtocol] = ...,
+        protocol_cls: Callable[[], AbstractStreamNetworkProtocol] = ...,
     ) -> None:
         ...
 
@@ -439,7 +441,7 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_T]):
         /,
         *,
         family: int = ...,
-        protocol_cls: type[AbstractNetworkProtocol] = ...,
+        protocol_cls: Callable[[], AbstractNetworkProtocol] = ...,
         socket_cls: type[AbstractUDPServerSocket] = ...,
     ) -> None:
         ...
@@ -450,7 +452,7 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_T]):
         socket: AbstractUDPServerSocket,
         /,
         *,
-        protocol_cls: type[AbstractNetworkProtocol] = ...,
+        protocol_cls: Callable[[], AbstractNetworkProtocol] = ...,
     ) -> None:
         ...
 
@@ -459,10 +461,12 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_T]):
         __arg: AbstractUDPServerSocket | tuple[str, int] | tuple[str, int, int, int],
         /,
         *,
-        protocol_cls: type[AbstractNetworkProtocol] = PicklingNetworkProtocol,
+        protocol_cls: Callable[[], AbstractNetworkProtocol] = PicklingNetworkProtocol,
         **kwargs: Any,
     ) -> None:
-        concreteclasscheck(protocol_cls)
+        protocol: AbstractNetworkProtocol = protocol_cls()
+        if not isinstance(protocol, AbstractNetworkProtocol):
+            raise TypeError("Invalid arguments")
         socket: AbstractUDPServerSocket
         if isinstance(__arg, AbstractUDPServerSocket):
             if kwargs:
@@ -476,7 +480,8 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_T]):
         else:
             raise TypeError("Invalid arguments")
         self.__socket: AbstractUDPServerSocket = socket
-        self.__client: UDPNetworkClient[_T] = UDPNetworkClient(socket, protocol_cls=protocol_cls)
+        self.__client: UDPNetworkClient[_T] = UDPNetworkClient(socket, protocol=protocol)
+        self.__protocol_cls: Callable[[], AbstractNetworkProtocol] = protocol_cls
         self.__lock: RLock = RLock()
         self.__loop: bool = False
         self.__is_shutdown: Event = Event()
@@ -560,10 +565,8 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_T]):
 
     @final
     @property
-    def protocol_cls(self) -> type[AbstractNetworkProtocol]:
-        with self.__lock:
-            client: UDPNetworkClient[_T] = self.__client
-            return client.protocol_cls
+    def protocol_cls(self) -> Callable[[], AbstractNetworkProtocol]:
+        return self.__protocol_cls
 
     @property
     def recv_flags(self) -> int:

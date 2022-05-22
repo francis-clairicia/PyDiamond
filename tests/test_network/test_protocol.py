@@ -25,8 +25,11 @@ def test_json_protocol() -> None:
 
 
 def test_secured_protocol() -> None:
-    class SecuredJSONProtocol(JSONNetworkProtocol, SecuredNetworkProtocol):
+    class SecuredJSONProtocol(SecuredNetworkProtocol):
         SECRET_KEY: ClassVar[str] = SecuredNetworkProtocol.generate_key()
+
+        def get_unsafe_protocol(self) -> JSONNetworkProtocol:
+            return JSONNetworkProtocol()
 
     protocol = SecuredJSONProtocol()
     d: bytes = protocol.serialize({"key": [1, 2], "value": True})
@@ -49,8 +52,9 @@ def test_secured_protocol_secret_key_from_env() -> None:
 
     try:
 
-        class SecuredJSONProtocol(JSONNetworkProtocol, SecuredNetworkProtocol):
-            pass
+        class SecuredJSONProtocol(SecuredNetworkProtocol):
+            def get_unsafe_protocol(self) -> JSONNetworkProtocol:
+                return JSONNetworkProtocol()
 
     finally:
         del environ["SECRET_KEY"]
@@ -67,8 +71,9 @@ def test_secured_protocol_secret_key_from_env_custom_var() -> None:
 
     try:
 
-        class SecuredJSONProtocol(JSONNetworkProtocol, SecuredNetworkProtocol, secret_key_var="MY_SUPER_SECRET_KEY"):
-            pass
+        class SecuredJSONProtocol(SecuredNetworkProtocol, secret_key_var="MY_SUPER_SECRET_KEY"):
+            def get_unsafe_protocol(self) -> JSONNetworkProtocol:
+                return JSONNetworkProtocol()
 
     finally:
         del environ["MY_SUPER_SECRET_KEY"]

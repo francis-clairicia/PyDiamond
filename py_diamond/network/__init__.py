@@ -21,9 +21,12 @@ __all__ = [
     "AbstractUDPRequestHandler",
     "AbstractUDPSocket",
     "AddressFamily",
+    "AutoParsedStreamNetworkProtocol",
+    "BZ2CompressorProtocol",
     "ClientError",
     "ConnectedClient",
     "DisconnectedClientError",
+    "GzipCompressorProtocol",
     "IPv4SocketAddress",
     "IPv6SocketAddress",
     "PicklingNetworkProtocol",
@@ -44,6 +47,7 @@ __all__ = [
     "UDPNetworkClient",
     "UDPNetworkServer",
     "ValidationError",
+    "ZlibCompressorProtocol",
 ]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -55,10 +59,14 @@ __license__ = "GNU GPL v3.0"
 from .client import AbstractNetworkClient, ClientError, DisconnectedClientError, TCPNetworkClient, UDPNetworkClient
 from .protocol import (
     AbstractNetworkProtocol,
+    AutoParsedStreamNetworkProtocol,
+    BZ2CompressorProtocol,
+    GzipCompressorProtocol,
     PicklingNetworkProtocol,
     SecuredNetworkProtocol,
     SecuredNetworkProtocolMeta,
     ValidationError,
+    ZlibCompressorProtocol,
 )
 from .server import (
     AbstractNetworkServer,

@@ -13,16 +13,15 @@ __license__ = "GNU GPL v3.0"
 from io import BytesIO
 from pickle import HIGHEST_PROTOCOL, STOP as STOP_OPCODE, Pickler, Unpickler, UnpicklingError
 from pickletools import optimize as pickletools_optimize
-from types import TracebackType
 from typing import IO, Any, Generator
 
 from ...system.object import final
 from ...system.utils.abc import concreteclass
-from .base import AbstractNetworkProtocol, ValidationError
+from .base import AbstractStreamNetworkProtocol, ValidationError
 
 
 @concreteclass
-class PicklingNetworkProtocol(AbstractNetworkProtocol):
+class PicklingNetworkProtocol(AbstractStreamNetworkProtocol):
     @final
     def serialize(self, packet: Any) -> bytes:
         buffer = BytesIO()
@@ -32,9 +31,14 @@ class PicklingNetworkProtocol(AbstractNetworkProtocol):
 
     @final
     def deserialize(self, data: bytes) -> Any:
+        if STOP_OPCODE not in data:
+            raise ValidationError("Missing 'STOP' pickle opcode in data")
         buffer = BytesIO(data)
         unpickler = self.get_unpickler(buffer)
-        return unpickler.load()
+        try:
+            return unpickler.load()
+        except UnpicklingError as exc:
+            raise ValidationError("Unpickling error") from exc
 
     def parse_received_data(self, buffer: bytes) -> Generator[bytes, None, bytes]:
         while (idx := buffer.find(STOP_OPCODE)) >= 0:
@@ -42,18 +46,6 @@ class PicklingNetworkProtocol(AbstractNetworkProtocol):
             yield buffer[:idx]
             buffer = buffer[idx:]
         return buffer
-
-    def verify_received_data(self, data: bytes) -> None:
-        super().verify_received_data(data)
-        if STOP_OPCODE not in data:
-            raise ValidationError("Missing 'STOP' pickle opcode in data")
-
-    def handle_deserialize_error(
-        self, data: bytes, exc_type: type[BaseException], exc_value: BaseException, tb: TracebackType
-    ) -> bool:
-        if issubclass(exc_type, UnpicklingError):
-            return True
-        return super().handle_deserialize_error(data, exc_type, exc_value, tb)
 
     def get_pickler(self, buffer: IO[bytes]) -> Pickler:
         return Pickler(buffer, protocol=HIGHEST_PROTOCOL, fix_imports=True, buffer_callback=None)

@@ -83,12 +83,9 @@ def test_service_actions() -> None:
 class _IntegerNetworkProtocol(AbstractNetworkProtocol):
     BYTES_LENGTH: ClassVar[int] = 8
 
-    def verify_packet_to_send(self, packet: Any) -> None:
-        super().verify_packet_to_send(packet)
+    def serialize(self, packet: int) -> bytes:
         if not isinstance(packet, int):
             raise ValidationError
-
-    def serialize(self, packet: int) -> bytes:
         return packet.to_bytes(self.BYTES_LENGTH, byteorder="big", signed=True)
 
     def deserialize(self, data: bytes) -> int:
@@ -112,9 +109,9 @@ def test_request_handling() -> None:
     with UDPNetworkServer(address, _MirrorRequestHandler, protocol_cls=_IntegerNetworkProtocol) as server:
         server.serve_forever_in_thread(poll_interval=0.1)
         with (
-            UDPNetworkClient[int](protocol_cls=_IntegerNetworkProtocol) as client_1,
-            UDPNetworkClient[int](protocol_cls=_IntegerNetworkProtocol) as client_2,
-            UDPNetworkClient[int](protocol_cls=_IntegerNetworkProtocol) as client_3,
+            UDPNetworkClient[int](protocol=server.protocol_cls()) as client_1,
+            UDPNetworkClient[int](protocol=server.protocol_cls()) as client_2,
+            UDPNetworkClient[int](protocol=server.protocol_cls()) as client_3,
         ):
             client_1.send_packet(350, address)
             client_2.send_packet(-634, address)

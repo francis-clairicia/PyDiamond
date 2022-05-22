@@ -10,35 +10,30 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from functools import cached_property
 from json import JSONDecodeError, JSONDecoder, JSONEncoder
-from types import TracebackType
 from typing import Any
 
 from ...system.object import final
 from ...system.utils.abc import concreteclass
-from .base import AutoParsedNetworkProtocol
+from .base import AutoParsedStreamNetworkProtocol, ValidationError
 
 
 @concreteclass
-class JSONNetworkProtocol(AutoParsedNetworkProtocol):
+class JSONNetworkProtocol(AutoParsedStreamNetworkProtocol):
     @final
     def serialize(self, packet: Any) -> bytes:
-        return self.encoder.encode(packet).encode("utf-8")
+        encoder = self.get_encoder()
+        return encoder.encode(packet).encode("utf-8")
 
     @final
     def deserialize(self, data: bytes) -> Any:
-        return self.decoder.decode(data.decode("utf-8"))
+        decoder = self.get_decoder()
+        try:
+            return decoder.decode(data.decode("utf-8"))
+        except (UnicodeDecodeError, JSONDecodeError) as exc:
+            raise ValidationError("JSON decode error") from exc
 
-    def handle_deserialize_error(
-        self, data: bytes, exc_type: type[BaseException], exc_value: BaseException, tb: TracebackType
-    ) -> bool:
-        if issubclass(exc_type, JSONDecodeError):
-            return True
-        return super().handle_deserialize_error(data, exc_type, exc_value, tb)
-
-    @cached_property
-    def encoder(self) -> JSONEncoder:
+    def get_encoder(self) -> JSONEncoder:
         return JSONEncoder(
             skipkeys=False,
             ensure_ascii=True,
@@ -49,6 +44,5 @@ class JSONNetworkProtocol(AutoParsedNetworkProtocol):
             default=None,
         )
 
-    @cached_property
-    def decoder(self) -> JSONDecoder:
+    def get_decoder(self) -> JSONDecoder:
         return JSONDecoder(object_hook=None, object_pairs_hook=None)

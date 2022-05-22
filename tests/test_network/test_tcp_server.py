@@ -4,7 +4,8 @@ from time import sleep
 from typing import Any, ClassVar, Generator
 
 from py_diamond.network.client import TCPNetworkClient
-from py_diamond.network.protocol import AbstractNetworkProtocol, ValidationError
+from py_diamond.network.protocol import ValidationError
+from py_diamond.network.protocol.base import AbstractStreamNetworkProtocol
 from py_diamond.network.server import AbstractTCPRequestHandler, TCPNetworkServer
 from py_diamond.network.socket import SocketAddress
 from py_diamond.system.threading import Thread
@@ -127,15 +128,12 @@ def test_multiple_connections() -> None:
             assert len(server.clients) == 3
 
 
-class _IntegerNetworkProtocol(AbstractNetworkProtocol):
+class _IntegerNetworkProtocol(AbstractStreamNetworkProtocol):
     BYTES_LENGTH: ClassVar[int] = 8
 
-    def verify_packet_to_send(self, packet: Any) -> None:
-        super().verify_packet_to_send(packet)
+    def serialize(self, packet: int) -> bytes:
         if not isinstance(packet, int):
             raise ValidationError
-
-    def serialize(self, packet: int) -> bytes:
         return packet.to_bytes(self.BYTES_LENGTH, byteorder="big", signed=True)
 
     def deserialize(self, data: bytes) -> int:
@@ -159,9 +157,9 @@ def test_request_handling() -> None:
     with TCPNetworkServer(address, _BroadcastRequestHandler, protocol_cls=_IntegerNetworkProtocol) as server:
         server.serve_forever_in_thread(poll_interval=0)
         with (
-            TCPNetworkClient[int](address, protocol_cls=_IntegerNetworkProtocol) as client_1,
-            TCPNetworkClient[int](address, protocol_cls=_IntegerNetworkProtocol) as client_2,
-            TCPNetworkClient[int](address, protocol_cls=_IntegerNetworkProtocol) as client_3,
+            TCPNetworkClient[int](address, protocol=server.protocol_cls()) as client_1,
+            TCPNetworkClient[int](address, protocol=server.protocol_cls()) as client_2,
+            TCPNetworkClient[int](address, protocol=server.protocol_cls()) as client_3,
         ):
             while len(server.clients) < 3:
                 sleep(0.1)

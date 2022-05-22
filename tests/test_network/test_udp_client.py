@@ -76,8 +76,11 @@ def test_custom_protocol() -> None:
     host: str = "localhost"
     port: int = random_port()
 
-    class SafePicklingProtocol(PicklingNetworkProtocol, SecuredNetworkProtocol):
+    class SafePicklingProtocol(SecuredNetworkProtocol):
         SECRET_KEY = SecuredNetworkProtocol.generate_key()
+
+        def get_unsafe_protocol(self) -> PicklingNetworkProtocol:
+            return PicklingNetworkProtocol()
 
     server_started.clear()
     shutdow_requested.clear()
@@ -85,7 +88,7 @@ def test_custom_protocol() -> None:
     address: IPv4SocketAddress = IPv4SocketAddress(host, port)
     try:
         server_started.wait()
-        with UDPNetworkClient[Any](protocol_cls=SafePicklingProtocol) as client:
+        with UDPNetworkClient[Any](protocol=SafePicklingProtocol()) as client:
             client.send_packet({"data": [5, 2]}, address)
             assert client.recv_packet()[0] == {"data": [5, 2]}
             client.send_packet("Hello", address)
@@ -107,7 +110,7 @@ def test_several_successive_send() -> None:
     address: IPv4SocketAddress = IPv4SocketAddress(host, port)
     try:
         server_started.wait()
-        with UDPNetworkClient[Any](protocol_cls=PicklingNetworkProtocol) as client:
+        with UDPNetworkClient[Any](protocol=PicklingNetworkProtocol()) as client:
             client.send_packet({"data": [5, 2]}, address)
             client.send_packet("Hello", address)
             client.send_packet(132, address)
