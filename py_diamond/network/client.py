@@ -13,6 +13,7 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
+from collections import deque
 from io import DEFAULT_BUFFER_SIZE
 from os import fstat
 from selectors import EVENT_READ, EVENT_WRITE
@@ -159,7 +160,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
         self.__socket: AbstractTCPClientSocket = socket
         self.__buffer_recv: bytes = b""
         self.__protocol: AbstractStreamNetworkProtocol = protocol
-        self.__queue: list[_T] = []
+        self.__queue: deque[_T] = deque()
         self.__lock: RLock = RLock()
         self.__chunk_size: int = DEFAULT_BUFFER_SIZE
         try:
@@ -202,7 +203,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
 
     def recv_packet(self, *, flags: int = 0, retry_on_fail: bool = True) -> _T:
         with self.__lock:
-            queue: list[_T] = self.__queue
+            queue: deque[_T] = self.__queue
             if not queue:
                 recv_packets: Callable[[], None] = lambda: self.__recv_packets(flags=flags, block=True)
                 recv_packets()
@@ -210,27 +211,27 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
                     recv_packets()
                 if not queue:
                     raise NoValidPacket
-            return queue.pop(0)
+            return queue.popleft()
 
     def recv_packet_no_wait(self, *, flags: int = 0) -> _T | None:
         with self.__lock:
-            queue: list[_T] = self.__queue
+            queue: deque[_T] = self.__queue
             if not queue:
                 self.__recv_packets(flags=flags, block=False)
                 if not queue:
                     return None
-            return queue.pop(0)
+            return queue.popleft()
 
     def recv_packets(self, *, flags: int = 0, block: bool = True) -> Iterator[_T]:
         with self.__lock:
             self.__recv_packets(flags=flags, block=block)
-            queue: list[_T] = self.__queue
+            queue: deque[_T] = self.__queue
             while queue:
-                yield queue.pop(0)
+                yield queue.popleft()
 
     def __recv_packets(self, flags: int, block: bool) -> None:
         protocol: AbstractNetworkProtocol = self.__protocol
-        queue: list[_T] = self.__queue
+        queue: deque[_T] = self.__queue
         block = block and not queue
 
         buffer_recv: bytes = self.__buffer_recv
@@ -375,7 +376,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
         super().__init__()
         self.__socket: AbstractUDPSocket = socket
         self.__protocol: AbstractNetworkProtocol = protocol
-        self.__queue: list[tuple[_T, SocketAddress]] = []
+        self.__queue: deque[tuple[_T, SocketAddress]] = deque()
         self.__lock: RLock = RLock()
 
     def close(self) -> None:
@@ -393,7 +394,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
 
     def recv_packet(self, *, flags: int = 0, retry_on_fail: bool = True) -> tuple[_T, SocketAddress]:
         with self.__lock:
-            queue: list[tuple[_T, SocketAddress]] = self.__queue
+            queue: deque[tuple[_T, SocketAddress]] = self.__queue
             if not queue:
                 recv_packets: Callable[[], None] = lambda: self.__recv_packets(flags=flags, block=True)
                 recv_packets()
@@ -401,27 +402,27 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
                     recv_packets()
                 if not queue:
                     raise NoValidPacket
-            return queue.pop(0)
+            return queue.popleft()
 
     def recv_packet_no_wait(self, *, flags: int = 0) -> tuple[_T, SocketAddress] | None:
         with self.__lock:
-            queue: list[tuple[_T, SocketAddress]] = self.__queue
+            queue: deque[tuple[_T, SocketAddress]] = self.__queue
             if not queue:
                 self.__recv_packets(flags=flags, block=False)
                 if not queue:
                     return None
-            return queue.pop(0)
+            return queue.popleft()
 
     def recv_packets(self, *, flags: int = 0, block: bool = True) -> Iterator[tuple[_T, SocketAddress]]:
         with self.__lock:
             self.__recv_packets(flags=flags, block=block)
-            queue: list[tuple[_T, SocketAddress]] = self.__queue
+            queue: deque[tuple[_T, SocketAddress]] = self.__queue
             while queue:
-                yield queue.pop(0)
+                yield queue.popleft()
 
     def __recv_packets(self, flags: int, block: bool) -> None:
         protocol: AbstractNetworkProtocol = self.__protocol
-        queue: list[tuple[_T, SocketAddress]] = self.__queue
+        queue: deque[tuple[_T, SocketAddress]] = self.__queue
         block = block and not queue
 
         for data, sender in tuple(self.read_socket(self.__socket, block=block, flags=flags)):
