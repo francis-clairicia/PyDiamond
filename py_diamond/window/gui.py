@@ -23,7 +23,7 @@ import weakref
 from abc import abstractmethod
 from enum import auto, unique
 from operator import truth
-from types import FunctionType, LambdaType
+from types import FunctionType, LambdaType, MappingProxyType
 from typing import (
     Any,
     Callable,
@@ -199,6 +199,10 @@ class GUIScene(Scene):
             callback()
 
     @no_theme_decorator
+    def get_side_with_key_event(self) -> Mapping[int, BoundFocus.Side]:
+        return MappingProxyType(_SIDE_WITH_KEY_EVENT)
+
+    @no_theme_decorator
     def __handle_key_event(self, event: KeyDownEvent) -> bool:
         if event.key == Keyboard.Key.TAB:
             self.focus_set(
@@ -208,8 +212,9 @@ class GUIScene(Scene):
         if event.key == Keyboard.Key.ESCAPE:
             self.focus_set(None)
             return True
-        if event.key in _SIDE_WITH_KEY_EVENT:
-            side: BoundFocus.Side = _SIDE_WITH_KEY_EVENT[event.key]
+        side_with_key_event = self.get_side_with_key_event()
+        if event.key in side_with_key_event:
+            side: BoundFocus.Side = side_with_key_event[event.key]
             self.__focus_obj_on_side(side)
             return True
         return False
