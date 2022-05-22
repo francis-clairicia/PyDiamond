@@ -561,7 +561,7 @@ class ThemedObjectMeta(ObjectMeta):
         for t in dict.fromkeys(themes):
             for parent in all_parents_classes:
                 parent_theme_kwargs = parent.get_theme_options(
-                    t, parent_themes=True, use_default_themes=True, use_parent_default_themes=True, ignore_unusable=False
+                    t, parent_themes=True, use_default_themes=False, ignore_unusable=False
                 )
                 for parent_param, cls_param in theme_key_associations.get(parent, {}).items():
                     if parent_param not in parent_theme_kwargs:
@@ -608,16 +608,12 @@ class ThemedObjectMeta(ObjectMeta):
     def get_default_themes(cls, *, parent_default_themes: bool = True) -> tuple[str, ...]:
         default_theme: dict[str, None] = dict()
 
-        def add_default_themes(cls: ThemedObjectMeta) -> None:
-            nonlocal default_theme
-            with suppress(KeyError):
-                default_theme |= dict.fromkeys(_DEFAULT_THEME[cls])
-
         if parent_default_themes:
             get_all_parents_class = ThemedObjectMeta.__get_all_parent_classes
             for parent in get_all_parents_class(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_DEFAULT_THEMES):
-                add_default_themes(parent)
-        add_default_themes(cls)
+                default_theme |= dict.fromkeys(parent.get_default_themes(parent_default_themes=False))
+        with suppress(KeyError):
+            default_theme |= dict.fromkeys(_DEFAULT_THEME[cls])
 
         return tuple(default_theme)
 
@@ -651,14 +647,8 @@ class ThemedObjectMeta(ObjectMeta):
         def get_all_parent_classes(cls: ThemedObjectMeta) -> Iterator[ThemedObjectMeta]:
             if not isinstance(cls, ThemedObjectMeta) or cls in do_not_search_for or cls.is_abstract_theme_class():
                 return
-            mro: list[type]
-            try:
-                mro = list(getattr(cls, "__mro__"))[1:]
-            except AttributeError:
-                mro = list(cls.__bases__)
-            mro.extend(cls.__virtual_themed_class_bases__)
 
-            for base in mro:
+            for base in chain(cls.__bases__, cls.__virtual_themed_class_bases__):
                 if not isinstance(base, ThemedObjectMeta) or base.is_abstract_theme_class():
                     continue
                 yield base
