@@ -29,8 +29,9 @@ from contextlib import ExitStack, contextmanager, nullcontext, suppress
 from copy import copy, deepcopy
 from enum import Enum
 from functools import cache, update_wrapper, wraps
+from itertools import chain
 from threading import RLock
-from types import BuiltinFunctionType, BuiltinMethodType, MappingProxyType, MethodType
+from types import BuiltinFunctionType, BuiltinMethodType, MappingProxyType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -39,6 +40,7 @@ from typing import (
     Dict,
     FrozenSet,
     Generic,
+    Hashable,
     Iterator,
     List,
     Literal,
@@ -136,8 +138,6 @@ class ConfigurationTemplate(Object):
         "__build",
     )
 
-    # TODO: Postpone wrapper evaluation
-
     def __init__(
         self,
         *known_options: str,
@@ -196,7 +196,7 @@ class ConfigurationTemplate(Object):
             elif isinstance(obj, ConfigurationTemplate) and obj is not self:
                 _register_configuration(owner, former_config)
                 raise TypeError(f"A class can't have several {ConfigurationTemplate.__name__!r} objects")
-        self.__build = template.build()
+        self.__build = template.build(owner)
 
     @overload
     def __get__(self, obj: None, objtype: type, /) -> ConfigurationTemplate:
@@ -323,7 +323,7 @@ class ConfigurationTemplate(Object):
         self.check_option_validity(option)
         template: _ConfigInfoTemplate = self.__template
         actual_descriptor: Optional[_Descriptor] = template.value_descriptors.get(option)
-        if not isinstance(actual_descriptor, _ReadOnlyOptionPayload):
+        if not isinstance(actual_descriptor, _ReadOnlyOptionBuildPayload):
             if actual_descriptor is not None and not isinstance(actual_descriptor, _ConfigProperty):
                 raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
             actual_property: Optional[_ConfigProperty] = actual_descriptor
@@ -342,13 +342,13 @@ class ConfigurationTemplate(Object):
                 else:
                     new_config_property = actual_property.getter(wrapper)
                 if readonly:
-                    template.value_descriptors[option] = _ReadOnlyOptionPayload(new_config_property)
+                    template.value_descriptors[option] = _ReadOnlyOptionBuildPayload(new_config_property)
                 else:
                     template.value_descriptors[option] = new_config_property
                 return func
 
         else:
-            readonly_descriptor: _ReadOnlyOptionPayload = actual_descriptor
+            readonly_descriptor: _ReadOnlyOptionBuildPayload = actual_descriptor
             actual_descriptor = readonly_descriptor.get_descriptor()
             if not isinstance(actual_descriptor, _ConfigProperty):
                 raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
@@ -398,10 +398,13 @@ class ConfigurationTemplate(Object):
     ) -> Optional[Callable[[_KeyGetter], _KeyGetter]]:
         self.__check_locked()
 
-        def decorator(func: _KeyGetter, /) -> _KeyGetter:
+        def wrapper_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             key: str = use_key or option
-            wrapper = _make_function_wrapper(func, check_override=bool(use_override))
-            self.getter(option, _wrap_function_wrapper(func, lambda self: wrapper(self, key)), readonly=readonly)
+            return lambda self: func(self, key)
+
+        def decorator(func: _KeyGetter, /) -> _KeyGetter:
+            wrapper = _WrappedFunctionWrapper(func, option, wrapper_decorator, check_override=bool(use_override), no_object=False)
+            self.getter(option, wrapper, readonly=readonly)
             return func
 
         if func is None:
@@ -426,7 +429,7 @@ class ConfigurationTemplate(Object):
         actual_descriptor: Optional[_Descriptor] = template.value_descriptors.get(option)
         if actual_descriptor is None:
             raise OptionError(option, "Attributing setter for this option which has no getter")
-        if isinstance(actual_descriptor, _ReadOnlyOptionPayload):
+        if isinstance(actual_descriptor, _ReadOnlyOptionBuildPayload):
             raise OptionError(option, "Read-only option")
         if not isinstance(actual_descriptor, _ConfigProperty):
             raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
@@ -463,10 +466,13 @@ class ConfigurationTemplate(Object):
     ) -> Optional[Callable[[_KeySetter], _KeySetter]]:
         self.__check_locked()
 
-        def decorator(func: _KeySetter, /) -> _KeySetter:
+        def wrapper_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             key: str = use_key or option
-            wrapper = _make_function_wrapper(func, check_override=bool(use_override))
-            self.setter(option, _wrap_function_wrapper(func, lambda self, value: wrapper(self, key, value)))
+            return lambda self, value: func(self, key, value)
+
+        def decorator(func: _KeySetter, /) -> _KeySetter:
+            wrapper = _WrappedFunctionWrapper(func, option, wrapper_decorator, check_override=bool(use_override), no_object=False)
+            self.setter(option, wrapper)
             return func
 
         if func is None:
@@ -491,7 +497,7 @@ class ConfigurationTemplate(Object):
         actual_descriptor: Optional[_Descriptor] = template.value_descriptors.get(option)
         if actual_descriptor is None:
             raise OptionError(option, "Attributing deleter for this option which has no getter")
-        if isinstance(actual_descriptor, _ReadOnlyOptionPayload):
+        if isinstance(actual_descriptor, _ReadOnlyOptionBuildPayload):
             raise OptionError(option, "Read-only option")
         if not isinstance(actual_descriptor, _ConfigProperty):
             raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
@@ -528,10 +534,13 @@ class ConfigurationTemplate(Object):
     ) -> Optional[Callable[[_KeyDeleter], _KeyDeleter]]:
         self.__check_locked()
 
-        def decorator(func: _KeyDeleter, /) -> _KeyDeleter:
+        def wrapper_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             key: str = use_key or option
-            wrapper = _make_function_wrapper(func, check_override=bool(use_override))
-            self.deleter(option, _wrap_function_wrapper(func, lambda self: wrapper(self, key)))
+            return lambda self: func(self, key)
+
+        def decorator(func: _KeyDeleter, /) -> _KeyDeleter:
+            wrapper = _WrappedFunctionWrapper(func, option, wrapper_decorator, check_override=bool(use_override), no_object=False)
+            self.deleter(option, wrapper)
             return func
 
         if func is None:
@@ -548,7 +557,7 @@ class ConfigurationTemplate(Object):
             option in template.value_descriptors
             and (actual_descriptor := template.value_descriptors[option]) not in template.parent_descriptors
         ):
-            if isinstance(actual_descriptor, _ReadOnlyOptionPayload):
+            if isinstance(actual_descriptor, _ReadOnlyOptionBuildPayload):
                 underlying_descriptor = actual_descriptor.get_descriptor()
                 if underlying_descriptor is None:
                     raise OptionError(option, "Already uses custom getter register with getter() method")
@@ -601,7 +610,7 @@ class ConfigurationTemplate(Object):
 
     def on_update(
         self, option: str, func: Optional[_Updater] = None, /, *, use_override: bool = True
-    ) -> Optional[Union[_Updater, Callable[[_Updater], _Updater]]]:
+    ) -> Optional[Callable[[_Updater], _Updater]]:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
@@ -640,10 +649,13 @@ class ConfigurationTemplate(Object):
     ) -> Optional[Callable[[_KeyUpdater], _KeyUpdater]]:
         self.__check_locked()
 
-        def decorator(func: _KeyUpdater, /) -> _KeyUpdater:
+        def wrapper_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             key: str = use_key or option
-            wrapper = _make_function_wrapper(func, check_override=bool(use_override))
-            self.on_update(option, _wrap_function_wrapper(func, lambda self: wrapper(self, key)))
+            return lambda self: func(self, key)
+
+        def decorator(func: _KeyUpdater, /) -> _KeyUpdater:
+            wrapper = _WrappedFunctionWrapper(func, option, wrapper_decorator, check_override=bool(use_override), no_object=False)
+            self.on_update(option, wrapper)
             return func
 
         if func is None:
@@ -702,10 +714,13 @@ class ConfigurationTemplate(Object):
     ) -> Optional[Callable[[_KeyValueUpdater], _KeyValueUpdater]]:
         self.__check_locked()
 
-        def decorator(func: _KeyValueUpdater, /) -> _KeyValueUpdater:
+        def wrapper_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             key: str = use_key or option
-            wrapper = _make_function_wrapper(func, check_override=bool(use_override))
-            self.on_update_value(option, _wrap_function_wrapper(func, lambda self, value: wrapper(self, key, value)))
+            return lambda self, value: func(self, key, value)
+
+        def decorator(func: _KeyValueUpdater, /) -> _KeyValueUpdater:
+            wrapper = _WrappedFunctionWrapper(func, option, wrapper_decorator, check_override=bool(use_override), no_object=False)
+            self.on_update_value(option, wrapper)
             return func
 
         if func is None:
@@ -953,12 +968,12 @@ class ConfigurationTemplate(Object):
         for option in options:
             self.check_option_validity(option)
             descriptor: Optional[_Descriptor] = template.value_descriptors.get(option)
-            if isinstance(descriptor, _ReadOnlyOptionPayload):
+            if isinstance(descriptor, _ReadOnlyOptionBuildPayload):
                 continue
             if isinstance(descriptor, (_MutableDescriptor, _RemovableDescriptor)):
                 if not isinstance(descriptor, property) or descriptor.fset is not None or descriptor.fdel is not None:
                     raise OptionError(option, "Trying to flag option as read-only with custom setter/deleter")
-            template.value_descriptors[option] = _ReadOnlyOptionPayload()
+            template.value_descriptors[option] = _ReadOnlyOptionBuildPayload()
 
     def __check_locked(self) -> None:
         if self.__bound_class is not None:
@@ -1091,7 +1106,7 @@ class ConfigurationInfo(NamedTuple):
     def get_value_descriptor(self, option: str, objtype: type) -> _Descriptor:
         descriptor: Optional[_Descriptor] = self.value_descriptors.get(option, None)
         if descriptor is None:
-            descriptor = _PrivateAttributeOptionProperty()
+            descriptor = _PrivateAttributeOptionPropertyFallback()
             descriptor.__set_name__(self.attribute_class_owner.get(option, objtype), option)
         if option in self.readonly_options:
             descriptor = self.__ReadOnlyOptionWrapper(descriptor)
@@ -1512,96 +1527,176 @@ def _no_type_check_cache(func: _Func) -> _Func:
 
 
 def _make_function_wrapper(func: Any, *, check_override: bool = True, no_object: bool = False) -> Callable[..., Any]:
-    return _make_function_wrapper_impl(func, check_override=bool(check_override), no_object=bool(no_object))
-
-
-@_no_type_check_cache
-def _make_function_wrapper_impl(func: Any, *, check_override: bool, no_object: bool) -> Callable[..., Any]:
-    if getattr(func, "__boundconfiguration_wrapper__", False):
-        return cast(Callable[..., Any], func)
-
-    if isinstance(func, (BuiltinFunctionType, BuiltinMethodType)) or not hasattr(func, "__get__"):
-        no_object = True
-    if callable(func) and not _can_be_overriden(func):
-        check_override = False
-
-    func_name: str
-    if no_object:
-
-        if check_override:
-            func_name = getattr(func, "__name__")
-
-            @wraps(func)
-            def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-                _func: Callable[..., Any] = getattr(self, func_name, func)
-                return _func(*args, **kwargs)
-
-        else:
-
-            @wraps(func)
-            def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-                return func(*args, **kwargs)
-
+    wrapper: Union[_FunctionWrapperBuilder, _WrappedFunctionWrapper]
+    if isinstance(func, _WrappedFunctionWrapper):
+        wrapper = func
     else:
-        func_get_descriptor: Callable[[Any, type], Callable[..., Any]] = getattr(func, "__get__")
-        func_name = getattr(func, "__name__")
-
-        if check_override:
-
-            @wraps(func)
-            def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-                _func: Callable[..., Any]
-                try:
-                    _func = getattr(self, func_name)
-                except AttributeError:
-                    _func = func_get_descriptor(self, type(self))
-                return _func(*args, **kwargs)
-
-        else:
-
-            @wraps(func)
-            def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-                _func: Callable[..., Any] = func_get_descriptor(self, type(self))
-                return _func(*args, **kwargs)
-
-    setattr(wrapper, "__boundconfiguration_wrapper__", True)
+        wrapper = _FunctionWrapperBuilder(func, check_override=check_override, no_object=no_object)
+    cached_func = wrapper.get_wrapper()
+    if cached_func is not None:
+        return cached_func
     return wrapper
 
 
-_LAMBDA_FUNC_NAME = (lambda: None).__name__
+@final
+class _FunctionWrapperBuilder:
+    __slots__ = ("info", "cache")
+
+    class Info(NamedTuple):
+        func: Any
+        check_override: bool
+        no_object: bool
+
+    info: Info
+    cache: dict[Any, Callable[..., Any]]
+
+    __instance_cache: dict[Info, _FunctionWrapperBuilder] = dict()
+
+    def __new__(cls, func: Any, check_override: bool, no_object: bool) -> _FunctionWrapperBuilder:
+        if isinstance(func, _FunctionWrapperBuilder):
+            return func
+        info = cls.Info(func=func, check_override=check_override, no_object=no_object)
+        try:
+            self = cls.__instance_cache[info]
+        except KeyError:
+            self = object.__new__(cls)
+            self.info = info
+            self.cache = {}
+            cls.__instance_cache[info] = self
+        return self
+
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        raise NotImplementedError("Dummy function")
+
+    @staticmethod
+    def is_wrapper(func: Callable[..., Any]) -> bool:
+        return True if getattr(func, "__boundconfiguration_wrapper__", False) else False
+
+    @staticmethod
+    def mark_wrapper(wrapper: Callable[..., Any]) -> None:
+        setattr(wrapper, "__boundconfiguration_wrapper__", True)
+
+    def get_wrapper(self) -> Optional[Callable[..., Any]]:
+        func: Any = self.info.func
+        if self.is_wrapper(func):
+            return cast(Callable[..., Any], func)
+        return self.cache.get(func)
+
+    def build_wrapper(self, cls: type) -> Callable[..., Any]:
+        info = self.info
+        func: Any = info.func
+        if self.is_wrapper(func):
+            return cast(Callable[..., Any], func)
+        if func in self.cache:
+            return self.cache[func]
+
+        no_object = info.no_object
+        check_override = info.check_override
+
+        func_name: str = ""
+        if check_override:
+            func_name = next((attr_name for attr_name, attr_obj in _all_members(cls).items() if attr_obj is func), func_name)
+
+        if isinstance(func, (BuiltinFunctionType, BuiltinMethodType)) or not hasattr(func, "__get__"):
+            no_object = True
+
+        if no_object:
+
+            if func_name:
+
+                def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
+                    _func: Callable[..., Any] = getattr(self, func_name, func)
+                    return _func(*args, **kwargs)
+
+            else:
+
+                def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
+                    return func(*args, **kwargs)
+
+        else:
+            func_get_descriptor: Callable[[Any, type], Callable[..., Any]] = getattr(func, "__get__")
+
+            if func_name:
+
+                def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
+                    _func: Callable[..., Any]
+                    try:
+                        _func = getattr(self, func_name)
+                    except AttributeError:
+                        _func = func_get_descriptor(self, type(self))
+                    return _func(*args, **kwargs)
+
+            else:
+
+                def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
+                    _func: Callable[..., Any] = func_get_descriptor(self, type(self))
+                    return _func(*args, **kwargs)
+
+        try:
+            wrapper = update_wrapper(wrapper=wrapper, wrapped=func)
+        except (AttributeError, TypeError):
+            pass
+
+        self.mark_wrapper(wrapper)
+        self.cache[func] = wrapper
+        return wrapper
 
 
-def _can_be_overriden(func: Callable[..., Any]) -> bool:
-    if isinstance(func, (MethodType, staticmethod)):
-        return _can_be_overriden_impl(func.__func__)
-    return not isinstance(func, (BuiltinFunctionType, BuiltinMethodType)) and _can_be_overriden_impl(func)
+@final
+class _WrappedFunctionWrapper:
+    __slots__ = ("wrapper", "decorator", "cache")
 
+    wrapper: _FunctionWrapperBuilder
+    decorator: Any
+    cache: dict[Any, Callable[..., Any]]
 
-@_no_type_check_cache
-def _can_be_overriden_impl(func: Callable[..., Any]) -> bool:
-    try:
-        name: str = func.__name__
-    except AttributeError:
-        return False
-    if name == _LAMBDA_FUNC_NAME:
-        return False
-    try:
-        qualname: str = func.__qualname__
-    except AttributeError:
-        pass
-    else:
-        if "<locals>" in qualname:  # Inner function created from factory function
-            return False
-    if name.startswith("__"):
-        return name.endswith("__")
-    return True
+    __wrapper_cache: dict[Hashable, dict[Any, Callable[..., Any]]] = {}
 
+    def __new__(
+        cls,
+        func: Any,
+        unique_key: Hashable,
+        wrapper_decorator: Callable[[Callable[..., Any]], Callable[..., Any]],
+        check_override: bool,
+        no_object: bool,
+    ) -> _WrappedFunctionWrapper:
+        self = object.__new__(cls)
 
-@_no_type_check_cache
-def _wrap_function_wrapper(func: Any, wrapper: Callable[..., Any]) -> Callable[..., Any]:
-    wrapper = update_wrapper(wrapper=wrapper, wrapped=func)
-    setattr(wrapper, "__boundconfiguration_wrapper__", True)
-    return wrapper
+        self.wrapper = _FunctionWrapperBuilder(func, check_override, no_object)
+        self.decorator = wrapper_decorator
+        self.cache = self.__wrapper_cache.setdefault(unique_key, {})
+
+        return self
+
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        raise NotImplementedError("Dummy function")
+
+    def get_wrapper(self) -> Optional[Callable[..., Any]]:
+        wrapper_cache = self.cache
+        func: Any = self.wrapper.info.func
+        if func in wrapper_cache:
+            return wrapper_cache[func]
+        return self.wrapper.get_wrapper()
+
+    def build_wrapper(self, cls: type) -> Callable[..., Any]:
+        func: Any = self.wrapper.info.func
+        wrapper_cache = self.cache
+        if func in wrapper_cache:
+            return wrapper_cache[func]
+
+        decorator: Callable[[Callable[..., Any]], Callable[..., Any]] = self.decorator
+
+        wrapper = self.wrapper.build_wrapper(cls)
+        wrapper = decorator(wrapper)
+
+        try:
+            update_wrapper(wrapper=wrapper, wrapped=func)
+        except (AttributeError, TypeError):
+            pass
+
+        _FunctionWrapperBuilder.mark_wrapper(wrapper)
+        wrapper_cache[func] = wrapper
+        return wrapper
 
 
 @_no_type_check_cache
@@ -1676,9 +1771,8 @@ if not TYPE_CHECKING:
 
 def _all_members(cls: type) -> Dict[str, Any]:
     mro: List[type] = _get_cls_mro(cls)
-    mro.reverse()
     members: Dict[str, Any] = dict()
-    for cls in mro:
+    for cls in reversed(mro):
         members.update(vars(cls))
     return members
 
@@ -1862,7 +1956,8 @@ class _ConfigInfoTemplate:
             l1 = d1.setdefault(key, [])
             merge_list(l1, l2, on_duplicate="skip", setting=setting)
 
-    def build(self) -> ConfigurationInfo:
+    def build(self, owner: type) -> ConfigurationInfo:
+        self.__intern_build_all_wrappers(owner)
         options: FrozenSet[str] = self.options.copy()
         option_value_updater: Mapping[str, Callable[[object, Any], None]] = self.__build_option_value_updater_dict()
         option_updater: Mapping[str, Callable[[object], None]] = self.__build_option_updater_dict()
@@ -1900,6 +1995,37 @@ class _ConfigInfoTemplate:
             readonly_options=readonly_options,
             enum_return_value=enum_return_value,
         )
+
+    def __intern_build_all_wrappers(self, owner: type) -> None:
+        def build_wrapper_if_needed(func: _Func) -> _Func:
+            if isinstance(func, (_FunctionWrapperBuilder, _WrappedFunctionWrapper)):
+                return func.build_wrapper(owner)  # type: ignore[return-value]
+            return func
+
+        def build_wrapper_within_descriptor(descriptor: _Descriptor) -> _Descriptor:
+            if isinstance(descriptor, _ConfigProperty):
+                if descriptor.fget is not None:
+                    descriptor = descriptor.getter(build_wrapper_if_needed(descriptor.fget))
+                if descriptor.fset is not None:
+                    descriptor = descriptor.setter(build_wrapper_if_needed(descriptor.fset))
+                if descriptor.fdel is not None:
+                    descriptor = descriptor.deleter(build_wrapper_if_needed(descriptor.fdel))
+            if isinstance(descriptor, _ReadOnlyOptionBuildPayload):
+                if (underlying_descriptor := descriptor.get_descriptor()) is not None:
+                    descriptor.set_new_descriptor(build_wrapper_within_descriptor(underlying_descriptor))
+            return descriptor
+
+        callback_list: List[Callable[..., Any]]
+        for callback_list in chain(  # type: ignore[assignment]
+            [self.main_updater],
+            self.option_updater.values(),
+            self.option_value_updater.values(),
+            self.value_converter.values(),
+            self.value_validator.values(),
+        ):
+            callback_list[:] = [build_wrapper_if_needed(func) for func in callback_list]
+        for option, descriptor in tuple(self.value_descriptors.items()):
+            self.value_descriptors[option] = build_wrapper_within_descriptor(descriptor)
 
     def __build_option_value_updater_dict(self) -> MappingProxyType[str, Callable[[object, Any], None]]:
         build_option_value_updater = self.__build_option_value_updater_func
@@ -2035,7 +2161,7 @@ class _ConfigInfoTemplate:
         value_descriptors: Dict[str, _Descriptor] = {}
 
         for option, descriptor in self.value_descriptors.items():
-            if isinstance(descriptor, _ReadOnlyOptionPayload):
+            if isinstance(descriptor, _ReadOnlyOptionBuildPayload):
                 underlying_descriptor = descriptor.get_descriptor()
                 if underlying_descriptor is None:
                     continue
@@ -2046,7 +2172,7 @@ class _ConfigInfoTemplate:
 
     def __build_readonly_options_set(self) -> FrozenSet[str]:
         return frozenset(
-            option for option, descriptor in self.value_descriptors.items() if isinstance(descriptor, _ReadOnlyOptionPayload)
+            option for option, descriptor in self.value_descriptors.items() if isinstance(descriptor, _ReadOnlyOptionBuildPayload)
         )
 
     def __build_enum_return_value_set(self) -> FrozenSet[str]:
@@ -2108,15 +2234,15 @@ class _ConfigProperty(property):
     pass
 
 
-class _PrivateAttributeOptionProperty:
+class _PrivateAttributeOptionPropertyFallback:
     def __set_name__(self, owner: type, name: str, /) -> None:
-        self.__owner: type = owner
         self.__name: str = name
+        self.__attribute: str = _private_attribute(owner, name)
 
     def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Any:
         if obj is None:
             return self
-        attribute: str = _private_attribute(self.__owner, self.__name)
+        attribute: str = self.__attribute
         try:
             return getattr(obj, attribute)
         except AttributeError as exc:
@@ -2124,11 +2250,11 @@ class _PrivateAttributeOptionProperty:
             raise UnregisteredOptionError(name) from exc
 
     def __set__(self, obj: object, value: Any, /) -> None:
-        attribute: str = _private_attribute(self.__owner, self.__name)
+        attribute: str = self.__attribute
         return setattr(obj, attribute, value)
 
     def __delete__(self, obj: object, /) -> None:
-        attribute: str = _private_attribute(self.__owner, self.__name)
+        attribute: str = self.__attribute
         try:
             return delattr(obj, attribute)
         except AttributeError as exc:
@@ -2136,7 +2262,7 @@ class _PrivateAttributeOptionProperty:
             raise UnregisteredOptionError(name) from exc
 
 
-class _ReadOnlyOptionPayload:
+class _ReadOnlyOptionBuildPayload:
     def __init__(self, default_descriptor: Optional[_Descriptor] = None) -> None:
         self.__descriptor: Callable[[], Optional[_Descriptor]]
         self.set_new_descriptor(default_descriptor)
