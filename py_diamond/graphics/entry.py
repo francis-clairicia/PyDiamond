@@ -24,7 +24,7 @@ from ..window.cursor import SystemCursor
 from ..window.event import KeyDownEvent, TextInputEvent
 from ..window.gui import BoundFocus
 from ..window.keyboard import Keyboard
-from ..window.pressable import Pressable
+from ..window.widget import AbstractWidget
 from .color import BLACK, BLUE, TRANSPARENT, WHITE, Color
 from .drawable import TDrawable, TDrawableMeta
 from .shape import RectangleShape
@@ -48,7 +48,7 @@ class EntryMeta(TDrawableMeta, ThemedObjectMeta):
 
 
 @Text.register_themed_subclass
-class Entry(TDrawable, Pressable, metaclass=EntryMeta):
+class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
     __theme_ignore__: ClassVar[Sequence[str]] = ("on_validate",)
     __theme_associations__: ClassVar[dict[type, dict[str, str]]] = {
         Text: {
@@ -196,7 +196,7 @@ class Entry(TDrawable, Pressable, metaclass=EntryMeta):
         self.outline_color = outline_color
         self.highlight_color = highlight_color
         self.highlight_thickness = highlight_thickness
-        Pressable.__init__(
+        AbstractWidget.__init__(
             self,
             master,
             state=state,

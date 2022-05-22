@@ -9,6 +9,7 @@ __all__ = [
     "AbstractCursor",
     "AbstractLayeredMainScene",
     "AbstractLayeredScene",
+    "AbstractWidget",
     "BoundFocus",
     "BoundFocusProxy",
     "BuiltinEvent",
@@ -48,7 +49,6 @@ __all__ = [
     "MouseWheelEvent",
     "MusicEndEvent",
     "NoFocusSupportError",
-    "Pressable",
     "RenderedLayeredScene",
     "ReturningSceneTransition",
     "Scene",
@@ -158,7 +158,6 @@ from .event import (
 from .gui import BoundFocus, BoundFocusProxy, FocusableContainer, GUIScene, NoFocusSupportError, SupportsFocus
 from .keyboard import Keyboard
 from .mouse import Mouse
-from .pressable import Pressable
 from .scene import (
     AbstractAutoLayeredDrawableScene,
     AbstractLayeredMainScene,
@@ -176,3 +175,4 @@ from .scene import (
     SceneWindow,
 )
 from .time import Time
+from .widget import AbstractWidget

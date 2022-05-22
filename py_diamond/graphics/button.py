@@ -23,7 +23,7 @@ from ..system.enum import AutoLowerNameEnum
 from ..system.validation import valid_float, valid_integer, valid_optional_float
 from ..window.clickable import Clickable
 from ..window.gui import BoundFocus
-from ..window.pressable import Pressable
+from ..window.widget import AbstractWidget
 from .color import BLACK, BLUE, GRAY, GRAY_DARK, GRAY_LIGHT, TRANSPARENT, WHITE, Color
 from .drawable import TDrawable, TDrawableMeta
 from .image import Image
@@ -50,7 +50,7 @@ class ButtonMeta(TDrawableMeta, ThemedObjectMeta):
 
 
 @TextImage.register_themed_subclass
-class Button(TDrawable, Pressable, metaclass=ButtonMeta):
+class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     Justify: TypeAlias = TextImage.Justify
     Compound: TypeAlias = TextImage.Compound
 
@@ -359,7 +359,7 @@ class Button(TDrawable, Pressable, metaclass=ButtonMeta):
         self.text_offset = text_offset
         self.text_hover_offset = text_hover_offset
         self.text_active_offset = text_active_offset
-        Pressable.__init__(
+        AbstractWidget.__init__(
             self,
             master=master,
             state=state,

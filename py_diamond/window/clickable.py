@@ -15,17 +15,15 @@ __license__ = "GNU GPL v3.0"
 from abc import abstractmethod
 from enum import auto, unique
 from operator import truth
-from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 from weakref import WeakMethod
 
 from ..audio.sound import Sound
-from ..graphics.drawable import Drawable
 from ..system.enum import AutoLowerNameEnum
 from ..system.object import Object
 from .cursor import AbstractCursor, SystemCursor
 from .display import Window
 from .event import BoundEventManager, Event, MouseButtonDownEvent, MouseButtonEvent, MouseButtonUpEvent, MouseMotionEvent
-from .gui import SupportsFocus
 from .mouse import Mouse
 from .scene import Scene
 
@@ -39,8 +37,6 @@ class Clickable(Object):
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="Clickable")
 
-    __default_focus_on_hover: ClassVar[bool] = False
-
     def __init__(
         self,
         master: Scene | Window,
@@ -51,8 +47,6 @@ class Clickable(Object):
         disabled_sound: Sound | None = None,
         hover_cursor: AbstractCursor | None = None,
         disabled_cursor: AbstractCursor | None = None,
-        take_focus: bool = True,
-        focus_on_hover: bool | None = None,
     ) -> None:
         self.__master: Scene | Window = master
         self.__scene: Scene | None
@@ -75,9 +69,6 @@ class Clickable(Object):
             self.__hover_cursor[Clickable.State.NORMAL] = hover_cursor
         if isinstance(disabled_cursor, AbstractCursor):
             self.__hover_cursor[Clickable.State.DISABLED] = disabled_cursor
-        if focus_on_hover is None:
-            focus_on_hover = self.__default_focus_on_hover
-        self.__focus_on_hover: bool = truth(focus_on_hover)
 
         self.state = state
         self.hover_sound = hover_sound
@@ -90,11 +81,13 @@ class Clickable(Object):
         event.bind(MouseButtonUpEvent, WeakMethod(self.__handle_click_event))
         event.bind(MouseMotionEvent, WeakMethod(self.__handle_mouse_motion))
         event.bind_mouse_position(WeakMethod(self.__handle_mouse_position))
-        if isinstance(self, SupportsFocus):
-            self.focus.take(take_focus)
 
     @abstractmethod
     def invoke(self) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def is_shown(self) -> bool:
         raise NotImplementedError
 
     def play_hover_sound(self) -> None:
@@ -120,22 +113,11 @@ class Clickable(Object):
     def set_active_only_on_hover(self, status: bool) -> None:
         self.__active_only_on_hover = truth(status)
 
-    def set_focus_on_hover(self, status: bool) -> None:
-        self.__focus_on_hover = focus_on_hover = truth(status)
-        if isinstance(self, SupportsFocus):
-            if focus_on_hover and self.hover:
-                self.focus.set()
-
-    @classmethod
-    def set_default_focus_on_hover(cls, status: bool) -> None:
-        cls.__default_focus_on_hover = truth(status)
-
-    @classmethod
-    def get_default_focus_on_hover(cls) -> bool:
-        return cls.__default_focus_on_hover
-
     def __handle_click_event(self, event: MouseButtonEvent) -> bool:
-        if isinstance(self, Drawable) and not self.is_shown():
+        if self._should_ignore_event(event):
+            return False
+
+        if not self.is_shown():
             self.active = self.hover = False
             return False
 
@@ -147,6 +129,7 @@ class Clickable(Object):
                 self._on_click_down(event)
                 return True
             case MouseButtonDownEvent():
+                self.active = False
                 self._on_click_out(event)
                 return False
             case MouseButtonUpEvent() if self.active:
@@ -154,8 +137,7 @@ class Clickable(Object):
                 self._on_click_up(event)
                 if not valid_click:
                     return False
-                if isinstance(self, SupportsFocus):
-                    self.focus.set()
+                self._on_valid_click(event)
                 self.play_click_sound()
                 self._on_hover()
                 if self.state != Clickable.State.DISABLED:
@@ -167,31 +149,27 @@ class Clickable(Object):
         return False
 
     def __handle_mouse_motion(self, event: MouseMotionEvent) -> None:
+        if self._should_ignore_event(event) or not self.is_shown():
+            return
         self._on_mouse_motion(event)
 
     def __handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
-        if isinstance(self, Drawable) and not self.is_shown():
+        if self._should_ignore_mouse_position(mouse_pos):
+            return
+
+        if not self.is_shown():
             self.hover = False
             return
-        if isinstance(self, SupportsFocus) and self.focus.get_mode() == self.focus.Mode.KEY:
-            return
+
         self.hover = hover = self._mouse_in_hitbox(mouse_pos)
         if hover or (not self.__active_only_on_hover and self.active):
             self.__hover_cursor[self.__state].set()
 
-    def _focus_handle_event(self, event: Event) -> bool:
-        return self.event.process_event(event)
+    def _should_ignore_event(self, event: Event) -> bool:
+        return False
 
-    def _focus_update(self) -> None:
-        if not self.__focus_on_hover:
-            return
-        if (
-            self.hover
-            and isinstance(self, SupportsFocus)
-            and not self.focus.has()
-            and self.focus.get_mode() == self.focus.Mode.MOUSE
-        ):
-            self.focus.set()
+    def _should_ignore_mouse_position(self, mouse_pos: tuple[float, float]) -> bool:
+        return False
 
     def _valid_mouse_button(self, button: int) -> bool:
         return button == Mouse.Button.LEFT
@@ -210,6 +188,9 @@ class Clickable(Object):
         pass
 
     def _on_click_out(self, event: MouseButtonDownEvent) -> None:
+        pass
+
+    def _on_valid_click(self, event: MouseButtonUpEvent) -> None:
         pass
 
     def _on_mouse_motion(self, event: MouseMotionEvent) -> None:
@@ -274,8 +255,6 @@ class Clickable(Object):
         if status is True:
             self.play_hover_sound()
             self._on_hover()
-            if self.__focus_on_hover and isinstance(self, SupportsFocus):
-                self.focus.set()
             if self.active:
                 self._on_active_set()
         else:
