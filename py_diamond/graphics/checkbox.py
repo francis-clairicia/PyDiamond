@@ -16,8 +16,9 @@ from operator import truth
 from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
-from ..window.clickable import Clickable
-from .color import BLACK, Color
+from ..system.validation import valid_integer
+from ..window.widget import AbstractWidget
+from .color import BLACK, BLUE, Color
 from .drawable import TDrawable, TDrawableMeta
 from .image import Image
 from .shape import DiagonalCrossShape, RectangleShape
@@ -41,7 +42,7 @@ class CheckBoxMeta(TDrawableMeta, ThemedObjectMeta):
     pass
 
 
-class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=CheckBoxMeta):
+class CheckBox(TDrawable, AbstractWidget, Generic[_OnValue, _OffValue], metaclass=CheckBoxMeta):
     config: ConfigurationTemplate = ConfigurationTemplate(
         "value",
         "local_width",
@@ -55,6 +56,8 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Che
         "border_top_right_radius",
         "border_bottom_left_radius",
         "border_bottom_right_radius",
+        "highlight_color",
+        "highlight_thickness",
     )
 
     value: OptionAttribute[_OnValue | _OffValue] = OptionAttribute()
@@ -69,6 +72,8 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Che
     border_top_right_radius: OptionAttribute[int] = OptionAttribute()
     border_bottom_left_radius: OptionAttribute[int] = OptionAttribute()
     border_bottom_right_radius: OptionAttribute[int] = OptionAttribute()
+    highlight_color: OptionAttribute[Color] = OptionAttribute()
+    highlight_thickness: OptionAttribute[int] = OptionAttribute()
 
     @initializer
     def __init__(
@@ -86,9 +91,11 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Che
         outline_color: Color = BLACK,
         img: Surface | None = None,
         callback_at_init: bool = True,
-        # highlight_color=BLUE,
-        # highlight_thickness=2,
+        highlight_color: Color = BLUE,
+        highlight_thickness: int = 2,
         state: str = "normal",
+        take_focus: bool = True,
+        focus_on_hover: bool | None = None,
         hover_cursor: AbstractCursor | None = None,
         disabled_cursor: AbstractCursor | None = None,
         hover_sound: Sound | None = None,
@@ -104,7 +111,7 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Che
         if on_value == off_value:
             raise ValueError("'On' value and 'Off' value are identical")
         TDrawable.__init__(self)
-        Clickable.__init__(
+        AbstractWidget.__init__(
             self,
             master=master,
             state=state,
@@ -113,6 +120,8 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Che
             disabled_sound=disabled_sound,
             hover_cursor=hover_cursor,
             disabled_cursor=disabled_cursor,
+            take_focus=take_focus,
+            focus_on_hover=focus_on_hover,
         )
         self.__shape: RectangleShape = RectangleShape(
             width=width,
@@ -127,6 +136,10 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Che
             border_bottom_right_radius=border_bottom_right_radius,
             theme=NoTheme,
         )
+        self.outline = outline
+        self.outline_color = outline_color
+        self.highlight_color = highlight_color
+        self.highlight_thickness = highlight_thickness
         self.__cross_aspect_ratio: float = 0.7
         self.__cross: DiagonalCrossShape = DiagonalCrossShape(
             width=self.__cross_aspect_ratio * width,
@@ -213,6 +226,25 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Che
             self.__active_img.set_scale(scale)
         self.__cross.set_scale(scale)
 
+    def _on_focus_set(self) -> None:
+        self.__update_shape_outline()
+        return super()._on_focus_set()
+
+    def _on_focus_leave(self) -> None:
+        self.__update_shape_outline()
+        return super()._on_focus_leave()
+
+    def __update_shape_outline(self) -> None:
+        outline_color: Color
+        outline: int
+        if self.focus.has():
+            outline_color = self.highlight_color
+            outline = max(self.highlight_thickness, self.outline)
+        else:
+            outline_color = self.outline_color
+            outline = self.outline
+        self.__shape.config(outline=outline, outline_color=outline_color)
+
     config.getter("value", get_value)
     config.setter("value", set_value)
 
@@ -220,8 +252,6 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Che
     @config.getter_key("local_height")
     @config.getter_key("local_size")
     @config.getter_key("color")
-    @config.getter_key("outline")
-    @config.getter_key("outline_color")
     @config.getter_key("border_radius")
     @config.getter_key("border_top_left_radius")
     @config.getter_key("border_top_right_radius")
@@ -234,8 +264,6 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Che
     @config.setter_key("local_height")
     @config.setter_key("local_size")
     @config.setter_key("color")
-    @config.setter_key("outline")
-    @config.setter_key("outline_color")
     @config.setter_key("border_radius")
     @config.setter_key("border_top_left_radius")
     @config.setter_key("border_top_right_radius")
@@ -243,6 +271,19 @@ class CheckBox(TDrawable, Clickable, Generic[_OnValue, _OffValue], metaclass=Che
     @config.setter_key("border_bottom_right_radius")
     def __set_shape_option(self, option: str, value: Any) -> Any:
         return self.__shape.config.set(option, value)
+
+    config.add_value_converter_static("outline", valid_integer(min_value=0))
+    config.add_value_validator_static("outline_color", Color)
+    config.add_value_validator_static("highlight_color", Color)
+    config.add_value_converter_static("highlight_thickness", valid_integer(min_value=0))
+
+    config.set_autocopy("outline_color", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("highlight_color", copy_on_get=True, copy_on_set=True)
+
+    config.on_update("outline", __update_shape_outline)
+    config.on_update("outline_color", __update_shape_outline)
+    config.on_update("highlight_color", __update_shape_outline)
+    config.on_update("highlight_thickness", __update_shape_outline)
 
     @property
     def img(self) -> Surface | None:
@@ -276,8 +317,8 @@ class BooleanCheckBox(CheckBox[bool, bool]):
         outline_color: Color = BLACK,
         img: Surface | None = None,
         callback: Callable[[bool], None] | None = None,
-        # highlight_color=BLUE,
-        # highlight_thickness=2,
+        highlight_color: Color = BLUE,
+        highlight_thickness: int = 2,
         state: str = "normal",
         hover_cursor: AbstractCursor | None = None,
         disabled_cursor: AbstractCursor | None = None,

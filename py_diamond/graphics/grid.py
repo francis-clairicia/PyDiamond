@@ -86,6 +86,8 @@ class Grid(MDrawable, Container[GridElement]):
         bg_color: Color = TRANSPARENT,
         outline: int = 0,
         outline_color: Color = BLACK,
+        padx: int = 0,
+        pady: int = 0,
         justify: Justify = Justify.CENTER,
     ) -> None:
         if master is not None and not isinstance(master, GUIScene):
@@ -98,7 +100,7 @@ class Grid(MDrawable, Container[GridElement]):
         self.__max_height_rows: dict[int, float] = dict()
         self.__bg: RectangleShape = RectangleShape(0, 0, bg_color, theme=NoTheme)
         self.__outline: RectangleShape = RectangleShape(0, 0, TRANSPARENT, outline=outline, outline_color=outline_color)
-        self.__padding: Grid.Padding = Grid.Padding()
+        self.__padding: Grid.Padding = Grid.Padding(x=padx, y=pady)
         self.__grid_group: _GridGroup = _GridGroup(self)
         self.justify = justify
 

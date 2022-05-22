@@ -77,6 +77,7 @@ from py_diamond.window.scene import (
     SceneWindow,
 )
 from py_diamond.window.time import Time
+from py_diamond.window.widget import AbstractWidget
 
 if TYPE_CHECKING:
     from _typeshed import Self
@@ -695,7 +696,6 @@ class ScaleBarScene(MainScene):
         self.vscale = vscale = ScaleBar(self, 75, 500, from_=10, to=90, orient="vertical", outline=10)
 
         scale.resolution = 0
-        vscale.resolution = None
         scale.center = self.window.width / 4, self.window.centery
         text.midtop = scale.centerx, scale.bottom + 20
         vscale.show_value("right", round_n=5, font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
@@ -880,6 +880,44 @@ class FormScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableScene
         self.response.center = self.window.width * 3 / 4, self.window.centery
 
 
+class WidgetsScene(GUIScene):
+    @classmethod
+    def __theme_init__(cls) -> None:
+        super().__theme_init__()
+
+        Text.set_theme("text", {"font": (FontResources.cooperblack, 40), "color": WHITE, "shadow_x": 3, "shadow_y": 3})
+
+        Entry.set_default_theme("text")
+        Entry.set_theme("text", {"fg": BLACK, "shadow_x": 0, "shadow_y": 0})
+
+        CheckBox.set_default_theme("default")
+        CheckBox.set_theme("default", {"highlight_color": YELLOW})
+
+    def awake(self, **kwargs: Any) -> None:
+        super().awake(**kwargs)
+
+        AbstractWidget.set_default_focus_on_hover(True)
+
+        self.background_color = BLUE_DARK
+
+        self.grid = grid = Grid(self, padx=10, pady=10)
+
+        grid.place(Button(self, "Button"), 0, 0)
+        grid.place(CheckBox(self, 50, 50, BLUE_LIGHT, on_value=10, off_value=0), 0, 1)
+        grid.place(Entry(self), 1, 0)
+        grid.place(ScaleBar(self, 100, 50, from_=0, to=100, cursor_thickness=1), 1, 1)
+        grid.place(ImageButton(self, img=ImagesResources.cross["normal"], active_img=ImagesResources.cross["hover"]), 2, 2)
+
+        AbstractWidget.set_default_focus_on_hover(False)
+
+    def on_start_loop_before_transition(self) -> None:
+        self.grid.center = self.window.center
+        return super().on_start_loop_before_transition()
+
+    def render(self) -> None:
+        self.window.draw(self.grid)
+
+
 class MusicManager(ResourceManager):
     menu: Music
     garage: Music
@@ -967,10 +1005,7 @@ class GUIAudioScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableS
         self.background_color = BLUE_DARK
 
         self.text = Text("None")
-        self.grid = Grid(self, bg_color=YELLOW)
-
-        self.grid.default_padding.x = 20
-        self.grid.default_padding.y = 20
+        self.grid = Grid(self, bg_color=YELLOW, padx=20, pady=20)
 
         def create_button(text: str, state: str = "normal") -> Button:
             return Button(self, text, callback=lambda: self.text.config(message=text), state=state)
@@ -1097,6 +1132,7 @@ class MainWindow(SceneWindow):
         TestGUIScene,
         GridScene,
         FormScene,
+        WidgetsScene,
         AudioScene,
         GUIAudioScene,
         TestDialogScene,

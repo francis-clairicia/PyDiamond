@@ -12,7 +12,6 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from functools import cached_property
 from string import printable as ASCII_PRINTABLE
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Sequence, TypeAlias
 from weakref import WeakMethod
@@ -425,14 +424,13 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
     config.add_value_validator_static("highlight_color", Color)
     config.add_value_converter_static("highlight_thickness", valid_integer(min_value=0))
 
+    config.set_autocopy("outline_color", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("highlight_color", copy_on_get=True, copy_on_set=True)
+
     config.on_update("outline", __update_shape_outline)
     config.on_update("outline_color", __update_shape_outline)
     config.on_update("highlight_color", __update_shape_outline)
     config.on_update("highlight_thickness", __update_shape_outline)
-
-    @cached_property
-    def focus(self) -> BoundFocus:
-        return BoundFocus(self, self.scene)
 
 
 def _get_entry_size(font: Font, nb_chars: int) -> tuple[int, int]:

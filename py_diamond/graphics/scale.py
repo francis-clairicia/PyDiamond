@@ -17,9 +17,11 @@ from operator import truth
 from typing import TYPE_CHECKING, Callable, ClassVar, Sequence
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
-from ..window.clickable import Clickable
-from ..window.event import MouseButtonDownEvent, MouseMotionEvent
-from .color import BLACK, GRAY, WHITE, Color
+from ..system.utils._mangling import getattr_pv
+from ..system.validation import valid_integer
+from ..window.event import KeyEvent, MouseButtonDownEvent, MouseMotionEvent
+from ..window.widget import AbstractWidget
+from .color import BLACK, BLUE, GRAY, WHITE, Color
 from .progress import ProgressBar
 
 if TYPE_CHECKING:
@@ -27,10 +29,11 @@ if TYPE_CHECKING:
     from ..window.cursor import AbstractCursor
     from ..window.display import Window
     from ..window.scene import Scene
+    from .shape import AbstractRectangleShape
     from .theme import ThemeType
 
 
-class ScaleBar(ProgressBar, Clickable):
+class ScaleBar(ProgressBar, AbstractWidget):
     __theme_ignore__: ClassVar[Sequence[str]] = (
         "from_",
         "to",
@@ -38,13 +41,14 @@ class ScaleBar(ProgressBar, Clickable):
         "orient",
         "value_callback",
         "percent_callback",
-        "resolution",
     )
     __theme_override__: Sequence[str] = ("cursor_thickness",)
 
-    config = ConfigurationTemplate("resolution", parent=ProgressBar.config)
+    config = ConfigurationTemplate("resolution", "highlight_color", "highlight_thickness", parent=ProgressBar.config)
 
-    resolution: OptionAttribute[int | None] = OptionAttribute()
+    resolution: OptionAttribute[int] = OptionAttribute()
+    highlight_color: OptionAttribute[Color] = OptionAttribute()
+    highlight_thickness: OptionAttribute[int] = OptionAttribute()
 
     @initializer
     def __init__(
@@ -59,7 +63,7 @@ class ScaleBar(ProgressBar, Clickable):
         orient: str = "horizontal",
         value_callback: Callable[[float], None] | None = None,
         percent_callback: Callable[[float], None] | None = None,
-        resolution: int | None = None,
+        resolution: int = sys.float_info.dig,
         state: str = "normal",
         hover_sound: Sound | None = None,
         click_sound: Sound | None = None,
@@ -76,11 +80,13 @@ class ScaleBar(ProgressBar, Clickable):
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
-        # highlight_color=BLUE,
-        # highlight_thickness=2,
+        highlight_color: Color = BLUE,
+        highlight_thickness: int = 2,
         theme: ThemeType | None = None,
     ):
         self.resolution = resolution
+        self.highlight_color = highlight_color
+        self.highlight_thickness = highlight_thickness
 
         ProgressBar.__init__(
             self,
@@ -102,7 +108,7 @@ class ScaleBar(ProgressBar, Clickable):
             border_bottom_right_radius=border_bottom_right_radius,
             theme=theme,
         )
-        Clickable.__init__(
+        AbstractWidget.__init__(
             self,
             master,
             state=state,
@@ -130,6 +136,9 @@ class ScaleBar(ProgressBar, Clickable):
     def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
         return truth(self.rect.collidepoint(mouse_pos))
 
+    def _ignore_key_event(self, event: KeyEvent) -> bool:
+        return True
+
     def _on_click_down(self, event: MouseButtonDownEvent) -> None:
         if self.active:
             self.__compute_scale_percent_by_mouse_pos(event.pos)
@@ -149,19 +158,37 @@ class ScaleBar(ProgressBar, Clickable):
     def _apply_only_scale(self) -> None:
         super()._apply_only_scale()
 
+    def _on_focus_set(self) -> None:
+        self.__update_shape_outline()
+        return super()._on_focus_set()
+
+    def _on_focus_leave(self) -> None:
+        self.__update_shape_outline()
+        return super()._on_focus_leave()
+
+    def __update_shape_outline(self) -> None:
+        outline_color: Color
+        outline: int
+        if self.focus.has():
+            outline_color = self.highlight_color
+            outline = max(self.highlight_thickness, self.outline)
+        else:
+            outline_color = self.outline_color
+            outline = self.outline
+        outline_rect: AbstractRectangleShape = getattr_pv(self, "outline_rect", owner=ProgressBar)
+        outline_rect.config(outline=outline, outline_color=outline_color)
+
     def __compute_scale_percent_by_mouse_pos(self, mouse_pos: tuple[float, float]) -> None:
         if self.orient == ScaleBar.Orient.HORIZONTAL:
             self.percent = (mouse_pos[0] - self.left) / self.width
         else:
             self.percent = (mouse_pos[1] - self.top) / self.height
 
-    config.add_value_validator_static("resolution", int, accept_none=True)
+    config.add_value_validator_static("resolution", int)
 
     @config.add_value_validator_static("resolution")
     @staticmethod
-    def __valid_resolution(value: int | None) -> None:
-        if value is None:
-            return
+    def __valid_resolution(value: int) -> None:
         max_float_digits = sys.float_info.dig
         if not (0 <= value <= max_float_digits):
             raise ValueError(f"resolution must be between 0 and sys.float_info.dig (actually: {max_float_digits}) included")
@@ -172,10 +199,7 @@ class ScaleBar(ProgressBar, Clickable):
 
     @config.add_value_converter("value")
     def __apply_resolution_on_value(self, value: float) -> float:
-        resolution: int | None = self.resolution
-        if resolution is not None:
-            value = round(value, resolution)
-        return value
+        return round(value, self.resolution)
 
     @config.add_value_converter("percent")
     def __apply_resolution_on_percent(self, percent: float) -> float:
@@ -185,6 +209,20 @@ class ScaleBar(ProgressBar, Clickable):
         value = self.__apply_resolution_on_value(value)
         percent = (value - start) / (end - start) if end > start else 0
         return percent
+
+    config.reset_getter_setter_deleter("outline")
+    config.reset_getter_setter_deleter("outline_color")
+
+    config.add_value_validator_static("highlight_color", Color)
+    config.add_value_converter_static("highlight_thickness", valid_integer(min_value=0))
+
+    config.set_autocopy("outline_color", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("highlight_color", copy_on_get=True, copy_on_set=True)
+
+    config.on_update("outline", __update_shape_outline)
+    config.on_update("outline_color", __update_shape_outline)
+    config.on_update("highlight_color", __update_shape_outline)
+    config.on_update("highlight_thickness", __update_shape_outline)
 
     config.on_update("value", invoke)
     config.on_update("percent", invoke)

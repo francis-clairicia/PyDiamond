@@ -13,7 +13,6 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from enum import auto, unique
-from functools import cached_property
 from operator import truth
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, Sequence, TypeAlias, TypedDict, overload
 
@@ -22,7 +21,6 @@ from ..system.configuration import ConfigurationTemplate, OptionAttribute, initi
 from ..system.enum import AutoLowerNameEnum
 from ..system.validation import valid_float, valid_integer, valid_optional_float
 from ..window.clickable import Clickable
-from ..window.gui import BoundFocus
 from ..window.widget import AbstractWidget
 from .color import BLACK, BLUE, GRAY, GRAY_DARK, GRAY_LIGHT, TRANSPARENT, WHITE, Color
 from .drawable import TDrawable, TDrawableMeta
@@ -538,8 +536,13 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
             outline = self.outline
         self.__shape.config(outline=outline, outline_color=outline_color)
 
-    _on_focus_set = __update_shape_outline
-    _on_focus_leave = __update_shape_outline
+    def _on_focus_set(self) -> None:
+        self.__update_shape_outline()
+        return super()._on_focus_set()
+
+    def _on_focus_leave(self) -> None:
+        self.__update_shape_outline()
+        return super()._on_focus_leave()
 
     def __set_state(self, button_state: Literal["normal", "hover", "active"]) -> None:
         clickable_state: Clickable.State = Clickable.State(self.state)
@@ -808,6 +811,9 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config.add_value_validator_static("highlight_color", Color)
     config.add_value_converter_static("highlight_thickness", valid_integer(min_value=0))
 
+    config.set_autocopy("outline_color", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("highlight_color", copy_on_get=True, copy_on_set=True)
+
     config.on_update("outline", __update_shape_outline)
     config.on_update("outline_color", __update_shape_outline)
     config.on_update("highlight_color", __update_shape_outline)
@@ -825,13 +831,9 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
         else:
             self.__callback = None
 
-    @cached_property
-    def focus(self) -> BoundFocus:
-        return BoundFocus(self, self.scene)
-
 
 @Button.register_themed_subclass
-class ImageButton(TDrawable, Clickable, metaclass=ButtonMeta):
+class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config: ConfigurationTemplate = ConfigurationTemplate(
         "img",
         "x_add_size",
@@ -849,6 +851,8 @@ class ImageButton(TDrawable, Clickable, metaclass=ButtonMeta):
         "disabled_img",
         "disabled_hover_img",
         "disabled_active_img",
+        "highlight_color",
+        "highlight_thickness",
         "hover_offset",
         "active_offset",
         "border_radius",
@@ -887,6 +891,8 @@ class ImageButton(TDrawable, Clickable, metaclass=ButtonMeta):
     disabled_img: OptionAttribute[Surface | None] = OptionAttribute()
     disabled_hover_img: OptionAttribute[Surface | None] = OptionAttribute()
     disabled_active_img: OptionAttribute[Surface | None] = OptionAttribute()
+    highlight_color: OptionAttribute[Color] = OptionAttribute()
+    highlight_thickness: OptionAttribute[int] = OptionAttribute()
     hover_offset: OptionAttribute[tuple[float, float]] = OptionAttribute()
     active_offset: OptionAttribute[tuple[float, float]] = OptionAttribute()
     border_radius: OptionAttribute[int] = OptionAttribute()
@@ -908,8 +914,8 @@ class ImageButton(TDrawable, Clickable, metaclass=ButtonMeta):
         disabled_hover_img: Surface | None = None,
         disabled_active_img: Surface | None = None,
         state: str = "normal",
-        x_add_size: float = 20,
-        y_add_size: float = 20,
+        x_add_size: float = 10,
+        y_add_size: float = 10,
         bg: Color = TRANSPARENT,
         outline: int = 0,
         outline_color: Color = BLACK,
@@ -921,8 +927,8 @@ class ImageButton(TDrawable, Clickable, metaclass=ButtonMeta):
         hover_sound: Sound | None = None,
         click_sound: Sound | None = None,
         disabled_sound: Sound | None = None,
-        # highlight_color=BLUE,
-        # highlight_thickness=2,
+        highlight_color: Color = BLUE,
+        highlight_thickness: int = 2,
         hover_cursor: AbstractCursor | None = None,
         disabled_cursor: AbstractCursor | None = None,
         hover_offset: tuple[float, float] = (0, 0),
@@ -935,7 +941,7 @@ class ImageButton(TDrawable, Clickable, metaclass=ButtonMeta):
         theme: ThemeType | None = None,
     ) -> None:
         TDrawable.__init__(self)
-        Clickable.__init__(
+        AbstractWidget.__init__(
             self,
             master=master,
             state=state,
@@ -986,6 +992,10 @@ class ImageButton(TDrawable, Clickable, metaclass=ButtonMeta):
                 "active": _copy_img(disabled_active_img),
             },
         }
+        self.outline = outline
+        self.outline_color = outline_color
+        self.highlight_color = highlight_color
+        self.highlight_thickness = highlight_thickness
         self.hover_offset = hover_offset
         self.active_offset = active_offset
 
@@ -1039,6 +1049,25 @@ class ImageButton(TDrawable, Clickable, metaclass=ButtonMeta):
 
     def _on_active_set(self) -> None:
         self.__set_state("active")
+
+    def _on_focus_set(self) -> None:
+        self.__update_shape_outline()
+        return super()._on_focus_set()
+
+    def _on_focus_leave(self) -> None:
+        self.__update_shape_outline()
+        return super()._on_focus_leave()
+
+    def __update_shape_outline(self) -> None:
+        outline_color: Color
+        outline: int
+        if self.focus.has():
+            outline_color = self.highlight_color
+            outline = max(self.highlight_thickness, self.outline)
+        else:
+            outline_color = self.outline_color
+            outline = self.outline
+        self.__shape.config(outline=outline, outline_color=outline_color)
 
     def __set_state(self, button_state: Literal["normal", "hover", "active"]) -> None:
         clickable_state: Clickable.State = Clickable.State(self.state)
@@ -1183,8 +1212,6 @@ class ImageButton(TDrawable, Clickable, metaclass=ButtonMeta):
     config.on_update("disabled_hover_img", __update_state)
     config.on_update("disabled_active_img", __update_state)
 
-    @config.getter_key("outline")
-    @config.getter_key("outline_color")
     @config.getter_key("border_radius")
     @config.getter_key("border_top_left_radius")
     @config.getter_key("border_top_right_radius")
@@ -1193,8 +1220,6 @@ class ImageButton(TDrawable, Clickable, metaclass=ButtonMeta):
     def __get_shape_option(self, option: str) -> Any:
         return self.__shape.config.get(option)
 
-    @config.setter_key("outline")
-    @config.setter_key("outline_color")
     @config.setter_key("border_radius")
     @config.setter_key("border_top_left_radius")
     @config.setter_key("border_top_right_radius")
@@ -1202,6 +1227,19 @@ class ImageButton(TDrawable, Clickable, metaclass=ButtonMeta):
     @config.setter_key("border_bottom_right_radius")
     def __set_shape_option(self, option: str, value: Any) -> None:
         return self.__shape.config.set(option, value)
+
+    config.add_value_converter_static("outline", valid_integer(min_value=0))
+    config.add_value_validator_static("outline_color", Color)
+    config.add_value_validator_static("highlight_color", Color)
+    config.add_value_converter_static("highlight_thickness", valid_integer(min_value=0))
+
+    config.set_autocopy("outline_color", copy_on_get=True, copy_on_set=True)
+    config.set_autocopy("highlight_color", copy_on_get=True, copy_on_set=True)
+
+    config.on_update("outline", __update_shape_outline)
+    config.on_update("outline_color", __update_shape_outline)
+    config.on_update("highlight_color", __update_shape_outline)
+    config.on_update("highlight_thickness", __update_shape_outline)
 
     @property
     def callback(self) -> Callable[[], None] | None:

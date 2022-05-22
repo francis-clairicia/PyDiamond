@@ -53,12 +53,21 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
         HORIZONTAL = auto()
         VERTICAL = auto()
 
-    config = ConfigurationTemplate("value", "percent", "scale_color", "orient", "cursor_thickness", parent=RectangleShape.config)
+    config = ConfigurationTemplate(
+        "value",
+        "percent",
+        "scale_color",
+        "orient",
+        "cursor_color",
+        "cursor_thickness",
+        parent=RectangleShape.config,
+    )
 
     value: OptionAttribute[float] = OptionAttribute()
     percent: OptionAttribute[float] = OptionAttribute()
     scale_color: OptionAttribute[Color] = OptionAttribute()
     orient: OptionAttribute[str] = OptionAttribute()
+    cursor_color: OptionAttribute[Color] = OptionAttribute()
     cursor_thickness: OptionAttribute[int] = OptionAttribute()
 
     @initializer
@@ -73,6 +82,7 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
         orient: str = "horizontal",
         color: Color = WHITE,
         scale_color: Color = GRAY,
+        cursor_color: Color = BLACK,
         cursor_thickness: int = 0,
         outline: int = 2,
         outline_color: Color = BLACK,
@@ -108,6 +118,7 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
             border_bottom_right_radius=border_bottom_right_radius,
             theme=theme,
         )
+        self.cursor_color = cursor_color
         self.cursor_thickness = cursor_thickness
 
         from_ = float(from_)
@@ -155,7 +166,7 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
             else:
                 cursor_start, cursor_end = scale_rect.bottomleft, scale_rect.bottomright
                 cursor_end = cursor_end[0] - (outline / 2), cursor_end[1]
-            target.draw_line(outline_rect.outline_color, cursor_start, cursor_end, width=cursor_thickness)
+            target.draw_line(self.cursor_color, cursor_start, cursor_end, width=cursor_thickness)
 
         outline_rect.draw_onto(target)
 
@@ -274,6 +285,9 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
 
     config.add_value_converter_static("percent", valid_float(min_value=0, max_value=1))
 
+    config.set_autocopy("cursor_color", copy_on_get=True, copy_on_set=True)
+
+    config.add_value_validator_static("cursor_color", Color)
     config.add_value_converter_static("cursor_thickness", valid_integer(min_value=0))
 
     config.getter("scale_color", lambda self: self.__scale_rect.config.get("color"))

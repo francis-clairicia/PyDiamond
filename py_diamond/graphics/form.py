@@ -82,9 +82,7 @@ class Form(MDrawable, metaclass=FormMeta):
         return self.__grid.get_size()
 
     def draw_onto(self, target: AbstractRenderer) -> None:
-        grid: Grid = self.__grid
-        grid.topleft = self.topleft
-        grid.draw_onto(target)
+        self.__grid.draw_onto(target)
 
     def add_entry(
         self,
@@ -144,6 +142,10 @@ class Form(MDrawable, metaclass=FormMeta):
     def set_visibility(self, status: bool) -> None:
         super().set_visibility(status)
         self.__grid.set_visibility(self.is_shown())
+
+    def _on_move(self) -> None:
+        self.__grid.topleft = self.topleft
+        return super()._on_move()
 
     @config.getter_key("bg_color")
     @config.getter_key("outline")

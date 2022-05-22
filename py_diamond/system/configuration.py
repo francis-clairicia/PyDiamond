@@ -543,8 +543,11 @@ class ConfigurationTemplate(Object):
         self.__check_locked()
         self.check_option_validity(option)
         template: _ConfigInfoTemplate = self.__template
-        if option in template.value_descriptors:
-            actual_descriptor: _Descriptor = template.value_descriptors[option]
+        actual_descriptor: _Descriptor
+        if (
+            option in template.value_descriptors
+            and (actual_descriptor := template.value_descriptors[option]) not in template.parent_descriptors
+        ):
             if isinstance(actual_descriptor, _ReadOnlyOptionPayload):
                 underlying_descriptor = actual_descriptor.get_descriptor()
                 if underlying_descriptor is None:
@@ -554,6 +557,14 @@ class ConfigurationTemplate(Object):
                 raise OptionError(option, "Already uses custom getter register with getter() method")
             raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
         template.value_descriptors[option] = descriptor
+
+    def reset_getter_setter_deleter(self, option: str) -> None:
+        self.__check_locked()
+        self.check_option_validity(option)
+        template: _ConfigInfoTemplate = self.__template
+        if option in template.value_descriptors and template.value_descriptors[option] not in template.parent_descriptors:
+            raise OptionError(option, "reset() accepted only when a descriptor is inherited from parent")
+        template.value_descriptors.pop(option, None)
 
     @overload
     def add_main_update(self, func: _Updater, /, *, use_override: bool = True) -> _Updater:
@@ -967,7 +978,7 @@ class ConfigurationTemplate(Object):
 @final
 class OptionAttribute(Generic[_T], Object):
 
-    __slots__ = ("__name", "__config_name", "__doc__")
+    __slots__ = ("__name", "__owner", "__config_name", "__doc__")
 
     def __init__(self, doc: str | None = None) -> None:
         super().__init__()
@@ -980,6 +991,7 @@ class OptionAttribute(Generic[_T], Object):
             if self.__name != name:
                 raise ValueError(f"Assigning {self.__name!r} config attribute to {name}")
         self.__name: str = name
+        self.__owner: type = owner
         config: ConfigurationTemplate = _retrieve_configuration(owner)
         if config.name is None:
             raise TypeError("OptionAttribute must be declared after the ConfigurationTemplate object")
@@ -997,8 +1009,10 @@ class OptionAttribute(Generic[_T], Object):
     def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Union[_T, OptionAttribute[_T]]:
         if obj is None:
             return self
+        config_name: str = self.__config_name
         name: str = self.__name
-        config: Configuration[Any] = getattr(obj, self.__config_name)
+        config: Configuration[Any] = getattr(obj, config_name)  # TODO: Fix use of super()
+
         try:
             value: _T = config.get(name)
         except OptionError as exc:
