@@ -19,7 +19,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import Any, Sequence
+from typing import Any, ClassVar, Sequence
 
 from pygame.transform import rotate as _surface_rotate, smoothscale as _surface_scale
 
@@ -37,7 +37,11 @@ from .surface import Surface, create_surface
 
 
 class GradientShape(AbstractShape):
-    config = ConfigurationTemplate("first_color", "second_color", parent=AbstractShape.config)
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
+        "first_color",
+        "second_color",
+        parent=AbstractShape.config,
+    )
 
     first_color: OptionAttribute[Color] = OptionAttribute()
     second_color: OptionAttribute[Color] = OptionAttribute()
@@ -53,7 +57,7 @@ class GradientShape(AbstractShape):
 
 
 class HorizontalGradientShape(AbstractRectangleShape, GradientShape):
-    config = ConfigurationTemplate(parent=[AbstractRectangleShape.config, GradientShape.config])
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(parent=[AbstractRectangleShape.config, GradientShape.config])
 
     @initializer
     def __init__(self, width: float, height: float, first_color: Color, second_color: Color) -> None:
@@ -75,7 +79,7 @@ class HorizontalGradientShape(AbstractRectangleShape, GradientShape):
 
 
 class VerticalGradientShape(AbstractRectangleShape, GradientShape):
-    config = ConfigurationTemplate(parent=[AbstractRectangleShape.config, GradientShape.config])
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(parent=[AbstractRectangleShape.config, GradientShape.config])
 
     @initializer
     def __init__(self, width: float, height: float, first_color: Color, second_color: Color) -> None:
@@ -97,7 +101,7 @@ class VerticalGradientShape(AbstractRectangleShape, GradientShape):
 
 
 class SquaredGradientShape(AbstractSquareShape, GradientShape):
-    config = ConfigurationTemplate(parent=[AbstractSquareShape.config, GradientShape.config])
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(parent=[AbstractSquareShape.config, GradientShape.config])
 
     @initializer
     def __init__(self, size: float, first_color: Color, second_color: Color) -> None:
@@ -114,7 +118,7 @@ class SquaredGradientShape(AbstractSquareShape, GradientShape):
 
 
 class RadialGradientShape(AbstractCircleShape, GradientShape):
-    config = ConfigurationTemplate(parent=[AbstractCircleShape.config, GradientShape.config])
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(parent=[AbstractCircleShape.config, GradientShape.config])
 
     @initializer
     def __init__(self, radius: float, first_color: Color, second_color: Color) -> None:
@@ -131,7 +135,7 @@ class RadialGradientShape(AbstractCircleShape, GradientShape):
 
 
 class MultiColorShape(AbstractShape):
-    config = ConfigurationTemplate("colors", parent=AbstractShape.config)
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate("colors", parent=AbstractShape.config)
 
     colors: OptionAttribute[tuple[Color, ...]] = OptionAttribute()
 
@@ -155,7 +159,9 @@ class MultiColorShape(AbstractShape):
 
 
 class HorizontalMultiColorShape(AbstractRectangleShape, MultiColorShape):
-    config = ConfigurationTemplate(parent=[AbstractRectangleShape.config, MultiColorShape.config])
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
+        parent=[AbstractRectangleShape.config, MultiColorShape.config]
+    )
 
     @initializer
     def __init__(self, width: float, height: float, colors: tuple[Color, ...]) -> None:
@@ -187,7 +193,9 @@ class HorizontalMultiColorShape(AbstractRectangleShape, MultiColorShape):
 
 
 class VerticalMultiColorShape(AbstractRectangleShape, MultiColorShape):
-    config = ConfigurationTemplate(parent=[AbstractRectangleShape.config, MultiColorShape.config])
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
+        parent=[AbstractRectangleShape.config, MultiColorShape.config]
+    )
 
     @initializer
     def __init__(self, width: float, height: float, colors: tuple[Color, ...]) -> None:

@@ -42,8 +42,14 @@ class Form(MDrawable, metaclass=FormMeta):
     Justify: TypeAlias = Grid.Justify
     Padding: TypeAlias = Grid.Padding
 
-    config: ConfigurationTemplate = ConfigurationTemplate(
-        "bg_color", "outline", "outline_color", "label_justify", "entry_justify", "padx", "pady"
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
+        "bg_color",
+        "outline",
+        "outline_color",
+        "label_justify",
+        "entry_justify",
+        "padx",
+        "pady",
     )
 
     bg_color: OptionAttribute[Color] = OptionAttribute()

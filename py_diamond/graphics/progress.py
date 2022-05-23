@@ -53,7 +53,7 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
         HORIZONTAL = auto()
         VERTICAL = auto()
 
-    config = ConfigurationTemplate(
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "value",
         "percent",
         "scale_color",

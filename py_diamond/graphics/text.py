@@ -15,7 +15,7 @@ from contextlib import suppress
 from enum import auto, unique
 from operator import truth
 from textwrap import wrap as textwrap
-from typing import Any, Final, Mapping, TypeAlias
+from typing import Any, ClassVar, Final, Mapping, TypeAlias
 from weakref import proxy as weakproxy
 
 from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom
@@ -47,7 +47,7 @@ class Text(TDrawable, metaclass=TextMeta):
         RIGHT = auto()
         CENTER = auto()
 
-    config: ConfigurationTemplate = ConfigurationTemplate(
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "message",
         "font",
         "color",
@@ -330,7 +330,7 @@ class TextImage(Text):
         BOTTOM = auto()
         CENTER = auto()
 
-    config = ConfigurationTemplate("img", "compound", "distance", parent=Text.config)
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate("img", "compound", "distance", parent=Text.config)
 
     img: OptionAttribute[Surface | None] = OptionAttribute()
     compound: OptionAttribute[str] = OptionAttribute()

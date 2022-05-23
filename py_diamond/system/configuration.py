@@ -765,19 +765,25 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def add_value_validator_static(self, option: str, /) -> Callable[[_StaticValueValidator], _StaticValueValidator]:
+    def add_value_validator_static(
+        self, option: str, /, *, use_override: bool = True
+    ) -> Callable[[_StaticValueValidator], _StaticValueValidator]:
         ...
 
     @overload
-    def add_value_validator_static(self, option: str, objtype: type, /, *, accept_none: bool = False) -> None:
+    def add_value_validator_static(
+        self, option: str, objtype: type, /, *, accept_none: bool = False, use_override: bool = True
+    ) -> None:
         ...
 
     @overload
-    def add_value_validator_static(self, option: str, objtypes: Sequence[type], /, *, accept_none: bool = False) -> None:
+    def add_value_validator_static(
+        self, option: str, objtypes: Sequence[type], /, *, accept_none: bool = False, use_override: bool = True
+    ) -> None:
         ...
 
     @overload
-    def add_value_validator_static(self, option: str, func: _StaticValueValidator, /) -> None:
+    def add_value_validator_static(self, option: str, func: _StaticValueValidator, /, *, use_override: bool = True) -> None:
         ...
 
     def add_value_validator_static(
@@ -787,14 +793,15 @@ class ConfigurationTemplate(Object):
         /,
         *,
         accept_none: bool = False,
+        use_override: bool = True,
     ) -> Optional[Callable[[_StaticValueValidator], _StaticValueValidator]]:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
 
-        def decorator(func: _StaticValueValidator, /) -> _StaticValueValidator:
+        def decorator(func: _StaticValueValidator, /, *, check_override: bool = bool(use_override)) -> _StaticValueValidator:
             value_validator_list = template.value_validator.setdefault(option, [])
-            wrapper = _make_function_wrapper(func, check_override=False, no_object=True)
+            wrapper = _make_function_wrapper(func, check_override=check_override, no_object=True)
             if wrapper in value_validator_list:
                 raise OptionError(option, "Function already registered")
             value_validator_list.append(wrapper)
@@ -811,7 +818,7 @@ class ConfigurationTemplate(Object):
 
             type_checker: Any = _make_type_checker(_type, accept_none)
 
-            decorator(type_checker)
+            decorator(type_checker, check_override=False)
             return None
 
         if func is None:
@@ -856,27 +863,37 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def add_value_converter_static(self, option: str, /) -> Callable[[_StaticValueConverter], _StaticValueConverter]:
+    def add_value_converter_static(
+        self, option: str, /, *, use_override: bool = True
+    ) -> Callable[[_StaticValueConverter], _StaticValueConverter]:
         ...
 
     @overload
-    def add_value_converter_static(self, option: str, convert_to_type: Type[Any], /, *, accept_none: bool = False) -> None:
+    def add_value_converter_static(
+        self, option: str, convert_to_type: Type[Any], /, *, accept_none: bool = False, use_override: bool = True
+    ) -> None:
         ...
 
     @overload
-    def add_value_converter_static(self, option: str, func: _StaticValueConverter, /) -> None:
+    def add_value_converter_static(self, option: str, func: _StaticValueConverter, /, *, use_override: bool = True) -> None:
         ...
 
     def add_value_converter_static(
-        self, option: str, func: Optional[Union[_StaticValueConverter, type]] = None, /, *, accept_none: bool = False
+        self,
+        option: str,
+        func: Optional[Union[_StaticValueConverter, type]] = None,
+        /,
+        *,
+        accept_none: bool = False,
+        use_override: bool = True,
     ) -> Optional[Callable[[_StaticValueConverter], _StaticValueConverter]]:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
 
-        def decorator(func: _StaticValueConverter, /) -> _StaticValueConverter:
+        def decorator(func: _StaticValueConverter, /, *, check_override: bool = bool(use_override)) -> _StaticValueConverter:
             value_converter_list = template.value_converter.setdefault(option, [])
-            wrapper = _make_function_wrapper(func, check_override=False, no_object=True)
+            wrapper = _make_function_wrapper(func, check_override=check_override, no_object=True)
             if wrapper in value_converter_list:
                 raise OptionError(option, "Function already registered")
             value_converter_list.append(wrapper)
@@ -885,15 +902,11 @@ class ConfigurationTemplate(Object):
         if isinstance(func, type):
 
             if issubclass(func, Enum):
-                if option in template.enum_converter_registered:
-                    enum = template.enum_converter_registered[option]
-                    raise ValueError(f"Enum converter already set for option {option!r}: {enum.__qualname__!r}")
-                enum = func
-                template.enum_converter_registered[option] = enum
+                raise TypeError("Use add_enum_converter() instead for enum conversions")
 
             value_converter: Any = _make_value_converter(func, accept_none)
 
-            decorator(value_converter)
+            decorator(value_converter, check_override=False)
             return None
 
         if func is None:
@@ -902,14 +915,14 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def add_enum_converter(self, option: str, enum: Type[Enum], *, store_value: bool = False) -> None:
+    def add_enum_converter(self, option: str, enum: Type[Enum], *, store_value: bool = False, accept_none: bool = False) -> None:
         ...
 
     @overload
-    def add_enum_converter(self, option: str, enum: Type[Enum], *, return_value_on_get: bool) -> None:
+    def add_enum_converter(self, option: str, enum: Type[Enum], *, return_value_on_get: bool, accept_none: bool = False) -> None:
         ...
 
-    def add_enum_converter(self, option: str, enum: Type[Enum], **kwargs: bool) -> None:
+    def add_enum_converter(self, option: str, enum: Type[Enum], *, accept_none: bool = False, **kwargs: bool) -> None:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
@@ -930,7 +943,7 @@ class ConfigurationTemplate(Object):
             enum = template.enum_converter_registered[option]
             raise ValueError(f"Enum converter already set for option {option!r}: {enum.__qualname__!r}")
 
-        self.add_value_converter_static(option, _make_enum_converter(enum, store_value=store_value))
+        self.add_value_converter_static(option, _make_enum_converter(enum, store_value, accept_none), use_override=False)
         template.enum_converter_registered[option] = enum
         if return_value_on_get is not None:
             template.enum_return_value[option] = bool(return_value_on_get)
@@ -1600,9 +1613,11 @@ class _FunctionWrapperBuilder:
 
         if isinstance(func, (BuiltinFunctionType, BuiltinMethodType)) or not hasattr(func, "__get__"):
             no_object = True
-        
-        if info != self.Info(func, check_override=check_override, no_object=no_object):  # Ask the right builder to compute the wrapper
-            computed_wrapper = _FunctionWrapperBuilder(func, check_override=check_override, no_object=no_object).build_wrapper(cls)
+
+        if info != self.Info(func, check_override=check_override, no_object=no_object):
+            # Ask the right builder to compute the wrapper
+            builder = _FunctionWrapperBuilder(func, check_override=check_override, no_object=no_object)
+            computed_wrapper = builder.build_wrapper(cls)
             self.cache[func] = computed_wrapper  # Save in our cache for further calls
             return computed_wrapper
 
@@ -1696,7 +1711,7 @@ class _WrappedFunctionWrapper:
         wrapper = decorator(wrapper)
 
         try:
-            update_wrapper(wrapper=wrapper, wrapped=func)
+            wrapper = update_wrapper(wrapper=wrapper, wrapped=func)
         except (AttributeError, TypeError):
             pass
 
@@ -1733,16 +1748,20 @@ def _make_value_converter(_type: type, accept_none: bool) -> Callable[[Any], Any
 
 
 @_no_type_check_cache
-def _make_enum_converter(enum: Type[Enum], store_value: bool) -> Callable[[Any], Any]:
+def _make_enum_converter(enum: Type[Enum], store_value: bool, accept_none: bool) -> Callable[[Any], Any]:
     if not store_value:
 
         def value_converter(val: Any, /, *, enum: Type[Enum] = enum) -> Any:
+            if accept_none and val is None:
+                return None
             val = enum(val)
             return val
 
     else:
 
         def value_converter(val: Any, /, *, enum: Type[Enum] = enum) -> Any:
+            if accept_none and val is None:
+                return None
             val = enum(val)
             return val.value
 

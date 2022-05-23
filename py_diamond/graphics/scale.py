@@ -44,7 +44,12 @@ class ScaleBar(ProgressBar, AbstractWidget):
     )
     __theme_override__: Sequence[str] = ("cursor_thickness",)
 
-    config = ConfigurationTemplate("resolution", "highlight_color", "highlight_thickness", parent=ProgressBar.config)
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
+        "resolution",
+        "highlight_color",
+        "highlight_thickness",
+        parent=ProgressBar.config,
+    )
 
     resolution: OptionAttribute[int] = OptionAttribute()
     highlight_color: OptionAttribute[Color] = OptionAttribute()

@@ -13,7 +13,7 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from operator import truth
-from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, TypeVar
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.validation import valid_integer
@@ -43,7 +43,7 @@ class CheckBoxMeta(TDrawableMeta, ThemedObjectMeta):
 
 
 class CheckBox(TDrawable, AbstractWidget, Generic[_OnValue, _OffValue], metaclass=CheckBoxMeta):
-    config: ConfigurationTemplate = ConfigurationTemplate(
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "value",
         "local_width",
         "local_height",

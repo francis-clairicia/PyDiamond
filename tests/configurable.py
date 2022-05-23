@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from os.path import dirname
 from sys import path as SYS_PATH
 from time import monotonic as time
-from typing import Any, Iterator
+from typing import Any, ClassVar, Iterator
 
 SYS_PATH.append(dirname(dirname(__file__)))
 
@@ -22,7 +22,7 @@ def benchmark() -> Iterator[None]:
 
 
 class Configurable:
-    config = ConfigurationTemplate("a", "b", "c", "d", autocopy=True)
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate("a", "b", "c", "d", autocopy=True)
     config.set_autocopy("d", copy_on_get=False, copy_on_set=False)
 
     a: OptionAttribute[int] = OptionAttribute()
@@ -75,7 +75,7 @@ class Configurable:
 
 
 class SubConfigurable(Configurable):
-    config = ConfigurationTemplate("e", parent=Configurable.config)
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate("e", parent=Configurable.config)
     config.remove_parent_ownership("b")
     e: OptionAttribute[int] = OptionAttribute()
 
@@ -112,7 +112,7 @@ class SubConfigurable(Configurable):
 
 
 class C:
-    config: ConfigurationTemplate = ConfigurationTemplate("a", "b", "c")
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate("a", "b", "c")
 
     @initializer
     def __init__(self) -> None:
@@ -123,7 +123,7 @@ class C:
 
 
 class A:
-    __config: ConfigurationTemplate = ConfigurationTemplate("a")
+    __config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate("a")
 
     a: OptionAttribute[int] = OptionAttribute()
 
@@ -139,7 +139,7 @@ class Rect:
     def __init__(self) -> None:
         self.config.set("size", (4, 5))
 
-    config = ConfigurationTemplate("width", "height", "size")
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate("width", "height", "size")
 
     @config.add_main_update
     def update(self) -> None:
@@ -155,11 +155,11 @@ class Rect:
 
 
 class SubRect(Rect):
-    config = ConfigurationTemplate(parent=Rect.config)
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(parent=Rect.config)
 
 
 class Klass:
-    config = ConfigurationTemplate("a", "b", "c")
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate("a", "b", "c")
 
     @config.add_main_update
     def update(self) -> None:

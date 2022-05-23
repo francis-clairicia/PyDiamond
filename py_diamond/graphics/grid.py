@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 from abc import abstractmethod
 from dataclasses import dataclass
 from enum import auto, unique
-from typing import Any, Container, Iterator, Literal, Protocol, Sequence, TypeVar, overload, runtime_checkable
+from typing import Any, ClassVar, Container, Iterator, Literal, Protocol, Sequence, TypeVar, overload, runtime_checkable
 from weakref import ref as weakref
 
 from ..system.collections import SortedDict
@@ -71,7 +71,7 @@ class Grid(MDrawable, Container[GridElement]):
         x: int = 0
         y: int = 0
 
-    config: ConfigurationTemplate = ConfigurationTemplate("bg_color", "outline", "outline_color", "justify")
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate("bg_color", "outline", "outline_color", "justify")
 
     bg_color: OptionAttribute[Color] = OptionAttribute()
     outline: OptionAttribute[int] = OptionAttribute()

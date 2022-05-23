@@ -50,7 +50,7 @@ class ScrollBar(TDrawable, Clickable, metaclass=ScrollBarMeta):
         HORIZONTAL = auto()
         VERTICAL = auto()
 
-    config: ConfigurationTemplate = ConfigurationTemplate(
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "local_width",
         "local_height",
         "local_size",

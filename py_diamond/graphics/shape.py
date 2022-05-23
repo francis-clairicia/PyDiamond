@@ -28,7 +28,7 @@ from enum import auto, unique
 from math import radians, sin, tan
 from operator import truth
 from types import MappingProxyType
-from typing import Any, Mapping, Sequence, TypeAlias, final
+from typing import Any, ClassVar, Mapping, Sequence, TypeAlias, final
 
 from pygame.transform import rotate as _surface_rotate
 
@@ -50,7 +50,7 @@ class ShapeMeta(TDrawableMeta):
 
 
 class AbstractShape(TDrawable, metaclass=ShapeMeta):
-    config = ConfigurationTemplate()
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate()
 
     @initializer
     def __init__(self) -> None:
@@ -175,7 +175,7 @@ class AbstractShape(TDrawable, metaclass=ShapeMeta):
 
 
 class SingleColorShape(AbstractShape):
-    config = ConfigurationTemplate("color", parent=AbstractShape.config)
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate("color", parent=AbstractShape.config)
 
     color: OptionAttribute[Color] = OptionAttribute()
 
@@ -189,7 +189,11 @@ class SingleColorShape(AbstractShape):
 
 
 class OutlinedShape(AbstractShape):
-    config = ConfigurationTemplate("outline", "outline_color", parent=AbstractShape.config)
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
+        "outline",
+        "outline_color",
+        parent=AbstractShape.config,
+    )
 
     outline: OptionAttribute[int] = OptionAttribute()
     outline_color: OptionAttribute[Color] = OptionAttribute()
@@ -209,7 +213,10 @@ class OutlinedShape(AbstractShape):
 class PolygonShape(OutlinedShape, SingleColorShape):
     PointList: TypeAlias = Sequence[Vector2] | Sequence[tuple[float, float]] | Sequence[tuple[int, int]]
 
-    config = ConfigurationTemplate("points", parent=[OutlinedShape.config, SingleColorShape.config])
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
+        "points",
+        parent=[OutlinedShape.config, SingleColorShape.config],
+    )
 
     points: OptionAttribute[Sequence[Vector2]] = OptionAttribute()
 
@@ -283,7 +290,12 @@ class PolygonShape(OutlinedShape, SingleColorShape):
 
 
 class AbstractRectangleShape(AbstractShape):
-    config = ConfigurationTemplate("local_width", "local_height", "local_size", parent=AbstractShape.config)
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
+        "local_width",
+        "local_height",
+        "local_size",
+        parent=AbstractShape.config,
+    )
 
     local_width: OptionAttribute[float] = OptionAttribute()
     local_height: OptionAttribute[float] = OptionAttribute()
@@ -312,7 +324,7 @@ class AbstractRectangleShape(AbstractShape):
 
 
 class AbstractSquareShape(AbstractShape):
-    config = ConfigurationTemplate("local_size", parent=AbstractShape.config)
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate("local_size", parent=AbstractShape.config)
     config.set_alias("local_size", "local_width", "local_height")
 
     local_width: OptionAttribute[float] = OptionAttribute()
@@ -339,7 +351,7 @@ class AbstractSquareShape(AbstractShape):
 
 @concreteclass
 class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape):
-    config = ConfigurationTemplate(
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "border_radius",
         "border_top_left_radius",
         "border_top_right_radius",
@@ -436,7 +448,7 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape):
 
 
 class AbstractCircleShape(AbstractShape):
-    config = ConfigurationTemplate("radius", parent=AbstractShape.config)
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate("radius", parent=AbstractShape.config)
 
     radius: OptionAttribute[float] = OptionAttribute()
 
@@ -461,7 +473,7 @@ class AbstractCircleShape(AbstractShape):
 
 @concreteclass
 class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape):
-    config = ConfigurationTemplate(
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "draw_top_left",
         "draw_top_right",
         "draw_bottom_left",
@@ -582,7 +594,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape):
 
 @concreteclass
 class CrossShape(OutlinedShape, SingleColorShape):
-    config = ConfigurationTemplate(
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "local_width",
         "local_height",
         "local_size",

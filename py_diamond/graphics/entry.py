@@ -55,7 +55,7 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
         },
     }
 
-    config: ConfigurationTemplate = ConfigurationTemplate(
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "cursor",
         "interval",
         "bg",
@@ -474,7 +474,7 @@ class _TextEntry(Text):
         #     return text.subsurface(0, 0, max_width, text.get_height()).copy()
         return text
 
-    config = ConfigurationTemplate("max_width", parent=Text.config)
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate("max_width", parent=Text.config)
 
     config.add_value_converter_static("max_width", valid_optional_integer(min_value=0))
 

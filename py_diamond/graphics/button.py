@@ -87,7 +87,7 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
         "center": "centery",
     }
 
-    config: ConfigurationTemplate = ConfigurationTemplate(
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "text",
         "text_font",
         "text_justify",
@@ -834,7 +834,7 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
 
 @Button.register_themed_subclass
 class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
-    config: ConfigurationTemplate = ConfigurationTemplate(
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "img",
         "x_add_size",
         "y_add_size",
