@@ -397,13 +397,13 @@ class ConfigurationTemplate(Object):
         readonly: bool = False,
     ) -> Optional[Callable[[_KeyGetter], _KeyGetter]]:
         self.__check_locked()
+        key: str = use_key or option
 
         def wrapper_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-            key: str = use_key or option
             return lambda self: func(self, key)
 
         def decorator(func: _KeyGetter, /) -> _KeyGetter:
-            wrapper = _WrappedFunctionWrapper(func, option, wrapper_decorator, check_override=bool(use_override), no_object=False)
+            wrapper = _WrappedFunctionWrapper(func, key, wrapper_decorator, check_override=bool(use_override), no_object=False)
             self.getter(option, wrapper, readonly=readonly)
             return func
 
@@ -465,13 +465,13 @@ class ConfigurationTemplate(Object):
         self, option: str, func: Optional[_KeySetter] = None, /, *, use_key: Optional[str] = None, use_override: bool = True
     ) -> Optional[Callable[[_KeySetter], _KeySetter]]:
         self.__check_locked()
+        key: str = use_key or option
 
         def wrapper_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-            key: str = use_key or option
             return lambda self, value: func(self, key, value)
 
         def decorator(func: _KeySetter, /) -> _KeySetter:
-            wrapper = _WrappedFunctionWrapper(func, option, wrapper_decorator, check_override=bool(use_override), no_object=False)
+            wrapper = _WrappedFunctionWrapper(func, key, wrapper_decorator, check_override=bool(use_override), no_object=False)
             self.setter(option, wrapper)
             return func
 
@@ -533,13 +533,13 @@ class ConfigurationTemplate(Object):
         self, option: str, func: Optional[_KeyDeleter] = None, /, *, use_key: Optional[str] = None, use_override: bool = True
     ) -> Optional[Callable[[_KeyDeleter], _KeyDeleter]]:
         self.__check_locked()
+        key: str = use_key or option
 
         def wrapper_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-            key: str = use_key or option
             return lambda self: func(self, key)
 
         def decorator(func: _KeyDeleter, /) -> _KeyDeleter:
-            wrapper = _WrappedFunctionWrapper(func, option, wrapper_decorator, check_override=bool(use_override), no_object=False)
+            wrapper = _WrappedFunctionWrapper(func, key, wrapper_decorator, check_override=bool(use_override), no_object=False)
             self.deleter(option, wrapper)
             return func
 
@@ -648,13 +648,13 @@ class ConfigurationTemplate(Object):
         self, option: str, func: Optional[_KeyUpdater] = None, /, *, use_key: Optional[str] = None, use_override: bool = True
     ) -> Optional[Callable[[_KeyUpdater], _KeyUpdater]]:
         self.__check_locked()
+        key: str = use_key or option
 
         def wrapper_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-            key: str = use_key or option
             return lambda self: func(self, key)
 
         def decorator(func: _KeyUpdater, /) -> _KeyUpdater:
-            wrapper = _WrappedFunctionWrapper(func, option, wrapper_decorator, check_override=bool(use_override), no_object=False)
+            wrapper = _WrappedFunctionWrapper(func, key, wrapper_decorator, check_override=bool(use_override), no_object=False)
             self.on_update(option, wrapper)
             return func
 
@@ -713,13 +713,13 @@ class ConfigurationTemplate(Object):
         self, option: str, func: Optional[_KeyValueUpdater] = None, /, *, use_key: Optional[str] = None, use_override: bool = True
     ) -> Optional[Callable[[_KeyValueUpdater], _KeyValueUpdater]]:
         self.__check_locked()
+        key: str = use_key or option
 
         def wrapper_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-            key: str = use_key or option
             return lambda self, value: func(self, key, value)
 
         def decorator(func: _KeyValueUpdater, /) -> _KeyValueUpdater:
-            wrapper = _WrappedFunctionWrapper(func, option, wrapper_decorator, check_override=bool(use_override), no_object=False)
+            wrapper = _WrappedFunctionWrapper(func, key, wrapper_decorator, check_override=bool(use_override), no_object=False)
             self.on_update_value(option, wrapper)
             return func
 
@@ -939,7 +939,7 @@ class ConfigurationTemplate(Object):
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
-        for alias in set((alias, *aliases)):
+        for alias in {alias, *aliases}:
             if not isinstance(alias, str):
                 raise InvalidAliasError(alias, "Invalid type")
             if alias == option:
@@ -1596,9 +1596,15 @@ class _FunctionWrapperBuilder:
         func_name: str = ""
         if check_override:
             func_name = next((attr_name for attr_name, attr_obj in _all_members(cls).items() if attr_obj is func), func_name)
+            check_override = bool(func_name)
 
         if isinstance(func, (BuiltinFunctionType, BuiltinMethodType)) or not hasattr(func, "__get__"):
             no_object = True
+        
+        if info != self.Info(func, check_override=check_override, no_object=no_object):  # Ask the right builder to compute the wrapper
+            computed_wrapper = _FunctionWrapperBuilder(func, check_override=check_override, no_object=no_object).build_wrapper(cls)
+            self.cache[func] = computed_wrapper  # Save in our cache for further calls
+            return computed_wrapper
 
         if no_object:
 
