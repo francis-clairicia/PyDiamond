@@ -125,6 +125,7 @@ def test_multiple_connections() -> None:
             assert client_1.recv_packet() == "Welcome !"
             assert client_2.recv_packet() == "Welcome !"
             assert client_3.recv_packet() == "Welcome !"
+            sleep(0.1)
             assert len(server.clients) == 3
 
 

@@ -228,27 +228,30 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
             self.__is_shutdown.clear()
         socket: AbstractTCPServerSocket = self.__socket
         clients_dict: dict[TCPNetworkClient[_T], ConnectedClient[_T]] = self.__clients
+        selector: BaseSelector = _Selector()
 
-        def new_client(selector: BaseSelector) -> None:
-            try:
-                client_socket, address = socket.accept()
-            except ConnectionError:
-                raise
-            except OSError:
-                return
-            client: TCPNetworkClient[_T] = TCPNetworkClient(client_socket, protocol=self.protocol_cls())
+        @thread_factory(daemon=True)
+        def verify_client(client: TCPNetworkClient[_T], address: SocketAddress) -> None:
             if not self._verify_new_client(client, address):
                 client.close()
                 return
             selector.register(client, EVENT_READ)
             clients_dict[client] = self.__ConnectedClient(client, address)
 
-        def parse_requests(client: TCPNetworkClient[_T], selector: BaseSelector) -> None:
+        def new_client() -> None:
+            try:
+                client_socket, address = socket.accept()
+            except OSError:
+                return
+            client: TCPNetworkClient[_T] = TCPNetworkClient(client_socket, protocol=self.protocol_cls())
+            verify_client(client, address)
+
+        def parse_requests(client: TCPNetworkClient[_T]) -> None:
             if not client.is_connected():
                 return
             try:
                 connected_client: ConnectedClient[_T] = clients_dict[client]
-                for request in client.recv_packets(block=True, flags=self.recv_flags):
+                for request in client.recv_packets(block=True, flags=self.recv_flags):  # TODO: Handle one packet per loop
                     # TODO (3.11): Exception groups
                     try:
                         self._process_request(request, connected_client)
@@ -257,49 +260,48 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
                     except Exception:
                         self._handle_error(connected_client)
                     if not client.is_connected():
-                        shutdown_client(client, selector)
+                        shutdown_client(client)
                         return
             except DisconnectedClientError:
-                shutdown_client(client, selector)
+                shutdown_client(client)
             except:
-                shutdown_client(client, selector)
+                shutdown_client(client)
                 raise
 
-        def shutdown_client(client: TCPNetworkClient[_T], selector: BaseSelector) -> None:
+        def shutdown_client(client: TCPNetworkClient[_T]) -> None:
             with suppress(KeyError):
                 selector.unregister(client)
             with suppress(Exception):
                 client.close()
             clients_dict.pop(client, None)
 
-        def remove_closed_clients(selector: BaseSelector) -> None:
+        def remove_closed_clients() -> None:
             for client in filter(lambda client: not client.is_connected(), tuple(clients_dict)):
                 with suppress(KeyError):
                     selector.unregister(client)
                 clients_dict.pop(client, None)
 
-        with _Selector() as selector:
+        with selector:
             selector.register(socket, EVENT_READ)
             try:
                 while self.running():
                     ready = selector.select(poll_interval)
                     if not self.running():
                         break
-                    with self.__lock:
-                        for key, _ in ready:
-                            fileobj: Any = key.fileobj
-                            if fileobj is socket:
-                                new_client(selector)
-                            else:
-                                parse_requests(fileobj, selector)
-                        remove_closed_clients(selector)
+                    for key, _ in ready:
+                        fileobj: Any = key.fileobj
+                        if fileobj is socket:
+                            new_client()
+                        else:
+                            parse_requests(fileobj)
+                    remove_closed_clients()
                     self.service_actions()
             finally:
                 try:
                     with self.__lock:
                         self.__loop = False
                         for client in tuple(clients_dict):
-                            shutdown_client(client, selector)
+                            shutdown_client(client)
                 finally:
                     clients_dict.clear()
                     self.__is_shutdown.set()
@@ -521,7 +523,8 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_T]):
                         parse_requests()
                     self.service_actions()
             finally:
-                self.__loop = False
+                with self.__lock:
+                    self.__loop = False
                 self.__is_shutdown.set()
 
     def server_close(self) -> None:
