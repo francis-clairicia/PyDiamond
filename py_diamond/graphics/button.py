@@ -634,7 +634,8 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config.on_update("x_add_size", __update_shape_size)
     config.on_update("y_add_size", __update_shape_size)
 
-    __STATE: Final[dict[str, tuple[Clickable.State, Literal["normal", "hover", "active"]]]] = {
+    __TupleState: TypeAlias = tuple[Clickable.State, Literal["normal", "hover", "active"]]
+    __STATE: Final[dict[str, __TupleState]] = {
         "background": (Clickable.State.NORMAL, "normal"),
         "hover_background": (Clickable.State.NORMAL, "hover"),
         "active_background": (Clickable.State.NORMAL, "active"),
@@ -655,8 +656,6 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
         "disabled_active_img": (Clickable.State.DISABLED, "active"),
     }
 
-    assert (lambda config, states: all(key in config.known_options() for key in states))(config, __STATE)
-
     config.set_autocopy("background", copy_on_get=True, copy_on_set=True)
     config.set_autocopy("hover_background", copy_on_get=True, copy_on_set=True)
     config.set_autocopy("active_background", copy_on_get=True, copy_on_set=True)
@@ -664,24 +663,24 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config.set_autocopy("disabled_hover_background", copy_on_get=True, copy_on_set=True)
     config.set_autocopy("disabled_active_background", copy_on_get=True, copy_on_set=True)
 
-    @config.getter_key("background")
-    @config.getter_key("hover_background")
-    @config.getter_key("active_background")
-    @config.getter_key("disabled_background")
-    @config.getter_key("disabled_hover_background")
-    @config.getter_key("disabled_active_background")
-    def __get_background(self, option: str) -> Color | None:
-        clickable_state, button_state = Button.__STATE[option]
+    @config.getter_key_from_map("background", __STATE)
+    @config.getter_key_from_map("hover_background", __STATE)
+    @config.getter_key_from_map("active_background", __STATE)
+    @config.getter_key_from_map("disabled_background", __STATE)
+    @config.getter_key_from_map("disabled_hover_background", __STATE)
+    @config.getter_key_from_map("disabled_active_background", __STATE)
+    def __get_background(self, key: __TupleState) -> Color | None:
+        clickable_state, button_state = key
         return self.__bg_dict[clickable_state][button_state]
 
-    @config.setter_key("background")
-    @config.setter_key("hover_background")
-    @config.setter_key("active_background")
-    @config.setter_key("disabled_background")
-    @config.setter_key("disabled_hover_background")
-    @config.setter_key("disabled_active_background")
-    def __set_background(self, option: str, color: Color | None) -> None:
-        clickable_state, button_state = Button.__STATE[option]
+    @config.setter_key_from_map("background", __STATE)
+    @config.setter_key_from_map("hover_background", __STATE)
+    @config.setter_key_from_map("active_background", __STATE)
+    @config.setter_key_from_map("disabled_background", __STATE)
+    @config.setter_key_from_map("disabled_hover_background", __STATE)
+    @config.setter_key_from_map("disabled_active_background", __STATE)
+    def __set_background(self, key: __TupleState, color: Color | None) -> None:
+        clickable_state, button_state = key
         self.__bg_dict[clickable_state][button_state] = color
 
     config.add_value_validator_static("background", Color)
@@ -705,24 +704,24 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config.set_autocopy("disabled_hover_foreground", copy_on_get=True, copy_on_set=True)
     config.set_autocopy("disabled_active_foreground", copy_on_get=True, copy_on_set=True)
 
-    @config.getter_key("foreground")
-    @config.getter_key("hover_foreground")
-    @config.getter_key("active_foreground")
-    @config.getter_key("disabled_foreground")
-    @config.getter_key("disabled_hover_foreground")
-    @config.getter_key("disabled_active_foreground")
-    def __get_foreground(self, option: str) -> Color | None:
-        clickable_state, button_state = Button.__STATE[option]
+    @config.getter_key_from_map("foreground", __STATE)
+    @config.getter_key_from_map("hover_foreground", __STATE)
+    @config.getter_key_from_map("active_foreground", __STATE)
+    @config.getter_key_from_map("disabled_foreground", __STATE)
+    @config.getter_key_from_map("disabled_hover_foreground", __STATE)
+    @config.getter_key_from_map("disabled_active_foreground", __STATE)
+    def __get_foreground(self, key: __TupleState) -> Color | None:
+        clickable_state, button_state = key
         return self.__fg_dict[clickable_state][button_state]
 
-    @config.setter_key("foreground")
-    @config.setter_key("hover_foreground")
-    @config.setter_key("active_foreground")
-    @config.setter_key("disabled_foreground")
-    @config.setter_key("disabled_hover_foreground")
-    @config.setter_key("disabled_active_foreground")
-    def __set_foreground(self, option: str, color: Color | None) -> None:
-        clickable_state, button_state = Button.__STATE[option]
+    @config.setter_key_from_map("foreground", __STATE)
+    @config.setter_key_from_map("hover_foreground", __STATE)
+    @config.setter_key_from_map("active_foreground", __STATE)
+    @config.setter_key_from_map("disabled_foreground", __STATE)
+    @config.setter_key_from_map("disabled_hover_foreground", __STATE)
+    @config.setter_key_from_map("disabled_active_foreground", __STATE)
+    def __set_foreground(self, key: __TupleState, color: Color | None) -> None:
+        clickable_state, button_state = key
         self.__fg_dict[clickable_state][button_state] = color
 
     config.add_value_validator_static("foreground", Color)
@@ -746,24 +745,24 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config.set_autocopy("disabled_hover_img", copy_on_get=True, copy_on_set=True)
     config.set_autocopy("disabled_active_img", copy_on_get=True, copy_on_set=True)
 
-    @config.getter_key("img")
-    @config.getter_key("hover_img")
-    @config.getter_key("active_img")
-    @config.getter_key("disabled_img")
-    @config.getter_key("disabled_hover_img")
-    @config.getter_key("disabled_active_img")
-    def __get_img(self, option: str) -> Surface | None:
-        clickable_state, button_state = Button.__STATE[option]
+    @config.getter_key_from_map("img", __STATE)
+    @config.getter_key_from_map("hover_img", __STATE)
+    @config.getter_key_from_map("active_img", __STATE)
+    @config.getter_key_from_map("disabled_img", __STATE)
+    @config.getter_key_from_map("disabled_hover_img", __STATE)
+    @config.getter_key_from_map("disabled_active_img", __STATE)
+    def __get_img(self, key: __TupleState) -> Surface | None:
+        clickable_state, button_state = key
         return self.__img_dict[clickable_state][button_state]
 
-    @config.setter_key("img")
-    @config.setter_key("hover_img")
-    @config.setter_key("active_img")
-    @config.setter_key("disabled_img")
-    @config.setter_key("disabled_hover_img")
-    @config.setter_key("disabled_active_img")
-    def __set_img(self, option: str, img: Surface | None) -> None:
-        clickable_state, button_state = Button.__STATE[option]
+    @config.setter_key_from_map("img", __STATE)
+    @config.setter_key_from_map("hover_img", __STATE)
+    @config.setter_key_from_map("active_img", __STATE)
+    @config.setter_key_from_map("disabled_img", __STATE)
+    @config.setter_key_from_map("disabled_hover_img", __STATE)
+    @config.setter_key_from_map("disabled_active_img", __STATE)
+    def __set_img(self, key: __TupleState, img: Surface | None) -> None:
+        clickable_state, button_state = key
         self.__img_dict[clickable_state][button_state] = img
 
     config.add_value_validator_static("img", Surface, accept_none=True)
@@ -1113,7 +1112,8 @@ class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config.on_update("x_add_size", __update_shape_size)
     config.on_update("y_add_size", __update_shape_size)
 
-    __STATE: Final[dict[str, tuple[Clickable.State, Literal["normal", "hover", "active"]]]] = {
+    __TupleState: TypeAlias = tuple[Clickable.State, Literal["normal", "hover", "active"]]
+    __STATE: Final[dict[str, __TupleState]] = {
         "background": (Clickable.State.NORMAL, "normal"),
         "hover_background": (Clickable.State.NORMAL, "hover"),
         "active_background": (Clickable.State.NORMAL, "active"),
@@ -1128,8 +1128,6 @@ class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
         "disabled_active_img": (Clickable.State.DISABLED, "active"),
     }
 
-    assert (lambda config, states: all(key in config.known_options() for key in states))(config, __STATE)
-
     config.set_autocopy("background", copy_on_get=True, copy_on_set=True)
     config.set_autocopy("hover_background", copy_on_get=True, copy_on_set=True)
     config.set_autocopy("active_background", copy_on_get=True, copy_on_set=True)
@@ -1137,24 +1135,24 @@ class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config.set_autocopy("disabled_hover_background", copy_on_get=True, copy_on_set=True)
     config.set_autocopy("disabled_active_background", copy_on_get=True, copy_on_set=True)
 
-    @config.getter_key("background")
-    @config.getter_key("hover_background")
-    @config.getter_key("active_background")
-    @config.getter_key("disabled_background")
-    @config.getter_key("disabled_hover_background")
-    @config.getter_key("disabled_active_background")
-    def __get_background(self, option: str) -> Color | None:
-        clickable_state, button_state = ImageButton.__STATE[option]
+    @config.getter_key_from_map("background", __STATE)
+    @config.getter_key_from_map("hover_background", __STATE)
+    @config.getter_key_from_map("active_background", __STATE)
+    @config.getter_key_from_map("disabled_background", __STATE)
+    @config.getter_key_from_map("disabled_hover_background", __STATE)
+    @config.getter_key_from_map("disabled_active_background", __STATE)
+    def __get_background(self, key: __TupleState) -> Color | None:
+        clickable_state, button_state = key
         return self.__bg_dict[clickable_state][button_state]
 
-    @config.setter_key("background")
-    @config.setter_key("hover_background")
-    @config.setter_key("active_background")
-    @config.setter_key("disabled_background")
-    @config.setter_key("disabled_hover_background")
-    @config.setter_key("disabled_active_background")
-    def __set_background(self, option: str, color: Color | None) -> None:
-        clickable_state, button_state = ImageButton.__STATE[option]
+    @config.setter_key_from_map("background", __STATE)
+    @config.setter_key_from_map("hover_background", __STATE)
+    @config.setter_key_from_map("active_background", __STATE)
+    @config.setter_key_from_map("disabled_background", __STATE)
+    @config.setter_key_from_map("disabled_hover_background", __STATE)
+    @config.setter_key_from_map("disabled_active_background", __STATE)
+    def __set_background(self, key: __TupleState, color: Color | None) -> None:
+        clickable_state, button_state = key
         self.__bg_dict[clickable_state][button_state] = color
 
     config.add_value_validator_static("background", Color)
@@ -1178,24 +1176,24 @@ class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config.set_autocopy("disabled_hover_img", copy_on_get=True, copy_on_set=True)
     config.set_autocopy("disabled_active_img", copy_on_get=True, copy_on_set=True)
 
-    @config.getter_key("img")
-    @config.getter_key("hover_img")
-    @config.getter_key("active_img")
-    @config.getter_key("disabled_img")
-    @config.getter_key("disabled_hover_img")
-    @config.getter_key("disabled_active_img")
-    def __get_img(self, option: str) -> Surface | None:
-        clickable_state, button_state = ImageButton.__STATE[option]
+    @config.getter_key_from_map("img", __STATE)
+    @config.getter_key_from_map("hover_img", __STATE)
+    @config.getter_key_from_map("active_img", __STATE)
+    @config.getter_key_from_map("disabled_img", __STATE)
+    @config.getter_key_from_map("disabled_hover_img", __STATE)
+    @config.getter_key_from_map("disabled_active_img", __STATE)
+    def __get_img(self, key: __TupleState) -> Surface | None:
+        clickable_state, button_state = key
         return self.__img_dict[clickable_state][button_state]
 
-    @config.setter_key("img")
-    @config.setter_key("hover_img")
-    @config.setter_key("active_img")
-    @config.setter_key("disabled_img")
-    @config.setter_key("disabled_hover_img")
-    @config.setter_key("disabled_active_img")
-    def __set_img(self, option: str, img: Surface | None) -> None:
-        clickable_state, button_state = ImageButton.__STATE[option]
+    @config.setter_key_from_map("img", __STATE)
+    @config.setter_key_from_map("hover_img", __STATE)
+    @config.setter_key_from_map("active_img", __STATE)
+    @config.setter_key_from_map("disabled_img", __STATE)
+    @config.setter_key_from_map("disabled_hover_img", __STATE)
+    @config.setter_key_from_map("disabled_active_img", __STATE)
+    def __set_img(self, key: __TupleState, img: Surface | None) -> None:
+        clickable_state, button_state = key
         self.__img_dict[clickable_state][button_state] = img
 
     config.add_value_validator_static("img", Surface)
