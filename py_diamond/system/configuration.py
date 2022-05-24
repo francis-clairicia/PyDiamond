@@ -1184,20 +1184,20 @@ class Configuration(Generic[_T], Object):
         info: ConfigurationInfo = self.__info
         option = info.check_option_validity(option, use_alias=True)
         descriptor = info.get_value_descriptor(option, type(obj))
-        with self.__lazy_lock(obj):
-            try:
+        try:
+            with self.__lazy_lock(obj):
                 value: Any = descriptor.__get__(obj, type(obj))
-            except (AttributeError, UnregisteredOptionError):
-                if default is _NO_DEFAULT:
-                    raise
-                return default
-            if option in info.enum_return_value and isinstance(value, Enum):
-                return value.value
-            if info.value_autocopy_get.get(option, info.autocopy):
-                copy_func = info.get_copy_func(type(value))
-                with suppress(Exception):
-                    value = copy_func(value)
-            return value
+        except (AttributeError, UnregisteredOptionError):
+            if default is _NO_DEFAULT:
+                raise
+            return default
+        if option in info.enum_return_value and isinstance(value, Enum):
+            return value.value
+        if info.value_autocopy_get.get(option, info.autocopy):
+            copy_func = info.get_copy_func(type(value))
+            with suppress(Exception):
+                value = copy_func(value)
+        return value
 
     def __getitem__(self, option: str, /) -> Any:
         try:
@@ -1226,16 +1226,16 @@ class Configuration(Generic[_T], Object):
         if not isinstance(descriptor, _MutableDescriptor):
             raise OptionError(option, "Cannot be set")
 
-        with self.__updating_option(obj, option, info, call_updaters=True) as update_context:
-            value_validator: Optional[Callable[[object, Any], None]] = info.value_validator.get(option, None)
-            value_converter: Optional[Callable[[object, Any], Any]] = info.value_converter.get(option, None)
-            if value_validator is not None:
-                value_validator(obj, value)
-            converter_applied: bool = False
-            if value_converter is not None:
-                value = value_converter(obj, value)
-                converter_applied = True
+        value_validator: Optional[Callable[[object, Any], None]] = info.value_validator.get(option, None)
+        value_converter: Optional[Callable[[object, Any], Any]] = info.value_converter.get(option, None)
+        if value_validator is not None:
+            value_validator(obj, value)
+        converter_applied: bool = False
+        if value_converter is not None:
+            value = value_converter(obj, value)
+            converter_applied = True
 
+        with self.__updating_option(obj, option, info, call_updaters=True) as update_context:
             try:
                 actual_value = descriptor.__get__(obj, type(obj))
             except (AttributeError, UnregisteredOptionError):
