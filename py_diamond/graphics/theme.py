@@ -25,13 +25,14 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
+from collections import deque
 from contextlib import nullcontext, suppress
-from dataclasses import dataclass
 from functools import cached_property
 from inspect import Parameter, Signature
 from itertools import chain, filterfalse
 from operator import truth
 from re import compile as re_compile
+from threading import RLock
 from types import FunctionType, LambdaType, MappingProxyType
 from typing import (
     TYPE_CHECKING,
@@ -45,6 +46,7 @@ from typing import (
     Mapping,
     Match,
     MutableMapping,
+    NamedTuple,
     Pattern,
     Sequence,
     TypeAlias,
@@ -72,33 +74,39 @@ _CLASSES_NOT_USING_PARENT_THEMES: set[type] = set()
 _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES: set[type] = set()
 
 
+class _ThemeNamespaceBackupItem(NamedTuple):
+    name: str | None
+    theme_dict: _ClassThemeDict
+    default_theme_dict: _ClassDefaultThemeDict
+
+
 @final
 class ThemeNamespace(ContextManager["ThemeNamespace"], Object):
 
-    __THEMES_DEFAULT_DICT: ClassVar[_ClassThemeDict] = _THEMES
-    __THEMES_DICT_NAMESPACE: ClassVar[dict[str, _ClassThemeDict]] = {}
-    __DEFAULT_THEME_DEFAULT_DICT: ClassVar[_ClassDefaultThemeDict] = _DEFAULT_THEME
-    __DEFAULT_THEME_DICT_NAMESPACE: ClassVar[dict[str, _ClassDefaultThemeDict]] = {}
+    __THEMES_DEFAULT_DICT: Final[_ClassThemeDict] = _THEMES
+    __THEMES_DICT_NAMESPACE: Final[dict[str, _ClassThemeDict]] = {}
+    __DEFAULT_THEME_DEFAULT_DICT: Final[_ClassDefaultThemeDict] = _DEFAULT_THEME
+    __DEFAULT_THEME_DICT_NAMESPACE: Final[dict[str, _ClassDefaultThemeDict]] = {}
     __actual_namespace: ClassVar[str | None] = None
 
     def __init__(self, namespace: str, *, extend: bool = False, include_none_namespace: bool = True) -> None:
         self.__namespace: str = str(namespace)
-        self.__save_namespace: str | None = None
-        self.__save_theme_dict: _ClassThemeDict
-        self.__save_default_theme_dict: _ClassDefaultThemeDict
-        self.__entered: int = 0
+        self.__save_namespaces: deque[_ThemeNamespaceBackupItem] = deque()
         self.__extend: bool = extend
         self.__include_none_namespace: bool = include_none_namespace
 
     def __enter__(self) -> ThemeNamespace:
         global _THEMES, _DEFAULT_THEME
-        if self.__entered == 0:
-            self.__save_namespace = ThemeNamespace.__actual_namespace
-            self.__save_theme_dict = _THEMES
-            self.__save_default_theme_dict = _DEFAULT_THEME
+        THEMES_DICT_NAMESPACE: dict[str, _ClassThemeDict] = ThemeNamespace.__THEMES_DICT_NAMESPACE
+        DEFAULT_THEME_DICT_NAMESPACE: dict[str, _ClassDefaultThemeDict] = ThemeNamespace.__DEFAULT_THEME_DICT_NAMESPACE
+        with ThemeNamespace.get_lock():
+            save_namespace = _ThemeNamespaceBackupItem(
+                name=ThemeNamespace.__actual_namespace,
+                theme_dict=_THEMES,
+                default_theme_dict=_DEFAULT_THEME,
+            )
+            self.__save_namespaces.append(save_namespace)
             ThemeNamespace.__actual_namespace = namespace = self.__namespace
-            THEMES_DICT_NAMESPACE: dict[str, _ClassThemeDict] = ThemeNamespace.__THEMES_DICT_NAMESPACE
-            DEFAULT_THEME_DICT_NAMESPACE: dict[str, _ClassDefaultThemeDict] = ThemeNamespace.__DEFAULT_THEME_DICT_NAMESPACE
             try:
                 _THEMES = THEMES_DICT_NAMESPACE[namespace]
             except KeyError:
@@ -107,25 +115,21 @@ class ThemeNamespace(ContextManager["ThemeNamespace"], Object):
                 _DEFAULT_THEME = DEFAULT_THEME_DICT_NAMESPACE[namespace]
             except KeyError:
                 DEFAULT_THEME_DICT_NAMESPACE[namespace] = _DEFAULT_THEME = dict()
-            if self.__extend and (self.__include_none_namespace or self.__save_namespace is not None):
-                _THEMES = self.__ExtendedThemeDict(_THEMES, self.__save_theme_dict)
-                _DEFAULT_THEME = self.__ExtendedDefaultThemeDict(_DEFAULT_THEME, self.__save_default_theme_dict)
-        self.__entered += 1
+            if self.__extend and (self.__include_none_namespace or save_namespace.name is not None):
+                _THEMES = self.__ExtendedThemeDict(_THEMES, save_namespace.theme_dict)
+                _DEFAULT_THEME = self.__ExtendedDefaultThemeDict(_DEFAULT_THEME, save_namespace.default_theme_dict)
         return self
 
     def __exit__(self, *args: Any) -> None:
         global _THEMES, _DEFAULT_THEME
-        if self.__entered <= 0:
+        try:
+            save_namespace: _ThemeNamespaceBackupItem = self.__save_namespaces.pop()
+        except IndexError:
             return
-        self.__entered -= 1
-        if self.__entered > 0:
-            return
-        namespace: str | None = self.__save_namespace
-        self.__save_namespace = None
-        _THEMES = self.__save_theme_dict
-        _DEFAULT_THEME = self.__save_default_theme_dict
-        del self.__save_theme_dict, self.__save_default_theme_dict
-        ThemeNamespace.__actual_namespace = namespace
+        with ThemeNamespace.get_lock():
+            _THEMES = save_namespace.theme_dict
+            _DEFAULT_THEME = save_namespace.default_theme_dict
+            ThemeNamespace.__actual_namespace = save_namespace.name
 
     @staticmethod
     def get_actual() -> str | None:
@@ -138,7 +142,8 @@ class ThemeNamespace(ContextManager["ThemeNamespace"], Object):
             theme_dict = ThemeNamespace.__THEMES_DEFAULT_DICT
         else:
             theme_dict = ThemeNamespace.__THEMES_DICT_NAMESPACE.get(namespace, {})
-        return MappingProxyType({cls: MappingProxyType(theme) for cls, theme in theme_dict.items()})
+        with ThemeNamespace.get_lock():
+            return MappingProxyType({cls: MappingProxyType(theme) for cls, theme in theme_dict.items()})
 
     @staticmethod
     def get_default_theme_dict(namespace: str | None) -> _ClassDefaultThemeDictProxy:
@@ -150,8 +155,13 @@ class ThemeNamespace(ContextManager["ThemeNamespace"], Object):
         return MappingProxyType(mapping)
 
     @property
-    def namespace(self) -> str:
+    def name(self) -> str:
         return self.__namespace
+
+    @staticmethod
+    @cache
+    def get_lock() -> RLock:
+        return RLock()
 
     class __ExtendedThemeDict(_ClassThemeDict):
         def __init__(self, actual: _ClassThemeDict, extension: _ClassThemeDict) -> None:
@@ -448,7 +458,8 @@ class ThemedObjectMeta(ObjectMeta):
 
         if not options:
             if options is None or not update:
-                _THEMES.pop(cls, None)
+                with ThemeNamespace.get_lock():
+                    _THEMES.pop(cls, None)
             return
 
         if "theme" in options:
@@ -495,14 +506,15 @@ class ThemedObjectMeta(ObjectMeta):
 
         theme_dict: _ClassTheme
 
-        if cls not in _THEMES:
-            _THEMES[cls] = theme_dict = dict()
-        else:
-            theme_dict = _THEMES[cls]
-        if name not in theme_dict or not update:
-            theme_dict[name] = MappingProxyType(options.copy())
-        else:
-            theme_dict[name] = MappingProxyType(theme_dict[name] | options)
+        with ThemeNamespace.get_lock():
+            if cls not in _THEMES:
+                _THEMES[cls] = theme_dict = dict()
+            else:
+                theme_dict = _THEMES[cls]
+            if name not in theme_dict or not update:
+                theme_dict[name] = MappingProxyType(options.copy())
+            else:
+                theme_dict[name] = MappingProxyType(theme_dict[name] | options)
 
     @overload
     def set_default_theme(cls, name: str, /, *names: str, update: bool = False) -> None:
@@ -521,15 +533,17 @@ class ThemedObjectMeta(ObjectMeta):
         if name is None:
             if names:
                 raise TypeError("Invalid arguments")
-            _DEFAULT_THEME.pop(cls, None)
+            with ThemeNamespace.get_lock():
+                _DEFAULT_THEME.pop(cls, None)
             return
         default_themes: dict[str, None] = dict.fromkeys([name, *names])
         if any(theme is NoTheme for theme in default_themes):
             raise ValueError("Couldn't set 'NoTheme' as default theme")
-        if cls not in _DEFAULT_THEME or not update:
-            _DEFAULT_THEME[cls] = tuple(default_themes)
-        else:
-            _DEFAULT_THEME[cls] = tuple(dict.fromkeys((*_DEFAULT_THEME[cls], *default_themes)))
+        with ThemeNamespace.get_lock():
+            if cls not in _DEFAULT_THEME or not update:
+                _DEFAULT_THEME[cls] = tuple(default_themes)
+            else:
+                _DEFAULT_THEME[cls] = tuple(dict.fromkeys((*_DEFAULT_THEME[cls], *default_themes)))
 
     def get_theme_options(
         cls,
@@ -671,14 +685,11 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="ClassWithThemeNamespaceMeta")
 
-    @dataclass(kw_only=True)
-    class __Namespace:
-        name: str
-        extend: bool
-        include_none_namespace: bool
-
-    __namespaces: Final[dict[type, __Namespace]] = dict()
+    __namespaces: Final[dict[type, ThemeNamespace]] = dict()
     __classes: Final[set[ClassWithThemeNamespaceMeta]] = set()
+
+    __unique_theme_namespace_cache: Final[dict[type, ThemeNamespace]] = dict()
+    __extended_unique_theme_namespace_cache: Final[dict[type, ThemeNamespace]] = dict()
 
     _theme_decorator_exempt_: frozenset[str]
 
@@ -754,8 +765,10 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
     @final
     @concreteclassmethod
     def set_theme_namespace(cls, namespace: str, *, allow_extension: bool = False, include_none_namespace: bool = False) -> None:
-        ClassWithThemeNamespaceMeta.__namespaces[cls] = ClassWithThemeNamespaceMeta.__Namespace(
-            name=str(namespace),
+        if namespace == _mangle_closed_namespace_name(cls) and allow_extension:
+            raise ValueError("Closed namespace setting must not allow extension theme extension")
+        ClassWithThemeNamespaceMeta.__namespaces[cls] = ThemeNamespace(
+            namespace=str(namespace),
             extend=bool(allow_extension),
             include_none_namespace=bool(include_none_namespace),
         )
@@ -811,28 +824,45 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
     @staticmethod
     def __theme_namespace_decorator(func: Callable[..., Any], /, use_cls: bool = False) -> Callable[..., Any]:
         get_cls: Callable[[Any], type] = (lambda o: o) if use_cls else type  # type: ignore[no-any-return]
+        null = nullcontext()
+
+        unique_theme_namespace_cache: dict[type, ThemeNamespace]
+        extended_unique_theme_namespace_cache: dict[type, ThemeNamespace]
+
+        unique_theme_namespace_cache = ClassWithThemeNamespaceMeta.__unique_theme_namespace_cache
+        extended_unique_theme_namespace_cache = ClassWithThemeNamespaceMeta.__extended_unique_theme_namespace_cache
+
+        def get_unique_theme_namespace(cls: type, *, extend: bool) -> ThemeNamespace:
+            cache: dict[type, ThemeNamespace]
+            if extend:
+                cache = extended_unique_theme_namespace_cache
+            else:
+                cache = unique_theme_namespace_cache
+            try:
+                return cache[cls]
+            except KeyError:
+                namespace = ThemeNamespace(
+                    namespace=_mangle_closed_namespace_name(cls),
+                    extend=extend,
+                    include_none_namespace=extend,
+                )
+                cache[cls] = namespace
+                return namespace
 
         @wraps(func)
         def wrapper(__cls_or_self: Any, /, *args: Any, **kwargs: Any) -> Any:
             cls: type = get_cls(__cls_or_self)
-            theme_namespace: ClassWithThemeNamespaceMeta.__Namespace | None = ClassWithThemeNamespaceMeta.__namespaces.get(cls)
-            unique_theme_namespace: str = _mangle_closed_namespace_name(cls)
+            theme_namespace: ThemeNamespace | None = ClassWithThemeNamespaceMeta.__namespaces.get(cls)
+            unique_theme_namespace_name: str = _mangle_closed_namespace_name(cls)
             extend_unique_theme_namespace: bool = True
-            if theme_namespace is not None and theme_namespace.name == unique_theme_namespace:
+            if theme_namespace is not None and theme_namespace.name == unique_theme_namespace_name:
                 extend_unique_theme_namespace = False
                 theme_namespace = None
             with (
-                ThemeNamespace(
-                    theme_namespace.name,
-                    extend=theme_namespace.extend,
-                    include_none_namespace=theme_namespace.include_none_namespace,
-                )
-                if theme_namespace is not None
-                else nullcontext(),
-                ThemeNamespace(
-                    unique_theme_namespace,
+                theme_namespace or null,
+                get_unique_theme_namespace(
+                    cls,
                     extend=extend_unique_theme_namespace,
-                    include_none_namespace=extend_unique_theme_namespace,
                 ),
             ):
                 return func(__cls_or_self, *args, **kwargs)
