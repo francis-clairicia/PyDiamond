@@ -6,6 +6,7 @@
 
 __all__ = [
     "AbstractCircleShape",
+    "AbstractCrossShape",
     "AbstractRectangleShape",
     "AbstractRenderer",
     "AbstractShape",
@@ -29,7 +30,6 @@ __all__ = [
     "ClassWithThemeNamespace",
     "ClassWithThemeNamespaceMeta",
     "Color",
-    "CrossShape",
     "DiagonalCrossShape",
     "Drawable",
     "DrawableGroup",
@@ -228,10 +228,10 @@ from .scale import ScaleBar
 from .scroll import ScrollArea, ScrollAreaElement, ScrollBar, ScrollBarMeta
 from .shape import (
     AbstractCircleShape,
+    AbstractCrossShape,
     AbstractRectangleShape,
     AbstractShape,
     CircleShape,
-    CrossShape,
     DiagonalCrossShape,
     OutlinedShape,
     PlusCrossShape,

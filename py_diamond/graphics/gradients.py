@@ -191,6 +191,12 @@ class HorizontalMultiColorShape(AbstractRectangleShape, MultiColorShape):
             for first_color, second_color in zip(colors[:-1], colors[1:])
         )
 
+    @config.on_update("local_size")
+    @config.on_update("local_width")
+    @config.on_update("local_height")
+    def __update_shape_size(self) -> None:
+        return self.config.update_option("colors")
+
 
 class VerticalMultiColorShape(AbstractRectangleShape, MultiColorShape):
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
@@ -224,3 +230,9 @@ class VerticalMultiColorShape(AbstractRectangleShape, MultiColorShape):
             VerticalGradientShape(gradient_width, gradient_height, first_color=first_color, second_color=second_color)
             for first_color, second_color in zip(colors[:-1], colors[1:])
         )
+
+    @config.on_update("local_size")
+    @config.on_update("local_width")
+    @config.on_update("local_height")
+    def __update_shape_size(self) -> None:
+        return self.config.update_option("colors")

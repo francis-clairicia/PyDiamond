@@ -6,10 +6,10 @@
 
 __all__ = [
     "AbstractCircleShape",
+    "AbstractCrossShape",
     "AbstractRectangleShape",
     "AbstractShape",
     "CircleShape",
-    "CrossShape",
     "DiagonalCrossShape",
     "OutlinedShape",
     "PlusCrossShape",
@@ -24,7 +24,6 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
-from enum import auto, unique
 from math import radians, sin, tan
 from operator import truth
 from types import MappingProxyType
@@ -34,7 +33,6 @@ from pygame.transform import rotate as _surface_rotate
 
 from ..math import Vector2
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, UnregisteredOptionError, initializer
-from ..system.enum import AutoLowerNameEnum
 from ..system.utils.abc import concreteclass
 from ..system.validation import valid_float, valid_integer
 from .color import BLACK, Color
@@ -592,8 +590,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape):
         return MappingProxyType(self.__draw_params)
 
 
-@concreteclass
-class CrossShape(OutlinedShape, SingleColorShape):
+class AbstractCrossShape(OutlinedShape, SingleColorShape):
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "local_width",
         "local_height",
@@ -607,18 +604,12 @@ class CrossShape(OutlinedShape, SingleColorShape):
     local_size: OptionAttribute[tuple[float, float]] = OptionAttribute()
     line_width_percent: OptionAttribute[float] = OptionAttribute()
 
-    @unique
-    class Type(AutoLowerNameEnum):
-        DIAGONAL = auto()
-        PLUS = auto()
-
     @initializer
     def __init__(
         self,
         width: float,
         height: float,
         color: Color,
-        type: str,
         *,
         line_width_percent: float = 0.3,
         outline_color: Color = BLACK,
@@ -626,7 +617,6 @@ class CrossShape(OutlinedShape, SingleColorShape):
         theme: ThemeType | None = None,
     ) -> None:
         super().__init__(color=color, outline=outline, outline_color=outline_color)
-        self.__type: CrossShape.Type = CrossShape.Type(type)
         self.__points: tuple[Vector2, ...] = ()
         self.local_size = width, height
         self.line_width_percent = line_width_percent
@@ -656,21 +646,47 @@ class CrossShape(OutlinedShape, SingleColorShape):
         return image.surface.subsurface(rect)
 
     def get_local_size(self) -> tuple[float, float]:
-        return self.compute_size_by_vertices(self.__points)
+        return self.local_size
 
     def get_local_vertices(self) -> Sequence[Vector2]:
         return [v.copy() for v in self.__points]
 
     @staticmethod
-    def get_diagonal_cross_points(local_size: tuple[float, float], line_width: float) -> tuple[Vector2, ...]:
+    @abstractmethod
+    def get_cross_points(local_size: tuple[float, float], line_width: float) -> tuple[Vector2, ...]:
+        raise NotImplementedError
+
+    config.add_value_converter_static("local_width", valid_float(min_value=0))
+    config.add_value_converter_static("local_height", valid_float(min_value=0))
+    config.add_value_converter_static("local_size", tuple)
+    config.add_value_converter_static("line_width_percent", valid_float(min_value=0, max_value=1))
+
+    config.getter("local_size", lambda self: (self.local_width, self.local_height))
+    config.setter("local_size", lambda self, size: self.config(local_width=size[0], local_height=size[1]))
+
+    @config.on_update("local_width")
+    @config.on_update("local_height")
+    @config.on_update("line_width_percent")
+    def __compute_vertices(self) -> None:
+        local_width, local_height = local_size = self.local_size
+        line_width_percent = self.line_width_percent
+        line_width = min(local_width * line_width_percent, local_height * line_width_percent)
+        self.__points = self.get_cross_points(local_size, line_width)
+
+
+@concreteclass
+class DiagonalCrossShape(AbstractCrossShape):
+    @final
+    @staticmethod
+    def get_cross_points(local_size: tuple[float, float], line_width: float) -> tuple[Vector2, ...]:
         rect: Rect = Rect((0, 0), local_size)
 
         if line_width <= 0:
             return ()
         line_width /= 2
 
-        w_offset: float = CrossShape.__compute_diagonal_width_offset(local_size, line_width)
-        h_offset: float = CrossShape.__compute_diagonal_height_offset(local_size, line_width)
+        w_offset: float = DiagonalCrossShape.__compute_diagonal_width_offset(local_size, line_width)
+        h_offset: float = DiagonalCrossShape.__compute_diagonal_height_offset(local_size, line_width)
         if w_offset == 0 or h_offset == 0:
             return ()
         return (
@@ -710,8 +726,12 @@ class CrossShape(OutlinedShape, SingleColorShape):
         except ZeroDivisionError:
             return 0
 
+
+@concreteclass
+class PlusCrossShape(AbstractCrossShape):
+    @final
     @staticmethod
-    def get_plus_cross_points(local_size: tuple[float, float], line_width: float) -> tuple[Vector2, ...]:
+    def get_cross_points(local_size: tuple[float, float], line_width: float) -> tuple[Vector2, ...]:
         rect: Rect = Rect((0, 0), local_size)
 
         if line_width <= 0:
@@ -730,78 +750,4 @@ class CrossShape(OutlinedShape, SingleColorShape):
             Vector2(rect.left, rect.centery + line_width),
             Vector2(rect.left, rect.centery - line_width),
             Vector2(rect.centerx - line_width, rect.centery - line_width),
-        )
-
-    config.add_value_converter_static("local_width", valid_float(min_value=0))
-    config.add_value_converter_static("local_height", valid_float(min_value=0))
-    config.add_value_converter_static("local_size", tuple)
-    config.add_value_converter_static("line_width_percent", valid_float(min_value=0, max_value=1))
-
-    @property
-    def type(self) -> str:
-        return str(self.__type.value)
-
-    config.getter("local_size", lambda self: (self.local_width, self.local_height))
-    config.setter("local_size", lambda self, size: self.config(local_width=size[0], local_height=size[1]))
-
-    @config.on_update("local_width")
-    @config.on_update("local_height")
-    @config.on_update("line_width_percent")
-    def __compute_vertices(self) -> None:
-        match self.__type:
-            case CrossShape.Type.DIAGONAL:
-                get_points = self.get_diagonal_cross_points
-            case CrossShape.Type.PLUS:
-                get_points = self.get_plus_cross_points
-        local_width, local_height = local_size = self.local_size
-        line_width_percent = self.line_width_percent
-        line_width = min(local_width * line_width_percent, local_height * line_width_percent)
-        self.__points = get_points(local_size, line_width)
-
-
-class DiagonalCrossShape(CrossShape):
-    def __init__(
-        self,
-        width: float,
-        height: float,
-        color: Color,
-        *,
-        line_width_percent: float = 0.3,
-        outline_color: Color = BLACK,
-        outline: int = 0,
-        theme: ThemeType | None = None,
-    ) -> None:
-        super().__init__(
-            width,
-            height,
-            color,
-            CrossShape.Type.DIAGONAL,
-            line_width_percent=line_width_percent,
-            outline_color=outline_color,
-            outline=outline,
-            theme=theme,
-        )
-
-
-class PlusCrossShape(CrossShape):
-    def __init__(
-        self,
-        width: float,
-        height: float,
-        color: Color,
-        *,
-        line_width_percent: float = 0.3,
-        outline_color: Color = BLACK,
-        outline: int = 0,
-        theme: ThemeType | None = None,
-    ) -> None:
-        super().__init__(
-            width,
-            height,
-            color,
-            CrossShape.Type.PLUS,
-            line_width_percent=line_width_percent,
-            outline_color=outline_color,
-            outline=outline,
-            theme=theme,
         )

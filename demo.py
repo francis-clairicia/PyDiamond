@@ -45,7 +45,7 @@ from py_diamond.graphics.progress import ProgressBar
 from py_diamond.graphics.renderer import AbstractRenderer, SurfaceRenderer
 from py_diamond.graphics.scale import ScaleBar
 from py_diamond.graphics.scroll import ScrollArea, ScrollBar
-from py_diamond.graphics.shape import CircleShape, CrossShape, PolygonShape, RectangleShape
+from py_diamond.graphics.shape import CircleShape, DiagonalCrossShape, PlusCrossShape, PolygonShape, RectangleShape
 from py_diamond.graphics.sprite import AnimatedSprite, Sprite
 from py_diamond.graphics.surface import Surface
 from py_diamond.graphics.text import Text, TextImage
@@ -90,10 +90,9 @@ class ShapeScene(MainScene, busy_loop=True):
         self.__r: RectangleShape = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
         self.__p: PolygonShape = PolygonShape(WHITE, outline=3, outline_color=RED)
         self.__c: CircleShape = CircleShape(30, WHITE, outline=4, outline_color=RED)
-        self.__x: CrossShape = CrossShape(
+        self.__x: DiagonalCrossShape = DiagonalCrossShape(
             50,
             50,
-            type="diagonal",
             color=RED,
             outline=3,
             outline_color=WHITE,
@@ -302,7 +301,7 @@ class ShapeTransformTestScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
-        self.shape = CrossShape(50, 50, type="diagonal", color=RED, outline_color=WHITE, outline=2)
+        self.shape = DiagonalCrossShape(50, 50, color=RED, outline_color=WHITE, outline=2)
         # self.shape = RectangleShape(50, 50, color=RED, outline_color=WHITE, outline=2, border_radius=5)
         # self.shape = CircleShape(25, color=RED, outline_color=BLACK, outline=2, draw_bottom_left=False)
         # self.shape = CircleShape(25, color=RED, outline_color=BLACK, outline=2)
@@ -502,7 +501,7 @@ class EventScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
-        self.cross: CrossShape = CrossShape(50, 50, type="diagonal", color=RED, outline_color=WHITE, outline=3)
+        self.cross: PlusCrossShape = PlusCrossShape(50, 50, color=RED, outline_color=WHITE, outline=3)
         self.circle: CircleShape = CircleShape(3, color=YELLOW)
         self.event.bind_mouse_position(lambda pos: self.cross.set_position(center=pos))
         self.event.bind_mouse_button(Mouse.Button.LEFT, self.__switch_color)
