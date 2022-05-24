@@ -1150,7 +1150,7 @@ class Configuration(Generic[_T], Object):
     __slots__ = ("__info", "__obj")
 
     class __OptionUpdateContext(NamedTuple):
-        first_update: bool
+        first_call: bool
         init_context: Optional[_InitializationRegister]
         updated: _UpdateRegister
 
@@ -1226,7 +1226,7 @@ class Configuration(Generic[_T], Object):
         if not isinstance(descriptor, _MutableDescriptor):
             raise OptionError(option, "Cannot be set")
 
-        with self.__updating_option(obj, option, info) as update_context:
+        with self.__updating_option(obj, option, info, call_updaters=True) as update_context:
             value_validator: Optional[Callable[[object, Any], None]] = info.value_validator.get(option, None)
             value_converter: Optional[Callable[[object, Any], Any]] = info.value_converter.get(option, None)
             if value_validator is not None:
@@ -1276,7 +1276,7 @@ class Configuration(Generic[_T], Object):
         if not isinstance(descriptor, _RemovableDescriptor):
             raise OptionError(option, "Cannot be deleted")
 
-        with self.__updating_option(obj, option, info) as update_context:
+        with self.__updating_option(obj, option, info, call_updaters=True) as update_context:
             descriptor.__delete__(obj)
             update_context.updated.append(option)
             register = update_context.init_context
@@ -1306,7 +1306,7 @@ class Configuration(Generic[_T], Object):
         # TODO (3.11): Exception groups
         info = self.__info
         options = [info.check_option_validity(option, use_alias=True) for option in kwargs]
-        with self.__updating_many_options(obj, *options, info=self.__info):
+        with self.__updating_many_options(obj, *options, info=self.__info, call_updaters=True):
             for option, value in kwargs.items():
                 self.set(option, value)
 
@@ -1341,25 +1341,23 @@ class Configuration(Generic[_T], Object):
                         value_update = info.option_value_updater.get(option, None)
                         if value_update is not None:
                             value_update(obj, value)
-                            if option in update_register:
-                                raise OptionError(option, "Value modified after update in initialization context")
+                    if update_register:
+                        raise OptionError("", "Options were modified after value update in initialization context")
                     many_options_updater = info.many_options_updater
-                    if many_options_updater is not None:
+                    if many_options_updater is not None and len(initialization_register) > 1:
                         many_options_updater(obj, tuple(initialization_register))
-                        if update_register:
-                            raise OptionError("", "Options were modified after update in initialization context")
                     else:
                         for option in initialization_register:
                             option_updater = info.option_updater.get(option, None)
                             if option_updater is not None:
                                 option_updater(obj)
-                                if option in update_register:
-                                    raise OptionError(option, "Value modified after update in initialization context")
+                    if update_register:
+                        raise OptionError("", "Options were modified after update in initialization context")
                     main_updater = info.main_updater
                     if main_updater is not None:
                         main_updater(obj)
                         if update_register:
-                            raise OptionError("", "Options were modified after update in initialization context")
+                            raise OptionError("", "Options were modified after main update in initialization context")
 
     @final
     def has_initialization_context(self) -> bool:
@@ -1404,7 +1402,10 @@ class Configuration(Generic[_T], Object):
             return Configuration.__update_single_option(obj, options[0], info)
 
         objtype: type = type(obj)
-        with Configuration.__updating_many_options(obj, *options, info=info, call_updaters=False):
+        with Configuration.__updating_many_options(obj, *options, info=info, call_updaters=False) as update_contexts:
+            options = tuple(option for option, context in update_contexts.items() if context.first_call)
+            if not options:
+                return
             for option in options:
                 descriptor = info.get_value_descriptor(option, objtype)
                 try:
@@ -1416,7 +1417,7 @@ class Configuration(Generic[_T], Object):
                     if value_update is not None:
                         value_update(obj, value)
             many_options_updater = info.many_options_updater
-            if many_options_updater is not None:
+            if many_options_updater is not None and len(options) > 1:
                 many_options_updater(obj, options)
             else:
                 for option in options:
@@ -1431,7 +1432,9 @@ class Configuration(Generic[_T], Object):
     def __update_single_option(obj: object, option: str, info: ConfigurationInfo) -> None:
         descriptor = info.get_value_descriptor(option, type(obj))
 
-        with Configuration.__updating_option(obj, option, info, call_updaters=False):
+        with Configuration.__updating_option(obj, option, info, call_updaters=False) as update_context:
+            if not update_context.first_call:
+                return
             try:
                 value: Any = descriptor.__get__(obj, type(obj))
             except (AttributeError, UnregisteredOptionError):
@@ -1450,20 +1453,20 @@ class Configuration(Generic[_T], Object):
     @staticmethod
     @contextmanager
     def __updating_option(
-        obj: object, option: str, info: ConfigurationInfo, *, call_updaters: bool = True
+        obj: object, option: str, info: ConfigurationInfo, *, call_updaters: bool
     ) -> Iterator[__OptionUpdateContext]:
         UpdateContext = Configuration.__OptionUpdateContext
 
         with Configuration.__lazy_lock(obj):
             register = Configuration.__init_context.get(obj, None)
             if register is not None:
-                yield UpdateContext(first_update=False, init_context=register, updated=[])
+                yield UpdateContext(first_call=False, init_context=register, updated=[])
                 return
 
             update_register: _UpdateRegister = Configuration.__update_context.setdefault(obj, [])
             update_stack: List[str] = Configuration.__update_stack.setdefault(obj, [])
             if option in update_stack:
-                yield UpdateContext(first_update=False, init_context=None, updated=update_register)
+                yield UpdateContext(first_call=False, init_context=None, updated=update_register)
                 return
 
             def cleanup() -> None:
@@ -1475,7 +1478,7 @@ class Configuration(Generic[_T], Object):
             update_stack.append(option)
             with ExitStack() as stack:
                 stack.callback(cleanup)
-                yield UpdateContext(first_update=True, init_context=None, updated=update_register)
+                yield UpdateContext(first_call=True, init_context=None, updated=update_register)
             if update_stack:
                 return
             update_register = list(dict.fromkeys(Configuration.__update_context.pop(obj, update_register)))
@@ -1497,25 +1500,22 @@ class Configuration(Generic[_T], Object):
     @staticmethod
     @contextmanager
     def __updating_many_options(
-        obj: object, *options: str, info: ConfigurationInfo, call_updaters: bool = True
-    ) -> Iterator[None]:
+        obj: object, *options: str, info: ConfigurationInfo, call_updaters: bool
+    ) -> Iterator[Dict[str, __OptionUpdateContext]]:
         nb_options = len(options)
         if nb_options < 1:
-            yield
+            yield {}
+            return
+        if nb_options == 1:
+            with Configuration.__updating_option(obj, options[0], info, call_updaters=call_updaters) as update_context:
+                yield {options[0]: update_context}
             return
 
-        with Configuration.__lazy_lock(obj):
-            if obj in Configuration.__init_context:
-                yield
-                return
-            if nb_options == 1:
-                with Configuration.__updating_option(obj, options[0], info):
-                    yield
-                return
-            with ExitStack() as stack:
-                for option in options:
-                    stack.enter_context(Configuration.__updating_option(obj, option, info, call_updaters=call_updaters))
-                yield
+        with Configuration.__lazy_lock(obj), ExitStack() as stack:
+            yield {
+                option: stack.enter_context(Configuration.__updating_option(obj, option, info, call_updaters=call_updaters))
+                for option in options
+            }
 
     @staticmethod
     def __lazy_lock(obj: object) -> Union[RLock, nullcontext[None]]:
