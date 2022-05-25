@@ -1,8 +1,10 @@
 # -*- coding: Utf-8 -*
 
+from typing import Any
+
 import pytest
 
-from py_diamond.system.object import Object, final, override
+from py_diamond.system.object import Object, final, mro, override
 
 # pyright: reportUnusedClass=false
 
@@ -146,3 +148,143 @@ def test_object_final_method_overriden() -> None:
         class B(A):
             def method(self) -> None:  # type: ignore[misc]
                 return super().method()
+
+
+def test_mro_invalid_order() -> None:
+    class SeriousOrderDisagreement:
+        class X(object):
+            pass
+
+        class Y(object):
+            pass
+
+        class A(X, Y):
+            pass
+
+        class B(Y, X):
+            pass
+
+        bases = (A, B)
+
+    with pytest.raises(TypeError, match=r"inconsistent hierarchy, no C3 MRO is possible"):
+        _ = mro(*SeriousOrderDisagreement.bases)
+
+
+## Example classes samples (TODO: Fixture)
+class _Example0:  # Trivial single inheritance case.
+    class A(object):
+        pass
+
+    class B(A):
+        pass
+
+    class C(B):
+        pass
+
+    class D(C):
+        pass
+
+    tester = D
+    expected = (D, C, B, A, object)
+
+
+class _Example1:
+    class F(object):
+        pass
+
+    class E(object):
+        pass
+
+    class D(object):
+        pass
+
+    class C(D, F):
+        pass
+
+    class B(D, E):
+        pass
+
+    class A(B, C):
+        pass
+
+    tester = A
+    expected = (A, B, C, D, E, F, object)
+
+
+class _Example2:
+    class F(object):
+        pass
+
+    class E(object):
+        pass
+
+    class D(object):
+        pass
+
+    class C(D, F):
+        pass
+
+    class B(E, D):
+        pass
+
+    class A(B, C):
+        pass
+
+    tester = A
+    expected = (A, B, E, C, D, F, object)
+
+
+class _Example3:
+    class A(object):
+        pass
+
+    class B(object):
+        pass
+
+    class C(object):
+        pass
+
+    class D(object):
+        pass
+
+    class E(object):
+        pass
+
+    class K1(A, B, C):
+        pass
+
+    class K2(D, B, E):
+        pass
+
+    class K3(D, A):
+        pass
+
+    class Z(K1, K2, K3):
+        pass
+
+    tester = Z
+    expected = (Z, K1, K2, K3, D, A, B, C, E, object)
+
+
+@pytest.mark.parametrize("example", [_Example0, _Example1, _Example2, _Example3])
+def test_mro_case(example: Any) -> None:
+    tester: type = getattr(example, "tester")
+    expected: tuple[type, ...] = getattr(example, "expected")
+
+    # First test that the expected result is the same as what Python
+    # actually generates.
+    assert expected == tester.__mro__
+
+    # Now check the calculated MRO.
+    assert mro(tester) == expected
+
+
+def test_mro_example_3_subcases() -> None:
+    assert mro(_Example3.A) == (_Example3.A, object)
+    assert mro(_Example3.B) == (_Example3.B, object)
+    assert mro(_Example3.C) == (_Example3.C, object)
+    assert mro(_Example3.D) == (_Example3.D, object)
+    assert mro(_Example3.E) == (_Example3.E, object)
+    assert mro(_Example3.K1) == (_Example3.K1, _Example3.A, _Example3.B, _Example3.C, object)
+    assert mro(_Example3.K2) == (_Example3.K2, _Example3.D, _Example3.B, _Example3.E, object)
+    assert mro(_Example3.K3) == (_Example3.K3, _Example3.D, _Example3.A, object)
