@@ -56,7 +56,7 @@ def _draw_decorator(func: Callable[[Drawable, AbstractRenderer], None], /) -> Ca
 
 
 class DrawableMeta(ObjectMeta):
-    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> DrawableMeta:
+    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> DrawableMeta:
         try:
             Drawable
         except NameError:
@@ -67,7 +67,7 @@ class DrawableMeta(ObjectMeta):
                     f"{name!r} must be inherits from a {Drawable.__name__} class in order to use {DrawableMeta.__name__} metaclass"
                 )
 
-        cls = super().__new__(metacls, name, bases, namespace, **kwargs)
+        cls = super().__new__(mcs, name, bases, namespace, **kwargs)
 
         draw_method: Callable[[Drawable, AbstractRenderer], None] = getattr(cls, "draw_onto")
         if not getattr(draw_method, "__draw_onto_decorator__", False) and not isabstractmethod(draw_method):

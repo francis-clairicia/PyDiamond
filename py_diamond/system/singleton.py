@@ -21,17 +21,17 @@ _T = TypeVar("_T")
 
 
 class SingletonMeta(ObjectMeta):
-    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> SingletonMeta:
+    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> SingletonMeta:
         kwargs.pop("abstract", None)
 
-        call_twice_error_wrapper = metacls.__call_twice_error_wrapper
+        call_twice_error_wrapper = mcs.__call_twice_error_wrapper
 
         for constructor_attr in ("__new__", "__init__"):
             default_constructor: Callable[..., Any] = getattr(bases[0] if bases else object, constructor_attr)
             constructor: Callable[..., Any] = namespace.pop(constructor_attr, default_constructor)
             namespace[constructor_attr] = call_twice_error_wrapper(constructor)
 
-        return super().__new__(metacls, name, bases, namespace, **kwargs)
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
 
     def __init__(
         cls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], *, abstract: bool = False, **kwargs: Any

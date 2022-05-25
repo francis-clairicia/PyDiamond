@@ -30,7 +30,7 @@ class _CursorMeta(ObjectMeta):
     __cursor_setter: ClassVar[Callable[[], None] | None] = None
     __default_cursor: ClassVar[AbstractCursor | None] = None
 
-    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _CursorMeta:
+    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _CursorMeta:
         def _set_decorator(func: Callable[[AbstractCursor], None], /) -> Callable[[AbstractCursor], None]:
             actual_cursor: AbstractCursor | None = None
 
@@ -47,7 +47,7 @@ class _CursorMeta(ObjectMeta):
         if callable(set_method):
             namespace["set"] = _set_decorator(set_method)
 
-        return super().__new__(metacls, name, bases, namespace, **kwargs)
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
 
     @staticmethod
     def update() -> None:

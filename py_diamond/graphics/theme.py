@@ -342,7 +342,7 @@ class ThemedObjectMeta(ObjectMeta):
     __theme_override__: Sequence[str]
 
     def __new__(
-        metacls,
+        mcs,
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, Any],
@@ -392,7 +392,7 @@ class ThemedObjectMeta(ObjectMeta):
         namespace.setdefault("__theme_associations__", {})
         namespace["_no_use_of_themes_"] = truth(no_theme)
 
-        cls = super().__new__(metacls, name, bases, namespace, **kwargs)
+        cls = super().__new__(mcs, name, bases, namespace, **kwargs)
         if not use_parent_theme:
             _CLASSES_NOT_USING_PARENT_THEMES.add(cls)
             setattr(cls, "_no_parent_theme_", True)
@@ -694,18 +694,18 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
     _theme_decorator_exempt_: frozenset[str]
 
     def __new__(
-        metacls: type[__Self],
+        mcs: type[__Self],
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, Any],
         **kwargs: Any,
     ) -> __Self:
-        theme_decorator_exempt_regex: frozenset[Pattern[str]] = metacls.get_default_theme_decorator_exempt_regex()
+        theme_decorator_exempt_regex: frozenset[Pattern[str]] = mcs.get_default_theme_decorator_exempt_regex()
 
         if "_theme_decorator_exempt_" in namespace:
             raise TypeError("_theme_decorator_exempt_ must not be set")
 
-        cls_theme_decorator_exempt: set[str] = set(metacls.get_default_theme_decorator_exempt())
+        cls_theme_decorator_exempt: set[str] = set(mcs.get_default_theme_decorator_exempt())
         if "__theme_init__" in cls_theme_decorator_exempt:
             raise TypeError("'__theme_init__' must not be in decorator exempt")
         for base in filter(lambda base: isinstance(base, ClassWithThemeNamespaceMeta), bases):
@@ -719,7 +719,7 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
                     raise TypeError("'__theme_init__' must be a classmethod")
                 if no_theme_decorator in ("once", "permanent") or hasattr(attr_obj, "__apply_theme_decorator__"):
                     raise TypeError("'__theme_init__' must not be decorated")
-                namespace[attr_name] = type(attr_obj)(metacls.__theme_initializer_decorator(attr_obj.__func__))
+                namespace[attr_name] = type(attr_obj)(mcs.__theme_initializer_decorator(attr_obj.__func__))
                 continue
             if no_theme_decorator in ("once", "permanent"):
                 if PRIVATE_ATTRIBUTE_PATTERN.fullmatch(attr_name):
@@ -731,19 +731,19 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
                 cls_theme_decorator_exempt.add(attr_name)
             for pattern in theme_decorator_exempt_regex:
                 match = pattern.fullmatch(attr_name)
-                if match is not None and metacls.validate_theme_decorator_exempt_from_regex(match, attr_obj):
+                if match is not None and mcs.validate_theme_decorator_exempt_from_regex(match, attr_obj):
                     cls_theme_decorator_exempt.add(attr_name)
             if not apply_theme_decorator:
                 if attr_name in cls_theme_decorator_exempt:
                     continue
                 if isinstance(attr_obj, (property, cached_property)):
                     continue
-            namespace[attr_name] = metacls.__apply_theme_namespace_decorator(attr_obj)
+            namespace[attr_name] = mcs.__apply_theme_namespace_decorator(attr_obj)
         namespace["_theme_decorator_exempt_"] = frozenset(cls_theme_decorator_exempt)
 
-        cls = super().__new__(metacls, name, bases, namespace, **kwargs)
+        cls = super().__new__(mcs, name, bases, namespace, **kwargs)
         if hasattr(cls, "__theme_init__") and not cls.__abstractmethods__:
-            metacls.__classes.add(cls)
+            mcs.__classes.add(cls)
         return cls
 
     def __setattr__(cls, name: str, value: Any, /) -> None:
@@ -792,7 +792,7 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
 
     @classmethod
     @cache
-    def get_default_theme_decorator_exempt(metacls) -> frozenset[str]:
+    def get_default_theme_decorator_exempt(mcs) -> frozenset[str]:
         return frozenset(
             {
                 *(name for name, obj in vars(object).items() if callable(obj) or isinstance(obj, classmethod)),
@@ -803,7 +803,7 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
 
     @classmethod
     @cache
-    def get_default_theme_decorator_exempt_regex(metacls) -> frozenset[Pattern[str]]:
+    def get_default_theme_decorator_exempt_regex(mcs) -> frozenset[Pattern[str]]:
         return frozenset(
             {
                 re_compile(r"__\w+__"),
@@ -811,7 +811,7 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
         )
 
     @classmethod
-    def validate_theme_decorator_exempt_from_regex(metacls, match: Match[str], attr_obj: Any) -> bool:
+    def validate_theme_decorator_exempt_from_regex(mcs, match: Match[str], attr_obj: Any) -> bool:
         return callable(attr_obj) or isinstance(
             attr_obj,
             (

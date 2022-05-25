@@ -53,7 +53,7 @@ def _position_decorator(fset: Callable[[Movable, Any], None], fget: Callable[[Mo
 
 class MovableMeta(ObjectMeta):
     def __new__(
-        metacls,
+        mcs,
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, Any],
@@ -79,7 +79,7 @@ class MovableMeta(ObjectMeta):
             assert prop.fset
             namespace[position] = final(prop.setter(_position_decorator(prop.fset, prop.fget)))  # type: ignore[type-var]
 
-        return super().__new__(metacls, name, bases, namespace, **kwargs)
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
 
 
 class Movable(Object, metaclass=MovableMeta):

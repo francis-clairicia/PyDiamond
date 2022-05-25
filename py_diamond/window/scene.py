@@ -88,7 +88,7 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
     )
 
     def __new__(
-        metacls: type[__Self],
+        mcs: type[__Self],
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, Any],
@@ -99,7 +99,7 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
         **kwargs: Any,
     ) -> __Self:
         if "Scene" not in globals():
-            return super().__new__(metacls, name, bases, namespace, **kwargs)
+            return super().__new__(mcs, name, bases, namespace, **kwargs)
 
         if not any(issubclass(cls, Scene) for cls in bases):
             raise TypeError(
@@ -109,7 +109,7 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
         if not all(issubclass(cls, Scene) for cls in bases):
             raise TypeError("Multiple inheritance with other class than Scene is not supported")
 
-        cls = super().__new__(metacls, name, bases, namespace, **kwargs)
+        cls = super().__new__(mcs, name, bases, namespace, **kwargs)
         if isconcreteclass(cls):
             _ALL_SCENES.append(cast(type[Scene], cls))
             cls.__framerate = max(int(framerate), 0)
@@ -139,8 +139,8 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
 
     @classmethod
     @cache
-    def get_default_theme_decorator_exempt(metacls) -> frozenset[str]:
-        return frozenset(chain(super().get_default_theme_decorator_exempt(), metacls.__theme_namespace_decorator_exempt))
+    def get_default_theme_decorator_exempt(mcs) -> frozenset[str]:
+        return frozenset(chain(super().get_default_theme_decorator_exempt(), mcs.__theme_namespace_decorator_exempt))
 
 
 SceneTransitionCoroutine: TypeAlias = Generator[None, float | None, None]
@@ -395,16 +395,16 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
 
 
 class MainSceneMeta(SceneMeta):
-    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> SceneMeta:
+    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> SceneMeta:
         if "MainScene" not in globals():
-            return super().__new__(metacls, name, bases, namespace, **kwargs)
+            return super().__new__(mcs, name, bases, namespace, **kwargs)
 
         if not any(issubclass(cls, MainScene) for cls in bases):
             raise TypeError(
                 f"{name!r} must be inherits from a {MainScene.__name__} class in order to use {MainSceneMeta.__name__} metaclass"
             )
 
-        cls = super().__new__(metacls, name, bases, namespace, **kwargs)
+        cls = super().__new__(mcs, name, bases, namespace, **kwargs)
         if isconcreteclass(cls):
             closed_namespace(cls)
         return cls
@@ -416,7 +416,7 @@ class MainScene(Scene, metaclass=MainSceneMeta):
 
 class LayeredSceneMeta(SceneMeta):
     def __new__(
-        metacls,
+        mcs,
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, Any],
@@ -425,14 +425,14 @@ class LayeredSceneMeta(SceneMeta):
         **kwargs: Any,
     ) -> SceneMeta:
         if "AbstractLayeredScene" not in globals():
-            return super().__new__(metacls, name, bases, namespace, **kwargs)
+            return super().__new__(mcs, name, bases, namespace, **kwargs)
 
         if not any(issubclass(cls, AbstractLayeredScene) for cls in bases):
             raise TypeError(
                 f"{name!r} must be inherits from a {AbstractLayeredScene.__name__} class in order to use {LayeredSceneMeta.__name__} metaclass"
             )
 
-        setattr_wrapper_cls = metacls.__setattr_wrapper
+        setattr_wrapper_cls = mcs.__setattr_wrapper
 
         if any(isinstance(getattr(cls, "__setattr__", None), setattr_wrapper_cls) for cls in bases):
             add_drawable_attributes = False
@@ -469,11 +469,11 @@ class LayeredSceneMeta(SceneMeta):
             namespace["__setattr__"] = setattr_wrapper
             namespace["__delattr__"] = delattr_wrapper
 
-        return super().__new__(metacls, name, bases, namespace, **kwargs)
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
 
     @classmethod
     @cache
-    def get_default_theme_decorator_exempt(metacls) -> frozenset[str]:
+    def get_default_theme_decorator_exempt(mcs) -> frozenset[str]:
         return frozenset(chain(super().get_default_theme_decorator_exempt(), ("__setattr__", "__delattr__")))
 
     class __setattr_wrapper:
@@ -549,21 +549,21 @@ class DialogMeta(SceneMeta):
     __theme_namespace_decorator_exempt: Sequence[str] = ("render",)
 
     def __new__(
-        metacls: type[__Self],
+        mcs: type[__Self],
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, Any],
         **kwargs: Any,
     ) -> __Self:
         if "Dialog" not in globals():
-            return super().__new__(metacls, name, bases, namespace, **kwargs)
+            return super().__new__(mcs, name, bases, namespace, **kwargs)
 
         if not any(issubclass(cls, Dialog) for cls in bases):
             raise TypeError(
                 f"{name!r} must be inherits from a {Dialog.__name__} class in order to use {DialogMeta.__name__} metaclass"
             )
 
-        return super().__new__(metacls, name, bases, namespace, **kwargs)
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
 
     def __init__(
         cls,
@@ -578,8 +578,8 @@ class DialogMeta(SceneMeta):
 
     @classmethod
     @cache
-    def get_default_theme_decorator_exempt(metacls) -> frozenset[str]:
-        return frozenset(chain(super().get_default_theme_decorator_exempt(), metacls.__theme_namespace_decorator_exempt))
+    def get_default_theme_decorator_exempt(mcs) -> frozenset[str]:
+        return frozenset(chain(super().get_default_theme_decorator_exempt(), mcs.__theme_namespace_decorator_exempt))
 
 
 class Dialog(Scene, metaclass=DialogMeta):

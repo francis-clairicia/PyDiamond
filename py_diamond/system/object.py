@@ -43,7 +43,7 @@ class ObjectMeta(ABCMeta):
     __finalmethods__: frozenset[str]
 
     def __new__(
-        metacls: type[__Self],
+        mcs: type[__Self],
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, Any],
@@ -91,8 +91,8 @@ class ObjectMeta(ABCMeta):
         #     raise TypeError(f"{name!r}: Final methods conflict between base classes: {conflict_message}")
 
         # Verify final override
-        if final_methods_overriden := list(filter(bases_final_methods_set.__contains__, namespace)):
-            raise TypeError(f"{name!r}: These attributes would override final methods: {', '.join(final_methods_overriden)}")
+        if final_methods_overridden := list(filter(bases_final_methods_set.__contains__, namespace)):
+            raise TypeError(f"{name!r}: These attributes would override final methods: {', '.join(final_methods_overridden)}")
 
         # Verify override() decorator usage
         method_that_must_override: frozenset[str] = frozenset(
@@ -114,7 +114,7 @@ class ObjectMeta(ABCMeta):
         if no_slots and "__slots__" in namespace:
             raise TypeError("__slots__ override is forbidden")
 
-        cls = super().__new__(metacls, name, bases, namespace, **kwargs)
+        cls = super().__new__(mcs, name, bases, namespace, **kwargs)
         cls.__finalmethods__ = frozenset(
             filter(lambda attr_name: ObjectMeta.__is_final_override(getattr(cls, attr_name, None)), cls_final_methods)
         )

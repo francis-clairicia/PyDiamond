@@ -93,7 +93,7 @@ class _ResourceDescriptor:
 
 
 class ResourceManagerMeta(type):
-    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> ResourceManagerMeta:
+    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> ResourceManagerMeta:
         resources: dict[str, Any] = namespace.setdefault("__resources_files__", dict())
 
         annotations: dict[str, type | str] = namespace.setdefault("__annotations__", dict())
@@ -115,7 +115,7 @@ class ResourceManagerMeta(type):
         for resource_name, resource_path in resources.items():
             namespace[resource_name] = _ResourceDescriptor(resource_path, namespace["__resource_loader__"], directory)
 
-        return super().__new__(metacls, name, bases, namespace, **kwargs)
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
 
     def __init__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> None:
         super().__init__(name, bases, namespace, **kwargs)

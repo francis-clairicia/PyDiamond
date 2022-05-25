@@ -41,7 +41,7 @@ _ALL_VALID_ROTATION_PIVOTS: tuple[str, ...] = (
 
 class TransformableMeta(MovableMeta):
     def __new__(
-        metacls,
+        mcs,
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, Any],
@@ -61,7 +61,7 @@ class TransformableMeta(MovableMeta):
                 raise TypeError(
                     f"If you provide one of these methods, you must implements all of the following list: {', '.join(frozen_state_methods)}"
                 )
-        return super().__new__(metacls, name, bases, namespace, **kwargs)
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
 
 
 class Transformable(Movable, metaclass=TransformableMeta):

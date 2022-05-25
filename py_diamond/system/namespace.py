@@ -22,7 +22,7 @@ class ClassNamespaceMeta(ObjectMeta):
         __Self = TypeVar("__Self", bound="ClassNamespaceMeta")
 
     def __new__(
-        metacls: type[__Self],
+        mcs: type[__Self],
         /,
         name: str,
         bases: tuple[type, ...],
@@ -44,7 +44,7 @@ class ClassNamespaceMeta(ObjectMeta):
         namespace["__slots__"] = ()
         namespace["_frozen_class_namespace_"] = bool(frozen)
         namespace["_class_namespace_was_init_"] = False
-        return super().__new__(metacls, name, bases, namespace, **kwargs)
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
 
     def __init__(
         cls,

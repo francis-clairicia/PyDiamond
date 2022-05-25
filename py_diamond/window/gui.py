@@ -460,7 +460,7 @@ class BoundFocus:
 
 
 class _BoundFocusProxyMeta(type):
-    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _BoundFocusProxyMeta:
+    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _BoundFocusProxyMeta:
         if "BoundFocusProxy" in globals() and not any(issubclass(cls, BoundFocusProxy) for cls in bases):
             raise TypeError(
                 f"{name!r} must be inherits from a {BoundFocusProxy.__name__} class in order to use {_BoundFocusProxyMeta.__name__} metaclass"
@@ -520,7 +520,7 @@ class _BoundFocusProxyMeta(type):
                 elif isinstance(attr_obj, (FunctionType, LambdaType)):
                     namespace[attr_name] = proxy_method_wrapper(attr_name, attr_obj)
 
-        return super().__new__(metacls, name, bases, namespace, **kwargs)
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
 
 
 class BoundFocusProxy(BoundFocus, metaclass=_BoundFocusProxyMeta):

@@ -30,7 +30,7 @@ class NonCopyableMeta(ObjectMeta):
         __Self = TypeVar("__Self", bound="NonCopyableMeta")
 
     def __new__(
-        metacls: type[__Self],
+        mcs: type[__Self],
         /,
         name: str,
         bases: tuple[type, ...],
@@ -41,7 +41,7 @@ class NonCopyableMeta(ObjectMeta):
             raise TypeError("'__copy__' and '__deepcopy__' cannot be overriden from a non-copyable object")
         namespace["__copy__"] = __non_copyable_copy__
         namespace["__deepcopy__"] = __non_copyable_deepcopy__
-        return super().__new__(metacls, name, bases, namespace, **kwargs)
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
 
     def __setattr__(cls, name: str, value: Any, /) -> None:
         if name in ("__copy__", "__deepcopy__"):

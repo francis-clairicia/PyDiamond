@@ -82,7 +82,7 @@ class SecuredNetworkProtocolMeta(ObjectMeta):
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="SecuredNetworkProtocolMeta")
 
-    def __new__(metacls: type[__Self], name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> __Self:
+    def __new__(mcs: type[__Self], name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> __Self:
         try:
             SecuredNetworkProtocol
         except NameError:
@@ -104,7 +104,7 @@ class SecuredNetworkProtocolMeta(ObjectMeta):
         SECRET_KEY: str = namespace.pop("SECRET_KEY", _MISSING)
         secret_key_var: str = kwargs.pop("secret_key_var", _MISSING)
 
-        cls = super().__new__(metacls, name, bases, namespace, **kwargs)
+        cls = super().__new__(mcs, name, bases, namespace, **kwargs)
 
         if SECRET_KEY is not _MISSING and secret_key_var is not _MISSING:
             raise ValueError("secret_key_var and SECRET_KEY was given simultaneously")

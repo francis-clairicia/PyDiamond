@@ -104,7 +104,7 @@ class _EventMeta(ObjectMeta):
     __associations: Final[dict[EventType, type[Event]]] = {}
     associations: Final[MappingProxyType[EventType, type[Event]]] = MappingProxyType(__associations)
 
-    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _EventMeta:
+    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _EventMeta:
         try:
             Event
         except NameError:
@@ -119,7 +119,7 @@ class _EventMeta(ObjectMeta):
             else:
                 if not issubclass(bases[0], BuiltinEvent) and "type" in namespace:
                     raise TypeError("'type' attribute must not be set explicitly")
-        cls = super().__new__(metacls, name, bases, namespace, **kwargs)
+        cls = super().__new__(mcs, name, bases, namespace, **kwargs)
         if isconcreteclass(cls):
             event_type: EventType
             if not hasattr(cls, "type"):
@@ -135,10 +135,10 @@ class _EventMeta(ObjectMeta):
                     event_type = event_type.default
                 elif not isinstance(event_type, EventType):
                     raise TypeError("Events must have an integer 'type' class attribute")
-            if event_type in metacls.__associations:
-                event_cls = metacls.__associations[event_type]
+            if event_type in mcs.__associations:
+                event_cls = mcs.__associations[event_type]
                 raise TypeError(f"Event with type {int(event_type)} already exists: {event_cls}")
-            metacls.__associations[event_type] = cast(type[Event], cls)
+            mcs.__associations[event_type] = cast(type[Event], cls)
         return cls
 
 
@@ -158,7 +158,7 @@ class Event(Object, metaclass=_EventMeta):
 class _BuiltinEventMeta(_EventMeta):
     __associations: Final[dict[BuiltinEvent.Type, type[BuiltinEvent]]] = {}  # type: ignore[misc]
 
-    def __new__(metacls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _EventMeta:
+    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _EventMeta:
         try:
             BuiltinEvent
         except NameError:
@@ -166,22 +166,22 @@ class _BuiltinEventMeta(_EventMeta):
         else:
             if len(bases) != 1 or not issubclass(bases[0], BuiltinEvent):
                 raise TypeError(f"{name!r} must only inherits from BuiltinEvent without multiple inheritance")
-            cls = concreteclass(super().__new__(metacls, name, bases, namespace, **kwargs))
+            cls = concreteclass(super().__new__(mcs, name, bases, namespace, **kwargs))
             event_type: Any = getattr(cls, "type", None)
             if isinstance(event_type, Field):
                 event_type = event_type.default
             if not isinstance(event_type, BuiltinEvent.Type):
                 raise TypeError(f"BuiltinEvents must have a BuiltinEvent.Type 'type' class attribute, got {event_type!r}")
-            if event_type in metacls.__associations:
+            if event_type in mcs.__associations:
                 raise TypeError("Trying to create custom event from BuiltinEvent class")
-            metacls.__associations[event_type] = cast(type[BuiltinEvent], cls)
+            mcs.__associations[event_type] = cast(type[BuiltinEvent], cls)
             return cls
-        return super().__new__(metacls, name, bases, namespace, **kwargs)
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
 
     @classmethod
-    def _check_event_types_association(metacls) -> None:
+    def _check_event_types_association(mcs) -> None:
         for event_type in BuiltinEvent.Type:
-            if event_type not in metacls.__associations:
+            if event_type not in mcs.__associations:
                 raise TypeError(f"{event_type.name} event does not have an associated BuiltinEvent class")
 
 
