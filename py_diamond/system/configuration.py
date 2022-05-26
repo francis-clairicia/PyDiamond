@@ -504,7 +504,9 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def setter_key(self, option: str, /, *, use_key: Hashable, use_override: bool = True) -> Callable[[_KeySetterVar], _KeySetterVar]:
+    def setter_key(
+        self, option: str, /, *, use_key: Hashable, use_override: bool = True
+    ) -> Callable[[_KeySetterVar], _KeySetterVar]:
         ...
 
     @overload
@@ -912,7 +914,9 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def on_update_key_value(self, option: str, /, *, use_override: bool = True) -> Callable[[_KeyValueUpdaterVar], _KeyValueUpdaterVar]:
+    def on_update_key_value(
+        self, option: str, /, *, use_override: bool = True
+    ) -> Callable[[_KeyValueUpdaterVar], _KeyValueUpdaterVar]:
         ...
 
     @overload
@@ -1005,7 +1009,9 @@ class ConfigurationTemplate(Object):
         return self.on_update_key_value(option, func, use_key=use_key, use_override=use_override)
 
     @overload
-    def add_value_validator(self, option: str, /, *, use_override: bool = True) -> Callable[[_ValueValidatorVar], _ValueValidatorVar]:
+    def add_value_validator(
+        self, option: str, /, *, use_override: bool = True
+    ) -> Callable[[_ValueValidatorVar], _ValueValidatorVar]:
         ...
 
     @overload
@@ -1075,7 +1081,9 @@ class ConfigurationTemplate(Object):
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
 
-        def decorator(func: _StaticValueValidatorVar, /, *, check_override: bool = bool(use_override)) -> _StaticValueValidatorVar:
+        def decorator(
+            func: _StaticValueValidatorVar, /, *, check_override: bool = bool(use_override)
+        ) -> _StaticValueValidatorVar:
             value_validator_list = template.value_validator.setdefault(option, [])
             wrapper = _make_function_wrapper(func, check_override=check_override, no_object=True)
             if wrapper in value_validator_list:
@@ -1103,7 +1111,9 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def add_value_converter(self, option: str, /, *, use_override: bool = True) -> Callable[[_ValueConverterVar], _ValueConverterVar]:
+    def add_value_converter(
+        self, option: str, /, *, use_override: bool = True
+    ) -> Callable[[_ValueConverterVar], _ValueConverterVar]:
         ...
 
     @overload
@@ -1167,7 +1177,9 @@ class ConfigurationTemplate(Object):
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
 
-        def decorator(func: _StaticValueConverterVar, /, *, check_override: bool = bool(use_override)) -> _StaticValueConverterVar:
+        def decorator(
+            func: _StaticValueConverterVar, /, *, check_override: bool = bool(use_override)
+        ) -> _StaticValueConverterVar:
             value_converter_list = template.value_converter.setdefault(option, [])
             wrapper = _make_function_wrapper(func, check_override=check_override, no_object=True)
             if wrapper in value_converter_list:
@@ -2265,42 +2277,25 @@ class _ConfigInfoTemplate:
 
     def build(self, owner: type) -> ConfigurationInfo:
         self.__intern_build_all_wrappers(owner)
-        options: FrozenSet[str] = self.options.copy()
-        option_value_updater: Mapping[str, Callable[[object, Any], None]] = self.__build_option_value_updater_dict()
-        option_updater: Mapping[str, Callable[[object], None]] = self.__build_option_updater_dict()
-        many_options_updater: Optional[Callable[[object, Sequence[str]], None]] = self.__build_many_options_updater()
-        main_updater: Optional[Callable[[object], None]] = self.__build_main_updater()
-        value_converter: Mapping[str, Callable[[object, Any], Any]] = self.__build_value_converter_dict()
-        value_validator: Mapping[str, Callable[[object, Any], None]] = self.__build_value_validator_dict()
-        value_descriptors: Mapping[str, _Descriptor] = self.__build_value_descriptor_dict()
-        autocopy: bool = bool(self.autocopy)
-        value_autocopy_get: Mapping[str, bool] = MappingProxyType(self.value_autocopy_get.copy())
-        value_autocopy_set: Mapping[str, bool] = MappingProxyType(self.value_autocopy_set.copy())
-        attribute_class_owner: Mapping[str, type] = MappingProxyType(self.attribute_class_owner.copy())
-        aliases: Mapping[str, str] = MappingProxyType(self.aliases.copy())
-        value_copy: Mapping[type, Callable[[Any], Any]] = MappingProxyType(self.value_copy.copy())
-        value_copy_allow_subclass: Mapping[type, bool] = MappingProxyType(self.value_copy_allow_subclass.copy())
-        readonly_options: FrozenSet[str] = self.__build_readonly_options_set()
-        enum_return_value: FrozenSet[str] = self.__build_enum_return_value_set()
 
         return ConfigurationInfo(
-            options=options,
-            option_value_updater=option_value_updater,
-            option_updater=option_updater,
-            many_options_updater=many_options_updater,
-            main_updater=main_updater,
-            value_converter=value_converter,
-            value_validator=value_validator,
-            value_descriptors=value_descriptors,
-            autocopy=autocopy,
-            value_autocopy_get=value_autocopy_get,
-            value_autocopy_set=value_autocopy_set,
-            attribute_class_owner=attribute_class_owner,
-            aliases=aliases,
-            value_copy=value_copy,
-            value_copy_allow_subclass=value_copy_allow_subclass,
-            readonly_options=readonly_options,
-            enum_return_value=enum_return_value,
+            options=frozenset(self.options),
+            option_value_updater=self.__build_option_value_updater_dict(),
+            option_updater=self.__build_option_updater_dict(),
+            many_options_updater=self.__build_many_options_updater(),
+            main_updater=self.__build_main_updater(),
+            value_converter=self.__build_value_converter_dict(),
+            value_validator=self.__build_value_validator_dict(),
+            value_descriptors=self.__build_value_descriptor_dict(),
+            autocopy=bool(self.autocopy),
+            value_autocopy_get=MappingProxyType(self.value_autocopy_get.copy()),
+            value_autocopy_set=MappingProxyType(self.value_autocopy_set.copy()),
+            attribute_class_owner=MappingProxyType(self.attribute_class_owner.copy()),
+            aliases=MappingProxyType(self.aliases.copy()),
+            value_copy=MappingProxyType(self.value_copy.copy()),
+            value_copy_allow_subclass=MappingProxyType(self.value_copy_allow_subclass.copy()),
+            readonly_options=self.__build_readonly_options_set(),
+            enum_return_value=self.__build_enum_return_value_set(),
         )
 
     def __intern_build_all_wrappers(self, owner: type) -> None:
@@ -2398,20 +2393,39 @@ class _ConfigInfoTemplate:
         if len(option_updater_dict) < 2:
             return None
 
-        merge_list = _ConfigInfoTemplate.__merge_list
+        # Check if all callbacks are hashable
+        # (Commonly true but who knows...)
+        try:
+            _ = [hash(f) for f in chain.from_iterable(option_updater_dict.values())]
+        except TypeError:
+            # Not hashable, use our (less optmized) merge_list for unique call
 
-        def many_options_updater_func(
-            obj: object,
-            options: Sequence[str],
-            /,
-            *,
-            option_updater_dict: Dict[str, List[Callable[[object], None]]] = option_updater_dict,
-        ) -> None:
-            updater_list: List[Callable[[object], None]] = []
-            for option in options:
-                merge_list(updater_list, option_updater_dict.get(option, []), on_duplicate="skip", setting="")
-            for updater in updater_list:
-                updater(obj)
+            merge_list = _ConfigInfoTemplate.__merge_list
+
+            def many_options_updater_func(
+                obj: object,
+                options: Sequence[str],
+                /,
+                *,
+                option_updater_dict: Dict[str, List[Callable[[object], None]]] = option_updater_dict,
+            ) -> None:
+                updater_list: List[Callable[[object], None]] = []
+                for option in options:
+                    merge_list(updater_list, option_updater_dict.get(option, []), on_duplicate="skip", setting="")
+                for updater in updater_list:
+                    updater(obj)
+
+        else:
+
+            def many_options_updater_func(
+                obj: object,
+                options: Sequence[str],
+                /,
+                *,
+                option_updater_dict: Dict[str, List[Callable[[object], None]]] = option_updater_dict,
+            ) -> None:
+                for updater in dict.fromkeys(chain.from_iterable(option_updater_dict.get(option, ()) for option in options)):
+                    updater(obj)
 
         return many_options_updater_func
 
