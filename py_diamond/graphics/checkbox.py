@@ -23,7 +23,7 @@ from .drawable import TDrawable, TDrawableMeta
 from .image import Image
 from .shape import DiagonalCrossShape, RectangleShape
 from .surface import Surface
-from .theme import NoTheme, ThemedObjectMeta, ThemeType
+from .theme import ThemedObjectMeta, ThemeType
 
 if TYPE_CHECKING:
     from ..audio.sound import Sound
@@ -134,7 +134,6 @@ class CheckBox(TDrawable, AbstractWidget, Generic[_OnValue, _OffValue], metaclas
             border_top_right_radius=border_top_right_radius,
             border_bottom_left_radius=border_bottom_left_radius,
             border_bottom_right_radius=border_bottom_right_radius,
-            theme=NoTheme,
         )
         self.outline = outline
         self.outline_color = outline_color
@@ -146,7 +145,6 @@ class CheckBox(TDrawable, AbstractWidget, Generic[_OnValue, _OffValue], metaclas
             height=self.__cross_aspect_ratio * height,
             color=outline_color,
             line_width_percent=0.2,
-            theme=NoTheme,
         )
         self.__on_changed_value: Callable[[_OnValue | _OffValue], None] | None = callback
         self.__active_img: Image | None = Image(img) if img is not None else None

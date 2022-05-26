@@ -22,7 +22,7 @@ from ..system.validation import valid_float, valid_integer
 from .color import BLACK, GRAY, TRANSPARENT, WHITE, Color
 from .shape import RectangleShape, ShapeMeta
 from .text import Text
-from .theme import NoTheme, ThemedObjectMeta, ThemeType
+from .theme import ThemedObjectMeta, ThemeType
 
 if TYPE_CHECKING:
     from .renderer import AbstractRenderer
@@ -98,13 +98,11 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
             0,
             height,
             color=scale_color,
-            theme=NoTheme,
         )
         self.__outline_rect: RectangleShape = RectangleShape(
             width,
             height,
             color=TRANSPARENT,
-            theme=NoTheme,
         )
         super().__init__(
             width,
@@ -117,7 +115,6 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
             border_top_right_radius=border_top_right_radius,
             border_bottom_left_radius=border_bottom_left_radius,
             border_bottom_right_radius=border_bottom_right_radius,
-            theme=theme,
         )
         self.cursor_color = cursor_color
         self.cursor_thickness = cursor_thickness

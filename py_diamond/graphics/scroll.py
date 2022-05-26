@@ -29,7 +29,7 @@ from .drawable import BaseLayeredDrawableGroup, MDrawable, SupportsDrawableGroup
 from .rect import Rect
 from .renderer import AbstractRenderer, SurfaceRenderer
 from .shape import RectangleShape
-from .theme import NoTheme, ThemedObjectMeta, ThemeType
+from .theme import ThemedObjectMeta, ThemeType
 
 if TYPE_CHECKING:
     from ..audio.sound import Sound
@@ -119,7 +119,6 @@ class ScrollBar(TDrawable, Clickable, metaclass=ScrollBarMeta):
             border_top_right_radius=border_top_right_radius,
             border_bottom_left_radius=border_bottom_left_radius,
             border_bottom_right_radius=border_bottom_right_radius,
-            theme=NoTheme,
         )
         self.__outline_shape: RectangleShape = RectangleShape(
             width=width,
@@ -132,7 +131,6 @@ class ScrollBar(TDrawable, Clickable, metaclass=ScrollBarMeta):
             border_top_right_radius=border_top_right_radius,
             border_bottom_left_radius=border_bottom_left_radius,
             border_bottom_right_radius=border_bottom_right_radius,
-            theme=NoTheme,
         )
         self.__start: float = 0
         self.__end: float = 0
@@ -147,7 +145,6 @@ class ScrollBar(TDrawable, Clickable, metaclass=ScrollBarMeta):
             border_top_right_radius=border_top_right_radius,
             border_bottom_left_radius=border_bottom_left_radius,
             border_bottom_right_radius=border_bottom_right_radius,
-            theme=NoTheme,
         )
         Clickable.__init__(
             self,

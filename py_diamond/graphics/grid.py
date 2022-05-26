@@ -29,7 +29,6 @@ from .color import BLACK, TRANSPARENT, Color
 from .drawable import BaseDrawableGroup, MDrawable, SupportsDrawableGroups
 from .renderer import AbstractRenderer
 from .shape import RectangleShape
-from .theme import NoTheme
 
 _T = TypeVar("_T")
 _MISSING: Any = object()
@@ -98,7 +97,7 @@ class Grid(MDrawable, Container[GridElement]):
         self.__master: GUIScene | None = master
         self.__max_width_columns: dict[int, float] = dict()
         self.__max_height_rows: dict[int, float] = dict()
-        self.__bg: RectangleShape = RectangleShape(0, 0, bg_color, theme=NoTheme)
+        self.__bg: RectangleShape = RectangleShape(0, 0, bg_color)
         self.__outline: RectangleShape = RectangleShape(0, 0, TRANSPARENT, outline=outline, outline_color=outline_color)
         self.__padding: Grid.Padding = Grid.Padding(x=padx, y=pady)
         self.__grid_group: _GridGroup = _GridGroup(self)

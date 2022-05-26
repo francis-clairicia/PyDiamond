@@ -307,7 +307,6 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
             border_top_right_radius=border_top_right_radius,
             border_bottom_left_radius=border_bottom_left_radius,
             border_bottom_right_radius=border_bottom_right_radius,
-            theme=NoTheme,
         )
         self.outline = outline
         self.outline_color = outline_color
@@ -965,7 +964,6 @@ class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
             border_top_right_radius=border_top_right_radius,
             border_bottom_left_radius=border_bottom_left_radius,
             border_bottom_right_radius=border_bottom_right_radius,
-            theme=NoTheme,
         )
         self.__bg_dict: dict[Clickable.State, _ButtonColor] = {
             Clickable.State.NORMAL: {

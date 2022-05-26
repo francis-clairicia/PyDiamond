@@ -40,7 +40,6 @@ from .drawable import TDrawable, TDrawableMeta
 from .rect import Rect
 from .renderer import AbstractRenderer, SurfaceRenderer
 from .surface import Surface, create_surface
-from .theme import ThemeType
 
 
 class ShapeMeta(TDrawableMeta):
@@ -224,7 +223,6 @@ class PolygonShape(OutlinedShape, SingleColorShape):
         outline: int = 0,
         outline_color: Color = BLACK,
         points: PointList = (),
-        theme: ThemeType | None = None,
     ) -> None:
         super().__init__(color=color, outline=outline, outline_color=outline_color)
         self.set_points(points)
@@ -376,7 +374,6 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape):
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
-        theme: ThemeType | None = None,
     ) -> None:
         super().__init__(
             width=width,
@@ -494,7 +491,6 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape):
         draw_top_right: bool = True,
         draw_bottom_left: bool = True,
         draw_bottom_right: bool = True,
-        theme: ThemeType | None = None,
     ) -> None:
         super().__init__(radius=radius, color=color, outline=outline, outline_color=outline_color)
         self.__draw_params: dict[str, bool] = dict()
@@ -612,7 +608,6 @@ class AbstractCrossShape(OutlinedShape, SingleColorShape):
         line_width_percent: float = 0.3,
         outline_color: Color = BLACK,
         outline: int = 0,
-        theme: ThemeType | None = None,
     ) -> None:
         super().__init__(color=color, outline=outline, outline_color=outline_color)
         self.__points: tuple[Vector2, ...] = ()

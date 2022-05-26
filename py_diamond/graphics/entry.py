@@ -176,7 +176,6 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
             border_top_right_radius=border_top_right_radius,
             border_bottom_left_radius=border_bottom_left_radius,
             border_bottom_right_radius=border_bottom_right_radius,
-            theme=NoTheme,
         )
         self.__outline_shape: RectangleShape = RectangleShape(
             width=width,
@@ -189,7 +188,6 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
             border_top_right_radius=border_top_right_radius,
             border_bottom_left_radius=border_bottom_left_radius,
             border_bottom_right_radius=border_bottom_right_radius,
-            theme=NoTheme,
         )
         self.outline = outline
         self.outline_color = outline_color
