@@ -77,12 +77,10 @@ class AbstractShape(TDrawable, metaclass=ShapeMeta):
         self.__compute_shape_size()
         self.__image = self._make(apply_rotation=False, apply_scale=True)
 
-    def _freeze_state(self) -> Mapping[str, Any] | None:
+    def _freeze_state(self) -> dict[str, Any] | None:
         state = super()._freeze_state()
         if state is None:
             state = {}
-        else:
-            state = dict(state)
         state["image"] = self.__image
         return state
 

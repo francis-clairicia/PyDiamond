@@ -207,12 +207,10 @@ class Text(TDrawable, metaclass=TextMeta):
     def _apply_only_rotation(self) -> None:
         self.__image = _surface_rotate(self.__default_image, self.angle)
 
-    def _freeze_state(self) -> Mapping[str, Any] | None:
+    def _freeze_state(self) -> dict[str, Any] | None:
         state = super()._freeze_state()
         if state is None:
             state = {}
-        else:
-            state = dict(state)
         state["image"] = self.__image
         return state
 

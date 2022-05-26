@@ -13,8 +13,7 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
-from functools import cached_property
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import Any, Mapping
 
 from pygame import error as _pg_error
 
@@ -22,9 +21,6 @@ from ..math import Vector2
 from ..system.object import final
 from .movable import Movable, MovableMeta
 from .rect import Rect
-
-if TYPE_CHECKING:
-    from .animation import TransformAnimation
 
 _ALL_VALID_ROTATION_PIVOTS: tuple[str, ...] = (
     "center",
@@ -211,7 +207,7 @@ class Transformable(Movable, metaclass=TransformableMeta):
     def _apply_only_scale(self) -> None:
         raise NotImplementedError
 
-    def _freeze_state(self) -> Mapping[str, Any] | None:
+    def _freeze_state(self) -> dict[str, Any] | None:
         return None
 
     def _set_frozen_state(self, angle: float, scale: float, state: Mapping[str, Any] | None) -> bool:
@@ -289,13 +285,6 @@ class Transformable(Movable, metaclass=TransformableMeta):
     @scale.setter
     def scale(self, scale: float) -> None:
         self.set_scale(scale)
-
-    @cached_property
-    @final
-    def animation(self) -> TransformAnimation:
-        from .animation import TransformAnimation
-
-        return TransformAnimation(self)
 
     @property
     def size(self) -> tuple[float, float]:

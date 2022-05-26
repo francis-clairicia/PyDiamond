@@ -68,8 +68,17 @@ class AbstractWidget(Clickable):
             self.focus.set()
 
     @classmethod
-    def set_default_focus_on_hover(cls, status: bool) -> None:
-        cls.__default_focus_on_hover = truth(status)
+    def set_default_focus_on_hover(cls, status: bool | None) -> None:
+        if status is not None:
+            cls.__default_focus_on_hover = truth(status)
+            return
+        if cls is AbstractWidget:
+            cls.__default_focus_on_hover = False
+        else:
+            try:
+                del cls.__default_focus_on_hover
+            except AttributeError:
+                pass
 
     @classmethod
     def get_default_focus_on_hover(cls) -> bool:

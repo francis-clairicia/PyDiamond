@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterator, Lite
 from py_diamond.audio.mixer import Mixer
 from py_diamond.audio.music import Music, MusicStream
 from py_diamond.audio.sound import Sound
-from py_diamond.graphics.animation import AnimationInterpolatorPool
+from py_diamond.graphics.animation import AnimationInterpolatorPool, TransformAnimation
 from py_diamond.graphics.button import Button, ImageButton
 from py_diamond.graphics.checkbox import CheckBox
 from py_diamond.graphics.color import (
@@ -193,7 +193,7 @@ class AnimationScene(MainScene, busy_loop=True):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.rectangle = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
-        self.animation = self.rectangle.animation
+        self.animation = TransformAnimation(self.rectangle)
         self.event.bind_key_release(Keyboard.Key.RETURN, lambda _: self.__handle_return_event())
 
     def on_start_loop_before_transition(self) -> None:
@@ -251,10 +251,11 @@ class AnimationStateFullScene(MainScene, busy_loop=True):
 
     def on_start_loop(self) -> None:
         window: Window = self.window
-        self.rectangle.animation.clear()
-        self.rectangle.animation.infinite_rotation(speed=410, counter_clockwise=False)
-        self.rectangle.animation.infinite_rotation_around_point(pivot=window.center, speed=50, counter_clockwise=False)
-        self.rectangle.animation.start()
+        self.animation = TransformAnimation(self.rectangle)
+        self.animation.clear()
+        self.animation.infinite_rotation(speed=410, counter_clockwise=False)
+        self.animation.infinite_rotation_around_point(pivot=window.center, speed=50, counter_clockwise=False)
+        self.animation.start()
         self.use_interpolation = True
         Keyboard.set_repeat(100, 100)
 
@@ -262,11 +263,11 @@ class AnimationStateFullScene(MainScene, busy_loop=True):
         Keyboard.set_repeat(None)
 
     def fixed_update(self) -> None:
-        self.rectangle.animation.fixed_update()
+        self.animation.fixed_update()
 
     def interpolation_update(self, interpolation: float) -> None:
         if self.use_interpolation:
-            self.rectangle.animation.update(interpolation)
+            self.animation.update(interpolation)
 
     def update(self) -> None:
         self.text.message = "\n".join(
@@ -405,15 +406,16 @@ class TextScene(Scene):
         self.text.center = self.window.center
 
     def on_start_loop(self) -> None:
-        self.text.animation.clear()
-        self.text.animation.smooth_rotation(360, speed=5)
-        self.text.animation.start()
+        self.animation = TransformAnimation(self.text)
+        self.animation.clear()
+        self.animation.smooth_rotation(360, speed=5)
+        self.animation.start()
 
     def fixed_update(self) -> None:
-        self.text.animation.fixed_update()
+        self.animation.fixed_update()
 
     def interpolation_update(self, interpolation: float) -> None:
-        self.text.animation.update(interpolation)
+        self.animation.update(interpolation)
 
     def render(self) -> None:
         self.window.draw(self.text)
@@ -547,16 +549,17 @@ class TextImageScene(MainScene):
         self.text.scale = 1
 
     def on_start_loop(self) -> None:
-        self.text.animation.clear()
-        self.text.animation.smooth_rotation(360)
-        self.text.animation.smooth_width_growth(100)
-        self.text.animation.start()
+        self.animation = TransformAnimation(self.text)
+        self.animation.clear()
+        self.animation.smooth_rotation(360)
+        self.animation.smooth_width_growth(100)
+        self.animation.start()
 
     def fixed_update(self) -> None:
-        self.text.animation.fixed_update()
+        self.animation.fixed_update()
 
     def interpolation_update(self, interpolation: float) -> None:
-        self.text.animation.update(interpolation)
+        self.animation.update(interpolation)
 
     def render(self) -> None:
         self.window.draw(self.text)
@@ -594,16 +597,17 @@ class ButtonScene(MainScene):
         self.button.angle = 0
 
     def on_start_loop(self) -> None:
-        self.button.animation.clear()
-        self.button.animation.smooth_width_growth(100)
-        self.button.animation.smooth_rotation(390, speed=300)
-        self.button.animation.start()
+        self.animation = TransformAnimation(self.button)
+        self.animation.clear()
+        self.animation.smooth_width_growth(100)
+        self.animation.smooth_rotation(390, speed=300)
+        self.animation.start()
 
     def fixed_update(self) -> None:
-        self.button.animation.fixed_update()
+        self.animation.fixed_update()
 
     def interpolation_update(self, interpolation: float) -> None:
-        self.button.animation.update(interpolation)
+        self.animation.update(interpolation)
 
     def __increase_counter(self) -> None:
         self.counter += 1
@@ -785,7 +789,7 @@ class TestGUIScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableSc
         self.first.midright = (self.second.left - 10, self.second.centery)
         self.third.midleft = (self.second.right + 10, self.second.centery)
 
-        Button.set_default_focus_on_hover(False)
+        Button.set_default_focus_on_hover(None)
 
     def update(self) -> None:
         self.text.midtop = (self.second.centerx, self.second.bottom + 10)
@@ -826,7 +830,7 @@ class GridScene(GUIScene, RenderedLayeredScene):
         self.grid.center = self.window.center
         self.group.add(self.text, self.grid)
 
-        Button.set_default_focus_on_hover(False)
+        Button.set_default_focus_on_hover(None)
 
     def on_start_loop_before_transition(self) -> None:
         self.set_text_position()
@@ -1106,17 +1110,18 @@ class SceneTransitionTranslation(SceneTransition):
         previous_scene.center = actual_scene.center = target_rect.center
         previous_scene.fill(BLACK.with_alpha(100))
         previous_scene_shown: Callable[[], bool]
+        previous_scene_animation = TransformAnimation(previous_scene)
         if self.__side == "left":
-            previous_scene.animation.infinite_translation((-1, 0), speed=3000)
+            previous_scene_animation.infinite_translation((-1, 0), speed=3000)
             previous_scene_shown = lambda: previous_scene.right >= target_rect.left
         else:
-            previous_scene.animation.infinite_translation((1, 0), speed=3000)
+            previous_scene_animation.infinite_translation((1, 0), speed=3000)
             previous_scene_shown = lambda: previous_scene.left <= target_rect.right
-        previous_scene.animation.start()
+        previous_scene_animation.start()
         while previous_scene_shown():
             while (interpolation := (yield)) is None:
-                previous_scene.animation.fixed_update()
-            previous_scene.animation.update(interpolation)
+                previous_scene_animation.fixed_update()
+            previous_scene_animation.update(interpolation)
             actual_scene.draw_onto(target)
             previous_scene.draw_onto(target)
 

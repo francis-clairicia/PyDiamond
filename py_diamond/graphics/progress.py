@@ -277,7 +277,7 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
         outline_rect: RectangleShape = self.__outline_rect
         outline_rect.scale = scale_rect.scale = self.scale
 
-    def _freeze_state(self) -> Mapping[str, Any] | None:
+    def _freeze_state(self) -> dict[str, Any] | None:
         return None
 
     def _set_frozen_state(self, angle: float, scale: float, state: Mapping[str, Any] | None) -> bool:
