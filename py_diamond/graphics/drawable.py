@@ -64,7 +64,7 @@ class DrawableMeta(ObjectMeta):
         else:
             if not any(issubclass(cls, Drawable) for cls in bases):
                 raise TypeError(
-                    f"{name!r} must be inherits from a {Drawable.__name__} class in order to use {DrawableMeta.__name__} metaclass"
+                    f"{name!r} must inherit from a {Drawable.__name__} class in order to use {DrawableMeta.__name__} metaclass"
                 )
 
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)

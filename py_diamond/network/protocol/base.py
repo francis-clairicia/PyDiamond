@@ -90,7 +90,7 @@ class SecuredNetworkProtocolMeta(ObjectMeta):
         else:
             if not any(issubclass(b, SecuredNetworkProtocol) for b in bases):
                 raise TypeError(
-                    f"{name!r} must be inherits from a {SecuredNetworkProtocol.__name__} class in order to use {SecuredNetworkProtocolMeta.__name__} metaclass"
+                    f"{name!r} must inherit from a {SecuredNetworkProtocol.__name__} class in order to use {SecuredNetworkProtocolMeta.__name__} metaclass"
                 )
             for attr in ("_cryptography_fernet_",):
                 if attr in namespace:

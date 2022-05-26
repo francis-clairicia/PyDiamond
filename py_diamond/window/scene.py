@@ -102,9 +102,7 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
             return super().__new__(mcs, name, bases, namespace, **kwargs)
 
         if not any(issubclass(cls, Scene) for cls in bases):
-            raise TypeError(
-                f"{name!r} must be inherits from a {Scene.__name__} class in order to use {SceneMeta.__name__} metaclass"
-            )
+            raise TypeError(f"{name!r} must inherit from a {Scene.__name__} class in order to use {SceneMeta.__name__} metaclass")
 
         if not all(issubclass(cls, Scene) for cls in bases):
             raise TypeError("Multiple inheritance with other class than Scene is not supported")
@@ -401,7 +399,7 @@ class MainSceneMeta(SceneMeta):
 
         if not any(issubclass(cls, MainScene) for cls in bases):
             raise TypeError(
-                f"{name!r} must be inherits from a {MainScene.__name__} class in order to use {MainSceneMeta.__name__} metaclass"
+                f"{name!r} must inherit from a {MainScene.__name__} class in order to use {MainSceneMeta.__name__} metaclass"
             )
 
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
@@ -429,7 +427,7 @@ class LayeredSceneMeta(SceneMeta):
 
         if not any(issubclass(cls, AbstractLayeredScene) for cls in bases):
             raise TypeError(
-                f"{name!r} must be inherits from a {AbstractLayeredScene.__name__} class in order to use {LayeredSceneMeta.__name__} metaclass"
+                f"{name!r} must inherit from a {AbstractLayeredScene.__name__} class in order to use {LayeredSceneMeta.__name__} metaclass"
             )
 
         setattr_wrapper_cls = mcs.__setattr_wrapper

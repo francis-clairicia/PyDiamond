@@ -66,7 +66,7 @@ class MovableMeta(ObjectMeta):
         else:
             if not any(issubclass(cls, Movable) for cls in bases):
                 raise TypeError(
-                    f"{name!r} must be inherits from a {Movable.__name__} class in order to use {MovableMeta.__name__} metaclass"
+                    f"{name!r} must inherit from a {Movable.__name__} class in order to use {MovableMeta.__name__} metaclass"
                 )
 
         for position in _ALL_VALID_POSITIONS:

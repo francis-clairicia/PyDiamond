@@ -50,7 +50,7 @@ class TransformableMeta(MovableMeta):
         else:
             if not any(issubclass(cls, Transformable) for cls in bases):
                 raise TypeError(
-                    f"{name!r} must be inherits from a {Transformable.__name__} class in order to use {TransformableMeta.__name__} metaclass"
+                    f"{name!r} must inherit from a {Transformable.__name__} class in order to use {TransformableMeta.__name__} metaclass"
                 )
             frozen_state_methods = ["_set_frozen_state", "_freeze_state"]
             if sum(1 for method in frozen_state_methods if method in namespace) not in (0, len(frozen_state_methods)):

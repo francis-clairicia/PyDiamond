@@ -459,7 +459,7 @@ class _BoundFocusProxyMeta(type):
     def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _BoundFocusProxyMeta:
         if "BoundFocusProxy" in globals() and not any(issubclass(cls, BoundFocusProxy) for cls in bases):
             raise TypeError(
-                f"{name!r} must be inherits from a {BoundFocusProxy.__name__} class in order to use {_BoundFocusProxyMeta.__name__} metaclass"
+                f"{name!r} must inherit from a {BoundFocusProxy.__name__} class in order to use {_BoundFocusProxyMeta.__name__} metaclass"
             )
 
         if "BoundFocusProxy" not in globals() and name == "BoundFocusProxy":

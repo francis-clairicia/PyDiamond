@@ -46,7 +46,7 @@ class DialogMeta(SceneMeta):
 
         if not any(issubclass(cls, Dialog) for cls in bases):
             raise TypeError(
-                f"{name!r} must be inherits from a {Dialog.__name__} class in order to use {DialogMeta.__name__} metaclass"
+                f"{name!r} must inherit from a {Dialog.__name__} class in order to use {DialogMeta.__name__} metaclass"
             )
 
         return super().__new__(mcs, name, bases, namespace, **kwargs)
