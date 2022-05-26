@@ -64,21 +64,21 @@ from weakref import ReferenceType as WeakReferenceType, WeakKeyDictionary, ref a
 from .object import Object, final
 from .utils._mangling import mangle_private_attribute as _private_attribute
 
-_Func = TypeVar("_Func", bound=Callable[..., Any])
-_Updater = TypeVar("_Updater", bound=Callable[[Any], None])
-_KeyUpdater = TypeVar("_KeyUpdater", bound=Callable[[Any, Any], None])
-_ValueUpdater = TypeVar("_ValueUpdater", bound=Callable[[Any, Any], None])
-_KeyValueUpdater = TypeVar("_KeyValueUpdater", bound=Callable[[Any, Any, Any], None])
-_Getter = TypeVar("_Getter", bound=Callable[[Any], Any])
-_Setter = TypeVar("_Setter", bound=Callable[[Any, Any], None])
-_Deleter = TypeVar("_Deleter", bound=Callable[[Any], None])
-_KeyGetter = TypeVar("_KeyGetter", bound=Callable[[Any, Any], Any])
-_KeySetter = TypeVar("_KeySetter", bound=Callable[[Any, Any, Any], None])
-_KeyDeleter = TypeVar("_KeyDeleter", bound=Callable[[Any, Any], None])
-_ValueValidator = TypeVar("_ValueValidator", bound=Callable[[Any, Any], None])
-_StaticValueValidator = TypeVar("_StaticValueValidator", bound=Callable[[Any], None])
-_ValueConverter = TypeVar("_ValueConverter", bound=Callable[[Any, Any], Any])
-_StaticValueConverter = TypeVar("_StaticValueConverter", bound=Callable[[Any], Any])
+_FuncVar = TypeVar("_FuncVar", bound=Callable[..., Any])
+_UpdaterVar = TypeVar("_UpdaterVar", bound=Callable[[Any], None])
+_KeyUpdaterVar = TypeVar("_KeyUpdaterVar", bound=Callable[[Any, Any], None])
+_ValueUpdaterVar = TypeVar("_ValueUpdaterVar", bound=Callable[[Any, Any], None])
+_KeyValueUpdaterVar = TypeVar("_KeyValueUpdaterVar", bound=Callable[[Any, Any, Any], None])
+_GetterVar = TypeVar("_GetterVar", bound=Callable[[Any], Any])
+_SetterVar = TypeVar("_SetterVar", bound=Callable[[Any, Any], None])
+_DeleterVar = TypeVar("_DeleterVar", bound=Callable[[Any], None])
+_KeyGetterVar = TypeVar("_KeyGetterVar", bound=Callable[[Any, Any], Any])
+_KeySetterVar = TypeVar("_KeySetterVar", bound=Callable[[Any, Any, Any], None])
+_KeyDeleterVar = TypeVar("_KeyDeleterVar", bound=Callable[[Any, Any], None])
+_ValueValidatorVar = TypeVar("_ValueValidatorVar", bound=Callable[[Any, Any], None])
+_StaticValueValidatorVar = TypeVar("_StaticValueValidatorVar", bound=Callable[[Any], None])
+_ValueConverterVar = TypeVar("_ValueConverterVar", bound=Callable[[Any, Any], Any])
+_StaticValueConverterVar = TypeVar("_StaticValueConverterVar", bound=Callable[[Any], Any])
 _T = TypeVar("_T")
 _DT = TypeVar("_DT")
 
@@ -120,7 +120,7 @@ class InitializationError(ConfigError):
         super().__init__(message)
 
 
-def initializer(func: _Func) -> _Func:
+def initializer(func: _FuncVar) -> _FuncVar:
     return _ConfigInitializer(func)  # type: ignore[return-value]
 
 
@@ -312,16 +312,16 @@ class ConfigurationTemplate(Object):
         self.__no_parent_ownership.add(option)
 
     @overload
-    def getter(self, option: str, /, *, use_override: bool = True, readonly: bool = False) -> Callable[[_Getter], _Getter]:
+    def getter(self, option: str, /, *, use_override: bool = True, readonly: bool = False) -> Callable[[_GetterVar], _GetterVar]:
         ...
 
     @overload
-    def getter(self, option: str, func: _Getter, /, *, use_override: bool = True, readonly: bool = False) -> None:
+    def getter(self, option: str, func: _GetterVar, /, *, use_override: bool = True, readonly: bool = False) -> None:
         ...
 
     def getter(
-        self, option: str, func: Optional[_Getter] = None, /, *, use_override: bool = True, readonly: bool = False
-    ) -> Optional[Callable[[_Getter], _Getter]]:
+        self, option: str, func: Optional[_GetterVar] = None, /, *, use_override: bool = True, readonly: bool = False
+    ) -> Optional[Callable[[_GetterVar], _GetterVar]]:
         self.__check_locked()
         self.check_option_validity(option)
         template: _ConfigInfoTemplate = self.__template
@@ -337,7 +337,7 @@ class ConfigurationTemplate(Object):
             ):
                 raise OptionError(option, "Trying to flag option as read-only with custom setter/deleter")
 
-            def decorator(func: _Getter, /) -> _Getter:
+            def decorator(func: _GetterVar, /) -> _GetterVar:
                 wrapper = _make_function_wrapper(func, check_override=bool(use_override))
                 new_config_property: property
                 if actual_property is None:
@@ -357,7 +357,7 @@ class ConfigurationTemplate(Object):
                 raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
             config_property: _ConfigProperty = actual_descriptor
 
-            def decorator(func: _Getter, /) -> _Getter:
+            def decorator(func: _GetterVar, /) -> _GetterVar:
                 wrapper = _make_function_wrapper(func, check_override=bool(use_override))
                 readonly_descriptor.set_new_descriptor(config_property.getter(wrapper))
                 return func
@@ -370,35 +370,35 @@ class ConfigurationTemplate(Object):
     @overload
     def getter_key(
         self, option: str, /, *, use_override: bool = True, readonly: bool = False
-    ) -> Callable[[_KeyGetter], _KeyGetter]:
+    ) -> Callable[[_KeyGetterVar], _KeyGetterVar]:
         ...
 
     @overload
     def getter_key(
         self, option: str, /, *, use_key: Hashable, use_override: bool = True, readonly: bool = False
-    ) -> Callable[[_KeyGetter], _KeyGetter]:
+    ) -> Callable[[_KeyGetterVar], _KeyGetterVar]:
         ...
 
     @overload
-    def getter_key(self, option: str, func: _KeyGetter, /, *, use_override: bool = True, readonly: bool = False) -> None:
+    def getter_key(self, option: str, func: _KeyGetterVar, /, *, use_override: bool = True, readonly: bool = False) -> None:
         ...
 
     @overload
     def getter_key(
-        self, option: str, func: _KeyGetter, /, *, use_key: Hashable, use_override: bool = True, readonly: bool = False
+        self, option: str, func: _KeyGetterVar, /, *, use_key: Hashable, use_override: bool = True, readonly: bool = False
     ) -> None:
         ...
 
     def getter_key(
         self,
         option: str,
-        func: Optional[_KeyGetter] = None,
+        func: Optional[_KeyGetterVar] = None,
         /,
         *,
         use_key: Any = _NO_DEFAULT,
         use_override: bool = True,
         readonly: bool = False,
-    ) -> Optional[Callable[[_KeyGetter], _KeyGetter]]:
+    ) -> Optional[Callable[[_KeyGetterVar], _KeyGetterVar]]:
         self.__check_locked()
         self.check_option_validity(option)
         if use_key is _NO_DEFAULT:
@@ -410,7 +410,7 @@ class ConfigurationTemplate(Object):
         def wrapper_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             return lambda self: func(self, use_key)
 
-        def decorator(func: _KeyGetter, /) -> _KeyGetter:
+        def decorator(func: _KeyGetterVar, /) -> _KeyGetterVar:
             wrapper = _WrappedFunctionWrapper(func, key, wrapper_decorator, check_override=bool(use_override), no_object=False)
             self.getter(option, wrapper, readonly=readonly)
             return func
@@ -430,7 +430,7 @@ class ConfigurationTemplate(Object):
         use_override: bool = True,
         readonly: bool = False,
         ignore_key_error: bool = False,
-    ) -> Callable[[_KeyGetter], _KeyGetter]:
+    ) -> Callable[[_KeyGetterVar], _KeyGetterVar]:
         ...
 
     @overload
@@ -438,7 +438,7 @@ class ConfigurationTemplate(Object):
         self,
         option: str,
         key_map: Mapping[str, Hashable],
-        func: _KeyGetter,
+        func: _KeyGetterVar,
         /,
         *,
         use_override: bool = True,
@@ -467,16 +467,16 @@ class ConfigurationTemplate(Object):
         return self.getter_key(option, func, use_key=use_key, use_override=use_override, readonly=readonly)
 
     @overload
-    def setter(self, option: str, /, *, use_override: bool = True) -> Callable[[_Setter], _Setter]:
+    def setter(self, option: str, /, *, use_override: bool = True) -> Callable[[_SetterVar], _SetterVar]:
         ...
 
     @overload
-    def setter(self, option: str, func: _Setter, /, *, use_override: bool = True) -> None:
+    def setter(self, option: str, func: _SetterVar, /, *, use_override: bool = True) -> None:
         ...
 
     def setter(
-        self, option: str, func: Optional[_Setter] = None, /, *, use_override: bool = True
-    ) -> Optional[Callable[[_Setter], _Setter]]:
+        self, option: str, func: Optional[_SetterVar] = None, /, *, use_override: bool = True
+    ) -> Optional[Callable[[_SetterVar], _SetterVar]]:
         self.__check_locked()
         self.check_option_validity(option)
         template: _ConfigInfoTemplate = self.__template
@@ -489,7 +489,7 @@ class ConfigurationTemplate(Object):
             raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
         actual_property: _ConfigProperty = actual_descriptor
 
-        def decorator(func: _Setter, /) -> _Setter:
+        def decorator(func: _SetterVar, /) -> _SetterVar:
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             template.value_descriptors[option] = actual_property.setter(wrapper)
             return func
@@ -500,30 +500,30 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def setter_key(self, option: str, /, *, use_override: bool = True) -> Callable[[_KeySetter], _KeySetter]:
+    def setter_key(self, option: str, /, *, use_override: bool = True) -> Callable[[_KeySetterVar], _KeySetterVar]:
         ...
 
     @overload
-    def setter_key(self, option: str, /, *, use_key: Hashable, use_override: bool = True) -> Callable[[_KeySetter], _KeySetter]:
+    def setter_key(self, option: str, /, *, use_key: Hashable, use_override: bool = True) -> Callable[[_KeySetterVar], _KeySetterVar]:
         ...
 
     @overload
-    def setter_key(self, option: str, func: _KeySetter, /, *, use_override: bool = True) -> None:
+    def setter_key(self, option: str, func: _KeySetterVar, /, *, use_override: bool = True) -> None:
         ...
 
     @overload
-    def setter_key(self, option: str, func: _KeySetter, /, *, use_key: Hashable, use_override: bool = True) -> None:
+    def setter_key(self, option: str, func: _KeySetterVar, /, *, use_key: Hashable, use_override: bool = True) -> None:
         ...
 
     def setter_key(
         self,
         option: str,
-        func: Optional[_KeySetter] = None,
+        func: Optional[_KeySetterVar] = None,
         /,
         *,
         use_key: Any = _NO_DEFAULT,
         use_override: bool = True,
-    ) -> Optional[Callable[[_KeySetter], _KeySetter]]:
+    ) -> Optional[Callable[[_KeySetterVar], _KeySetterVar]]:
         self.__check_locked()
         self.check_option_validity(option)
         if use_key is _NO_DEFAULT:
@@ -535,7 +535,7 @@ class ConfigurationTemplate(Object):
         def wrapper_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             return lambda self, value: func(self, use_key, value)
 
-        def decorator(func: _KeySetter, /) -> _KeySetter:
+        def decorator(func: _KeySetterVar, /) -> _KeySetterVar:
             wrapper = _WrappedFunctionWrapper(func, key, wrapper_decorator, check_override=bool(use_override), no_object=False)
             self.setter(option, wrapper)
             return func
@@ -554,7 +554,7 @@ class ConfigurationTemplate(Object):
         *,
         use_override: bool = True,
         ignore_key_error: bool = False,
-    ) -> Callable[[_KeySetter], _KeySetter]:
+    ) -> Callable[[_KeySetterVar], _KeySetterVar]:
         ...
 
     @overload
@@ -562,7 +562,7 @@ class ConfigurationTemplate(Object):
         self,
         option: str,
         key_map: Mapping[str, Hashable],
-        func: _KeySetter,
+        func: _KeySetterVar,
         /,
         *,
         use_override: bool = True,
@@ -589,16 +589,16 @@ class ConfigurationTemplate(Object):
         return self.setter_key(option, func, use_key=use_key, use_override=use_override)
 
     @overload
-    def deleter(self, option: str, /, *, use_override: bool = True) -> Callable[[_Deleter], _Deleter]:
+    def deleter(self, option: str, /, *, use_override: bool = True) -> Callable[[_DeleterVar], _DeleterVar]:
         ...
 
     @overload
-    def deleter(self, option: str, func: _Deleter, /, *, use_override: bool = True) -> None:
+    def deleter(self, option: str, func: _DeleterVar, /, *, use_override: bool = True) -> None:
         ...
 
     def deleter(
-        self, option: str, func: Optional[_Deleter] = None, /, *, use_override: bool = True
-    ) -> Optional[Callable[[_Deleter], _Deleter]]:
+        self, option: str, func: Optional[_DeleterVar] = None, /, *, use_override: bool = True
+    ) -> Optional[Callable[[_DeleterVar], _DeleterVar]]:
         self.__check_locked()
         self.check_option_validity(option)
         template: _ConfigInfoTemplate = self.__template
@@ -611,7 +611,7 @@ class ConfigurationTemplate(Object):
             raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
         actual_property: _ConfigProperty = actual_descriptor
 
-        def decorator(func: _Deleter, /) -> _Deleter:
+        def decorator(func: _DeleterVar, /) -> _DeleterVar:
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             template.value_descriptors[option] = actual_property.deleter(wrapper)
             return func
@@ -622,32 +622,32 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def deleter_key(self, option: str, /, *, use_override: bool = True) -> Callable[[_KeyDeleter], _KeyDeleter]:
+    def deleter_key(self, option: str, /, *, use_override: bool = True) -> Callable[[_KeyDeleterVar], _KeyDeleterVar]:
         ...
 
     @overload
     def deleter_key(
         self, option: str, /, *, use_key: Hashable, use_override: bool = True
-    ) -> Callable[[_KeyDeleter], _KeyDeleter]:
+    ) -> Callable[[_KeyDeleterVar], _KeyDeleterVar]:
         ...
 
     @overload
-    def deleter_key(self, option: str, func: _KeyDeleter, /, *, use_override: bool = True) -> None:
+    def deleter_key(self, option: str, func: _KeyDeleterVar, /, *, use_override: bool = True) -> None:
         ...
 
     @overload
-    def deleter_key(self, option: str, func: _KeyDeleter, /, *, use_key: Hashable, use_override: bool = True) -> None:
+    def deleter_key(self, option: str, func: _KeyDeleterVar, /, *, use_key: Hashable, use_override: bool = True) -> None:
         ...
 
     def deleter_key(
         self,
         option: str,
-        func: Optional[_KeyDeleter] = None,
+        func: Optional[_KeyDeleterVar] = None,
         /,
         *,
         use_key: Any = _NO_DEFAULT,
         use_override: bool = True,
-    ) -> Optional[Callable[[_KeyDeleter], _KeyDeleter]]:
+    ) -> Optional[Callable[[_KeyDeleterVar], _KeyDeleterVar]]:
         self.__check_locked()
         self.check_option_validity(option)
         if use_key is _NO_DEFAULT:
@@ -659,7 +659,7 @@ class ConfigurationTemplate(Object):
         def wrapper_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             return lambda self: func(self, use_key)
 
-        def decorator(func: _KeyDeleter, /) -> _KeyDeleter:
+        def decorator(func: _KeyDeleterVar, /) -> _KeyDeleterVar:
             wrapper = _WrappedFunctionWrapper(func, key, wrapper_decorator, check_override=bool(use_override), no_object=False)
             self.deleter(option, wrapper)
             return func
@@ -678,7 +678,7 @@ class ConfigurationTemplate(Object):
         *,
         use_override: bool = True,
         ignore_key_error: bool = False,
-    ) -> Callable[[_KeyDeleter], _KeyDeleter]:
+    ) -> Callable[[_KeyDeleterVar], _KeyDeleterVar]:
         ...
 
     @overload
@@ -686,7 +686,7 @@ class ConfigurationTemplate(Object):
         self,
         option: str,
         key_map: Mapping[str, Hashable],
-        func: _KeyDeleter,
+        func: _KeyDeleterVar,
         /,
         *,
         use_override: bool = True,
@@ -740,20 +740,20 @@ class ConfigurationTemplate(Object):
         template.value_descriptors.pop(option, None)
 
     @overload
-    def add_main_update(self, func: _Updater, /, *, use_override: bool = True) -> _Updater:
+    def add_main_update(self, func: _UpdaterVar, /, *, use_override: bool = True) -> _UpdaterVar:
         ...
 
     @overload
-    def add_main_update(self, /, *, use_override: bool = True) -> Callable[[_Updater], _Updater]:
+    def add_main_update(self, /, *, use_override: bool = True) -> Callable[[_UpdaterVar], _UpdaterVar]:
         ...
 
     def add_main_update(
-        self, func: Optional[_Updater] = None, /, *, use_override: bool = True
-    ) -> Union[_Updater, Callable[[_Updater], _Updater]]:
+        self, func: Optional[_UpdaterVar] = None, /, *, use_override: bool = True
+    ) -> Union[_UpdaterVar, Callable[[_UpdaterVar], _UpdaterVar]]:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
 
-        def decorator(func: _Updater, /) -> _Updater:
+        def decorator(func: _UpdaterVar, /) -> _UpdaterVar:
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             if wrapper in template.main_updater:
                 raise ConfigError("Function already registered")
@@ -765,21 +765,21 @@ class ConfigurationTemplate(Object):
         return decorator(func)
 
     @overload
-    def on_update(self, option: str, /, *, use_override: bool = True) -> Callable[[_Updater], _Updater]:
+    def on_update(self, option: str, /, *, use_override: bool = True) -> Callable[[_UpdaterVar], _UpdaterVar]:
         ...
 
     @overload
-    def on_update(self, option: str, func: _Updater, /, *, use_override: bool = True) -> None:
+    def on_update(self, option: str, func: _UpdaterVar, /, *, use_override: bool = True) -> None:
         ...
 
     def on_update(
-        self, option: str, func: Optional[_Updater] = None, /, *, use_override: bool = True
-    ) -> Optional[Callable[[_Updater], _Updater]]:
+        self, option: str, func: Optional[_UpdaterVar] = None, /, *, use_override: bool = True
+    ) -> Optional[Callable[[_UpdaterVar], _UpdaterVar]]:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
 
-        def decorator(func: _Updater, /) -> _Updater:
+        def decorator(func: _UpdaterVar, /) -> _UpdaterVar:
             updater_list = template.option_updater.setdefault(option, [])
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             if wrapper in updater_list:
@@ -793,32 +793,32 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def on_update_key(self, option: str, /, *, use_override: bool = True) -> Callable[[_KeyUpdater], _KeyUpdater]:
+    def on_update_key(self, option: str, /, *, use_override: bool = True) -> Callable[[_KeyUpdaterVar], _KeyUpdaterVar]:
         ...
 
     @overload
     def on_update_key(
         self, option: str, /, *, use_key: Hashable, use_override: bool = True
-    ) -> Callable[[_KeyUpdater], _KeyUpdater]:
+    ) -> Callable[[_KeyUpdaterVar], _KeyUpdaterVar]:
         ...
 
     @overload
-    def on_update_key(self, option: str, func: _KeyUpdater, /, *, use_override: bool = True) -> None:
+    def on_update_key(self, option: str, func: _KeyUpdaterVar, /, *, use_override: bool = True) -> None:
         ...
 
     @overload
-    def on_update_key(self, option: str, func: _KeyUpdater, /, *, use_key: Hashable, use_override: bool = True) -> None:
+    def on_update_key(self, option: str, func: _KeyUpdaterVar, /, *, use_key: Hashable, use_override: bool = True) -> None:
         ...
 
     def on_update_key(
         self,
         option: str,
-        func: Optional[_KeyUpdater] = None,
+        func: Optional[_KeyUpdaterVar] = None,
         /,
         *,
         use_key: Any = _NO_DEFAULT,
         use_override: bool = True,
-    ) -> Optional[Callable[[_KeyUpdater], _KeyUpdater]]:
+    ) -> Optional[Callable[[_KeyUpdaterVar], _KeyUpdaterVar]]:
         self.__check_locked()
         self.check_option_validity(option)
         if use_key is _NO_DEFAULT:
@@ -830,7 +830,7 @@ class ConfigurationTemplate(Object):
         def wrapper_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             return lambda self: func(self, use_key)
 
-        def decorator(func: _KeyUpdater, /) -> _KeyUpdater:
+        def decorator(func: _KeyUpdaterVar, /) -> _KeyUpdaterVar:
             wrapper = _WrappedFunctionWrapper(func, key, wrapper_decorator, check_override=bool(use_override), no_object=False)
             self.on_update(option, wrapper)
             return func
@@ -849,7 +849,7 @@ class ConfigurationTemplate(Object):
         *,
         use_override: bool = True,
         ignore_key_error: bool = False,
-    ) -> Callable[[_KeyUpdater], _KeyUpdater]:
+    ) -> Callable[[_KeyUpdaterVar], _KeyUpdaterVar]:
         ...
 
     @overload
@@ -857,7 +857,7 @@ class ConfigurationTemplate(Object):
         self,
         option: str,
         key_map: Mapping[str, Hashable],
-        func: _KeyUpdater,
+        func: _KeyUpdaterVar,
         /,
         *,
         use_override: bool = True,
@@ -884,21 +884,21 @@ class ConfigurationTemplate(Object):
         return self.on_update_key(option, func, use_key=use_key, use_override=use_override)
 
     @overload
-    def on_update_value(self, option: str, /, *, use_override: bool = True) -> Callable[[_ValueUpdater], _ValueUpdater]:
+    def on_update_value(self, option: str, /, *, use_override: bool = True) -> Callable[[_ValueUpdaterVar], _ValueUpdaterVar]:
         ...
 
     @overload
-    def on_update_value(self, option: str, func: _ValueUpdater, /, *, use_override: bool = True) -> None:
+    def on_update_value(self, option: str, func: _ValueUpdaterVar, /, *, use_override: bool = True) -> None:
         ...
 
     def on_update_value(
-        self, option: str, func: Optional[_ValueUpdater] = None, /, *, use_override: bool = True
-    ) -> Optional[Callable[[_ValueUpdater], _ValueUpdater]]:
+        self, option: str, func: Optional[_ValueUpdaterVar] = None, /, *, use_override: bool = True
+    ) -> Optional[Callable[[_ValueUpdaterVar], _ValueUpdaterVar]]:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
 
-        def decorator(func: _ValueUpdater, /) -> _ValueUpdater:
+        def decorator(func: _ValueUpdaterVar, /) -> _ValueUpdaterVar:
             updater_list = template.option_value_updater.setdefault(option, [])
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             if wrapper in updater_list:
@@ -912,34 +912,34 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def on_update_key_value(self, option: str, /, *, use_override: bool = True) -> Callable[[_KeyValueUpdater], _KeyValueUpdater]:
+    def on_update_key_value(self, option: str, /, *, use_override: bool = True) -> Callable[[_KeyValueUpdaterVar], _KeyValueUpdaterVar]:
         ...
 
     @overload
     def on_update_key_value(
         self, option: str, /, *, use_key: Hashable, use_override: bool = True
-    ) -> Callable[[_KeyValueUpdater], _KeyValueUpdater]:
+    ) -> Callable[[_KeyValueUpdaterVar], _KeyValueUpdaterVar]:
         ...
 
     @overload
-    def on_update_key_value(self, option: str, func: _KeyValueUpdater, /, *, use_override: bool = True) -> None:
+    def on_update_key_value(self, option: str, func: _KeyValueUpdaterVar, /, *, use_override: bool = True) -> None:
         ...
 
     @overload
     def on_update_key_value(
-        self, option: str, func: _KeyValueUpdater, /, *, use_key: Hashable, use_override: bool = True
+        self, option: str, func: _KeyValueUpdaterVar, /, *, use_key: Hashable, use_override: bool = True
     ) -> None:
         ...
 
     def on_update_key_value(
         self,
         option: str,
-        func: Optional[_KeyValueUpdater] = None,
+        func: Optional[_KeyValueUpdaterVar] = None,
         /,
         *,
         use_key: Any = _NO_DEFAULT,
         use_override: bool = True,
-    ) -> Optional[Callable[[_KeyValueUpdater], _KeyValueUpdater]]:
+    ) -> Optional[Callable[[_KeyValueUpdaterVar], _KeyValueUpdaterVar]]:
         self.__check_locked()
         self.check_option_validity(option)
         if use_key is _NO_DEFAULT:
@@ -951,7 +951,7 @@ class ConfigurationTemplate(Object):
         def wrapper_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             return lambda self, value: func(self, use_key, value)
 
-        def decorator(func: _KeyValueUpdater, /) -> _KeyValueUpdater:
+        def decorator(func: _KeyValueUpdaterVar, /) -> _KeyValueUpdaterVar:
             wrapper = _WrappedFunctionWrapper(func, key, wrapper_decorator, check_override=bool(use_override), no_object=False)
             self.on_update_value(option, wrapper)
             return func
@@ -970,7 +970,7 @@ class ConfigurationTemplate(Object):
         *,
         use_override: bool = True,
         ignore_key_error: bool = False,
-    ) -> Callable[[_KeyValueUpdater], _KeyValueUpdater]:
+    ) -> Callable[[_KeyValueUpdaterVar], _KeyValueUpdaterVar]:
         ...
 
     @overload
@@ -978,7 +978,7 @@ class ConfigurationTemplate(Object):
         self,
         option: str,
         key_map: Mapping[str, Hashable],
-        func: _KeyValueUpdater,
+        func: _KeyValueUpdaterVar,
         /,
         *,
         use_override: bool = True,
@@ -1005,21 +1005,21 @@ class ConfigurationTemplate(Object):
         return self.on_update_key_value(option, func, use_key=use_key, use_override=use_override)
 
     @overload
-    def add_value_validator(self, option: str, /, *, use_override: bool = True) -> Callable[[_ValueValidator], _ValueValidator]:
+    def add_value_validator(self, option: str, /, *, use_override: bool = True) -> Callable[[_ValueValidatorVar], _ValueValidatorVar]:
         ...
 
     @overload
-    def add_value_validator(self, option: str, func: _ValueValidator, /, *, use_override: bool = True) -> None:
+    def add_value_validator(self, option: str, func: _ValueValidatorVar, /, *, use_override: bool = True) -> None:
         ...
 
     def add_value_validator(
         self,
         option: str,
-        func: Optional[_ValueValidator] = None,
+        func: Optional[_ValueValidatorVar] = None,
         /,
         *,
         use_override: bool = True,
-    ) -> Optional[Callable[[_ValueValidator], _ValueValidator]]:
+    ) -> Optional[Callable[[_ValueValidatorVar], _ValueValidatorVar]]:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
@@ -1027,7 +1027,7 @@ class ConfigurationTemplate(Object):
         if isinstance(func, type):
             raise TypeError("Use value_validator_static() to check types")
 
-        def decorator(func: _ValueValidator, /) -> _ValueValidator:
+        def decorator(func: _ValueValidatorVar, /) -> _ValueValidatorVar:
             value_validator_list = template.value_validator.setdefault(option, [])
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             if wrapper in value_validator_list:
@@ -1043,7 +1043,7 @@ class ConfigurationTemplate(Object):
     @overload
     def add_value_validator_static(
         self, option: str, /, *, use_override: bool = True
-    ) -> Callable[[_StaticValueValidator], _StaticValueValidator]:
+    ) -> Callable[[_StaticValueValidatorVar], _StaticValueValidatorVar]:
         ...
 
     @overload
@@ -1059,23 +1059,23 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def add_value_validator_static(self, option: str, func: _StaticValueValidator, /, *, use_override: bool = True) -> None:
+    def add_value_validator_static(self, option: str, func: _StaticValueValidatorVar, /, *, use_override: bool = True) -> None:
         ...
 
     def add_value_validator_static(
         self,
         option: str,
-        func: Optional[Union[_StaticValueValidator, type, Sequence[type]]] = None,
+        func: Optional[Union[_StaticValueValidatorVar, type, Sequence[type]]] = None,
         /,
         *,
         accept_none: bool = False,
         use_override: bool = True,
-    ) -> Optional[Callable[[_StaticValueValidator], _StaticValueValidator]]:
+    ) -> Optional[Callable[[_StaticValueValidatorVar], _StaticValueValidatorVar]]:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
 
-        def decorator(func: _StaticValueValidator, /, *, check_override: bool = bool(use_override)) -> _StaticValueValidator:
+        def decorator(func: _StaticValueValidatorVar, /, *, check_override: bool = bool(use_override)) -> _StaticValueValidatorVar:
             value_validator_list = template.value_validator.setdefault(option, [])
             wrapper = _make_function_wrapper(func, check_override=check_override, no_object=True)
             if wrapper in value_validator_list:
@@ -1103,21 +1103,21 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def add_value_converter(self, option: str, /, *, use_override: bool = True) -> Callable[[_ValueConverter], _ValueConverter]:
+    def add_value_converter(self, option: str, /, *, use_override: bool = True) -> Callable[[_ValueConverterVar], _ValueConverterVar]:
         ...
 
     @overload
-    def add_value_converter(self, option: str, func: _ValueConverter, /, *, use_override: bool = True) -> None:
+    def add_value_converter(self, option: str, func: _ValueConverterVar, /, *, use_override: bool = True) -> None:
         ...
 
     def add_value_converter(
         self,
         option: str,
-        func: Optional[_ValueConverter] = None,
+        func: Optional[_ValueConverterVar] = None,
         /,
         *,
         use_override: bool = True,
-    ) -> Optional[Callable[[_ValueConverter], _ValueConverter]]:
+    ) -> Optional[Callable[[_ValueConverterVar], _ValueConverterVar]]:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
@@ -1125,7 +1125,7 @@ class ConfigurationTemplate(Object):
         if isinstance(func, type):
             raise TypeError("Use value_converter_static() to convert value using type")
 
-        def decorator(func: _ValueConverter) -> _ValueConverter:
+        def decorator(func: _ValueConverterVar) -> _ValueConverterVar:
             value_converter_list = template.value_converter.setdefault(option, [])
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             if wrapper in value_converter_list:
@@ -1141,7 +1141,7 @@ class ConfigurationTemplate(Object):
     @overload
     def add_value_converter_static(
         self, option: str, /, *, use_override: bool = True
-    ) -> Callable[[_StaticValueConverter], _StaticValueConverter]:
+    ) -> Callable[[_StaticValueConverterVar], _StaticValueConverterVar]:
         ...
 
     @overload
@@ -1151,23 +1151,23 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def add_value_converter_static(self, option: str, func: _StaticValueConverter, /, *, use_override: bool = True) -> None:
+    def add_value_converter_static(self, option: str, func: _StaticValueConverterVar, /, *, use_override: bool = True) -> None:
         ...
 
     def add_value_converter_static(
         self,
         option: str,
-        func: Optional[Union[_StaticValueConverter, type]] = None,
+        func: Optional[Union[_StaticValueConverterVar, type]] = None,
         /,
         *,
         accept_none: bool = False,
         use_override: bool = True,
-    ) -> Optional[Callable[[_StaticValueConverter], _StaticValueConverter]]:
+    ) -> Optional[Callable[[_StaticValueConverterVar], _StaticValueConverterVar]]:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
 
-        def decorator(func: _StaticValueConverter, /, *, check_override: bool = bool(use_override)) -> _StaticValueConverter:
+        def decorator(func: _StaticValueConverterVar, /, *, check_override: bool = bool(use_override)) -> _StaticValueConverterVar:
             value_converter_list = template.value_converter.setdefault(option, [])
             wrapper = _make_function_wrapper(func, check_override=check_override, no_object=True)
             if wrapper in value_converter_list:
@@ -1348,25 +1348,29 @@ class OptionAttribute(Generic[_T], Object):
         return self.__name
 
 
+def _default_mapping() -> MappingProxyType[Any, Any]:
+    return MappingProxyType({})
+
+
 @final
 @dataclass(frozen=True, slots=True)
 class ConfigurationInfo:
     options: FrozenSet[str]
     _: KW_ONLY
-    option_value_updater: Mapping[str, Callable[[object, Any], None]] = field(default_factory=lambda: MappingProxyType({}))
-    option_updater: Mapping[str, Callable[[object], None]] = field(default_factory=lambda: MappingProxyType({}))
+    option_value_updater: Mapping[str, Callable[[object, Any], None]] = field(default_factory=_default_mapping)
+    option_updater: Mapping[str, Callable[[object], None]] = field(default_factory=_default_mapping)
     many_options_updater: Optional[Callable[[object, Sequence[str]], None]] = field(default=None)
     main_updater: Optional[Callable[[object], None]] = field(default=None)
-    value_converter: Mapping[str, Callable[[object, Any], Any]] = field(default_factory=lambda: MappingProxyType({}))
-    value_validator: Mapping[str, Callable[[object, Any], None]] = field(default_factory=lambda: MappingProxyType({}))
-    value_descriptors: Mapping[str, _Descriptor] = field(default_factory=lambda: MappingProxyType({}))
+    value_converter: Mapping[str, Callable[[object, Any], Any]] = field(default_factory=_default_mapping)
+    value_validator: Mapping[str, Callable[[object, Any], None]] = field(default_factory=_default_mapping)
+    value_descriptors: Mapping[str, _Descriptor] = field(default_factory=_default_mapping)
     autocopy: bool = field(default=False)
-    value_autocopy_get: Mapping[str, bool] = field(default_factory=lambda: MappingProxyType({}))
-    value_autocopy_set: Mapping[str, bool] = field(default_factory=lambda: MappingProxyType({}))
-    attribute_class_owner: Mapping[str, type] = field(default_factory=lambda: MappingProxyType({}))
-    aliases: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
-    value_copy: Mapping[type, Callable[[Any], Any]] = field(default_factory=lambda: MappingProxyType({}))
-    value_copy_allow_subclass: Mapping[type, bool] = field(default_factory=lambda: MappingProxyType({}))
+    value_autocopy_get: Mapping[str, bool] = field(default_factory=_default_mapping)
+    value_autocopy_set: Mapping[str, bool] = field(default_factory=_default_mapping)
+    attribute_class_owner: Mapping[str, type] = field(default_factory=_default_mapping)
+    aliases: Mapping[str, str] = field(default_factory=_default_mapping)
+    value_copy: Mapping[type, Callable[[Any], Any]] = field(default_factory=_default_mapping)
+    value_copy_allow_subclass: Mapping[type, bool] = field(default_factory=_default_mapping)
     readonly_options: FrozenSet[str] = field(default_factory=frozenset)
     enum_return_value: FrozenSet[str] = field(default_factory=frozenset)
 
@@ -1813,7 +1817,7 @@ class Configuration(Generic[_T], Object):
         return lock
 
 
-def _no_type_check_cache(func: _Func) -> _Func:
+def _no_type_check_cache(func: _FuncVar) -> _FuncVar:
     return cache(func)  # type: ignore[return-value]
 
 
@@ -2248,8 +2252,8 @@ class _ConfigInfoTemplate:
     @classmethod
     def __merge_updater_dict(
         cls,
-        d1: Dict[str, List[_Func]],
-        d2: Dict[str, List[_Func]],
+        d1: Dict[str, List[_FuncVar]],
+        d2: Dict[str, List[_FuncVar]],
         /,
         *,
         setting: str,
@@ -2300,7 +2304,7 @@ class _ConfigInfoTemplate:
         )
 
     def __intern_build_all_wrappers(self, owner: type) -> None:
-        def build_wrapper_if_needed(func: _Func) -> _Func:
+        def build_wrapper_if_needed(func: _FuncVar) -> _FuncVar:
             if isinstance(func, (_FunctionWrapperBuilder, _WrappedFunctionWrapper)):
                 return func.build_wrapper(owner)  # type: ignore[return-value]
             return func
