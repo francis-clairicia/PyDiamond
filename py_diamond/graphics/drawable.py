@@ -26,7 +26,7 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
-from bisect import insort_right
+from bisect import insort_left, insort_right
 from contextlib import suppress
 from itertools import dropwhile, filterfalse, takewhile
 from typing import TYPE_CHECKING, Any, Callable, Iterator, Protocol, Sequence, TypeVar, overload, runtime_checkable
@@ -308,7 +308,7 @@ class BaseLayeredDrawableGroup(BaseDrawableGroup[_D]):
         except KeyError:
             raise ValueError("obj not in group") from None
 
-    def change_layer(self, obj: _D, layer: int) -> None:
+    def change_layer(self, obj: _D, layer: int, *, top_of_layer: bool = True) -> None:
         layer = int(layer)
         layer_dict: WeakKeyDictionary[_D, int] = self.__layer_dict
         actual_layer: int | None = layer_dict.get(obj, None)
@@ -320,7 +320,8 @@ class BaseLayeredDrawableGroup(BaseDrawableGroup[_D]):
         except ValueError:
             raise ValueError("obj not in group") from None
         layer_dict[obj] = layer
-        insort_right(drawable_list, obj, key=layer_dict.__getitem__)
+        insort = insort_right if top_of_layer else insort_left
+        insort(drawable_list, obj, key=layer_dict.__getitem__)
 
     def get_top_layer(self) -> int:
         return self.__layer_dict[self[-1]]
@@ -364,7 +365,7 @@ class BaseLayeredDrawableGroup(BaseDrawableGroup[_D]):
         change_layer = self.change_layer
         drawable_list_layer1: Sequence[_D] = self.remove_from_layer(layer1)
         for d in self.get_from_layer(layer2):
-            change_layer(d, layer2)
+            change_layer(d, layer2, top_of_layer=True)
         self.add(*drawable_list_layer1, layer=layer2)
 
     @property
