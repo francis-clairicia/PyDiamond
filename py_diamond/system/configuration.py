@@ -27,6 +27,7 @@ __license__ = "GNU GPL v3.0"
 import re
 from contextlib import ExitStack, contextmanager, nullcontext, suppress
 from copy import copy, deepcopy
+from dataclasses import KW_ONLY, dataclass, field
 from enum import Enum
 from functools import cache, update_wrapper, wraps
 from itertools import chain
@@ -1348,26 +1349,28 @@ class OptionAttribute(Generic[_T], Object):
 
 
 @final
-class ConfigurationInfo(NamedTuple):
+@dataclass(frozen=True, slots=True)
+class ConfigurationInfo:
     options: FrozenSet[str]
-    option_value_updater: Mapping[str, Callable[[object, Any], None]]
-    option_updater: Mapping[str, Callable[[object], None]]
-    many_options_updater: Optional[Callable[[object, Sequence[str]], None]]
-    main_updater: Optional[Callable[[object], None]]
-    value_converter: Mapping[str, Callable[[object, Any], Any]]
-    value_validator: Mapping[str, Callable[[object, Any], None]]
-    value_descriptors: Mapping[str, _Descriptor]
-    autocopy: bool
-    value_autocopy_get: Mapping[str, bool]
-    value_autocopy_set: Mapping[str, bool]
-    attribute_class_owner: Mapping[str, type]
-    aliases: Mapping[str, str]
-    value_copy: Mapping[type, Callable[[Any], Any]]
-    value_copy_allow_subclass: Mapping[type, bool]
-    readonly_options: FrozenSet[str]
-    enum_return_value: FrozenSet[str]
+    _: KW_ONLY
+    option_value_updater: Mapping[str, Callable[[object, Any], None]] = field(default_factory=lambda: MappingProxyType({}))
+    option_updater: Mapping[str, Callable[[object], None]] = field(default_factory=lambda: MappingProxyType({}))
+    many_options_updater: Optional[Callable[[object, Sequence[str]], None]] = field(default=None)
+    main_updater: Optional[Callable[[object], None]] = field(default=None)
+    value_converter: Mapping[str, Callable[[object, Any], Any]] = field(default_factory=lambda: MappingProxyType({}))
+    value_validator: Mapping[str, Callable[[object, Any], None]] = field(default_factory=lambda: MappingProxyType({}))
+    value_descriptors: Mapping[str, _Descriptor] = field(default_factory=lambda: MappingProxyType({}))
+    autocopy: bool = field(default=False)
+    value_autocopy_get: Mapping[str, bool] = field(default_factory=lambda: MappingProxyType({}))
+    value_autocopy_set: Mapping[str, bool] = field(default_factory=lambda: MappingProxyType({}))
+    attribute_class_owner: Mapping[str, type] = field(default_factory=lambda: MappingProxyType({}))
+    aliases: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
+    value_copy: Mapping[type, Callable[[Any], Any]] = field(default_factory=lambda: MappingProxyType({}))
+    value_copy_allow_subclass: Mapping[type, bool] = field(default_factory=lambda: MappingProxyType({}))
+    readonly_options: FrozenSet[str] = field(default_factory=frozenset)
+    enum_return_value: FrozenSet[str] = field(default_factory=frozenset)
 
-    class __ReadOnlyOptionWrapper:  # type: ignore[misc]
+    class __ReadOnlyOptionWrapper:
         def __init__(self, default_descriptor: _Descriptor) -> None:
             self.__descriptor: Callable[[], _Descriptor] = lambda: default_descriptor
 
