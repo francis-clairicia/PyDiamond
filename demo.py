@@ -935,6 +935,22 @@ class SoundManager(ResourceManager):
     __resources_files__ = {"select": "sfx-menu-select.wav", "validate": "sfx-menu-validate.wav", "block": "sfx-menu-block.wav"}
 
 
+class VolumeScaleBar(ScaleBar):
+    def __init__(self, master: Scene | Window, width: float, height: float, *, theme: Any | None = None):
+        super().__init__(
+            master,
+            width,
+            height,
+            from_=0,
+            to=100,
+            resolution=1,
+            percent_default=MusicStream.get_volume(),
+            percent_callback=MusicStream.set_volume,
+            cursor_thickness=1,
+            theme=theme,
+        )
+
+
 class AudioScene(MainScene):
     def __init__(self) -> None:
         super().__init__()
@@ -953,6 +969,9 @@ class AudioScene(MainScene):
         self.first = Button(
             self, "First", shadow_x=0, shadow_y=0, hover_sound=SoundManager.select, click_sound=SoundManager.validate
         )
+        self.scale = VolumeScaleBar(self, 500, 75)
+        self.scale.show_label("Music volume", side="top")
+        self.scale.show_percent("inside", shadow_x=0, shadow_y=0, color=BLACK)
         return super().awake(**kwargs)
 
     def on_start_loop_before_transition(self) -> None:
@@ -968,10 +987,11 @@ class AudioScene(MainScene):
     def update(self) -> None:
         self.text.center = self.window.center
         self.first.midtop = (self.text.centerx, self.text.bottom + 10)
+        self.scale.midbottom = (self.window.centerx, self.window.bottom - 10)
         return super().update()
 
     def render(self) -> None:
-        self.window.draw(self.text, self.first)
+        self.window.draw(self.text, self.first, self.scale)
 
     def on_quit(self) -> None:
         MusicStream.stop()
@@ -1018,6 +1038,13 @@ class GUIAudioScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableS
         self.grid.outline_color = PURPLE
 
         self.grid.center = self.window.center
+
+        self.scale = VolumeScaleBar(self, 500, 75)
+        self.scale.focus.take(False)
+        self.scale.show_label("Music volume", side="top")
+        self.scale.show_percent("inside", shadow_x=0, shadow_y=0, color=BLACK)
+
+        self.scale.midbottom = (self.window.centerx, self.window.bottom - 10)
 
     def on_start_loop_before_transition(self) -> None:
         self.set_text_position()
@@ -1224,6 +1251,7 @@ def main() -> None:
         return
 
     with MainWindow().open() as window, Mixer.init():
+        MusicStream.set_volume(0)
         window.mainloop(args.index)
 
 

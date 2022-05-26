@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Callable, ClassVar, Sequence
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.utils._mangling import getattr_pv
 from ..system.validation import valid_integer
-from ..window.event import KeyEvent, MouseButtonDownEvent, MouseMotionEvent
+from ..window.event import Event, KeyDownEvent, KeyEvent, KeyUpEvent, MouseButtonDownEvent, MouseMotionEvent
 from ..window.widget import AbstractWidget
 from .color import BLACK, BLUE, GRAY, WHITE, Color
 from .progress import ProgressBar
@@ -65,6 +65,7 @@ class ScaleBar(ProgressBar, AbstractWidget):
         from_: float = 0,
         to: float = 1,
         default: float | None = None,
+        percent_default: float | None = None,
         orient: str = "horizontal",
         value_callback: Callable[[float], None] | None = None,
         percent_callback: Callable[[float], None] | None = None,
@@ -100,6 +101,7 @@ class ScaleBar(ProgressBar, AbstractWidget):
             from_=from_,
             to=to,
             default=default,
+            percent_default=percent_default,
             orient=orient,
             color=color,
             scale_color=scale_color,
@@ -140,6 +142,11 @@ class ScaleBar(ProgressBar, AbstractWidget):
 
     def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
         return truth(self.rect.collidepoint(mouse_pos))
+
+    def _should_ignore_event(self, event: Event) -> bool:
+        return super()._should_ignore_event(event) or (
+            isinstance(event, (KeyDownEvent, KeyUpEvent)) and self._ignore_key_event(event)
+        )
 
     def _ignore_key_event(self, event: KeyEvent) -> bool:
         return True

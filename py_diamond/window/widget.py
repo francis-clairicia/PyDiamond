@@ -21,7 +21,7 @@ from .clickable import Clickable
 from .cursor import AbstractCursor
 from .display import Window
 from .event import Event, KeyDownEvent, KeyEvent, KeyUpEvent, MouseButtonUpEvent
-from .gui import BoundFocus
+from .gui import BoundFocus, GUIScene
 from .keyboard import Keyboard
 from .scene import Scene
 
@@ -59,6 +59,9 @@ class AbstractWidget(Clickable):
         self.event.bind(KeyDownEvent, lambda self, event: self.__handle_key_press_event(event, focus_handle_event=False))
         self.event.bind(KeyUpEvent, lambda self, event: self.__handle_key_press_event(event, focus_handle_event=False))
 
+    def get_focus_on_hover(self) -> bool:
+        return self.__focus_on_hover
+
     def set_focus_on_hover(self, status: bool) -> None:
         self.__focus_on_hover = focus_on_hover = truth(status)
         if focus_on_hover and self.hover:
@@ -73,11 +76,16 @@ class AbstractWidget(Clickable):
         return cls.__default_focus_on_hover
 
     def __handle_key_press_event(self, event: KeyEvent, focus_handle_event: bool) -> bool:
-        if self._should_ignore_event(event):
+        if not isinstance(self.scene, GUIScene) or self._should_ignore_event(event):
             return False
 
-        if not self.is_shown() or not focus_handle_event:
+        if not self.is_shown():
             self.active = self.hover = False
+            return False
+
+        if not focus_handle_event:
+            if not self.focus.has():
+                self.active = self.hover = False
             return False
 
         valid_key: bool = truth(self._valid_key(event.key)) and self.hover
@@ -111,27 +119,26 @@ class AbstractWidget(Clickable):
     def _valid_key(self, key: int) -> bool:
         return key in (Keyboard.Key.RETURN, Keyboard.Key.KP_ENTER)
 
-    def _ignore_key_event(self, event: KeyEvent) -> bool:
-        return event.key in (
-            Keyboard.Key.NUMLOCK,
-            Keyboard.Key.CAPSLOCK,
-            Keyboard.Key.SCROLLOCK,
-            Keyboard.Key.RSHIFT,
-            Keyboard.Key.LSHIFT,
-            Keyboard.Key.RCTRL,
-            Keyboard.Key.LCTRL,
-            Keyboard.Key.RALT,
-            Keyboard.Key.LALT,
-            Keyboard.Key.RMETA,
-            Keyboard.Key.LMETA,
-            Keyboard.Key.LSUPER,
-            Keyboard.Key.RSUPER,
-            Keyboard.Key.MODE,
-        )
-
     def _should_ignore_event(self, event: Event) -> bool:
         return super()._should_ignore_event(event) or (
-            isinstance(event, (KeyUpEvent, KeyDownEvent)) and self._ignore_key_event(event)
+            isinstance(event, (KeyUpEvent, KeyDownEvent))
+            and event.key
+            in (
+                Keyboard.Key.NUMLOCK,
+                Keyboard.Key.CAPSLOCK,
+                Keyboard.Key.SCROLLOCK,
+                Keyboard.Key.RSHIFT,
+                Keyboard.Key.LSHIFT,
+                Keyboard.Key.RCTRL,
+                Keyboard.Key.LCTRL,
+                Keyboard.Key.RALT,
+                Keyboard.Key.LALT,
+                Keyboard.Key.RMETA,
+                Keyboard.Key.LMETA,
+                Keyboard.Key.LSUPER,
+                Keyboard.Key.RSUPER,
+                Keyboard.Key.MODE,
+            )
         )
 
     def _should_ignore_mouse_position(self, mouse_pos: tuple[float, float]) -> bool:

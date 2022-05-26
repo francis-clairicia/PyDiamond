@@ -137,8 +137,8 @@ class Clickable(Object):
                 self._on_click_up(event)
                 if not valid_click:
                     return False
-                self._on_valid_click(event)
                 self.play_click_sound()
+                self._on_valid_click(event)
                 self._on_hover()
                 if self.state != Clickable.State.DISABLED:
                     self.invoke()
@@ -148,21 +148,31 @@ class Clickable(Object):
                 return False
         return False
 
-    def __handle_mouse_motion(self, event: MouseMotionEvent) -> None:
-        if self._should_ignore_event(event) or not self.is_shown():
-            return
+    def __handle_mouse_motion(self, event: MouseMotionEvent) -> bool:
+        if self._should_ignore_event(event):
+            return False
+
+        if not self.is_shown():
+            self.hover = False
+            return False
+
+        hover = self._mouse_in_hitbox(event.pos)
+        event_handled = False
+
+        self.hover = hover
+        if hover or (not self.__active_only_on_hover and self.active):
+            event_handled = True
         self._on_mouse_motion(event)
+        return event_handled
 
     def __handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
         if self._should_ignore_mouse_position(mouse_pos):
             return
 
         if not self.is_shown():
-            self.hover = False
             return
 
-        self.hover = hover = self._mouse_in_hitbox(mouse_pos)
-        if hover or (not self.__active_only_on_hover and self.active):
+        if self.hover or (not self.__active_only_on_hover and self.active):
             self.__hover_cursor[self.__state].set()
 
     def _should_ignore_event(self, event: Event) -> bool:

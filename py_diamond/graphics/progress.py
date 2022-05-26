@@ -79,6 +79,7 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
         from_: float = 0,
         to: float = 1,
         default: float | None = None,
+        percent_default: float | None = None,
         orient: str = "horizontal",
         color: Color = WHITE,
         scale_color: Color = GRAY,
@@ -130,8 +131,13 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
         self.__start: float = from_
         self.__end: float = to
 
+        if default is not None and percent_default is not None:
+            raise ValueError("Set either 'default' or 'percent_default'")
+
         if default is not None:
             self.value = default
+        elif percent_default is not None:
+            self.percent = percent_default
         else:
             self.value = from_
 
