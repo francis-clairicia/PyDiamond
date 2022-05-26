@@ -17,6 +17,7 @@ __all__ = [
     "Clock",
     "Cursor",
     "Dialog",
+    "DialogMeta",
     "Event",
     "EventFactory",
     "EventFactoryError",
@@ -109,7 +110,7 @@ del os, pygame
 from .clickable import Clickable
 from .clock import Clock
 from .cursor import AbstractCursor, Cursor, SystemCursor
-from .dialog import Dialog, PopupDialog
+from .dialog import Dialog, DialogMeta, PopupDialog
 from .display import Window, WindowCallback, WindowError
 from .event import (
     BuiltinEvent,

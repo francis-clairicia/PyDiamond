@@ -16,14 +16,71 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
-from typing import Any
+from itertools import chain
+from typing import TYPE_CHECKING, Any, Sequence, TypeVar
 
 from ..graphics.color import BLUE, TRANSPARENT, WHITE, Color
 from ..graphics.movable import Movable, MovableProxy
 from ..graphics.shape import RectangleShape
 from ..system.object import final
+from ..system.utils.functools import cache
 from ..system.validation import valid_optional_float
-from .scene import Dialog, SceneWindow
+from .scene import _ALL_SCENES, Scene, SceneMeta, SceneWindow
+
+
+class DialogMeta(SceneMeta):
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="DialogMeta")
+
+    __theme_namespace_decorator_exempt: Sequence[str] = ("render",)
+
+    def __new__(
+        mcs: type[__Self],
+        name: str,
+        bases: tuple[type, ...],
+        namespace: dict[str, Any],
+        **kwargs: Any,
+    ) -> __Self:
+        if "Dialog" not in globals():
+            return super().__new__(mcs, name, bases, namespace, **kwargs)
+
+        if not any(issubclass(cls, Dialog) for cls in bases):
+            raise TypeError(
+                f"{name!r} must be inherits from a {Dialog.__name__} class in order to use {DialogMeta.__name__} metaclass"
+            )
+
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
+
+    def __init__(
+        cls,
+        name: str,
+        bases: tuple[type, ...],
+        namespace: dict[str, Any],
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(name, bases, namespace, **kwargs)
+        if cls in _ALL_SCENES:
+            _ALL_SCENES.remove(cls)  # type: ignore[arg-type]
+
+    @classmethod
+    @cache
+    def get_default_theme_decorator_exempt(mcs) -> frozenset[str]:
+        return frozenset(chain(super().get_default_theme_decorator_exempt(), mcs.__theme_namespace_decorator_exempt))
+
+
+class Dialog(Scene, metaclass=DialogMeta):
+    def __init__(self) -> None:
+        super().__init__()
+        self.__master: Scene
+        try:
+            self.__master
+        except AttributeError:
+            raise TypeError(f"Trying to instantiate {self.__class__.__name__!r} dialog outside a SceneWindow manager") from None
+        self.background_color = Color(0, 0, 0, 0)
+
+    @property
+    def master(self) -> Scene:
+        return self.__master
 
 
 class PopupDialog(Dialog):
