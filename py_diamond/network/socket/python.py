@@ -41,8 +41,10 @@ from .base import (
     AbstractSocket,
     AbstractTCPClientSocket,
     AbstractTCPServerSocket,
+    AbstractTCPSocket,
     AbstractUDPClientSocket,
     AbstractUDPServerSocket,
+    AbstractUDPSocket,
     IPv4SocketAddress,
     IPv6SocketAddress,
     ReceivedDatagram,
@@ -166,7 +168,7 @@ class _AbstractPythonSocket(AbstractSocket):
         return family
 
 
-class _AbstractPythonTCPSocket(_AbstractPythonSocket):
+class _AbstractPythonTCPSocket(_AbstractPythonSocket, AbstractTCPSocket):
     __slots__ = ()
 
     @final
@@ -355,7 +357,7 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
             sock.settimeout(None)
 
 
-class _AbstractPythonUDPSocket(_AbstractPythonSocket):
+class _AbstractPythonUDPSocket(_AbstractPythonSocket, AbstractUDPSocket):
     __slots__ = ()
 
     MAX_PACKET_SIZE: Final[int] = 8192

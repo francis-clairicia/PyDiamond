@@ -81,24 +81,11 @@ def test_object_override_method() -> None:
 
 
 def test_object_override_missing_in_bases() -> None:
-    with pytest.raises(TypeError, match=r"These methods will not override base method: non_override_method"):
+    with pytest.raises(TypeError, match=r"These methods will not override base method: .+"):
 
         class A(Object):
             @override
             def non_override_method(self) -> None:
-                pass
-
-    with pytest.raises(
-        TypeError, match=r"These methods will not override base method: non_override_method2?, non_override_method2?"
-    ):
-
-        class B(Object, int):
-            @override
-            def non_override_method(self) -> None:
-                pass
-
-            @override(final=True)
-            def non_override_method2(self) -> None:
                 pass
 
 
@@ -117,7 +104,6 @@ def test_object_override_property() -> None:
         assert getattr(getattr(a, "fget"), "__mustoverride__")
 
 
-@pytest.mark.skip("Not yet implemented")
 def test_object_final_method_base_conflicts() -> None:
     class A(Object):
         def method(self) -> None:
@@ -137,13 +123,34 @@ def test_object_final_method_base_conflicts() -> None:
             pass
 
 
+def test_object_final_method_base_no_conflict_in_complex_inheritance() -> None:
+    class A(Object):
+        @final
+        def method(self) -> None:
+            pass
+
+    class B(A):
+        pass
+
+    class C(B):
+        pass
+
+    class D(A):
+        pass
+
+    class Test(D, C):  # Must not fail
+        pass
+
+    assert Test.__finalmethods__ == frozenset({"method"})
+
+
 def test_object_final_method_overriden() -> None:
     class A(Object):
         @final
         def method(self) -> None:
             pass
 
-    with pytest.raises(TypeError, match=r"These attributes would override final methods: method"):
+    with pytest.raises(TypeError, match=r"These attributes would override final methods: 'method'"):
 
         class B(A):
             def method(self) -> None:  # type: ignore[misc]
