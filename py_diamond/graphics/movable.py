@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Movable", "MovableMeta"]
+__all__ = ["Movable", "MovableMeta", "MovableProxy"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -126,12 +126,18 @@ class Movable(Object, metaclass=MovableMeta):
             setattr(self, name, value)
 
     def move(self, dx: float, dy: float) -> None:
+        if (dx, dy) == (0, 0):
+            return
         self.__x += dx
         self.__y += dy
+        self._on_move()
 
     def translate(self, vector: Vector2 | tuple[float, float]) -> None:
+        if (vector[0], vector[1]) == (0, 0):
+            return
         self.__x += vector[0]
         self.__y += vector[1]
+        self._on_move()
 
     @abstractmethod
     def get_size(self) -> tuple[float, float]:
@@ -310,3 +316,41 @@ class Movable(Object, metaclass=MovableMeta):
         w, h = self.get_size()
         self.__x = midright[0] - w
         self.__y = midright[1] - (h / 2)
+
+
+class _MovableProxyMeta(MovableMeta):
+    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> MovableMeta:
+        if "MovableProxy" not in globals() and name == "MovableProxy":
+            from ..system.utils._mangling import mangle_private_attribute
+
+            for attr in ("x", "y"):
+                attr = mangle_private_attribute(Movable, attr)
+
+                def getter(self: MovableProxy, /, *, attr: str = str(attr)) -> Any:
+                    movable: Movable = object.__getattribute__(self, "_movable")
+                    return getattr(movable, attr)
+
+                def setter(self: MovableProxy, value: Any, /, *, attr: str = str(attr)) -> Any:
+                    movable: Movable = object.__getattribute__(self, "_movable")
+                    return setattr(movable, attr, value)
+
+                namespace[attr] = property(fget=getter, fset=setter)
+
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
+
+
+class MovableProxy(Movable, metaclass=_MovableProxyMeta):
+    def __init__(self, movable: Movable) -> None:
+        object.__setattr__(self, "_movable", movable)
+
+    def get_size(self) -> tuple[float, float]:
+        movable: Movable = object.__getattribute__(self, "_movable")
+        return movable.get_size()
+
+    def _on_move(self) -> None:
+        movable: Movable = object.__getattribute__(self, "_movable")
+        movable._on_move()
+        return super()._on_move()
+
+
+del _MovableProxyMeta

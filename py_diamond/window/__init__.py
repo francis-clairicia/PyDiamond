@@ -49,6 +49,7 @@ __all__ = [
     "MouseWheelEvent",
     "MusicEndEvent",
     "NoFocusSupportError",
+    "PopupDialog",
     "RenderedLayeredScene",
     "ReturningSceneTransition",
     "Scene",
@@ -108,7 +109,7 @@ del os, pygame
 from .clickable import Clickable
 from .clock import Clock
 from .cursor import AbstractCursor, Cursor, SystemCursor
-from .dialog import Dialog  # , PopUpDialog
+from .dialog import Dialog, PopupDialog
 from .display import Window, WindowCallback, WindowError
 from .event import (
     BuiltinEvent,

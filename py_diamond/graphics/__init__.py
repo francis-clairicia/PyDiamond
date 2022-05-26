@@ -62,6 +62,7 @@ __all__ = [
     "Mask",
     "Movable",
     "MovableMeta",
+    "MovableProxy",
     "MultiColorShape",
     "NoTheme",
     "ORANGE",
@@ -220,7 +221,7 @@ from .gradients import (
 )
 from .grid import Grid, GridElement
 from .image import Image
-from .movable import Movable, MovableMeta
+from .movable import Movable, MovableMeta, MovableProxy
 from .progress import ProgressBar, ProgressBarMeta
 from .rect import ImmutableRect, Rect
 from .renderer import AbstractRenderer, SurfaceRenderer

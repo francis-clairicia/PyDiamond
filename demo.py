@@ -52,6 +52,7 @@ from py_diamond.graphics.text import Text, TextImage
 from py_diamond.resource.loader import FontLoader, ImageLoader, MusicLoader, SoundLoader
 from py_diamond.resource.manager import ResourceManager
 from py_diamond.window.clock import Clock
+from py_diamond.window.dialog import PopupDialog
 from py_diamond.window.display import Window, WindowCallback
 from py_diamond.window.event import (
     BuiltinEvent,
@@ -68,7 +69,6 @@ from py_diamond.window.mouse import Mouse
 from py_diamond.window.scene import (
     AbstractAutoLayeredDrawableScene,
     AbstractLayeredMainScene,
-    Dialog,
     MainScene,
     RenderedLayeredScene,
     Scene,
@@ -1070,15 +1070,32 @@ class GUIAudioScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableS
         return super().on_quit()
 
 
-class MyDialog(Dialog):
+class MyDialog(PopupDialog, GUIScene):
+    @classmethod
+    def __theme_init__(cls) -> None:
+        super().__theme_init__()
+        Text.set_theme("text", {"font": (FontResources.cooperblack, 40)})
+
     def awake(self, **kwargs: Any) -> None:
         print(kwargs)
-        super().awake(**kwargs)
+        super().awake(border_radius=30, **kwargs)
         self.background_color = BLACK.with_alpha(200)
         self.event.bind_key_press(Keyboard.Key.ESCAPE, lambda _: self.stop())
+        self.cancel = ImageButton(
+            self,
+            img=ImagesResources.cross["normal"],
+            active_img=ImagesResources.cross["hover"],
+            callback=self.stop,
+        )
+        self.text = Text("I'm a text", theme="text")
 
-    def render(self) -> None:
-        pass
+    def set_default_popup_position(self) -> None:
+        super().set_default_popup_position()
+        self.cancel.topleft = (self.popup.left + 20, self.popup.top + 20)
+        self.text.center = self.popup.center
+
+    def _render(self) -> None:
+        self.window.draw(self.cancel, self.text)
 
 
 class TestDialogScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableScene):

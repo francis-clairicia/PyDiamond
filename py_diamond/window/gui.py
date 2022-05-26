@@ -67,7 +67,6 @@ class GUIScene(Scene):
         super().__init__()
         self.__container: FocusableContainer = FocusableContainer(self)
         self.__focus_index: int = -1
-        handle_key_event = self.__handle_key_event
         set_focus_mode_key: Callable[[KeyEvent], None] = lambda _: BoundFocus.set_mode(BoundFocus.Mode.KEY)
         set_focus_mode_mouse: Callable[[MouseEvent], None] = lambda _: BoundFocus.set_mode(BoundFocus.Mode.MOUSE)
         self.event.bind(KeyDownEvent, set_focus_mode_key)
@@ -76,8 +75,6 @@ class GUIScene(Scene):
         self.event.bind(MouseButtonUpEvent, set_focus_mode_mouse)
         self.event.bind(MouseMotionEvent, set_focus_mode_mouse)
         self.event.bind(MouseWheelEvent, set_focus_mode_mouse)
-        self.event.bind_key_press(Keyboard.Key.TAB, handle_key_event)
-        self.event.bind_key_press(Keyboard.Key.ESCAPE, handle_key_event)
 
     def update(self) -> None:
         super().update()
@@ -204,14 +201,13 @@ class GUIScene(Scene):
 
     @no_theme_decorator
     def __handle_key_event(self, event: KeyDownEvent) -> bool:
-        if event.key == Keyboard.Key.TAB:
-            self.focus_set(
-                self.get_next_focusable() if not event.mod & Keyboard.Modifiers.SHIFT else self.get_previous_focusable()
-            )
-            return True
-        if event.key == Keyboard.Key.ESCAPE:
-            self.focus_set(None)
-            return True
+        match event.key:
+            case Keyboard.Key.TAB:
+                self.focus_set(
+                    self.get_next_focusable() if not event.mod & Keyboard.Modifiers.SHIFT else self.get_previous_focusable()
+                )
+            case Keyboard.Key.ESCAPE:
+                self.focus_set(None)
         side_with_key_event = self.get_side_with_key_event()
         if event.key in side_with_key_event:
             side: BoundFocus.Side = side_with_key_event[event.key]
