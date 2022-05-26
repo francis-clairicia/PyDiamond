@@ -25,7 +25,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from collections import deque
+from collections import OrderedDict, defaultdict, deque
 from contextlib import nullcontext, suppress
 from functools import cached_property
 from inspect import Parameter, Signature
@@ -55,7 +55,7 @@ from typing import (
     overload,
 )
 
-from ..system.object import Object, ObjectMeta
+from ..system.object import Object, ObjectMeta, mro
 from ..system.utils._mangling import PRIVATE_ATTRIBUTE_PATTERN
 from ..system.utils.abc import concreteclassmethod, isabstractmethod
 from ..system.utils.functools import cache, wraps
@@ -335,11 +335,72 @@ NoTheme: _NoThemeType = _NoThemeType()
 ThemeType: TypeAlias = str | Iterable[str]
 
 
+@final
+class _ThemedObjectMROResolver(Object):
+    __marker: Any = object()
+
+    def __init__(self, max_size: int = 128) -> None:
+        self.__lru_cache: defaultdict[ThemedObjectMeta, OrderedDict[tuple[type, ...], tuple[ThemedObjectMeta, ...]]]
+        self.__lru_cache = defaultdict(OrderedDict)
+        self.__max_size: int = max_size
+        self.__lock: defaultdict[ThemedObjectMeta, RLock] = defaultdict(RLock)
+        self.__name: str | None = None
+
+    def __set_name__(self, owner: type, name: str, /) -> None:
+        self.__name = name
+
+    @overload
+    def __get__(self, obj: None, objtype: type, /) -> _ThemedObjectMROResolver:
+        ...
+
+    @overload
+    def __get__(self, obj: ThemedObjectMeta, objtype: type | None = None, /) -> tuple[ThemedObjectMeta, ...]:
+        ...
+
+    def __get__(
+        self, obj: ThemedObjectMeta | None, objtype: type | None = None, /
+    ) -> _ThemedObjectMROResolver | tuple[ThemedObjectMeta, ...]:
+        if obj is None:
+            if objtype is None:
+                raise TypeError("__get__(None, None) is forbidden")
+            return self
+
+        cache_key = tuple(sorted(obj.__virtual_themed_class_bases__, key=lambda cls: cls.__qualname__))
+        null = self.__marker
+
+        with self.__lock[obj]:
+            lru_cache: OrderedDict[tuple[type, ...], tuple[ThemedObjectMeta, ...]] = self.__lru_cache[obj]
+            mro: tuple[ThemedObjectMeta, ...] = lru_cache.get(cache_key, null)
+            if mro is not null:
+                lru_cache.move_to_end(cache_key)
+                return mro
+            lru_cache[cache_key] = mro = self.resolve(obj)
+            if len(lru_cache) > self.__max_size:
+                lru_cache.popitem(last=False)
+            return mro
+
+    def resolve(self, cls: ThemedObjectMeta) -> tuple[ThemedObjectMeta, ...]:
+        name: str | None = self.__name
+        if name is None:
+            raise TypeError("__set_name__() was not called")
+        cls_mro: Sequence[type]
+        try:
+            # Will work in most common cases
+            cls_mro = (cls,) + mro(*cls.__virtual_themed_class_bases__, *cls.__bases__, attr=name)
+        except TypeError:
+            # Try in the inverse order ?
+            cls_mro = (cls,) + mro(*cls.__bases__, *cls.__virtual_themed_class_bases__, attr=name)
+
+        return tuple(c for c in cls_mro if isinstance(c, ThemedObjectMeta))
+
+
 class ThemedObjectMeta(ObjectMeta):
     __virtual_themed_class_bases__: tuple[ThemedObjectMeta, ...]
     __theme_ignore__: Sequence[str]
     __theme_associations__: dict[type, dict[str, str]]
     __theme_override__: Sequence[str]
+
+    __themed_class_mro__: Final[_ThemedObjectMROResolver] = _ThemedObjectMROResolver()
 
     def __new__(
         mcs,
@@ -401,7 +462,7 @@ class ThemedObjectMeta(ObjectMeta):
             _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.add(cls)
             setattr(cls, "_no_parent_default_theme_", True)
         setattr(cls, "_is_abstract_theme_class_", False)
-        cls.__virtual_themed_class_bases__ = ()
+        super().__setattr__(cls, "__virtual_themed_class_bases__", ())
         if all(not isinstance(b, ThemedObjectMeta) or b.is_abstract_theme_class() for b in bases):
             _CLASSES_NOT_USING_PARENT_THEMES.add(cls)
             _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.add(cls)
@@ -436,9 +497,26 @@ class ThemedObjectMeta(ObjectMeta):
     def __setattr__(cls, name: str, value: Any, /) -> None:
         if name in ("__new__", "__init__"):
             raise AttributeError("can't set attribute")
-        if name in ("__theme_ignore__", "__theme_associations__"):
+        if name in (
+            "__virtual_themed_class_bases__",
+            "__theme_ignore__",
+            "__theme_associations__",
+            "__theme_override__",
+        ):
             raise AttributeError("Read-only attribute")
         return super().__setattr__(name, value)
+
+    def __delattr__(self, name: str, /) -> None:
+        if name in ("__new__", "__init__"):
+            raise AttributeError("can't delete attribute")
+        if name in (
+            "__virtual_themed_class_bases__",
+            "__theme_ignore__",
+            "__theme_associations__",
+            "__theme_override__",
+        ):
+            raise AttributeError("Read-only attribute")
+        return super().__delattr__(name)
 
     @overload
     def set_theme(cls, name: str, options: dict[str, Any], update: bool = False, ignore_unusable: bool = True) -> None:
@@ -649,7 +727,10 @@ class ThemedObjectMeta(ObjectMeta):
             raise TypeError("Not a themed object")
         if subclass.is_abstract_theme_class():
             raise TypeError("Abstract theme classes cannot have themes.")
-        subclass.__virtual_themed_class_bases__ = (*subclass.__virtual_themed_class_bases__, cls)
+        if cls in subclass.__themed_class_mro__:
+            raise TypeError("Already a themed subclass")
+        virtual_themed_class_bases = (*subclass.__virtual_themed_class_bases__, cls)
+        super(ThemedObjectMeta, subclass).__setattr__("__virtual_themed_class_bases__", virtual_themed_class_bases)
         if not getattr(subclass, "_no_parent_theme_", False):
             _CLASSES_NOT_USING_PARENT_THEMES.discard(subclass)
         if not getattr(subclass, "_no_parent_default_theme_", False):
@@ -658,17 +739,20 @@ class ThemedObjectMeta(ObjectMeta):
 
     @staticmethod
     def __get_all_parent_classes(cls: ThemedObjectMeta, *, do_not_search_for: set[type]) -> Sequence[ThemedObjectMeta]:
-        def get_all_parent_classes(cls: ThemedObjectMeta) -> Iterator[ThemedObjectMeta]:
-            if not isinstance(cls, ThemedObjectMeta) or cls in do_not_search_for or cls.is_abstract_theme_class():
-                return
+        if cls in do_not_search_for:
+            return ()
 
-            for base in chain(cls.__bases__, cls.__virtual_themed_class_bases__):
-                if not isinstance(base, ThemedObjectMeta) or base.is_abstract_theme_class():
-                    continue
-                yield base
-                yield from get_all_parent_classes(base)
+        valid_parent_classes = set(ThemedObjectMeta.__travel_parent_classes(cls, do_not_search_for=do_not_search_for))
+        return tuple(filter(valid_parent_classes.__contains__, reversed(cls.__themed_class_mro__)))
 
-        return tuple(reversed(dict.fromkeys(get_all_parent_classes(cls))))
+    @staticmethod
+    def __travel_parent_classes(cls: ThemedObjectMeta, *, do_not_search_for: set[type]) -> Iterator[ThemedObjectMeta]:
+        for base in chain(cls.__bases__, cls.__virtual_themed_class_bases__):
+            if not isinstance(base, ThemedObjectMeta) or base.is_abstract_theme_class():
+                continue
+            yield base
+            if base not in do_not_search_for:
+                yield from ThemedObjectMeta.__travel_parent_classes(base, do_not_search_for=do_not_search_for)
 
 
 def abstract_theme_class(cls: _ThemedObjectClass) -> _ThemedObjectClass:
