@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from dataclasses import dataclass
 from enum import auto, unique
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Literal as L, Mapping, Sequence
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
@@ -363,4 +363,4 @@ class _ProgressTextValue:
     text: Text
     side: ProgressBar.Side | None
     round_n: int
-    type: Literal["value", "percent"] | None
+    type: L["value", "percent"] | None

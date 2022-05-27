@@ -30,7 +30,7 @@ from typing import (
     ClassVar,
     Final,
     Iterator,
-    Literal,
+    Literal as L,
     Mapping,
     Protocol,
     Sequence,
@@ -113,7 +113,7 @@ class GUIScene(Scene):
         return self.__internal_focus_next(offset=-1)
 
     @no_theme_decorator
-    def __internal_focus_next(self, offset: Literal[1, -1]) -> SupportsFocus | None:
+    def __internal_focus_next(self, offset: L[1, -1]) -> SupportsFocus | None:
         if not self.looping():
             return None
         focusable_list: Sequence[SupportsFocus] = self.__container

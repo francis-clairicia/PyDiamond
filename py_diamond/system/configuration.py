@@ -44,7 +44,7 @@ from typing import (
     Hashable,
     Iterator,
     List,
-    Literal,
+    Literal as L,
     Mapping,
     NamedTuple,
     Optional,
@@ -2223,7 +2223,7 @@ class _ConfigInfoTemplate:
         d2: Dict[_KT, _VT],
         /,
         *,
-        on_conflict: Union[Literal["override", "raise", "skip"], Callable[[_KT, _VT, _VT], _VT]],
+        on_conflict: Union[L["override", "raise", "skip"], Callable[[_KT, _VT, _VT], _VT]],
         setting: str,
         copy: Optional[Callable[[_VT], _VT]] = None,
     ) -> None:
@@ -2245,7 +2245,7 @@ class _ConfigInfoTemplate:
         l2: List[_T],
         /,
         *,
-        on_duplicate: Literal["keep", "put_at_end", "raise", "skip"],
+        on_duplicate: L["keep", "put_at_end", "raise", "skip"],
         setting: str,
         copy: Optional[Callable[[_T], _T]] = None,
     ) -> None:

@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 from abc import abstractmethod
 from dataclasses import dataclass
 from enum import auto, unique
-from typing import Any, ClassVar, Container, Iterator, Literal, Protocol, Sequence, TypeVar, overload, runtime_checkable
+from typing import Any, ClassVar, Container, Iterator, Literal as L, Protocol, Sequence, TypeVar, overload, runtime_checkable
 from weakref import ref as weakref
 
 from ..system.collections import SortedDict
@@ -355,9 +355,7 @@ class Grid(MDrawable, Container[GridElement]):
                     obj.focus.set_obj_on_side(on_bottom=bottom_obj)
 
     @staticmethod
-    def __find_closest(
-        cells: Sequence[_GridCell], attr: Literal["row", "column"], cell_to_link: _GridCell
-    ) -> SupportsFocus | None:
+    def __find_closest(cells: Sequence[_GridCell], attr: L["row", "column"], cell_to_link: _GridCell) -> SupportsFocus | None:
         closest: _GridCell | None = None
         closest_obj: SupportsFocus | None = None
         value: int = getattr(cell_to_link, attr)

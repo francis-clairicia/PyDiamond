@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 from abc import ABCMeta, abstractmethod
 from contextlib import ExitStack, contextmanager
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal, NamedTuple, TypeAlias, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal as L, NamedTuple, TypeAlias, TypeVar, overload
 from weakref import WeakKeyDictionary, proxy as weakproxy
 
 from ..math import Vector2
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from ..window.scene import Scene, SceneWindow
     from .transformable import Transformable
 
-_AnimationType: TypeAlias = Literal["move", "rotate", "rotate_point", "scale"]
+_AnimationType: TypeAlias = L["move", "rotate", "rotate_point", "scale"]
 
 
 @final
@@ -704,11 +704,11 @@ class _AbstractAnimationScale(_AbstractAnimationClass):
 
     __slots__ = ("__field",)
 
-    def __init__(self, transformable: Transformable, speed: float, field: Literal["width", "height"]) -> None:
+    def __init__(self, transformable: Transformable, speed: float, field: L["width", "height"]) -> None:
         super().__init__(transformable, speed)
         if field not in ("width", "height"):
             raise ValueError("Invalid arguments")
-        self.__field: Literal["width", "height"] = field
+        self.__field: L["width", "height"] = field
 
     def get_transformable_size(self) -> float:
         area: tuple[float, float] = self.transformable.get_area_size(apply_rotation=False)
@@ -724,7 +724,7 @@ class _AnimationSetSize(_AbstractAnimationScale):
 
     __slots__ = ("__value",)
 
-    def __init__(self, transformable: Transformable, value: float, speed: float, field: Literal["width", "height"]) -> None:
+    def __init__(self, transformable: Transformable, value: float, speed: float, field: L["width", "height"]) -> None:
         super().__init__(transformable, speed, field)
         self.__value: float = value
 
@@ -752,7 +752,7 @@ class _AnimationSizeGrowth(_AbstractAnimationScale):
 
     __slots__ = ("__value", "__orientation", "__actual_value")
 
-    def __init__(self, transformable: Transformable, offset: float, speed: float, field: Literal["width", "height"]) -> None:
+    def __init__(self, transformable: Transformable, offset: float, speed: float, field: L["width", "height"]) -> None:
         super().__init__(transformable, speed, field)
         self.__value: float = abs(offset)
         self.__orientation: int = int(offset // abs(offset)) if offset != 0 and speed > 0 else 0

@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from argparse import ArgumentParser
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterator, Literal, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterator, Literal as L, Mapping, Sequence
 
 from py_diamond.audio.mixer import Mixer
 from py_diamond.audio.music import Music, MusicStream
@@ -1114,9 +1114,9 @@ class TestDialogScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawabl
 
 
 class SceneTransitionTranslation(SceneTransition):
-    def __init__(self, side: Literal["left", "right"]) -> None:
+    def __init__(self, side: L["left", "right"]) -> None:
         super().__init__()
-        self.__side: Literal["left", "right"] = side
+        self.__side: L["left", "right"] = side
 
     def show_new_scene(
         self, target: AbstractRenderer, previous_scene_image: Surface, actual_scene_image: Surface
