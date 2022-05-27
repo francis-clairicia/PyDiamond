@@ -12,8 +12,10 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
+from collections import deque
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Final, Iterable, Mapping, TypeVar, overload
+from itertools import combinations
+from typing import TYPE_CHECKING, Any, Final, Iterable, Iterator, Mapping, TypeVar, overload
 
 from pygame.mask import Mask, from_surface as _pg_mask_from_surface
 from pygame.transform import rotate as _surface_rotate, scale as _surface_fastscale, smoothscale as _surface_smoothscale
@@ -28,7 +30,7 @@ from .surface import Surface, create_surface
 
 
 @final
-class _SpriteAnimation(cached_property[TransformAnimation], Object):
+class _SpriteTransformAnimation(cached_property[TransformAnimation], Object):
     def __init__(self) -> None:
         def func(self: Sprite) -> TransformAnimation:
             return TransformAnimation(self)
@@ -38,14 +40,16 @@ class _SpriteAnimation(cached_property[TransformAnimation], Object):
     if TYPE_CHECKING:
 
         @overload  # type: ignore[override]
-        def __get__(self, instance: None, owner: type[Any] | None = None) -> _SpriteAnimation:
+        def __get__(self, instance: None, owner: type[Any] | None = None) -> _SpriteTransformAnimation:
             ...
 
         @overload
         def __get__(self, instance: Sprite, owner: type[Any] | None = None) -> TransformAnimation:
             ...
 
-        def __get__(self, instance: Sprite | None, owner: type[Any] | None = None) -> _SpriteAnimation | TransformAnimation:
+        def __get__(
+            self, instance: Sprite | None, owner: type[Any] | None = None
+        ) -> _SpriteTransformAnimation | TransformAnimation:
             ...
 
 
@@ -61,9 +65,16 @@ class Sprite(TDrawable):
         "__blend_mode",
     )
 
-    animation: Final[_SpriteAnimation] = final(_SpriteAnimation())  # type: ignore[type-var]
+    animation: Final[_SpriteTransformAnimation] = final(_SpriteTransformAnimation())  # type: ignore[type-var]
 
-    def __init__(self, image: Surface | None = None, mask_threshold: int = DEFAULT_MASK_THRESHOLD) -> None:
+    def __init__(
+        self,
+        image: Surface | None = None,
+        *,
+        mask_threshold: int = DEFAULT_MASK_THRESHOLD,
+        width: float | None = None,
+        height: float | None = None,
+    ) -> None:
         TDrawable.__init__(self)
         self.__default_image: Surface = image.convert_alpha() if image is not None else create_surface((0, 0))
         self.__image: Surface = self.__default_image.copy()
@@ -72,6 +83,20 @@ class Sprite(TDrawable):
         self.__smooth_scale: bool = True
         self.__blend_mode: BlendMode = BlendMode.NONE
         self.set_mask_threshold(mask_threshold)
+
+        match (width, height):
+            case (int() | float() as width, int() | float() as height):
+                self.scale_to_size((width, height))
+            case (int() | float() as width, None):
+                self.scale_to_width(width)
+            case (None, int() | float() as height):
+                self.scale_to_height(height)
+            case (None, None):
+                pass
+            case _:
+                raise TypeError(f"Invalid argument: {image!r}")
+
+        self.topleft = (0, 0)
 
     def fixed_update(self, **kwargs: Any) -> None:
         self.animation.fixed_update()
@@ -83,10 +108,7 @@ class Sprite(TDrawable):
         pass
 
     def draw_onto(self, target: AbstractRenderer) -> None:
-        image: Surface = self.__image
-        topleft: tuple[float, float] = self.topleft
-        blend_mode: BlendMode = self.__blend_mode
-        target.draw_surface(image, topleft, special_flags=blend_mode)
+        target.draw_surface(self.__image, self.topleft, special_flags=self.__blend_mode)
 
     def get_local_size(self) -> tuple[float, float]:
         return self.__default_image.get_size()
@@ -104,6 +126,7 @@ class Sprite(TDrawable):
         if angle != 0:
             image = _surface_rotate(image, angle)
         self.__image = image
+        self.update_mask()
 
     def _apply_only_rotation(self) -> None:
         angle: float = self.angle
@@ -111,6 +134,7 @@ class Sprite(TDrawable):
         if angle != 0:
             image = _surface_rotate(image, angle)
         self.__image = image
+        self.update_mask()
 
     def _apply_only_scale(self) -> None:
         scale: float = self.scale
@@ -122,12 +146,14 @@ class Sprite(TDrawable):
             else:
                 image = _surface_fastscale(image, (w * scale, h * scale))
         self.__image = image
+        self.update_mask()
 
     def _freeze_state(self) -> dict[str, Any] | None:
         state = super()._freeze_state()
         if state is None:
             state = {}
         state["image"] = self.__image
+        state["mask"] = self.__mask
         return state
 
     def _set_frozen_state(self, angle: float, scale: float, state: Mapping[str, Any] | None) -> bool:
@@ -135,9 +161,10 @@ class Sprite(TDrawable):
         if state is None:
             return res
         self.__image = state["image"]
+        self.__mask = state["mask"]
         return True
 
-    def __update_mask(self) -> None:
+    def update_mask(self) -> None:
         self.__mask = _pg_mask_from_surface(self.__image, self.__mask_threshold)
 
     def get_size(self) -> tuple[float, float]:
@@ -148,7 +175,7 @@ class Sprite(TDrawable):
 
     def set_mask_threshold(self, threshold: int) -> None:
         self.__mask_threshold = min(max(int(threshold), 0), 255)
-        self.__update_mask()
+        self.update_mask()
 
     def use_smooth_scale(self, status: bool) -> None:
         former_state: bool = self.__smooth_scale
@@ -156,7 +183,11 @@ class Sprite(TDrawable):
         if former_state != actual_state:
             self.apply_rotation_scale()
 
-    def is_colliding(self, other: Sprite, *, relative: bool = False) -> tuple[int, int] | None:
+    def is_colliding(self, other: Sprite) -> bool:
+        return self.is_mask_colliding(other, relative=True) is not None
+
+    @final
+    def is_mask_colliding(self, other: Sprite, *, relative: bool = False) -> tuple[int, int] | None:
         this_rect: Rect = self.rect
         other_rect: Rect = other.rect
         xoffset: int = other_rect.x - this_rect.x
@@ -209,8 +240,15 @@ class AnimatedSprite(Sprite):
         "__loop",
     )
 
-    def __init__(self, image: Surface, *images: Surface, mask_threshold: int = Sprite.DEFAULT_MASK_THRESHOLD) -> None:
-        super().__init__(image=image, mask_threshold=mask_threshold)
+    def __init__(
+        self,
+        image: Surface,
+        *images: Surface,
+        mask_threshold: int = Sprite.DEFAULT_MASK_THRESHOLD,
+        width: float | None = None,
+        height: float | None = None,
+    ) -> None:
+        super().__init__(image=image, mask_threshold=mask_threshold, width=width, height=height)
         self.__list: list[Surface] = [self.default_image, *(i.convert_alpha() for i in images)]
         self.__sprite_idx: int = 0
         self.__clock: Clock = Clock()
@@ -220,15 +258,31 @@ class AnimatedSprite(Sprite):
 
     @classmethod
     def from_iterable(
-        cls: type[__Self], iterable: Iterable[Surface], *, mask_threshold: int = Sprite.DEFAULT_MASK_THRESHOLD
+        cls: type[__Self],
+        iterable: Iterable[Surface],
+        *,
+        mask_threshold: int = Sprite.DEFAULT_MASK_THRESHOLD,
+        width: float | None = None,
+        height: float | None = None,
     ) -> __Self:
-        return cls(*iterable, mask_threshold=mask_threshold)
+        return cls(*iterable, mask_threshold=mask_threshold, width=width, height=height)
 
     @classmethod
     def from_spritesheet(
-        cls: type[__Self], img: Surface, rect_list: list[Rect], *, mask_threshold: int = Sprite.DEFAULT_MASK_THRESHOLD
+        cls: type[__Self],
+        img: Surface,
+        rect_list: list[Rect],
+        *,
+        mask_threshold: int = Sprite.DEFAULT_MASK_THRESHOLD,
+        width: float | None = None,
+        height: float | None = None,
     ) -> __Self:
-        return cls.from_iterable((img.subsurface(rect) for rect in rect_list), mask_threshold=mask_threshold)
+        return cls.from_iterable(
+            (img.subsurface(rect) for rect in rect_list),
+            mask_threshold=mask_threshold,
+            width=width,
+            height=height,
+        )
 
     def fixed_update(self, **kwargs: Any) -> None:
         if self.is_sprite_animating() and self.__clock.elapsed_time(self.__wait_time):
@@ -272,12 +326,144 @@ class AnimatedSprite(Sprite):
         self.__wait_time = max(float(value), 0)
 
 
-class SpriteGroup(BaseDrawableGroup[Sprite], Drawable):
+_S = TypeVar("_S", bound=Sprite)
+
+
+class BaseSpriteGroup(BaseDrawableGroup[_S]):
+    __slots__ = ()
+
+    def fixed_update(self, **kwargs: Any) -> None:
+        for s in self:
+            s.fixed_update(**kwargs)
+
+    def interpolation_update(self, interpolation: float) -> None:
+        for s in self:
+            s.interpolation_update(interpolation)
+
+    def update(self, **kwargs: Any) -> None:
+        for s in self:
+            s.update(**kwargs)
+
+    def sprite_collide(self, sprite: _S, dokill: bool) -> Iterator[_S]:
+        collide_sprite = sprite.is_colliding
+        if dokill:
+            for s in (s for s in tuple(self) if collide_sprite(s)):
+                s.kill()
+                yield s
+            return
+
+        return (yield from (s for s in self if collide_sprite(s)))
+
+    def group_collide(self, other: BaseSpriteGroup[_S], dokill_self: bool, dokill_other: bool) -> dict[_S, list[_S]]:
+        other_sprite_collide = other.sprite_collide
+        if dokill_self:
+            crashed: dict[_S, list[_S]] = {}
+
+            for self_sprite, collided_list in (
+                (self_sprite, collided_list)
+                for self_sprite in tuple(self)
+                if (collided_list := list(other_sprite_collide(self_sprite, dokill_other)))
+            ):
+                self_sprite.kill()
+                crashed[self_sprite] = collided_list
+
+            return crashed
+
+        return {
+            self_sprite: collided_list
+            for self_sprite in self
+            if (collided_list := list(other_sprite_collide(self_sprite, dokill_other)))
+        }
+
+    def sprite_collide_any(self, sprite: _S) -> _S | None:
+        collide_sprite = sprite.is_colliding
+        return next((s for s in self if collide_sprite(s)), None)
+
+    def flush_colliding(self) -> list[_S]:
+        crashed: deque[_S] = deque()
+
+        for s1, s2 in ((s1, s2) for s1, s2 in combinations(tuple(self), r=2) if s1 not in crashed and s2 not in crashed):
+            if s1.is_colliding(s2):
+                s1.kill()
+                s2.kill()
+                crashed.extend((s1, s2))
+
+        return list(crashed)
+
+
+class SpriteGroup(BaseSpriteGroup[Sprite], Drawable):
     __slots__ = ()
 
 
-class LayeredSpriteGroup(BaseLayeredDrawableGroup[Sprite], SpriteGroup):
+class BaseLayeredSpriteGroup(BaseLayeredDrawableGroup[_S], BaseSpriteGroup[_S]):
     __slots__ = ()
 
-    def __init__(self, *objects: Sprite, default_layer: int = 0, **kwargs: Any) -> None:
+    def __init__(self, *objects: _S, default_layer: int = 0, **kwargs: Any) -> None:
         super().__init__(*objects, default_layer=default_layer, **kwargs)
+
+    def sprite_collide(self, sprite: _S, dokill: bool, *, layer: int | None = None) -> Iterator[_S]:
+        sprites: Iterable[_S]
+
+        collide_sprite = sprite.is_colliding
+        if dokill:
+            sprites = tuple(self) if layer is None else self.get_from_layer(layer)
+            for s in (s for s in sprites if collide_sprite(s)):
+                s.kill()
+                yield s
+            return
+
+        sprites = self if layer is None else self.iter_in_layer(layer)
+        return (yield from (s for s in sprites if collide_sprite(s)))
+
+    def group_collide(
+        self,
+        other: BaseSpriteGroup[_S],
+        dokill_self: bool,
+        dokill_other: bool,
+        *,
+        layer: int | None = None,
+    ) -> dict[_S, list[_S]]:
+        sprites: Iterable[_S]
+
+        other_sprite_collide = other.sprite_collide
+        if dokill_self:
+            crashed: dict[_S, list[_S]] = {}
+            sprites = tuple(self) if layer is None else self.get_from_layer(layer)
+
+            for self_sprite, collided_list in (
+                (self_sprite, collided_list)
+                for self_sprite in sprites
+                if (collided_list := list(other_sprite_collide(self_sprite, dokill_other)))
+            ):
+                self_sprite.kill()
+                crashed[self_sprite] = collided_list
+
+            return crashed
+
+        sprites = self if layer is None else self.iter_in_layer(layer)
+        return {
+            self_sprite: collided_list
+            for self_sprite in sprites
+            if (collided_list := list(other_sprite_collide(self_sprite, dokill_other)))
+        }
+
+    def sprite_collide_any(self, sprite: _S, *, layer: int | None = None) -> _S | None:
+        sprites: Iterable[_S] = self if layer is None else self.iter_in_layer(layer)
+        collide_sprite = sprite.is_colliding
+        return next((s for s in sprites if collide_sprite(s)), None)
+
+    def flush_colliding(self, *, layer: int | None = None) -> list[_S]:
+        crashed: deque[_S] = deque()
+        sprites: Iterable[_S] = tuple(self) if layer is None else self.get_from_layer(layer)
+
+        for s1, s2 in ((s1, s2) for s1, s2 in combinations(sprites, r=2) if s1 not in crashed and s2 not in crashed):
+            if s1.is_colliding(s2):
+                s1.kill()
+                s2.kill()
+                crashed.extend((s1, s2))
+
+        return list(crashed)
+
+
+class LayeredSpriteGroup(BaseLayeredSpriteGroup[Sprite], Drawable):
+    __slots__ = ()

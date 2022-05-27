@@ -46,11 +46,12 @@ from py_diamond.graphics.renderer import AbstractRenderer, SurfaceRenderer
 from py_diamond.graphics.scale import ScaleBar
 from py_diamond.graphics.scroll import ScrollArea, ScrollBar
 from py_diamond.graphics.shape import CircleShape, DiagonalCrossShape, PlusCrossShape, PolygonShape, RectangleShape
-from py_diamond.graphics.sprite import AnimatedSprite, Sprite
+from py_diamond.graphics.sprite import AnimatedSprite, Sprite, SpriteGroup
 from py_diamond.graphics.surface import Surface
 from py_diamond.graphics.text import Text, TextImage
 from py_diamond.resource.loader import FontLoader, ImageLoader, MusicLoader, SoundLoader
 from py_diamond.resource.manager import ResourceManager
+from py_diamond.window.clickable import Clickable
 from py_diamond.window.clock import Clock
 from py_diamond.window.dialog import PopupDialog
 from py_diamond.window.display import Window, WindowCallback
@@ -60,6 +61,7 @@ from py_diamond.window.event import (
     KeyDownEvent,
     KeyUpEvent,
     MouseButtonEvent,
+    MouseMotionEvent,
     MusicEndEvent,
     ScreenshotEvent,
 )
@@ -424,6 +426,7 @@ class ImagesResources(ResourceManager):
     cactus: Surface
     car: Sequence[Surface]
     cross: Mapping[str, Surface]
+    autumn_tree: Surface
     __resource_loader__ = ImageLoader
     __resources_directory__ = "./files/img"
     __resources_files__ = {
@@ -433,6 +436,7 @@ class ImagesResources(ResourceManager):
             "normal": "croix_rouge.png",
             "hover": "croix_rouge_over.png",
         },
+        "autumn_tree": "arbre_automne.png",
     }
 
 
@@ -453,6 +457,45 @@ class ResourceScene(MainScene):
 
     def render(self) -> None:
         self.window.draw(self.cactus, self.text)
+
+
+class SpriteMaskScene(MainScene):
+    def awake(self, **kwargs: Any) -> None:
+        super().awake(**kwargs)
+        self.background_color = BLUE_DARK
+        self.sprite = Sprite(ImagesResources.autumn_tree)
+        self.mask = Image()
+
+    def on_start_loop_before_transition(self) -> None:
+        self.set_positions()
+        return super().on_start_loop_before_transition()
+
+    def on_start_loop(self) -> None:
+        self.sprite.animation.clear()
+        self.sprite.animation.smooth_rotation(360)
+        self.sprite.animation.start()
+        return super().on_start_loop()
+
+    def fixed_update(self) -> None:
+        self.sprite.fixed_update()
+        super().fixed_update()
+
+    def interpolation_update(self, interpolation: float) -> None:
+        self.sprite.interpolation_update(interpolation)
+        return super().interpolation_update(interpolation)
+
+    def update(self) -> None:
+        self.sprite.update()
+        self.mask.set(self.sprite.mask.to_surface(), copy=False)
+        self.set_positions()
+        return super().update()
+
+    def set_positions(self) -> None:
+        self.sprite.center = self.window.width / 4, self.window.centery
+        self.mask.center = self.window.width * 3 / 4, self.window.centery
+
+    def render(self) -> None:
+        self.window.draw(self.sprite, self.mask)
 
 
 class AnimatedSpriteScene(MainScene):
@@ -485,6 +528,102 @@ class AnimatedSpriteScene(MainScene):
         self.window.draw(self.sprite)
 
 
+class DraggableSprite(Sprite, Clickable):
+    def __init__(
+        self,
+        master: Scene | Window,
+        image: Surface | None = None,
+        *,
+        width: float | None = None,
+        height: float | None = None,
+    ) -> None:
+        Sprite.__init__(self, image, width=width, height=height)
+        Clickable.__init__(self, master)
+
+    def invoke(self) -> None:
+        pass
+
+    def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
+        return self.rect.collidepoint(mouse_pos)
+
+    def _on_mouse_motion(self, event: MouseMotionEvent) -> None:
+        if self.active:
+            self.translate(event.rel)
+        return super()._on_mouse_motion(event)
+
+
+class SpriteCollisionScene(MainScene):
+    def awake(self, **kwargs: Any) -> None:
+        super().awake(**kwargs)
+        self.background_color = BLUE_DARK
+
+        self.car = DraggableSprite(self, ImagesResources.car[0])
+        self.cactus = DraggableSprite(self, ImagesResources.cactus, height=200)
+        self.cross = Image(ImagesResources.cross["normal"], width=30)
+
+    def on_start_loop_before_transition(self) -> None:
+        self.car.center = self.window.width / 4, self.window.centery
+        self.cactus.center = self.window.width * 3 / 4, self.window.centery
+        self.cross.hide()
+        return super().on_start_loop_before_transition()
+
+    def update(self) -> None:
+        super().update()
+
+        if intersection := self.car.is_mask_colliding(self.cactus):
+            self.cross.show()
+            self.cross.center = intersection
+        else:
+            self.cross.hide()
+
+    def render(self) -> None:
+        self.window.draw(self.car, self.cactus, self.cross)
+
+
+class SpriteGroupCollisionScene(MainScene, framerate=60, fixed_framerate=50):
+    def awake(self, **kwargs: Any) -> None:
+        super().awake(**kwargs)
+        self.background_color = BLUE_DARK
+
+        self.car = DraggableSprite(self, ImagesResources.car[0])
+        self.cacti = SpriteGroup()
+
+    def on_start_loop_before_transition(self) -> None:
+        self.car.center = self.window.center
+        self.cacti.clear()
+        return super().on_start_loop_before_transition()
+
+    def on_start_loop(self) -> None:
+        self.on_quit_exit_stack.callback(self.window.set_title, self.window.get_title())
+
+        from random import Random
+
+        random = Random()
+
+        @self.every(200)
+        def _() -> None:
+            if len(self.cacti) >= 150:
+                return
+            cactus = Sprite(ImagesResources.cactus, height=200)
+
+            cactus.left = random.randrange(0, int(self.window.right - cactus.width))
+            cactus.top = random.randrange(0, int(self.window.bottom - cactus.height))
+
+            self.cacti.add(cactus)
+
+        return super().on_start_loop()
+
+    def update(self) -> None:
+        super().update()
+
+        del list(self.cacti.sprite_collide(self.car, True))[:]
+
+        self.window.set_title(f"{len(self.cacti)} {'cacti' if len(self.cacti) > 1 else 'cactus'}")
+
+    def render(self) -> None:
+        self.window.draw(self.cacti, self.car)
+
+
 class MyCustomEvent(Event):
     def __init__(self, message: str) -> None:
         super().__init__()
@@ -510,11 +649,8 @@ class EventScene(MainScene):
 
     def on_start_loop(self) -> None:
         Mouse.hide_cursor()
-        self.actual_title: str = self.window.get_title()
-
-    def on_quit(self) -> None:
-        Mouse.show_cursor()
-        self.window.set_title(self.actual_title)
+        self.on_quit_exit_stack.callback(Mouse.show_cursor)
+        self.on_quit_exit_stack.callback(self.window.set_title, self.window.get_title())
 
     def update(self) -> None:
         self.circle.center = self.cross.center
@@ -1184,7 +1320,10 @@ class MainWindow(SceneWindow):
         RainbowScene,
         TextScene,
         ResourceScene,
+        SpriteMaskScene,
         AnimatedSpriteScene,
+        SpriteCollisionScene,
+        SpriteGroupCollisionScene,
         EventScene,
         TextImageScene,
         ButtonScene,

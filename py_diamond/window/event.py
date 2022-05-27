@@ -112,6 +112,8 @@ class _EventMeta(ObjectMeta):
         else:
             if len(bases) != 1 or not issubclass(bases[0], Event):
                 raise TypeError(f"{name!r} must only inherits from Event without multiple inheritance")
+            if isconcreteclass(bases[0]):
+                raise TypeError(f"{name!r}: {bases[0].__qualname__} is a concrete class")
             try:
                 BuiltinEvent
             except NameError:
@@ -164,6 +166,8 @@ class _BuiltinEventMeta(_EventMeta):
         except NameError:
             pass
         else:
+            if all(event_type in mcs.__associations for event_type in BuiltinEvent.Type):
+                raise TypeError("Trying to create custom event from BuiltinEvent class")
             if len(bases) != 1 or not issubclass(bases[0], BuiltinEvent):
                 raise TypeError(f"{name!r} must only inherits from BuiltinEvent without multiple inheritance")
             cls = concreteclass(super().__new__(mcs, name, bases, namespace, **kwargs))
@@ -496,7 +500,7 @@ TextEvent: TypeAlias = TextEditingEvent | TextInputEvent
 @dataclass(frozen=True, kw_only=True)
 class UserEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.USEREVENT]] = field(default=BuiltinEvent.Type.USEREVENT, init=False)
-    code: int
+    code: int = 0
 
     @classmethod
     def from_dict(cls, event_dict: dict[str, Any]) -> UserEvent:
@@ -772,6 +776,8 @@ class EventManager:
         "__mouse_button_released_handler_dict",
         "__mouse_pos_handler_list",
         "__other_manager_list",
+        "__priority_callback",
+        "__priority_manager",
     )
 
     def __init__(self) -> None:
@@ -782,6 +788,8 @@ class EventManager:
         self.__mouse_button_released_handler_dict: dict[Mouse.Button, list[_EventCallback]] = dict()
         self.__mouse_pos_handler_list: list[_MousePositionCallback] = list()
         self.__other_manager_list: list[EventManager] = list()
+        self.__priority_callback: dict[EventType, _EventCallback] = dict()
+        self.__priority_manager: dict[EventType, EventManager] = dict()
 
     @staticmethod
     def __bind(handler_dict: dict[_T, list[_EventCallback]], key: _T, callback: Callable[[_TE], bool | None]) -> None:
@@ -802,6 +810,12 @@ class EventManager:
 
     def unbind(self, event_cls: type[_TE], callback_to_remove: Callable[[_TE], bool | None]) -> None:
         EventManager.__unbind(self.__event_handler_dict, event_cls.type, callback_to_remove)
+        for event_type in tuple(
+            event_type
+            for event_type, priority_callback in self.__priority_callback.items()
+            if priority_callback is callback_to_remove
+        ):
+            self.__priority_callback.pop(event_type)
 
     def unbind_all(self) -> None:
         self.__event_handler_dict.clear()
@@ -810,6 +824,8 @@ class EventManager:
         self.__mouse_button_pressed_handler_dict.clear()
         self.__mouse_button_released_handler_dict.clear()
         self.__mouse_pos_handler_list.clear()
+        self.__priority_callback.clear()
+        self.__priority_manager.clear()
 
     def bind_key(self, key: Keyboard.Key, callback: Callable[[KeyEvent], None]) -> None:
         self.bind_key_press(key, callback)
@@ -872,18 +888,37 @@ class EventManager:
         other_manager_list: list[EventManager] = self.__other_manager_list
         with suppress(ValueError):
             other_manager_list.remove(manager)
+        for event_type in tuple(
+            event_type for event_type, priority_manager in self.__priority_manager.items() if priority_manager is manager
+        ):
+            self.__priority_manager.pop(event_type)
 
     def process_event(self, event: Event) -> bool:
         if isinstance(event, (KeyUpEvent, KeyDownEvent)):
             self.__handle_key_event(event)
         elif isinstance(event, (MouseButtonUpEvent, MouseButtonDownEvent)):
             self.__handle_mouse_event(event)
+
+        priority_callback: _EventCallback | None = self.__priority_callback.get(event.type)
+        if priority_callback is not None:
+            if priority_callback(event):
+                return True
+            del self.__priority_callback[event.type]
+
+        priority_manager: EventManager | None = self.__priority_manager.get(event.type)
+        if priority_manager is not None:
+            if priority_manager.process_event(event):
+                return True
+            del self.__priority_manager[event.type]
+
         event_dict: dict[EventType, list[_EventCallback]] = self.__event_handler_dict
         for callback in event_dict.get(event.type, ()):
-            if callback(event):
+            if callback is not priority_callback and callback(event):
+                self.__priority_callback[event.type] = callback
                 return True
         for manager in self.__other_manager_list:
-            if manager.process_event(event):
+            if manager is not priority_manager and manager.process_event(event):
+                self.__priority_manager[event.type] = manager
                 return True
         return False
 
@@ -930,12 +965,6 @@ class BoundEventManager(Generic[_T]):
     __slots__ = (
         "__ref",
         "__manager",
-        "__bind_callbacks",
-        "__bind_key_press_callbacks",
-        "__bind_key_release_callbacks",
-        "__bind_mouse_button_press_callbacks",
-        "__bind_mouse_button_release_callbacks",
-        "__bind_mouse_position_callbacks",
         "__weakref__",
     )
 

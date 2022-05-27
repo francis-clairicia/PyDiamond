@@ -84,6 +84,8 @@ class Image(TDrawable):
             case _:
                 raise TypeError(f"Invalid argument: {image!r}")
 
+        self.topleft = (0, 0)
+
     def draw_onto(self, target: AbstractRenderer) -> None:
         target.draw_surface(self.__image, self.topleft)
 

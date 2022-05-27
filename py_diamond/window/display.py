@@ -606,6 +606,10 @@ class Window(Object):
             self.__callback_after.remove(window_callback)
 
     @property
+    def renderer(self) -> AbstractRenderer:
+        return self.__surface
+
+    @property
     def framerate(self) -> float:
         return self.__main_clock.get_fps()
 

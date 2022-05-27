@@ -11,8 +11,9 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 import os.path as os_path
-from sys import argv
 from typing import Any, Callable, overload
+
+from ..environ import get_executable_path
 
 
 def __set_path(
@@ -24,7 +25,7 @@ def __set_path(
 ) -> str:
     all_path = os_path.join(*paths)
     if not relative_to_cwd and not os_path.isabs(all_path):
-        all_path = os_path.join(os_path.abspath(os_path.dirname(argv[0])), all_path)
+        all_path = os_path.join(os_path.abspath(os_path.dirname(get_executable_path())), all_path)
     all_path = os_path.realpath(all_path)
     if raise_error and not path_exists(all_path):
         if error_msg:
