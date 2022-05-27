@@ -17,6 +17,7 @@ __all__ = [
     "BLUE",
     "BLUE_DARK",
     "BLUE_LIGHT",
+    "BaseAnimation",
     "BaseDrawableGroup",
     "BaseLayeredDrawableGroup",
     "BooleanCheckBox",
@@ -63,6 +64,7 @@ __all__ = [
     "Movable",
     "MovableMeta",
     "MovableProxy",
+    "MoveAnimation",
     "MultiColorShape",
     "NoTheme",
     "ORANGE",
@@ -106,6 +108,7 @@ __all__ = [
     "TransformAnimation",
     "Transformable",
     "TransformableMeta",
+    "TransformableProxy",
     "VerticalGradientShape",
     "VerticalMultiColorShape",
     "WHITE",
@@ -164,7 +167,7 @@ del os, typing, pygame, copyreg
 
 
 ############ Package initialization ############
-from .animation import AnimationInterpolator, AnimationInterpolatorPool, TransformAnimation
+from .animation import AnimationInterpolator, AnimationInterpolatorPool, BaseAnimation, MoveAnimation, TransformAnimation
 from .button import Button, ButtonMeta, ImageButton
 from .checkbox import BooleanCheckBox, CheckBox, CheckBoxMeta
 from .color import (
@@ -258,4 +261,4 @@ from .theme import (
     no_theme_decorator,
     set_default_theme_namespace,
 )
-from .transformable import Transformable, TransformableMeta
+from .transformable import Transformable, TransformableMeta, TransformableProxy

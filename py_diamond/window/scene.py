@@ -16,10 +16,12 @@ __all__ = [
     "MainSceneMeta",
     "RenderedLayeredScene",
     "ReturningSceneTransition",
+    "ReturningSceneTransitionProtocol",
     "Scene",
     "SceneMeta",
     "SceneTransition",
     "SceneTransitionCoroutine",
+    "SceneTransitionProtocol",
     "SceneWindow",
 ]
 
@@ -30,6 +32,7 @@ __license__ = "GNU GPL v3.0"
 import gc
 from abc import abstractmethod
 from contextlib import ExitStack, contextmanager, suppress
+from enum import auto, unique
 from inspect import isgeneratorfunction
 from itertools import chain
 from operator import truth
@@ -45,11 +48,13 @@ from typing import (
     Iterator,
     NoReturn,
     ParamSpec,
+    Protocol,
     Sequence,
     TypeAlias,
     TypeVar,
     cast,
     overload,
+    runtime_checkable,
 )
 
 from ..graphics.color import Color
@@ -57,6 +62,7 @@ from ..graphics.drawable import Drawable, LayeredDrawableGroup
 from ..graphics.renderer import AbstractRenderer, SurfaceRenderer
 from ..graphics.surface import Surface
 from ..graphics.theme import ClassWithThemeNamespaceMeta, closed_namespace, no_theme_decorator
+from ..system.enum import AutoLowerNameEnum
 from ..system.object import Object, final
 from ..system.utils._mangling import getattr_pv, mangle_private_attribute
 from ..system.utils.abc import concreteclassmethod, isconcreteclass
@@ -144,20 +150,91 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
 SceneTransitionCoroutine: TypeAlias = Generator[None, float | None, None]
 
 
-class SceneTransition(Object):
+@runtime_checkable
+class SceneTransitionProtocol(Protocol):
     @abstractmethod
     def show_new_scene(
-        self, target: AbstractRenderer, previous_scene_image: Surface, actual_scene_image: Surface
+        self, window: AbstractRenderer, previous_scene_image: Surface, actual_scene_image: Surface
     ) -> SceneTransitionCoroutine:
         raise NotImplementedError
+
+
+@runtime_checkable
+class ReturningSceneTransitionProtocol(SceneTransitionProtocol, Protocol):
+    @abstractmethod
+    def hide_actual_scene(
+        self, window: AbstractRenderer, previous_scene_image: Surface, actual_scene_image: Surface
+    ) -> SceneTransitionCoroutine:
+        raise NotImplementedError
+
+
+class SceneTransition(Object):
+    window: AbstractRenderer
+
+    @final
+    def show_new_scene(
+        self, window: AbstractRenderer, previous_scene_image: Surface, actual_scene_image: Surface
+    ) -> SceneTransitionCoroutine:
+        self.window = window
+        self.init(previous_scene_image=previous_scene_image, actual_scene_image=actual_scene_image)
+        while True:
+            try:
+                while (interpolation := (yield)) is None:
+                    self.fixed_update()
+                self.interpolation_update(interpolation)
+                self.update()
+                self.render()
+            except GeneratorExit:
+                return
+
+    @abstractmethod
+    def init(self, previous_scene_image: Surface, actual_scene_image: Surface) -> None:
+        raise NotImplementedError
+
+    def fixed_update(self) -> None:
+        pass
+
+    def interpolation_update(self, interpolation: float) -> None:
+        pass
+
+    def update(self) -> None:
+        pass
+
+    @abstractmethod
+    def render(self) -> None:
+        raise NotImplementedError
+
+    @final
+    def stop(self) -> NoReturn:
+        raise GeneratorExit
 
 
 class ReturningSceneTransition(SceneTransition):
+    @unique
+    class Context(AutoLowerNameEnum):
+        SHOW = auto()
+        HIDE = auto()
+
     @abstractmethod
-    def hide_actual_scene(
-        self, target: AbstractRenderer, previous_scene_image: Surface, actual_scene_image: Surface
-    ) -> SceneTransitionCoroutine:
+    def init(self, previous_scene_image: Surface, actual_scene_image: Surface, *, context: Context = Context.SHOW) -> None:
         raise NotImplementedError
+
+    @final
+    def hide_actual_scene(
+        self, window: AbstractRenderer, previous_scene_image: Surface, actual_scene_image: Surface
+    ) -> SceneTransitionCoroutine:
+        self.window = window
+        context = ReturningSceneTransition.Context.HIDE
+        self.init(previous_scene_image=previous_scene_image, actual_scene_image=actual_scene_image, context=context)
+        while True:
+            try:
+                while (interpolation := (yield)) is None:
+                    self.fixed_update()
+                self.interpolation_update(interpolation)
+                self.update()
+                self.render()
+            except GeneratorExit:
+                return
 
 
 class Scene(Object, metaclass=SceneMeta, no_slots=True):
@@ -268,7 +345,7 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
         __scene: type[Scene],
         /,
         *,
-        transition: SceneTransition | None = None,
+        transition: SceneTransitionProtocol | None = None,
         stop_self: bool = False,
         **awake_kwargs: Any,
     ) -> NoReturn:
@@ -284,7 +361,7 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
         if issubclass(__scene, Dialog):
             return self.__manager.open_dialog(__scene, awake_kwargs=kwargs)
 
-        transition: SceneTransition | None = kwargs.pop("transition", None)
+        transition: SceneTransitionProtocol | None = kwargs.pop("transition", None)
         stop_self: bool = kwargs.pop("stop_self", False)
         self.__manager.go_to(__scene, transition=transition, remove_actual=stop_self, awake_kwargs=kwargs)
 
@@ -554,6 +631,7 @@ class SceneWindow(Window):
         self.__callback_after_scenes: dict[Scene, _WindowCallbackList] = dict()
         self.__scenes: _SceneManager
         self.__accumulator: float = 0
+        self.__compute_interpolation_data()
         self.__running: bool = False
 
     if TYPE_CHECKING:
@@ -569,6 +647,8 @@ class SceneWindow(Window):
 
         with super().open(), ExitStack() as stack:
             self.__scenes = _SceneManager(self)
+            self.__accumulator = 0
+            self.__compute_interpolation_data()
             stack.callback(cleanup)
             yield self
 
@@ -580,6 +660,7 @@ class SceneWindow(Window):
         self.__scenes.clear()
         ClassWithThemeNamespaceMeta.theme_initialize_all()
         self.__accumulator = 0
+        self.__compute_interpolation_data()
         gc.collect()
         try:
             self.start_scene(default_scene, awake_kwargs=scene_kwargs)
@@ -684,24 +765,23 @@ class SceneWindow(Window):
             self.__scenes._destroy_awaken_scene(scene)
         self.__callback_after_scenes.pop(previous_scene, None)
         self.__accumulator = 0
+        self.__compute_interpolation_data()
         self.clear_all_events()
         gc.collect()
 
     def refresh(self) -> float:
         real_delta_time: float = super().refresh()
         self.__accumulator += max(real_delta_time, 0) / 1000
+        self.__compute_interpolation_data()
         return real_delta_time
 
     def _fixed_updates_call(self, *funcs: Callable[[], None]) -> None:
-        dt: float = Time.fixed_delta()
-        while self.__accumulator >= dt:
+        for _ in range(self.__nb_fixed_update_call):
             for func in funcs:
                 func()
-            self.__accumulator -= dt
 
     def _interpolation_updates_call(self, *funcs: Callable[[float], None]) -> None:
-        alpha: float = self.__accumulator / Time.fixed_delta()
-        alpha = min(max(alpha, 0), 1)
+        alpha: float = self.__alpha_interpolation
         for func in funcs:
             func(alpha)
 
@@ -725,7 +805,7 @@ class SceneWindow(Window):
         __scene: type[Scene],
         /,
         *,
-        transition: SceneTransition | None = None,
+        transition: SceneTransitionProtocol | None = None,
         remove_actual: bool = False,
         **awake_kwargs: Any,
     ) -> NoReturn:
@@ -787,6 +867,20 @@ class SceneWindow(Window):
         if not scene_callback_after:
             self.__callback_after_scenes.pop(scene)
 
+    def __compute_interpolation_data(self) -> None:
+        self.__nb_fixed_update_call = 0
+        dt: float = Time.fixed_delta()
+        while self.__accumulator >= dt:
+            self.__nb_fixed_update_call += 1
+            self.__accumulator -= dt
+        try:
+            alpha: float = self.__accumulator / dt
+        except ZeroDivisionError:
+            alpha = 1
+        else:
+            alpha = min(max(alpha, 0), 1)
+        self.__alpha_interpolation = alpha
+
 
 class _SceneManager:
     class SceneException(BaseException):
@@ -830,7 +924,7 @@ class _SceneManager:
         self.__window: SceneWindow = window
         self.__all: dict[type[Scene], Scene] = {cls: new_scene(cls) for cls in _ALL_SCENES}
         self.__stack: list[Scene] = []
-        self.__returning_transitions: dict[type[Scene], ReturningSceneTransition] = {}
+        self.__returning_transitions: dict[type[Scene], ReturningSceneTransitionProtocol] = {}
         self.__awaken: set[Scene] = set()
         self.__dialogs: list[Dialog] = []
 
@@ -916,7 +1010,7 @@ class _SceneManager:
         self,
         scene: type[Scene],
         *,
-        transition: SceneTransition | None = None,
+        transition: SceneTransitionProtocol | None = None,
         remove_actual: bool = False,
         awake_kwargs: dict[str, Any] | None = None,
     ) -> NoReturn:
@@ -937,7 +1031,7 @@ class _SceneManager:
             stack.insert(0, next_scene)
             self._awake_scene(next_scene, awake_kwargs)
             if actual_scene is not None:
-                if isinstance(transition, ReturningSceneTransition):
+                if isinstance(transition, ReturningSceneTransitionProtocol):
                     self.__returning_transitions[actual_scene.__class__] = transition
                 if transition is not None:
                     scene_transition = transition.show_new_scene
@@ -955,7 +1049,7 @@ class _SceneManager:
             elif transition is not None:
                 scene_transition = (
                     transition.hide_actual_scene
-                    if isinstance(transition, ReturningSceneTransition)
+                    if isinstance(transition, ReturningSceneTransitionProtocol)
                     else transition.show_new_scene
                 )
         raise _SceneManager.NewScene(actual_scene, next_scene, scene_transition, closing_scenes)
@@ -1001,21 +1095,28 @@ class _SceneManager:
             exit_stack.callback(dialogs_stack.remove, dialog)
             self._awake_scene(dialog, awake_kwargs)
             exit_stack.callback(self._destroy_awaken_scene, dialog)
-            exit_stack.enter_context(dialog.on_quit_exit_stack)
 
             window = self.window
+            dialog.on_start_loop_before_transition()
+            with window.block_all_events_context(), window.no_window_callback_processing():
+                dialog.run_start_transition()
+            dialog.on_start_loop()
+
+            exit_stack.enter_context(dialog.on_quit_exit_stack)
             try:
-                dialog.on_start_loop_before_transition()
-                dialog.on_start_loop()
                 while window.looping():
                     window.handle_events()
                     window.update_scene()
                     window.render_scene()
                     window.refresh()
             except _SceneManager.DialogStop:
-                pass
-            finally:
                 dialog.on_quit_before_transition()
+                with window.block_all_events_context(), window.no_window_callback_processing():
+                    dialog.run_quit_transition()
+            except:
+                dialog.on_quit_before_transition()
+                raise
+            finally:
                 dialog.on_quit()
 
     @property

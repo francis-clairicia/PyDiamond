@@ -17,6 +17,7 @@ from typing import Any, Callable, overload
 
 from ..math import Vector2
 from ..system.object import Object, ObjectMeta, final
+from ..system.utils.abc import concreteclass
 from ..system.utils.functools import wraps
 from .rect import ImmutableRect, Rect
 
@@ -327,28 +328,47 @@ class _MovableProxyMeta(MovableMeta):
                 attr = mangle_private_attribute(Movable, attr)
 
                 def getter(self: MovableProxy, /, *, attr: str = str(attr)) -> Any:
-                    movable: Movable = object.__getattribute__(self, "_movable")
+                    movable: Movable = object.__getattribute__(self, "_object")
                     return getattr(movable, attr)
 
                 def setter(self: MovableProxy, value: Any, /, *, attr: str = str(attr)) -> Any:
-                    movable: Movable = object.__getattribute__(self, "_movable")
+                    movable: Movable = object.__getattribute__(self, "_object")
                     return setattr(movable, attr, value)
 
                 namespace[attr] = property(fget=getter, fset=setter)
 
+            for method_name in (
+                "set_position",
+                "move",
+                "translate",
+                "get_rect",
+            ):
+
+                @wraps(getattr(Movable, method_name))  # type: ignore[arg-type]
+                def wrapper(self: MovableProxy, *args: Any, __method_name: str = str(method_name), **kwargs: Any) -> Any:
+                    method_name = __method_name
+                    movable: Movable = object.__getattribute__(self, "_object")
+                    method: Callable[..., Any] = getattr(movable, method_name)
+                    return method(*args, **kwargs)
+
+                wrapper.__qualname__ = f"{name}.{wrapper.__name__}"
+
+                namespace[method_name] = wrapper
+
         return super().__new__(mcs, name, bases, namespace, **kwargs)
 
 
+@concreteclass
 class MovableProxy(Movable, metaclass=_MovableProxyMeta):
     def __init__(self, movable: Movable) -> None:
-        object.__setattr__(self, "_movable", movable)
+        object.__setattr__(self, "_object", movable)
 
     def get_size(self) -> tuple[float, float]:
-        movable: Movable = object.__getattribute__(self, "_movable")
+        movable: Movable = object.__getattribute__(self, "_object")
         return movable.get_size()
 
     def _on_move(self) -> None:
-        movable: Movable = object.__getattribute__(self, "_movable")
+        movable: Movable = object.__getattribute__(self, "_object")
         movable._on_move()
         return super()._on_move()
 

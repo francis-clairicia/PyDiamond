@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterator, Lite
 from py_diamond.audio.mixer import Mixer
 from py_diamond.audio.music import Music, MusicStream
 from py_diamond.audio.sound import Sound
-from py_diamond.graphics.animation import AnimationInterpolatorPool, TransformAnimation
+from py_diamond.graphics.animation import AnimationInterpolatorPool, MoveAnimation, TransformAnimation
 from py_diamond.graphics.button import Button, ImageButton
 from py_diamond.graphics.checkbox import CheckBox
 from py_diamond.graphics.color import (
@@ -73,7 +73,6 @@ from py_diamond.window.scene import (
     RenderedLayeredScene,
     Scene,
     SceneTransition,
-    SceneTransitionCoroutine,
     SceneWindow,
 )
 from py_diamond.window.time import Time
@@ -1090,9 +1089,22 @@ class MyDialog(PopupDialog, GUIScene):
         self.text = Text("I'm a text", theme="text")
 
     def set_default_popup_position(self) -> None:
-        super().set_default_popup_position()
+        self.popup.midbottom = self.window.midtop
+
+    def run_start_transition(self) -> None:
+        animation = MoveAnimation(self.popup)
+        animation.smooth_set_position(center=self.window.center, speed=2000)
+        animation.wait_until_finish(self)
+
+    def run_quit_transition(self) -> None:
+        animation = MoveAnimation(self.popup)
+        animation.smooth_set_position(midtop=self.window.midbottom, speed=2000)
+        animation.wait_until_finish(self)
+
+    def update(self) -> None:
         self.cancel.topleft = (self.popup.left + 20, self.popup.top + 20)
         self.text.center = self.popup.center
+        return super().update()
 
     def _render(self) -> None:
         self.window.draw(self.cancel, self.text)
@@ -1118,29 +1130,33 @@ class SceneTransitionTranslation(SceneTransition):
         super().__init__()
         self.__side: L["left", "right"] = side
 
-    def show_new_scene(
-        self, target: AbstractRenderer, previous_scene_image: Surface, actual_scene_image: Surface
-    ) -> SceneTransitionCoroutine:
-        previous_scene = Image(previous_scene_image, copy=False)
-        actual_scene = Image(actual_scene_image, copy=False)
-        target_rect = target.get_rect()
-        previous_scene.center = actual_scene.center = target_rect.center
-        previous_scene.fill(BLACK.with_alpha(100))
-        previous_scene_shown: Callable[[], bool]
-        previous_scene_animation = TransformAnimation(previous_scene)
+    def init(self, previous_scene_image: Surface, actual_scene_image: Surface) -> None:
+        self.previous_scene = Image(previous_scene_image, copy=False)
+        self.actual_scene = Image(actual_scene_image, copy=False)
+        window_rect = self.window.get_rect()
+        self.previous_scene.center = self.actual_scene.center = window_rect.center
+        self.previous_scene.fill(BLACK.with_alpha(100))
+        self.previous_scene_shown: Callable[[], bool]
+        self.previous_scene_animation = TransformAnimation(self.previous_scene)
         if self.__side == "left":
-            previous_scene_animation.infinite_translation((-1, 0), speed=3000)
-            previous_scene_shown = lambda: previous_scene.right >= target_rect.left
+            self.previous_scene_animation.infinite_translation((-1, 0), speed=3000)
+            self.previous_scene_shown = lambda: self.previous_scene.right >= window_rect.left
         else:
-            previous_scene_animation.infinite_translation((1, 0), speed=3000)
-            previous_scene_shown = lambda: previous_scene.left <= target_rect.right
-        previous_scene_animation.start()
-        while previous_scene_shown():
-            while (interpolation := (yield)) is None:
-                previous_scene_animation.fixed_update()
-            previous_scene_animation.update(interpolation)
-            actual_scene.draw_onto(target)
-            previous_scene.draw_onto(target)
+            self.previous_scene_animation.infinite_translation((1, 0), speed=3000)
+            self.previous_scene_shown = lambda: self.previous_scene.left <= window_rect.right
+        self.previous_scene_animation.start()
+
+    def fixed_update(self) -> None:
+        self.previous_scene_animation.fixed_update()
+        if not self.previous_scene_shown():
+            self.stop()
+
+    def interpolation_update(self, interpolation: float) -> None:
+        self.previous_scene_animation.update(interpolation)
+
+    def render(self) -> None:
+        self.actual_scene.draw_onto(self.window)
+        self.previous_scene.draw_onto(self.window)
 
 
 class TextFramerate(Text, no_theme=True):
@@ -1188,7 +1204,7 @@ class MainWindow(SceneWindow):
 
     def __init__(self) -> None:
         # super().__init__("my window", (0, 0))
-        super().__init__("my window", (1366, 768), vsync=True)
+        super().__init__("my window", (1366, 768))
 
     def __window_init__(self) -> None:
         super().__window_init__()

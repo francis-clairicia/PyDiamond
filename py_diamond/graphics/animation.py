@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["AnimationInterpolator", "AnimationInterpolatorPool", "TransformAnimation"]
+__all__ = ["AnimationInterpolator", "AnimationInterpolatorPool", "BaseAnimation", "MoveAnimation", "TransformAnimation"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -15,43 +15,47 @@ __license__ = "GNU GPL v3.0"
 from abc import ABCMeta, abstractmethod
 from contextlib import ExitStack, contextmanager
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal as L, NamedTuple, TypeAlias, TypeVar, overload
-from weakref import WeakKeyDictionary, proxy as weakproxy
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal as L, NamedTuple, Protocol, TypeAlias, TypeVar, cast, overload
+from weakref import WeakKeyDictionary, ref as weakref
 
-from ..math import Vector2
+from ..math import Vector2, angle_interpolation, linear_interpolation
 from ..system.object import Object, final
+from ..system.utils.weakref import weakref_unwrap
 from ..window.time import Time
+from .movable import Movable, MovableProxy
+from .transformable import Transformable, TransformableProxy
 
 if TYPE_CHECKING:
     from ..window.scene import Scene, SceneWindow
-    from .transformable import Transformable
-
-_AnimationType: TypeAlias = L["move", "rotate", "rotate_point", "scale"]
 
 
 @final
 class AnimationInterpolator(Object):
     __slots__ = (
-        "__transformable",
+        "__obj",
         "__actual_state",
         "__previous_state",
         "__state_update",
+        "__state_factory",
     )
 
-    __cache: WeakKeyDictionary[Transformable, AnimationInterpolator] = WeakKeyDictionary()
+    __cache: WeakKeyDictionary[Movable | Transformable, AnimationInterpolator] = WeakKeyDictionary()
 
-    def __new__(cls, transformable: Transformable) -> AnimationInterpolator:
+    def __new__(cls, obj: Movable | Transformable) -> AnimationInterpolator:
+        if isinstance(obj, (MovableProxy, TransformableProxy)):
+            obj = object.__getattribute__(obj, "_object")
         try:
-            self = cls.__cache[transformable]
+            self = cls.__cache[obj]
         except KeyError:
-            cls.__cache[transformable] = self = super().__new__(cls)
-            self.__internal_init(transformable)
+            cls.__cache[obj] = self = super().__new__(cls)
+            self.__internal_init(obj)
         return self
 
-    def __internal_init(self, transformable: Transformable) -> None:
-        self.__transformable: Transformable = weakproxy(transformable)
-        self.__actual_state: _TransformState | None = None
-        self.__previous_state: _TransformState | None = None
+    def __internal_init(self, obj: Movable | Transformable) -> None:
+        self.__obj: weakref[Movable | Transformable] = weakref(obj)
+        self.__state_factory: type[_ObjectStateProtocol] = _TransformState if isinstance(obj, Transformable) else _MoveState
+        self.__actual_state: _ObjectStateProtocol | None = None
+        self.__previous_state: _ObjectStateProtocol | None = None
         self.__state_update: bool = False
 
     @contextmanager
@@ -61,42 +65,46 @@ class AnimationInterpolator(Object):
             return
         self.__state_update = True
         try:
-            transformable: Transformable = self.__transformable
+            obj: Movable | Transformable = weakref_unwrap(self.__obj)
             self.__previous_state = state = self.__actual_state
             if state is not None:
-                state.apply_on(transformable)
+                state.apply_on(obj)
             else:
-                self.__previous_state = _TransformState.from_transformable(transformable)
+                self.__previous_state = self.__state_factory.from_object(obj)
             yield
-            self.__actual_state = _TransformState.from_transformable(transformable)
+            self.__actual_state = self.__state_factory.from_object(obj)
         finally:
             self.__state_update = False
 
     def update(self, interpolation: float) -> None:
         if self.__state_update:
             raise RuntimeError(f"update() during state update")
-        previous: _TransformState | None = self.__previous_state
-        actual: _TransformState | None = self.__actual_state
+        previous: _ObjectStateProtocol | None = self.__previous_state
+        actual: _ObjectStateProtocol | None = self.__actual_state
         if not previous or not actual:
             return
         interpolation = min(max(interpolation, 0), 1)
-        transformable: Transformable = self.__transformable
-        previous.interpolate(actual, interpolation, transformable)
+        obj: Movable | Transformable = weakref_unwrap(self.__obj)
+        previous.interpolate(actual, interpolation, obj)
 
     def reset(self) -> None:
         if self.__state_update:
             raise RuntimeError(f"reset() during state update")
         self.__actual_state = self.__previous_state = None
 
+    @property
+    def object(self) -> Movable:
+        return weakref_unwrap(self.__obj)
+
 
 @final
 class AnimationInterpolatorPool(Object):
     __slots__ = ("__interpolators",)
 
-    def __init__(self, *transformables: Transformable) -> None:
+    def __init__(self, *objects: Movable | Transformable) -> None:
         super().__init__()
-        self.__interpolators: WeakKeyDictionary[Transformable, AnimationInterpolator] = WeakKeyDictionary()
-        self.add(*transformables)
+        self.__interpolators: WeakKeyDictionary[Movable | Transformable, AnimationInterpolator] = WeakKeyDictionary()
+        self.add(*objects)
 
     @contextmanager
     def fixed_update(self) -> Iterator[None]:
@@ -109,49 +117,118 @@ class AnimationInterpolatorPool(Object):
         for interpolator in self.__interpolators.values():
             interpolator.update(interpolation)
 
-    def add(self, *transformables: Transformable) -> None:
-        self.__interpolators.update({t: AnimationInterpolator(t) for t in transformables})
+    def add(self, *objects: Movable | Transformable) -> None:
+        interpolators = (AnimationInterpolator(obj) for obj in objects)
+        self.__interpolators.update({interpolator.object: interpolator for interpolator in interpolators})
 
-    def remove(self, transformable: Transformable) -> None:
-        del self.__interpolators[transformable]
+    def remove(self, obj: Movable | Transformable) -> None:
+        if isinstance(obj, (MovableProxy, TransformableProxy)):
+            obj = object.__getattribute__(obj, "_object")
+        del self.__interpolators[obj]
 
 
-@final
-class TransformAnimation(Object):
-
+class BaseAnimation(Object):
     __slots__ = (
-        "__transformable",
-        "__animations_order",
-        "__animations",
+        "__object",
         "__interpolator",
         "__on_stop",
         "__wait",
     )
 
-    __cache: WeakKeyDictionary[Transformable, TransformAnimation] = WeakKeyDictionary()
-
-    def __new__(cls, transformable: Transformable) -> TransformAnimation:
-        try:
-            self = cls.__cache[transformable]
-        except KeyError:
-            cls.__cache[transformable] = self = super().__new__(cls)
-            self.__internal_init(transformable)
-        return self
-
-    def __internal_init(self, transformable: Transformable) -> None:
-        self.__transformable: Transformable = weakproxy(transformable)
-        self.__animations_order: list[_AnimationType] = ["scale", "rotate", "rotate_point", "move"]
-        self.__animations: dict[_AnimationType, _AbstractAnimationClass] = {}
-        self.__interpolator = AnimationInterpolator(transformable)
+    def __init__(self, obj: Any) -> None:
+        super().__init__()
+        self.__object: weakref[Any] = weakref(obj)
         self.__on_stop: Callable[[], None] | None = None
+        self.__interpolator = AnimationInterpolator(obj)
         self.__wait: bool = True
 
     @property
     def interpolator(self) -> AnimationInterpolator:
         return self.__interpolator
 
+    @property
+    def object(self) -> Any:
+        return weakref_unwrap(self.__object)
+
+    @abstractmethod
+    def has_animation_started(self) -> bool:
+        raise NotImplementedError
+
+    def started(self) -> bool:
+        return not self.__wait and self.has_animation_started()
+
+    def on_stop(self, callback: Callable[[], None] | None) -> None:
+        if not (callback is None or callable(callback)):
+            raise TypeError("Invalid arguments")
+        self.__on_stop = callback
+
+    def fixed_update(self) -> None:
+        if not self.started():
+            return
+        with self.__interpolator.fixed_update():
+            self._launch_animations()
+        if not self.has_animation_started():
+            self.clear(pause=False)
+            self.__wait = True
+            if on_stop := self.__on_stop:
+                on_stop()
+                self.__on_stop = None
+
+    def update(self, interpolation: float) -> None:
+        if not self.started():
+            return
+        self.__interpolator.update(interpolation)
+
+    def start(self) -> None:
+        self.__wait = False
+
+    def pause(self) -> None:
+        self.__wait = True
+
+    def clear(self, *, pause: bool = False) -> None:
+        self.__wait = bool(pause)
+        self.__interpolator.reset()
+
+    @abstractmethod
+    def _launch_animations(self) -> None:
+        raise NotImplementedError
+
+    def wait_until_finish(self, scene: Scene) -> None:
+        if not scene.looping() or not self.has_animation_started():
+            return
+        window: SceneWindow = scene.window
+        self.__on_stop = None
+        self.start()
+        fixed_update = self.fixed_update
+        interpolation_update = self.update
+        with window.block_all_events_context(), window.no_window_callback_processing():
+            while window.looping() and self.has_animation_started():
+                window.handle_events()
+                window._fixed_updates_call(fixed_update)
+                window._interpolation_updates_call(interpolation_update)
+                scene.update()
+                window.render_scene()
+                window.refresh()
+
+
+@final
+class MoveAnimation(BaseAnimation):
+    __slots__ = ("__animation",)
+
+    def __init__(self, movable: Movable) -> None:
+        if not isinstance(movable, Movable):
+            raise TypeError("Invalid argument")
+        if isinstance(movable, MovableProxy):
+            movable = object.__getattribute__(movable, "_object")
+        super().__init__(movable)
+        self.__animation: _AbstractAnimationClass | None = None
+
     if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="TransformAnimation")
+        __Self = TypeVar("__Self", bound="MoveAnimation")
+
+        @property
+        def object(self) -> Movable:
+            ...
 
     @overload
     def smooth_set_position(
@@ -189,17 +266,101 @@ class TransformAnimation(Object):
     def smooth_set_position(self: __Self, speed: float = 100, **position: float | tuple[float, float]) -> __Self:
         if not position:
             raise ValueError("Please give position parameter")
-        transformable: Transformable = self.__transformable
+        self.__animation = _AnimationSetPosition(self.object, speed, position)
+        return self
+
+    def smooth_translation(self: __Self, translation: Vector2 | tuple[float, float], speed: float = 100) -> __Self:
+        self.__animation = _AnimationMove(self.object, speed, translation)
+        return self
+
+    def infinite_translation(self: __Self, direction: Vector2 | tuple[float, float], speed: float = 100) -> __Self:
+        self.__animation = _AnimationInfiniteMove(self.object, speed, direction)
+        return self
+
+    def has_animation_started(self) -> bool:
+        animation = self.__animation
+        return animation is not None and animation.started()
+
+    def _launch_animations(self) -> None:
+        animation = cast(_AbstractAnimationClass, self.__animation)
+        if animation.started():
+            animation.fixed_update()
+        else:
+            animation.default()
+
+
+_AnimationType: TypeAlias = L["move", "rotate", "rotate_point", "scale"]
+
+
+@final
+class TransformAnimation(BaseAnimation):
+
+    __slots__ = ("__animations",)
+
+    __animations_order: list[_AnimationType] = ["scale", "rotate", "rotate_point", "move"]
+
+    def __init__(self, transformable: Transformable) -> None:
+        if not isinstance(transformable, Transformable):
+            raise TypeError("Invalid argument")
+        if isinstance(transformable, TransformableProxy):
+            transformable = object.__getattribute__(transformable, "_object")
+        super().__init__(transformable)
+        self.__animations: dict[_AnimationType, _AbstractAnimationClass] = {}
+
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="TransformAnimation")
+
+        @property
+        def object(self) -> Transformable:
+            ...
+
+    @overload
+    def smooth_set_position(
+        self: __Self,
+        speed: float = 100,
+        *,
+        x: float = ...,
+        y: float = ...,
+        left: float = ...,
+        right: float = ...,
+        top: float = ...,
+        bottom: float = ...,
+        centerx: float = ...,
+        centery: float = ...,
+    ) -> __Self:
+        ...
+
+    @overload
+    def smooth_set_position(
+        self: __Self,
+        speed: float = 100,
+        *,
+        center: tuple[float, float] = ...,
+        topleft: tuple[float, float] = ...,
+        topright: tuple[float, float] = ...,
+        bottomleft: tuple[float, float] = ...,
+        bottomright: tuple[float, float] = ...,
+        midleft: tuple[float, float] = ...,
+        midright: tuple[float, float] = ...,
+        midtop: tuple[float, float] = ...,
+        midbottom: tuple[float, float] = ...,
+    ) -> __Self:
+        ...
+
+    def smooth_set_position(self: __Self, speed: float = 100, **position: float | tuple[float, float]) -> __Self:
+        if not position:
+            raise ValueError("Please give position parameter")
+        transformable: Transformable = self.object
         self.__animations["move"] = _AnimationSetPosition(transformable, speed, position)
         return self
 
     def smooth_translation(self: __Self, translation: Vector2 | tuple[float, float], speed: float = 100) -> __Self:
-        transformable: Transformable = self.__transformable
+        transformable: Transformable = self.object
         self.__animations["move"] = _AnimationMove(transformable, speed, translation)
         return self
 
     def infinite_translation(self: __Self, direction: Vector2 | tuple[float, float], speed: float = 100) -> __Self:
-        transformable: Transformable = self.__transformable
+        transformable: Transformable = self.object
         self.__animations["move"] = _AnimationInfiniteMove(transformable, speed, direction)
         return self
 
@@ -211,7 +372,7 @@ class TransformAnimation(Object):
         pivot: str | tuple[float, float] | Vector2 | None = None,
         counter_clockwise: bool = True,
     ) -> __Self:
-        transformable: Transformable = self.__transformable
+        transformable: Transformable = self.object
         if pivot is not None:
             self.__animations.pop("rotate_point", None)
         self.__animations["rotate"] = _AnimationSetRotation(transformable, angle, speed, pivot, counter_clockwise)
@@ -222,7 +383,7 @@ class TransformAnimation(Object):
         angle: float,
         speed: float = 100,
     ) -> __Self:
-        transformable: Transformable = self.__transformable
+        transformable: Transformable = self.object
         self.__animations["rotate"] = _AnimationRotation(transformable, angle, speed)
         return self
 
@@ -234,14 +395,14 @@ class TransformAnimation(Object):
         *,
         rotate_object: bool = False,
     ) -> __Self:
-        transformable: Transformable = self.__transformable
+        transformable: Transformable = self.object
         if rotate_object:
             self.__animations.pop("rotate", None)
         self.__animations["rotate_point"] = _AnimationRotationAroundPoint(transformable, angle, speed, pivot, rotate_object)
         return self
 
     def infinite_rotation(self: __Self, speed: float = 100, *, counter_clockwise: bool = True) -> __Self:
-        transformable: Transformable = self.__transformable
+        transformable: Transformable = self.object
         self.__animations["rotate"] = _AnimationInfiniteRotate(transformable, speed, counter_clockwise)
         return self
 
@@ -253,7 +414,7 @@ class TransformAnimation(Object):
         counter_clockwise: bool = True,
         rotate_object: bool = False,
     ) -> __Self:
-        transformable: Transformable = self.__transformable
+        transformable: Transformable = self.object
         if rotate_object:
             self.__animations.pop("rotate", None)
         self.__animations["rotate_point"] = _AnimationInfiniteRotateAroundPoint(
@@ -262,89 +423,72 @@ class TransformAnimation(Object):
         return self
 
     def smooth_scale_to_width(self: __Self, width: float, speed: float = 100) -> __Self:
-        transformable: Transformable = self.__transformable
+        transformable: Transformable = self.object
         self.__animations["scale"] = _AnimationSetSize(transformable, width, speed, "width")
         return self
 
     def smooth_scale_to_height(self: __Self, height: float, speed: float = 100) -> __Self:
-        transformable: Transformable = self.__transformable
+        transformable: Transformable = self.object
         self.__animations["scale"] = _AnimationSetSize(transformable, height, speed, "height")
         return self
 
     def smooth_width_growth(self: __Self, width_offset: float, speed: float = 100) -> __Self:
-        transformable: Transformable = self.__transformable
+        transformable: Transformable = self.object
         self.__animations["scale"] = _AnimationSizeGrowth(transformable, width_offset, speed, "width")
         return self
 
     def smooth_height_growth(self: __Self, height_offset: float, speed: float = 100) -> __Self:
-        transformable: Transformable = self.__transformable
+        transformable: Transformable = self.object
         self.__animations["scale"] = _AnimationSizeGrowth(transformable, height_offset, speed, "height")
         return self
-
-    def fixed_update(self) -> None:
-        if not self.started():
-            return
-        with self.__interpolator.fixed_update():
-            for animation in self.__iter_animations():
-                if animation.started():
-                    animation.fixed_update()
-                else:
-                    animation.default()
-        if not self.has_animation_started():
-            self.clear(pause=False)
-            self.__wait = True
-            if on_stop := self.__on_stop:
-                on_stop()
-                self.__on_stop = None
-
-    def update(self, interpolation: float) -> None:
-        if not self.started():
-            return
-        self.__interpolator.update(interpolation)
 
     def has_animation_started(self) -> bool:
         return any(animation.started() for animation in self.__animations.values())
 
-    def started(self) -> bool:
-        return not self.__wait and self.has_animation_started()
-
-    def on_stop(self, callback: Callable[[], None] | None) -> None:
-        if not (callback is None or callable(callback)):
-            raise TypeError("Invalid arguments")
-        self.__on_stop = callback
-
-    def start(self) -> None:
-        self.__wait = False
-
-    def pause(self) -> None:
-        self.__wait = True
-
-    def clear(self, *, pause: bool = False) -> None:
-        self.__wait = bool(pause)
-        self.__animations.clear()
-        self.__interpolator.reset()
-
-    def wait_until_finish(self, scene: Scene) -> None:
-        if not scene.looping() or not self.has_animation_started():
-            return
-        window: SceneWindow = scene.window
-        self.__on_stop = None
-        self.start()
-        fixed_update = self.fixed_update
-        interpolation_update = self.update
-        with window.block_all_events_context(), window.no_window_callback_processing():
-            while window.looping() and self.has_animation_started():
-                window.handle_events()
-                window._fixed_updates_call(fixed_update)
-                window._interpolation_updates_call(interpolation_update)
-                window.render_scene()
-                window.refresh()
+    def _launch_animations(self) -> None:
+        for animation in self.__iter_animations():
+            if animation.started():
+                animation.fixed_update()
+            else:
+                animation.default()
 
     def __iter_animations(self) -> Iterator[_AbstractAnimationClass]:
         for animation_name in self.__animations_order:
             animation: _AbstractAnimationClass | None = self.__animations.get(animation_name)
             if animation is not None:
                 yield animation
+
+
+class _ObjectStateProtocol(Protocol):
+    @staticmethod
+    @abstractmethod
+    def from_object(__obj: Any, /) -> _ObjectStateProtocol:
+        raise NotImplementedError
+
+    @abstractmethod
+    def interpolate(self, other: _ObjectStateProtocol, alpha: float, __obj: Any, /) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def apply_on(self, __obj: Any, /) -> None:
+        raise NotImplementedError
+
+
+@final
+class _MoveState(NamedTuple):
+    center: Vector2
+
+    @staticmethod
+    def from_object(m: Movable) -> _MoveState:
+        return _MoveState(Vector2(m.center))
+
+    def interpolate(self, other: _MoveState, alpha: float, m: Movable) -> None:
+        center = self.center.lerp(other.center, alpha)
+        m.center = (center.x, center.y)
+
+    def apply_on(self, m: Movable) -> None:
+        center = self.center
+        m.center = (center.x, center.y)
 
 
 @final
@@ -355,7 +499,7 @@ class _TransformState(NamedTuple):
     data: MappingProxyType[str, Any] | None
 
     @staticmethod
-    def from_transformable(t: Transformable) -> _TransformState:
+    def from_object(t: Transformable) -> _TransformState:
         data: MappingProxyType[str, Any] | None = None
         state = t._freeze_state()
         if state is not None:
@@ -363,25 +507,12 @@ class _TransformState(NamedTuple):
         return _TransformState(t.angle, t.scale, Vector2(t.center), data)
 
     def interpolate(self, other: _TransformState, alpha: float, t: Transformable) -> None:
-        angle = self.angle_interpolation(self.angle, other.angle, alpha)
-        scale = self.linear_interpolation(self.scale, other.scale, alpha)
+        angle = angle_interpolation(self.angle, other.angle, alpha)
+        scale = linear_interpolation(self.scale, other.scale, alpha)
         center = self.center.lerp(other.center, alpha)
         if not t._set_frozen_state(angle, scale, None):
             t.apply_rotation_scale()
         t.center = (center.x, center.y)
-
-    @staticmethod
-    def angle_interpolation(start: float, end: float, alpha: float) -> float:
-        if start == end:
-            return start
-        shortest_angle = ((end - start) + 180) % 360 - 180
-        return (start + shortest_angle * alpha) % 360
-
-    @staticmethod
-    def linear_interpolation(start: float, end: float, alpha: float) -> float:
-        if start == end:
-            return start
-        return start * (1.0 - alpha) + end * alpha
 
     def apply_on(self, t: Transformable) -> None:
         if not t._set_frozen_state(self.angle, self.scale, self.data):
@@ -393,14 +524,14 @@ class _TransformState(NamedTuple):
 class _AbstractAnimationClass(metaclass=ABCMeta):
 
     __slots__ = (
-        "__transformable",
+        "__object",
         "__animation_started",
         "__speed",
         "__delta",
     )
 
-    def __init__(self, transformable: Transformable, speed: float) -> None:
-        self.__transformable: Transformable = transformable
+    def __init__(self, obj: Movable, speed: float) -> None:
+        self.__object: Movable = obj
         self.__animation_started: bool = True
         self.__speed: float = speed
         self.__delta: Callable[[], float] = Time.fixed_delta
@@ -422,41 +553,52 @@ class _AbstractAnimationClass(metaclass=ABCMeta):
         raise NotImplementedError
 
     @property
-    def transformable(self) -> Transformable:
-        return self.__transformable
+    def object(self) -> Movable:
+        return self.__object
 
     @property
     def speed(self) -> float:
         return self.__speed * self.__delta()
 
 
+class _AbstractTransformableAnimationClass(_AbstractAnimationClass):
+    if TYPE_CHECKING:
+
+        def __init__(self, obj: Transformable, speed: float) -> None:
+            ...
+
+        @property
+        def object(self) -> Transformable:
+            ...
+
+
 class _AnimationSetPosition(_AbstractAnimationClass):
 
     __slots__ = ("__position",)
 
-    def __init__(self, transformable: Transformable, speed: float, position: dict[str, float | tuple[float, float]]) -> None:
-        super().__init__(transformable, speed)
+    def __init__(self, movable: Movable, speed: float, position: dict[str, float | tuple[float, float]]) -> None:
+        super().__init__(movable, speed)
         self.__position: dict[str, float | tuple[float, float]] = position
 
     def started(self) -> bool:
         return super().started() and len(self.__position) > 0
 
     def fixed_update(self) -> None:
-        transformable = self.transformable
-        actual_position = Vector2(transformable.center)
-        projection = transformable.get_rect(**self.__position)
+        movable: Movable = self.object
+        actual_position = Vector2(movable.center)
+        projection = movable.get_rect(**self.__position)
         direction = Vector2(projection.center) - actual_position
         speed = self.speed
         length = direction.length()
         if length > 0 and length > speed:
             direction.scale_to_length(speed)
-            transformable.translate(direction)
+            movable.translate(direction)
         else:
             self.stop()
 
     def default(self) -> None:
         if self.__position:
-            self.transformable.set_position(**self.__position)  # type: ignore[arg-type]
+            self.object.set_position(**self.__position)  # type: ignore[arg-type]
             self.__position.clear()
 
 
@@ -464,8 +606,8 @@ class _AnimationMove(_AbstractAnimationClass):
 
     __slots__ = ("__vector", "__traveled")
 
-    def __init__(self, transformable: Transformable, speed: float, translation: Vector2 | tuple[float, float]) -> None:
-        super().__init__(transformable, speed)
+    def __init__(self, movable: Movable, speed: float, translation: Vector2 | tuple[float, float]) -> None:
+        super().__init__(movable, speed)
         self.__vector: Vector2 = Vector2(translation)
         self.__traveled: float = 0
 
@@ -473,7 +615,7 @@ class _AnimationMove(_AbstractAnimationClass):
         return super().started() and self.__vector.length_squared() > 0
 
     def fixed_update(self) -> None:
-        transformable = self.transformable
+        movable: Movable = self.object
         direction = self.__vector.xy
         length: float = direction.length()
         speed: float = self.speed
@@ -482,7 +624,7 @@ class _AnimationMove(_AbstractAnimationClass):
         if offset == 0:
             return self.stop()
         direction.scale_to_length(offset)
-        transformable.translate(direction)
+        movable.translate(direction)
         self.__traveled += offset
 
     def default(self) -> None:
@@ -496,8 +638,8 @@ class _AnimationInfiniteMove(_AbstractAnimationClass):
 
     __slots__ = ("__vector",)
 
-    def __init__(self, transformable: Transformable, speed: float, direction: Vector2 | tuple[float, float]) -> None:
-        super().__init__(transformable, speed)
+    def __init__(self, movable: Movable, speed: float, direction: Vector2 | tuple[float, float]) -> None:
+        super().__init__(movable, speed)
         self.__vector: Vector2 = Vector2(direction)
         if self.__vector.length_squared() > 0:
             self.__vector.normalize_ip()
@@ -506,17 +648,17 @@ class _AnimationInfiniteMove(_AbstractAnimationClass):
         return super().started() and self.__vector.length_squared() > 0
 
     def fixed_update(self) -> None:
-        transformable = self.transformable
+        movable: Movable = self.object
         direction = self.__vector.xy
         speed = self.speed
         direction.scale_to_length(speed)
-        transformable.translate(direction)
+        movable.translate(direction)
 
     def default(self) -> None:
         self.__vector = Vector2(0, 0)
 
 
-class _AnimationSetRotation(_AbstractAnimationClass):
+class _AnimationSetRotation(_AbstractTransformableAnimationClass):
 
     __slots__ = ("__angle", "__pivot", "__counter_clockwise")
 
@@ -538,7 +680,7 @@ class _AnimationSetRotation(_AbstractAnimationClass):
         self.__counter_clockwise: bool = counter_clockwise
 
     def fixed_update(self) -> None:
-        transformable = self.transformable
+        transformable = self.object
         actual_angle: float = transformable.angle
         speed: float = self.speed
         offset: float = speed
@@ -557,10 +699,10 @@ class _AnimationSetRotation(_AbstractAnimationClass):
             self.stop()
 
     def default(self) -> None:
-        self.transformable.set_rotation(self.__angle, self.__pivot)
+        self.object.set_rotation(self.__angle, self.__pivot)
 
 
-class _AnimationRotation(_AbstractAnimationClass):
+class _AnimationRotation(_AbstractTransformableAnimationClass):
 
     __slots__ = ("__angle", "__orientation", "__actual_angle")
 
@@ -579,7 +721,7 @@ class _AnimationRotation(_AbstractAnimationClass):
         return super().started() and self.__angle != 0
 
     def fixed_update(self) -> None:
-        transformable: Transformable = self.transformable
+        transformable: Transformable = self.object
         actual_angle: float = self.__actual_angle
         angle: float = self.__angle
         speed: float = self.speed
@@ -595,7 +737,7 @@ class _AnimationRotation(_AbstractAnimationClass):
             self.__angle = 0
 
 
-class _AnimationInfiniteRotate(_AbstractAnimationClass):
+class _AnimationInfiniteRotate(_AbstractTransformableAnimationClass):
 
     __slots__ = ("__orientation",)
 
@@ -609,7 +751,7 @@ class _AnimationInfiniteRotate(_AbstractAnimationClass):
         self.__orientation: int = 1 if counter_clockwise else -1
 
     def fixed_update(self) -> None:
-        transformable = self.transformable
+        transformable = self.object
         offset: float = self.speed * self.__orientation
         transformable.rotate(offset)
 
@@ -617,7 +759,7 @@ class _AnimationInfiniteRotate(_AbstractAnimationClass):
         pass
 
 
-class _AnimationRotationAroundPoint(_AbstractAnimationClass):
+class _AnimationRotationAroundPoint(_AbstractTransformableAnimationClass):
 
     __slots__ = (
         "__angle",
@@ -649,7 +791,7 @@ class _AnimationRotationAroundPoint(_AbstractAnimationClass):
         return super().started() and self.__angle != 0
 
     def fixed_update(self) -> None:
-        transformable: Transformable = self.transformable
+        transformable: Transformable = self.object
         actual_angle: float = self.__actual_angle
         angle: float = self.__angle
         speed: float = self.speed
@@ -668,7 +810,7 @@ class _AnimationRotationAroundPoint(_AbstractAnimationClass):
             self.__angle = 0
 
 
-class _AnimationInfiniteRotateAroundPoint(_AbstractAnimationClass):
+class _AnimationInfiniteRotateAroundPoint(_AbstractTransformableAnimationClass):
 
     __slots__ = ("__pivot", "__orientation", "__rotate_object")
 
@@ -689,7 +831,7 @@ class _AnimationInfiniteRotateAroundPoint(_AbstractAnimationClass):
         self.__rotate_object: bool = rotate_object
 
     def fixed_update(self) -> None:
-        transformable = self.transformable
+        transformable = self.object
         offset: float = self.speed * self.__orientation
         if self.__rotate_object:
             transformable.rotate(offset, self.__pivot)
@@ -700,7 +842,7 @@ class _AnimationInfiniteRotateAroundPoint(_AbstractAnimationClass):
         pass
 
 
-class _AbstractAnimationScale(_AbstractAnimationClass):
+class _AbstractAnimationScale(_AbstractTransformableAnimationClass):
 
     __slots__ = ("__field",)
 
@@ -711,13 +853,13 @@ class _AbstractAnimationScale(_AbstractAnimationClass):
         self.__field: L["width", "height"] = field
 
     def get_transformable_size(self) -> float:
-        area: tuple[float, float] = self.transformable.get_area_size(apply_rotation=False)
+        area: tuple[float, float] = self.object.get_area_size(apply_rotation=False)
         if self.__field == "width":
             return area[0]
         return area[1]
 
     def set_transformable_size(self, value: float) -> None:
-        getattr(self.transformable, f"scale_to_{self.__field}")(value)
+        getattr(self.object, f"scale_to_{self.__field}")(value)
 
 
 class _AnimationSetSize(_AbstractAnimationScale):

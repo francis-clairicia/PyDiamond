@@ -6,21 +6,29 @@
 
 from __future__ import annotations
 
-__all__ = ["Transformable", "TransformableMeta"]
+__all__ = ["Transformable", "TransformableMeta", "TransformableProxy"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Callable, Mapping
 
 from pygame import error as _pg_error
 
 from ..math import Vector2
 from ..system.object import final
-from .movable import Movable, MovableMeta
+from ..system.utils.abc import concreteclass
+from ..system.utils.functools import wraps
+from .movable import Movable, MovableMeta, MovableProxy
 from .rect import Rect
+
+if TYPE_CHECKING:
+    from .movable import _MovableProxyMeta
+else:
+    _MovableProxyMeta = type(MovableProxy)
+
 
 _ALL_VALID_ROTATION_PIVOTS: tuple[str, ...] = (
     "center",
@@ -171,6 +179,7 @@ class Transformable(Movable, metaclass=TransformableMeta):
         if self.width > size[0] or self.height > size[1]:
             self.size = size
 
+    @final
     def apply_rotation_scale(self) -> None:
         try:
             self._apply_both_rotation_and_scale()
@@ -309,3 +318,80 @@ class Transformable(Movable, metaclass=TransformableMeta):
     @height.setter
     def height(self, height: float) -> None:
         self.scale_to_height(height)
+
+
+class _TransformableProxyMeta(TransformableMeta, _MovableProxyMeta):
+    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> Any:
+        if "TransformableProxy" not in globals() and name == "TransformableProxy":
+            from ..system.utils._mangling import mangle_private_attribute
+
+            for attr in ("angle", "scale"):
+                attr = mangle_private_attribute(Transformable, attr)
+
+                def getter(self: TransformableProxy, /, *, attr: str = str(attr)) -> Any:
+                    transformable: Transformable = object.__getattribute__(self, "_object")
+                    return getattr(transformable, attr)
+
+                def setter(self: TransformableProxy, value: Any, /, *, attr: str = str(attr)) -> Any:
+                    transformable: Transformable = object.__getattribute__(self, "_object")
+                    return setattr(transformable, attr, value)
+
+                namespace[attr] = property(fget=getter, fset=setter)
+
+            for method_name in (
+                "rotate",
+                "set_rotation",
+                "rotate_around_point",
+                "get_pivot_from_attribute",
+                "set_scale",
+                "scale_to_width",
+                "scale_to_height",
+                "scale_to_size",
+                "set_min_width",
+                "set_max_width",
+                "set_min_height",
+                "set_max_height",
+                "set_min_size",
+                "set_max_size",
+                "_freeze_state",
+                "_set_frozen_state",
+                "get_local_rect",
+            ):
+
+                @wraps(getattr(Transformable, method_name))  # type: ignore[arg-type]
+                def wrapper(self: TransformableProxy, *args: Any, __method_name: str = str(method_name), **kwargs: Any) -> Any:
+                    method_name = __method_name
+                    transformable: Transformable = object.__getattribute__(self, "_object")
+                    method: Callable[..., Any] = getattr(transformable, method_name)
+                    return method(*args, **kwargs)
+
+                wrapper.__qualname__ = f"{name}.{wrapper.__name__}"
+
+                namespace[method_name] = wrapper
+
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
+
+
+@concreteclass
+class TransformableProxy(Transformable, MovableProxy, metaclass=_TransformableProxyMeta):
+    def __init__(self, transformable: Transformable) -> None:
+        MovableProxy.__init__(self, transformable)
+
+    def get_local_size(self) -> tuple[float, float]:
+        transformable: Transformable = object.__getattribute__(self, "_object")
+        return transformable.get_local_size()
+
+    def _apply_both_rotation_and_scale(self) -> None:
+        transformable: Transformable = object.__getattribute__(self, "_object")
+        return transformable._apply_both_rotation_and_scale()
+
+    def _apply_only_rotation(self) -> None:
+        transformable: Transformable = object.__getattribute__(self, "_object")
+        return transformable._apply_only_rotation()
+
+    def _apply_only_scale(self) -> None:
+        transformable: Transformable = object.__getattribute__(self, "_object")
+        return transformable._apply_only_scale()
+
+
+del _TransformableProxyMeta, _MovableProxyMeta

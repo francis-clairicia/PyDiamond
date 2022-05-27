@@ -20,7 +20,7 @@ from itertools import chain
 from typing import TYPE_CHECKING, Any, Sequence, TypeVar
 
 from ..graphics.color import BLUE, TRANSPARENT, WHITE, Color
-from ..graphics.movable import Movable, MovableProxy
+from ..graphics.movable import MovableProxy
 from ..graphics.shape import RectangleShape
 from ..system.object import final
 from ..system.utils.functools import cache
@@ -77,6 +77,12 @@ class Dialog(Scene, metaclass=DialogMeta):
         except AttributeError:
             raise TypeError(f"Trying to instantiate {self.__class__.__name__!r} dialog outside a SceneWindow manager") from None
         self.background_color = Color(0, 0, 0, 0)
+
+    def run_start_transition(self) -> None:
+        pass
+
+    def run_quit_transition(self) -> None:
+        pass
 
     @property
     def master(self) -> Scene:
@@ -166,5 +172,5 @@ class PopupDialog(Dialog):
         raise NotImplementedError
 
     @property
-    def popup(self) -> Movable:
+    def popup(self) -> MovableProxy:
         return MovableProxy(self.__bg)
