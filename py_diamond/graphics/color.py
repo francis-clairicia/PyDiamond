@@ -38,7 +38,7 @@ __license__ = "GNU GPL v3.0"
 
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Final, Mapping
+from typing import TYPE_CHECKING, Any, Final, Mapping, SupportsIndex
 
 from pygame.color import Color as _Color
 from pygame.colordict import THECOLORS as _PG_ALL_COLORS
@@ -96,9 +96,21 @@ class Color(_Color):
     def with_alpha(self, value: int) -> Color:
         return Color(self.r, self.g, self.b, value)
 
+    def __reduce_ex__(self, __protocol: SupportsIndex) -> str | tuple[Any, ...]:
+        return type(self), (self.r, self.g, self.b, self.a)
+
 
 @dataclass(init=False, repr=False, eq=False, frozen=True)
 class ImmutableColor(Color):
+    r: int
+    g: int
+    b: int
+    a: int
+    cmy: tuple[float, float, float]
+    hsva: tuple[float, float, float, float]
+    hsla: tuple[float, float, float, float]
+    i1i2i3: tuple[float, float, float]
+
     if not TYPE_CHECKING:
 
         def __init__(self, *args: Any, **kwargs: Any) -> None:

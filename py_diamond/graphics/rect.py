@@ -13,13 +13,36 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, SupportsIndex
 
 from pygame.rect import Rect
 
 
 @dataclass(init=False, repr=False, eq=False, frozen=True)
 class ImmutableRect(Rect):
+    x: int
+    y: int
+    top: int
+    left: int
+    bottom: int
+    right: int
+    topleft: tuple[int, int]
+    bottomleft: tuple[int, int]
+    topright: tuple[int, int]
+    bottomright: tuple[int, int]
+    midtop: tuple[int, int]
+    midleft: tuple[int, int]
+    midbottom: tuple[int, int]
+    midright: tuple[int, int]
+    center: tuple[int, int]
+    centerx: int
+    centery: int
+    size: tuple[int, int]
+    width: int
+    height: int
+    w: int
+    h: int
+
     if not TYPE_CHECKING:
 
         def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -28,3 +51,6 @@ class ImmutableRect(Rect):
     @staticmethod
     def convert(pygame_rect: Rect) -> ImmutableRect:
         return ImmutableRect(pygame_rect.topleft, pygame_rect.size)
+
+    def __reduce_ex__(self, __protocol: SupportsIndex) -> str | tuple[Any, ...]:
+        return type(self), (self.x, self.y, self.w, self.h)

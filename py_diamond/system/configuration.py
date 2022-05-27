@@ -26,7 +26,7 @@ __license__ = "GNU GPL v3.0"
 
 import re
 from contextlib import ExitStack, contextmanager, nullcontext, suppress
-from copy import copy, deepcopy
+from copy import copy
 from dataclasses import KW_ONLY, dataclass, field
 from enum import Enum
 from functools import cache, update_wrapper, wraps
@@ -1419,15 +1419,15 @@ class ConfigurationInfo:
             descriptor = self.__ReadOnlyOptionWrapper(descriptor)
         return descriptor
 
-    def get_copy_func(self, cls: type) -> Callable[[Any], Any]:
+    def get_copy_func(self, objtype: type) -> Callable[[Any], Any]:
         try:
-            return self.value_copy[cls]
+            return self.value_copy[objtype]
         except KeyError:
-            if self.value_copy_allow_subclass.get(cls, False):
+            if self.value_copy_allow_subclass.get(objtype, False):
                 for _type, func in self.value_copy.items():
-                    if issubclass(cls, _type):
+                    if issubclass(objtype, _type):
                         return func
-        return _copy_object
+        return copy
 
 
 _InitializationRegister = Dict[str, Any]
@@ -1441,7 +1441,7 @@ class Configuration(Generic[_T], Object):
     __lock_cache: ClassVar[WeakKeyDictionary[object, RLock]] = WeakKeyDictionary()
     __default_lock: ClassVar[RLock] = RLock()
 
-    __slots__ = ("__info", "__obj")
+    __slots__ = ("__info", "__obj", "__weakref__")
 
     class __OptionUpdateContext(NamedTuple):
         first_call: bool
@@ -1489,8 +1489,7 @@ class Configuration(Generic[_T], Object):
             return value.value
         if info.value_autocopy_get.get(option, info.autocopy):
             copy_func = info.get_copy_func(type(value))
-            with suppress(Exception):
-                value = copy_func(value)
+            value = copy_func(value)
         return value
 
     def __getitem__(self, option: str, /) -> Any:
@@ -1540,8 +1539,7 @@ class Configuration(Generic[_T], Object):
 
             if not converter_applied and info.value_autocopy_set.get(option, info.autocopy):
                 copy_func = info.get_copy_func(type(value))
-                with suppress(Exception):
-                    value = copy_func(value)
+                value = copy_func(value)
 
             descriptor.__set__(obj, value)
             update_context.updated.append(option)
@@ -1600,6 +1598,8 @@ class Configuration(Generic[_T], Object):
         # TODO (3.11): Exception groups
         info = self.__info
         options = [info.check_option_validity(option, use_alias=True) for option in kwargs]
+        if any(options.count(option) > 1 for option in kwargs):
+            raise TypeError("Multiple aliases to the same option given")
         with self.__updating_many_options(obj, *options, info=self.__info, call_updaters=True):
             for option, value in kwargs.items():
                 self.set(option, value)
@@ -2498,13 +2498,6 @@ class _ConfigInfoTemplate:
 
     def __build_enum_return_value_set(self) -> FrozenSet[str]:
         return frozenset(option for option, value in self.enum_return_value.items() if value)
-
-
-def _copy_object(obj: _T) -> _T:
-    try:
-        return deepcopy(obj)
-    except Exception:
-        return copy(obj)
 
 
 class _ConfigInitializer:
