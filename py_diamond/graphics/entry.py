@@ -239,7 +239,7 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
         else:
             self.__show_cursor = show_cursor = False
         if show_cursor:
-            width: float = text.font.size(text.message[:cursor])[0] + 1
+            width: float = text.font.get_rect(text.message[:cursor]).width + 1
             height: float = self.height - self.__cursor_height_offset
             cursor_start: tuple[float, float] = (text.left + width, text.centery - height // 2)
             cursor_end: tuple[float, float] = (text.left + width, text.centery + height // 2)
@@ -432,7 +432,7 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
 
 
 def _get_entry_size(font: Font, nb_chars: int) -> tuple[int, int]:
-    return font.size(max(ASCII_PRINTABLE, key=lambda char: font.size(char)) * nb_chars)
+    return font.get_rect(max(ASCII_PRINTABLE, key=lambda char: font.get_rect(char).size) * nb_chars).size
 
 
 class _TextEntry(Text):

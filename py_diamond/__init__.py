@@ -30,8 +30,9 @@ if sys.version_info < (3, 10):
 
 
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")  # Must be set before importing pygame
-os.environ.setdefault("PYGAME_FREETYPE", "1")  # Must be set before importing pygame
 os.environ.setdefault("SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1")  # Must be set before importing pygame
+
+os.environ["PYGAME_FREETYPE"] = "1"  # Must be set before importing pygame (Force modification)
 
 ############ Package initialization ############
 #### Apply various patch that must be run before importing the main modules

@@ -24,7 +24,7 @@ from ..system.enum import AutoLowerNameEnum
 from ..system.validation import valid_float, valid_integer
 from .color import BLACK, Color
 from .drawable import TDrawable, TDrawableMeta
-from .font import Font, SysFont
+from .font import Font, SysFont, get_default_font
 from .image import Image
 from .rect import Rect
 from .renderer import AbstractRenderer, SurfaceRenderer
@@ -136,26 +136,27 @@ class Text(TDrawable, metaclass=TextMeta):
             if os.path.isfile(font_family):
                 obj = Font(font_family, font_size)
                 if bold is not None:
-                    obj.set_bold(bold)
+                    obj.wide = bold
                 if italic is not None:
-                    obj.set_italic(italic)
+                    obj.oblique = italic
             else:
                 obj = SysFont(font_family, font_size, bold=bool(bold), italic=bool(italic))
         elif isinstance(font, Font):
             obj = font
             if bold is not None:
-                obj.set_bold(bold)
+                obj.wide = bold
             if italic is not None:
-                obj.set_italic(italic)
+                obj.oblique = italic
         else:
             raise TypeError("Invalid arguments")
         if underline is not None:
-            obj.set_underline(underline)
+            obj.underline = underline
+        obj.antialiased = True
         return obj
 
     @staticmethod
     def get_default_font() -> str:
-        font: str = getattr(Text, "__default_font__", Font.get_default_font())
+        font: str = getattr(Text, "__default_font__", get_default_font())
         return font
 
     @staticmethod
@@ -243,7 +244,12 @@ class Text(TDrawable, metaclass=TextMeta):
         default_font: Font = font
         for index, line in enumerate(text.splitlines()):
             font = custom_font.get(index, default_font) if custom_font is not None else default_font
-            render = font.render(line, True, color)
+            save_origin = font.origin
+            try:
+                font.origin = False
+                render, _ = font.render(line, color, (0, 0, 0, 0), rotation=0)
+            finally:
+                font.origin = save_origin
             render_width = max(render_width, render.get_width())
             render_height += render.get_height()
             render_lines.append(render)
