@@ -11,6 +11,7 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 import os.path
+from collections import deque
 from contextlib import suppress
 from copy import copy
 from enum import auto, unique
@@ -57,6 +58,7 @@ class Text(TDrawable, metaclass=TextMeta):
         "shadow_y",
         "shadow",
         "shadow_color",
+        "line_spacing",
         autocopy=True,
     )
 
@@ -69,6 +71,7 @@ class Text(TDrawable, metaclass=TextMeta):
     shadow_y: OptionAttribute[float] = OptionAttribute()
     shadow: OptionAttribute[tuple[float, float]] = OptionAttribute()
     shadow_color: OptionAttribute[Color] = OptionAttribute()
+    line_spacing: OptionAttribute[float] = OptionAttribute()
 
     @initializer
     def __init__(
@@ -82,6 +85,7 @@ class Text(TDrawable, metaclass=TextMeta):
         color: Color = BLACK,
         wrap: int = 0,
         justify: str = "left",
+        line_spacing: float = 0,
         shadow_x: float = 0,
         shadow_y: float = 0,
         shadow_color: Color = BLACK,
@@ -93,11 +97,16 @@ class Text(TDrawable, metaclass=TextMeta):
         self.__image: Surface = self.__default_image.copy()
         self.__font: Font
         self.__justify: Text.Justify
+        self.__color: Color
+        self.__shadow_x: float
+        self.__shadow_y: float
+        self.__shadow_color: Color
         self.set_font(font, bold=bold, italic=italic, underline=underline)
         self.wrap = wrap
         self.message = message
         self.color = color
         self.justify = justify
+        self.line_spacing = line_spacing
         self.shadow = (shadow_x, shadow_y)
         self.shadow_color = shadow_color
 
@@ -230,59 +239,20 @@ class Text(TDrawable, metaclass=TextMeta):
         Justify.CENTER: "centerx",
     }
 
-    @staticmethod
-    def static_render_text(
-        text: str,
-        color: Color,
-        font: Font,
-        *,
-        justify: Justify = Justify.CENTER,
-        custom_font: Mapping[int, Font] | None = None,
-    ) -> Surface:
-        if not text:
-            return create_surface((0, 0))
-        render_lines: list[Surface] = list()
-        render_width: float = 0
-        render_height: float = 0
-        default_font: Font = font
-        for index, line in enumerate(text.splitlines()):
-            font = custom_font.get(index, default_font) if custom_font is not None else default_font
-            render, _ = font.render(line, color, (0, 0, 0, 0), rotation=0)
-            render_width = max(render_width, render.get_width())
-            render_height += render.get_height()
-            render_lines.append(render)
-        if not render_lines:
-            return create_surface((0, 0))
-        if len(render_lines) == 1:
-            return render_lines[0]
-        text_surface: Surface = create_surface((render_width, render_height))
-        text_rect: Rect = text_surface.get_rect()
-        top: int = 0
-        justify_pos: str = Text.__TEXT_JUSTIFY_DICT[justify]
-        params: dict[str, int] = {justify_pos: getattr(text_rect, justify_pos)}
-        for render in render_lines:
-            text_surface.blit(render, render.get_rect(**params, top=top))
-            top += render.get_height()
-        return text_surface
-
     def _render(self) -> Surface:
-        message: str = self.get(wrapped=True)
-        render_text = self.static_render_text
-        font: Font = self.__font
-        text: Surface = render_text(message, self.color, font, justify=self.__justify, custom_font=self.__custom_font)
-        shadow_x, shadow_y = self.shadow
-        shadow_x = int(shadow_x)
-        shadow_y = int(shadow_y)
-        if shadow_x == 0 and shadow_y == 0:
-            return text
-        shadow_text: Surface = render_text(
-            message, self.shadow_color, font, justify=self.__justify, custom_font=self.__custom_font
-        )
-        render = create_surface((text.get_width() + abs(shadow_x), text.get_height() + abs(shadow_y)))
-
+        text: str = self.get(wrapped=True)
+        default_font: Font = self.__font
+        custom_font: dict[int, Font] = self.__custom_font
+        line_spacing: int = int(self.line_spacing)
+        justify_pos: str = Text.__TEXT_JUSTIFY_DICT[self.__justify]
+        fgcolor: Color = self.__color
+        shadow_x: int = int(self.__shadow_x)
+        shadow_y: int = int(self.__shadow_y)
+        shadow_color: Color = self.__shadow_color
+        shadow_width_offset: int = abs(shadow_x)
+        shadow_height_offset: int = abs(shadow_y)
         text_x: float = 0
         text_y: float = 0
-
         if shadow_x < 0:
             text_x = -shadow_x
             shadow_x = 0
@@ -290,10 +260,53 @@ class Text(TDrawable, metaclass=TextMeta):
             text_y = -shadow_y
             shadow_y = 0
 
-        render.blit(shadow_text, (shadow_x, shadow_y))
-        render.blit(text, (text_x, text_y))
+        render_queue: deque[tuple[str, Font, Rect]] = deque()
+        render_width: float = 0
+        render_height: float = 0
 
-        return render
+        # 1- Retrieve all line rects
+        line_top: int = 0
+        for index, line in enumerate(text.splitlines()):
+            font = custom_font.get(index, default_font) if custom_font is not None else default_font
+            line_rect = font.get_rect(line)
+
+            line_rect.top = line_top
+            line_top = line_rect.bottom + line_spacing
+
+            render_width = max(render_width, line_rect.width)
+            render_height += line_rect.height + line_spacing
+
+            render_queue.append((line, font, line_rect))
+
+        # 2 - Compute the target surface
+        if not render_queue:  # No message to render
+            return create_surface((0, 0))
+        # Optimization: Single line without shadow
+        if len(render_queue) == 1 and not shadow_width_offset and not shadow_height_offset:
+            line, font, _ = render_queue[0]
+            return font.render(line, fgcolor)[0]
+        render_rect = Rect(0, 0, render_width, render_height)
+        final_render_surface = create_surface((render_width + shadow_width_offset, render_height + shadow_height_offset))
+
+        # 3- Apply 'justify' attribute to rects according to *default* render (w/o shadow)
+        if justify_pos != "left":  # Ignore for 'left', it will always be 0
+            justify_pos_value: int = getattr(render_rect, justify_pos)
+            for line_rect in map(lambda i: i[2], render_queue):
+                setattr(line_rect, justify_pos, justify_pos_value)
+
+        # 4-a Render shadow if set
+        if shadow_width_offset or shadow_height_offset:
+            for line, font, line_rect in render_queue:
+                line_rect.move_ip(shadow_x, shadow_y)
+                font.render_to(final_render_surface, line_rect, line, shadow_color)
+                line_rect.move_ip(-shadow_x, -shadow_y)
+
+        # 4-b Render foreground
+        for line, font, line_rect in render_queue:
+            line_rect.move_ip(text_x, text_y)
+            font.render_to(final_render_surface, line_rect, line, fgcolor)
+
+        return final_render_surface
 
     config.add_enum_converter("justify", Justify, return_value_on_get=True)
 
@@ -305,6 +318,7 @@ class Text(TDrawable, metaclass=TextMeta):
     config.add_value_converter_static("shadow_y", float)
     config.add_value_converter_static("shadow", tuple)
     config.add_value_validator_static("shadow_color", Color)
+    config.add_value_converter_static("line_spacing", float)
 
     @config.add_main_update
     def __update_surface(self) -> None:
@@ -351,6 +365,7 @@ class TextImage(Text):
         color: Color = BLACK,
         wrap: int = 0,
         justify: str = "left",
+        line_spacing: float = 0,
         shadow_x: float = 0,
         shadow_y: float = 0,
         shadow_color: Color = BLACK,
@@ -365,6 +380,7 @@ class TextImage(Text):
             color=color,
             wrap=wrap,
             justify=justify,
+            line_spacing=line_spacing,
             shadow_x=shadow_x,
             shadow_y=shadow_y,
             shadow_color=shadow_color,

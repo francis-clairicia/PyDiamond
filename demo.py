@@ -879,7 +879,7 @@ class ScrollBarScene(RenderedLayeredScene, AbstractAutoLayeredDrawableScene, Abs
         )
         self.vscroll.bottomright = self.window.right, self.hscroll.top
         self.vscroll.border_radius = 25
-        Text(LOREM_IPSUM, font=(None, 100), wrap=50).add_to_group(self.area)
+        Text(LOREM_IPSUM, font=(None, 100), wrap=50, line_spacing=10).add_to_group(self.area)
 
     def on_start_loop(self) -> None:
         super().on_start_loop()

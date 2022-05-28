@@ -130,7 +130,7 @@ class Font(Object):
         "use_bitmap_strikes",
         "antialiased",
         "kerning",
-        "vertical",
+        # "vertical",
         "ucs4",
     )
 
@@ -144,7 +144,7 @@ class Font(Object):
     use_bitmap_strikes: OptionAttribute[bool] = OptionAttribute()
     antialiased: OptionAttribute[bool] = OptionAttribute()
     kerning: OptionAttribute[bool] = OptionAttribute()
-    vertical: OptionAttribute[bool] = OptionAttribute()
+    # vertical: OptionAttribute[bool] = OptionAttribute()
     ucs4: OptionAttribute[bool] = OptionAttribute()
 
     def __init__(
@@ -323,7 +323,7 @@ class Font(Object):
     config.add_value_converter_static("use_bitmap_strikes", bool)
     config.add_value_converter_static("antialiased", bool)
     config.add_value_converter_static("kerning", bool)
-    config.add_value_converter_static("vertical", bool)
+    # config.add_value_converter_static("vertical", bool)
     config.add_value_converter_static("ucs4", bool)
 
     config.getter("style", lambda self: FontStyle(self.__ft.style), use_override=False)
@@ -338,7 +338,7 @@ class Font(Object):
     @config.getter_key("use_bitmap_strikes", use_override=False)
     @config.getter_key("antialiased", use_override=False)
     @config.getter_key("kerning", use_override=False)
-    @config.getter_key("vertical", use_override=False)
+    # @config.getter_key("vertical", use_override=False)
     @config.getter_key("ucs4", use_override=False)
     def __get_property(self, option: str) -> Any:
         return getattr(self.__ft, option)
@@ -352,7 +352,7 @@ class Font(Object):
     @config.setter_key("use_bitmap_strikes", use_override=False)
     @config.setter_key("antialiased", use_override=False)
     @config.setter_key("kerning", use_override=False)
-    @config.setter_key("vertical", use_override=False)
+    # @config.setter_key("vertical", use_override=False)
     @config.setter_key("ucs4", use_override=False)
     def __set_property(self, option: str, value: Any) -> Any:
         return setattr(self.__ft, option, value)
