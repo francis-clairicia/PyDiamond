@@ -33,7 +33,7 @@ class Mouse(ClassNamespace, frozen=True):
         _pg_mouse.set_pos(x, y)
 
     @staticmethod
-    def update() -> None:
+    def _update() -> None:
         global _MOUSE_BUTTON_STATE
         button_states = _pg_mouse.get_pressed(3)
         _MOUSE_BUTTON_STATE = (truth(button_states[0]), truth(button_states[1]), truth(button_states[2]))

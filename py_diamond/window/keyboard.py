@@ -27,7 +27,7 @@ _KEY_REPEAT: tuple[int, int] = (0, 0)
 
 class Keyboard(ClassNamespace, frozen=True):
     @staticmethod
-    def update() -> None:
+    def _update() -> None:
         global _KEY_STATES
         _KEY_STATES = _pg_key.get_pressed()
 

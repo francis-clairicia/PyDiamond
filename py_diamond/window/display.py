@@ -347,8 +347,8 @@ class Window(Object):
         self.__callback_after.process()
 
     def process_events(self) -> Iterator[Event]:
-        Keyboard.update()
-        Mouse.update()
+        Keyboard._update()
+        Mouse._update()
 
         if screenshot_threads := self.__screenshot_threads:
             self.__screenshot_threads[:] = [t for t in screenshot_threads if t.is_alive()]
