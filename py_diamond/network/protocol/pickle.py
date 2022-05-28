@@ -48,7 +48,7 @@ class PicklingNetworkProtocol(AbstractStreamNetworkProtocol):
         return buffer
 
     def get_pickler(self, buffer: IO[bytes]) -> Pickler:
-        return Pickler(buffer, protocol=HIGHEST_PROTOCOL, fix_imports=True, buffer_callback=None)
+        return Pickler(buffer, protocol=HIGHEST_PROTOCOL, fix_imports=False, buffer_callback=None)
 
     def get_unpickler(self, buffer: IO[bytes]) -> Unpickler:
-        return Unpickler(buffer, fix_imports=True, encoding="utf-8", errors="strict", buffers=None)
+        return Unpickler(buffer, fix_imports=False, encoding="utf-8", errors="strict", buffers=None)

@@ -41,10 +41,12 @@ class BZ2CompressorProtocol(AutoParsedStreamNetworkProtocol):
         return self.protocol.deserialize(data)
 
     @property
+    @final
     def protocol(self) -> AbstractNetworkProtocol:
         return self.__protocol
 
     @property
+    @final
     def compresslevel(self) -> int:
         return self.__compresslevel
 
@@ -70,10 +72,12 @@ class GzipCompressorProtocol(AutoParsedStreamNetworkProtocol):
         return self.protocol.deserialize(data)
 
     @property
+    @final
     def protocol(self) -> AbstractNetworkProtocol:
         return self.__protocol
 
     @property
+    @final
     def compresslevel(self) -> int:
         return self.__compresslevel
 
@@ -99,9 +103,11 @@ class ZlibCompressorProtocol(AutoParsedStreamNetworkProtocol):
         return self.protocol.deserialize(data)
 
     @property
+    @final
     def protocol(self) -> AbstractNetworkProtocol:
         return self.__protocol
 
     @property
+    @final
     def compresslevel(self) -> int:
         return self.__compresslevel

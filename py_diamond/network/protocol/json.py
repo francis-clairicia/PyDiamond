@@ -45,4 +45,4 @@ class JSONNetworkProtocol(AutoParsedStreamNetworkProtocol):
         )
 
     def get_decoder(self) -> JSONDecoder:
-        return JSONDecoder(object_hook=None, object_pairs_hook=None)
+        return JSONDecoder(object_hook=None, object_pairs_hook=None, strict=True)

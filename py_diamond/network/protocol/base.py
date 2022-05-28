@@ -181,6 +181,7 @@ class SecuredNetworkProtocol(AutoParsedStreamNetworkProtocol, metaclass=SecuredN
         return self.get_unsafe_protocol().deserialize(data)
 
     @property
+    @final
     def fernet(self) -> Fernet:
         cls_fernet: Fernet = getattr(self, "_cryptography_fernet_")
         return cls_fernet
