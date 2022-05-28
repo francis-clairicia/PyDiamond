@@ -88,6 +88,24 @@ class AbstractWidget(Clickable):
         if not isinstance(self.scene, GUIScene) or self._should_ignore_event(event):
             return False
 
+        if event.key in (
+            Keyboard.Key.NUMLOCK,
+            Keyboard.Key.CAPSLOCK,
+            Keyboard.Key.SCROLLOCK,
+            Keyboard.Key.RSHIFT,
+            Keyboard.Key.LSHIFT,
+            Keyboard.Key.RCTRL,
+            Keyboard.Key.LCTRL,
+            Keyboard.Key.RALT,
+            Keyboard.Key.LALT,
+            Keyboard.Key.RMETA,
+            Keyboard.Key.LMETA,
+            Keyboard.Key.LSUPER,
+            Keyboard.Key.RSUPER,
+            Keyboard.Key.MODE,
+        ):
+            return False
+
         if not self.is_shown():
             self.active = self.hover = False
             return False
@@ -127,28 +145,6 @@ class AbstractWidget(Clickable):
 
     def _valid_key(self, key: int) -> bool:
         return key in (Keyboard.Key.RETURN, Keyboard.Key.KP_ENTER)
-
-    def _should_ignore_event(self, event: Event) -> bool:
-        return super()._should_ignore_event(event) or (
-            isinstance(event, (KeyUpEvent, KeyDownEvent))
-            and event.key
-            in (
-                Keyboard.Key.NUMLOCK,
-                Keyboard.Key.CAPSLOCK,
-                Keyboard.Key.SCROLLOCK,
-                Keyboard.Key.RSHIFT,
-                Keyboard.Key.LSHIFT,
-                Keyboard.Key.RCTRL,
-                Keyboard.Key.LCTRL,
-                Keyboard.Key.RALT,
-                Keyboard.Key.LALT,
-                Keyboard.Key.RMETA,
-                Keyboard.Key.LMETA,
-                Keyboard.Key.LSUPER,
-                Keyboard.Key.RSUPER,
-                Keyboard.Key.MODE,
-            )
-        )
 
     def _should_ignore_mouse_position(self, mouse_pos: tuple[float, float]) -> bool:
         return super()._should_ignore_mouse_position(mouse_pos) or self.focus.get_mode() == self.focus.Mode.KEY

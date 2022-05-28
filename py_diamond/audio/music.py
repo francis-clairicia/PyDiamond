@@ -13,7 +13,7 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Final, final
+from typing import TYPE_CHECKING, final
 
 from pygame.event import Event as _PygameEvent, custom_type as _pg_event_custom_type, post as _pg_event_post
 from pygame.mixer import get_init as _pg_mixer_get_init, music as _pg_music
@@ -50,7 +50,6 @@ class Music(NoDuplicate):
 
 @final
 class MusicStream(ClassNamespace, frozen=True):
-    MUSICEND: Final[int] = _pg_event_custom_type()
     if not getattr(_pg_music.set_endevent, "__forbidden_call__", False):
         _pg_music.set_endevent(_pg_event_custom_type())
         _pg_music.set_endevent = forbidden_call(_pg_music.set_endevent)
@@ -164,7 +163,13 @@ class MusicStream(ClassNamespace, frozen=True):
 
     @staticmethod
     def __post_event(finished_music: Music, next_music: Music | None) -> bool:
-        return _pg_event_post(_PygameEvent(MusicStream.MUSICEND, finished=finished_music, next=next_music))
+        return _pg_event_post(_PygameEvent(MusicStream.get_end_event(), finished=finished_music, next=next_music))
+
+    @staticmethod
+    def get_end_event() -> int:
+        from ..window.event import BuiltinEvent  # Lazy import for circular import
+
+        return BuiltinEvent.Type.MUSICEND
 
 
 @dataclass

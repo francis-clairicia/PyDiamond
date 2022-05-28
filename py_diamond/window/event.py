@@ -81,7 +81,6 @@ from typing import (
 import pygame.constants as _pg_constants
 from pygame.event import Event as _PygameEvent, custom_type as _pg_event_custom_type, event_name as _pg_event_name
 
-from ..audio.music import Music, MusicStream
 from ..system.namespace import ClassNamespaceMeta
 from ..system.object import Object, ObjectMeta, final
 from ..system.utils.abc import concreteclass, isconcreteclass
@@ -92,6 +91,7 @@ from .mouse import Mouse
 if TYPE_CHECKING:
     from _typeshed import Self
 
+    from ..audio.music import Music
     from ..graphics.surface import Surface
 
 _T = TypeVar("_T")
@@ -227,7 +227,7 @@ class BuiltinEvent(Event, metaclass=_BuiltinEventMeta):  # See Issue #5374: http
         WINDOWTAKEFOCUS = _pg_constants.WINDOWTAKEFOCUS
 
         # PyDiamond's events
-        MUSICEND = MusicStream.MUSICEND
+        MUSICEND = _pg_event_custom_type()
         SCREENSHOT = _pg_event_custom_type()
 
         def __repr__(self) -> str:
@@ -806,9 +806,13 @@ class EventManager:
             handler_dict[key].remove(cast(_EventCallback, callback))
 
     def bind(self, event_cls: type[_TE], callback: Callable[[_TE], bool | None]) -> None:
+        if not issubclass(event_cls, Event):
+            raise TypeError("Invalid argument")
         EventManager.__bind(self.__event_handler_dict, event_cls.type, callback)
 
     def unbind(self, event_cls: type[_TE], callback_to_remove: Callable[[_TE], bool | None]) -> None:
+        if not issubclass(event_cls, Event):
+            raise TypeError("Invalid argument")
         EventManager.__unbind(self.__event_handler_dict, event_cls.type, callback_to_remove)
         for event_type in tuple(
             event_type
@@ -1182,4 +1186,4 @@ class BoundEventManager(Generic[_T]):
         return weakref_unwrap(self.__ref)
 
 
-del _pg_constants, _EventMeta, _BuiltinEventMeta, MusicStream
+del _pg_constants, _EventMeta, _BuiltinEventMeta
