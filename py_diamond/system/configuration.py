@@ -51,6 +51,7 @@ from typing import (
     Protocol,
     Sequence,
     Set,
+    SupportsIndex,
     Tuple,
     Type,
     TypeVar,
@@ -207,6 +208,7 @@ class ConfigurationTemplate(Object):
     def __get__(self, obj: _T, objtype: Optional[type] = None, /) -> Configuration[_T]:
         ...
 
+    # TODO: Optimize this BIG block function
     def __get__(self, obj: Any, objtype: Optional[type] = None, /) -> Union[ConfigurationTemplate, Configuration[Any]]:
         if obj is None:
             if objtype is None:
@@ -219,10 +221,6 @@ class ConfigurationTemplate(Object):
             raise TypeError("Cannot use ConfigurationTemplate instance without calling __set_name__ on it.")
         if objtype is None:
             objtype = type(obj)
-        elif not isinstance(obj, objtype):
-            raise TypeError("Invalid __get__ second argument")
-        if not issubclass(objtype, bound_class):
-            raise TypeError(f"{objtype.__qualname__} is not a subclass of {bound_class.__qualname__}")
         try:
             objref: WeakReferenceType[Any] = weakref(obj)
         except TypeError:
@@ -234,7 +232,15 @@ class ConfigurationTemplate(Object):
         except AttributeError:
             return Configuration(objref, info)
         bound_config: Configuration[Any] = obj_cache.get(attr_name, _MISSING)
-        if bound_config is _MISSING:
+        if bound_config is not _MISSING:
+            try:
+                if bound_config.__self__ is not obj:  # __self__ will raise ReferenceError if the underlying object is dead
+                    raise ReferenceError
+            except ReferenceError:
+                bound_config = Configuration(objref, info)
+                with self.__lock, suppress(Exception):
+                    obj_cache[attr_name] = bound_config
+        else:
             with self.__lock:
                 bound_config = obj_cache.get(attr_name, _MISSING)
                 if bound_config is _MISSING:
@@ -242,6 +248,14 @@ class ConfigurationTemplate(Object):
                     with suppress(Exception):
                         obj_cache[attr_name] = bound_config
         return bound_config
+
+    # __set__ and __delete__ exist only to force the call of __get__
+    # There is some issues with cache and copy.copy ...
+    def __set__(self, obj: _T, value: Any) -> None:
+        raise AttributeError("Read-only attribute")
+
+    def __delete__(self, obj: _T) -> None:
+        raise AttributeError("Read-only attribute")
 
     def known_options(self) -> FrozenSet[str]:
         return self.__template.options
@@ -1673,6 +1687,12 @@ class Configuration(Generic[_T], Object):
         obj: _T = self.__self__
         info: ConfigurationInfo = self.__info
         return self.__update_options(obj, *info.options, info=info)
+
+    def __reduce_ex__(self, __protocol: SupportsIndex) -> str | tuple[Any, ...]:
+        raise TypeError(f"cannot pickle {self.__class__.__qualname__!r} object")
+
+    def __reduce__(self) -> str | tuple[Any, ...]:
+        raise TypeError(f"cannot pickle {self.__class__.__qualname__!r} object")
 
     @property
     @final

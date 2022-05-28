@@ -382,7 +382,7 @@ class BaseSpriteGroup(BaseDrawableGroup[_S]):
     def flush_colliding(self) -> list[_S]:
         crashed: deque[_S] = deque()
 
-        for s1, s2 in ((s1, s2) for s1, s2 in combinations(tuple(self), r=2) if s1 not in crashed and s2 not in crashed):
+        for s1, s2 in ((s1, s2) for s1, s2 in combinations(tuple(self), r=2) if s1.is_alive() and s2.is_alive()):
             if s1.is_colliding(s2):
                 s1.kill()
                 s2.kill()
@@ -456,7 +456,7 @@ class BaseLayeredSpriteGroup(BaseLayeredDrawableGroup[_S], BaseSpriteGroup[_S]):
         crashed: deque[_S] = deque()
         sprites: Iterable[_S] = tuple(self) if layer is None else self.get_from_layer(layer)
 
-        for s1, s2 in ((s1, s2) for s1, s2 in combinations(sprites, r=2) if s1 not in crashed and s2 not in crashed):
+        for s1, s2 in ((s1, s2) for s1, s2 in combinations(sprites, r=2) if s1.is_alive() and s2.is_alive()):
             if s1.is_colliding(s2):
                 s1.kill()
                 s2.kill()

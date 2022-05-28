@@ -1359,7 +1359,7 @@ class MainWindow(SceneWindow):
         self.set_default_fixed_framerate(60)
         self.index: int = 0
         self.prev_button: Button = Button(self, "Previous", callback=self.__previous_scene)
-        self.next_button: Button = Button(self, "Next", callback=self.__next_scene)
+        self.next_button: Button = Button(self, "Next", font=self.prev_button.text_font, callback=self.__next_scene)
         self.prev_button.topleft = self.left + 10, self.top + 10
         self.next_button.topright = self.right - 10, self.top + 10
 

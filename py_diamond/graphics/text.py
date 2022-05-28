@@ -12,6 +12,7 @@ __license__ = "GNU GPL v3.0"
 
 import os.path
 from contextlib import suppress
+from copy import copy
 from enum import auto, unique
 from textwrap import wrap as textwrap
 from typing import Any, ClassVar, Final, Mapping, TypeAlias
@@ -90,6 +91,7 @@ class Text(TDrawable, metaclass=TextMeta):
         self.__custom_font: dict[int, Font] = dict()
         self.__default_image: Surface = create_surface((0, 0))
         self.__image: Surface = self.__default_image.copy()
+        self.__font: Font
         self.__justify: Text.Justify
         self.set_font(font, bold=bold, italic=italic, underline=underline)
         self.wrap = wrap
@@ -142,6 +144,7 @@ class Text(TDrawable, metaclass=TextMeta):
             else:
                 obj = SysFont(font_family, font_size, bold=bool(bold), italic=bool(italic))
         elif isinstance(font, Font):
+            obj = copy(font)
             obj = font
             if bold is not None:
                 obj.wide = bold
@@ -244,12 +247,7 @@ class Text(TDrawable, metaclass=TextMeta):
         default_font: Font = font
         for index, line in enumerate(text.splitlines()):
             font = custom_font.get(index, default_font) if custom_font is not None else default_font
-            save_origin = font.origin
-            try:
-                font.origin = False
-                render, _ = font.render(line, color, (0, 0, 0, 0), rotation=0)
-            finally:
-                font.origin = save_origin
+            render, _ = font.render(line, color, (0, 0, 0, 0), rotation=0)
             render_width = max(render_width, render.get_width())
             render_height += render.get_height()
             render_lines.append(render)
@@ -270,14 +268,15 @@ class Text(TDrawable, metaclass=TextMeta):
     def _render(self) -> Surface:
         message: str = self.get(wrapped=True)
         render_text = self.static_render_text
-        text: Surface = render_text(message, self.color, self.font, justify=self.__justify, custom_font=self.__custom_font)
+        font: Font = self.__font
+        text: Surface = render_text(message, self.color, font, justify=self.__justify, custom_font=self.__custom_font)
         shadow_x, shadow_y = self.shadow
         shadow_x = int(shadow_x)
         shadow_y = int(shadow_y)
         if shadow_x == 0 and shadow_y == 0:
             return text
         shadow_text: Surface = render_text(
-            message, self.shadow_color, self.font, justify=self.__justify, custom_font=self.__custom_font
+            message, self.shadow_color, font, justify=self.__justify, custom_font=self.__custom_font
         )
         render = create_surface((text.get_width() + abs(shadow_x), text.get_height() + abs(shadow_y)))
 
@@ -306,8 +305,6 @@ class Text(TDrawable, metaclass=TextMeta):
     config.add_value_converter_static("shadow_y", float)
     config.add_value_converter_static("shadow", tuple)
     config.add_value_validator_static("shadow_color", Color)
-
-    config.set_autocopy("font", copy_on_get=False, copy_on_set=False)
 
     @config.add_main_update
     def __update_surface(self) -> None:

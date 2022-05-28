@@ -584,29 +584,42 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
             self.__shape.local_size = new_size
             self.center = center
 
-    @config.getter_key("text", use_key="message")
-    @config.getter_key("text_font", use_key="font")
-    @config.getter_key("text_justify", use_key="justify")
-    @config.getter_key("text_wrap", use_key="wrap")
-    @config.getter_key("text_shadow", use_key="shadow")
-    @config.getter_key("text_shadow_x", use_key="shadow_x")
-    @config.getter_key("text_shadow_y", use_key="shadow_y")
-    @config.getter_key("text_shadow_color", use_key="shadow_color")
-    @config.getter_key("compound")
-    @config.getter_key("distance_text_img", use_key="distance")
+    __TEXT_PARAM: Final[dict[str, str]] = {
+        "text": "message",
+        "text_font": "font",
+        "text_justify": "justify",
+        "text_wrap": "wrap",
+        "text_shadow": "shadow",
+        "text_shadow_x": "shadow_x",
+        "text_shadow_y": "shadow_y",
+        "text_shadow_color": "shadow_color",
+        "compound": "compound",
+        "distance_text_img": "distance",
+    }
+
+    @config.getter_key_from_map("text", __TEXT_PARAM)
+    @config.getter_key_from_map("text_font", __TEXT_PARAM)
+    @config.getter_key_from_map("text_justify", __TEXT_PARAM)
+    @config.getter_key_from_map("text_wrap", __TEXT_PARAM)
+    @config.getter_key_from_map("text_shadow", __TEXT_PARAM)
+    @config.getter_key_from_map("text_shadow_x", __TEXT_PARAM)
+    @config.getter_key_from_map("text_shadow_y", __TEXT_PARAM)
+    @config.getter_key_from_map("text_shadow_color", __TEXT_PARAM)
+    @config.getter_key_from_map("compound", __TEXT_PARAM)
+    @config.getter_key_from_map("distance_text_img", __TEXT_PARAM)
     def __get_text_option(self, option: str) -> Any:
         return self.__text.config.get(option)
 
-    @config.setter_key("text", use_key="message")
-    @config.setter_key("text_font", use_key="font")
-    @config.setter_key("text_justify", use_key="justify")
-    @config.setter_key("text_wrap", use_key="wrap")
-    @config.setter_key("text_shadow", use_key="shadow")
-    @config.setter_key("text_shadow_x", use_key="shadow_x")
-    @config.setter_key("text_shadow_y", use_key="shadow_y")
-    @config.setter_key("text_shadow_color", use_key="shadow_color")
-    @config.setter_key("compound")
-    @config.setter_key("distance_text_img", use_key="distance")
+    @config.setter_key_from_map("text", __TEXT_PARAM)
+    @config.setter_key_from_map("text_font", __TEXT_PARAM)
+    @config.setter_key_from_map("text_justify", __TEXT_PARAM)
+    @config.setter_key_from_map("text_wrap", __TEXT_PARAM)
+    @config.setter_key_from_map("text_shadow", __TEXT_PARAM)
+    @config.setter_key_from_map("text_shadow_x", __TEXT_PARAM)
+    @config.setter_key_from_map("text_shadow_y", __TEXT_PARAM)
+    @config.setter_key_from_map("text_shadow_color", __TEXT_PARAM)
+    @config.setter_key_from_map("compound", __TEXT_PARAM)
+    @config.setter_key_from_map("distance_text_img", __TEXT_PARAM)
     def __set_text_option(self, option: str, value: Any) -> None:
         return self.__text.config.set(option, value)
 

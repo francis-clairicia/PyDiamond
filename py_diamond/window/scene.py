@@ -808,6 +808,8 @@ class SceneWindow(Window):
         remove_actual: bool = False,
         **awake_kwargs: Any,
     ) -> NoReturn:
+        if not self.looping():
+            raise WindowError("Consider using run() to start a first scene")
         if issubclass(__scene, Dialog):
             raise TypeError(f"start_scene() does not accept Dialogs")
         self.__scenes.go_to(__scene, transition=transition, remove_actual=remove_actual, awake_kwargs=awake_kwargs)
@@ -977,11 +979,9 @@ class _SceneManager:
         while self.__stack:
             scene = self.__stack.pop(0)
             with scene.on_quit_exit_stack:
-                with suppress(Exception):
-                    scene.on_quit_before_transition()
-                with suppress(Exception):
-                    scene.on_quit()
-            with scene.destroy_exit_stack, suppress(Exception):
+                scene.on_quit_before_transition()
+                scene.on_quit()
+            with scene.destroy_exit_stack:
                 self._destroy_awaken_scene(scene)
         gc.collect()
 

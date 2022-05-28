@@ -6,23 +6,37 @@
 
 from __future__ import annotations
 
-__all__ = ["Font", "SysFont", "get_default_font", "match_font"]
+__all__ = [
+    "Font",
+    "FontSizeInfo",
+    "FontStyle",
+    "GlyphMetrics",
+    "STYLE_DEFAULT",
+    "SysFont",
+    "get_default_font",
+    "get_fonts",
+    "match_font",
+]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import TYPE_CHECKING, Any, Iterable
+from enum import IntFlag, unique
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Iterable, NamedTuple
 
-import pygame
 import pygame.font
 import pygame.freetype
 import pygame.sysfont
 
+from ..graphics.rect import Rect
+from ..graphics.surface import Surface
+from ..math.vector2 import Vector2
+from ..system.configuration import ConfigurationTemplate, OptionAttribute
 from ..system.object import Object, final
 
 if TYPE_CHECKING:
-    from pygame._common import _FileArg  # pyright: reportMissingModuleSource=false
+    from pygame._common import _ColorValue, _FileArg  # pyright: reportMissingModuleSource=false
 
 
 def get_fonts() -> list[str]:
@@ -67,19 +81,76 @@ def SysFont(name: str | bytes | Iterable[str | bytes], size: int, bold: bool = F
     return font
 
 
+class GlyphMetrics(NamedTuple):
+    min_x: int
+    max_x: int
+    min_y: int
+    max_y: int
+    horizontal_advance_x: float
+    horizontal_advance_y: float
+
+
+@unique
+class FontStyle(IntFlag):
+    NORMAL = pygame.freetype.STYLE_NORMAL
+    OBLIQUE = pygame.freetype.STYLE_OBLIQUE
+    STRONG = pygame.freetype.STYLE_STRONG
+    UNDERLINE = pygame.freetype.STYLE_UNDERLINE
+    WIDE = pygame.freetype.STYLE_WIDE
+
+
+STYLE_DEFAULT: Final[int] = pygame.freetype.STYLE_DEFAULT
+
+
+class FontSizeInfo(NamedTuple):
+    point_size: int
+    width: int
+    height: int
+    horizontal_ppem: float
+    vertical_ppem: float
+
+
 @final
-class Font(pygame.freetype.Font, Object):
-    __encode_file_path = staticmethod(pygame.encode_file_path)
+class Font(Object):
+    from pygame import encode_file_path as __encode_file_path  # type: ignore[misc]
+
+    __factory = staticmethod(pygame.freetype.Font)
+    __encode_file_path = staticmethod(__encode_file_path)
     __get_default_resolution = staticmethod(pygame.freetype.get_default_resolution)
-    __default_font = pygame.encode_file_path(get_default_font())
+    __default_font = __encode_file_path(get_default_font())
+
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
+        "style",
+        "underline",
+        "strong",
+        "oblique",
+        "wide",
+        "strength",
+        "underline_adjustment",
+        "use_bitmap_strikes",
+        "antialiased",
+        "kerning",
+        "vertical",
+        "ucs4",
+    )
+
+    style: OptionAttribute[FontStyle] = OptionAttribute()
+    underline: OptionAttribute[bool] = OptionAttribute()
+    strong: OptionAttribute[bool] = OptionAttribute()
+    oblique: OptionAttribute[bool] = OptionAttribute()
+    wide: OptionAttribute[bool] = OptionAttribute()
+    strength: OptionAttribute[float] = OptionAttribute()
+    underline_adjustment: OptionAttribute[float] = OptionAttribute()
+    use_bitmap_strikes: OptionAttribute[bool] = OptionAttribute()
+    antialiased: OptionAttribute[bool] = OptionAttribute()
+    kerning: OptionAttribute[bool] = OptionAttribute()
+    vertical: OptionAttribute[bool] = OptionAttribute()
+    ucs4: OptionAttribute[bool] = OptionAttribute()
 
     def __init__(
         self,
         file: _FileArg | None,
         size: float = 0,
-        font_index: int = 0,
-        resolution: int = 0,
-        ucs4: int = True,
     ) -> None:
         size = max(size, 1)
         bfile: Any
@@ -98,18 +169,192 @@ class Font(pygame.freetype.Font, Object):
                 resolution = 1
         else:
             resolution = 0
-        super().__init__(file, size, font_index, resolution, ucs4)
-        self.strength = 1.0 / 12.0
-        self.kerning = False
-        self.pad = True
-        self.underline_adjustment = 1.0
-        self.antialiased = True
+        self.__ft: pygame.freetype.Font = Font.__factory(file, size=size, resolution=resolution)
+        self.__ft.strength = 1.0 / 12.0
+        self.__ft.kerning = False
+        self.__ft.origin = False
+        self.__ft.pad = True
+        self.__ft.ucs4 = True
+        self.__ft.underline_adjustment = 1.0
+        self.__ft.antialiased = True
 
-    @property  # type: ignore[override,misc]
-    @final
-    def rotation(self) -> int:  # type: ignore[override]
-        return super().rotation
+        super().__init__()
 
-    @rotation.setter
-    def rotation(self, value: Any) -> None:
-        raise AttributeError("'rotation' attribute is read-only")
+    def copy(self) -> Font:
+        cls = self.__class__
+        copy_self = cls.__new__(cls)
+        ft = self.__ft
+        try:
+            ft_size = float(ft.size)  # type: ignore[arg-type]
+        except ValueError:
+            ft_size = max(ft.size)  # type: ignore[arg-type]
+        copy_self.__ft = copy_ft = Font.__factory(ft.path, size=ft_size, resolution=self.resolution)
+        for attr in {*self.config.info.options, "pad", "origin"}:
+            setattr(copy_ft, attr, getattr(ft, attr))
+        return copy_self
+
+    __copy__ = copy
+
+    def __deepcopy__(self, memo: dict[int, Any] | None = None) -> Font:  # allow 'deep' copy
+        return self.__copy__()
+
+    @property
+    def name(self) -> str:
+        return self.__ft.name
+
+    @property
+    def path(self) -> str:
+        return self.__ft.path
+
+    @property
+    def resolution(self) -> int:
+        return self.__ft.resolution
+
+    @property
+    def size(self) -> float | tuple[float, float]:
+        return self.__ft.size
+
+    @size.setter
+    def size(self, value: float | tuple[float, float]) -> None:
+        self.__ft.size = value
+
+    @property
+    def height(self) -> int:
+        return self.__ft.height
+
+    @property
+    def ascender(self) -> int:
+        return self.__ft.ascender
+
+    @property
+    def descender(self) -> int:
+        return self.__ft.descender
+
+    @property
+    def fixed_width(self) -> int:
+        return self.__ft.fixed_width
+
+    @property
+    def fixed_sizes(self) -> int:
+        return self.__ft.fixed_sizes
+
+    @property
+    def scalable(self) -> bool:
+        return self.__ft.scalable
+
+    def get_rect(
+        self,
+        text: str,
+        style: int = STYLE_DEFAULT,
+        rotation: int = 0,
+        size: float = 0,
+    ) -> Rect:
+        return self.__ft.get_rect(text or "", style=style, rotation=rotation, size=size)
+
+    def get_metrics(self, text: str, size: float = 0) -> list[GlyphMetrics]:
+        return [GlyphMetrics(*metrics) for metrics in self.__ft.get_metrics(text or "", size=size)]
+
+    def get_sized_ascender(self, size: float = 0) -> int:
+        return self.__ft.get_sized_ascender(size)
+
+    def get_sized_descender(self, size: float = 0) -> int:
+        return self.__ft.get_sized_descender(size)
+
+    def get_sized_height(self, size: float = 0) -> int:
+        return self.__ft.get_sized_height(size)
+
+    def get_sized_glyph_height(self, size: float = 0) -> int:
+        return self.__ft.get_sized_glyph_height(size)
+
+    def get_sizes(self) -> list[FontSizeInfo]:
+        return [FontSizeInfo(*info) for info in self.__ft.get_sizes()]
+
+    def render(
+        self,
+        text: str,
+        fgcolor: _ColorValue,
+        bgcolor: _ColorValue | None = None,
+        style: int = STYLE_DEFAULT,
+        rotation: int = 0,
+        size: float = 0,
+    ) -> tuple[Surface, Rect]:
+        if fgcolor is None:
+            raise TypeError("Give a foreground color")
+        return self.__ft.render(
+            text or "",
+            fgcolor=fgcolor,
+            bgcolor=bgcolor,
+            style=style,
+            rotation=rotation,
+            size=size,
+        )
+
+    def render_to(
+        self,
+        surf: Surface,
+        dest: tuple[float, float] | Vector2 | Rect,
+        text: str,
+        fgcolor: _ColorValue | None = None,
+        bgcolor: _ColorValue | None = None,
+        style: int = STYLE_DEFAULT,
+        rotation: int = 0,
+        size: float = 0,
+    ) -> Rect:
+        if fgcolor is None:
+            raise TypeError("Give a foreground color")
+        return self.__ft.render_to(
+            surf,
+            dest,  # type: ignore[arg-type]
+            text or "",
+            fgcolor=fgcolor,
+            bgcolor=bgcolor,
+            style=style,
+            rotation=rotation,
+            size=size,
+        )
+
+    config.add_enum_converter("style", FontStyle)
+    config.add_value_converter_static("underline", bool)
+    config.add_value_converter_static("strong", bool)
+    config.add_value_converter_static("oblique", bool)
+    config.add_value_converter_static("wide", bool)
+    config.add_value_converter_static("strength", float)
+    config.add_value_converter_static("underline_adjustment", float)
+    config.add_value_converter_static("use_bitmap_strikes", bool)
+    config.add_value_converter_static("antialiased", bool)
+    config.add_value_converter_static("kerning", bool)
+    config.add_value_converter_static("vertical", bool)
+    config.add_value_converter_static("ucs4", bool)
+
+    config.getter("style", lambda self: FontStyle(self.__ft.style), use_override=False)
+    config.setter("style", lambda self, value: setattr(self.__ft, "style", int(value)), use_override=False)
+
+    @config.getter_key("underline", use_override=False)
+    @config.getter_key("strong", use_override=False)
+    @config.getter_key("oblique", use_override=False)
+    @config.getter_key("wide", use_override=False)
+    @config.getter_key("strength", use_override=False)
+    @config.getter_key("underline_adjustment", use_override=False)
+    @config.getter_key("use_bitmap_strikes", use_override=False)
+    @config.getter_key("antialiased", use_override=False)
+    @config.getter_key("kerning", use_override=False)
+    @config.getter_key("vertical", use_override=False)
+    @config.getter_key("ucs4", use_override=False)
+    def __get_property(self, option: str) -> Any:
+        return getattr(self.__ft, option)
+
+    @config.setter_key("underline", use_override=False)
+    @config.setter_key("strong", use_override=False)
+    @config.setter_key("oblique", use_override=False)
+    @config.setter_key("wide", use_override=False)
+    @config.setter_key("strength", use_override=False)
+    @config.setter_key("underline_adjustment", use_override=False)
+    @config.setter_key("use_bitmap_strikes", use_override=False)
+    @config.setter_key("antialiased", use_override=False)
+    @config.setter_key("kerning", use_override=False)
+    @config.setter_key("vertical", use_override=False)
+    @config.setter_key("ucs4", use_override=False)
+    def __set_property(self, option: str, value: Any) -> Any:
+        return setattr(self.__ft, option, value)
+
+    del __get_property, __set_property

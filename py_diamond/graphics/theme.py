@@ -849,7 +849,7 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
     @concreteclassmethod
     def set_theme_namespace(cls, namespace: str, *, allow_extension: bool = False, include_none_namespace: bool = False) -> None:
         if namespace == _mangle_closed_namespace_name(cls) and allow_extension:
-            raise ValueError("Closed namespace setting must not allow extension theme extension")
+            raise ValueError("Closed namespace setting must not allow theme extension")
         ClassWithThemeNamespaceMeta.__namespaces[cls] = ThemeNamespace(
             namespace=str(namespace),
             extend=bool(allow_extension),

@@ -58,7 +58,6 @@ from ..system.utils.functools import wraps
 from .clock import Clock
 from .cursor import AbstractCursor
 from .event import (
-    BuiltinEvent,
     Event,
     EventFactory,
     EventFactoryError,
@@ -124,7 +123,7 @@ class Window(Object):
         self.__clear_surface: Surface = Surface((0, 0))
         self.__rect: ImmutableRect = ImmutableRect.convert(self.__surface.get_rect())
 
-        self.__display_renderer: SurfaceRenderer = SurfaceRenderer(Surface((0, 0)))
+        self.__display_renderer: SurfaceRenderer | None = None
         self.__main_clock: _FramerateManager = _FramerateManager()
         self.__event: EventManager = EventManager()
 
@@ -166,7 +165,7 @@ class Window(Object):
             self.__surface = SurfaceRenderer(Surface((0, 0)))
             self.__clear_surface = Surface((0, 0))
             self.__rect = ImmutableRect.convert(self.__surface.get_rect())
-            self.__display_renderer = SurfaceRenderer(Surface((0, 0)))
+            self.__display_renderer = None
             self.__event.unbind_all()
 
         self.__event.unbind_all()
@@ -175,10 +174,14 @@ class Window(Object):
             stack.callback(_pg_display.quit)
 
             import pygame.font as _pg_font
+            import pygame.freetype as _pg_freetype
 
             _pg_font.init()
             stack.callback(_pg_font.quit)
-            del _pg_font
+            if not _pg_freetype.get_init():
+                _pg_freetype.init()
+                stack.callback(_pg_freetype.quit)
+            del _pg_font, _pg_freetype
 
             size: tuple[int, int] = self.__size
             flags: int = self.__flags
@@ -210,12 +213,12 @@ class Window(Object):
         screenshot_threads = self.__screenshot_threads
         while screenshot_threads:
             screenshot_threads.pop(0).join(timeout=1, terminate_on_timeout=True)
-        _pg_display.quit()
+        self.__display_renderer = None
         raise Window.__Exit
 
     @final
     def looping(self) -> bool:
-        return _pg_display.get_surface() is not None
+        return _pg_display.get_surface() is not None and self.__display_renderer is not None
 
     def clear(self, color: _ColorValue = BLACK, *, blend_alpha: bool = False) -> None:
         screen: SurfaceRenderer = self.__surface
@@ -253,6 +256,8 @@ class Window(Object):
 
     def refresh(self) -> float:
         screen = self.__display_renderer
+        if screen is None:
+            return 0
         screen.fill((0, 0, 0))
         screen.draw_surface(self.__surface.surface, (0, 0))
         self.system_display(screen)
@@ -362,9 +367,8 @@ class Window(Object):
                 self._handle_close_event()
                 continue
             if pg_event.type == _PG_VIDEORESIZE:
-                if not self.event_is_allowed(BuiltinEvent.Type.WINDOWSIZECHANGED):
-                    screen = _pg_display.set_mode(self.__surface.get_size(), flags=self.__flags, vsync=int(self.__vsync))
-                    self.__display_renderer = SurfaceRenderer(screen)
+                screen = _pg_display.set_mode(self.__surface.get_size(), flags=self.__flags, vsync=int(self.__vsync))
+                self.__display_renderer = SurfaceRenderer(screen)
                 continue
             if MusicStream._handle_event(pg_event):
                 continue

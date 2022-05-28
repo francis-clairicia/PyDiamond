@@ -29,6 +29,7 @@ from pygame.draw import (
     rect as _draw_rect,
 )
 
+from ..math.vector2 import Vector2
 from ..system.object import Object
 from ..system.utils.abc import concreteclass
 from .rect import Rect
@@ -83,7 +84,7 @@ class AbstractRenderer(Object):
     def draw_surface(
         self,
         obj: Surface,
-        dest: tuple[float, float] | Rect,
+        dest: tuple[float, float] | Vector2 | Rect,
         /,
         *,
         area: Rect | None = None,
@@ -223,7 +224,7 @@ class SurfaceRenderer(AbstractRenderer):
     def draw_surface(
         self,
         obj: Surface,
-        dest: tuple[float, float] | Rect,
+        dest: tuple[float, float] | Vector2 | Rect,
         /,
         *,
         area: Rect | None = None,
