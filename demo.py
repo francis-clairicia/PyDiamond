@@ -1411,6 +1411,7 @@ class MainWindow(SceneWindow):
         @self.after(3000)
         def screenshot_alive() -> None:
             self.screenshot_image = None
+            self.screenshot_callback = None
 
         self.screenshot_callback = screenshot_alive
 

@@ -12,12 +12,13 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
+import os
+import os.path
 from contextlib import ExitStack, contextmanager, suppress
 from datetime import datetime
 from inspect import isgeneratorfunction
 from itertools import count as itertools_count, filterfalse
 from operator import truth
-from os.path import exists as path_exists
 from threading import RLock
 from typing import (
     TYPE_CHECKING,
@@ -45,12 +46,13 @@ from pygame.constants import (
 )
 
 from ..audio.music import MusicStream
+from ..environ.executable import get_executable_path
 from ..graphics.color import BLACK, Color
 from ..graphics.rect import ImmutableRect
 from ..graphics.renderer import AbstractRenderer, SurfaceRenderer
 from ..graphics.surface import Surface, create_surface, save_image
 from ..system.object import Object, final
-from ..system.path import set_constant_file
+from ..system.path import ConstantFileNotFoundError, set_constant_file
 from ..system.threading import Thread, thread_factory
 from ..system.utils._mangling import setattr_pv
 from ..system.utils.functools import wraps
@@ -302,20 +304,32 @@ class Window(Object):
     @thread_factory(daemon=True)
     def __screenshot_thread(self, screen: Surface) -> None:
         with self.__screenshot_lock:
-            filename_fmt: str = "Screenshot_%Y-%m-%d_%H-%M-%S"
+            filename_fmt: str = self.get_screenshot_filename_format()
             extension: str = ".png"
 
+            if any(c in filename_fmt for c in ("/", "\\", os.sep)):
+                raise ValueError("filename format contains invalid characters")
+
+            screeshot_dir: str = os.path.abspath(os.path.realpath(self.get_screenshot_directory()))
+            os.makedirs(screeshot_dir, exist_ok=True)
+
+            filename_fmt = os.path.join(screeshot_dir, filename_fmt)
             date = datetime.now()
-            file = set_constant_file(date.strftime(f"{filename_fmt}{extension}"), raise_error=False, relative_to_cwd=True)
-            if path_exists(file):
+            file: str = ""
+            try:
+                set_constant_file(date.strftime(f"{filename_fmt}{extension}"), raise_error=True)
                 for i in itertools_count(start=1):
-                    file = set_constant_file(
-                        date.strftime(f"{filename_fmt}_{i}{extension}"), raise_error=False, relative_to_cwd=True
-                    )
-                    if not path_exists(file):
-                        break
+                    set_constant_file(date.strftime(f"{filename_fmt}_{i}{extension}"), raise_error=True)
+            except ConstantFileNotFoundError as exc:
+                file = str(exc.filename)
             save_image(screen, file)
             self.post_event(ScreenshotEvent(filepath=file, screen=screen))
+
+    def get_screenshot_filename_format(self) -> str:
+        return "Screenshot_%Y-%m-%d_%H-%M-%S"
+
+    def get_screenshot_directory(self) -> str:
+        return os.path.join(os.path.dirname(get_executable_path()), "screenshots")
 
     def handle_events(self) -> None:
         for _ in self.process_events():

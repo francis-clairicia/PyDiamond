@@ -4,7 +4,7 @@
 #
 """Path utils module"""
 
-__all__ = ["set_constant_directory", "set_constant_file"]
+__all__ = ["ConstantFileNotFoundError", "set_constant_directory", "set_constant_file"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -14,6 +14,16 @@ import os.path as os_path
 from typing import Any, Callable, overload
 
 from ..environ import get_executable_path
+
+
+class ConstantFileNotFoundError(FileNotFoundError):
+    def __init__(self, filename: str, message: str | None = None) -> None:
+        if message:
+            message = f"{filename!r}: {message}"
+        else:
+            message = f"{filename!r} not found"
+        super().__init__(message)
+        self.filename = self.filename2 = filename
 
 
 def __set_path(
@@ -28,9 +38,7 @@ def __set_path(
         all_path = os_path.join(os_path.abspath(os_path.dirname(get_executable_path())), all_path)
     all_path = os_path.realpath(all_path)
     if raise_error and not path_exists(all_path):
-        if error_msg:
-            raise FileNotFoundError(f"{all_path!r}: {error_msg}")
-        raise FileNotFoundError(f"{all_path!r} not found")
+        raise ConstantFileNotFoundError(all_path, message=error_msg)
     return all_path
 
 
