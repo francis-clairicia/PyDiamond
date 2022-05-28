@@ -35,7 +35,6 @@ from contextlib import ExitStack, contextmanager, suppress
 from enum import auto, unique
 from inspect import isgeneratorfunction
 from itertools import chain
-from operator import truth
 from sys import stderr
 from types import MethodType
 from typing import (
@@ -118,7 +117,7 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
             _ALL_SCENES.append(cast(type[Scene], cls))
             cls.__framerate = max(int(framerate), 0)
             cls.__fixed_framerate = max(int(fixed_framerate), 0)
-            cls.__busy_loop = truth(busy_loop)
+            cls.__busy_loop = bool(busy_loop)
         return cls
 
     def __setattr__(cls, name: str, value: Any, /) -> None:

@@ -13,7 +13,6 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from functools import cached_property
-from operator import truth
 from typing import ClassVar
 
 from ..audio.sound import Sound
@@ -44,7 +43,7 @@ class AbstractWidget(Clickable):
     ) -> None:
         if focus_on_hover is None:
             focus_on_hover = self.__default_focus_on_hover
-        self.__focus_on_hover: bool = truth(focus_on_hover)
+        self.__focus_on_hover: bool = bool(focus_on_hover)
         Clickable.__init__(
             self,
             master,
@@ -63,14 +62,14 @@ class AbstractWidget(Clickable):
         return self.__focus_on_hover
 
     def set_focus_on_hover(self, status: bool) -> None:
-        self.__focus_on_hover = focus_on_hover = truth(status)
+        self.__focus_on_hover = focus_on_hover = bool(status)
         if focus_on_hover and self.hover:
             self.focus.set()
 
     @classmethod
     def set_default_focus_on_hover(cls, status: bool | None) -> None:
         if status is not None:
-            cls.__default_focus_on_hover = truth(status)
+            cls.__default_focus_on_hover = bool(status)
             return
         if cls is AbstractWidget:
             cls.__default_focus_on_hover = False
@@ -115,7 +114,7 @@ class AbstractWidget(Clickable):
                 self.active = self.hover = False
             return False
 
-        valid_key: bool = truth(self._valid_key(event.key)) and self.hover
+        valid_key: bool = bool(self._valid_key(event.key)) and self.hover
 
         match event:
             case KeyDownEvent() if valid_key:

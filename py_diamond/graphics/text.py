@@ -13,7 +13,6 @@ __license__ = "GNU GPL v3.0"
 import os.path
 from contextlib import suppress
 from enum import auto, unique
-from operator import truth
 from textwrap import wrap as textwrap
 from typing import Any, ClassVar, Final, Mapping, TypeAlias
 from weakref import proxy as weakproxy
@@ -141,7 +140,7 @@ class Text(TDrawable, metaclass=TextMeta):
                 if italic is not None:
                     obj.set_italic(italic)
             else:
-                obj = SysFont(font_family, font_size, bold=truth(bold), italic=truth(italic))
+                obj = SysFont(font_family, font_size, bold=bool(bold), italic=bool(italic))
         elif isinstance(font, Font):
             obj = font
             if bold is not None:

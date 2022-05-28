@@ -13,7 +13,6 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from enum import IntEnum
-from operator import truth
 
 import pygame.constants as _pg_constants
 import pygame.mouse as _pg_mouse
@@ -36,7 +35,7 @@ class Mouse(ClassNamespace, frozen=True):
     def _update() -> None:
         global _MOUSE_BUTTON_STATE
         button_states = _pg_mouse.get_pressed(3)
-        _MOUSE_BUTTON_STATE = (truth(button_states[0]), truth(button_states[1]), truth(button_states[2]))
+        _MOUSE_BUTTON_STATE = (bool(button_states[0]), bool(button_states[1]), bool(button_states[2]))
 
     @staticmethod
     def is_pressed(button: Button) -> bool:

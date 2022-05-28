@@ -15,7 +15,6 @@ __license__ = "GNU GPL v3.0"
 from abc import abstractmethod
 from contextlib import suppress
 from enum import auto, unique
-from operator import truth
 from typing import TYPE_CHECKING, Any, ClassVar, Protocol, Sequence, final, runtime_checkable
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
@@ -406,11 +405,11 @@ class ScrollArea(BaseLayeredDrawableGroup[ScrollAreaElement], MDrawable):
 
     @classmethod
     def set_horizontal_flip(cls, status: bool) -> None:
-        cls.__h_flip = truth(status)
+        cls.__h_flip = bool(status)
 
     @classmethod
     def set_vertical_flip(cls, status: bool) -> None:
-        cls.__v_flip = truth(status)
+        cls.__v_flip = bool(status)
 
     @classmethod
     def get_wheel_flip(cls) -> tuple[bool, bool]:

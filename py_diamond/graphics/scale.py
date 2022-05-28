@@ -13,7 +13,6 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 import sys
-from operator import truth
 from typing import TYPE_CHECKING, Callable, ClassVar, Sequence
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
@@ -141,7 +140,7 @@ class ScaleBar(ProgressBar, AbstractWidget):
             callback(self.percent)
 
     def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
-        return truth(self.rect.collidepoint(mouse_pos))
+        return bool(self.rect.collidepoint(mouse_pos))
 
     def _should_ignore_event(self, event: Event) -> bool:
         return super()._should_ignore_event(event) or (

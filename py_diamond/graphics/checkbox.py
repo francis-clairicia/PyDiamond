@@ -12,7 +12,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from operator import truth
+
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, TypeVar
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
@@ -197,7 +197,7 @@ class CheckBox(TDrawable, AbstractWidget, Generic[_OnValue, _OffValue], metaclas
             callback(value)
 
     def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
-        return truth(self.__shape.rect.collidepoint(mouse_pos))
+        return bool(self.__shape.rect.collidepoint(mouse_pos))
 
     def _apply_both_rotation_and_scale(self) -> None:
         angle: float = self.angle
@@ -335,8 +335,8 @@ class BooleanCheckBox(CheckBox[bool, bool]):
             width=width,
             height=height,
             color=color,
-            off_value=truth(off_value),
-            on_value=truth(on_value),
+            off_value=bool(off_value),
+            on_value=bool(on_value),
             value=value,
             outline=outline,
             outline_color=outline_color,

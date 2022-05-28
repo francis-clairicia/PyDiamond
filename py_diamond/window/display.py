@@ -18,7 +18,6 @@ from contextlib import ExitStack, contextmanager, suppress
 from datetime import datetime
 from inspect import isgeneratorfunction
 from itertools import count as itertools_count, filterfalse
-from operator import truth
 from threading import RLock
 from typing import (
     TYPE_CHECKING,
@@ -183,7 +182,7 @@ class Window(Object):
 
             size: tuple[int, int] = self.__size
             flags: int = self.__flags
-            vsync = int(truth(self.__vsync))
+            vsync = int(bool(self.__vsync))
             screen: Surface = _pg_display.set_mode(size, flags=flags, vsync=vsync)
             size = screen.get_size()
             self.__surface = SurfaceRenderer(size)
@@ -204,7 +203,7 @@ class Window(Object):
         return _pg_display.get_caption()[0]
 
     def iconify(self) -> bool:
-        return truth(_pg_display.iconify())
+        return bool(_pg_display.iconify())
 
     @final
     def close(self) -> NoReturn:
@@ -250,7 +249,7 @@ class Window(Object):
         return self.__busy_loop
 
     def set_busy_loop(self, status: bool) -> None:
-        self.__busy_loop = truth(status)
+        self.__busy_loop = bool(status)
 
     def refresh(self) -> float:
         screen = self.__display_renderer
@@ -420,7 +419,7 @@ class Window(Object):
         if size == screen.get_size():
             return
         flags: int = self.__flags
-        vsync = int(truth(self.__vsync))
+        vsync = int(bool(self.__vsync))
         _pg_display.set_mode(size, flags=flags, vsync=vsync)
 
     @final
@@ -486,7 +485,7 @@ class Window(Object):
 
     @final
     def event_is_blocked(self, event_type: EventType) -> bool:
-        return truth(_pg_event.get_blocked(event_type))
+        return bool(_pg_event.get_blocked(event_type))
 
     @final
     def block_event(self, *event_types: EventType) -> None:

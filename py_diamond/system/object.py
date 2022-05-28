@@ -15,7 +15,6 @@ __license__ = "GNU GPL v3.0"
 from abc import ABCMeta
 from functools import cached_property
 from itertools import chain, takewhile
-from operator import truth
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, overload
 
 from typing_extensions import final
@@ -119,11 +118,11 @@ class ObjectMeta(ABCMeta):
 
     @staticmethod
     def __must_override(obj: Any) -> bool:
-        return truth(ObjectMeta.__check_attr(obj, "__mustoverride__"))
+        return bool(ObjectMeta.__check_attr(obj, "__mustoverride__"))
 
     @staticmethod
     def __is_final_override(obj: Any) -> bool:
-        return truth(ObjectMeta.__check_attr(obj, "__final__"))
+        return bool(ObjectMeta.__check_attr(obj, "__final__"))
 
     @staticmethod
     def __check_attr(obj: Any, attr: str) -> bool:

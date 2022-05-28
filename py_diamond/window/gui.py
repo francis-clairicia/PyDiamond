@@ -22,7 +22,6 @@ __license__ = "GNU GPL v3.0"
 import weakref
 from abc import abstractmethod
 from enum import auto, unique
-from operator import truth
 from types import FunctionType, LambdaType, MappingProxyType
 from typing import (
     Any,
@@ -317,7 +316,7 @@ class BoundFocus:
             return None
         if scene is None:
             return False
-        taken: bool = truth(getattr(f, "_take_focus_", False))
+        taken: bool = bool(getattr(f, "_take_focus_", False))
         if isinstance(f, Drawable):
             taken = taken and f.is_shown()
         return taken

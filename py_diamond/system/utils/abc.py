@@ -21,7 +21,6 @@ __license__ = "GNU GPL v3.0"
 
 from functools import wraps
 from inspect import isabstract
-from operator import truth
 from typing import Any, Callable, Concatenate, ParamSpec, TypeVar
 
 _P = ParamSpec("_P")
@@ -56,4 +55,4 @@ def isconcreteclass(cls: type) -> bool:
 
 
 def isabstractmethod(func: Any) -> bool:
-    return truth(getattr(func, "__isabstractmethod__", False))
+    return bool(getattr(func, "__isabstractmethod__", False))

@@ -13,7 +13,6 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from enum import IntEnum, IntFlag, unique
-from operator import truth
 from typing import ClassVar, Sequence, overload
 
 import pygame.constants as _pg_constants
@@ -55,7 +54,7 @@ class Keyboard(ClassNamespace, frozen=True):
             key = Keyboard.Key(_pg_key.key_code(key))
         else:
             key = Keyboard.Key(key)
-        return truth(_KEY_STATES[key.value])
+        return bool(_KEY_STATES[key.value])
 
     @staticmethod
     def get_repeat() -> tuple[int, int]:

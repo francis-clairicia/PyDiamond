@@ -25,7 +25,6 @@ __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
 from math import radians, sin, tan
-from operator import truth
 from types import MappingProxyType
 from typing import Any, ClassVar, Mapping, Sequence, TypeAlias, final
 
@@ -526,10 +525,10 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape):
     def get_local_vertices(self) -> Sequence[Vector2]:
         return [v.copy() for v in self.__points]
 
-    config.add_value_converter_static("draw_top_left", truth)
-    config.add_value_converter_static("draw_top_right", truth)
-    config.add_value_converter_static("draw_bottom_left", truth)
-    config.add_value_converter_static("draw_bottom_right", truth)
+    config.add_value_converter_static("draw_top_left", bool)
+    config.add_value_converter_static("draw_top_right", bool)
+    config.add_value_converter_static("draw_bottom_left", bool)
+    config.add_value_converter_static("draw_bottom_right", bool)
 
     @config.getter_key("draw_top_left")
     @config.getter_key("draw_top_right")

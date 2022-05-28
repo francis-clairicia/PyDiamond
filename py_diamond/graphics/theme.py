@@ -30,7 +30,6 @@ from contextlib import nullcontext, suppress
 from functools import cached_property
 from inspect import Parameter, Signature
 from itertools import chain, filterfalse
-from operator import truth
 from re import compile as re_compile
 from threading import RLock
 from types import FunctionType, LambdaType, MappingProxyType
@@ -451,7 +450,7 @@ class ThemedObjectMeta(ObjectMeta):
             namespace[attr_name] = sequence
 
         namespace.setdefault("__theme_associations__", {})
-        namespace["_no_use_of_themes_"] = truth(no_theme)
+        namespace["_no_use_of_themes_"] = bool(no_theme)
 
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
         if not use_parent_theme:
@@ -710,7 +709,7 @@ class ThemedObjectMeta(ObjectMeta):
         return tuple(default_theme)
 
     def is_abstract_theme_class(cls) -> bool:
-        return truth(getattr(cls, "_is_abstract_theme_class_", False))
+        return bool(getattr(cls, "_is_abstract_theme_class_", False))
 
     def register(cls, subclass: type[_T]) -> type[_T]:
         def register_themed_subclass(subclass: ThemedObjectMeta) -> None:
@@ -1044,7 +1043,7 @@ def no_theme_decorator(*, permanent: bool = True) -> Callable[[_T], _T]:
 
 
 def no_theme_decorator(func: Any = None, *, permanent: bool = True) -> Any:
-    permanent = truth(permanent)
+    permanent = bool(permanent)
 
     def decorator(func: Any) -> Any:
         with suppress(AttributeError):

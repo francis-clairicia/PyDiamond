@@ -13,7 +13,6 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from enum import auto, unique
-from operator import truth
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal as L, Sequence, TypeAlias, TypedDict, overload
 
 from ..math import Vector2
@@ -487,7 +486,7 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     def show_background(self, status: bool | None = None) -> bool | None:
         if status is None:
             return self.__shape.is_shown()
-        self.__shape.set_visibility(truth(status))
+        self.__shape.set_visibility(bool(status))
         return None
 
     def _apply_both_rotation_and_scale(self) -> None:
@@ -510,7 +509,7 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
         pivot: Vector2 = Vector2(rect.center)
         mouse: Vector2 = Vector2(mouse_pos)
         mouse = pivot + (mouse - pivot).rotate(self.angle)
-        return truth(rect.collidepoint(mouse.x, mouse.y))
+        return bool(rect.collidepoint(mouse.x, mouse.y))
 
     def _on_hover(self) -> None:
         self.__set_state("hover")
@@ -1036,7 +1035,7 @@ class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
         self.__update_shape_size()
 
     def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
-        return truth(self.rect.collidepoint(mouse_pos))
+        return bool(self.rect.collidepoint(mouse_pos))
 
     def _on_hover(self) -> None:
         self.__set_state("hover")

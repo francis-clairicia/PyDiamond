@@ -14,7 +14,6 @@ __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
 from enum import auto, unique
-from operator import truth
 from typing import TYPE_CHECKING, Any, TypeVar
 from weakref import WeakMethod
 
@@ -111,7 +110,7 @@ class Clickable(Object):
         self.__hover_cursor[Clickable.State.DISABLED] = self.__default_hover_cursor[Clickable.State.DISABLED]
 
     def set_active_only_on_hover(self, status: bool) -> None:
-        self.__active_only_on_hover = truth(status)
+        self.__active_only_on_hover = bool(status)
 
     def __handle_click_event(self, event: MouseButtonEvent) -> bool:
         if self._should_ignore_event(event):
@@ -121,7 +120,7 @@ class Clickable(Object):
             self.active = self.hover = False
             return False
 
-        valid_click: bool = truth(self._valid_mouse_button(event.button) and self._mouse_in_hitbox(event.pos))
+        valid_click: bool = bool(self._valid_mouse_button(event.button) and self._mouse_in_hitbox(event.pos))
 
         match event:
             case MouseButtonDownEvent() if valid_click:
@@ -258,7 +257,7 @@ class Clickable(Object):
 
     @hover.setter
     def hover(self, status: bool) -> None:
-        status = truth(status)
+        status = bool(status)
         if status == self.__hover:
             return
         self.__hover = status
@@ -272,11 +271,11 @@ class Clickable(Object):
 
     @property
     def active(self) -> bool:
-        return truth(self.__active and (self.hover or not self.__active_only_on_hover))
+        return bool(self.__active and (self.hover or not self.__active_only_on_hover))
 
     @active.setter
     def active(self, status: bool) -> None:
-        status = truth(status)
+        status = bool(status)
         if status == self.__active:
             return
         self.__active = status
