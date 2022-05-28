@@ -52,6 +52,14 @@ py_diamond.environ.check_booleans(
     ]
 )
 
+if any(name.startswith("pygame") for name in list(sys.modules)):
+    import warnings
+
+    warn_msg = "'pygame' module already imported, this can cause unwanted behaviour. Consider import py_diamond first."
+    warnings.warn(warn_msg, ImportWarning)
+
+    del warnings, warn_msg
+
 try:
     import pygame
 except ImportError as exc:
