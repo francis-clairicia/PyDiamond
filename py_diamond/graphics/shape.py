@@ -28,7 +28,7 @@ from math import radians, sin, tan
 from types import MappingProxyType
 from typing import Any, ClassVar, Mapping, Sequence, TypeAlias, final
 
-from pygame.transform import rotozoom as _surface_rotozoom
+from pygame.transform import rotozoom as _surface_rotozoom, smoothscale as _surface_scale
 
 from ..math import Vector2
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, UnregisteredOptionError, initializer
@@ -68,11 +68,9 @@ class AbstractShape(TDrawable, metaclass=ShapeMeta):
         self.__image = self._make(apply_rotation=True, apply_scale=True)
 
     def _apply_only_rotation(self) -> None:
-        self.__compute_shape_size()
         self.__image = self._make(apply_rotation=True, apply_scale=False)
 
     def _apply_only_scale(self) -> None:
-        self.__compute_shape_size()
         self.__image = self._make(apply_rotation=False, apply_scale=True)
 
     def _freeze_state(self) -> dict[str, Any] | None:
@@ -90,29 +88,30 @@ class AbstractShape(TDrawable, metaclass=ShapeMeta):
         return True
 
     @staticmethod
-    def compute_size_by_vertices(vertices: Sequence[tuple[float, float]] | Sequence[Vector2]) -> tuple[float, float]:
-        if not vertices:
+    @final
+    def compute_size_by_edges(edges: Sequence[tuple[float, float]] | Sequence[Vector2]) -> tuple[float, float]:
+        if len(edges) < 2:
             return (0, 0)
 
-        left: float = min((point[0] for point in vertices))
-        top: float = min((point[1] for point in vertices))
-        right: float = max((point[0] for point in vertices))
-        bottom: float = max((point[1] for point in vertices))
+        left: float = min((point[0] for point in edges))
+        top: float = min((point[1] for point in edges))
+        right: float = max((point[0] for point in edges))
+        bottom: float = max((point[1] for point in edges))
 
         return (right - left, bottom - top)
 
     def __compute_shape_size(self) -> None:
-        self.__local_size = AbstractShape.compute_size_by_vertices(self.get_local_vertices())
+        self.__local_size = AbstractShape.compute_size_by_edges(self.get_local_edges())
 
     @abstractmethod
     def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
         raise NotImplementedError
 
     @abstractmethod
-    def get_local_vertices(self) -> Sequence[Vector2]:
+    def get_local_edges(self) -> Sequence[Vector2]:
         raise NotImplementedError
 
-    def get_vertices(
+    def get_edges(
         self,
         *,
         center: Vector2 | tuple[float, float] | None = None,
@@ -121,49 +120,48 @@ class AbstractShape(TDrawable, metaclass=ShapeMeta):
     ) -> Sequence[Vector2]:
         angle: float = self.angle
         scale: float = self.scale
-        all_points: Sequence[Vector2] = self.get_local_vertices()
-        if not apply_rotation and not apply_scale:
+        all_points: Sequence[Vector2] = self.get_local_edges()
+        if len(all_points) < 2 or (not apply_rotation and not apply_scale):
             return all_points
-        vertices: list[Vector2] = []
+        edges: list[Vector2] = []
 
-        if all_points:
-            left: float = min((point.x for point in all_points), default=0)
-            top: float = min((point.y for point in all_points), default=0)
-            right: float = max((point.x for point in all_points), default=0)
-            bottom: float = max((point.y for point in all_points), default=0)
-            w: float = right - left
-            h: float = bottom - top
+        left: float = min((point.x for point in all_points))
+        top: float = min((point.y for point in all_points))
+        right: float = max((point.x for point in all_points))
+        bottom: float = max((point.y for point in all_points))
+        w: float = right - left
+        h: float = bottom - top
 
-            local_center: Vector2 = Vector2(left + w / 2, top + h / 2)
+        local_center: Vector2 = Vector2(left + w / 2, top + h / 2)
 
-            if center is None:
+        if center is None:
+            try:
+                center = Vector2(self.center)
+            except AttributeError:
+                center = local_center
+        else:
+            center = Vector2(center)
+
+        for point in all_points:
+            offset: Vector2 = point - local_center
+            if apply_scale:
                 try:
-                    center = Vector2(self.center)
-                except AttributeError:
-                    center = local_center
-            else:
-                center = Vector2(center)
+                    offset.scale_to_length(offset.length() * scale)
+                except ValueError:
+                    offset = Vector2(0, 0)
+            if apply_rotation:
+                offset.rotate_ip(-angle)
+            edges.append(center + offset)
 
-            for point in all_points:
-                offset: Vector2 = point - local_center
-                if apply_rotation:
-                    offset.rotate_ip(-angle)
-                if apply_scale:
-                    try:
-                        offset.scale_to_length(offset.length() * scale)
-                    except ValueError:
-                        offset = Vector2(0, 0)
-                vertices.append(center + offset)
-
-        return vertices
+        return edges
 
     @config.add_main_update
     def __update_shape(self) -> None:
+        self.__compute_shape_size()
         if self.config.has_initialization_context():
             self.apply_rotation_scale()
         else:
             center: tuple[float, float] = self.center
-            del self.__image
             self.apply_rotation_scale()
             self.center = center
 
@@ -230,15 +228,17 @@ class PolygonShape(OutlinedShape, SingleColorShape):
         outline: int = self.outline
         if apply_scale:
             outline = int(outline * self.scale)
-        all_points: Sequence[Vector2] = self.get_vertices(apply_rotation=apply_rotation, apply_scale=apply_scale)
+        all_points: Sequence[Vector2] = self.get_edges(apply_rotation=apply_rotation, apply_scale=apply_scale)
         nb_points = len(all_points)
 
-        if nb_points < 2 or (nb_points == 2 and outline < 1):
+        if nb_points < 2:
             return create_surface((0, 0))
 
         PolygonShape.normalize_points(all_points)
 
-        w, h = PolygonShape.compute_size_by_vertices(all_points)
+        w, h = PolygonShape.compute_size_by_edges(all_points)
+        if nb_points == 2 and outline < 1:
+            return create_surface((w, h))
         image: SurfaceRenderer = SurfaceRenderer((w + outline * 2, h + outline * 2))
 
         for p in all_points:
@@ -254,10 +254,10 @@ class PolygonShape(OutlinedShape, SingleColorShape):
             if outline > 0:
                 rect = image.draw_polygon(self.outline_color, all_points, width=outline)
 
-        return image.surface.subsurface(rect)
+        return _surface_scale(image.surface.subsurface(rect), (w, h))
 
     @final
-    def get_local_vertices(self) -> Sequence[Vector2]:
+    def get_local_edges(self) -> Sequence[Vector2]:
         return self.points
 
     @final
@@ -274,9 +274,12 @@ class PolygonShape(OutlinedShape, SingleColorShape):
         return points
 
     @staticmethod
+    @final
     def normalize_points(points: Sequence[Vector2]) -> None:
-        left: float = min((point.x for point in points), default=0)
-        top: float = min((point.y for point in points), default=0)
+        if not points:
+            return
+        left: float = min((point.x for point in points))
+        top: float = min((point.y for point in points))
         for p in points:
             p.x -= left
             p.y -= top
@@ -300,7 +303,7 @@ class AbstractRectangleShape(AbstractShape):
         super().__init__(**kwargs)
 
     @final
-    def get_local_vertices(self) -> tuple[Vector2, Vector2, Vector2, Vector2]:
+    def get_local_edges(self) -> tuple[Vector2, Vector2, Vector2, Vector2]:
         w, h = self.local_size
         return (Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h))
 
@@ -330,7 +333,7 @@ class AbstractSquareShape(AbstractShape):
         super().__init__(**kwargs)
 
     @final
-    def get_local_vertices(self) -> tuple[Vector2, Vector2, Vector2, Vector2]:
+    def get_local_edges(self) -> tuple[Vector2, Vector2, Vector2, Vector2]:
         w = h = self.local_size
         return (Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h))
 
@@ -405,8 +408,8 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape):
             image.draw_rect(self.outline_color, rect, width=outline, **draw_params)
 
         surface = image.surface
-        if apply_rotation:
-            surface = _surface_rotozoom(surface, self.angle, 1)
+        if apply_rotation and (angle := self.angle) != 0:
+            surface = _surface_rotozoom(surface, angle, 1)
         return surface
 
     config.add_value_converter_static("border_radius", valid_integer(min_value=-1))
@@ -449,7 +452,7 @@ class AbstractCircleShape(AbstractShape):
         self.radius = radius
         super().__init__(**kwargs)
 
-    def get_local_vertices(self) -> Sequence[Vector2]:
+    def get_local_edges(self) -> Sequence[Vector2]:
         r: float = self.radius
         center: Vector2 = Vector2(r, r)
         radius: Vector2 = Vector2(r, 0)
@@ -518,11 +521,11 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape):
         if outline > 0:
             image.draw_circle(self.outline_color, center, radius, width=outline, **draw_params)
         surface = image.surface
-        if apply_rotation and not all(drawn for drawn in draw_params.values()):
-            surface = _surface_rotozoom(surface, self.angle, 1)
+        if apply_rotation and (angle := self.angle) != 0 and not all(drawn for drawn in draw_params.values()):
+            surface = _surface_rotozoom(surface, angle, 1)
         return surface
 
-    def get_local_vertices(self) -> Sequence[Vector2]:
+    def get_local_edges(self) -> Sequence[Vector2]:
         return [v.copy() for v in self.__points]
 
     config.add_value_converter_static("draw_top_left", bool)
@@ -551,7 +554,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape):
     @config.on_update("draw_top_right")
     @config.on_update("draw_bottom_left")
     @config.on_update("draw_bottom_right")
-    def __compute_vertices(self) -> None:
+    def __compute_edges(self) -> None:
         draw_params = self.__draw_params
         center: Vector2 = Vector2(self.radius, self.radius)
         if all(not drawn for drawn in draw_params.values()):
@@ -618,13 +621,13 @@ class AbstractCrossShape(OutlinedShape, SingleColorShape):
         scale: float = self.scale
         if apply_scale:
             outline = int(outline * scale)
-        all_points: Sequence[Vector2] = self.get_vertices(apply_rotation=apply_rotation, apply_scale=apply_scale)
+        all_points: Sequence[Vector2] = self.get_edges(apply_rotation=apply_rotation, apply_scale=apply_scale)
         if not all_points:
             return create_surface((0, 0))
 
         PolygonShape.normalize_points(all_points)
 
-        w, h = PolygonShape.compute_size_by_vertices(all_points)
+        w, h = PolygonShape.compute_size_by_edges(all_points)
         image: SurfaceRenderer = SurfaceRenderer((w + outline * 2, h + outline * 2))
 
         for p in all_points:
@@ -635,12 +638,12 @@ class AbstractCrossShape(OutlinedShape, SingleColorShape):
         if outline > 0:
             rect = image.draw_polygon(self.outline_color, all_points, width=outline)
 
-        return image.surface.subsurface(rect)
+        return _surface_scale(image.surface.subsurface(rect), (w, h))
 
     def get_local_size(self) -> tuple[float, float]:
         return self.local_size
 
-    def get_local_vertices(self) -> Sequence[Vector2]:
+    def get_local_edges(self) -> Sequence[Vector2]:
         return [v.copy() for v in self.__points]
 
     @staticmethod
@@ -659,7 +662,7 @@ class AbstractCrossShape(OutlinedShape, SingleColorShape):
     @config.on_update("local_width")
     @config.on_update("local_height")
     @config.on_update("line_width_percent")
-    def __compute_vertices(self) -> None:
+    def __compute_edges(self) -> None:
         local_width, local_height = local_size = self.local_size
         line_width_percent = self.line_width_percent
         line_width = min(local_width * line_width_percent, local_height * line_width_percent)

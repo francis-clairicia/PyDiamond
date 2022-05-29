@@ -174,7 +174,7 @@ class ShapeScene(MainScene, busy_loop=True):
     def update(self) -> None:
         self.__x_center.center = self.__x.center
         self.__c_center.center = self.__c.center
-        self.__shape_copy.set_points(self.__c.get_vertices())
+        self.__shape_copy.set_points(self.__c.get_edges())
 
     def render(self) -> None:
         self.window.draw(

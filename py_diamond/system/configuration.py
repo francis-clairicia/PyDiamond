@@ -1147,7 +1147,7 @@ class ConfigurationTemplate(Object):
         self.check_option_validity(option)
 
         if isinstance(func, type):
-            raise TypeError("Use value_converter_static() to convert value using type")
+            raise TypeError("Use add_value_converter_static() to convert value using type")
 
         def decorator(func: _ValueConverterVar) -> _ValueConverterVar:
             value_converter_list = template.value_converter.setdefault(option, [])

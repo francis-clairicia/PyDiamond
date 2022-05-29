@@ -170,7 +170,6 @@ class AbstractRenderer(Object):
         color: _ColorValue,
         start_pos: _Coordinate,
         end_pos: _Coordinate,
-        blend: int = 1,
     ) -> Rect:
         raise NotImplementedError
 
@@ -180,7 +179,6 @@ class AbstractRenderer(Object):
         color: _ColorValue,
         closed: bool,
         points: Sequence[_Coordinate],
-        blend: int = 1,
     ) -> Rect:
         raise NotImplementedError
 

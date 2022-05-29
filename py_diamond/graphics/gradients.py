@@ -19,6 +19,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
+from itertools import pairwise
 from typing import Any, ClassVar, Sequence
 
 from pygame.transform import rotate as _surface_rotate, smoothscale as _surface_scale
@@ -188,7 +189,7 @@ class HorizontalMultiColorShape(AbstractRectangleShape, MultiColorShape):
         gradient_height: float = height
         self.__shapes = tuple(
             HorizontalGradientShape(gradient_width, gradient_height, first_color=first_color, second_color=second_color)
-            for first_color, second_color in zip(colors[:-1], colors[1:])
+            for first_color, second_color in pairwise(colors)
         )
 
     @config.on_update("local_size")
@@ -228,7 +229,7 @@ class VerticalMultiColorShape(AbstractRectangleShape, MultiColorShape):
         gradient_height: float = round(height / (len(colors) - 1))
         self.__shapes = tuple(
             VerticalGradientShape(gradient_width, gradient_height, first_color=first_color, second_color=second_color)
-            for first_color, second_color in zip(colors[:-1], colors[1:])
+            for first_color, second_color in pairwise(colors)
         )
 
     @config.on_update("local_size")
