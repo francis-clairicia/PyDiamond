@@ -17,7 +17,7 @@ from typing import IO, Any, Generator
 
 from ...system.object import final
 from ...system.utils.abc import concreteclass
-from .base import AbstractStreamNetworkProtocol, ValidationError
+from .base import AbstractStreamNetworkProtocol, ParserExit, ValidationError
 
 
 @concreteclass
@@ -43,8 +43,12 @@ class PicklingNetworkProtocol(AbstractStreamNetworkProtocol):
     def parse_received_data(self, buffer: bytes) -> Generator[bytes, None, bytes]:
         while (idx := buffer.find(STOP_OPCODE)) >= 0:
             idx += len(STOP_OPCODE)
-            yield buffer[:idx]
+            data = buffer[:idx]
             buffer = buffer[idx:]
+            try:
+                yield data
+            except ParserExit:
+                break
         return buffer
 
     def get_pickler(self, buffer: IO[bytes]) -> Pickler:

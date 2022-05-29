@@ -34,6 +34,10 @@ class ValidationError(Exception):
     pass
 
 
+class ParserExit(Exception):
+    pass
+
+
 class AbstractNetworkProtocol(Object):
     @abstractmethod
     def serialize(self, packet: Any) -> bytes:
@@ -73,8 +77,12 @@ class AutoParsedStreamNetworkProtocol(AbstractStreamNetworkProtocol):
                 return bytes()
             if len(body) < data_length:
                 break
-            yield body[:data_length]
+            data = body[:data_length]
             buffer = body[data_length:]
+            try:
+                yield data
+            except ParserExit:
+                break
         return buffer
 
 
