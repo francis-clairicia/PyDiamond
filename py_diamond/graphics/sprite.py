@@ -18,7 +18,7 @@ from itertools import combinations
 from typing import TYPE_CHECKING, Any, Final, Iterable, Iterator, Mapping, TypeVar, overload
 
 from pygame.mask import Mask, from_surface as _pg_mask_from_surface
-from pygame.transform import rotate as _surface_rotate, scale as _surface_fastscale, smoothscale as _surface_smoothscale
+from pygame.transform import rotozoom as _surface_rotozoom
 
 from ..system.object import Object, final
 from ..window.clock import Clock
@@ -80,7 +80,6 @@ class Sprite(TDrawable):
         self.__image: Surface = self.__default_image.copy()
         self.__mask_threshold: int
         self.__mask: Mask
-        self.__smooth_scale: bool = True
         self.__blend_mode: BlendMode = BlendMode.NONE
         self.set_mask_threshold(mask_threshold)
 
@@ -114,38 +113,15 @@ class Sprite(TDrawable):
         return self.__default_image.get_size()
 
     def _apply_both_rotation_and_scale(self) -> None:
-        angle: float = self.angle
-        scale: float = self.scale
-        image: Surface = self.__default_image
-        if scale != 1:
-            w, h = image.get_size()
-            if self.__smooth_scale:
-                image = _surface_smoothscale(image, (w * scale, h * scale))
-            else:
-                image = _surface_fastscale(image, (w * scale, h * scale))
-        if angle != 0:
-            image = _surface_rotate(image, angle)
-        self.__image = image
+        self.__image = _surface_rotozoom(self.__default_image, self.angle, self.scale)
         self.update_mask()
 
     def _apply_only_rotation(self) -> None:
-        angle: float = self.angle
-        image: Surface = self.__default_image
-        if angle != 0:
-            image = _surface_rotate(image, angle)
-        self.__image = image
+        self.__image = _surface_rotozoom(self.__default_image, self.angle, 1)
         self.update_mask()
 
     def _apply_only_scale(self) -> None:
-        scale: float = self.scale
-        image: Surface = self.__default_image
-        if scale != 1:
-            w, h = image.get_size()
-            if self.__smooth_scale:
-                image = _surface_smoothscale(image, (w * scale, h * scale))
-            else:
-                image = _surface_fastscale(image, (w * scale, h * scale))
-        self.__image = image
+        self.__image = _surface_rotozoom(self.__default_image, 0, self.scale)
         self.update_mask()
 
     def _freeze_state(self) -> dict[str, Any] | None:
@@ -176,12 +152,6 @@ class Sprite(TDrawable):
     def set_mask_threshold(self, threshold: int) -> None:
         self.__mask_threshold = min(max(int(threshold), 0), 255)
         self.update_mask()
-
-    def use_smooth_scale(self, status: bool) -> None:
-        former_state: bool = self.__smooth_scale
-        self.__smooth_scale = actual_state = bool(status)
-        if former_state != actual_state:
-            self.apply_rotation_scale()
 
     def is_colliding(self, other: Sprite) -> bool:
         return self.is_mask_colliding(other, relative=True) is not None

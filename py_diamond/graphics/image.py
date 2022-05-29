@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 from typing import TYPE_CHECKING, Any, Mapping, overload
 
-from pygame.transform import rotate as _surface_rotate, smoothscale as _surface_smoothscale
+from pygame.transform import rotozoom as _surface_rotozoom
 
 from .color import Color
 from .drawable import TDrawable
@@ -133,30 +133,13 @@ class Image(TDrawable):
         return self.__image.get_size()
 
     def _apply_both_rotation_and_scale(self) -> None:
-        angle: float = self.angle
-        scale: float = self.scale
-        image: Surface = self.__default_image
-        if scale != 1:
-            w, h = image.get_size()
-            image = _surface_smoothscale(image, (w * scale, h * scale))
-        if angle != 0:
-            image = _surface_rotate(image, angle)
-        self.__image = image
+        self.__image = _surface_rotozoom(self.__default_image, self.angle, self.scale)
 
     def _apply_only_rotation(self) -> None:
-        angle: float = self.angle
-        image: Surface = self.__default_image
-        if angle != 0:
-            image = _surface_rotate(image, angle)
-        self.__image = image
+        self.__image = _surface_rotozoom(self.__default_image, self.angle, 1)
 
     def _apply_only_scale(self) -> None:
-        scale: float = self.scale
-        image: Surface = self.__default_image
-        if scale != 1:
-            w, h = image.get_size()
-            image = _surface_smoothscale(image, (w * scale, h * scale))
-        self.__image = image
+        self.__image = _surface_rotozoom(self.__default_image, 0, self.scale)
 
     def _freeze_state(self) -> dict[str, Any] | None:
         state = super()._freeze_state()

@@ -19,7 +19,7 @@ from textwrap import wrap as textwrap
 from typing import Any, ClassVar, Final, Mapping, TypeAlias
 from weakref import proxy as weakproxy
 
-from pygame.transform import rotate as _surface_rotate, rotozoom as _surface_rotozoom
+from pygame.transform import rotozoom as _surface_rotozoom
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
@@ -217,7 +217,7 @@ class Text(TDrawable, metaclass=TextMeta):
         self.__image = _surface_rotozoom(self.__default_image, 0, self.scale)
 
     def _apply_only_rotation(self) -> None:
-        self.__image = _surface_rotate(self.__default_image, self.angle)
+        self.__image = _surface_rotozoom(self.__default_image, self.angle, 1)
 
     def _freeze_state(self) -> dict[str, Any] | None:
         state = super()._freeze_state()
@@ -289,7 +289,7 @@ class Text(TDrawable, metaclass=TextMeta):
         final_render_surface = create_surface((render_width + shadow_width_offset, render_height + shadow_height_offset))
 
         # 3- Apply 'justify' attribute to rects according to *default* render (w/o shadow)
-        if justify_pos != "left":  # Ignore for 'left', it will always be 0
+        if len(render_queue) > 1 and justify_pos != "left":  # Ignore for 'left', it will always be 0
             justify_pos_value: int = getattr(render_rect, justify_pos)
             for line_rect in map(lambda i: i[2], render_queue):
                 setattr(line_rect, justify_pos, justify_pos_value)

@@ -28,7 +28,7 @@ from math import radians, sin, tan
 from types import MappingProxyType
 from typing import Any, ClassVar, Mapping, Sequence, TypeAlias, final
 
-from pygame.transform import rotate as _surface_rotate
+from pygame.transform import rotozoom as _surface_rotozoom
 
 from ..math import Vector2
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, UnregisteredOptionError, initializer
@@ -406,7 +406,7 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape):
 
         surface = image.surface
         if apply_rotation:
-            surface = _surface_rotate(surface, self.angle)
+            surface = _surface_rotozoom(surface, self.angle, 1)
         return surface
 
     config.add_value_converter_static("border_radius", valid_integer(min_value=-1))
@@ -519,7 +519,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape):
             image.draw_circle(self.outline_color, center, radius, width=outline, **draw_params)
         surface = image.surface
         if apply_rotation and not all(drawn for drawn in draw_params.values()):
-            surface = _surface_rotate(surface, self.angle)
+            surface = _surface_rotozoom(surface, self.angle, 1)
         return surface
 
     def get_local_vertices(self) -> Sequence[Vector2]:
