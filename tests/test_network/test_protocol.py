@@ -2,10 +2,10 @@
 
 from typing import ClassVar
 
+from py_diamond.network.protocol import JSONNetworkProtocol, PicklingNetworkProtocol, SecuredNetworkProtocol
+
 import pytest
 from cryptography.fernet import Fernet, InvalidToken
-
-from py_diamond.network.protocol import JSONNetworkProtocol, PicklingNetworkProtocol, SecuredNetworkProtocol
 
 
 def test_pickling_protocol() -> None:

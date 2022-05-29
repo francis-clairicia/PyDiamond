@@ -4,13 +4,13 @@ from selectors import EVENT_READ, DefaultSelector
 from threading import Event
 from typing import Any, Generator
 
-import pytest
-
 from py_diamond.network.client import TCPNetworkClient
 from py_diamond.network.protocol import JSONNetworkProtocol, PicklingNetworkProtocol, SecuredNetworkProtocol, ValidationError
 from py_diamond.network.protocol.base import AbstractStreamNetworkProtocol
 from py_diamond.network.socket import PythonTCPClientSocket, PythonTCPServerSocket
 from py_diamond.system.threading import Thread, thread_factory
+
+import pytest
 
 from .random_port import random_port
 

@@ -2,8 +2,6 @@
 
 from socket import has_ipv6 as HAS_IPV6
 
-import pytest
-
 from py_diamond.network.socket import (
     AF_INET,
     AF_INET6,
@@ -13,6 +11,8 @@ from py_diamond.network.socket import (
     PythonUDPServerSocket,
     SocketAddress,
 )
+
+import pytest
 
 from .random_port import random_port
 

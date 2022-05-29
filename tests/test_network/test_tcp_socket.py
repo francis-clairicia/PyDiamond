@@ -2,8 +2,6 @@
 
 from socket import has_dualstack_ipv6, has_ipv6 as HAS_IPV6
 
-import pytest
-
 from py_diamond.network.socket import (
     AF_INET,
     AF_INET6,
@@ -14,6 +12,8 @@ from py_diamond.network.socket import (
     SocketAddress,
 )
 from py_diamond.system.threading import Thread, thread_factory
+
+import pytest
 
 from .random_port import random_port
 

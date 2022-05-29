@@ -14,9 +14,9 @@ import pickle
 import random
 import sys
 
-import pytest
-
 from py_diamond.system.collections import OrderedSet
+
+import pytest
 
 
 def test_pickle():

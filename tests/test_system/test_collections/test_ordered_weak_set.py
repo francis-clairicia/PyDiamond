@@ -1,8 +1,8 @@
 # -*- coding: Utf-8 -*
 
-import pytest
-
 from py_diamond.system.collections import OrderedWeakSet
+
+import pytest
 
 
 class Dummy:

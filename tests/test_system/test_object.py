@@ -2,9 +2,9 @@
 
 from typing import Any
 
-import pytest
-
 from py_diamond.system.object import Object, final, mro, override
+
+import pytest
 
 # pyright: reportUnusedClass=false
 
