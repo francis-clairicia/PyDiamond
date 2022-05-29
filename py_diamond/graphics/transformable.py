@@ -267,7 +267,7 @@ class Transformable(Movable, metaclass=TransformableMeta):
         right: float = max((point.x for point in all_points), default=0)
         top: float = min((point.y for point in all_points), default=0)
         bottom: float = max((point.y for point in all_points), default=0)
-        return (right - left, bottom - top)
+        return (right - left + 1, bottom - top + 2)
 
     @final
     def get_area(self, *, apply_scale: bool = True, apply_rotation: bool = True) -> Rect:

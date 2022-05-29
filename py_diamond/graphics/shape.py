@@ -98,7 +98,7 @@ class AbstractShape(TDrawable, metaclass=ShapeMeta):
         right: float = max((point[0] for point in edges))
         bottom: float = max((point[1] for point in edges))
 
-        return (right - left, bottom - top)
+        return (right - left + 1, bottom - top + 2)
 
     def __compute_shape_size(self) -> None:
         self.__local_size = AbstractShape.compute_size_by_edges(self.get_local_edges())
@@ -129,8 +129,8 @@ class AbstractShape(TDrawable, metaclass=ShapeMeta):
         top: float = min((point.y for point in all_points))
         right: float = max((point.x for point in all_points))
         bottom: float = max((point.y for point in all_points))
-        w: float = right - left
-        h: float = bottom - top
+        w: float = right - left + 1
+        h: float = bottom - top + 2
 
         local_center: Vector2 = Vector2(left + w / 2, top + h / 2)
 

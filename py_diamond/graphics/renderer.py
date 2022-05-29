@@ -17,21 +17,20 @@ from enum import IntEnum, unique
 from typing import TYPE_CHECKING, Sequence, overload
 
 import pygame.constants as _pg_constants
-from pygame.draw import (
-    aaline as _draw_antialiased_line,
-    aalines as _draw_multiple_antialiased_lines,
-    arc as _draw_arc,
-    circle as _draw_circle,
-    ellipse as _draw_ellipse,
-    line as _draw_line,
-    lines as _draw_multiple_lines,
-    polygon as _draw_polygon,
-    rect as _draw_rect,
-)
+from pygame.draw import aaline as _draw_antialiased_line, aalines as _draw_multiple_antialiased_lines
 
 from ..math.vector2 import Vector2
 from ..system.object import Object
 from ..system.utils.abc import concreteclass
+from ._draw import (
+    draw_arc as _draw_arc,
+    draw_circle as _draw_circle,
+    draw_ellipse as _draw_ellipse,
+    draw_line as _draw_line,
+    draw_lines as _draw_multiple_lines,
+    draw_polygon as _draw_polygon,
+    draw_rect as _draw_rect,
+)
 from .rect import Rect
 from .surface import Surface, create_surface
 
