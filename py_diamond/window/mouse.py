@@ -19,10 +19,10 @@ import pygame.mouse as _pg_mouse
 
 from ..system.namespace import ClassNamespace
 
-_MOUSE_BUTTON_STATE: tuple[bool, bool, bool] = (False, False, False)
-
 
 class Mouse(ClassNamespace, frozen=True):
+    __MOUSE_BUTTON_STATE: tuple[bool, bool, bool] = (False, False, False)
+
     @staticmethod
     def get_pos() -> tuple[int, int]:
         return _pg_mouse.get_pos()
@@ -33,13 +33,14 @@ class Mouse(ClassNamespace, frozen=True):
 
     @staticmethod
     def _update() -> None:
-        global _MOUSE_BUTTON_STATE
         button_states = _pg_mouse.get_pressed(3)
-        _MOUSE_BUTTON_STATE = (bool(button_states[0]), bool(button_states[1]), bool(button_states[2]))
+        button_states = (bool(button_states[0]), bool(button_states[1]), bool(button_states[2]))
+        type.__setattr__(Mouse, "_Mouse__MOUSE_BUTTON_STATE", button_states)
 
     @staticmethod
     def is_pressed(button: Button) -> bool:
-        return _MOUSE_BUTTON_STATE[button]
+        button = Mouse.Button(button)
+        return Mouse.__MOUSE_BUTTON_STATE[button.value]
 
     @staticmethod
     def show_cursor() -> None:
@@ -50,7 +51,7 @@ class Mouse(ClassNamespace, frozen=True):
         Mouse.set_visible(False)
 
     @staticmethod
-    def toogle_cursor() -> None:
+    def toggle_cursor() -> None:
         Mouse.set_visible(not Mouse.is_visible())
 
     @staticmethod

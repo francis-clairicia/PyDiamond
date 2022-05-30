@@ -241,7 +241,7 @@ class AnimationStateFullScene(MainScene, busy_loop=True):
         self.use_interpolation = False
         self.event.bind_key_press(Keyboard.Key.UP, self.__increase_fixed_framerate)
         self.event.bind_key_press(Keyboard.Key.DOWN, self.__increase_fixed_framerate)
-        self.event.bind_key_press(Keyboard.Key.RETURN, lambda _: self.__toogle_interpolation_use())
+        self.event.bind_key_press(Keyboard.Key.RETURN, lambda _: self.__toggle_interpolation_use())
         self.fixed_framerate = 30
 
     def on_start_loop_before_transition(self) -> None:
@@ -295,7 +295,7 @@ class AnimationStateFullScene(MainScene, busy_loop=True):
             case Keyboard.Key.DOWN if self.fixed_framerate > 1:
                 self.fixed_framerate -= 1
 
-    def __toogle_interpolation_use(self) -> None:
+    def __toggle_interpolation_use(self) -> None:
         self.use_interpolation = not self.use_interpolation
 
 

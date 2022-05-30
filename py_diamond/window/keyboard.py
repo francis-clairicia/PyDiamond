@@ -20,15 +20,15 @@ import pygame.key as _pg_key
 
 from ..system.namespace import ClassNamespace
 
-_KEY_STATES: Sequence[bool] = []
 _KEY_REPEAT: tuple[int, int] = (0, 0)
 
 
 class Keyboard(ClassNamespace, frozen=True):
+    __KEY_STATES: Sequence[bool] = []
+
     @staticmethod
     def _update() -> None:
-        global _KEY_STATES
-        _KEY_STATES = _pg_key.get_pressed()
+        type.__setattr__(Keyboard, f"_Keyboard__KEY_STATES", _pg_key.get_pressed())
 
     @overload
     @staticmethod
@@ -54,7 +54,7 @@ class Keyboard(ClassNamespace, frozen=True):
             key = Keyboard.Key(_pg_key.key_code(key))
         else:
             key = Keyboard.Key(key)
-        return bool(_KEY_STATES[key.value])
+        return bool(Keyboard.__KEY_STATES[key.value])
 
     @staticmethod
     def get_repeat() -> tuple[int, int]:

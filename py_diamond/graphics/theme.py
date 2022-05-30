@@ -67,9 +67,6 @@ _ClassDefaultTheme: TypeAlias = Sequence[str]
 _ClassDefaultThemeDict: TypeAlias = MutableMapping[type, _ClassDefaultTheme]
 _ClassDefaultThemeDictProxy: TypeAlias = MappingProxyType[type, _ClassDefaultTheme]
 
-_CLASSES_NOT_USING_PARENT_THEMES: set[type] = set()
-_CLASSES_NOT_USING_PARENT_DEFAULT_THEMES: set[type] = set()
-
 
 class _ThemeNamespaceBackupItem(NamedTuple):
     name: str | None
@@ -403,6 +400,9 @@ class ThemedObjectMeta(ObjectMeta):
 
     __themed_class_mro__: Final[_ThemedObjectMROResolver] = _ThemedObjectMROResolver()
 
+    __CLASSES_NOT_USING_PARENT_THEMES: Final[set[type]] = set()
+    __CLASSES_NOT_USING_PARENT_DEFAULT_THEMES: Final[set[type]] = set()
+
     def __new__(
         mcs,
         name: str,
@@ -456,17 +456,17 @@ class ThemedObjectMeta(ObjectMeta):
 
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
         if not use_parent_theme:
-            _CLASSES_NOT_USING_PARENT_THEMES.add(cls)
+            mcs.__CLASSES_NOT_USING_PARENT_THEMES.add(cls)
             setattr(cls, "_no_parent_theme_", True)
             use_parent_default_theme = False
         if not use_parent_default_theme:
-            _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.add(cls)
+            mcs.__CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.add(cls)
             setattr(cls, "_no_parent_default_theme_", True)
         setattr(cls, "_is_abstract_theme_class_", False)
         super().__setattr__(cls, "__virtual_themed_class_bases__", ())
         if all(not isinstance(b, ThemedObjectMeta) or b.is_abstract_theme_class() for b in bases):
-            _CLASSES_NOT_USING_PARENT_THEMES.add(cls)
-            _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.add(cls)
+            mcs.__CLASSES_NOT_USING_PARENT_THEMES.add(cls)
+            mcs.__CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.add(cls)
         return cls
 
     def __call__(cls, *args: Any, **kwargs: Any) -> Any:
@@ -648,7 +648,7 @@ class ThemedObjectMeta(ObjectMeta):
 
         _THEMES: _ClassThemeDict = getattr_pv(ThemeNamespace, "THEMES")
         all_parents_classes = (
-            ThemedObjectMeta.__get_all_parent_classes(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_THEMES)
+            ThemedObjectMeta.__get_all_parent_classes(cls, do_not_search_for=cls.__CLASSES_NOT_USING_PARENT_THEMES)
             if parent_themes
             else ()
         )
@@ -707,7 +707,7 @@ class ThemedObjectMeta(ObjectMeta):
         _DEFAULT_THEME: _ClassDefaultThemeDict = getattr_pv(ThemeNamespace, "DEFAULT_THEME")
         if parent_default_themes:
             get_all_parents_class = ThemedObjectMeta.__get_all_parent_classes
-            for parent in get_all_parents_class(cls, do_not_search_for=_CLASSES_NOT_USING_PARENT_DEFAULT_THEMES):
+            for parent in get_all_parents_class(cls, do_not_search_for=cls.__CLASSES_NOT_USING_PARENT_DEFAULT_THEMES):
                 default_theme |= dict.fromkeys(parent.get_default_themes(parent_default_themes=False))
         with suppress(KeyError):
             default_theme |= dict.fromkeys(_DEFAULT_THEME[cls])
@@ -737,9 +737,9 @@ class ThemedObjectMeta(ObjectMeta):
         virtual_themed_class_bases = (*subclass.__virtual_themed_class_bases__, cls)
         super(ThemedObjectMeta, subclass).__setattr__("__virtual_themed_class_bases__", virtual_themed_class_bases)
         if not getattr(subclass, "_no_parent_theme_", False):
-            _CLASSES_NOT_USING_PARENT_THEMES.discard(subclass)
+            cls.__CLASSES_NOT_USING_PARENT_THEMES.discard(subclass)
         if not getattr(subclass, "_no_parent_default_theme_", False):
-            _CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.discard(subclass)
+            cls.__CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.discard(subclass)
         return subclass
 
     @staticmethod
