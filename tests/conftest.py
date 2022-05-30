@@ -1,30 +1,35 @@
 # -*- coding: Utf-8 -*
 
-from threading import Thread
-from typing import Any, Iterator
+from __future__ import annotations
 
-import pytest
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Any, Iterator
 
+if TYPE_CHECKING:
+    from threading import ExceptHookArgs
 
-@pytest.fixture(scope="session", autouse=True)
+@contextmanager
 def silently_ignore_systemexit_in_thread() -> Iterator[None]:
     """
     The default threading.excepthook ignores SystemExit exceptions.
     pytest overrides this hook at compile time and raise a warning for *ALL* exceptions...
+
+    This function is not a fixture because fixtures are always called before the pytest wrapper,
+    therefore we need to manually decorate the target function
     """
 
-    run = Thread.run
+    import threading
 
-    def patch_run(self: Thread, *args: Any, **kwargs: Any) -> None:
-        try:
-            return run(self, *args, **kwargs)
-        except SystemExit as exc:
-            # Explicitly catch SystemExit
-            # pytest will not put a warning for unhandled exception
-            if type(exc) is not SystemExit:  # Subclass of SystemExit, re-raise
-                raise
+    default_excepthook = threading.excepthook
+
+    def patch_excepthook(args: ExceptHookArgs) -> Any:
+        if args.exc_type is SystemExit:
             return
+        return default_excepthook(args)
 
-    setattr(Thread, "run", patch_run)
-    yield
-    setattr(Thread, "run", run)
+    setattr(threading, "excepthook", patch_excepthook)
+
+    try:
+        yield
+    finally:
+        setattr(threading, "excepthook", default_excepthook)

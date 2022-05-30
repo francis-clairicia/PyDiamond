@@ -6,6 +6,8 @@ from typing import Any
 
 from py_diamond.system.threading import Thread, thread_factory
 
+from ..conftest import silently_ignore_systemexit_in_thread
+
 
 def test_thread_decorator() -> None:
     variable: int | None = None
@@ -80,6 +82,7 @@ def test_custom_thread_class() -> None:
     assert t.custom_var == "value"
 
 
+@silently_ignore_systemexit_in_thread()
 def test_terminate() -> None:
     @thread_factory(daemon=False)
     def infinite_loop() -> None:
@@ -92,6 +95,7 @@ def test_terminate() -> None:
     assert not t.is_alive()
 
 
+@silently_ignore_systemexit_in_thread()
 def test_join_timeout_call_terminate() -> None:
     @thread_factory(daemon=False)
     def infinite_loop() -> None:
