@@ -163,7 +163,7 @@ class Sprite(TDrawable):
         xoffset: int = other_rect.x - this_rect.x
         yoffset: int = other_rect.y - this_rect.y
         intersection: tuple[int, int] | None = self.__mask.overlap(other.__mask, (xoffset, yoffset))
-        if intersection is not None and not relative:
+        if not relative and intersection is not None:
             intersection = (intersection[0] + this_rect.x, intersection[1] + this_rect.y)
         return intersection
 

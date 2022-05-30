@@ -15,6 +15,7 @@ __license__ = "GNU GPL v3.0"
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, final
 
+from pygame import encode_file_path
 from pygame.event import Event as _PygameEvent, custom_type as _pg_event_custom_type, post as _pg_event_post
 from pygame.mixer import get_init as _pg_mixer_get_init, music as _pg_music
 
@@ -69,7 +70,7 @@ class MusicStream(ClassNamespace, frozen=True):
             return
         MusicStream.stop()
         repeat = max(int(repeat), -1)
-        _pg_music.load(music.filepath.encode("utf-8"))
+        _pg_music.load(encode_file_path(music.filepath))
         _pg_music.play(repeat, fade_ms=fade_ms)
         MusicStream.__playing.payload = _MusicPayload(music, repeat=repeat)
 
@@ -127,7 +128,7 @@ class MusicStream(ClassNamespace, frozen=True):
             raise ValueError(f"The playing music loops infinitely, queued musics will not be set")
         queue: list[_MusicPayload] = MusicStream.__queue
         if not queue:
-            _pg_music.queue(music.filepath.encode("utf-8"), loops=repeat)
+            _pg_music.queue(encode_file_path(music.filepath), loops=repeat)
         queue.append(_MusicPayload(music, repeat=repeat))
 
     @staticmethod
@@ -158,7 +159,7 @@ class MusicStream(ClassNamespace, frozen=True):
                 MusicStream.__playing.payload = payload = queue.pop(0)
                 next_music = payload.music
                 if queue:
-                    _pg_music.queue(queue[0].music.filepath.encode("utf-8"), loops=queue[0].repeat)
+                    _pg_music.queue(encode_file_path(queue[0].music.filepath), loops=queue[0].repeat)
         MusicStream.__post_event(played_music.music, next_music)
 
     @staticmethod

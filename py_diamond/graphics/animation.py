@@ -117,6 +117,10 @@ class AnimationInterpolatorPool(Object):
         for interpolator in self.__interpolators.values():
             interpolator.update(interpolation)
 
+    def reset_all(self) -> None:
+        for interpolator in self.__interpolators.values():
+            interpolator.reset()
+
     def add(self, *objects: Movable | Transformable) -> None:
         interpolators = (AnimationInterpolator(obj) for obj in objects)
         self.__interpolators.update({interpolator.object: interpolator for interpolator in interpolators})
@@ -187,7 +191,6 @@ class BaseAnimation(Object):
 
     def clear(self, *, pause: bool = False) -> None:
         self.__wait = bool(pause)
-        self.__interpolator.reset()
 
     @abstractmethod
     def _launch_animations(self) -> None:
@@ -280,6 +283,10 @@ class MoveAnimation(BaseAnimation):
     def has_animation_started(self) -> bool:
         animation = self.__animation
         return animation is not None and animation.started()
+
+    def clear(self, *, pause: bool = False) -> None:
+        super().clear(pause=pause)
+        self.__animation = None
 
     def _launch_animations(self) -> None:
         animation = cast(_AbstractAnimationClass, self.__animation)
@@ -444,6 +451,10 @@ class TransformAnimation(BaseAnimation):
 
     def has_animation_started(self) -> bool:
         return any(animation.started() for animation in self.__animations.values())
+
+    def clear(self, *, pause: bool = False) -> None:
+        super().clear(pause=pause)
+        self.__animations.clear()
 
     def _launch_animations(self) -> None:
         for animation in self.__iter_animations():

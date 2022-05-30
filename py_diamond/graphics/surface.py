@@ -16,8 +16,9 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 import pygame.image
+from pygame import encode_file_path
 
-if pygame.image.get_extended():
+if pygame.image.get_extended():  # Should be true as we explicitly query for SDL_image at package initialization
     from pygame.image import load_extended as _pg_image_load, save_extended as _pg_image_save
 else:
     from pygame.image import load as _pg_image_load, save as _pg_image_save
@@ -41,11 +42,11 @@ def create_surface(size: tuple[float, float], *, convert_alpha: bool = True, def
 
 
 def load_image(file: str, convert: bool = True) -> Surface:
-    image: Surface = _pg_image_load(file.encode("utf-8"))
+    image: Surface = _pg_image_load(encode_file_path(file))
     if convert:
         return image.convert_alpha()
     return image
 
 
 def save_image(image: Surface, file: str) -> None:
-    return _pg_image_save(image, file.encode("utf-8"))
+    return _pg_image_save(image, encode_file_path(file))
