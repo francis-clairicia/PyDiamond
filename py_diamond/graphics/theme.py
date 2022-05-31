@@ -15,8 +15,8 @@ __all__ = [
     "ThemedObject",
     "ThemedObjectMeta",
     "abstract_theme_class",
-    "apply_theme_decorator",
     "closed_namespace",
+    "force_apply_theme_decorator",
     "no_theme_decorator",
     "set_default_theme_namespace",
 ]
@@ -777,8 +777,8 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
     __namespaces: Final[dict[type, ThemeNamespace]] = dict()
     __classes: Final[set[ClassWithThemeNamespaceMeta]] = set()
 
-    __unique_theme_namespace_cache: Final[dict[type, ThemeNamespace]] = dict()
-    __extended_unique_theme_namespace_cache: Final[dict[type, ThemeNamespace]] = dict()
+    __unique_theme_namespace_cache: Final[dict[str, ThemeNamespace]] = dict()
+    __extended_unique_theme_namespace_cache: Final[dict[str, ThemeNamespace]] = dict()
 
     _theme_decorator_exempt_: frozenset[str]
 
@@ -802,11 +802,11 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
 
         for attr_name, attr_obj in namespace.items():
             no_theme_decorator: str | None = getattr(attr_obj, "__no_theme_decorator__", None)
-            apply_theme_decorator: bool = getattr(attr_obj, "__apply_theme_decorator__", False)
+            force_apply_theme_decorator: bool = getattr(attr_obj, "__force_apply_theme_decorator__", False)
             if attr_name == "__theme_init__":
                 if not isinstance(attr_obj, classmethod):
                     raise TypeError("'__theme_init__' must be a classmethod")
-                if no_theme_decorator in ("once", "permanent") or hasattr(attr_obj, "__apply_theme_decorator__"):
+                if no_theme_decorator in ("once", "permanent") or hasattr(attr_obj, "__force_apply_theme_decorator__"):
                     raise TypeError("'__theme_init__' must not be decorated")
                 namespace[attr_name] = type(attr_obj)(mcs.__theme_initializer_decorator(attr_obj.__func__))
                 continue
@@ -814,7 +814,7 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
                 if PRIVATE_ATTRIBUTE_PATTERN.fullmatch(attr_name):
                     no_theme_decorator = "once"
                 if no_theme_decorator == "once":
-                    if apply_theme_decorator:
+                    if force_apply_theme_decorator:
                         raise ValueError("Invalid decorator usage")
                     continue
                 cls_theme_decorator_exempt.add(attr_name)
@@ -822,7 +822,7 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
                 match = pattern.fullmatch(attr_name)
                 if match is not None and mcs.validate_theme_decorator_exempt_from_regex(match, attr_obj):
                     cls_theme_decorator_exempt.add(attr_name)
-            if not apply_theme_decorator:
+            if not force_apply_theme_decorator:
                 if attr_name in cls_theme_decorator_exempt:
                     continue
                 if isinstance(attr_obj, (property, cached_property)):
@@ -915,28 +915,28 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
         get_cls: Callable[[Any], type] = (lambda o: o) if use_cls else type  # type: ignore[no-any-return]
         null = nullcontext()
 
-        unique_theme_namespace_cache: dict[type, ThemeNamespace]
-        extended_unique_theme_namespace_cache: dict[type, ThemeNamespace]
+        unique_theme_namespace_cache: dict[str, ThemeNamespace]
+        extended_unique_theme_namespace_cache: dict[str, ThemeNamespace]
 
         unique_theme_namespace_cache = ClassWithThemeNamespaceMeta.__unique_theme_namespace_cache
         extended_unique_theme_namespace_cache = ClassWithThemeNamespaceMeta.__extended_unique_theme_namespace_cache
 
-        def get_unique_theme_namespace(cls: type, *, extend: bool) -> ThemeNamespace:
-            cache: dict[type, ThemeNamespace]
+        def get_unique_theme_namespace(namespace: str, *, extend: bool) -> ThemeNamespace:
+            cache: dict[str, ThemeNamespace]
             if extend:
                 cache = extended_unique_theme_namespace_cache
             else:
                 cache = unique_theme_namespace_cache
             try:
-                return cache[cls]
+                return cache[namespace]
             except KeyError:
-                namespace = ThemeNamespace(
-                    namespace=_mangle_closed_namespace_name(cls),
+                theme_namespace = ThemeNamespace(
+                    namespace=namespace,
                     extend=extend,
                     include_none_namespace=extend,
                 )
-                cache[cls] = namespace
-                return namespace
+                cache[namespace] = theme_namespace
+                return theme_namespace
 
         @wraps(func)
         def wrapper(__cls_or_self: Any, /, *args: Any, **kwargs: Any) -> Any:
@@ -949,10 +949,7 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
                 theme_namespace = None
             with (
                 theme_namespace or null,
-                get_unique_theme_namespace(
-                    cls,
-                    extend=extend_unique_theme_namespace,
-                ),
+                get_unique_theme_namespace(unique_theme_namespace_name, extend=extend_unique_theme_namespace),
             ):
                 return func(__cls_or_self, *args, **kwargs)
 
@@ -1053,15 +1050,15 @@ def no_theme_decorator(func: Any = None, *, permanent: bool = True) -> Any:
 
     def decorator(func: Any) -> Any:
         with suppress(AttributeError):
-            delattr(func, "__apply_theme_decorator__")
+            delattr(func, "__force_apply_theme_decorator__")
         setattr(func, "__no_theme_decorator__", "once" if not permanent else "permanent")
         return func
 
     return decorator(func) if func is not None else decorator
 
 
-def apply_theme_decorator(func: _T) -> _T:
+def force_apply_theme_decorator(func: _T) -> _T:
     with suppress(AttributeError):
         delattr(func, "__no_theme_decorator__")
-    setattr(func, "__apply_theme_decorator__", True)
+    setattr(func, "__force_apply_theme_decorator__", True)
     return func

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Iterator
 if TYPE_CHECKING:
     from threading import ExceptHookArgs
 
+
 @contextmanager
 def silently_ignore_systemexit_in_thread() -> Iterator[None]:
     """

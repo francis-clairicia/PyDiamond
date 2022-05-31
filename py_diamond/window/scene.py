@@ -856,9 +856,9 @@ class SceneWindow(Window):
         actual_scene: Scene | None = self.__scenes.top()
         return super().get_busy_loop() or (actual_scene is not None and actual_scene.__class__.require_busy_loop())
 
-    def remove_window_callback(self, window_callback: WindowCallback) -> None:
+    def _remove_window_callback(self, window_callback: WindowCallback) -> None:
         if not isinstance(window_callback, _SceneWindowCallback):
-            return super().remove_window_callback(window_callback)
+            return super()._remove_window_callback(window_callback)
         scene = window_callback.scene
         scene_callback_after: _WindowCallbackList | None = self.__callback_after_scenes.get(scene)
         if scene_callback_after is None:

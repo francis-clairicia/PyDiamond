@@ -196,15 +196,15 @@ class GUIScene(Scene):
 
     @no_theme_decorator
     def get_side_with_key_event(self) -> Mapping[int, BoundFocus.Side]:
-        return MappingProxyType(_SIDE_WITH_KEY_EVENT)
+        return _SIDE_WITH_KEY_EVENT
 
     @no_theme_decorator
     def __handle_key_event(self, event: KeyDownEvent) -> bool:
         match event.key:
+            case Keyboard.Key.TAB if event.mod & Keyboard.Modifiers.SHIFT:
+                self.focus_prev()
             case Keyboard.Key.TAB:
-                self.focus_set(
-                    self.get_next_focusable() if not event.mod & Keyboard.Modifiers.SHIFT else self.get_previous_focusable()
-                )
+                self.focus_next()
             case Keyboard.Key.ESCAPE:
                 self.focus_set(None)
         side_with_key_event = self.get_side_with_key_event()
@@ -536,12 +536,14 @@ class BoundFocusProxy(BoundFocus, metaclass=_BoundFocusProxyMeta):
         return self.__focus.__delattr__(name)
 
 
-_SIDE_WITH_KEY_EVENT: Final[dict[int, BoundFocus.Side]] = {
-    Keyboard.Key.LEFT: BoundFocus.Side.ON_LEFT,
-    Keyboard.Key.RIGHT: BoundFocus.Side.ON_RIGHT,
-    Keyboard.Key.UP: BoundFocus.Side.ON_TOP,
-    Keyboard.Key.DOWN: BoundFocus.Side.ON_BOTTOM,
-}
+_SIDE_WITH_KEY_EVENT: Final[MappingProxyType[int, BoundFocus.Side]] = MappingProxyType(
+    {
+        Keyboard.Key.LEFT: BoundFocus.Side.ON_LEFT,
+        Keyboard.Key.RIGHT: BoundFocus.Side.ON_RIGHT,
+        Keyboard.Key.UP: BoundFocus.Side.ON_TOP,
+        Keyboard.Key.DOWN: BoundFocus.Side.ON_BOTTOM,
+    }
+)
 
 
 class FocusableContainer(Sequence[SupportsFocus]):
@@ -589,8 +591,6 @@ class FocusableContainer(Sequence[SupportsFocus]):
             if not isinstance(focusable, SupportsFocus):
                 raise TypeError("'focusable' must be a SupportsFocus object")
             bound_focus = focusable.focus
-        if focusable in self:
-            return
         if not bound_focus.is_bound_to(master):
             raise ValueError("'focusable' is not bound to this scene")
         self.__list.add(focusable)

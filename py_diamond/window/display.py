@@ -261,7 +261,7 @@ class Window(Object):
         screen.fill((0, 0, 0))
         screen.draw_surface(self.__surface.surface, (0, 0))
         self.system_display(screen)
-        AbstractCursor.update()
+        AbstractCursor._update()
         _pg_display.flip()
 
         framerate: int = self.used_framerate()
@@ -424,7 +424,8 @@ class Window(Object):
             return
         flags: int = self.__flags
         vsync = int(bool(self.__vsync))
-        _pg_display.set_mode(size, flags=flags, vsync=vsync)
+        screen = _pg_display.set_mode(size, flags=flags, vsync=vsync)
+        self.__display_renderer = SurfaceRenderer(screen)
 
     @final
     def set_width(self, width: int) -> None:
@@ -618,7 +619,7 @@ class Window(Object):
             return decorator(__callback)
         return decorator
 
-    def remove_window_callback(self, window_callback: WindowCallback) -> None:
+    def _remove_window_callback(self, window_callback: WindowCallback) -> None:
         with suppress(ValueError):
             self.__callback_after.remove(window_callback)
 
@@ -792,8 +793,8 @@ class WindowCallback:
                 self.kill()
 
     def kill(self) -> None:
+        self.__master._remove_window_callback(self)
         with suppress(AttributeError):
-            self.__master.remove_window_callback(self)
             del self.__master, self.__args, self.__kwargs, self.__callback, self.__clock
 
 

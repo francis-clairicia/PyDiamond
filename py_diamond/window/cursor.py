@@ -50,7 +50,7 @@ class _CursorMeta(ObjectMeta):
         return super().__new__(mcs, name, bases, namespace, **kwargs)
 
     @staticmethod
-    def update() -> None:
+    def _update() -> None:
         cursor_setter = _CursorMeta.__cursor_setter
         if not callable(cursor_setter):
             default_cursor: AbstractCursor = _CursorMeta.__default_cursor or SystemCursor.ARROW
