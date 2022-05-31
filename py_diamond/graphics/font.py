@@ -29,11 +29,11 @@ import pygame.font
 import pygame.freetype
 import pygame.sysfont
 
-from ..graphics.rect import Rect
-from ..graphics.surface import Surface
 from ..math.vector2 import Vector2
 from ..system.configuration import ConfigurationTemplate, OptionAttribute
 from ..system.object import Object, final
+from .rect import Rect
+from .surface import Surface
 
 if TYPE_CHECKING:
     from pygame._common import _ColorValue, _FileArg  # pyright: reportMissingModuleSource=false

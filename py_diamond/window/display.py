@@ -113,11 +113,14 @@ class Window(Object):
         self.set_title(title)
         self.__size: tuple[int, int] = (max(size[0], 0), max(size[1], 0))
         self.__flags: int = 0
+        if resizable and fullscreen:
+            raise WindowError("Choose between resizable or fullscreen window, both cannot exist")
         if resizable:
             self.__flags |= _PG_RESIZABLE
-        elif fullscreen:
+        if fullscreen:
+            if size != (0, 0):
+                raise WindowError("'size' parameter must not be given if 'fullscreen' is set")
             self.__flags |= _PG_FULLSCREEN
-            self.__size = (0, 0)
         self.__vsync: bool = bool(vsync)
         self.__surface: SurfaceRenderer = SurfaceRenderer(Surface((0, 0)))
         self.__clear_surface: Surface = Surface((0, 0))
@@ -156,18 +159,6 @@ class Window(Object):
         if self.looping():
             raise WindowError("Trying to open already opened window")
 
-        def cleanup() -> None:
-            screenshot_threads = self.__screenshot_threads
-            while screenshot_threads:
-                screenshot_threads.pop(0).join(timeout=1, terminate_on_timeout=True)
-            self.__window_quit__()
-            self.__callback_after.clear()
-            self.__surface = SurfaceRenderer(Surface((0, 0)))
-            self.__clear_surface = Surface((0, 0))
-            self.__rect = ImmutableRect.convert(self.__surface.get_rect())
-            self.__display_renderer = None
-            self.__event.unbind_all()
-
         self.__event.unbind_all()
         with ExitStack() as stack, self.__stack, suppress(Window.__Exit):
             _pg_display.init()
@@ -192,8 +183,25 @@ class Window(Object):
             self.__clear_surface = create_surface(size)
             self.__rect = ImmutableRect.convert(self.__surface.get_rect())
             self.__display_renderer = SurfaceRenderer(screen)
-            stack.callback(cleanup)
+
+            @stack.callback
+            def _() -> None:
+                self.__callback_after.clear()
+                self.__surface = SurfaceRenderer(Surface((0, 0)))
+                self.__clear_surface = Surface((0, 0))
+                self.__rect = ImmutableRect.convert(self.__surface.get_rect())
+                self.__display_renderer = None
+                self.__event.unbind_all()
+
             self.__window_init__()
+            stack.callback(self.__window_quit__)
+
+            @stack.callback
+            def _() -> None:
+                screenshot_threads = self.__screenshot_threads
+                while screenshot_threads:
+                    screenshot_threads.pop(0).join(timeout=1, terminate_on_timeout=True)
+
             self.clear_all_events()
             self.__main_clock.tick()
             yield self
@@ -624,6 +632,7 @@ class Window(Object):
             self.__callback_after.remove(window_callback)
 
     @property
+    @final
     def renderer(self) -> AbstractRenderer:
         return self.__surface
 
@@ -632,90 +641,122 @@ class Window(Object):
         return self.__main_clock.get_fps()
 
     @property
+    @final
     def event(self) -> EventManager:
         return self.__event
 
     @property
+    @final
     def exit_stack(self) -> ExitStack:
         return self.__stack
 
     @property
+    @final
     def resizable(self) -> bool:
         return (self.__flags & _PG_RESIZABLE) == _PG_RESIZABLE
 
     @property
+    @final
+    def fullscreen(self) -> bool:
+        return (self.__flags & _PG_FULLSCREEN) == _PG_FULLSCREEN
+
+    @property
+    @final
+    def vsync(self) -> bool:
+        return self.__vsync
+
+    @property
+    @final
     def rect(self) -> ImmutableRect:
         return self.__rect
 
     @property
+    @final
     def left(self) -> int:
         return self.__rect.left
 
     @property
+    @final
     def right(self) -> int:
         return self.__rect.right
 
     @property
+    @final
     def top(self) -> int:
         return self.__rect.top
 
     @property
+    @final
     def bottom(self) -> int:
         return self.__rect.bottom
 
     @property
+    @final
     def size(self) -> tuple[int, int]:
         return self.__rect.size
 
     @property
+    @final
     def width(self) -> int:
         return self.__rect.width
 
     @property
+    @final
     def height(self) -> int:
         return self.__rect.height
 
     @property
+    @final
     def center(self) -> tuple[int, int]:
         return self.__rect.center
 
     @property
+    @final
     def centerx(self) -> int:
         return self.__rect.centerx
 
     @property
+    @final
     def centery(self) -> int:
         return self.__rect.centery
 
     @property
+    @final
     def topleft(self) -> tuple[int, int]:
         return self.__rect.topleft
 
     @property
+    @final
     def topright(self) -> tuple[int, int]:
         return self.__rect.topright
 
     @property
+    @final
     def bottomleft(self) -> tuple[int, int]:
         return self.__rect.bottomleft
 
     @property
+    @final
     def bottomright(self) -> tuple[int, int]:
         return self.__rect.bottomright
 
     @property
+    @final
     def midtop(self) -> tuple[int, int]:
         return self.__rect.midtop
 
     @property
+    @final
     def midbottom(self) -> tuple[int, int]:
         return self.__rect.midbottom
 
     @property
+    @final
     def midleft(self) -> tuple[int, int]:
         return self.__rect.midleft
 
     @property
+    @final
     def midright(self) -> tuple[int, int]:
         return self.__rect.midright
 
