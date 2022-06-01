@@ -8,6 +8,8 @@
 #
 """
 Allow to draw some gradients relatively easy.
+
+Original code available on pygame site: https://www.pygame.org/project-gradients-307-.html
 """
 
 __author__ = "$Author: DR0ID $"
