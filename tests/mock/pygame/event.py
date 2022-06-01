@@ -4,45 +4,33 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, NamedTuple
 
-import pygame
+import pytest
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
 
-    from pygame.event import Event
-
-    from .display import MockDisplayModule
+    from pytest_mock import MockerFixture
 
 
-class MockEventModule:
+class MockEventModule(NamedTuple):
     """
     Mock of pygame.event module
 
-    Reproduce approximately the behaviour of the real implementation.
+    The default side effect for each mock is to call the default implementation
 
-    This class is essentially used for 'monkeypatch' fixture, or as side effect for pytest_mock.
-
-    Mocks only the functions used by PyDiamond.
+    Mocks only the functions used by PyDiamond and needed for test.
     """
 
-    def __init__(self, mock_display: MockDisplayModule) -> None:
-        self._queue: list[Event] = []
-        self._display: MockDisplayModule = mock_display
-
-    def get(self) -> list[Event]:
-        # Deliberately omit the parameters
-        if not self._display.get_init():
-            raise pygame.error("video system not initialized")
-        queue, self._queue[:] = self._queue, []
-        return queue
-
-    def clear(self) -> None:
-        # Deliberately omit the parameters
-        if not self._display.get_init():
-            raise pygame.error("video system not initialized")
-        del self._queue[:]
-
-
-class PatchedEventModule(NamedTuple):
     get: MagicMock
     clear: MagicMock
+
+
+def _mock_pygame_event_module_func(name: str, mocker: MockerFixture) -> MagicMock:
+    import pygame.event
+
+    return mocker.patch(f"pygame.event.{name}", side_effect=getattr(pygame.event, name))
+
+
+@pytest.fixture
+def mock_pygame_event_module(mocker: MockerFixture) -> MockEventModule:
+    return MockEventModule._make(_mock_pygame_event_module_func(field, mocker) for field in MockEventModule._fields)
