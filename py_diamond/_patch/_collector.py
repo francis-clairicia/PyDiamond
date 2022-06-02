@@ -66,16 +66,25 @@ class _PatchCollectorType:
     def walk_in_plugins_module(self, plugins_module_name: str) -> Iterator[list[BasePatch]]:
         plugins_module_name = importlib.util.resolve_name(plugins_module_name, __package__)
         plugins_module = importlib.import_module(plugins_module_name)
+        plugins_module_spec = plugins_module.__spec__
 
-        plugins_file: str | None = getattr(plugins_module, "__file__", None)
+        plugins_file: str | None
+        if plugins_module_spec and plugins_module_spec.origin:
+            plugins_file = os.path.realpath(plugins_module_spec.origin)
+        else:
+            plugins_file = getattr(plugins_module, "__file__", None)
         if not plugins_file:  # Namespace package
             return
 
-        if os.path.splitext(os.path.basename(plugins_file))[0] != "__init__":  # Module
+        plugins_path: Iterable[str] | None
+        if plugins_module_spec and plugins_module_spec.submodule_search_locations is not None:
+            plugins_path = plugins_module_spec.submodule_search_locations
+        else:
+            plugins_path = getattr(plugins_module, "__path__", None)
+        if plugins_path is None:  # Module
             yield self._load_patches_from_module(plugins_module)
             return
 
-        plugins_path: Iterable[str] = getattr(plugins_module, "__path__", None) or [os.path.dirname(plugins_file)]
         for submodule_info in pkgutil.walk_packages(plugins_path):
             submodule_fullname = f"{plugins_module_name}.{submodule_info.name}"
             if submodule_info.ispkg:
