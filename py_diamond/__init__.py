@@ -2,7 +2,7 @@
 # Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine
 #
 #
-"""PyDiamond engine is a game engine inteded to game developers in Python language.
+"""PyDiamond engine is a game engine intended to game developers in Python language.
 The framework uses the popular pygame library (https://github.com/pygame/pygame/).
 """
 

@@ -5,7 +5,7 @@ __all__: list[str] = []
 
 __author__: Final[str]
 __copyright__: Final[str]
-__credits__: Final[str]
+__credits__: Final[list[str]]
 __license__: Final[str]
 __version__: Final[str]
 __maintainer__: Final[str]
