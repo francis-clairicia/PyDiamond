@@ -14,7 +14,7 @@ authors = [
 license = {file = "LICENSE"}
 dependencies = [
   "pygame ==2.1.*,>=2.1.2",
-  "cryptography ==36.0.*",
+  "cryptography ==37.0.*",
   "typing_extensions ==4.2.*"
 ]
 classifiers = [
@@ -55,6 +55,7 @@ known_third_party = ["pygame"]
 
 [tool.black]
 line-length = 130
+target_version = ["py310"]
 
 [tool.mypy]
 python_version = "3.10"
