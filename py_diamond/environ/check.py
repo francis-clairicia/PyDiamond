@@ -13,7 +13,7 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 
-from typing import Any, Final, MutableMapping, Sequence, overload
+from typing import Any, Final, Sequence, overload
 
 BOOLEAN_PYGAME_ENVIRONMENT_VARIABLES: Final[Sequence[str]] = (
     "PYGAME_BLEND_ALPHA_SDL2",
@@ -26,39 +26,26 @@ BOOLEAN_PYGAME_ENVIRONMENT_VARIABLES: Final[Sequence[str]] = (
 
 
 @overload
-def check_booleans(environ: MutableMapping[str, str] | None = None) -> None:
+def check_booleans() -> None:
     ...
 
 
 @overload
-def check_booleans(
-    environ: MutableMapping[str, str] | None = None,
-    *,
-    only: Sequence[str],
-) -> None:
+def check_booleans(*, only: Sequence[str]) -> None:
     ...
 
 
 @overload
-def check_booleans(
-    environ: MutableMapping[str, str] | None = None,
-    *,
-    exclude: Sequence[str],
-) -> None:
+def check_booleans(*, exclude: Sequence[str]) -> None:
     ...
 
 
-def check_booleans(
-    environ: MutableMapping[str, str] | Any = None,
-    *,
-    only: Sequence[str] | Any = None,
-    exclude: Sequence[str] | Any = None,
-) -> None:
-    if environ is None:
-        import os
+def check_booleans(*, only: Sequence[str] | Any = None, exclude: Sequence[str] | Any = None) -> None:
+    import os
 
-        environ = os.environ
-        del os
+    environ = os.environ
+    del os
+
     if only is not None and exclude is not None:
         raise TypeError("Invalid parameters")
     if only is None:
