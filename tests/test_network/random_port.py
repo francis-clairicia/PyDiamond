@@ -1,4 +1,4 @@
-# -*- coding: Utf-8 -*
+# -*- coding: Utf-8 -*-
 
 __all__ = ["random_port"]
 

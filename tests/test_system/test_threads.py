@@ -1,4 +1,4 @@
-# -*- coding: Utf-8 -*
+# -*- coding: Utf-8 -*-
 
 import time
 from threading import current_thread

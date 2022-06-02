@@ -1,4 +1,4 @@
-# -*- coding: Utf-8 -*
+# -*- coding: Utf-8 -*-
 
 from contextlib import contextmanager
 from os.path import dirname

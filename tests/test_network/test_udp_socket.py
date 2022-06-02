@@ -1,4 +1,4 @@
-# -*- coding: Utf-8 -*
+# -*- coding: Utf-8 -*-
 
 from socket import has_ipv6 as HAS_IPV6
 

@@ -1,4 +1,4 @@
-# -*- coding: Utf-8 -*
+# -*- coding: Utf-8 -*-
 
 from __future__ import annotations
 

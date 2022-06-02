@@ -1,4 +1,4 @@
-# -*- coding: Utf-8 -*
+# -*- coding: Utf-8 -*-
 
 from py_diamond.system.collections import OrderedWeakSet
 

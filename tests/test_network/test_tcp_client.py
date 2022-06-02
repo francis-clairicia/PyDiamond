@@ -1,4 +1,4 @@
-# -*- coding: Utf-8 -*
+# -*- coding: Utf-8 -*-
 
 from selectors import EVENT_READ, DefaultSelector
 from threading import Event

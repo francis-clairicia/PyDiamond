@@ -1,4 +1,4 @@
-# -*- coding: Utf-8 -*
+# -*- coding: Utf-8 -*-
 # type: ignore
 """
 Unit tests for OrderedSet (modified to fit with the implemented features)

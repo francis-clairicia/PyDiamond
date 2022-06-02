@@ -1,4 +1,4 @@
-# -*- coding: Utf-8 -*
+# -*- coding: Utf-8 -*-
 
 from time import sleep
 from typing import Any, ClassVar, Generator
