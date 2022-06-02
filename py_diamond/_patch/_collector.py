@@ -93,6 +93,10 @@ class _PatchCollectorType:
     @staticmethod
     @contextlib.contextmanager
     def _mock_import() -> Iterator[None]:
+        import sys
+
+        unittest_was_imported: bool = any(n == "unittest" or n.startswith("unittest.") for n in tuple(sys.modules))
+
         from unittest.mock import patch
 
         original_import = __import__
@@ -115,8 +119,14 @@ class _PatchCollectorType:
                     raise ImportError(msg, name=importer_name, path=importer_path)
             return original_import(name, globals, locals, fromlist, level)
 
-        with patch("builtins.__import__", import_mock), patch("importlib.__import__", import_mock):
-            yield
+        try:
+            with patch("builtins.__import__", import_mock), patch("importlib.__import__", import_mock):
+                yield
+        finally:
+            del patch
+            if not unittest_was_imported:  # Useless for game runtime, unload it
+                for module_name in filter(lambda n: n == "unittest" or n.startswith("unittest."), tuple(sys.modules)):
+                    sys.modules.pop(module_name, None)
 
 
 PatchCollector: Final[_PatchCollectorType] = _PatchCollectorType()
