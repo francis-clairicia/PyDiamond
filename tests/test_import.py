@@ -5,12 +5,13 @@ from __future__ import annotations
 import re
 from functools import partial
 from types import ModuleType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, no_type_check
 
 import pytest
 
 if TYPE_CHECKING:
     from pytest import MonkeyPatch
+    from pytest_mock import MockerFixture
 
 
 def _unload_module(module_name: str, include_submodules: bool, monkeypatch: MonkeyPatch) -> None:
@@ -62,3 +63,31 @@ class TestGlobalImport:
         assert hasattr(py_diamond, submodule_name)
         assert isinstance(getattr(py_diamond, submodule_name), ModuleType)
         assert submodule_fullname in sys.modules
+
+    def test__import__raise_custom_message_if_pygame_is_not_installed(self, mocker: MockerFixture) -> None:
+        # Forbid import of pygame
+        original_import = __import__
+
+        @no_type_check
+        def import_mock(name: str, globals=None, locals=None, fromlist=(), level=0):
+            if name.startswith("pygame"):
+                raise ModuleNotFoundError(name)
+            return original_import(name, globals, locals, fromlist, level)
+
+        mocker.patch("builtins.__import__", import_mock)
+
+        # Begin test
+        with pytest.raises(ImportError, match=r"'pygame' package must be installed in order to use the PyDiamond engine"):
+            import py_diamond
+
+            del py_diamond
+
+    def test__import__raise_warning_if_pygame_is_already_imported(self) -> None:
+        import pygame
+
+        with pytest.warns(ImportWarning):
+            import py_diamond
+
+            del py_diamond
+
+        del pygame
