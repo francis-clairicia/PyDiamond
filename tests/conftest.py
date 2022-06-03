@@ -57,9 +57,15 @@ def monkeypatch_session() -> Iterator[MonkeyPatch]:
     mpatch.undo()
 
 
-################################## pygame modules fixtures ##################################
+################################## mock fixtures plugins ##################################
 
-pytest_plugins = [f"{__package__}.mock.pygame.display", f"{__package__}.mock.pygame.event"]
+pytest_plugins = [
+    # pygame modules plugins
+    f"{__package__}.mock.pygame.display",
+    f"{__package__}.mock.pygame.event",
+    # other plugins
+    f"{__package__}.mock.sys",
+]
 
 ################################## Auto used fixtures for all session test ##################################
 
