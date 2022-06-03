@@ -79,19 +79,6 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="SceneMeta")
 
-    __theme_namespace_decorator_exempt: Sequence[str] = (
-        "__del_scene__",
-        "render",
-        "fixed_update",
-        "interpolation_update",
-        "is_awaken",
-        "looping",
-        "start",
-        "stop",
-        "after",
-        "every",
-    )
-
     def __new__(
         mcs: type[__Self],
         name: str,
@@ -143,7 +130,23 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
     @classmethod
     @cache
     def get_default_theme_decorator_exempt(mcs) -> frozenset[str]:
-        return frozenset(chain(super().get_default_theme_decorator_exempt(), mcs.__theme_namespace_decorator_exempt))
+        return frozenset(
+            chain(
+                super().get_default_theme_decorator_exempt(),
+                (
+                    "__del_scene__",
+                    "render",
+                    "fixed_update",
+                    "interpolation_update",
+                    "is_awaken",
+                    "looping",
+                    "start",
+                    "stop",
+                    "after",
+                    "every",
+                ),
+            )
+        )
 
 
 SceneTransitionCoroutine: TypeAlias = Generator[None, float | None, None]

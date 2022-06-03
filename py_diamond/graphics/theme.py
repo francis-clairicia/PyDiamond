@@ -55,7 +55,7 @@ from typing import (
 )
 
 from ..system.object import Object, ObjectMeta, mro
-from ..system.utils._mangling import PRIVATE_ATTRIBUTE_PATTERN, getattr_pv
+from ..system.utils._mangling import getattr_pv
 from ..system.utils.abc import concreteclassmethod, isabstractmethod
 from ..system.utils.functools import cache, wraps
 
@@ -811,8 +811,6 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
                 namespace[attr_name] = type(attr_obj)(mcs.__theme_initializer_decorator(attr_obj.__func__))
                 continue
             if no_theme_decorator in ("once", "permanent"):
-                if PRIVATE_ATTRIBUTE_PATTERN.fullmatch(attr_name):
-                    no_theme_decorator = "once"
                 if no_theme_decorator == "once":
                     if force_apply_theme_decorator:
                         raise ValueError("Invalid decorator usage")

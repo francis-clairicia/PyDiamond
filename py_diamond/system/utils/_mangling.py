@@ -5,7 +5,6 @@
 """Python mangling module"""
 
 __all__ = [
-    "PRIVATE_ATTRIBUTE_PATTERN",
     "delattr_pv",
     "getattr_pv",
     "hasattr_pv",
@@ -19,16 +18,13 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 
-import re
-from typing import Any, Final, Pattern, TypeVar, overload
+from typing import Any, TypeVar, overload
 
 from .functools import cache
 
 _T = TypeVar("_T")
 
 _NO_DEFAULT: Any = object()
-
-PRIVATE_ATTRIBUTE_PATTERN: Final[Pattern[str]] = re.compile(r"^_\w+__\w+(?<!__)$")
 
 
 @cache

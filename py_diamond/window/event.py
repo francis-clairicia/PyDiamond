@@ -143,6 +143,18 @@ class _EventMeta(ObjectMeta):
             mcs.__associations[event_type] = cast(type[Event], cls)
         return cls
 
+    def __setattr__(cls, __name: str, __value: Any) -> None:
+        if __name in {"type"} and hasattr(cls, __name):
+            if not isinstance(getattr(cls, __name), Field):  # Happen for post-process dataclass
+                raise AttributeError("Read-only attribute")
+        return super().__setattr__(__name, __value)
+
+    def __delattr__(cls, __name: str) -> None:
+        if __name in {"type"}:
+            if not isinstance(getattr(cls, __name), Field):  # Happen for post-process dataclass
+                raise AttributeError("Read-only attribute")
+        return super().__delattr__(__name)
+
 
 class Event(Object, metaclass=_EventMeta):
     @classmethod
@@ -181,6 +193,16 @@ class _BuiltinEventMeta(_EventMeta):
             mcs.__associations[event_type] = cast(type[BuiltinEvent], cls)
             return cls
         return super().__new__(mcs, name, bases, namespace, **kwargs)
+
+    def __setattr__(cls, __name: str, __value: Any) -> None:
+        if __name in {"Type"}:
+            raise AttributeError("Read-only attribute")
+        return super().__setattr__(__name, __value)
+
+    def __delattr__(cls, __name: str) -> None:
+        if __name in {"Type"}:
+            raise AttributeError("Read-only attribute")
+        return super().__delattr__(__name)
 
     @classmethod
     def _check_event_types_association(mcs) -> None:
