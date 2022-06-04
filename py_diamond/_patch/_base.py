@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+from enum import Enum, auto, unique
+
 __all__ = ["BasePatch"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -16,6 +18,10 @@ from abc import ABCMeta, abstractmethod
 
 
 class BasePatch(metaclass=ABCMeta):
+    @classmethod
+    def get_context(cls) -> PatchContext:
+        return PatchContext.BEFORE_ALL
+
     def must_be_run(self) -> bool:
         return True
 
@@ -28,3 +34,13 @@ class BasePatch(metaclass=ABCMeta):
 
     def teardown(self) -> None:
         pass
+
+
+@unique
+class PatchContext(Enum):
+    BEFORE_ALL = auto()
+    BEFORE_IMPORTING_PYGAME = auto()
+    AFTER_IMPORTING_PYGAME = auto()
+    BEFORE_IMPORTING_SUBMODULES = auto()
+    AFTER_IMPORTING_SUBMODULES = auto()
+    AFTER_ALL = auto()

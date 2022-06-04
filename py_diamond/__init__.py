@@ -36,11 +36,9 @@ os.environ["PYGAME_FREETYPE"] = "1"  # Must be set before importing pygame (Forc
 
 ############ Package initialization ############
 #### Apply various patch that must be run before importing the main modules
-from py_diamond._patch import collector
+from py_diamond._patch import PatchContext, collector
 
-collector.run_patches()
-
-del collector
+collector.run_patches(PatchContext.BEFORE_ALL)
 ####
 
 import py_diamond.environ
@@ -61,6 +59,8 @@ if any(name == "pygame" or name.startswith("pygame.") for name in list(sys.modul
 
     del warnings, warn_msg
 
+collector.run_patches(PatchContext.BEFORE_IMPORTING_PYGAME)
+
 try:
     import pygame
 except ImportError as exc:
@@ -70,6 +70,10 @@ except ImportError as exc:
         path=exc.path,
     ) from exc
 
+collector.run_patches(PatchContext.AFTER_IMPORTING_PYGAME)
+
+collector.run_patches(PatchContext.BEFORE_IMPORTING_SUBMODULES)
+
 import py_diamond.audio
 import py_diamond.graphics
 import py_diamond.math
@@ -77,6 +81,8 @@ import py_diamond.network
 import py_diamond.resource
 import py_diamond.system
 import py_diamond.window
+
+collector.run_patches(PatchContext.AFTER_IMPORTING_SUBMODULES)
 
 py_diamond.environ.check_booleans(
     exclude=[
@@ -86,5 +92,7 @@ py_diamond.environ.check_booleans(
     ]
 )
 
+collector.run_patches(PatchContext.AFTER_ALL)
+
 ############ Cleanup ############
-del os, sys, py_diamond, pygame
+del os, sys, py_diamond, pygame, collector, PatchContext
