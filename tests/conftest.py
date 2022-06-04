@@ -50,6 +50,7 @@ pytest_plugins = [
     # pygame modules plugins
     f"{__package__}.mock.pygame.display",
     f"{__package__}.mock.pygame.event",
+    f"{__package__}.mock.pygame.mixer",
     # other plugins
     f"{__package__}.mock.sys",
     f"{__package__}.fixtures.monkeypatch",
@@ -67,11 +68,11 @@ def __patch_pygame_display_environment(monkeypatch_session: MonkeyPatch) -> None
     monkeypatch_session.setenv("SDL_VIDEODRIVER", "dummy")
 
 
-@pytest.fixture(autouse=True)
-def __mock_window_object(mocker: MockerFixture) -> None:
+@pytest.fixture(scope="session", autouse=True)
+def __mock_window_object(session_mocker: MockerFixture) -> None:
     """
     Mock the Window's __new__ because it will not accept multiple instances
     """
     from py_diamond.window.display import Window
 
-    mocker.patch.object(Window, "__new__", lambda cls, *args, **kwargs: super(Window, cls).__new__(cls))
+    session_mocker.patch.object(Window, "__new__", lambda cls, *args, **kwargs: super(Window, cls).__new__(cls))

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterator
+
+from py_diamond.window.display import Window, WindowError
 
 import pygame
 import pytest
@@ -10,29 +12,43 @@ import pytest
 from ..mock.pygame.display import MockDisplayModule
 
 if TYPE_CHECKING:
+    from pygame.surface import Surface
     from pytest import MonkeyPatch
     from pytest_mock import MockerFixture
 
 
 @pytest.mark.unit
+@pytest.mark.usefixtures("mock_pygame_event_module")
 class TestWindowUnit:
-    def test__init__default_arguments(self, monkeypatch: MonkeyPatch) -> None:
-        # Arrange
-        from py_diamond.window.display import Window
+    @pytest.fixture(scope="class", autouse=True)
+    @staticmethod
+    def init_pygame_display_module() -> Iterator[Surface]:
+        """Needed for Surface.convert, and mock it is too hard"""
+        pygame.display.init()
+        screen = pygame.display.set_mode()
+        yield screen
+        pygame.display.quit()
 
+    @pytest.fixture(autouse=True)
+    @staticmethod
+    def set_mode_return_value(init_pygame_display_module: Surface, mock_pygame_display_module: MockDisplayModule) -> None:
+        mock_pygame_display_module.set_mode.return_value = init_pygame_display_module
+
+    def test__init__default_arguments(self, monkeypatch: MonkeyPatch, mock_pygame_display_module: MockDisplayModule) -> None:
+        # Arrange
         monkeypatch.setattr(Window, "DEFAULT_TITLE", "A beautiful title")
 
         # Act
         window = Window()
 
         # Assert
-        assert window.get_title() == "A beautiful title"
+        mock_pygame_display_module.set_caption.assert_called_with("A beautiful title")
         assert window.size == (0, 0)
         assert not window.resizable
         assert not window.fullscreen
         assert not window.vsync
 
-    def test__init__with_arguments(self) -> None:
+    def test__init__with_arguments(self, mock_pygame_display_module: MockDisplayModule) -> None:
         # Arrange
         from py_diamond.window.display import Window
 
@@ -40,12 +56,11 @@ class TestWindowUnit:
         window = Window(title="A very beautiful title", size=(1920, 1080))
 
         # Assert
-        assert window.get_title() == "A very beautiful title"
+        mock_pygame_display_module.set_caption.assert_called_with("A very beautiful title")
         assert window.size == (0, 0)  # Window not initialized so this must be true
 
     def test__init__resizable_window(self) -> None:
         # Arrange
-        from py_diamond.window.display import Window
 
         # Act
         window = Window(resizable=True)
@@ -55,7 +70,6 @@ class TestWindowUnit:
 
     def test__init__fullscreen_window(self) -> None:
         # Arrange
-        from py_diamond.window.display import Window
 
         # Act
         window = Window(fullscreen=True)
@@ -65,7 +79,6 @@ class TestWindowUnit:
 
     def test__init__vertical_sync_enabled(self) -> None:
         # Arrange
-        from py_diamond.window.display import Window
 
         # Act
         window = Window(vsync=True)
@@ -75,23 +88,20 @@ class TestWindowUnit:
 
     def test__init__mutually_exclusive_resizable_and_fullscreen(self) -> None:
         # Arrange
-        from py_diamond.window.display import Window, WindowError
 
-        # Act/Assert
+        # Act & Assert
         with pytest.raises(WindowError, match=r"Choose between resizable or fullscreen window, both cannot exist"):
             _ = Window(resizable=True, fullscreen=True)
 
     def test__init__mutually_exclusive_size_and_fullscreen(self) -> None:
         # Arrange
-        from py_diamond.window.display import Window, WindowError
 
-        # Act/Assert
+        # Act & Assert
         with pytest.raises(WindowError, match=r"'size' parameter must not be given if 'fullscreen' is set"):
             _ = Window(size=(640, 480), fullscreen=True)
 
     def test__open__pygame_display_init_and_quit(self, mock_pygame_display_module: MockDisplayModule) -> None:
         # Arrange
-        from py_diamond.window.display import Window
 
         window = Window()
 
@@ -133,7 +143,6 @@ class TestWindowUnit:
         mock_pygame_display_module: MockDisplayModule,
     ) -> None:
         # Arrange
-        from py_diamond.window.display import Window
 
         window = Window(size=size, resizable=resizable, fullscreen=fullscreen, vsync=vsync)
 
@@ -145,7 +154,6 @@ class TestWindowUnit:
 
     def test__open__context_manager_return_reference_to_window(self) -> None:
         # Arrange
-        from py_diamond.window.display import Window
 
         window = Window()
 
@@ -160,7 +168,6 @@ class TestWindowUnit:
         self, error: type[Exception], mock_pygame_display_module: MockDisplayModule
     ) -> None:
         # Arrange
-        from py_diamond.window.display import Window
 
         mock_pygame_display_module.init.side_effect = error
 
@@ -179,7 +186,6 @@ class TestWindowUnit:
         self, error: str, mocker: MockerFixture, mock_pygame_display_module: MockDisplayModule
     ) -> None:
         # Arrange
-        from py_diamond.window.display import Window
 
         window = Window()
 
@@ -203,7 +209,6 @@ class TestWindowUnit:
 
     def test__open__call_dunder_window_init_and_quit(self, mocker: MockerFixture) -> None:
         # Arrange
-        from py_diamond.window.display import Window
 
         window = Window()
         mock_window_init = mocker.patch.object(window, "__window_init__")
@@ -225,7 +230,6 @@ class TestWindowUnit:
         mock_pygame_display_module: MockDisplayModule,
     ) -> None:
         # Arrange
-        from py_diamond.window.display import Window
 
         window = Window()
         mock_pygame_display_module.set_mode.side_effect = pygame.error("Something happened")

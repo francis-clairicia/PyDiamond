@@ -16,8 +16,6 @@ class MockEventModule(NamedTuple):
     """
     Mock of pygame.event module
 
-    The default side effect for each mock is to call the default implementation
-
     Mocks only the functions used by PyDiamond and needed for test.
     """
 
@@ -25,12 +23,6 @@ class MockEventModule(NamedTuple):
     clear: MagicMock
 
 
-def _mock_pygame_event_module_func(name: str, mocker: MockerFixture) -> MagicMock:
-    import pygame.event
-
-    return mocker.patch(f"pygame.event.{name}", side_effect=getattr(pygame.event, name))
-
-
 @pytest.fixture
 def mock_pygame_event_module(mocker: MockerFixture) -> MockEventModule:
-    return MockEventModule._make(_mock_pygame_event_module_func(field, mocker) for field in MockEventModule._fields)
+    return MockEventModule._make(mocker.patch(f"pygame.event.{field}") for field in MockEventModule._fields)

@@ -385,7 +385,8 @@ class Window(Object):
             except UnknownEventTypeError:
                 if pg_event.type < UserEvent.type:  # Built-in pygame event
                     _pg_event.set_blocked(pg_event.type)
-                continue
+                    continue
+                event = UserEvent(code=pg_event.type)
             except EventFactoryError:
                 continue
             if isinstance(event, WindowSizeChangedEvent):

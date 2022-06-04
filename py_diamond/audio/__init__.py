@@ -2,7 +2,15 @@
 # Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine
 #
 #
-"""PyDiamond's audio module"""
+"""PyDiamond's audio module
+
+This module allows you to load and play sounds.
+
+It is essentially a wrapper to the pygame.mixer module, which depends on SDL_mixer, but have
+a more convenient way to handle long music playback with the MusicStream class.
+
+See more in pygame documentation: https://www.pygame.org/docs/ref/mixer.html
+"""
 
 __all__ = ["Channel", "Mixer", "MixerParams", "Music", "MusicStream", "Sound"]
 
@@ -21,7 +29,7 @@ if pygame.version.vernum < (2, 1, 1):
 if pygame.version.SDL < (2, 0, 16):
     raise ImportError(f"Your SDL version is too old: {str(pygame.version.SDL)!r} < '2.0.16'", name=__name__, path=__file__)
 
-SDL_MIXER_VERSION = pygame.mixer.get_sdl_mixer_version()
+SDL_MIXER_VERSION = pygame.mixer.get_sdl_mixer_version(linked=True)
 
 if SDL_MIXER_VERSION < (2, 0, 0):
     raise ImportError(
