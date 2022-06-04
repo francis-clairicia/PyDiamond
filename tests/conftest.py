@@ -44,20 +44,7 @@ def silently_ignore_systemexit_in_thread() -> Iterator[None]:
         setattr(threading, "excepthook", default_excepthook)
 
 
-################################## Custom fixtures ##################################
-
-
-@pytest.fixture(scope="session")
-def monkeypatch_session() -> Iterator[MonkeyPatch]:
-    """Experimental (https://github.com/pytest-dev/pytest/issues/363)."""
-    from _pytest.monkeypatch import MonkeyPatch
-
-    mpatch = MonkeyPatch()
-    yield mpatch
-    mpatch.undo()
-
-
-################################## mock fixtures plugins ##################################
+################################## fixtures plugins ##################################
 
 pytest_plugins = [
     # pygame modules plugins
@@ -65,6 +52,7 @@ pytest_plugins = [
     f"{__package__}.mock.pygame.event",
     # other plugins
     f"{__package__}.mock.sys",
+    f"{__package__}.fixtures.monkeypatch",
 ]
 
 ################################## Auto used fixtures for all session test ##################################

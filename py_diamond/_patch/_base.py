@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import os
 from enum import Enum, auto, unique
 
 __all__ = ["BasePatch"]
@@ -23,7 +24,11 @@ class BasePatch(metaclass=ABCMeta):
         return PatchContext.BEFORE_ALL
 
     def must_be_run(self) -> bool:
-        return True
+        patch_disable_value: str = os.environ.get("PYDIAMOND_PATCH_DISABLE", "")
+        if patch_disable_value.lower() == "all":
+            return False
+        cls = self.__class__
+        return cls.__name__ not in [patch_name for name in patch_disable_value.split(":") if (patch_name := name.strip())]
 
     def setup(self) -> None:
         pass

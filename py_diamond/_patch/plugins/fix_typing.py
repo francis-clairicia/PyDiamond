@@ -14,7 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 
 import sys
-from functools import cached_property, update_wrapper
+from functools import cached_property, partialmethod, update_wrapper
 from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
 from .._base import BasePatch
@@ -62,16 +62,19 @@ class OverrideFinalFunctionsPatch(BasePatch):
     @staticmethod
     def _compute_patch_function(default_final: Callable[[Any], Any]) -> Callable[[Any], Any]:
         def patch_final(f: _T, /) -> _T:
-            if isinstance(f, property):
-                for func in (f.fget, f.fset, f.fdel):
-                    if callable(func):
-                        patch_final(func)
-                return f  # type: ignore[return-value]
-            if isinstance(f, (classmethod, staticmethod)):
-                patch_final(f.__func__)
-            if isinstance(f, cached_property):
-                patch_final(f.func)
+            match f:
+                case property(fget=fget, fset=fset, fdel=fdel):
+                    for method in filter(callable, (fget, fset, fdel)):
+                        patch_final(method)
+                case (
+                    classmethod(__func__=func)
+                    | staticmethod(__func__=func)
+                    | cached_property(func=func)
+                    | partialmethod(func=func)
+                ):
+                    patch_final(func)
             return default_final(f)  # type: ignore[no-any-return]
 
         setattr(patch_final, "__fix_typing__", True)
+        setattr(patch_final, "__default_final__", default_final)
         return patch_final
