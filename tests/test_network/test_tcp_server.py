@@ -116,7 +116,7 @@ def test_multiple_connections() -> None:
     address: tuple[str, int] = ("localhost", random_port())
 
     with _TestWelcomeServer(address, _BroadcastRequestHandler) as server:
-        server.serve_forever_in_thread(poll_interval=0.1)
+        server.serve_forever_in_thread(poll_interval=0)
         with (
             TCPNetworkClient[Any](address) as client_1,
             TCPNetworkClient[Any](address) as client_2,
@@ -125,7 +125,7 @@ def test_multiple_connections() -> None:
             assert client_1.recv_packet() == "Welcome !"
             assert client_2.recv_packet() == "Welcome !"
             assert client_3.recv_packet() == "Welcome !"
-            sleep(0.1)
+            sleep(0.2)
             assert len(server.clients) == 3
 
 
