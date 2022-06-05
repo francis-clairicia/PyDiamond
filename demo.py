@@ -1197,7 +1197,7 @@ class GUIAudioScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableS
         self.text.midtop = (self.grid.centerx, self.grid.bottom + 10)
 
     def on_start_loop(self) -> None:
-        MusicManager.menu.play(-1)
+        MusicManager.menu.play(repeat=-1)
         return super().on_start_loop()
 
     def on_quit(self) -> None:

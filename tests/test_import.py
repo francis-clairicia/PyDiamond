@@ -27,16 +27,16 @@ def unload_py_diamond(monkeypatch: MonkeyPatch) -> None:
 @pytest.mark.functional
 class TestGlobalImport:
     @pytest.mark.parametrize(
-        ["submodule_name"],
+        "submodule_name",
         [
-            ("audio",),
-            ("environ",),
-            ("graphics",),
-            ("math",),
-            ("network",),
-            ("resource",),
-            ("system",),
-            ("window",),
+            "audio",
+            "environ",
+            "graphics",
+            "math",
+            "network",
+            "resource",
+            "system",
+            "window",
         ],
         ids=lambda name: f"py_diamond.{name}",
     )

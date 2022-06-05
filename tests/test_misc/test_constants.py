@@ -42,7 +42,7 @@ def test__enum_member__value_from_pygame_constants(sample: EnumConstantSample) -
     expected_value: int = getattr(pygame.constants, sample.constant_name)
 
     # Act
-    actual_value: Any = sample.enum[sample.name]
+    actual_value: Any = sample.enum[sample.name].value
 
     # Assert
     assert isinstance(actual_value, int)

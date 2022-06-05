@@ -20,11 +20,23 @@ if TYPE_CHECKING:
 
 @pytest.mark.unit
 class TestMixerUnit:
+    @pytest.fixture(scope="class", autouse=True)
+    @staticmethod
+    def accept_setattr_on_mixer(class_mocker: MockerFixture) -> None:
+        class_mocker.patch.object(type(Mixer), "__setattr__", type.__setattr__)
+
     @pytest.fixture
     @staticmethod
     def mixer_init_default_side_effect(mock_pygame_mixer_module: MockMixerModule) -> None:
         # Mixer.init() will first check if pygame.mixer is initialized, then return the used params
         mock_pygame_mixer_module.get_init.side_effect = [None, (0, 0, 0)]
+
+    @pytest.fixture(autouse=True)
+    @staticmethod
+    def mock_music_stream(mocker: MockerFixture) -> MagicMock:
+        from py_diamond.audio.music import MusicStream
+
+        return mocker.patch("py_diamond.audio.music.MusicStream", spec=MusicStream)
 
     @pytest.mark.usefixtures("mixer_init_default_side_effect")
     def test__init__pygame_mixer_init_and_quit(self, mock_pygame_mixer_module: MockMixerModule) -> None:
@@ -58,7 +70,6 @@ class TestMixerUnit:
     @pytest.mark.usefixtures("mixer_init_default_side_effect")
     def test__init__yields_output_from_Mixer_get_init(self, mocker: MockerFixture) -> None:
         # Arrange
-        mocker.patch.object(type(Mixer), "__setattr__", type.__setattr__)  # Exceptionally accept setattr()
         mocker.patch.object(Mixer, "get_init", return_value=sentinel.Mixer_get_init)
 
         # Act
@@ -136,14 +147,14 @@ class TestMixerUnit:
             pytest.param("stop_all_sounds", "stop", None, id="stop"),
             pytest.param("pause_all_sounds", "pause", None, id="pause"),
             pytest.param("unpause_all_sounds", "unpause", None, id="unpause"),
-            pytest.param("fadeout_all_sounds", "fadeout", (5,), id="faedout(5)"),
+            pytest.param("fadeout_all_sounds", "fadeout", (5,), id="fadeout(5)"),
             pytest.param("set_num_channels", "set_num_channels", (12,), id="set_num_channels(12)"),
             pytest.param("get_num_channels", "get_num_channels", None, id="get_num_channels"),
             pytest.param("find_channel", "find_channel", (False,), id="find_channel"),
             pytest.param("find_channel", "find_channel", (True,), id="find_channel(True)"),
         ],
     )
-    def test__all__pass_through(
+    def test__method__pass_through(
         self,
         mixer_cls_method_name: str,
         pygame_mixer_function_name: str,
@@ -164,3 +175,21 @@ class TestMixerUnit:
         # Assert
         mock_func.assert_called_once_with(*args)
         assert actual_value is sentinel_value
+
+    @pytest.mark.parametrize("num_channels", [0, 1, 2, 8, 32])
+    def test__get_channels__list_Channel_objects_up_to_get_num_channels(
+        self,
+        num_channels: int,
+        mock_pygame_mixer_module: MockMixerModule,
+        mocker: MockerFixture,
+    ) -> None:
+        # Arrange
+        mock_channel = mocker.patch("py_diamond.audio.mixer.Channel")
+        mock_pygame_mixer_module.get_num_channels.return_value = num_channels
+
+        # Act
+        channels = Mixer.get_channels()
+
+        # Assert
+        assert mock_channel.mock_calls == list(map(mocker.call, range(0, num_channels)))
+        assert len(channels) == num_channels

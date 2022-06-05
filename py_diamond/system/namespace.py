@@ -12,7 +12,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Final, TypeVar
 
 from .object import Object, ObjectMeta
 
@@ -55,7 +55,7 @@ class ClassNamespaceMeta(ObjectMeta):
         **kwargs: Any,
     ) -> None:
         super().__init__(name, bases, namespace, **kwargs)
-        setattr(cls, "_class_namespace_was_init_", True)
+        super().__setattr__("_class_namespace_was_init_", True)
 
     def __call__(cls, *args: Any, **kwargs: Any) -> Any:
         raise TypeError(f"{cls.__module__}.{cls.__name__} cannot be instantiated")
@@ -73,6 +73,8 @@ class ClassNamespaceMeta(ObjectMeta):
         return super().__setattr__(name, value)
 
     def __delattr__(cls, name: str, /) -> None:
+        if name in ("__new__", "__init__"):
+            raise TypeError(f"{cls.__module__}.{cls.__name__} cannot be instantiated")
         if getattr(cls, "_class_namespace_was_init_"):
             if getattr(cls, "_frozen_class_namespace_", False):
                 raise AttributeError(f"{cls.__module__}.{cls.__name__}: Frozen class namespace")
@@ -84,4 +86,5 @@ class ClassNamespaceMeta(ObjectMeta):
 
 
 class ClassNamespace(Object, metaclass=ClassNamespaceMeta):
-    pass
+    if TYPE_CHECKING:
+        __slots__: Final[tuple[()]] = ()

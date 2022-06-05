@@ -27,11 +27,10 @@ from pygame import error as _pg_error
 
 from ..system.namespace import ClassNamespace
 from ..system.object import final
+from .sound import Channel
 
 if TYPE_CHECKING:
     from contextlib import _GeneratorContextManager
-
-    from .sound import Channel
 
 
 class AllowedAudioChanges(IntFlag):
@@ -184,7 +183,7 @@ class Mixer(ClassNamespace, frozen=True):
 
             from .music import MusicStream
 
-            stack.callback(MusicStream.stop)
+            stack.callback(MusicStream.stop, unload=True)
 
             init_params: MixerParams | None = Mixer.get_init()
             assert init_params is not None
@@ -265,6 +264,14 @@ class Mixer(ClassNamespace, frozen=True):
         Returns the number of currently active playback channels.
         """
         return _pg_mixer.get_num_channels()
+
+    @staticmethod
+    def get_channels() -> list[Channel]:
+        """Get the list of playback channels
+
+        Returns a list of playback channels size get_num_channels().
+        """
+        return list(map(Channel, range(0, _pg_mixer.get_num_channels())))
 
     @staticmethod
     def set_reserved(count: int) -> int:

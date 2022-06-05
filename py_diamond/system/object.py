@@ -116,6 +116,16 @@ class ObjectMeta(ABCMeta):
 
         return cls
 
+    def __setattr__(cls, name: str, value: Any, /) -> None:
+        if name in getattr(cls, "__finalmethods__", ()):
+            raise TypeError(f"Cannot override {name!r} method")
+        return super().__setattr__(name, value)
+
+    def __delattr__(cls, name: str) -> None:
+        if name in getattr(cls, "__finalmethods__", ()):
+            raise TypeError(f"Cannot override {name!r} method")
+        return super().__delattr__(name)
+
     @staticmethod
     def __must_override(obj: Any) -> bool:
         return bool(ObjectMeta.__check_attr(obj, "__mustoverride__"))

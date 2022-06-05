@@ -23,4 +23,4 @@ class NoDuplicateMeta(NonCopyableMeta):
 
 
 class NoDuplicate(NonCopyable, metaclass=NoDuplicateMeta):
-    pass
+    __slots__ = ()

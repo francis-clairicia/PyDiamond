@@ -18,6 +18,8 @@ from ..system.duplicate import NoDuplicate
 
 
 class Sound(pygame.mixer.Sound, NoDuplicate):
+    __slots__ = ()
+
     def __init__(self, file: str | bytes) -> None:
         if not isinstance(file, bytes):
             file = encode_file_path(file)

@@ -12,17 +12,9 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
 
-from .object import Object, ObjectMeta
-
-
-def __non_copyable_copy__(self: Any) -> Any:
-    raise TypeError("Non copyable class")
-
-
-def __non_copyable_deepcopy__(self: Any, memo: dict[int, Any]) -> Any:
-    raise TypeError("Non copyable class")
+from .object import Object, ObjectMeta, final
 
 
 class NonCopyableMeta(ObjectMeta):
@@ -39,15 +31,40 @@ class NonCopyableMeta(ObjectMeta):
     ) -> __Self:
         if any(attr in namespace for attr in ("__copy__", "__deepcopy__")):
             raise TypeError("'__copy__' and '__deepcopy__' cannot be overriden from a non-copyable object")
-        namespace["__copy__"] = __non_copyable_copy__
-        namespace["__deepcopy__"] = __non_copyable_deepcopy__
-        return super().__new__(mcs, name, bases, namespace, **kwargs)
 
-    def __setattr__(cls, name: str, value: Any, /) -> None:
-        if name in ("__copy__", "__deepcopy__"):
-            raise TypeError(f"Cannot override {name!r} method")
-        return super().__setattr__(name, value)
+        bases_final_methods_set: set[str] = {
+            method_name for base in bases for method_name in getattr(base, "__finalmethods__", ())
+        }
+
+        if "__copy__" not in bases_final_methods_set:
+
+            def __copy__(self: Any) -> Any:
+                raise TypeError("Non copyable class")
+
+            namespace["__copy__"] = final(__copy__)
+
+        if "__deepcopy__" not in bases_final_methods_set:
+
+            def __deepcopy__(self: Any, memo: dict[int, Any]) -> Any:
+                raise TypeError("Non copyable class")
+
+            namespace["__deepcopy__"] = final(__deepcopy__)
+
+        cls = super().__new__(mcs, name, bases, namespace, **kwargs)
+        if "__dict__" in vars(cls):
+            raise TypeError("Non copyable objects must not have __dict__ slot")
+        return cls
 
 
 class NonCopyable(Object, metaclass=NonCopyableMeta):
-    pass
+    __slots__ = ()
+
+    if TYPE_CHECKING:
+
+        @final
+        def __copy__(self) -> NoReturn:
+            ...
+
+        @final
+        def __deepcopy__(self, memo: dict[str, Any]) -> NoReturn:
+            ...
