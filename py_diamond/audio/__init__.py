@@ -12,7 +12,16 @@ a more convenient way to handle long music playback with the MusicStream class.
 See more in pygame documentation: https://www.pygame.org/docs/ref/mixer.html
 """
 
-__all__ = ["Channel", "Mixer", "MixerParams", "Music", "MusicStream", "Sound"]
+__all__ = [
+    "AllowedAudioChanges",
+    "AudioFormat",
+    "Channel",
+    "Mixer",
+    "MixerParams",
+    "Music",
+    "MusicStream",
+    "Sound",
+]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
@@ -43,6 +52,6 @@ del os, pygame
 
 
 ############ Package initialization ############
-from .mixer import Mixer, MixerParams
+from .mixer import AllowedAudioChanges, AudioFormat, Mixer, MixerParams
 from .music import Music, MusicStream
 from .sound import Channel, Sound

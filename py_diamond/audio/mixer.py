@@ -11,7 +11,7 @@ See more in pygame documentation: https://www.pygame.org/docs/ref/mixer.html
 
 from __future__ import annotations
 
-__all__ = ["Mixer", "MixerParams"]
+__all__ = ["AllowedAudioChanges", "AudioFormat", "Mixer", "MixerParams"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
