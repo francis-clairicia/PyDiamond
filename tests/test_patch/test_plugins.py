@@ -79,12 +79,12 @@ class TestPatchEnvDisable:
         ["module_path", "patch_name"],
         [
             pytest.param(
-                "py_diamond._patch.plugins.fix_enum",
+                "fix_enum",
                 "IntEnumMonkeyPatch",
                 id="fix_enum.IntEnumMonkeyPatch",
             ),
             pytest.param(
-                "py_diamond._patch.plugins.fix_typing",
+                "fix_typing",
                 "OverrideFinalFunctionsPatch",
                 id="fix_typing.OverrideFinalFunctionsPatch",
             ),
@@ -99,6 +99,7 @@ class TestPatchEnvDisable:
         # Arrange
         import importlib
 
+        module_path = f"py_diamond._patch.plugins.{module_path}"
         patch_cls: type[BasePatch] = getattr(importlib.import_module(module_path), patch_name)
 
         monkeypatch.setenv("PYDIAMOND_PATCH_DISABLE", "all")
