@@ -3,17 +3,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterator
+from typing import Iterator
 
 import pytest
-
-if TYPE_CHECKING:
-    from pytest import MonkeyPatch
+from pytest import MonkeyPatch
 
 
 def _monkeypatch() -> Iterator[MonkeyPatch]:
-    from _pytest.monkeypatch import MonkeyPatch
-
     mpatch = MonkeyPatch()
     yield mpatch
     mpatch.undo()

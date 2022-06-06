@@ -62,7 +62,7 @@ class _PatchCollectorType:
         forbidden_imports: set[str] = set.union(*self.__forbidden_imports_by_context.values())
         with self._mock_import("import", forbidden_imports=forbidden_imports):
             for patch in itertools.chain.from_iterable(self.walk_in_plugins_module(".plugins")):
-                all_patches[patch.get_context()].append(patch)
+                all_patches[patch.get_required_context()].append(patch)
 
         self.__all_patches = MappingProxyType({k: tuple(v) for k, v in all_patches.items()})
 
@@ -71,11 +71,13 @@ class _PatchCollectorType:
         with self._mock_import(f"run ({context.name.replace('_', ' ').lower()})", forbidden_imports=forbidden_imports):
             # TODO (3.11): Exception groups
             for patch in (p for p in self.__all_patches.get(context, ()) if p.must_be_run()):
+                patch.run_context = context
                 patch.setup()
                 try:
                     patch.run()
                 finally:
                     patch.teardown()
+                    del patch.run_context
 
     def walk_in_plugins_module(self, plugins_module_name: str) -> Iterator[list[BasePatch]]:
         plugins_module_name = importlib.util.resolve_name(plugins_module_name, __package__)

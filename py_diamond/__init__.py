@@ -28,28 +28,12 @@ if sys.version_info < (3, 10):
         path=__file__,
     )
 
-
-os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")  # Must be set before importing pygame
-os.environ.setdefault("SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1")  # Must be set before importing pygame
-
-os.environ["PYGAME_FREETYPE"] = "1"  # Must be set before importing pygame (Force modification)
-
 ############ Package initialization ############
 #### Apply various patch that must be run before importing the main modules
 from py_diamond._patch import PatchContext, collector
 
 collector.run_patches(PatchContext.BEFORE_ALL)
 ####
-
-import py_diamond.environ
-
-py_diamond.environ.check_booleans(
-    only=[
-        "PYGAME_HIDE_SUPPORT_PROMPT",
-        "PYGAME_FREETYPE",
-        "SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS",
-    ]
-)
 
 if any(name == "pygame" or name.startswith("pygame.") for name in list(sys.modules)):
     import warnings
@@ -75,6 +59,7 @@ collector.run_patches(PatchContext.AFTER_IMPORTING_PYGAME)
 collector.run_patches(PatchContext.BEFORE_IMPORTING_SUBMODULES)
 
 import py_diamond.audio
+import py_diamond.environ
 import py_diamond.graphics
 import py_diamond.math
 import py_diamond.network
@@ -83,14 +68,6 @@ import py_diamond.system
 import py_diamond.window
 
 collector.run_patches(PatchContext.AFTER_IMPORTING_SUBMODULES)
-
-py_diamond.environ.check_booleans(
-    exclude=[
-        "PYGAME_HIDE_SUPPORT_PROMPT",
-        "PYGAME_FREETYPE",
-        "SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS",
-    ]
-)
 
 collector.run_patches(PatchContext.AFTER_ALL)
 

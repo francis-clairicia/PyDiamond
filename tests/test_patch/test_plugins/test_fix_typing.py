@@ -5,18 +5,15 @@ from __future__ import annotations
 import importlib
 from functools import cached_property, partialmethod
 from typing import TYPE_CHECKING, Any, Callable, Iterator, TypeVar
-from unittest.mock import sentinel
 
 import pytest
 
-from ..mock.sys import MockVersionInfo, unload_module
+from ...mock.sys import MockVersionInfo, unload_module
 
 if TYPE_CHECKING:
     from types import ModuleType
     from unittest.mock import MagicMock
 
-    from py_diamond._patch._base import BasePatch
-    from py_diamond._patch.plugins.fix_enum import IntEnumMonkeyPatch
     from py_diamond._patch.plugins.fix_typing import OverrideFinalFunctionsPatch
 
     from pytest_mock import MockerFixture
@@ -25,183 +22,7 @@ if TYPE_CHECKING:
 _T = TypeVar("_T")
 
 
-@pytest.fixture(scope="module", autouse=True)
-def disable_auto_patch_run(monkeypatch_module: pytest.MonkeyPatch) -> None:
-    # Import py_diamond will automatically apply patches, so we silently disable all the patches
-    from _pytest.monkeypatch import MonkeyPatch
-
-    unload_module("pygame", include_submodules=True, monkeypatch=monkeypatch_module)
-    unload_module("py_diamond", include_submodules=True, monkeypatch=monkeypatch_module)
-    with MonkeyPatch.context() as monkeypatch:
-        monkeypatch.setenv("PYDIAMOND_PATCH_DISABLE", "all")
-        # Then we import the package
-        importlib.import_module("py_diamond")
-
-
-@pytest.mark.unit
-class TestPatchEnvDisable:
-    @pytest.mark.parametrize(
-        ["module_path", "patch_name"],
-        [
-            pytest.param(
-                "py_diamond._patch.plugins.fix_enum",
-                "IntEnumMonkeyPatch",
-                id="fix_enum.IntEnumMonkeyPatch",
-            ),
-            pytest.param(
-                "py_diamond._patch.plugins.fix_typing",
-                "OverrideFinalFunctionsPatch",
-                id="fix_typing.OverrideFinalFunctionsPatch",
-            ),
-        ],
-    )
-    def test__patch__must_not_be_run_if_disabled_from_env(
-        self,
-        module_path: str,
-        patch_name: str,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        # Arrange
-        import importlib
-
-        patch_cls: type[BasePatch] = getattr(importlib.import_module(module_path), patch_name)
-
-        monkeypatch.setenv("PYDIAMOND_PATCH_DISABLE", patch_name)
-
-        patch = patch_cls()
-
-        # Act
-        must_be_run = patch.must_be_run()
-
-        # Assert
-        assert not must_be_run
-
-    @pytest.mark.parametrize(
-        ["module_path", "patch_name"],
-        [
-            pytest.param(
-                "fix_enum",
-                "IntEnumMonkeyPatch",
-                id="fix_enum.IntEnumMonkeyPatch",
-            ),
-            pytest.param(
-                "fix_typing",
-                "OverrideFinalFunctionsPatch",
-                id="fix_typing.OverrideFinalFunctionsPatch",
-            ),
-        ],
-    )
-    def test__patch__must_not_be_run_if_disabled_from_env_using_all(
-        self,
-        module_path: str,
-        patch_name: str,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        # Arrange
-        import importlib
-
-        module_path = f"py_diamond._patch.plugins.{module_path}"
-        patch_cls: type[BasePatch] = getattr(importlib.import_module(module_path), patch_name)
-
-        monkeypatch.setenv("PYDIAMOND_PATCH_DISABLE", "all")
-
-        patch = patch_cls()
-
-        # Act
-        must_be_run = patch.must_be_run()
-
-        # Assert
-        assert not must_be_run
-
-
-@pytest.mark.unit
-class TestFixIntEnum:
-    @pytest.fixture
-    @staticmethod
-    def intenum_monkeypatch() -> Iterator[IntEnumMonkeyPatch]:
-        from py_diamond._patch.plugins.fix_enum import IntEnumMonkeyPatch
-
-        patch = IntEnumMonkeyPatch()
-        patch.setup()
-        yield patch
-        patch.teardown()
-
-    def test__patch__context(self, intenum_monkeypatch: IntEnumMonkeyPatch) -> None:
-        # Arrange
-        from py_diamond._patch import PatchContext
-
-        expected_context = PatchContext.BEFORE_ALL
-
-        # Act
-        context = intenum_monkeypatch.get_context()
-
-        # Assert
-        assert isinstance(context, PatchContext)
-        assert context == expected_context
-
-    @pytest.mark.parametrize(
-        ["method_name"],
-        [
-            pytest.param("__repr__"),
-            pytest.param("__str__"),
-            pytest.param("__format__"),
-        ],
-    )
-    def test__patch__replace_IntEnum_method(
-        self,
-        method_name: str,
-        intenum_monkeypatch: IntEnumMonkeyPatch,
-        mocker: MockerFixture,
-    ) -> None:
-        # Arrange
-        from enum import IntEnum
-
-        ## Create unique object so we ensure the method is replaced
-        intenum_method = sentinel.intenum_method
-        mocker.patch.object(IntEnum, method_name, intenum_method)
-        assert getattr(IntEnum, method_name) is intenum_method
-
-        # Act
-        intenum_monkeypatch.run()
-
-        # Assert
-        assert getattr(IntEnum, method_name) is not intenum_method
-        assert getattr(IntEnum, method_name) is getattr(int, method_name)
-
-    @pytest.mark.parametrize(
-        ["python_version", "expected_result"],
-        [
-            pytest.param(MockVersionInfo(3, 10, 4, "final", 0), True),
-            pytest.param(MockVersionInfo(3, 10, 12, "final", 0), True),
-            pytest.param(MockVersionInfo(3, 11, 0, "alpha", 5), False),
-            pytest.param(MockVersionInfo(3, 11, 2, "final", 0), False),
-            pytest.param(MockVersionInfo(3, 12, 0, "final", 0), False),
-        ],
-        ids=str,
-    )
-    def test__patch__must_be_run(
-        self,
-        python_version: MockVersionInfo,
-        expected_result: bool,
-        monkeypatch: pytest.MonkeyPatch,
-        mocker: MockerFixture,
-    ) -> None:
-        # Arrange
-        from py_diamond._patch.plugins.fix_enum import IntEnumMonkeyPatch
-
-        monkeypatch.delenv("PYDIAMOND_PATCH_DISABLE", raising=False)
-        mocker.patch("sys.version_info", python_version)
-
-        intenum_monkeypatch = IntEnumMonkeyPatch()
-
-        # Act
-        must_be_run = intenum_monkeypatch.must_be_run()
-
-        # Assert
-        assert must_be_run == expected_result
-
-
-@pytest.mark.unit
+@pytest.mark.functional
 class TestFixTypingFinal:
     @pytest.fixture(scope="class", params=[MockVersionInfo(3, 10, 4, "final", 0), MockVersionInfo(3, 11, 0, "beta", 5)], ids=str)
     @staticmethod
@@ -240,7 +61,7 @@ class TestFixTypingFinal:
 
     @pytest.fixture
     @staticmethod
-    def final_monkeypatch(mock_default_final: MagicMock) -> Iterator[OverrideFinalFunctionsPatch]:
+    def patch(mock_default_final: MagicMock) -> Iterator[OverrideFinalFunctionsPatch]:
         from py_diamond._patch.plugins.fix_typing import OverrideFinalFunctionsPatch
 
         patch = OverrideFinalFunctionsPatch()
@@ -248,14 +69,14 @@ class TestFixTypingFinal:
         yield patch
         patch.teardown()
 
-    def test__patch__context(self, final_monkeypatch: OverrideFinalFunctionsPatch) -> None:
+    def test__patch__context(self, patch: OverrideFinalFunctionsPatch) -> None:
         # Arrange
         from py_diamond._patch import PatchContext
 
         expected_context = PatchContext.BEFORE_ALL
 
         # Act
-        context = final_monkeypatch.get_context()
+        context = patch.get_required_context()
 
         # Assert
         assert isinstance(context, PatchContext)
@@ -263,7 +84,7 @@ class TestFixTypingFinal:
 
     def test__patch__wrap_default_final(
         self,
-        final_monkeypatch: OverrideFinalFunctionsPatch,
+        patch: OverrideFinalFunctionsPatch,
         typing_module: ModuleType,
         mock_default_final: MagicMock,
     ) -> None:
@@ -272,7 +93,7 @@ class TestFixTypingFinal:
         assert getattr(typing_module, "final") is mock_default_final
 
         # Act
-        final_monkeypatch.run()
+        patch.run()
         final: Any = getattr(typing_module, "final")
 
         # Assert
@@ -281,22 +102,22 @@ class TestFixTypingFinal:
 
     def test__patch__will_not_apply_wrapper_twice(
         self,
-        final_monkeypatch: OverrideFinalFunctionsPatch,
+        patch: OverrideFinalFunctionsPatch,
         typing_module: ModuleType,
     ) -> None:
         # Arrange
-        final_monkeypatch.run()
+        patch.run()
         expected_final: Any = getattr(typing_module, "final")
 
         # Act
-        final_monkeypatch.run()
+        patch.run()
 
         # Assert
         assert getattr(typing_module, "final") is expected_final
 
     def test__patch__apply_for_both_typing_and_typing_extensions_modules(
         self,
-        final_monkeypatch: OverrideFinalFunctionsPatch,
+        patch: OverrideFinalFunctionsPatch,
         mock_default_final: MagicMock,
     ) -> None:
         # Arrange
@@ -308,7 +129,7 @@ class TestFixTypingFinal:
         default_typing_extensions_final = typing_extensions.final
 
         # Act
-        final_monkeypatch.run()
+        patch.run()
 
         # Assert
         assert typing.final is not default_typing_final
@@ -329,12 +150,12 @@ class TestFixTypingFinal:
     def test__final_wrapper__default_behavior_works(
         self,
         typing_module_name: str,
-        final_monkeypatch: OverrideFinalFunctionsPatch,
+        patch: OverrideFinalFunctionsPatch,
         mock_default_final: MagicMock,
     ) -> None:
         # Arrange
         typing_module = importlib.import_module(typing_module_name)
-        final_monkeypatch.run()
+        patch.run()
         final: Callable[[_T], _T] = getattr(typing_module, "final")
 
         def func() -> None:
@@ -358,17 +179,17 @@ class TestFixTypingFinal:
     def test__final_wrapper__works_for_properties(
         self,
         typing_module_name: str,
-        final_monkeypatch: OverrideFinalFunctionsPatch,
+        patch: OverrideFinalFunctionsPatch,
         mock_default_final: MagicMock,
         mocker: MockerFixture,
     ) -> None:
         # Arrange
         typing_module = importlib.import_module(typing_module_name)
-        final_monkeypatch.run()
+        patch.run()
         final: Callable[[_T], _T] = getattr(typing_module, "final")
 
         def fget(self: Any) -> Any:
-            return sentinel.property_get
+            return mocker.sentinel.property_get
 
         fset = lambda self, val: None
 
@@ -406,13 +227,13 @@ class TestFixTypingFinal:
         typing_module_name: str,
         method_descriptor: Callable[[Any], Callable[..., Any]],
         function_attribute_name: str,
-        final_monkeypatch: OverrideFinalFunctionsPatch,
+        patch: OverrideFinalFunctionsPatch,
         mock_default_final: MagicMock,
         mocker: MockerFixture,
     ) -> None:
         # Arrange
         typing_module = importlib.import_module(typing_module_name)
-        final_monkeypatch.run()
+        patch.run()
         final: Callable[[_T], _T] = getattr(typing_module, "final")
 
         def method() -> None:

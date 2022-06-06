@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable
-from unittest.mock import sentinel
 
 from py_diamond.audio.mixer import Mixer, MixerParams
 
@@ -68,7 +67,7 @@ class TestMixerUnit:
         mock_pygame_mixer_module.init.assert_called_once_with(**CONFIG)
 
     @pytest.mark.usefixtures("mixer_init_default_side_effect")
-    def test__init__yields_output_from_Mixer_get_init(self, mocker: MockerFixture) -> None:
+    def test__init__yields_output_from_Mixer_get_init(self, mocker: MockerFixture, sentinel: Any) -> None:
         # Arrange
         mocker.patch.object(Mixer, "get_init", return_value=sentinel.Mixer_get_init)
 
@@ -112,7 +111,7 @@ class TestMixerUnit:
         # Assert
         mock_pygame_mixer_module.quit.assert_not_called()
 
-    def test__get_init__return_mixer_params(self, mock_pygame_mixer_module: MockMixerModule) -> None:
+    def test__get_init__return_mixer_params(self, mock_pygame_mixer_module: MockMixerModule, sentinel: Any) -> None:
         # Arrange
         mock_pygame_mixer_module.get_init.return_value = (
             sentinel.Mixer_get_init_frequency,
@@ -160,6 +159,7 @@ class TestMixerUnit:
         pygame_mixer_function_name: str,
         args: tuple[Any, ...] | None,
         mock_pygame_mixer_module: MockMixerModule,
+        sentinel: Any,
     ) -> None:
         # Arrange
         mock_func: MagicMock = getattr(mock_pygame_mixer_module, pygame_mixer_function_name)

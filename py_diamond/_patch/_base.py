@@ -18,9 +18,20 @@ __license__ = "GNU GPL v3.0"
 from abc import ABCMeta, abstractmethod
 
 
+@unique
+class PatchContext(Enum):
+    BEFORE_ALL = auto()
+    BEFORE_IMPORTING_PYGAME = auto()
+    AFTER_IMPORTING_PYGAME = auto()
+    BEFORE_IMPORTING_SUBMODULES = auto()
+    AFTER_IMPORTING_SUBMODULES = auto()
+    AFTER_ALL = auto()
+
+
 class BasePatch(metaclass=ABCMeta):
-    @classmethod
-    def get_context(cls) -> PatchContext:
+    run_context: PatchContext
+
+    def get_required_context(self) -> PatchContext:
         return PatchContext.BEFORE_ALL
 
     def must_be_run(self) -> bool:
@@ -39,13 +50,3 @@ class BasePatch(metaclass=ABCMeta):
 
     def teardown(self) -> None:
         pass
-
-
-@unique
-class PatchContext(Enum):
-    BEFORE_ALL = auto()
-    BEFORE_IMPORTING_PYGAME = auto()
-    AFTER_IMPORTING_PYGAME = auto()
-    BEFORE_IMPORTING_SUBMODULES = auto()
-    AFTER_IMPORTING_SUBMODULES = auto()
-    AFTER_ALL = auto()

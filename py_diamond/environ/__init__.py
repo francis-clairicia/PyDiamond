@@ -5,7 +5,6 @@
 """PyDiamond's environment module"""
 
 __all__ = [
-    "check_booleans",
     "get_executable_path",
     "get_main_script_path",
     "is_frozen_executable",
@@ -16,5 +15,4 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 
-from .check import check_booleans
 from .executable import get_executable_path, get_main_script_path, is_frozen_executable

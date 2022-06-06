@@ -24,7 +24,7 @@ def get_main_script_path() -> str:
     try:
         main_module = sys.modules["__main__"]
     except KeyError as exc:
-        raise ImportError("Wait... How the '__main__' module cannot exist ?") from exc
+        raise RuntimeError("Wait... How the '__main__' module cannot exist ?") from exc
 
     spec = main_module.__spec__
     if spec and spec.origin:

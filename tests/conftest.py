@@ -54,17 +54,18 @@ pytest_plugins = [
     # other plugins
     f"{__package__}.mock.sys",
     f"{__package__}.fixtures.monkeypatch",
+    f"{__package__}.fixtures.sentinel",
 ]
 
 ################################## Auto used fixtures for all session test ##################################
 
 
 @pytest.fixture(scope="session", autouse=True)
-def __patch_pygame_display_environment(monkeypatch_session: MonkeyPatch) -> None:
-    """
-    Tell pygame that we do not have a graphic environment
-    """
+def __patch_pygame_environment(monkeypatch_session: MonkeyPatch) -> None:
+    # Always hide support on pygame import
+    monkeypatch_session.setenv("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 
+    # Tell pygame that we do not have a graphic environment
     monkeypatch_session.setenv("SDL_VIDEODRIVER", "dummy")
 
 

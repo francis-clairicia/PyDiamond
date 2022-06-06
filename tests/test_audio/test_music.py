@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from copy import copy, deepcopy
 from typing import TYPE_CHECKING, Any, Callable, Iterator
-from unittest.mock import sentinel
 
 from py_diamond.audio.music import Music, MusicStream
 
@@ -95,6 +94,7 @@ class TestMusicObjectUnit:
         self,
         music_factory: Callable[[str], Music],
         mock_music_stream: MagicMock,
+        sentinel: Any,
     ) -> None:
         # Arrange
         music_wav = music_factory("music.wav")
@@ -114,6 +114,7 @@ class TestMusicObjectUnit:
         self,
         music_factory: Callable[[str], Music],
         mock_music_stream: MagicMock,
+        sentinel: Any,
     ) -> None:
         # Arrange
         music_wav = music_factory("music.wav")
@@ -258,6 +259,7 @@ class TestMusicStreamUnit:
         pygame_music_function_name: str,
         args: tuple[Any, ...] | None,
         mock_pygame_mixer_music_module: MockMixerMusicModule,
+        sentinel: Any,
     ) -> None:
         # Arrange
         mock_func: MagicMock = getattr(mock_pygame_mixer_music_module, pygame_music_function_name)
