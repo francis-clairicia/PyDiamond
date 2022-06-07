@@ -1428,7 +1428,7 @@ def main() -> None:
         print(json.dumps({i: s.__name__ for i, s in enumerate(MainWindow.all_scenes)}, indent=4))
         return
 
-    with MainWindow().open() as window, Mixer.init():
+    with Mixer.init(), MainWindow().open() as window:
         MusicStream.set_volume(0)
         window.mainloop(args.index)
 

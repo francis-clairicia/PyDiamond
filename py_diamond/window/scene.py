@@ -333,6 +333,15 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
         return self.__class__.get_required_fixed_framerate()
 
     @overload
+    def start(  # type: ignore[misc]
+        self,
+        __dialog: type[Dialog],
+        /,
+        **awake_kwargs: Any,
+    ) -> None:
+        ...
+
+    @overload
     def start(
         self,
         __scene: type[Scene],
@@ -342,15 +351,6 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
         stop_self: bool = False,
         **awake_kwargs: Any,
     ) -> NoReturn:
-        ...
-
-    @overload
-    def start(
-        self,
-        __scene: type[Dialog],
-        /,
-        **awake_kwargs: Any,
-    ) -> None:
         ...
 
     @final
