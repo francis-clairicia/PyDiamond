@@ -11,7 +11,7 @@ The existing functions allow only a width of 1 for anti-aliased shapes, and this
 The goal is to implement pygame.gfxdraw (which uses SDL_gfx) if this is not deprecated in further pygame releases.
 (or at least manipulate pygame.draw.aa* functions in order to create thick shapes)
 
-Actually pygame.gfxdraw isn't working with 32-bits per-pixel alpha surfaces, used by *ALL* the PyDiamond system x')
+Currently pygame.gfxdraw isn't working with 32-bits per-pixel alpha surfaces, used by *ALL* the PyDiamond system x')
 
 Therefore, by default this module only exposes the pygame.draw functions.
 """
