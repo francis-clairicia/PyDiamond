@@ -4,6 +4,8 @@
 #
 """Interpolation utils module"""
 
+from __future__ import annotations
+
 __all__ = ["angle_interpolation", "linear_interpolation"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"

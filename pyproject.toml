@@ -50,9 +50,9 @@ tests = [
 profile = "black"
 line_length = 130
 combine_as_imports = true
-sections = ["FUTURE", "STDLIB", "FIRSTPARTY", "THIRDPARTY", "LOCALFOLDER"]
-known_first_party = ["py_diamond"]
-known_third_party = ["pygame"]
+sections = ["FUTURE", "STDLIB", "PYDIAMOND", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
+known_pydiamond = ["py_diamond"]
+add_imports = ["from __future__ import annotations"]
 
 [tool.black]
 line-length = 130

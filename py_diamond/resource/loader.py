@@ -4,6 +4,8 @@
 #
 """Resource loader module"""
 
+from __future__ import annotations
+
 __all__ = ["AbstractResourceLoader", "FontLoader", "ImageLoader", "MusicLoader", "SoundLoader"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"

@@ -1,5 +1,7 @@
 # -*- coding: Utf-8 -*-
 
+from __future__ import annotations
+
 from selectors import EVENT_READ, DefaultSelector
 from threading import Event
 from typing import Any

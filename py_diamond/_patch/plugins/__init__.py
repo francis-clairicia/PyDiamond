@@ -7,6 +7,8 @@
 All the submodules will be automatically imported by the PatchCollector singleton
 """
 
+from __future__ import annotations
+
 __all__ = []  # type: list[str]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"

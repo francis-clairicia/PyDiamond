@@ -4,6 +4,8 @@
 #
 """PyDiamond's network packet protocol module"""
 
+from __future__ import annotations
+
 __all__ = [
     "AbstractNetworkProtocol",
     "AutoParsedStreamNetworkProtocol",

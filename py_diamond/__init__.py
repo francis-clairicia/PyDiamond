@@ -6,6 +6,8 @@
 The framework uses the popular pygame library (https://github.com/pygame/pygame/).
 """
 
+from __future__ import annotations
+
 __all__ = []  # type: list[str]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"

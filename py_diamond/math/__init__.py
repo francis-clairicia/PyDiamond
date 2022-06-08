@@ -4,6 +4,8 @@
 #
 """PyDiamond's math module"""
 
+from __future__ import annotations
+
 __all__ = ["Vector2", "angle_interpolation", "linear_interpolation"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"

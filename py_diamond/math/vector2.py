@@ -4,6 +4,8 @@
 #
 """Vector2 module"""
 
+from __future__ import annotations
+
 __all__ = ["Vector2"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"

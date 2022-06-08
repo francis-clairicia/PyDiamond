@@ -1,5 +1,7 @@
 # -*- coding: Utf-8 -*-
 
+from __future__ import annotations
+
 from contextlib import contextmanager
 from os.path import dirname
 from sys import path as SYS_PATH

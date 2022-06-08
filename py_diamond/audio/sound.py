@@ -4,6 +4,8 @@
 #
 """Sound module"""
 
+from __future__ import annotations
+
 __all__ = ["Channel", "Sound"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"

@@ -1,5 +1,7 @@
 # -*- coding: Utf-8 -*-
 
+from __future__ import annotations
+
 import pickle
 from copy import copy, deepcopy
 from typing import Any

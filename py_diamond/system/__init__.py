@@ -4,6 +4,8 @@
 #
 """PyDiamond's system module"""
 
+from __future__ import annotations
+
 __all__ = []  # type: list[str]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"

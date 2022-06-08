@@ -4,6 +4,8 @@
 #
 """Surface module"""
 
+from __future__ import annotations
+
 __all__ = [
     "Surface",
     "create_surface",

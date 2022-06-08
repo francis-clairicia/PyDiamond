@@ -1,5 +1,7 @@
 # -*- coding: Utf-8 -*-
 
+from __future__ import annotations
+
 __all__ = ["random_port"]
 
 from random import randrange as _rand

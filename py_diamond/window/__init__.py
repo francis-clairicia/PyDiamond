@@ -4,6 +4,8 @@
 #
 """PyDiamond's window module"""
 
+from __future__ import annotations
+
 __all__ = [
     "AbstractAutoLayeredDrawableScene",
     "AbstractCursor",

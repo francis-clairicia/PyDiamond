@@ -7,6 +7,8 @@
 This module is intended for internal use, you would not have to use it.
 """
 
+from __future__ import annotations
+
 __all__ = ["PatchContext", "collector"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"

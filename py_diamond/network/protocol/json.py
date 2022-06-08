@@ -4,6 +4,8 @@
 #
 """json-based network packet protocol module"""
 
+from __future__ import annotations
+
 __all__ = ["JSONNetworkProtocol"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"

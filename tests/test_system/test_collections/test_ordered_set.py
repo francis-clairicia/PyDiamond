@@ -6,6 +6,8 @@ Unit tests for OrderedSet (modified to fit with the implemented features)
 See in 'ordered-set' project: https://github.com/rspeer/ordered-set/blob/34f2cba9f9509909506adeff51ddebac6060bf1b/test/test_ordered_set.py
 """
 
+from __future__ import annotations
+
 import collections
 import copy
 import itertools as it

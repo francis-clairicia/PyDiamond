@@ -12,6 +12,8 @@ a more convenient way to handle long music playback with the MusicStream class.
 See more in pygame documentation: https://www.pygame.org/docs/ref/mixer.html
 """
 
+from __future__ import annotations
+
 __all__ = [
     "AllowedAudioChanges",
     "AudioFormat",

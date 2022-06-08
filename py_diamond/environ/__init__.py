@@ -4,6 +4,8 @@
 #
 """PyDiamond's environment module"""
 
+from __future__ import annotations
+
 __all__ = [
     "get_executable_path",
     "get_main_script_path",

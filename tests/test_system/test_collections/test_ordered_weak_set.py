@@ -1,5 +1,7 @@
 # -*- coding: Utf-8 -*-
 
+from __future__ import annotations
+
 from py_diamond.system.collections import OrderedWeakSet
 
 import pytest

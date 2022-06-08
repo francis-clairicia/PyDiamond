@@ -4,6 +4,8 @@
 #
 """Python mangling module"""
 
+from __future__ import annotations
+
 __all__ = [
     "delattr_pv",
     "getattr_pv",

@@ -1,5 +1,7 @@
 # -*- coding: Utf-8 -*-
 
+from __future__ import annotations
+
 from socket import has_dualstack_ipv6, has_ipv6 as HAS_IPV6
 
 from py_diamond.network.socket import (

@@ -4,6 +4,8 @@
 #
 """Text module"""
 
+from __future__ import annotations
+
 __all__ = ["Text", "TextImage", "TextMeta"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"

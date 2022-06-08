@@ -4,6 +4,8 @@
 #
 """PyDiamond's graphics module"""
 
+from __future__ import annotations
+
 __all__ = [
     "AbstractCircleShape",
     "AbstractCrossShape",

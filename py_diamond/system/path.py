@@ -4,6 +4,8 @@
 #
 """Path utils module"""
 
+from __future__ import annotations
+
 __all__ = ["ConstantFileNotFoundError", "set_constant_directory", "set_constant_file"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"

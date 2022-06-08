@@ -6,11 +6,6 @@
 
 from __future__ import annotations
 
-from types import MappingProxyType
-
-if not __package__:
-    raise ImportError("There is no package name. Perhaps you should import the module instead of run the script file")
-
 __all__ = ["PatchCollector"]  # type: list[str]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -26,6 +21,7 @@ import itertools
 import os.path
 import pkgutil
 from collections import defaultdict, deque
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Final, Iterable, Iterator, Mapping, Sequence, no_type_check
 
 from ._base import BasePatch, PatchContext
@@ -34,6 +30,10 @@ if TYPE_CHECKING:
     from types import ModuleType
 
     from _typeshed import Self
+
+
+if not __package__:
+    raise ImportError("There is no package name. Perhaps you should import the module instead of run the script file")
 
 
 class _PatchCollectorType:

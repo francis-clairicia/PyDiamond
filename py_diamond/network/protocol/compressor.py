@@ -4,6 +4,8 @@
 #
 """Data compressor protocol module"""
 
+from __future__ import annotations
+
 __all__ = ["BZ2CompressorProtocol", "GzipCompressorProtocol", "ZlibCompressorProtocol"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"

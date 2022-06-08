@@ -4,6 +4,8 @@
 #
 """PyDiamond's collections module"""
 
+from __future__ import annotations
+
 __all__ = [
     "OrderedSet",
     "OrderedSetIndexError",

@@ -4,6 +4,8 @@
 #
 """PyDiamond's network socket module"""
 
+from __future__ import annotations
+
 __all__ = [
     "AF_INET",
     "AF_INET6",

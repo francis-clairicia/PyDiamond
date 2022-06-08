@@ -4,6 +4,8 @@
 #
 """PyDiamond's Time management module"""
 
+from __future__ import annotations
+
 __all__ = ["Time"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"

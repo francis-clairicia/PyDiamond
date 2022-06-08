@@ -4,6 +4,8 @@
 #
 """NoDuplicate objects module"""
 
+from __future__ import annotations
+
 __all__ = ["NoDuplicate", "NoDuplicateMeta"]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
