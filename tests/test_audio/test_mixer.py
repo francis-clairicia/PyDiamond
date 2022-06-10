@@ -55,7 +55,7 @@ class TestMixerUnit:
     def test__init__pygame_mixer_init_params(self, mock_pygame_mixer_module: MockMixerModule) -> None:
         # Arrange
 
-        ## We do not check for every combinations as pygame itself do not do it
+        ## We do not check for every combination as pygame itself do not do it
         ## See https://github.com/pygame/pygame/blob/58c4d07434df5d6c6362c8a73609e2b4149ec7ae/test/mixer_test.py#L30
         CONFIG = {"frequency": 44100, "size": 32, "channels": 2, "allowedchanges": 0}
 

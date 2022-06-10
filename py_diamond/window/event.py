@@ -31,6 +31,7 @@ __all__ = [
     "MouseMotionEvent",
     "MouseWheelEvent",
     "MusicEndEvent",
+    "ScreenshotEvent",
     "TextEditingEvent",
     "TextEvent",
     "TextInputEvent",
