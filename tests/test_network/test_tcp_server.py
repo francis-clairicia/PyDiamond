@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from io import BufferedReader
 from time import sleep
 from typing import Any, ClassVar, Generator
 
@@ -142,12 +143,10 @@ class _IntegerNetworkProtocol(AbstractStreamNetworkProtocol):
     def deserialize(self, data: bytes) -> int:
         return int.from_bytes(data, byteorder="big", signed=True)
 
-    def parse_received_data(self, buffer: bytes) -> Generator[bytes, None, bytes]:
+    def parse_received_data(self, buffer: BufferedReader) -> Generator[bytes, None, None]:
         bytes_length: int = self.BYTES_LENGTH
-        while len(buffer) >= bytes_length:
-            yield buffer[:bytes_length]
-            buffer = buffer[bytes_length:]
-        return buffer
+        while len(buffer.peek(bytes_length)) >= bytes_length:
+            yield buffer.read(bytes_length)
 
     def verify_received_data(self, data: bytes) -> None:
         if len(data) != self.BYTES_LENGTH:

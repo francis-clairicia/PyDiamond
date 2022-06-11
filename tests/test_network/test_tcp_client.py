@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from io import BufferedReader
 from selectors import EVENT_READ, DefaultSelector
 from threading import Event
 from typing import Any, Generator
@@ -104,12 +105,10 @@ def test_custom_protocol() -> None:
 
 
 class StringNetworkProtocol(AbstractStreamNetworkProtocol):
-    def parse_received_data(self, buffer: bytes) -> Generator[bytes, None, bytes]:
-        separator: bytes = b"\n"
-        while (idx := buffer.find(separator)) >= 0:
-            yield buffer[:idx]
-            buffer = buffer[idx + len(separator) :]
-        return buffer
+    def parse_received_data(self, buffer: BufferedReader) -> Generator[bytes, None, None]:
+        while b"\n" in buffer.peek():
+            data = buffer.readline()
+            yield data[:-1]
 
     def serialize(self, packet: str) -> bytes:
         if not isinstance(packet, str):

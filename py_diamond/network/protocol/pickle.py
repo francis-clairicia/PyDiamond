@@ -12,14 +12,14 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from io import BytesIO
+from io import BufferedReader, BytesIO
 from pickle import HIGHEST_PROTOCOL, STOP as STOP_OPCODE, Pickler, Unpickler, UnpicklingError
 from pickletools import optimize as pickletools_optimize
 from typing import IO, Any, Generator
 
 from ...system.object import final
 from ...system.utils.abc import concreteclass
-from .base import AbstractStreamNetworkProtocol, ParserExit, ValidationError
+from .base import AbstractStreamNetworkProtocol, ValidationError
 
 
 @concreteclass
@@ -42,16 +42,18 @@ class PicklingNetworkProtocol(AbstractStreamNetworkProtocol):
         except UnpicklingError as exc:
             raise ValidationError("Unpickling error") from exc
 
-    def parse_received_data(self, buffer: bytes) -> Generator[bytes, None, bytes]:
-        while (idx := buffer.find(STOP_OPCODE)) >= 0:
-            idx += len(STOP_OPCODE)
-            data = buffer[:idx]
-            buffer = buffer[idx:]
-            try:
-                yield data
-            except ParserExit:
-                break
-        return buffer
+    def parse_received_data(self, buffer: BufferedReader) -> Generator[bytes, None, None]:
+        data = BytesIO()
+        while chunk := buffer.peek(4096):
+            if (idx := chunk.find(STOP_OPCODE)) < 0:
+                data.write(buffer.read(4096))
+                continue
+            data.write(buffer.read(idx + len(STOP_OPCODE)))
+            data.flush()
+            yield data.getvalue()
+            # As we can't delete underlying bytes, we recreate a new empty BytesIO object
+            data.close()
+            data = BytesIO()
 
     def get_pickler(self, buffer: IO[bytes]) -> Pickler:
         return Pickler(buffer, protocol=HIGHEST_PROTOCOL, fix_imports=False, buffer_callback=None)

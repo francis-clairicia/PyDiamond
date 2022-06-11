@@ -12,10 +12,9 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-import sys
 from abc import abstractmethod
 from collections import deque
-from io import DEFAULT_BUFFER_SIZE
+from io import DEFAULT_BUFFER_SIZE, BufferedReader, BytesIO
 from os import fstat
 from selectors import EVENT_READ, EVENT_WRITE, SelectSelector as _Selector
 from threading import RLock
@@ -23,7 +22,7 @@ from typing import TYPE_CHECKING, Any, Callable, Generator, Generic, Iterator, T
 
 from ..system.object import Object, final
 from ..system.utils.abc import concreteclass, concreteclasscheck
-from .protocol.base import AbstractNetworkProtocol, AbstractStreamNetworkProtocol, ParserExit, ValidationError
+from .protocol.base import AbstractNetworkProtocol, AbstractStreamNetworkProtocol, ValidationError
 from .protocol.pickle import PicklingNetworkProtocol
 from .socket.base import (
     AbstractSocket,
@@ -243,17 +242,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
             except ValidationError:
                 continue
             except:
-                parser_exc = ParserExit()
-                try:
-                    chunk_generator.throw(ParserExit, parser_exc, sys.exc_info()[2])
-                except StopIteration:  # Successfully closed
-                    pass
-                except ParserExit as exc:
-                    # The underlying parser may not handle this exception to return back the buffer
-                    if exc is not parser_exc:  # Big problem
-                        # Explicitly re-raise within the exception handler only for the context traceback
-                        # Useful for debugging
-                        raise
+                chunk_generator.close()
                 raise
 
     def __parse_received_data(self, flags: int, block: bool) -> Generator[bytes, None, None]:
@@ -261,6 +250,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
         buffer: bytes = self.__buffer_recv
         self.__buffer_recv = bytes()
 
+        # TODO: Give directly the socket to the BufferedReader object
         chunk_reader = self.read_socket(self.__socket, self.__chunk_size, block=block, flags=flags)
         try:
             while True:
@@ -269,28 +259,19 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
                 except (OSError, EOFError) as exc:
                     raise DisconnectedClientError(self) from exc
                 if chunk is None:
+                    self.__buffer_recv = buffer
                     break
                 buffer += chunk
-                parser = protocol.parse_received_data(buffer)
-                while True:  # Reproduce the 'yield from' statement to introduce our ParserExit
+                with BufferedReader(BytesIO(buffer), buffer_size=len(buffer)) as reader:  # type: ignore[arg-type]
                     try:
-                        data = next(parser)
-                    except StopIteration as exc:
-                        buffer = exc.value or b""  # Exclude potential 'None'
+                        yield from protocol.parse_received_data(reader)
+                    except GeneratorExit:
+                        self.__buffer_recv = reader.read()
                         break
-                    try:
-                        yield data
-                    except ParserExit as exc:
-                        try:
-                            parser.throw(ParserExit, exc, sys.exc_info()[2])
-                        except StopIteration as stop_exc:  # Force quit here
-                            self.__buffer_recv = stop_exc.value or b""  # Exclude potential 'None'
-                            return
-                        else:  # Hey you should quit man
-                            raise RuntimeError("generator didn't stop")
+                    else:
+                        buffer = reader.read()
         finally:
             chunk_reader.close()
-        self.__buffer_recv = buffer
 
     @staticmethod
     def read_socket(

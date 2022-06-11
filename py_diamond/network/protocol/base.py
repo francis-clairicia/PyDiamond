@@ -20,6 +20,7 @@ __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
 from functools import cached_property
+from io import SEEK_CUR, BufferedReader
 from struct import Struct, error as StructError
 from threading import RLock
 from typing import TYPE_CHECKING, Any, ClassVar, Final, Generator, TypeVar
@@ -31,10 +32,6 @@ from ...system.utils.abc import isconcreteclass
 
 
 class ValidationError(Exception):
-    pass
-
-
-class ParserExit(Exception):
     pass
 
 
@@ -53,37 +50,33 @@ class AbstractStreamNetworkProtocol(AbstractNetworkProtocol):
         return data
 
     @abstractmethod
-    def parse_received_data(self, buffer: bytes) -> Generator[bytes, None, bytes]:
+    def parse_received_data(self, buffer: BufferedReader) -> Generator[bytes, None, None]:
         raise NotImplementedError
 
 
 class AutoParsedStreamNetworkProtocol(AbstractStreamNetworkProtocol):
     __struct: Final[Struct] = Struct("!I")
 
-    @final
     def parser_add_header_footer(self, data: bytes) -> bytes:
         header: bytes = self.__struct.pack(len(data))
         return header + data
 
-    @final
-    def parse_received_data(self, buffer: bytes) -> Generator[bytes, None, bytes]:
+    def parse_received_data(self, buffer: BufferedReader) -> Generator[bytes, None, None]:
         struct: Struct = self.__struct
-        while len(buffer) >= struct.size:
-            header: bytes = buffer[: struct.size]
-            body: bytes = buffer[struct.size :]
+        while len(buffer.peek(struct.size)) >= struct.size:
+            # TODO: Check seekable() before doing that
+            header: bytes = buffer.read(struct.size)
             try:
                 data_length: int = struct.unpack(header)[0]
             except StructError:
-                return bytes()
-            if len(body) < data_length:
-                break
-            data = body[:data_length]
-            buffer = body[data_length:]
-            try:
-                yield data
-            except ParserExit:
-                break
-        return buffer
+                buffer.read()  # Flush all buffer as the data may be corrupted
+                return
+            # TODO: Test with tiny buffer size
+            if len(buffer.peek(data_length)) < data_length:  # Not enough data
+                # Reset cursor position for the next call
+                buffer.seek(-struct.size, SEEK_CUR)
+                return
+            yield buffer.read(data_length)
 
 
 class SecuredNetworkProtocolMeta(ObjectMeta):
