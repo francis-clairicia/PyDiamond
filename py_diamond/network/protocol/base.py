@@ -20,7 +20,7 @@ __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
 from functools import cached_property
-from io import SEEK_CUR, BufferedReader
+from io import BufferedReader
 from struct import Struct, error as StructError
 from threading import RLock
 from typing import TYPE_CHECKING, Any, ClassVar, Final, Generator, TypeVar
@@ -63,20 +63,20 @@ class AutoParsedStreamNetworkProtocol(AbstractStreamNetworkProtocol):
 
     def parse_received_data(self, buffer: BufferedReader) -> Generator[bytes, None, None]:
         struct: Struct = self.__struct
-        while len(buffer.peek(struct.size)) >= struct.size:
-            # TODO: Check seekable() before doing that
-            header: bytes = buffer.read(struct.size)
+        cursor: int = buffer.tell()
+        while len((header := buffer.read(struct.size))) == struct.size:
             try:
                 data_length: int = struct.unpack(header)[0]
             except StructError:
-                buffer.read()  # Flush all buffer as the data may be corrupted
+                while buffer.read():  # Flush all buffer as the data may be corrupted
+                    continue
                 return
-            # TODO: Test with tiny buffer size
-            if len(buffer.peek(data_length)) < data_length:  # Not enough data
-                # Reset cursor position for the next call
-                buffer.seek(-struct.size, SEEK_CUR)
-                return
-            yield buffer.read(data_length)
+            if len((body := buffer.read(data_length))) < data_length:  # Not enough data
+                break
+            cursor = buffer.tell()
+            yield body
+        # Reset buffer cursor for next call
+        buffer.seek(cursor)
 
 
 class SecuredNetworkProtocolMeta(ObjectMeta):
