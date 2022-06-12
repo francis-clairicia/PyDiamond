@@ -44,10 +44,8 @@ def flatten(iterable: Iterable[Iterable[Iterable[Iterable[Iterable[_T]]]]], *, l
 
 
 def flatten(iterable: Any, *, level: int = 1) -> Iterator[Any]:
-    level = int(level)
     if level == 1:
-        return (yield from chain.from_iterable(iterable))
+        return chain.from_iterable(iterable)
     if not (2 <= level <= 4):
-        raise ValueError("'level' must be in ]0;4]")
-    for it in iterable:
-        yield from flatten(it, level=level - 1)  # type: ignore[call-overload]
+        raise ValueError("'level' must be in [1;4]")
+    return (elem for it in iterable for elem in flatten(it, level=level - 1))  # type: ignore[call-overload]
