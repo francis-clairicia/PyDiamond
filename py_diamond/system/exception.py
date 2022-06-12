@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 import inspect
 import os
 import sys
-from typing import Any, Callable, NoReturn, ParamSpec, TypeVar
+from typing import Any, AsyncGenerator, Callable, NoReturn, ParamSpec, TypeVar
 
 from .utils.functools import wraps
 
@@ -43,6 +43,44 @@ def noexcept(func: Callable[_P, _R], /) -> Callable[_P, _R]:
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 return (yield from func(*args, **kwargs))  # type: ignore[misc]
+            except exit_exceptions:
+                raise
+            except:
+                abort()
+
+    elif inspect.isasyncgenfunction(func):
+        exit_exceptions += (StopIteration, GeneratorExit)
+
+        @wraps(func)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            try:
+                async_gen: AsyncGenerator[Any, Any] = func(*args, **kwargs)  # type: ignore[assignment]
+                # Reproduced the pure python implementation of the 'yield from' statement
+                # See https://peps.python.org/pep-0380/#formal-semantics
+                _y = await async_gen.__anext__()
+                while True:
+                    try:
+                        _s = yield _y
+                    except GeneratorExit:
+                        await async_gen.aclose()
+                        raise
+                    except:
+                        _y = await async_gen.athrow(*sys.exc_info())
+                    else:
+                        _y = await async_gen.asend(_s)
+            except StopAsyncIteration:
+                return
+            except exit_exceptions:
+                raise
+            except:
+                abort()
+
+    elif inspect.iscoroutinefunction(func):
+
+        @wraps(func)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            try:
+                return await func(*args, **kwargs)  # type: ignore[misc]
             except exit_exceptions:
                 raise
             except:
