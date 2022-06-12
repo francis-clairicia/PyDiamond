@@ -342,6 +342,8 @@ class BooleanCheckBox(CheckBox[bool, bool]):
             outline_color=outline_color,
             img=img,
             callback=callback,
+            highlight_color=highlight_color,
+            highlight_thickness=highlight_thickness,
             state=state,
             hover_cursor=hover_cursor,
             disabled_cursor=disabled_cursor,

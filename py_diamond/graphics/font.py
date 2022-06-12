@@ -169,7 +169,7 @@ class Font(Object):
                 resolution = 1
         else:
             resolution = 0
-        self.__ft: pygame.freetype.Font = Font.__factory(file, size=size, resolution=resolution)
+        self.__ft: pygame.freetype.Font = self.__factory(file, size=size, resolution=resolution)
         self.__ft.strength = 1.0 / 12.0
         self.__ft.kerning = False
         self.__ft.origin = False
@@ -188,7 +188,7 @@ class Font(Object):
             ft_size = float(ft.size)  # type: ignore[arg-type]
         except ValueError:
             ft_size = max(ft.size)  # type: ignore[arg-type]
-        copy_self.__ft = copy_ft = Font.__factory(ft.path, size=ft_size, resolution=self.resolution)
+        copy_self.__ft = copy_ft = self.__factory(ft.path, size=ft_size, resolution=self.resolution)
         for attr in {*self.config.info.options, "pad", "origin"}:
             setattr(copy_ft, attr, getattr(ft, attr))
         return copy_self
@@ -294,7 +294,7 @@ class Font(Object):
         surf: Surface,
         dest: tuple[float, float] | Vector2 | Rect,
         text: str,
-        fgcolor: _ColorValue | None = None,
+        fgcolor: _ColorValue,
         bgcolor: _ColorValue | None = None,
         style: int = STYLE_DEFAULT,
         rotation: int = 0,

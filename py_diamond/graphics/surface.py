@@ -18,7 +18,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
-from typing import TYPE_CHECKING, Sequence, overload
+from typing import TYPE_CHECKING, Iterable, Literal as L, Sequence, overload
 
 import pygame.image
 from pygame import encode_file_path
@@ -31,7 +31,6 @@ else:
 from pygame.draw import aaline as _draw_antialiased_line, aalines as _draw_multiple_antialiased_lines
 from pygame.surface import Surface
 
-from ..math.vector2 import Vector2
 from ..system.utils.abc import concreteclass
 from ._draw import (
     draw_arc as _draw_arc,
@@ -47,7 +46,7 @@ from .rect import Rect
 from .renderer import AbstractRenderer, BlendMode
 
 if TYPE_CHECKING:
-    from pygame._common import _ColorValue, _Coordinate, _RectValue  # pyright: reportMissingModuleSource=false
+    from pygame._common import _CanBeRect, _ColorValue, _Coordinate, _RectValue  # pyright: reportMissingModuleSource=false
 
 del pygame
 
@@ -91,36 +90,65 @@ class SurfaceRenderer(AbstractRenderer):
         self.__target: Surface = arg if isinstance(arg, Surface) else create_surface(arg, convert_alpha=convert_alpha)
 
     def get_rect(self, **kwargs: float | Sequence[float]) -> Rect:
-        target: Surface = self.__target
-        return target.get_rect(**kwargs)
+        return self.__target.get_rect(**kwargs)
 
     def get_size(self) -> tuple[int, int]:
-        target: Surface = self.__target
-        return target.get_size()
+        return self.__target.get_size()
 
     def get_width(self) -> float:
-        target: Surface = self.__target
-        return target.get_width()
+        return self.__target.get_width()
 
     def get_height(self) -> float:
-        target: Surface = self.__target
-        return target.get_height()
+        return self.__target.get_height()
 
     def fill(self, color: _ColorValue) -> None:
-        target: Surface = self.__target
-        target.fill(color)
+        self.__target.fill(color)
 
     def draw_surface(
         self,
-        obj: Surface,
-        dest: tuple[float, float] | Vector2 | Rect,
+        surface: Surface,
+        dest: _Coordinate | _CanBeRect,
         /,
         *,
-        area: Rect | None = None,
+        area: _CanBeRect | None = None,
         special_flags: BlendMode = BlendMode.NONE,
     ) -> Rect:
-        target: Surface = self.__target
-        return target.blit(obj, dest, area, special_flags)
+        return self.__target.blit(surface, dest, area, special_flags)
+
+    @overload
+    def draw_many_surfaces(
+        self,
+        sequence: Iterable[
+            tuple[Surface, _Coordinate | _CanBeRect]
+            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
+            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
+        ],
+        doreturn: L[True] = ...,
+    ) -> list[Rect]:
+        ...
+
+    @overload
+    def draw_many_surfaces(
+        self,
+        sequence: Iterable[
+            tuple[Surface, _Coordinate | _CanBeRect]
+            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
+            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
+        ],
+        doreturn: L[False],
+    ) -> None:
+        ...
+
+    def draw_many_surfaces(
+        self,
+        sequence: Iterable[
+            tuple[Surface, _Coordinate | _CanBeRect]
+            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
+            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
+        ],
+        doreturn: bool = True,
+    ) -> list[Rect] | None:
+        return self.__target.blits(sequence, doreturn)  # type: ignore[arg-type]
 
     def draw_rect(
         self,
@@ -133,9 +161,8 @@ class SurfaceRenderer(AbstractRenderer):
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
     ) -> Rect:
-        target: Surface = self.__target
-        output_rect: Rect = _draw_rect(
-            surface=target,
+        return _draw_rect(
+            surface=self.__target,
             color=color,
             rect=rect,
             width=width,
@@ -145,7 +172,6 @@ class SurfaceRenderer(AbstractRenderer):
             border_bottom_left_radius=border_bottom_left_radius,
             border_bottom_right_radius=border_bottom_right_radius,
         )
-        return output_rect
 
     def draw_polygon(
         self,
@@ -153,9 +179,7 @@ class SurfaceRenderer(AbstractRenderer):
         points: Sequence[_Coordinate],
         width: int = 0,
     ) -> Rect:
-        target: Surface = self.__target
-        output_rect: Rect = _draw_polygon(surface=target, color=color, points=points, width=width)
-        return output_rect
+        return _draw_polygon(surface=self.__target, color=color, points=points, width=width)
 
     def draw_circle(
         self,
@@ -168,9 +192,8 @@ class SurfaceRenderer(AbstractRenderer):
         draw_bottom_left: bool | None = None,
         draw_bottom_right: bool | None = None,
     ) -> Rect:
-        target: Surface = self.__target
-        output_rect: Rect = _draw_circle(
-            surface=target,
+        return _draw_circle(
+            surface=self.__target,
             color=color,
             center=center,
             radius=radius,
@@ -180,12 +203,9 @@ class SurfaceRenderer(AbstractRenderer):
             draw_bottom_left=draw_bottom_left,
             draw_bottom_right=draw_bottom_right,
         )
-        return output_rect
 
     def draw_ellipse(self, color: _ColorValue, rect: _RectValue, width: int = 0) -> Rect:
-        target: Surface = self.__target
-        output_rect: Rect = _draw_ellipse(surface=target, color=color, rect=rect, width=width)
-        return output_rect
+        return _draw_ellipse(surface=self.__target, color=color, rect=rect, width=width)
 
     def draw_arc(
         self,
@@ -195,11 +215,14 @@ class SurfaceRenderer(AbstractRenderer):
         stop_angle: float,
         width: int = 1,
     ) -> Rect:
-        target: Surface = self.__target
-        output_rect: Rect = _draw_arc(
-            surface=target, color=color, rect=rect, start_angle=start_angle, stop_angle=stop_angle, width=width
+        return _draw_arc(
+            surface=self.__target,
+            color=color,
+            rect=rect,
+            start_angle=start_angle,
+            stop_angle=stop_angle,
+            width=width,
         )
-        return output_rect
 
     def draw_line(
         self,
@@ -208,9 +231,7 @@ class SurfaceRenderer(AbstractRenderer):
         end_pos: _Coordinate,
         width: int = 1,
     ) -> Rect:
-        target: Surface = self.__target
-        output_rect: Rect = _draw_line(surface=target, color=color, start_pos=start_pos, end_pos=end_pos, width=width)
-        return output_rect
+        return _draw_line(surface=self.__target, color=color, start_pos=start_pos, end_pos=end_pos, width=width)
 
     def draw_lines(
         self,
@@ -219,9 +240,7 @@ class SurfaceRenderer(AbstractRenderer):
         points: Sequence[_Coordinate],
         width: int = 1,
     ) -> Rect:
-        target: Surface = self.__target
-        output_rect: Rect = _draw_multiple_lines(surface=target, color=color, closed=closed, points=points, width=width)
-        return output_rect
+        return _draw_multiple_lines(surface=self.__target, color=color, closed=closed, points=points, width=width)
 
     def draw_aaline(
         self,
@@ -230,9 +249,7 @@ class SurfaceRenderer(AbstractRenderer):
         end_pos: _Coordinate,
         blend: int = 1,
     ) -> Rect:
-        target: Surface = self.__target
-        output_rect: Rect = _draw_antialiased_line(surface=target, color=color, start_pos=start_pos, end_pos=end_pos, blend=blend)
-        return output_rect
+        return _draw_antialiased_line(surface=self.__target, color=color, start_pos=start_pos, end_pos=end_pos, blend=blend)
 
     def draw_aalines(
         self,
@@ -241,11 +258,13 @@ class SurfaceRenderer(AbstractRenderer):
         points: Sequence[_Coordinate],
         blend: int = 1,
     ) -> Rect:
-        target: Surface = self.__target
-        output_rect: Rect = _draw_multiple_antialiased_lines(
-            surface=target, color=color, closed=closed, points=points, blend=blend
+        return _draw_multiple_antialiased_lines(
+            surface=self.__target,
+            color=color,
+            closed=closed,
+            points=points,
+            blend=blend,
         )
-        return output_rect
 
     @property
     def surface(self) -> Surface:

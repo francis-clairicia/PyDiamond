@@ -52,6 +52,8 @@ def _draw_decorator(func: Callable[[Drawable, AbstractRenderer], None], /) -> Ca
             func(self, target)
 
     setattr(wrapper, "__draw_onto_decorator__", True)
+    if getattr(func, "__final__", False):
+        setattr(wrapper, "__final__", True)
     return wrapper
 
 
@@ -71,7 +73,7 @@ class DrawableMeta(ObjectMeta):
 
         draw_method: Callable[[Drawable, AbstractRenderer], None] = getattr(cls, "draw_onto")
         if not getattr(draw_method, "__draw_onto_decorator__", False) and not isabstractmethod(draw_method):
-            setattr(cls, "draw_onto", _draw_decorator(draw_method))
+            type.__setattr__(cls, "draw_onto", _draw_decorator(draw_method))
 
         if not hasattr(cls, "__weakref__"):
             raise TypeError("A Drawable object must be weak-referencable")
@@ -374,7 +376,7 @@ class BaseLayeredDrawableGroup(BaseDrawableGroup[_D]):
 
     @property
     def layers(self) -> Sequence[int]:
-        return sorted(set(self.__layer_dict.values()))
+        return sorted(set(self.__layer_dict.values()) | {self.default_layer})
 
 
 class LayeredDrawableGroup(BaseLayeredDrawableGroup[Drawable], Drawable):

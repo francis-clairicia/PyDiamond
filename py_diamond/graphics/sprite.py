@@ -106,6 +106,7 @@ class Sprite(TDrawable):
     def update(self, **kwargs: Any) -> None:
         pass
 
+    @final
     def draw_onto(self, target: AbstractRenderer) -> None:
         target.draw_surface(self.__image, self.topleft, special_flags=self.__blend_mode)
 
@@ -180,7 +181,7 @@ class Sprite(TDrawable):
 
     @property
     def image(self) -> Surface:
-        return self.__image.copy()
+        return self.__image
 
     @property
     @final
@@ -241,7 +242,7 @@ class AnimatedSprite(Sprite):
     def from_spritesheet(
         cls: type[__Self],
         img: Surface,
-        rect_list: list[Rect],
+        rect_list: Iterable[Rect],
         *,
         mask_threshold: int = Sprite.DEFAULT_MASK_THRESHOLD,
         width: float | None = None,
@@ -301,6 +302,9 @@ _S = TypeVar("_S", bound=Sprite)
 
 class BaseSpriteGroup(BaseDrawableGroup[_S]):
     __slots__ = ()
+
+    def draw_onto(self, target: AbstractRenderer) -> None:
+        target.draw_many_surfaces(((s.image, s.topleft, None, s.blend) for s in self), doreturn=False)
 
     def fixed_update(self, **kwargs: Any) -> None:
         for s in self:

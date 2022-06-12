@@ -15,7 +15,20 @@ __license__ = "GNU GPL v3.0"
 from abc import ABCMeta, abstractmethod
 from contextlib import ExitStack, contextmanager
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal as L, NamedTuple, Protocol, TypeAlias, TypeVar, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Final,
+    Iterator,
+    Literal as L,
+    NamedTuple,
+    Protocol,
+    TypeAlias,
+    TypeVar,
+    cast,
+    overload,
+)
 from weakref import WeakKeyDictionary, ref as weakref
 
 from ..math import Vector2, angle_interpolation, linear_interpolation
@@ -304,7 +317,7 @@ class TransformAnimation(BaseAnimation):
 
     __slots__ = ("__animations",)
 
-    __animations_order: list[_AnimationType] = ["scale", "rotate", "rotate_point", "move"]
+    __animations_order: Final[tuple[_AnimationType, ...]] = ("scale", "rotate", "rotate_point", "move")
 
     def __init__(self, transformable: Transformable) -> None:
         if not isinstance(transformable, Transformable):
@@ -457,17 +470,15 @@ class TransformAnimation(BaseAnimation):
         self.__animations.clear()
 
     def _launch_animations(self) -> None:
-        for animation in self.__iter_animations():
+        get_animation = self.__animations.get
+        for animation_name in self.__animations_order:
+            animation: _AbstractAnimationClass | None = get_animation(animation_name)
+            if animation is None:
+                continue
             if animation.started():
                 animation.fixed_update()
             else:
                 animation.default()
-
-    def __iter_animations(self) -> Iterator[_AbstractAnimationClass]:
-        for animation_name in self.__animations_order:
-            animation: _AbstractAnimationClass | None = self.__animations.get(animation_name)
-            if animation is not None:
-                yield animation
 
 
 class _ObjectStateProtocol(Protocol):

@@ -13,17 +13,17 @@ __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephin
 __license__ = "GNU GPL v3.0"
 
 from abc import abstractmethod
+from collections import deque
 from enum import IntEnum, unique
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Iterable, Literal as L, Sequence, no_type_check, overload
 
 import pygame.constants as _pg_constants
 
-from ..math.vector2 import Vector2
 from ..system.object import Object
 from .rect import Rect
 
 if TYPE_CHECKING:
-    from pygame._common import _ColorValue, _Coordinate, _RectValue  # pyright: reportMissingModuleSource=false
+    from pygame._common import _CanBeRect, _ColorValue, _Coordinate, _RectValue  # pyright: reportMissingModuleSource=false
 
     from .surface import Surface
 
@@ -72,14 +72,75 @@ class AbstractRenderer(Object):
     @abstractmethod
     def draw_surface(
         self,
-        obj: Surface,
-        dest: tuple[float, float] | Vector2 | Rect,
+        surface: Surface,
+        dest: _Coordinate | _CanBeRect,
         /,
         *,
-        area: Rect | None = None,
+        area: _CanBeRect | None = None,
         special_flags: BlendMode = BlendMode.NONE,
     ) -> Rect:
         raise NotImplementedError
+
+    @overload
+    def draw_many_surfaces(
+        self,
+        sequence: Iterable[
+            tuple[Surface, _Coordinate | _CanBeRect]
+            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
+            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
+        ],
+        doreturn: L[True] = ...,
+    ) -> list[Rect]:
+        ...
+
+    @overload
+    def draw_many_surfaces(
+        self,
+        sequence: Iterable[
+            tuple[Surface, _Coordinate | _CanBeRect]
+            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
+            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
+        ],
+        doreturn: L[False],
+    ) -> None:
+        ...
+
+    @no_type_check  # TODO: mypy crash on match statement (I know, this is not a todo)
+    def draw_many_surfaces(
+        self,
+        sequence: Iterable[
+            tuple[Surface, _Coordinate | _CanBeRect]
+            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
+            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
+        ],
+        doreturn: bool = True,
+    ) -> list[Rect] | None:
+        draw = self.draw_surface
+        if doreturn:
+            rects: deque[Rect] = deque()
+            append_rect = rects.append
+            for args in sequence:
+                match args:
+                    case (surface, dest):
+                        append_rect(draw(surface, dest))
+                    case (surface, dest, area):
+                        append_rect(draw(surface, dest, area=area))
+                    case (surface, dest, area, flags):
+                        append_rect(draw(surface, dest, area=area, special_flags=flags))
+                    case _:
+                        raise TypeError("Invalid argument")
+            return list(rects)
+        for args in sequence:
+            match args:
+                case (surface, dest):
+                    draw(surface, dest)
+                case (surface, dest, area):
+                    draw(surface, dest, area=area)
+                case (surface, dest, area, flags):
+                    draw(surface, dest, area=area, special_flags=flags)
+                case _:
+                    raise TypeError("Invalid argument")
+        return None
 
     @abstractmethod
     def draw_rect(
