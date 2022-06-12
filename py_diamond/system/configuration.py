@@ -24,6 +24,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
+import inspect
 import re
 from contextlib import ExitStack, contextmanager, nullcontext, suppress
 from copy import copy
@@ -38,24 +39,17 @@ from typing import (
     Any,
     Callable,
     ClassVar,
-    Dict,
-    FrozenSet,
     Generic,
     Hashable,
     Iterator,
-    List,
     Literal as L,
     Mapping,
     NamedTuple,
-    Optional,
     Protocol,
     Sequence,
-    Set,
     SupportsIndex,
-    Tuple,
-    Type,
+    TypeAlias,
     TypeVar,
-    Union,
     cast,
     overload,
     runtime_checkable,
@@ -137,14 +131,14 @@ class ConfigurationTemplate(Object):
         "__bound_class",
         "__attr_name",
         "__lock",
-        "__build",
+        "__info",
     )
 
     def __init__(
         self,
         *known_options: str,
-        autocopy: Optional[bool] = None,
-        parent: Optional[Union[ConfigurationTemplate, Sequence[ConfigurationTemplate]]] = None,
+        autocopy: bool | None = None,
+        parent: ConfigurationTemplate | Sequence[ConfigurationTemplate] | None = None,
     ) -> None:
         for option in known_options:
             if not option:
@@ -161,11 +155,11 @@ class ConfigurationTemplate(Object):
             parent = list(dict.fromkeys(parent))
 
         self.__template: _ConfigInfoTemplate = _ConfigInfoTemplate(known_options, autocopy, list(p.__template for p in parent))
-        self.__no_parent_ownership: Set[str] = set()
-        self.__bound_class: Optional[type] = None
-        self.__attr_name: Optional[str] = None
+        self.__no_parent_ownership: set[str] = set()
+        self.__bound_class: type | None = None
+        self.__attr_name: str | None = None
         self.__lock = RLock()
-        self.__build: Optional[ConfigurationInfo] = None
+        self.__info: ConfigurationInfo | None = None
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({{{', '.join(repr(s) for s in sorted(self.known_options()))}}})"
@@ -180,17 +174,17 @@ class ConfigurationTemplate(Object):
             raise OptionError(name, "ConfigurationTemplate attribute name is an option")
         self.__bound_class = owner
         self.__attr_name = name
-        attribute_class_owner: Dict[str, type] = template.attribute_class_owner
-        no_parent_ownership: Set[str] = self.__no_parent_ownership
+        attribute_class_owner: dict[str, type] = template.attribute_class_owner
+        no_parent_ownership: set[str] = self.__no_parent_ownership
         for option in template.options:
             if option in no_parent_ownership:
                 attribute_class_owner[option] = owner
             else:
                 attribute_class_owner.setdefault(option, owner)
-            descriptor: Optional[_Descriptor] = template.value_descriptors.get(option)
+            descriptor: _Descriptor | None = template.value_descriptors.get(option)
             if descriptor not in template.parent_descriptors and hasattr(descriptor, "__set_name__"):
                 getattr(descriptor, "__set_name__")(attribute_class_owner[option], option)
-        former_config: Optional[ConfigurationTemplate] = _register_configuration(owner, self)
+        former_config: ConfigurationTemplate | None = _register_configuration(owner, self)
         for obj in _all_members(owner).values():
             if isinstance(obj, OptionAttribute):
                 with suppress(AttributeError):
@@ -198,33 +192,33 @@ class ConfigurationTemplate(Object):
             elif isinstance(obj, ConfigurationTemplate) and obj is not self:
                 _register_configuration(owner, former_config)
                 raise TypeError(f"A class can't have several {ConfigurationTemplate.__name__!r} objects")
-        self.__build = template.build(owner)
+        self.__info = template.build(owner)
 
     @overload
     def __get__(self, obj: None, objtype: type, /) -> ConfigurationTemplate:
         ...
 
     @overload
-    def __get__(self, obj: _T, objtype: Optional[type] = None, /) -> Configuration[_T]:
+    def __get__(self, obj: _T, objtype: type | None = None, /) -> Configuration[_T]:
         ...
 
     # TODO: Optimize this BIG block function
-    def __get__(self, obj: Any, objtype: Optional[type] = None, /) -> Union[ConfigurationTemplate, Configuration[Any]]:
+    def __get__(self, obj: Any, objtype: type | None = None, /) -> ConfigurationTemplate | Configuration[Any]:
         if obj is None:
             if objtype is None:
                 raise TypeError("__get__(None, None) is invalid")
             return self
         attr_name = self.__attr_name
-        info = self.__build
+        info = self.__info
         bound_class = self.__bound_class
         if not attr_name or info is None or bound_class is None:
             raise TypeError("Cannot use ConfigurationTemplate instance without calling __set_name__ on it.")
-        if objtype is None:
-            objtype = type(obj)
         try:
             objref: WeakReferenceType[Any] = weakref(obj)
         except TypeError:
             return Configuration(obj, info)
+        if objtype is None:
+            objtype = type(obj)
         if getattr(objtype, attr_name, None) is not self:
             return Configuration(objref, info)
         try:
@@ -257,10 +251,10 @@ class ConfigurationTemplate(Object):
     def __delete__(self, obj: _T) -> None:
         raise AttributeError("Read-only attribute")
 
-    def known_options(self) -> FrozenSet[str]:
+    def known_options(self) -> frozenset[str]:
         return self.__template.options
 
-    def known_aliases(self) -> FrozenSet[str]:
+    def known_aliases(self) -> frozenset[str]:
         return frozenset(self.__template.aliases)
 
     def check_option_validity(self, option: str, *, use_alias: bool = False) -> str:
@@ -287,18 +281,18 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def set_autocopy(self, option: str, /, *, copy_on_get: Optional[bool]) -> None:
+    def set_autocopy(self, option: str, /, *, copy_on_get: bool | None) -> None:
         ...
 
     @overload
-    def set_autocopy(self, option: str, /, *, copy_on_set: Optional[bool]) -> None:
+    def set_autocopy(self, option: str, /, *, copy_on_set: bool | None) -> None:
         ...
 
     @overload
-    def set_autocopy(self, option: str, /, *, copy_on_get: Optional[bool], copy_on_set: Optional[bool]) -> None:
+    def set_autocopy(self, option: str, /, *, copy_on_get: bool | None, copy_on_set: bool | None) -> None:
         ...
 
-    def set_autocopy(self, arg1: Union[bool, str], /, **kwargs: Optional[bool]) -> None:
+    def set_autocopy(self, arg1: bool | str, /, **kwargs: bool | None) -> None:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         if isinstance(arg1, bool) and not kwargs:
@@ -306,13 +300,13 @@ class ConfigurationTemplate(Object):
         elif isinstance(arg1, str) and ("copy_on_get" in kwargs or "copy_on_set" in kwargs):
             self.check_option_validity(arg1)
             if "copy_on_get" in kwargs:
-                copy_on_get: Optional[bool] = kwargs["copy_on_get"]
+                copy_on_get: bool | None = kwargs["copy_on_get"]
                 if copy_on_get is None:
                     template.value_autocopy_get.pop(arg1, None)
                 else:
                     template.value_autocopy_get[arg1] = bool(copy_on_get)
             if "copy_on_set" in kwargs:
-                copy_on_set: Optional[bool] = kwargs["copy_on_set"]
+                copy_on_set: bool | None = kwargs["copy_on_set"]
                 if copy_on_set is None:
                     template.value_autocopy_set.pop(arg1, None)
                 else:
@@ -334,16 +328,16 @@ class ConfigurationTemplate(Object):
         ...
 
     def getter(
-        self, option: str, func: Optional[_GetterVar] = None, /, *, use_override: bool = True, readonly: bool = False
-    ) -> Optional[Callable[[_GetterVar], _GetterVar]]:
+        self, option: str, func: _GetterVar | None = None, /, *, use_override: bool = True, readonly: bool = False
+    ) -> Callable[[_GetterVar], _GetterVar] | None:
         self.__check_locked()
         self.check_option_validity(option)
         template: _ConfigInfoTemplate = self.__template
-        actual_descriptor: Optional[_Descriptor] = template.value_descriptors.get(option)
+        actual_descriptor: _Descriptor | None = template.value_descriptors.get(option)
         if not isinstance(actual_descriptor, _ReadOnlyOptionBuildPayload):
             if actual_descriptor is not None and not isinstance(actual_descriptor, _ConfigProperty):
                 raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
-            actual_property: Optional[_ConfigProperty] = actual_descriptor
+            actual_property: _ConfigProperty | None = actual_descriptor
             if (
                 actual_property is not None
                 and readonly
@@ -406,13 +400,13 @@ class ConfigurationTemplate(Object):
     def getter_key(
         self,
         option: str,
-        func: Optional[_KeyGetterVar] = None,
+        func: _KeyGetterVar | None = None,
         /,
         *,
         use_key: Any = _NO_DEFAULT,
         use_override: bool = True,
         readonly: bool = False,
-    ) -> Optional[Callable[[_KeyGetterVar], _KeyGetterVar]]:
+    ) -> Callable[[_KeyGetterVar], _KeyGetterVar] | None:
         self.__check_locked()
         self.check_option_validity(option)
         if use_key is _NO_DEFAULT:
@@ -489,12 +483,12 @@ class ConfigurationTemplate(Object):
         ...
 
     def setter(
-        self, option: str, func: Optional[_SetterVar] = None, /, *, use_override: bool = True
-    ) -> Optional[Callable[[_SetterVar], _SetterVar]]:
+        self, option: str, func: _SetterVar | None = None, /, *, use_override: bool = True
+    ) -> Callable[[_SetterVar], _SetterVar] | None:
         self.__check_locked()
         self.check_option_validity(option)
         template: _ConfigInfoTemplate = self.__template
-        actual_descriptor: Optional[_Descriptor] = template.value_descriptors.get(option)
+        actual_descriptor: _Descriptor | None = template.value_descriptors.get(option)
         if actual_descriptor is None:
             raise OptionError(option, "Attributing setter for this option which has no getter")
         if isinstance(actual_descriptor, _ReadOnlyOptionBuildPayload):
@@ -534,12 +528,12 @@ class ConfigurationTemplate(Object):
     def setter_key(
         self,
         option: str,
-        func: Optional[_KeySetterVar] = None,
+        func: _KeySetterVar | None = None,
         /,
         *,
         use_key: Any = _NO_DEFAULT,
         use_override: bool = True,
-    ) -> Optional[Callable[[_KeySetterVar], _KeySetterVar]]:
+    ) -> Callable[[_KeySetterVar], _KeySetterVar] | None:
         self.__check_locked()
         self.check_option_validity(option)
         if use_key is _NO_DEFAULT:
@@ -613,12 +607,12 @@ class ConfigurationTemplate(Object):
         ...
 
     def deleter(
-        self, option: str, func: Optional[_DeleterVar] = None, /, *, use_override: bool = True
-    ) -> Optional[Callable[[_DeleterVar], _DeleterVar]]:
+        self, option: str, func: _DeleterVar | None = None, /, *, use_override: bool = True
+    ) -> Callable[[_DeleterVar], _DeleterVar] | None:
         self.__check_locked()
         self.check_option_validity(option)
         template: _ConfigInfoTemplate = self.__template
-        actual_descriptor: Optional[_Descriptor] = template.value_descriptors.get(option)
+        actual_descriptor: _Descriptor | None = template.value_descriptors.get(option)
         if actual_descriptor is None:
             raise OptionError(option, "Attributing deleter for this option which has no getter")
         if isinstance(actual_descriptor, _ReadOnlyOptionBuildPayload):
@@ -658,12 +652,12 @@ class ConfigurationTemplate(Object):
     def deleter_key(
         self,
         option: str,
-        func: Optional[_KeyDeleterVar] = None,
+        func: _KeyDeleterVar | None = None,
         /,
         *,
         use_key: Any = _NO_DEFAULT,
         use_override: bool = True,
-    ) -> Optional[Callable[[_KeyDeleterVar], _KeyDeleterVar]]:
+    ) -> Callable[[_KeyDeleterVar], _KeyDeleterVar] | None:
         self.__check_locked()
         self.check_option_validity(option)
         if use_key is _NO_DEFAULT:
@@ -764,8 +758,8 @@ class ConfigurationTemplate(Object):
         ...
 
     def add_main_update(
-        self, func: Optional[_UpdaterVar] = None, /, *, use_override: bool = True
-    ) -> Union[_UpdaterVar, Callable[[_UpdaterVar], _UpdaterVar]]:
+        self, func: _UpdaterVar | None = None, /, *, use_override: bool = True
+    ) -> _UpdaterVar | Callable[[_UpdaterVar], _UpdaterVar]:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
 
@@ -789,8 +783,8 @@ class ConfigurationTemplate(Object):
         ...
 
     def on_update(
-        self, option: str, func: Optional[_UpdaterVar] = None, /, *, use_override: bool = True
-    ) -> Optional[Callable[[_UpdaterVar], _UpdaterVar]]:
+        self, option: str, func: _UpdaterVar | None = None, /, *, use_override: bool = True
+    ) -> Callable[[_UpdaterVar], _UpdaterVar] | None:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
@@ -829,12 +823,12 @@ class ConfigurationTemplate(Object):
     def on_update_key(
         self,
         option: str,
-        func: Optional[_KeyUpdaterVar] = None,
+        func: _KeyUpdaterVar | None = None,
         /,
         *,
         use_key: Any = _NO_DEFAULT,
         use_override: bool = True,
-    ) -> Optional[Callable[[_KeyUpdaterVar], _KeyUpdaterVar]]:
+    ) -> Callable[[_KeyUpdaterVar], _KeyUpdaterVar] | None:
         self.__check_locked()
         self.check_option_validity(option)
         if use_key is _NO_DEFAULT:
@@ -908,8 +902,8 @@ class ConfigurationTemplate(Object):
         ...
 
     def on_update_value(
-        self, option: str, func: Optional[_ValueUpdaterVar] = None, /, *, use_override: bool = True
-    ) -> Optional[Callable[[_ValueUpdaterVar], _ValueUpdaterVar]]:
+        self, option: str, func: _ValueUpdaterVar | None = None, /, *, use_override: bool = True
+    ) -> Callable[[_ValueUpdaterVar], _ValueUpdaterVar] | None:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
@@ -952,12 +946,12 @@ class ConfigurationTemplate(Object):
     def on_update_key_value(
         self,
         option: str,
-        func: Optional[_KeyValueUpdaterVar] = None,
+        func: _KeyValueUpdaterVar | None = None,
         /,
         *,
         use_key: Any = _NO_DEFAULT,
         use_override: bool = True,
-    ) -> Optional[Callable[[_KeyValueUpdaterVar], _KeyValueUpdaterVar]]:
+    ) -> Callable[[_KeyValueUpdaterVar], _KeyValueUpdaterVar] | None:
         self.__check_locked()
         self.check_option_validity(option)
         if use_key is _NO_DEFAULT:
@@ -1035,11 +1029,11 @@ class ConfigurationTemplate(Object):
     def add_value_validator(
         self,
         option: str,
-        func: Optional[_ValueValidatorVar] = None,
+        func: _ValueValidatorVar | None = None,
         /,
         *,
         use_override: bool = True,
-    ) -> Optional[Callable[[_ValueValidatorVar], _ValueValidatorVar]]:
+    ) -> Callable[[_ValueValidatorVar], _ValueValidatorVar] | None:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
@@ -1085,12 +1079,12 @@ class ConfigurationTemplate(Object):
     def add_value_validator_static(
         self,
         option: str,
-        func: Optional[Union[_StaticValueValidatorVar, type, Sequence[type]]] = None,
+        func: _StaticValueValidatorVar | type | Sequence[type] | None = None,
         /,
         *,
         accept_none: bool = False,
         use_override: bool = True,
-    ) -> Optional[Callable[[_StaticValueValidatorVar], _StaticValueValidatorVar]]:
+    ) -> Callable[[_StaticValueValidatorVar], _StaticValueValidatorVar] | None:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
@@ -1106,7 +1100,7 @@ class ConfigurationTemplate(Object):
             return func
 
         if isinstance(func, (type, Sequence)):
-            _type: Union[type, Tuple[type, ...]] = func if isinstance(func, type) else tuple(func)
+            _type: type | tuple[type, ...] = func if isinstance(func, type) else tuple(func)
 
             if isinstance(_type, tuple):
                 if not _type or any(not isinstance(t, type) for t in _type):
@@ -1137,11 +1131,11 @@ class ConfigurationTemplate(Object):
     def add_value_converter(
         self,
         option: str,
-        func: Optional[_ValueConverterVar] = None,
+        func: _ValueConverterVar | None = None,
         /,
         *,
         use_override: bool = True,
-    ) -> Optional[Callable[[_ValueConverterVar], _ValueConverterVar]]:
+    ) -> Callable[[_ValueConverterVar], _ValueConverterVar] | None:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
@@ -1170,7 +1164,7 @@ class ConfigurationTemplate(Object):
 
     @overload
     def add_value_converter_static(
-        self, option: str, convert_to_type: Type[Any], /, *, accept_none: bool = False, use_override: bool = True
+        self, option: str, convert_to_type: type[Any], /, *, accept_none: bool = False, use_override: bool = True
     ) -> None:
         ...
 
@@ -1181,12 +1175,12 @@ class ConfigurationTemplate(Object):
     def add_value_converter_static(
         self,
         option: str,
-        func: Optional[Union[_StaticValueConverterVar, type]] = None,
+        func: _StaticValueConverterVar | type | None = None,
         /,
         *,
         accept_none: bool = False,
         use_override: bool = True,
-    ) -> Optional[Callable[[_StaticValueConverterVar], _StaticValueConverterVar]]:
+    ) -> Callable[[_StaticValueConverterVar], _StaticValueConverterVar] | None:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
@@ -1217,14 +1211,14 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def add_enum_converter(self, option: str, enum: Type[Enum], *, store_value: bool = False, accept_none: bool = False) -> None:
+    def add_enum_converter(self, option: str, enum: type[Enum], *, store_value: bool = False, accept_none: bool = False) -> None:
         ...
 
     @overload
-    def add_enum_converter(self, option: str, enum: Type[Enum], *, return_value_on_get: bool, accept_none: bool = False) -> None:
+    def add_enum_converter(self, option: str, enum: type[Enum], *, return_value_on_get: bool, accept_none: bool = False) -> None:
         ...
 
-    def add_enum_converter(self, option: str, enum: Type[Enum], *, accept_none: bool = False, **kwargs: bool) -> None:
+    def add_enum_converter(self, option: str, enum: type[Enum], *, accept_none: bool = False, **kwargs: bool) -> None:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
@@ -1236,7 +1230,7 @@ class ConfigurationTemplate(Object):
             raise TypeError("Invalid arguments")
 
         store_value: bool = kwargs.pop("store_value", False)
-        return_value_on_get: Optional[bool] = kwargs.pop("return_value_on_get", None)
+        return_value_on_get: bool | None = kwargs.pop("return_value_on_get", None)
 
         if kwargs:
             raise TypeError("Invalid arguments")
@@ -1282,7 +1276,7 @@ class ConfigurationTemplate(Object):
         template: _ConfigInfoTemplate = self.__template
         for option in options:
             self.check_option_validity(option)
-            descriptor: Optional[_Descriptor] = template.value_descriptors.get(option)
+            descriptor: _Descriptor | None = template.value_descriptors.get(option)
             if isinstance(descriptor, _ReadOnlyOptionBuildPayload):
                 continue
             if isinstance(descriptor, (_MutableDescriptor, _RemovableDescriptor)):
@@ -1296,12 +1290,12 @@ class ConfigurationTemplate(Object):
 
     @property
     @final
-    def owner(self) -> Optional[type]:
+    def owner(self) -> type | None:
         return self.__bound_class
 
     @property
     @final
-    def name(self) -> Optional[str]:
+    def name(self) -> str | None:
         return self.__attr_name
 
 
@@ -1333,10 +1327,10 @@ class OptionAttribute(Generic[_T], Object):
         ...
 
     @overload
-    def __get__(self, obj: object, objtype: Optional[type] = None, /) -> _T:
+    def __get__(self, obj: object, objtype: type | None = None, /) -> _T:
         ...
 
-    def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Union[_T, OptionAttribute[_T]]:
+    def __get__(self, obj: object, objtype: type | None = None, /) -> _T | OptionAttribute[_T]:
         if obj is None:
             return self
         config_name: str = self.__config_name
@@ -1379,14 +1373,14 @@ def _default_mapping() -> MappingProxyType[Any, Any]:
 
 
 @final
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, eq=False, slots=True)
 class ConfigurationInfo:
-    options: FrozenSet[str]
+    options: frozenset[str]
     _: KW_ONLY
     option_value_updater: Mapping[str, Callable[[object, Any], None]] = field(default_factory=_default_mapping)
     option_updater: Mapping[str, Callable[[object], None]] = field(default_factory=_default_mapping)
-    many_options_updater: Optional[Callable[[object, Sequence[str]], None]] = field(default=None)
-    main_updater: Optional[Callable[[object], None]] = field(default=None)
+    many_options_updater: Callable[[object, Sequence[str]], None] | None = field(default=None)
+    main_updater: Callable[[object], None] | None = field(default=None)
     value_converter: Mapping[str, Callable[[object, Any], Any]] = field(default_factory=_default_mapping)
     value_validator: Mapping[str, Callable[[object, Any], None]] = field(default_factory=_default_mapping)
     value_descriptors: Mapping[str, _Descriptor] = field(default_factory=_default_mapping)
@@ -1397,14 +1391,19 @@ class ConfigurationInfo:
     aliases: Mapping[str, str] = field(default_factory=_default_mapping)
     value_copy: Mapping[type, Callable[[Any], Any]] = field(default_factory=_default_mapping)
     value_copy_allow_subclass: Mapping[type, bool] = field(default_factory=_default_mapping)
-    readonly_options: FrozenSet[str] = field(default_factory=frozenset)
-    enum_return_value: FrozenSet[str] = field(default_factory=frozenset)
+    readonly_options: frozenset[str] = field(default_factory=frozenset)
+    enum_return_value: frozenset[str] = field(default_factory=frozenset)
+
+    if TYPE_CHECKING:
+        __hash__: None  # type: ignore[assignment]
+
+    __hash__ = None  # type: ignore[assignment]
 
     class __ReadOnlyOptionWrapper:
         def __init__(self, default_descriptor: _Descriptor) -> None:
             self.__descriptor: Callable[[], _Descriptor] = lambda: default_descriptor
 
-        def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Any:
+        def __get__(self, obj: object, objtype: type | None = None, /) -> Any:
             descriptor: _Descriptor = self.__descriptor()
             return descriptor.__get__(obj, objtype)
 
@@ -1425,7 +1424,7 @@ class ConfigurationInfo:
         return True
 
     def get_value_descriptor(self, option: str, objtype: type) -> _Descriptor:
-        descriptor: Optional[_Descriptor] = self.value_descriptors.get(option, None)
+        descriptor: _Descriptor | None = self.value_descriptors.get(option, None)
         if descriptor is None:
             descriptor = _PrivateAttributeOptionPropertyFallback()
             descriptor.__set_name__(self.attribute_class_owner.get(option, objtype), option)
@@ -1444,14 +1443,14 @@ class ConfigurationInfo:
         return copy
 
 
-_InitializationRegister = Dict[str, Any]
-_UpdateRegister = List[str]
+_InitializationRegister: TypeAlias = dict[str, Any]
+_UpdateRegister: TypeAlias = list[str]
 
 
 class Configuration(Generic[_T], Object):
-    __update_stack: ClassVar[Dict[object, List[str]]] = dict()
-    __init_context: ClassVar[Dict[object, _InitializationRegister]] = dict()
-    __update_context: ClassVar[Dict[object, _UpdateRegister]] = dict()
+    __update_stack: ClassVar[dict[object, list[str]]] = dict()
+    __init_context: ClassVar[dict[object, _InitializationRegister]] = dict()
+    __update_context: ClassVar[dict[object, _UpdateRegister]] = dict()
     __lock_cache: ClassVar[WeakKeyDictionary[object, RLock]] = WeakKeyDictionary()
     __default_lock: ClassVar[RLock] = RLock()
 
@@ -1459,13 +1458,13 @@ class Configuration(Generic[_T], Object):
 
     class __OptionUpdateContext(NamedTuple):
         first_call: bool
-        init_context: Optional[_InitializationRegister]
+        init_context: _InitializationRegister | None
         updated: _UpdateRegister
 
     __DELETED: Any = object()
 
-    def __init__(self, obj: Union[_T, WeakReferenceType[_T]], info: ConfigurationInfo) -> None:
-        self.__obj: Callable[[], Optional[_T]] = obj if isinstance(obj, WeakReferenceType) else lambda obj=obj: obj  # type: ignore[misc]
+    def __init__(self, obj: _T | WeakReferenceType[_T], info: ConfigurationInfo) -> None:
+        self.__obj: Callable[[], _T | None] = obj if isinstance(obj, WeakReferenceType) else lambda obj=obj: obj  # type: ignore[misc]
         self.__info: ConfigurationInfo = info
 
     def __repr__(self) -> str:
@@ -1484,7 +1483,7 @@ class Configuration(Generic[_T], Object):
         ...
 
     @overload
-    def get(self, option: str, default: _DT) -> Union[Any, _DT]:
+    def get(self, option: str, default: _DT) -> Any | _DT:
         ...
 
     def get(self, option: str, default: Any = _NO_DEFAULT) -> Any:
@@ -1512,7 +1511,7 @@ class Configuration(Generic[_T], Object):
         except OptionError as exc:
             raise KeyError(option) from exc
 
-    def as_dict(self, *, sorted_keys: bool = False) -> Dict[str, Any]:
+    def as_dict(self, *, sorted_keys: bool = False) -> dict[str, Any]:
         obj: _T = self.__self__
         info: ConfigurationInfo = self.__info
         with self.__lazy_lock(obj):
@@ -1533,8 +1532,8 @@ class Configuration(Generic[_T], Object):
         if not isinstance(descriptor, _MutableDescriptor):
             raise OptionError(option, "Cannot be set")
 
-        value_validator: Optional[Callable[[object, Any], None]] = info.value_validator.get(option, None)
-        value_converter: Optional[Callable[[object, Any], Any]] = info.value_converter.get(option, None)
+        value_validator: Callable[[object, Any], None] | None = info.value_validator.get(option, None)
+        value_converter: Callable[[object, Any], Any] | None = info.value_converter.get(option, None)
         if value_validator is not None:
             value_validator(obj, value)
         converter_applied: bool = False
@@ -1702,7 +1701,7 @@ class Configuration(Generic[_T], Object):
     @property
     @final
     def __self__(self) -> _T:
-        obj: Optional[_T] = self.__obj()
+        obj: _T | None = self.__obj()
         if obj is None:
             raise ReferenceError("weakly-referenced object no longer exists")
         return obj
@@ -1778,7 +1777,7 @@ class Configuration(Generic[_T], Object):
                 return
 
             update_register: _UpdateRegister = Configuration.__update_context.setdefault(obj, [])
-            update_stack: List[str] = Configuration.__update_stack.setdefault(obj, [])
+            update_stack: list[str] = Configuration.__update_stack.setdefault(obj, [])
             if option in update_stack:
                 yield UpdateContext(first_call=False, init_context=None, updated=update_register)
                 return
@@ -1815,7 +1814,7 @@ class Configuration(Generic[_T], Object):
     @contextmanager
     def __updating_many_options(
         obj: object, *options: str, info: ConfigurationInfo, call_updaters: bool
-    ) -> Iterator[Dict[str, __OptionUpdateContext]]:
+    ) -> Iterator[dict[str, __OptionUpdateContext]]:
         nb_options = len(options)
         if nb_options < 1:
             yield {}
@@ -1832,7 +1831,7 @@ class Configuration(Generic[_T], Object):
             }
 
     @staticmethod
-    def __lazy_lock(obj: object) -> Union[RLock, nullcontext[None]]:
+    def __lazy_lock(obj: object) -> RLock | nullcontext[None]:
         lock_cache = Configuration.__lock_cache
         try:
             lock: RLock = lock_cache.get(obj, _MISSING)
@@ -1854,7 +1853,7 @@ def _no_type_check_cache(func: _FuncVar) -> _FuncVar:
 
 
 def _make_function_wrapper(func: Any, *, check_override: bool = True, no_object: bool = False) -> Callable[..., Any]:
-    wrapper: Union[_FunctionWrapperBuilder, _WrappedFunctionWrapper]
+    wrapper: _FunctionWrapperBuilder | _WrappedFunctionWrapper
     if isinstance(func, _WrappedFunctionWrapper):
         wrapper = func
     else:
@@ -1903,7 +1902,7 @@ class _FunctionWrapperBuilder:
     def mark_wrapper(wrapper: Callable[..., Any]) -> None:
         setattr(wrapper, "__boundconfiguration_wrapper__", True)
 
-    def get_wrapper(self) -> Optional[Callable[..., Any]]:
+    def get_wrapper(self) -> Callable[..., Any] | None:
         func: Any = self.info.func
         if self.is_wrapper(func):
             return cast(Callable[..., Any], func)
@@ -2006,7 +2005,7 @@ class _WrappedFunctionWrapper:
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         raise NotImplementedError("Dummy function")
 
-    def get_wrapper(self) -> Optional[Callable[..., Any]]:
+    def get_wrapper(self) -> Callable[..., Any] | None:
         wrapper_cache = self.cache
         func: Any = self.wrapper.info.func
         if func in wrapper_cache:
@@ -2035,7 +2034,7 @@ class _WrappedFunctionWrapper:
 
 
 @_no_type_check_cache
-def _make_type_checker(_type: Union[type, Tuple[type, ...]], accept_none: bool) -> Callable[[Any], None]:
+def _make_type_checker(_type: type | tuple[type, ...], accept_none: bool) -> Callable[[Any], None]:
     def type_checker(val: Any, /) -> None:
         if (accept_none and val is None) or isinstance(val, _type):
             return
@@ -2062,10 +2061,10 @@ def _make_value_converter(_type: type, accept_none: bool) -> Callable[[Any], Any
 
 
 @_no_type_check_cache
-def _make_enum_converter(enum: Type[Enum], store_value: bool, accept_none: bool) -> Callable[[Any], Any]:
+def _make_enum_converter(enum: type[Enum], store_value: bool, accept_none: bool) -> Callable[[Any], Any]:
     if not store_value:
 
-        def value_converter(val: Any, /, *, enum: Type[Enum] = enum) -> Any:
+        def value_converter(val: Any, /, *, enum: type[Enum] = enum) -> Any:
             if accept_none and val is None:
                 return None
             val = enum(val)
@@ -2073,7 +2072,7 @@ def _make_enum_converter(enum: Type[Enum], store_value: bool, accept_none: bool)
 
     else:
 
-        def value_converter(val: Any, /, *, enum: Type[Enum] = enum) -> Any:
+        def value_converter(val: Any, /, *, enum: type[Enum] = enum) -> Any:
             if accept_none and val is None:
                 return None
             val = enum(val)
@@ -2082,44 +2081,12 @@ def _make_enum_converter(enum: Type[Enum], store_value: bool, accept_none: bool)
     return value_converter
 
 
-def _get_cls_mro(cls: type) -> List[type]:
-    try:
-        mro: List[type] = list(getattr(cls, "__mro__"))
-    except AttributeError:
-
-        def getmro(cls: type) -> List[type]:
-            mro = [cls]
-            for base in cls.__bases__:
-                mro.extend(getmro(base))
-            return mro
-
-        mro = getmro(cls)
-    return mro
+def _all_members(cls: type) -> dict[str, Any]:
+    return {attr: obj for cls in reversed(inspect.getmro(cls)) for attr, obj in vars(cls).items()}
 
 
-if not TYPE_CHECKING:
-    try:
-        from inspect import getmro as _inspect_get_mro
-    except ImportError:
-        pass
-    else:
-
-        def _get_cls_mro(cls: type) -> List[type]:
-            return list(_inspect_get_mro(cls))
-
-
-def _all_members(cls: type) -> Dict[str, Any]:
-    mro: List[type] = _get_cls_mro(cls)
-    members: Dict[str, Any] = dict()
-    for cls in reversed(mro):
-        members.update(vars(cls))
-    return members
-
-
-def _register_configuration(cls: type, config: Optional[ConfigurationTemplate]) -> Optional[ConfigurationTemplate]:
-    if not isinstance(cls, type):
-        raise TypeError(f"{cls} is not a type")
-    former_config: Optional[ConfigurationTemplate] = None
+def _register_configuration(cls: type, config: ConfigurationTemplate | None) -> ConfigurationTemplate | None:
+    former_config: ConfigurationTemplate | None = None
     with suppress(TypeError):
         former_config = _retrieve_configuration(cls)
     if isinstance(config, ConfigurationTemplate):
@@ -2142,7 +2109,7 @@ def _retrieve_configuration(cls: type) -> ConfigurationTemplate:
 
 @runtime_checkable
 class _Descriptor(Protocol):
-    def __get__(self, __obj: object, __objtype: Optional[type], /) -> Any:
+    def __get__(self, __obj: object, __objtype: type | None, /) -> Any:
         pass
 
 
@@ -2163,23 +2130,23 @@ _VT = TypeVar("_VT")
 
 
 class _ConfigInfoTemplate:
-    def __init__(self, known_options: Sequence[str], autocopy: Optional[bool], parents: Sequence[_ConfigInfoTemplate]) -> None:
-        self.options: FrozenSet[str] = frozenset(known_options)
-        self.main_updater: List[Callable[[object], None]] = list()
-        self.option_updater: Dict[str, List[Callable[[object], None]]] = dict()
-        self.option_value_updater: Dict[str, List[Callable[[object, Any], None]]] = dict()
-        self.value_descriptors: Dict[str, _Descriptor] = dict()
-        self.value_converter: Dict[str, List[Callable[[object, Any], Any]]] = dict()
-        self.value_validator: Dict[str, List[Callable[[object, Any], None]]] = dict()
+    def __init__(self, known_options: Sequence[str], autocopy: bool | None, parents: Sequence[_ConfigInfoTemplate]) -> None:
+        self.options: frozenset[str] = frozenset(known_options)
+        self.main_updater: list[Callable[[object], None]] = list()
+        self.option_updater: dict[str, list[Callable[[object], None]]] = dict()
+        self.option_value_updater: dict[str, list[Callable[[object, Any], None]]] = dict()
+        self.value_descriptors: dict[str, _Descriptor] = dict()
+        self.value_converter: dict[str, list[Callable[[object, Any], Any]]] = dict()
+        self.value_validator: dict[str, list[Callable[[object, Any], None]]] = dict()
         self.autocopy: bool = bool(autocopy) if autocopy is not None else False
-        self.value_autocopy_get: Dict[str, bool] = dict()
-        self.value_autocopy_set: Dict[str, bool] = dict()
-        self.attribute_class_owner: Dict[str, type] = dict()
-        self.aliases: Dict[str, str] = dict()
-        self.value_copy: Dict[type, Callable[[Any], Any]] = dict()
-        self.value_copy_allow_subclass: Dict[type, bool] = dict()
-        self.enum_converter_registered: Dict[str, type[Enum]] = dict()
-        self.enum_return_value: Dict[str, bool] = dict()
+        self.value_autocopy_get: dict[str, bool] = dict()
+        self.value_autocopy_set: dict[str, bool] = dict()
+        self.attribute_class_owner: dict[str, type] = dict()
+        self.aliases: dict[str, str] = dict()
+        self.value_copy: dict[type, Callable[[Any], Any]] = dict()
+        self.value_copy_allow_subclass: dict[type, bool] = dict()
+        self.enum_converter_registered: dict[str, type[Enum]] = dict()
+        self.enum_return_value: dict[str, bool] = dict()
 
         merge_dict = self.__merge_dict
         merge_list = self.__merge_list
@@ -2235,17 +2202,17 @@ class _ConfigInfoTemplate:
             )
             merge_dict(self.enum_return_value, p.enum_return_value, on_conflict="raise", setting="enum_return_value")
 
-        self.parent_descriptors: FrozenSet[_Descriptor] = frozenset(self.value_descriptors.values())
+        self.parent_descriptors: frozenset[_Descriptor] = frozenset(self.value_descriptors.values())
 
     @staticmethod
     def __merge_dict(
-        d1: Dict[_KT, _VT],
-        d2: Dict[_KT, _VT],
+        d1: dict[_KT, _VT],
+        d2: dict[_KT, _VT],
         /,
         *,
-        on_conflict: Union[L["override", "raise", "skip"], Callable[[_KT, _VT, _VT], _VT]],
+        on_conflict: L["override", "raise", "skip"] | Callable[[_KT, _VT, _VT], _VT],
         setting: str,
-        copy: Optional[Callable[[_VT], _VT]] = None,
+        copy: Callable[[_VT], _VT] | None = None,
     ) -> None:
         for key, value in d2.items():
             if key in d1:
@@ -2261,13 +2228,13 @@ class _ConfigInfoTemplate:
 
     @staticmethod
     def __merge_list(
-        l1: List[_T],
-        l2: List[_T],
+        l1: list[_T],
+        l2: list[_T],
         /,
         *,
         on_duplicate: L["keep", "put_at_end", "raise", "skip"],
         setting: str,
-        copy: Optional[Callable[[_T], _T]] = None,
+        copy: Callable[[_T], _T] | None = None,
     ) -> None:
         for value in l2:
             if value in l1:
@@ -2284,8 +2251,8 @@ class _ConfigInfoTemplate:
     @classmethod
     def __merge_updater_dict(
         cls,
-        d1: Dict[str, List[_FuncVar]],
-        d2: Dict[str, List[_FuncVar]],
+        d1: dict[str, list[_FuncVar]],
+        d2: dict[str, list[_FuncVar]],
         /,
         *,
         setting: str,
@@ -2337,7 +2304,7 @@ class _ConfigInfoTemplate:
                     descriptor.set_new_descriptor(build_wrapper_within_descriptor(underlying_descriptor))
             return descriptor
 
-        callback_list: List[Callable[..., Any]]
+        callback_list: list[Callable[..., Any]]
         for callback_list in chain(  # type: ignore[assignment]
             [self.main_updater],
             self.option_updater.values(),
@@ -2373,7 +2340,7 @@ class _ConfigInfoTemplate:
 
         return option_value_updater_func
 
-    def __build_main_updater(self) -> Optional[Callable[[object], None]]:
+    def __build_main_updater(self) -> Callable[[object], None] | None:
         main_updater_list = self.main_updater
         if not main_updater_list:
             return None
@@ -2403,7 +2370,7 @@ class _ConfigInfoTemplate:
 
         return updater_func
 
-    def __build_many_options_updater(self) -> Optional[Callable[[object, Sequence[str]], None]]:
+    def __build_many_options_updater(self) -> Callable[[object, Sequence[str]], None] | None:
         main_updater_list = self.main_updater
         option_updater_dict = {
             option: filtered_updater_list
@@ -2427,9 +2394,9 @@ class _ConfigInfoTemplate:
                 options: Sequence[str],
                 /,
                 *,
-                option_updater_dict: Dict[str, List[Callable[[object], None]]] = option_updater_dict,
+                option_updater_dict: dict[str, list[Callable[[object], None]]] = option_updater_dict,
             ) -> None:
-                updater_list: List[Callable[[object], None]] = []
+                updater_list: list[Callable[[object], None]] = []
                 for option in options:
                     merge_list(updater_list, option_updater_dict.get(option, []), on_duplicate="skip", setting="")
                 for updater in updater_list:
@@ -2442,7 +2409,7 @@ class _ConfigInfoTemplate:
                 options: Sequence[str],
                 /,
                 *,
-                option_updater_dict: Dict[str, List[Callable[[object], None]]] = option_updater_dict,
+                option_updater_dict: dict[str, list[Callable[[object], None]]] = option_updater_dict,
             ) -> None:
                 for updater in dict.fromkeys(chain.from_iterable(option_updater_dict.get(option, ()) for option in options)):
                     updater(obj)
@@ -2499,7 +2466,7 @@ class _ConfigInfoTemplate:
         return value_validator_func
 
     def __build_value_descriptor_dict(self) -> MappingProxyType[str, _Descriptor]:
-        value_descriptors: Dict[str, _Descriptor] = {}
+        value_descriptors: dict[str, _Descriptor] = {}
 
         for option, descriptor in self.value_descriptors.items():
             if isinstance(descriptor, _ReadOnlyOptionBuildPayload):
@@ -2511,12 +2478,12 @@ class _ConfigInfoTemplate:
 
         return MappingProxyType(value_descriptors)
 
-    def __build_readonly_options_set(self) -> FrozenSet[str]:
+    def __build_readonly_options_set(self) -> frozenset[str]:
         return frozenset(
             option for option, descriptor in self.value_descriptors.items() if isinstance(descriptor, _ReadOnlyOptionBuildPayload)
         )
 
-    def __build_enum_return_value_set(self) -> FrozenSet[str]:
+    def __build_enum_return_value_set(self) -> frozenset[str]:
         return frozenset(option for option, value in self.enum_return_value.items() if value)
 
 
@@ -2537,14 +2504,14 @@ class _ConfigInitializer:
         func: Any = self.__func__
         return getattr(func, name)
 
-    def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Callable[..., Any]:
+    def __get__(self, obj: object, objtype: type | None = None, /) -> Callable[..., Any]:
         config_initializer = self.__make_initializer()
         method_func: Callable[..., Any] = getattr(config_initializer, "__get__")(obj, objtype)
         return method_func
 
     def __make_initializer(self) -> Callable[..., Any]:
         init_func: Callable[..., Any] = self.__func__
-        func_get: Callable[[object, Optional[type]], Callable[..., Any]] = getattr(init_func, "__get__")
+        func_get: Callable[[object, type | None], Callable[..., Any]] = getattr(init_func, "__get__")
 
         @wraps(init_func)
         def config_initializer(self: object, /, *args: Any, **kwargs: Any) -> Any:
@@ -2573,7 +2540,7 @@ class _PrivateAttributeOptionPropertyFallback:
         self.__name: str = name
         self.__attribute: str = _private_attribute(owner, name)
 
-    def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Any:
+    def __get__(self, obj: object, objtype: type | None = None, /) -> Any:
         if obj is None:
             return self
         attribute: str = self.__attribute
@@ -2597,8 +2564,8 @@ class _PrivateAttributeOptionPropertyFallback:
 
 
 class _ReadOnlyOptionBuildPayload:
-    def __init__(self, default_descriptor: Optional[_Descriptor] = None) -> None:
-        self.__descriptor: Callable[[], Optional[_Descriptor]]
+    def __init__(self, default_descriptor: _Descriptor | None = None) -> None:
+        self.__descriptor: Callable[[], _Descriptor | None]
         self.set_new_descriptor(default_descriptor)
 
     def __set_name__(self, owner: type, name: str, /) -> None:
@@ -2606,11 +2573,11 @@ class _ReadOnlyOptionBuildPayload:
         if hasattr(descriptor, "__set_name__"):
             getattr(descriptor, "__set_name__")(owner, name)
 
-    def __get__(self, obj: object, objtype: Optional[type] = None, /) -> Any:
+    def __get__(self, obj: object, objtype: type | None = None, /) -> Any:
         raise TypeError("Cannot be used at runtime")
 
-    def get_descriptor(self) -> Optional[_Descriptor]:
+    def get_descriptor(self) -> _Descriptor | None:
         return self.__descriptor()
 
-    def set_new_descriptor(self, descriptor: Optional[_Descriptor]) -> None:
+    def set_new_descriptor(self, descriptor: _Descriptor | None) -> None:
         self.__descriptor = lambda: descriptor
