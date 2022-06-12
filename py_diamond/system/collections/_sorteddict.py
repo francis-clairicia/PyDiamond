@@ -12,10 +12,10 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
+import reprlib
 from bisect import insort_right as insort
 from collections.abc import ItemsView, KeysView, Reversible, ValuesView
 from copy import deepcopy
-from reprlib import recursive_repr
 from typing import Any, Iterator
 
 
@@ -27,7 +27,7 @@ class SortedDictKeysView(KeysView, Reversible):  # type: ignore[type-arg]
         raise TypeError("Cannot be subclassed")
 
     def __reversed__(self) -> Iterator[Any]:
-        yield from reversed(self._mapping)
+        return reversed(self._mapping)
 
 
 class SortedDictValuesView(ValuesView, Reversible):  # type: ignore[type-arg]
@@ -39,7 +39,7 @@ class SortedDictValuesView(ValuesView, Reversible):  # type: ignore[type-arg]
 
     def __reversed__(self) -> Iterator[Any]:
         mapping = self._mapping
-        yield from (mapping[key] for key in reversed(mapping))
+        return (mapping[key] for key in reversed(mapping))
 
 
 class SortedDictItemsView(ItemsView, Reversible):  # type: ignore[type-arg]
@@ -51,7 +51,7 @@ class SortedDictItemsView(ItemsView, Reversible):  # type: ignore[type-arg]
 
     def __reversed__(self) -> Iterator[tuple[Any, Any]]:
         mapping = self._mapping
-        yield from ((key, mapping[key]) for key in reversed(mapping))
+        return ((key, mapping[key]) for key in reversed(mapping))
 
 
 class SortedDict(dict):  # type: ignore[type-arg]
@@ -68,7 +68,7 @@ class SortedDict(dict):  # type: ignore[type-arg]
         super().__init__(*args, **kwargs)
         self.__list[:] = sorted(super().__iter__())
 
-    @recursive_repr()
+    @reprlib.recursive_repr()
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({{{', '.join(f'{key!r}: {self[key]!r}' for key in self)}}})"
 
@@ -128,7 +128,7 @@ class SortedDict(dict):  # type: ignore[type-arg]
         keys = sorted(payload)  # Check support of comparison
         # All validated, proceed
         super().update(payload)
-        self.__list[:] = keys
+        self.__list = keys
 
     def __ior__(self, __value: Any) -> SortedDict:  # type: ignore[misc]
         self.update(__value)

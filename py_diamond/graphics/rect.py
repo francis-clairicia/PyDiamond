@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any, SupportsIndex
 from pygame.rect import Rect
 
 
-@dataclass(init=False, repr=False, eq=False, frozen=True)
+@dataclass(init=False, repr=False, eq=False, frozen=True, unsafe_hash=True)
 class ImmutableRect(Rect):
     x: int
     y: int

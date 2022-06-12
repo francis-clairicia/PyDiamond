@@ -47,13 +47,13 @@ class Thread(threading.Thread, Object, no_slots=True):
                 raise RuntimeError("Invalid thread ID")
             case 1:  # In case of success, join the thread
                 self.join(timeout=None)
-            case _:  # Something went wrong
+            case ret_val:  # Something went wrong
                 PyThreadState_SetAsyncExc(ctypes.c_ulong(thread_id), ctypes.c_void_p(0))
-                raise SystemError("PyThreadState_SetAsyncExc failed")
+                raise SystemError("PyThreadState_SetAsyncExc failed", ret_val)
 
     def join(self, timeout: float | None = None, terminate_on_timeout: bool = False) -> None:
         super().join(timeout)
-        if timeout is not None and self.is_alive() and terminate_on_timeout:
+        if terminate_on_timeout and timeout is not None and self.is_alive():
             self.terminate()
 
 

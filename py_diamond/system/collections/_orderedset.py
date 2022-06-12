@@ -243,7 +243,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
         """
         with self._lock:
             self._items.reverse()
-            self._map.update((item, index) for index, item in enumerate(self._items))
+            self._map = {item: index for index, item in enumerate(self._items)}
 
     def sort(self, *, key: Callable[[object], Any] | None = None, reverse: bool = False) -> None:
         """
@@ -257,7 +257,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
         """
         with self._lock:
             self._items.sort(key=key, reverse=reverse)
-            self._map.update((item, index) for index, item in enumerate(self._items))
+            self._map = {item: index for index, item in enumerate(self._items)}
 
     def isdisjoint(self, other: Iterable[Any]) -> bool:
         """
@@ -267,7 +267,10 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
             return not any(value in self for value in other)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({list(self)!r})"
+        data = list(self)
+        if not data:
+            return f"{self.__class__.__name__}()"
+        return f"{self.__class__.__name__}({data!r})"
 
     __str__ = __repr__
 
@@ -281,10 +284,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
             False
         """
         with self._lock:
-            try:
-                return __x in self._map
-            except TypeError:  # Non-hashable object
-                return False
+            return __x in self._map
 
     def __iter__(self) -> Iterator[object]:
         """

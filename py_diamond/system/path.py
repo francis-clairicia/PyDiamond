@@ -15,7 +15,7 @@ __license__ = "GNU GPL v3.0"
 import os.path as os_path
 from typing import Any, Callable, overload
 
-from ..environ import get_executable_path
+from ..environ.executable import get_executable_path
 
 
 class ConstantFileNotFoundError(FileNotFoundError):
@@ -25,7 +25,8 @@ class ConstantFileNotFoundError(FileNotFoundError):
         else:
             message = f"{filename!r} not found"
         super().__init__(message)
-        self.filename = self.filename2 = filename
+        self.filename = filename
+        self.filename2 = None
 
 
 def __set_path(

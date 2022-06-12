@@ -19,7 +19,7 @@ from abc import abstractmethod
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Sequence, TypeVar
 
-from ..graphics.color import BLUE, TRANSPARENT, WHITE, Color
+from ..graphics.color import BLACK, TRANSPARENT, WHITE, Color
 from ..graphics.movable import MovableProxy
 from ..graphics.shape import RectangleShape
 from ..system.object import final
@@ -99,7 +99,7 @@ class PopupDialog(Dialog):
         height: float | None = None,
         bg_color: Color = WHITE,
         outline: int = 3,
-        outline_color: Color = BLUE,
+        outline_color: Color = BLACK,
         border_radius: int = -1,
         border_top_left_radius: int = -1,
         border_top_right_radius: int = -1,

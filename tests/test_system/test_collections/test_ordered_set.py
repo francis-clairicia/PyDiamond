@@ -172,7 +172,7 @@ def test_update_type_error():
 
 def test_empty_repr():
     set1 = OrderedSet()
-    assert repr(set1) == "OrderedSet([])"
+    assert repr(set1) == "OrderedSet()"
 
 
 def test_eq_wrong_type():

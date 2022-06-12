@@ -2332,7 +2332,7 @@ class _ConfigInfoTemplate:
                     descriptor = descriptor.setter(build_wrapper_if_needed(descriptor.fset))
                 if descriptor.fdel is not None:
                     descriptor = descriptor.deleter(build_wrapper_if_needed(descriptor.fdel))
-            if isinstance(descriptor, _ReadOnlyOptionBuildPayload):
+            elif isinstance(descriptor, _ReadOnlyOptionBuildPayload):
                 if (underlying_descriptor := descriptor.get_descriptor()) is not None:
                     descriptor.set_new_descriptor(build_wrapper_within_descriptor(underlying_descriptor))
             return descriptor

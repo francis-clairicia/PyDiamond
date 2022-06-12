@@ -60,12 +60,14 @@ class OrderedWeakSet(WeakSet, Sequence):  # type: ignore[type-arg]
         except TypeError:
             msg = f"indices must be integers or slices, not {type(index).__name__}"
             raise TypeError(msg) from None
-        if index < 0:
-            index += len(self)
-            if index < 0:
-                raise IndexError("index out of range")
-        while (obj := self.data[index]()) is None:  # type: ignore[operator]
-            index += 1
+        if index >= 0:
+            while (obj := self.data[index]()) is None:  # type: ignore[operator]
+                index += 1
+        else:
+            while (obj := self.data[index]()) is None:  # type: ignore[operator]
+                index += 1
+                if index == 0:
+                    raise IndexError("out of range")
         return obj
 
     def __delitem__(self, index: int) -> None:

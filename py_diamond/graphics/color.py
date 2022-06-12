@@ -40,11 +40,11 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Final, Mapping, SupportsIndex
 
-from pygame.color import Color as _Color
-from pygame.colordict import THECOLORS as _PG_ALL_COLORS
+import pygame.color
+import pygame.colordict
 
 
-class Color(_Color):
+class Color(pygame.color.Color):
     @property
     def h(self) -> float:
         return self.hsva[0]
@@ -100,7 +100,7 @@ class Color(_Color):
         return type(self), (self.r, self.g, self.b, self.a)
 
 
-@dataclass(init=False, repr=False, eq=False, frozen=True)
+@dataclass(init=False, repr=False, eq=False, frozen=True, unsafe_hash=True)
 class ImmutableColor(Color):
     r: int
     g: int
@@ -117,7 +117,7 @@ class ImmutableColor(Color):
             super().__init__(*args, **kwargs)
 
 
-COLOR_DICT: Final[Mapping[str, ImmutableColor]] = MappingProxyType({c: ImmutableColor(c) for c in _PG_ALL_COLORS})
+COLOR_DICT: Final[Mapping[str, ImmutableColor]] = MappingProxyType({c: ImmutableColor(c) for c in pygame.colordict.THECOLORS})
 
 WHITE: Final[ImmutableColor] = COLOR_DICT.get("white", ImmutableColor(255, 255, 255, 255))
 BLACK: Final[ImmutableColor] = COLOR_DICT.get("black", ImmutableColor(0, 0, 0, 255))
@@ -140,4 +140,4 @@ MAGENTA: Final[ImmutableColor] = COLOR_DICT.get("magenta", ImmutableColor(255, 0
 PURPLE: Final[ImmutableColor] = COLOR_DICT.get("purple", ImmutableColor(165, 0, 255, 255))
 TRANSPARENT: Final[ImmutableColor] = ImmutableColor(0, 0, 0, 0)
 
-del _PG_ALL_COLORS, _Color
+del pygame
