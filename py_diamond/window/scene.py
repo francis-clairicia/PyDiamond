@@ -58,8 +58,8 @@ from typing import (
 
 from ..graphics.color import Color
 from ..graphics.drawable import Drawable, LayeredDrawableGroup
-from ..graphics.renderer import AbstractRenderer, SurfaceRenderer
-from ..graphics.surface import Surface
+from ..graphics.renderer import AbstractRenderer
+from ..graphics.surface import Surface, SurfaceRenderer
 from ..graphics.theme import ClassWithThemeNamespaceMeta, closed_namespace, no_theme_decorator
 from ..system.enum import AutoLowerNameEnum
 from ..system.object import Object, final

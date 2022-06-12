@@ -229,7 +229,7 @@ from .image import Image
 from .movable import Movable, MovableMeta, MovableProxy
 from .progress import ProgressBar, ProgressBarMeta
 from .rect import ImmutableRect, Rect
-from .renderer import AbstractRenderer, SurfaceRenderer
+from .renderer import AbstractRenderer
 from .scale import ScaleBar
 from .scroll import ScrollArea, ScrollAreaElement, ScrollBar, ScrollBarMeta
 from .shape import (
@@ -247,7 +247,7 @@ from .shape import (
     SingleColorShape,
 )
 from .sprite import AnimatedSprite, LayeredSpriteGroup, Mask, Sprite, SpriteGroup
-from .surface import Surface, create_surface, load_image, save_image
+from .surface import Surface, SurfaceRenderer, create_surface, load_image, save_image
 from .text import Text, TextImage, TextMeta
 from .theme import (
     ClassWithThemeNamespace,

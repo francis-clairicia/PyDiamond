@@ -34,9 +34,8 @@ from ._gradients import (  # type: ignore[attr-defined]
     vertical as _gradient_vertical,
 )
 from .color import Color
-from .renderer import SurfaceRenderer
 from .shape import AbstractCircleShape, AbstractRectangleShape, AbstractShape, AbstractSquareShape
-from .surface import Surface, create_surface
+from .surface import Surface, SurfaceRenderer, create_surface
 
 
 class GradientShape(AbstractShape):

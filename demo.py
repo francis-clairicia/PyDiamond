@@ -42,12 +42,12 @@ from py_diamond.graphics.gradients import (
 from py_diamond.graphics.grid import Grid
 from py_diamond.graphics.image import Image
 from py_diamond.graphics.progress import ProgressBar
-from py_diamond.graphics.renderer import AbstractRenderer, SurfaceRenderer
+from py_diamond.graphics.renderer import AbstractRenderer
 from py_diamond.graphics.scale import ScaleBar
 from py_diamond.graphics.scroll import ScrollArea, ScrollBar
 from py_diamond.graphics.shape import CircleShape, DiagonalCrossShape, PlusCrossShape, PolygonShape, RectangleShape
 from py_diamond.graphics.sprite import AnimatedSprite, Sprite, SpriteGroup
-from py_diamond.graphics.surface import Surface
+from py_diamond.graphics.surface import Surface, SurfaceRenderer
 from py_diamond.graphics.text import Text, TextImage
 from py_diamond.resource.loader import FontLoader, ImageLoader, MusicLoader, SoundLoader
 from py_diamond.resource.manager import ResourceManager

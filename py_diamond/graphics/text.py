@@ -31,8 +31,8 @@ from .drawable import TDrawable, TDrawableMeta
 from .font import Font, SysFont, get_default_font
 from .image import Image
 from .rect import Rect
-from .renderer import AbstractRenderer, SurfaceRenderer
-from .surface import Surface, create_surface
+from .renderer import AbstractRenderer
+from .surface import Surface, SurfaceRenderer, create_surface
 from .theme import ThemedObjectMeta, ThemeType
 
 _TupleFont: TypeAlias = tuple[str | None, int]

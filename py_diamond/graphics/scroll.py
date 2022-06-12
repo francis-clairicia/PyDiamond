@@ -26,8 +26,9 @@ from ..window.mouse import Mouse
 from .color import BLACK, GRAY, TRANSPARENT, WHITE, Color
 from .drawable import BaseLayeredDrawableGroup, MDrawable, SupportsDrawableGroups, TDrawable, TDrawableMeta
 from .rect import Rect
-from .renderer import AbstractRenderer, SurfaceRenderer
+from .renderer import AbstractRenderer
 from .shape import RectangleShape
+from .surface import SurfaceRenderer
 from .theme import ThemedObjectMeta, ThemeType
 
 if TYPE_CHECKING:
