@@ -140,7 +140,7 @@ class _EventMeta(ObjectMeta):
                     raise TypeError("Events must have an integer 'type' class attribute")
             if event_type in mcs.__associations:
                 event_cls = mcs.__associations[event_type]
-                raise TypeError(f"Event with type {int(event_type)} already exists: {event_cls}")
+                raise TypeError(f"Event with type {event_type!r} already exists: {event_cls}")
             mcs.__associations[event_type] = cast(type[Event], cls)
         return cls
 
@@ -166,6 +166,16 @@ class Event(Object, metaclass=_EventMeta):
     @abstractmethod
     def to_dict(self) -> dict[str, Any]:
         raise NotImplementedError
+
+    def __setattr__(self, __name: str, __value: Any) -> None:
+        if __name in {"type"}:
+            raise AttributeError("Read-only attribute")
+        return super().__setattr__(__name, __value)
+
+    def __delattr__(self, __name: str) -> None:
+        if __name in {"type"}:
+            raise AttributeError("Read-only attribute")
+        return super().__delattr__(__name)
 
     type: ClassVar[EventType]
 
@@ -213,7 +223,7 @@ class _BuiltinEventMeta(_EventMeta):
 
 
 # TODO (3.11) dataclass_transform (PEP-681)
-@dataclass(frozen=True, kw_only=True)  # type: ignore[misc]
+@dataclass(kw_only=True)  # type: ignore[misc]
 class BuiltinEvent(Event, metaclass=_BuiltinEventMeta):  # See Issue #5374: https://github.com/python/mypy/issues/5374
     @unique
     class Type(IntEnum):
@@ -275,7 +285,7 @@ class BuiltinEvent(Event, metaclass=_BuiltinEventMeta):  # See Issue #5374: http
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class KeyDownEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.KEYDOWN]] = field(default=BuiltinEvent.Type.KEYDOWN, init=False)
     key: int
@@ -292,7 +302,7 @@ class KeyDownEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class KeyUpEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.KEYUP]] = field(default=BuiltinEvent.Type.KEYUP, init=False)
     key: int
@@ -310,7 +320,7 @@ KeyEvent: TypeAlias = KeyDownEvent | KeyUpEvent
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class MouseButtonDownEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.MOUSEBUTTONDOWN]] = field(default=BuiltinEvent.Type.MOUSEBUTTONDOWN, init=False)
     pos: tuple[int, int]
@@ -325,7 +335,7 @@ class MouseButtonDownEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class MouseButtonUpEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.MOUSEBUTTONUP]] = field(default=BuiltinEvent.Type.MOUSEBUTTONUP, init=False)
     pos: tuple[int, int]
@@ -343,7 +353,7 @@ MouseButtonEvent: TypeAlias = MouseButtonDownEvent | MouseButtonUpEvent
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class MouseMotionEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.MOUSEMOTION]] = field(default=BuiltinEvent.Type.MOUSEMOTION, init=False)
     pos: tuple[int, int]
@@ -359,7 +369,7 @@ class MouseMotionEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class MouseWheelEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.MOUSEWHEEL]] = field(default=BuiltinEvent.Type.MOUSEWHEEL, init=False)
     flipped: bool
@@ -378,7 +388,7 @@ MouseEvent: TypeAlias = MouseButtonEvent | MouseWheelEvent | MouseMotionEvent
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class JoyAxisMotionEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.JOYAXISMOTION]] = field(default=BuiltinEvent.Type.JOYAXISMOTION, init=False)
     instance_id: int
@@ -394,7 +404,7 @@ class JoyAxisMotionEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class JoyBallMotionEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.JOYBALLMOTION]] = field(default=BuiltinEvent.Type.JOYBALLMOTION, init=False)
     instance_id: int
@@ -410,7 +420,7 @@ class JoyBallMotionEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class JoyHatMotionEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.JOYHATMOTION]] = field(default=BuiltinEvent.Type.JOYHATMOTION, init=False)
     instance_id: int
@@ -426,7 +436,7 @@ class JoyHatMotionEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class JoyButtonDownEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.JOYBUTTONDOWN]] = field(default=BuiltinEvent.Type.JOYBUTTONDOWN, init=False)
     instance_id: int
@@ -441,7 +451,7 @@ class JoyButtonDownEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class JoyButtonUpEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.JOYBUTTONUP]] = field(default=BuiltinEvent.Type.JOYBUTTONUP, init=False)
     instance_id: int
@@ -459,7 +469,7 @@ JoyButtonEvent: TypeAlias = JoyButtonDownEvent | JoyButtonUpEvent
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class JoyDeviceAddedEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.JOYDEVICEADDED]] = field(default=BuiltinEvent.Type.JOYDEVICEADDED, init=False)
     device_index: int
@@ -473,7 +483,7 @@ class JoyDeviceAddedEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class JoyDeviceRemovedEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.JOYDEVICEREMOVED]] = field(default=BuiltinEvent.Type.JOYDEVICEREMOVED, init=False)
     instance_id: int
@@ -487,7 +497,7 @@ class JoyDeviceRemovedEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class TextEditingEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.TEXTEDITING]] = field(default=BuiltinEvent.Type.TEXTEDITING, init=False)
     text: str
@@ -503,7 +513,7 @@ class TextEditingEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class TextInputEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.TEXTINPUT]] = field(default=BuiltinEvent.Type.TEXTINPUT, init=False)
     text: str
@@ -520,21 +530,30 @@ TextEvent: TypeAlias = TextEditingEvent | TextInputEvent
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(init=False)
 class UserEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.USEREVENT]] = field(default=BuiltinEvent.Type.USEREVENT, init=False)
     code: int = 0
 
+    def __init__(self, *, code: int = 0, **kwargs: Any) -> None:
+        self.code = code
+        self.__dict__.update(kwargs)
+
+    if TYPE_CHECKING:
+
+        def __getattr__(self, name: str, /) -> Any:  # Indicate dynamic attribute
+            ...
+
     @classmethod
     def from_dict(cls, event_dict: dict[str, Any]) -> UserEvent:
-        return super().from_dict(event_dict)
+        return cls(**event_dict)
 
     def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
+        return self.__dict__.copy()
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class WindowShownEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWSHOWN]] = field(default=BuiltinEvent.Type.WINDOWSHOWN, init=False)
 
@@ -547,7 +566,7 @@ class WindowShownEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class WindowHiddenEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWHIDDEN]] = field(default=BuiltinEvent.Type.WINDOWHIDDEN, init=False)
 
@@ -560,7 +579,7 @@ class WindowHiddenEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class WindowExposedEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWEXPOSED]] = field(default=BuiltinEvent.Type.WINDOWEXPOSED, init=False)
 
@@ -573,7 +592,7 @@ class WindowExposedEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class WindowMovedEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWMOVED]] = field(default=BuiltinEvent.Type.WINDOWMOVED, init=False)
     x: int
@@ -588,7 +607,7 @@ class WindowMovedEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class WindowResizedEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWRESIZED]] = field(default=BuiltinEvent.Type.WINDOWRESIZED, init=False)
     x: int
@@ -603,7 +622,7 @@ class WindowResizedEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class WindowSizeChangedEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWSIZECHANGED]] = field(default=BuiltinEvent.Type.WINDOWSIZECHANGED, init=False)
     x: int
@@ -618,7 +637,7 @@ class WindowSizeChangedEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class WindowMinimizedEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWMINIMIZED]] = field(default=BuiltinEvent.Type.WINDOWMINIMIZED, init=False)
 
@@ -631,7 +650,7 @@ class WindowMinimizedEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class WindowMaximizedEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWMAXIMIZED]] = field(default=BuiltinEvent.Type.WINDOWMAXIMIZED, init=False)
 
@@ -644,7 +663,7 @@ class WindowMaximizedEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class WindowRestoredEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWRESTORED]] = field(default=BuiltinEvent.Type.WINDOWRESTORED, init=False)
 
@@ -657,7 +676,7 @@ class WindowRestoredEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class WindowEnterEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWENTER]] = field(default=BuiltinEvent.Type.WINDOWENTER, init=False)
 
@@ -670,7 +689,7 @@ class WindowEnterEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class WindowLeaveEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWLEAVE]] = field(default=BuiltinEvent.Type.WINDOWLEAVE, init=False)
 
@@ -683,7 +702,7 @@ class WindowLeaveEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class WindowFocusGainedEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWFOCUSGAINED]] = field(default=BuiltinEvent.Type.WINDOWFOCUSGAINED, init=False)
 
@@ -696,7 +715,7 @@ class WindowFocusGainedEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class WindowFocusLostEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWFOCUSLOST]] = field(default=BuiltinEvent.Type.WINDOWFOCUSLOST, init=False)
 
@@ -709,7 +728,7 @@ class WindowFocusLostEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class WindowTakeFocusEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWTAKEFOCUS]] = field(default=BuiltinEvent.Type.WINDOWTAKEFOCUS, init=False)
 
@@ -722,7 +741,7 @@ class WindowTakeFocusEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class MusicEndEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.MUSICEND]] = field(default=BuiltinEvent.Type.MUSICEND, init=False)
     finished: Music
@@ -737,7 +756,7 @@ class MusicEndEvent(BuiltinEvent):
 
 
 @final
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class ScreenshotEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.SCREENSHOT]] = field(default=BuiltinEvent.Type.SCREENSHOT, init=False)
     filepath: str

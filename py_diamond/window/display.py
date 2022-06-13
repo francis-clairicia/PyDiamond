@@ -387,6 +387,7 @@ class Window(Object):
                     _pg_event.set_blocked(pg_event.type)
                     continue
                 event = UserEvent(code=pg_event.type)
+                event.__dict__.update(pg_event.__dict__)
             except EventFactoryError:
                 continue
             if isinstance(event, WindowSizeChangedEvent):
