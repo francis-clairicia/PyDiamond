@@ -14,6 +14,7 @@ __license__ = "GNU GPL v3.0"
 
 import os
 import os.path
+from collections import deque
 from contextlib import ExitStack, contextmanager, suppress
 from datetime import datetime
 from inspect import isgeneratorfunction
@@ -65,7 +66,6 @@ from .event import (
     EventType,
     ScreenshotEvent,
     UnknownEventTypeError,
-    UserEvent,
     WindowSizeChangedEvent,
 )
 from .keyboard import Keyboard
@@ -319,7 +319,7 @@ class Window(Object):
             filename_fmt: str = self.get_screenshot_filename_format()
             extension: str = ".png"
 
-            if any(c in filename_fmt for c in ("/", "\\", os.sep)):
+            if any(c in filename_fmt for c in {"/", "\\", os.sep}):
                 raise ValueError("filename format contains invalid characters")
 
             screeshot_dir: str = os.path.abspath(os.path.realpath(self.get_screenshot_directory()))
@@ -344,8 +344,7 @@ class Window(Object):
         return os.path.join(os.path.dirname(get_executable_path()), "screenshots")
 
     def handle_events(self) -> None:
-        for _ in self.process_events():
-            continue
+        deque(self.process_events(), maxlen=0)  # Consume iterator at C level
 
     @contextmanager
     def no_window_callback_processing(self) -> Iterator[None]:
@@ -363,7 +362,7 @@ class Window(Object):
         Mouse._update()
 
         if screenshot_threads := self.__screenshot_threads:
-            self.__screenshot_threads[:] = [t for t in screenshot_threads if t.is_alive()]
+            screenshot_threads[:] = [t for t in screenshot_threads if t.is_alive()]
 
         if self.__process_callbacks:
             self._process_callbacks()
@@ -381,13 +380,10 @@ class Window(Object):
             if MusicStream._handle_event(pg_event):
                 continue
             try:
-                event = make_event(pg_event)
+                event = make_event(pg_event, handle_user_events=True)
             except UnknownEventTypeError:
-                if pg_event.type < UserEvent.type:  # Built-in pygame event
-                    _pg_event.set_blocked(pg_event.type)
-                    continue
-                event = UserEvent(code=pg_event.type)
-                event.__dict__.update(pg_event.__dict__)
+                _pg_event.set_blocked(pg_event.type)
+                continue
             except EventFactoryError:
                 continue
             if isinstance(event, WindowSizeChangedEvent):

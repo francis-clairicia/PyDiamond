@@ -789,6 +789,8 @@ class UnknownEventTypeError(EventFactoryError):
 class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
     associations: Final[MappingProxyType[EventType, type[Event]]] = _EventMeta.associations
 
+    NUMEVENTS: Final[int] = _pg_constants.NUMEVENTS
+
     @staticmethod
     def get_all_event_types() -> tuple[EventType, ...]:
         return tuple(EventFactory.associations.keys())
@@ -798,14 +800,14 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
         return event_type in EventFactory.associations
 
     @staticmethod
-    def from_pygame_event(event: _PygameEvent) -> Event:
+    def from_pygame_event(event: _PygameEvent, *, handle_user_events: bool = True) -> Event:
         try:
             event_cls: type[Event] = EventFactory.associations[event.type]
         except KeyError as exc:
-            raise UnknownEventTypeError(f"Unknown event with type {event.type!r}") from exc
-        event_dict = dict(event.__dict__)
-        event_dict.pop("type", None)
-        return event_cls.from_dict(event_dict)
+            if handle_user_events and BuiltinEvent.Type.USEREVENT < event.type < EventFactory.NUMEVENTS:
+                return UserEvent.from_dict(event.__dict__ | {"code": event.type})
+            raise UnknownEventTypeError(f"Unknown event with type {_pg_event_name(event.type)!r}") from exc
+        return event_cls.from_dict(event.__dict__)
 
 
 class EventManager:
