@@ -26,6 +26,7 @@ __license__ = "GNU GPL v3.0"
 
 import inspect
 import re
+from collections import ChainMap
 from contextlib import ExitStack, contextmanager, nullcontext, suppress
 from copy import copy
 from dataclasses import KW_ONLY, dataclass, field
@@ -44,6 +45,7 @@ from typing import (
     Iterator,
     Literal as L,
     Mapping,
+    MutableMapping,
     NamedTuple,
     Protocol,
     Sequence,
@@ -243,7 +245,7 @@ class ConfigurationTemplate(Object):
                         obj_cache[attr_name] = bound_config
         return bound_config
 
-    # __set__ and __delete__ exist only to force the call of __get__
+    # TODO: __set__ and __delete__ exist only to force the call of __get__
     # There is some issues with cache and copy.copy ...
     def __set__(self, obj: _T, value: Any) -> None:
         raise AttributeError("Read-only attribute")
@@ -1374,7 +1376,7 @@ def _default_mapping() -> MappingProxyType[Any, Any]:
 
 @final
 @dataclass(frozen=True, eq=False, slots=True)
-class ConfigurationInfo:
+class ConfigurationInfo(Object):
     options: frozenset[str]
     _: KW_ONLY
     option_value_updater: Mapping[str, Callable[[object, Any], None]] = field(default_factory=_default_mapping)
@@ -1472,11 +1474,7 @@ class Configuration(Generic[_T], Object):
         return f"{type(self).__name__}({', '.join(f'{k}={option_dict[k]!r}' for k in sorted(option_dict))})"
 
     def __contains__(self, option: str) -> bool:
-        try:
-            self.get(option)
-        except (AttributeError, OptionError):
-            return False
-        return True
+        return self.get(option, _MISSING) is not _MISSING
 
     @overload
     def get(self, option: str) -> Any:
@@ -1879,8 +1877,10 @@ class _FunctionWrapperBuilder:
     __instance_cache: dict[Info, _FunctionWrapperBuilder] = dict()
 
     def __new__(cls, func: Any, check_override: bool, no_object: bool) -> _FunctionWrapperBuilder:
-        if isinstance(func, _FunctionWrapperBuilder):
-            return func
+        if isinstance(func, cls):
+            if func.info.check_override == check_override and func.info.no_object:
+                return func
+            func = func.info.func
         info = cls.Info(func=func, check_override=check_override, no_object=no_object)
         try:
             self = cls.__instance_cache[info]
@@ -1929,7 +1929,7 @@ class _FunctionWrapperBuilder:
 
         if info != self.Info(func, check_override=check_override, no_object=no_object):
             # Ask the right builder to compute the wrapper
-            builder = _FunctionWrapperBuilder(func, check_override=check_override, no_object=no_object)
+            builder = self.__class__(func, check_override=check_override, no_object=no_object)
             computed_wrapper = builder.build_wrapper(cls)
             self.cache[func] = computed_wrapper  # Save in our cache for further calls
             return computed_wrapper
@@ -1949,6 +1949,8 @@ class _FunctionWrapperBuilder:
 
         else:
             func_get_descriptor: Callable[[Any, type], Callable[..., Any]] = getattr(func, "__get__")
+
+            assert callable(func_get_descriptor)
 
             if func_name:
 
@@ -2081,8 +2083,8 @@ def _make_enum_converter(enum: type[Enum], store_value: bool, accept_none: bool)
     return value_converter
 
 
-def _all_members(cls: type) -> dict[str, Any]:
-    return {attr: obj for cls in reversed(inspect.getmro(cls)) for attr, obj in vars(cls).items()}
+def _all_members(cls: type) -> MutableMapping[str, Any]:
+    return ChainMap(*map(vars, inspect.getmro(cls)))
 
 
 def _register_configuration(cls: type, config: ConfigurationTemplate | None) -> ConfigurationTemplate | None:
