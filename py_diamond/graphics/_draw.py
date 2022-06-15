@@ -33,6 +33,7 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
+import os
 from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
@@ -44,7 +45,7 @@ try:
 
     del pygame
 
-    if __name__ != "__main__":  # Feature not available yet
+    if __name__ != "__main__" and os.environ.get("PYDIAMOND_GFXDRAW", "0") != "1":
         raise ImportError
 except ImportError:
     HAS_GFXDRAW = False

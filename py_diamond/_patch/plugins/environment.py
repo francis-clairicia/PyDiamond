@@ -26,6 +26,15 @@ BOOLEAN_PYGAME_ENVIRONMENT_VARIABLES: Final[Sequence[str]] = (
 )
 
 
+BOOLEAN_PYDIAMOND_ENVIRONMENT_VARIABLES: Final[Sequence[str]] = ("PYDIAMOND_GFXDRAW",)
+
+
+ALL_BOOLEAN_ENVIRONMENT_VARIABLES: Final[frozenset[str]] = frozenset().union(
+    BOOLEAN_PYGAME_ENVIRONMENT_VARIABLES,
+    BOOLEAN_PYDIAMOND_ENVIRONMENT_VARIABLES,
+)
+
+
 class AbstractEnvironmentPatch(BasePatch):
     def setup(self) -> None:
         super().setup()
@@ -54,6 +63,21 @@ class ArrangePygameEnvironmentBeforeImport(AbstractEnvironmentPatch):
                 "PYGAME_HIDE_SUPPORT_PROMPT",
                 "PYGAME_FREETYPE",
                 "SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS",
+            ],
+        )
+
+
+class ArrangePyDiamondEnvironmentBeforeImport(AbstractEnvironmentPatch):
+    def get_required_context(self) -> PatchContext:
+        return PatchContext.BEFORE_IMPORTING_SUBMODULES
+
+    def run(self) -> None:
+        # self.environ.setdefault("PYDIAMOND_GFXDRAW", "1")
+
+        check_booleans(
+            self.environ,
+            only=[
+                "PYDIAMOND_GFXDRAW",
             ],
         )
 
@@ -97,7 +121,7 @@ def check_booleans(
     if only is not None and exclude is not None:
         raise TypeError("Invalid parameters")
     if only is None:
-        only = BOOLEAN_PYGAME_ENVIRONMENT_VARIABLES
+        only = tuple(ALL_BOOLEAN_ENVIRONMENT_VARIABLES)
     elif isinstance(only, str):
         only = (only,)
     else:
@@ -108,13 +132,13 @@ def check_booleans(
         exclude = (exclude,)
     else:
         exclude = tuple(exclude)
-    if any(var not in BOOLEAN_PYGAME_ENVIRONMENT_VARIABLES for var in only):
+    if any(var not in ALL_BOOLEAN_ENVIRONMENT_VARIABLES for var in only):
         raise ValueError(f"Invalid envionment variables for 'only' parameter: {only!r}")
-    if any(var not in BOOLEAN_PYGAME_ENVIRONMENT_VARIABLES for var in exclude):
+    if any(var not in ALL_BOOLEAN_ENVIRONMENT_VARIABLES for var in exclude):
         raise ValueError(f"Invalid envionment variables for 'exclude' parameter: {exclude!r}")
     for var in filter(lambda var: var in environ and var not in exclude, only):
         value = environ[var]
         if value not in ("0", "1"):
             raise ValueError(f"Invalid value for {var!r} environment variable")
-        if value == "0":
+        if value == "0" and var in BOOLEAN_PYGAME_ENVIRONMENT_VARIABLES:
             environ.pop(var)
