@@ -35,7 +35,7 @@ Source = "https://github.com/francis-clairicia/PyDiamond"
 
 [project.optional-dependencies]
 dev = [
-  "mypy ==0.960",
+  "mypy ==0.961",
   "isort >=5.10.1",
   "black >=22.3.0"
 ]
