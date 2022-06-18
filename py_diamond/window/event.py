@@ -53,10 +53,6 @@ __all__ = [
     "WindowTakeFocusEvent",
 ]
 
-__author__ = "Francis Clairicia-Rose-Claire-Josephine"
-__copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
-__license__ = "GNU GPL v3.0"
-
 import weakref
 from abc import abstractmethod
 from contextlib import suppress

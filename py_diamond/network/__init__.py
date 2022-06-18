@@ -23,10 +23,6 @@ __all__ = [
     "UDPNetworkServer",
 ]
 
-__author__ = "Francis Clairicia-Rose-Claire-Josephine"
-__copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
-__license__ = "GNU GPL v3.0"
-
 
 ############ Package initialization ############
 from .client import AbstractNetworkClient, ClientError, DisconnectedClientError, TCPNetworkClient, UDPNetworkClient

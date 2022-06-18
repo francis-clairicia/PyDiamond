@@ -8,11 +8,6 @@ from __future__ import annotations
 
 __all__ = ["BooleanCheckBox", "CheckBox", "CheckBoxMeta"]
 
-__author__ = "Francis Clairicia-Rose-Claire-Josephine"
-__copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
-__license__ = "GNU GPL v3.0"
-
-
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, TypeVar
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer

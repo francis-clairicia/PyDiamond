@@ -15,10 +15,6 @@ __all__ = [
     "isconcreteclass",
 ]
 
-__author__ = "Francis Clairicia-Rose-Claire-Josephine"
-__copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
-__license__ = "GNU GPL v3.0"
-
 from functools import wraps
 from inspect import isabstract
 from typing import Any, Callable, Concatenate, ParamSpec, TypeVar

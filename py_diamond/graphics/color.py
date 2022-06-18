@@ -32,10 +32,6 @@ __all__ = [
     "YELLOW",
 ]
 
-__author__ = "Francis Clairicia-Rose-Claire-Josephine"
-__copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
-__license__ = "GNU GPL v3.0"
-
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Final, Mapping, SupportsIndex

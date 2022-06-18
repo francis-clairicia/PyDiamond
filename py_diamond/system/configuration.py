@@ -20,10 +20,6 @@ __all__ = [
     "initializer",
 ]
 
-__author__ = "Francis Clairicia-Rose-Claire-Josephine"
-__copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
-__license__ = "GNU GPL v3.0"
-
 import inspect
 import re
 from collections import ChainMap

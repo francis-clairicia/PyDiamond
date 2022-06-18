@@ -17,10 +17,6 @@ __all__ = [
     "wraps",
 ]
 
-__author__ = "Francis Clairicia-Rose-Claire-Josephine"
-__copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
-__license__ = "GNU GPL v3.0"
-
 from contextlib import ContextDecorator, suppress
 from functools import lru_cache as _lru_cache, wraps
 from typing import TYPE_CHECKING, Any, Callable, ParamSpec, TypeGuard, TypeVar, overload

@@ -8,9 +8,6 @@ from __future__ import annotations
 
 __all__ = ["Time"]
 
-__author__ = "Francis Clairicia-Rose-Claire-Josephine"
-__copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
-__license__ = "GNU GPL v3.0"
 
 from time import monotonic_ns as time_ns
 from typing import ClassVar, Final

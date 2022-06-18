@@ -8,10 +8,6 @@ from __future__ import annotations
 
 __all__ = ["AnimationInterpolator", "AnimationInterpolatorPool", "BaseAnimation", "MoveAnimation", "TransformAnimation"]
 
-__author__ = "Francis Clairicia-Rose-Claire-Josephine"
-__copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
-__license__ = "GNU GPL v3.0"
-
 from abc import ABCMeta, abstractmethod
 from contextlib import ExitStack, contextmanager
 from types import MappingProxyType

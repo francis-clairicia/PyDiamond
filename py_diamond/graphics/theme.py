@@ -21,10 +21,6 @@ __all__ = [
     "set_default_theme_namespace",
 ]
 
-__author__ = "Francis Clairicia-Rose-Claire-Josephine"
-__copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
-__license__ = "GNU GPL v3.0"
-
 from collections import OrderedDict, defaultdict, deque
 from contextlib import nullcontext, suppress
 from functools import cached_property

@@ -14,10 +14,6 @@ __all__ = [
     "save_image",
 ]
 
-__author__ = "Francis Clairicia-Rose-Claire-Josephine"
-__copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
-__license__ = "GNU GPL v3.0"
-
 from typing import TYPE_CHECKING, Iterable, Literal as L, Sequence, overload
 
 import pygame.image
