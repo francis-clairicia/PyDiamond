@@ -10,6 +10,7 @@ __all__ = [
     "AbstractNetworkProtocol",
     "AbstractStreamNetworkProtocol",
     "AutoParsedStreamNetworkProtocol",
+    "AutoSeparatedStreamNetworkProtocol",
     "BZ2CompressorProtocol",
     "GzipCompressorProtocol",
     "JSONNetworkProtocol",
@@ -28,4 +29,9 @@ from .compressor import BZ2CompressorProtocol, GzipCompressorProtocol, ZlibCompr
 from .encryptor import EncryptorProtocol
 from .json import JSONNetworkProtocol
 from .pickle import PicklingNetworkProtocol, SafePicklingNetworkProtocol
-from .stream import AbstractStreamNetworkProtocol, AutoParsedStreamNetworkProtocol, StreamNetworkPacketHandler
+from .stream import (
+    AbstractStreamNetworkProtocol,
+    AutoParsedStreamNetworkProtocol,
+    AutoSeparatedStreamNetworkProtocol,
+    StreamNetworkPacketHandler,
+)

@@ -23,12 +23,12 @@ class JSONNetworkProtocol(AutoParsedStreamNetworkProtocol):
     @final
     def serialize(self, packet: Any) -> bytes:
         serializer = self.get_json_serializer()
-        return self.encode_document(serializer.encode(packet))
+        return serializer.encode(packet).encode(self.get_encoding())
 
     @final
     def deserialize(self, data: bytes) -> Any:
         try:
-            document: str = self.decode_document(data)
+            document: str = data.decode(self.get_encoding())
         except UnicodeDecodeError as exc:
             raise ValidationError("Unicode decode error") from exc
         deserializer = self.get_json_deserializer()
@@ -50,12 +50,6 @@ class JSONNetworkProtocol(AutoParsedStreamNetworkProtocol):
 
     def get_json_deserializer(self) -> JSONDecoder:
         return JSONDecoder(object_hook=None, object_pairs_hook=None, strict=True)
-
-    def encode_document(self, document: str) -> bytes:
-        return document.encode(self.get_encoding())
-
-    def decode_document(self, document: bytes) -> str:
-        return document.decode(self.get_encoding())
 
     def get_encoding(self) -> str:
         return "utf-8"

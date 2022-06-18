@@ -65,7 +65,8 @@ class PicklingNetworkProtocol(AbstractStreamNetworkProtocol):
                     packet = unpickler.load()
                 except UnpicklingError:
                     packet = self.__class__.NO_PACKET
-                    data = BytesIO()  # We flush unused data as it may be corrupted
+                    # We flush unused data as it may be corrupted
+                    data = BytesIO(data.getvalue().partition(STOP_OPCODE)[2])
                 else:
                     # As we can't delete underlying bytes, we recreate a new BytesIO object with the remaining buffer
                     data = BytesIO(data.read(None))
@@ -74,6 +75,7 @@ class PicklingNetworkProtocol(AbstractStreamNetworkProtocol):
             new_chunk = yield packet
             if new_chunk:
                 data.write(new_chunk)
+            del new_chunk
 
     def get_pickler(self, buffer: IO[bytes]) -> Pickler:
         return Pickler(buffer, protocol=HIGHEST_PROTOCOL, fix_imports=False, buffer_callback=None)

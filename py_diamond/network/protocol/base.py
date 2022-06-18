@@ -36,8 +36,8 @@ _P = TypeVar("_P", bound=AbstractNetworkProtocol)
 
 
 class GenericNetworkProtocolWrapper(Generic[_P]):
-    def __init__(self, protocol: _P) -> None:
-        super().__init__()
+    def __init__(self, protocol: _P, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
         assert isinstance(protocol, AbstractNetworkProtocol)
         self.__protocol: _P = protocol
 
