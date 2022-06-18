@@ -18,6 +18,7 @@ __all__ = [
     "IPv6SocketAddress",
     "ReceivedDatagram",
     "SocketMeta",
+    "SocketRawIOWrapper",
 ]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -26,11 +27,16 @@ __license__ = "GNU GPL v3.0"
 
 
 from abc import abstractmethod
+from io import RawIOBase
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeAlias, TypeVar
 
 from ...system.non_copyable import NonCopyableMeta
 from ...system.object import Object, ObjectMeta
+from ...system.utils.io import readable_buffer_to_bytes
 from .constants import AddressFamily, ShutdownFlag
+
+if TYPE_CHECKING:
+    from _typeshed import ReadableBuffer, WriteableBuffer
 
 
 class IPv4SocketAddress(NamedTuple):
@@ -192,6 +198,10 @@ class AbstractTCPClientSocket(AbstractTCPSocket):
         raise NotImplementedError
 
     @abstractmethod
+    def recv_into(self, buffer: WriteableBuffer, nbytes: int = ..., flags: int = ...) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
     def send(self, data: bytes, flags: int = ...) -> int:
         raise NotImplementedError
 
@@ -227,6 +237,10 @@ class AbstractUDPSocket(AbstractSocket):
         raise NotImplementedError
 
     @abstractmethod
+    def recvfrom_into(self, buffer: WriteableBuffer, nbytes: int = ..., flags: int = ...) -> tuple[int, SocketAddress]:
+        raise NotImplementedError
+
+    @abstractmethod
     def sendto(self, data: bytes, address: SocketAddress, flags: int = ...) -> int:
         raise NotImplementedError
 
@@ -258,3 +272,29 @@ class AbstractUDPClientSocket(AbstractUDPSocket):
     @abstractmethod
     def create(cls: type[__Self], family: int = ...) -> __Self:
         raise NotImplementedError
+
+
+class SocketRawIOWrapper(RawIOBase):
+    def __init__(self, socket: AbstractTCPClientSocket, flags: int = 0) -> None:
+        self._socket: AbstractTCPClientSocket = socket
+        self._flags: int = flags
+        super().__init__()
+
+    def readable(self) -> bool:
+        return self._socket.is_connected()
+
+    def readinto(self, buffer: WriteableBuffer, /) -> int | None:
+        try:
+            return self._socket.recv_into(buffer, flags=self._flags)
+        except BlockingIOError:
+            return None
+
+    def writable(self) -> bool:
+        return self._socket.is_connected()
+
+    def write(self, b: ReadableBuffer, /) -> int | None:
+        b = readable_buffer_to_bytes(b)
+        try:
+            return self._socket.send(b, flags=self._flags)
+        except BlockingIOError:
+            return None

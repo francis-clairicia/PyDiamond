@@ -12,18 +12,20 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __license__ = "GNU GPL v3.0"
 
+import os
 from abc import abstractmethod
 from collections import deque
-from io import DEFAULT_BUFFER_SIZE, BufferedReader, BytesIO
-from os import fstat
-from selectors import EVENT_READ, EVENT_WRITE, SelectSelector as _Selector
+from contextlib import suppress
+from io import DEFAULT_BUFFER_SIZE, BufferedWriter
+from selectors import EVENT_READ, SelectSelector as _Selector
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Callable, Generator, Generic, Iterator, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Generator, Generic, TypeVar, overload
 
 from ..system.object import Object, final
 from ..system.utils.abc import concreteclass, concreteclasscheck
-from .protocol.base import AbstractNetworkProtocol, AbstractStreamNetworkProtocol, ValidationError
+from .protocol.base import AbstractNetworkProtocol, ValidationError
 from .protocol.pickle import PicklingNetworkProtocol
+from .protocol.stream import AbstractStreamNetworkProtocol, StreamNetworkPacketHandler
 from .socket.base import (
     AbstractSocket,
     AbstractTCPClientSocket,
@@ -31,6 +33,7 @@ from .socket.base import (
     AbstractUDPSocket,
     ReceivedDatagram,
     SocketAddress,
+    SocketRawIOWrapper,
 )
 from .socket.constants import SHUT_WR
 from .socket.python import PythonTCPClientSocket, PythonUDPClientSocket
@@ -107,6 +110,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
         "__queue",
         "__lock",
         "__chunk_size",
+        "__handler",
     )
 
     @overload
@@ -142,8 +146,6 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
     ) -> None:
         if protocol is None:
             protocol = PicklingNetworkProtocol()
-        elif not isinstance(protocol, AbstractStreamNetworkProtocol):
-            raise TypeError("Invalid arguments")
         socket: AbstractTCPClientSocket
         if isinstance(arg, AbstractTCPClientSocket):
             if kwargs:
@@ -157,16 +159,12 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
         else:
             raise TypeError("Invalid arguments")
         self.__socket: AbstractTCPClientSocket = socket
-        self.__buffer_recv: bytes = b""
-        self.__protocol: AbstractStreamNetworkProtocol = protocol
+        self.__handler: StreamNetworkPacketHandler[_T] = StreamNetworkPacketHandler(protocol)
         self.__queue: deque[_T] = deque()
         self.__lock: RLock = RLock()
         self.__chunk_size: int = DEFAULT_BUFFER_SIZE
-        try:
-            socket_stat = fstat(socket.fileno())
-        except OSError:  # Will not work on Windows
-            pass
-        else:
+        with suppress(OSError):  # Will not work on Windows
+            socket_stat = os.fstat(socket.fileno())
             blksize: int = getattr(socket_stat, "st_blksize", 0)
             if blksize > 0:
                 self.__chunk_size = blksize
@@ -184,27 +182,30 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
                     socket.close()
 
     def send_packet(self, packet: _T, *, flags: int = 0) -> None:
-        with self.__lock:
-            socket: AbstractTCPClientSocket = self.__socket
-            protocol: AbstractStreamNetworkProtocol = self.__protocol
-            data: bytes = protocol.serialize(packet)
-            data = protocol.parser_add_header_footer(data)
+        with self.__lock, BufferedWriter(SocketRawIOWrapper(self.__socket, flags=flags), buffer_size=self.__chunk_size) as writer:
             try:
-                with _Selector() as selector:
-                    selector.register(socket, EVENT_WRITE)
-                    while data:
-                        while not selector.select():
-                            continue
-                        sent: int = socket.send(data, flags)
-                        data = data[sent:]
-            except OSError as exc:
+                for chunk in self.__handler.produce(packet):
+                    writer.write(chunk)
+            except ConnectionError as exc:
+                raise DisconnectedClientError(self) from exc
+
+    def send_packets(self, *packets: _T, flags: int = 0) -> None:
+        if not packets:
+            return
+        with self.__lock, BufferedWriter(SocketRawIOWrapper(self.__socket, flags=flags), buffer_size=self.__chunk_size) as writer:
+            produce = self.__handler.produce
+            try:
+                for packet in packets:
+                    for chunk in produce(packet):
+                        writer.write(chunk)
+            except ConnectionError as exc:
                 raise DisconnectedClientError(self) from exc
 
     def recv_packet(self, *, flags: int = 0, retry_on_fail: bool = True) -> _T:
         with self.__lock:
             queue: deque[_T] = self.__queue
             while not queue:
-                self.__recv_packets(flags=flags, block=True)
+                queue.extend(self.__recv_packets(flags=flags, block=True))
                 if not retry_on_fail:
                     break
             if not queue:
@@ -215,61 +216,30 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
         with self.__lock:
             queue: deque[_T] = self.__queue
             if not queue:
-                self.__recv_packets(flags=flags, block=False)
+                queue.extend(self.__recv_packets(flags=flags, block=False))
                 if not queue:
                     return None
             return queue.popleft()
 
-    def recv_packets(self, *, flags: int = 0, block: bool = True) -> Iterator[_T]:
+    def recv_packets(self, *, flags: int = 0, block: bool = True) -> Generator[_T, None, None]:
         with self.__lock:
-            self.__recv_packets(flags=flags, block=block)
             queue: deque[_T] = self.__queue
+            if not queue:
+                queue.extend(self.__recv_packets(flags=flags, block=block))
             while queue:
                 yield queue.popleft()
 
-    def __recv_packets(self, flags: int, block: bool) -> None:
-        protocol: AbstractNetworkProtocol = self.__protocol
-        queue: deque[_T] = self.__queue
-        if queue:
-            return
-
-        chunk_generator = self.__parse_received_data(flags=flags, block=block)
-
-        for data in chunk_generator:
-            try:
-                packet: _T = protocol.deserialize(data)
-                queue.append(packet)
-            except ValidationError:
-                continue
-            except:
-                chunk_generator.close()
-                raise
-
-    def __parse_received_data(self, flags: int, block: bool) -> Generator[bytes, None, None]:
-        protocol: AbstractStreamNetworkProtocol = self.__protocol
-        buffer: bytes = self.__buffer_recv
-        self.__buffer_recv = bytes()
-
-        # TODO: Give directly the socket to the BufferedReader object
-        chunk_reader = self.read_socket(self.__socket, self.__chunk_size, block=block, flags=flags)
+    def __recv_packets(self, flags: int, block: bool) -> Generator[_T, None, None]:
+        chunk_reader: Generator[bytes, None, None] = self.read_socket(self.__socket, self.__chunk_size, block=block, flags=flags)
         try:
             while True:
                 try:
                     chunk: bytes | None = next(chunk_reader, None)
-                except (OSError, EOFError) as exc:
+                except (ConnectionError, EOFError) as exc:
                     raise DisconnectedClientError(self) from exc
                 if chunk is None:
-                    self.__buffer_recv = buffer
                     break
-                buffer += chunk
-                with BufferedReader(BytesIO(buffer), buffer_size=len(buffer)) as reader:  # type: ignore[arg-type]
-                    try:
-                        yield from protocol.parse_received_data(reader)
-                    except GeneratorExit:
-                        self.__buffer_recv = reader.read()
-                        break
-                    else:
-                        buffer = reader.read()
+                yield from self.__handler.consume(chunk)
         finally:
             chunk_reader.close()
 
@@ -343,8 +313,8 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
 
     @final
     @property
-    def protocol(self) -> AbstractNetworkProtocol:
-        return self.__protocol
+    def protocol(self) -> AbstractStreamNetworkProtocol:
+        return self.__handler.protocol
 
 
 @concreteclass
@@ -410,55 +380,61 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
             if socket.is_open():
                 socket.close()
 
-    def send_packet(self, packet: _T, address: SocketAddress, *, flags: int = 0) -> None:
+    def send_packet(self, address: SocketAddress, packet: _T, *, flags: int = 0) -> None:
         with self.__lock:
             socket: AbstractUDPSocket = self.__socket
             protocol: AbstractNetworkProtocol = self.__protocol
             data: bytes = protocol.serialize(packet)
             socket.sendto(data, address, flags=flags)
 
+    def send_packets(self, address: SocketAddress, *packets: _T, flags: int = 0) -> None:
+        if not packets:
+            return
+        with self.__lock:
+            sendto = self.__socket.sendto
+            for data in map(self.__protocol.serialize, packets):
+                sendto(data, address, flags=flags)
+
     def recv_packet(self, *, flags: int = 0, retry_on_fail: bool = True) -> tuple[_T, SocketAddress]:
         with self.__lock:
             queue: deque[tuple[_T, SocketAddress]] = self.__queue
+            while not queue:
+                queue.extend(self.__recv_packets(flags=flags, block=True))
+                if not retry_on_fail:
+                    break
             if not queue:
-                recv_packets: Callable[[], None] = lambda: self.__recv_packets(flags=flags, block=True)
-                recv_packets()
-                while not queue and retry_on_fail:
-                    recv_packets()
-                if not queue:
-                    raise NoValidPacket
+                raise NoValidPacket
             return queue.popleft()
 
     def recv_packet_no_wait(self, *, flags: int = 0) -> tuple[_T, SocketAddress] | None:
         with self.__lock:
             queue: deque[tuple[_T, SocketAddress]] = self.__queue
             if not queue:
-                self.__recv_packets(flags=flags, block=False)
+                queue.extend(self.__recv_packets(flags=flags, block=False))
                 if not queue:
                     return None
             return queue.popleft()
 
-    def recv_packets(self, *, flags: int = 0, block: bool = True) -> Iterator[tuple[_T, SocketAddress]]:
+    def recv_packets(self, *, flags: int = 0, block: bool = True) -> Generator[tuple[_T, SocketAddress], None, None]:
         with self.__lock:
-            self.__recv_packets(flags=flags, block=block)
             queue: deque[tuple[_T, SocketAddress]] = self.__queue
+            if not queue:
+                queue.extend(self.__recv_packets(flags=flags, block=block))
             while queue:
                 yield queue.popleft()
 
-    def __recv_packets(self, flags: int, block: bool) -> None:
-        protocol: AbstractNetworkProtocol = self.__protocol
-        queue: deque[tuple[_T, SocketAddress]] = self.__queue
-        if queue:
-            return
+    def __recv_packets(self, flags: int, block: bool) -> Generator[tuple[_T, SocketAddress], None, None]:
+        deserialize = self.__protocol.deserialize
 
         chunk_generator = self.read_socket(self.__socket, block=block, flags=flags)
 
         for data, sender in chunk_generator:
             try:
-                packet: _T = protocol.deserialize(data)
-                queue.append((packet, sender))
-            except ValidationError:
-                continue
+                try:
+                    packet: _T = deserialize(data)
+                except ValidationError:
+                    continue
+                yield (packet, sender)
             except:
                 chunk_generator.close()
                 raise

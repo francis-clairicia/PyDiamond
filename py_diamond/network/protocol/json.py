@@ -17,25 +17,30 @@ from typing import Any
 
 from ...system.object import final
 from ...system.utils.abc import concreteclass
-from .base import AutoParsedStreamNetworkProtocol, ValidationError
+from .base import ValidationError
+from .stream import AutoParsedStreamNetworkProtocol
 
 
 @concreteclass
 class JSONNetworkProtocol(AutoParsedStreamNetworkProtocol):
     @final
     def serialize(self, packet: Any) -> bytes:
-        encoder = self.get_encoder()
-        return encoder.encode(packet).encode("utf-8")
+        serializer = self.get_json_serializer()
+        return self.encode_document(serializer.encode(packet))
 
     @final
     def deserialize(self, data: bytes) -> Any:
-        decoder = self.get_decoder()
         try:
-            return decoder.decode(data.decode("utf-8"))
-        except (UnicodeDecodeError, JSONDecodeError) as exc:
+            document: str = self.decode_document(data)
+        except UnicodeDecodeError as exc:
+            raise ValidationError("Unicode decode error") from exc
+        deserializer = self.get_json_deserializer()
+        try:
+            return deserializer.decode(document)
+        except JSONDecodeError as exc:
             raise ValidationError("JSON decode error") from exc
 
-    def get_encoder(self) -> JSONEncoder:
+    def get_json_serializer(self) -> JSONEncoder:
         return JSONEncoder(
             skipkeys=False,
             ensure_ascii=True,
@@ -46,5 +51,14 @@ class JSONNetworkProtocol(AutoParsedStreamNetworkProtocol):
             default=None,
         )
 
-    def get_decoder(self) -> JSONDecoder:
+    def get_json_deserializer(self) -> JSONDecoder:
         return JSONDecoder(object_hook=None, object_pairs_hook=None, strict=True)
+
+    def encode_document(self, document: str) -> bytes:
+        return document.encode(self.get_encoding())
+
+    def decode_document(self, document: bytes) -> str:
+        return document.decode(self.get_encoding())
+
+    def get_encoding(self) -> str:
+        return "utf-8"

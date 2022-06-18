@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from io import BufferedReader
 from time import sleep
 from typing import Any, ClassVar, Generator
 
 from py_diamond.network.client import TCPNetworkClient
-from py_diamond.network.protocol import ValidationError
-from py_diamond.network.protocol.base import AbstractStreamNetworkProtocol
+from py_diamond.network.protocol import AbstractStreamNetworkProtocol, ValidationError
 from py_diamond.network.server import AbstractTCPRequestHandler, TCPNetworkServer
 from py_diamond.network.socket import SocketAddress
 from py_diamond.system.threading import Thread
@@ -135,22 +133,29 @@ def test_multiple_connections() -> None:
 class _IntegerNetworkProtocol(AbstractStreamNetworkProtocol):
     BYTES_LENGTH: ClassVar[int] = 8
 
-    def serialize(self, packet: int) -> bytes:
-        if not isinstance(packet, int):
-            raise ValidationError
-        return packet.to_bytes(self.BYTES_LENGTH, byteorder="big", signed=True)
-
     def deserialize(self, data: bytes) -> int:
+        if len(data) != self.BYTES_LENGTH:
+            raise ValidationError("Invalid data length")
         return int.from_bytes(data, byteorder="big", signed=True)
 
-    def parse_received_data(self, buffer: BufferedReader) -> Generator[bytes, None, None]:
-        bytes_length: int = self.BYTES_LENGTH
-        while len(buffer.peek(bytes_length)) >= bytes_length:
-            yield buffer.read(bytes_length)
+    def incremental_serialize(self, packet: int) -> Generator[bytes, None, None]:
+        yield packet.to_bytes(self.BYTES_LENGTH, byteorder="big", signed=True)
 
-    def verify_received_data(self, data: bytes) -> None:
-        if len(data) != self.BYTES_LENGTH:
-            raise ValidationError
+    def incremental_deserialize(self, initial_bytes: bytes) -> Generator[Any, bytes | None, None]:
+        data: bytes = initial_bytes
+        del initial_bytes
+        while True:
+            packet: Any
+            new_chunk: bytes | None
+            if len(data) >= self.BYTES_LENGTH:
+                packet = self.deserialize(data[: self.BYTES_LENGTH])
+                data = data[self.BYTES_LENGTH :]
+            else:
+                packet = self.NO_PACKET
+            new_chunk = yield packet
+            if new_chunk:
+                data += new_chunk
+            del new_chunk
 
 
 def test_request_handling() -> None:

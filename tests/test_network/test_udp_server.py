@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from time import sleep
-from typing import Any, ClassVar, Generator
+from typing import Any
 
 from py_diamond.network.client import UDPNetworkClient
-from py_diamond.network.protocol import AbstractNetworkProtocol, ValidationError
 from py_diamond.network.server import AbstractUDPRequestHandler, UDPNetworkServer
 from py_diamond.network.socket import IPv4SocketAddress
 from py_diamond.system.threading import Thread
@@ -82,27 +81,7 @@ def test_service_actions() -> None:
     assert getattr(server, "service_actions_called", False)
 
 
-class _IntegerNetworkProtocol(AbstractNetworkProtocol):
-    BYTES_LENGTH: ClassVar[int] = 8
-
-    def serialize(self, packet: int) -> bytes:
-        if not isinstance(packet, int):
-            raise ValidationError
-        return packet.to_bytes(self.BYTES_LENGTH, byteorder="big", signed=True)
-
-    def deserialize(self, data: bytes) -> int:
-        return int.from_bytes(data, byteorder="big", signed=True)
-
-    def parse_received_data(self, buffer: bytes) -> Generator[bytes, None, bytes]:
-        bytes_length: int = self.BYTES_LENGTH
-        while len(buffer) >= bytes_length:
-            yield buffer[:bytes_length]
-            buffer = buffer[bytes_length:]
-        return buffer
-
-    def verify_received_data(self, data: bytes) -> None:
-        if len(data) != self.BYTES_LENGTH:
-            raise ValidationError
+from .test_tcp_server import _IntegerNetworkProtocol
 
 
 def test_request_handling() -> None:
@@ -115,9 +94,9 @@ def test_request_handling() -> None:
             UDPNetworkClient[int](protocol=server.protocol_cls()) as client_2,
             UDPNetworkClient[int](protocol=server.protocol_cls()) as client_3,
         ):
-            client_1.send_packet(350, address)
-            client_2.send_packet(-634, address)
-            client_3.send_packet(0, address)
+            client_1.send_packet(address, 350)
+            client_2.send_packet(address, -634)
+            client_3.send_packet(address, 0)
             sleep(0.2)
             assert client_1.recv_packet()[0] == 350
             assert client_2.recv_packet()[0] == -634

@@ -7,7 +7,7 @@ from threading import Event
 from typing import Any
 
 from py_diamond.network.client import UDPNetworkClient
-from py_diamond.network.protocol import PicklingNetworkProtocol, SecuredNetworkProtocol
+from py_diamond.network.protocol import PicklingNetworkProtocol, SafePicklingNetworkProtocol
 from py_diamond.network.socket import IPv4SocketAddress, PythonUDPClientSocket, PythonUDPServerSocket
 from py_diamond.system.threading import Thread, thread_factory
 
@@ -38,9 +38,9 @@ def test_default() -> None:
     try:
         server_started.wait()
         with UDPNetworkClient[Any]() as client:
-            client.send_packet({"data": [5, 2]}, address)
+            client.send_packet(address, {"data": [5, 2]})
             assert client.recv_packet()[0] == {"data": [5, 2]}
-            client.send_packet("Hello", address)
+            client.send_packet(address, "Hello")
             assert client.recv_packet()[0] == "Hello"
             assert len(list(client.recv_packets(block=False))) == 0
             assert client.recv_packet_no_wait() is None
@@ -63,9 +63,9 @@ def test_custom_socket() -> None:
         server_started.wait()
         with PythonUDPClientSocket.create() as socket:
             client: UDPNetworkClient[Any] = UDPNetworkClient(socket)
-            client.send_packet({"data": [5, 2]}, address)
+            client.send_packet(address, {"data": [5, 2]})
             assert client.recv_packet()[0] == {"data": [5, 2]}
-            client.send_packet("Hello", address)
+            client.send_packet(address, "Hello")
             assert client.recv_packet()[0] == "Hello"
     finally:
         shutdow_requested.set()
@@ -78,22 +78,16 @@ def test_custom_protocol() -> None:
     host: str = "localhost"
     port: int = random_port()
 
-    class SafePicklingProtocol(SecuredNetworkProtocol):
-        SECRET_KEY = SecuredNetworkProtocol.generate_key()
-
-        def get_unsafe_protocol(self) -> PicklingNetworkProtocol:
-            return PicklingNetworkProtocol()
-
     server_started.clear()
     shutdow_requested.clear()
     server_thread: Thread = launch_server(host, port, server_started, shutdow_requested)
     address: IPv4SocketAddress = IPv4SocketAddress(host, port)
     try:
         server_started.wait()
-        with UDPNetworkClient[Any](protocol=SafePicklingProtocol()) as client:
-            client.send_packet({"data": [5, 2]}, address)
+        with UDPNetworkClient[Any](protocol=SafePicklingNetworkProtocol(SafePicklingNetworkProtocol.generate_key())) as client:
+            client.send_packet(address, {"data": [5, 2]})
             assert client.recv_packet()[0] == {"data": [5, 2]}
-            client.send_packet("Hello", address)
+            client.send_packet(address, "Hello")
             assert client.recv_packet()[0] == "Hello"
     finally:
         shutdow_requested.set()
@@ -113,9 +107,9 @@ def test_several_successive_send() -> None:
     try:
         server_started.wait()
         with UDPNetworkClient[Any](protocol=PicklingNetworkProtocol()) as client:
-            client.send_packet({"data": [5, 2]}, address)
-            client.send_packet("Hello", address)
-            client.send_packet(132, address)
+            client.send_packet(address, {"data": [5, 2]})
+            client.send_packet(address, "Hello")
+            client.send_packet(address, 132)
             assert client.recv_packet()[0] == {"data": [5, 2]}
             assert client.recv_packet()[0] == "Hello"
             assert client.recv_packet()[0] == 132

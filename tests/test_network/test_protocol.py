@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from typing import ClassVar
-
-from py_diamond.network.protocol import JSONNetworkProtocol, PicklingNetworkProtocol, SecuredNetworkProtocol
+from py_diamond.network.protocol import EncryptorProtocol, JSONNetworkProtocol, PicklingNetworkProtocol
 
 import pytest
 from cryptography.fernet import Fernet, InvalidToken
@@ -27,57 +25,14 @@ def test_json_protocol() -> None:
 
 
 def test_secured_protocol() -> None:
-    class SecuredJSONProtocol(SecuredNetworkProtocol):
-        SECRET_KEY: ClassVar[str] = SecuredNetworkProtocol.generate_key()
-
-        def get_unsafe_protocol(self) -> JSONNetworkProtocol:
-            return JSONNetworkProtocol()
-
-    protocol = SecuredJSONProtocol()
+    key: str = EncryptorProtocol.generate_key()
+    protocol = EncryptorProtocol(JSONNetworkProtocol(), key)
     d: bytes = protocol.serialize({"key": [1, 2], "value": True})
     assert d != b'{"key":[1,2],"value":true}'
-    assert protocol.fernet.decrypt(d) == b'{"key":[1,2],"value":true}'
-    assert Fernet(SecuredJSONProtocol.SECRET_KEY).decrypt(d) == b'{"key":[1,2],"value":true}'
+    assert protocol.key.decrypt(d) == b'{"key":[1,2],"value":true}'
+    assert Fernet(key).decrypt(d) == b'{"key":[1,2],"value":true}'
 
     with pytest.raises(InvalidToken):
         Fernet(Fernet.generate_key()).decrypt(d)
 
     assert protocol.deserialize(d) == {"key": [1, 2], "value": True}
-
-
-def test_secured_protocol_secret_key_from_env() -> None:
-    random_key: str = SecuredNetworkProtocol.generate_key()
-
-    from os import environ
-
-    environ["SECRET_KEY"] = random_key
-
-    try:
-
-        class SecuredJSONProtocol(SecuredNetworkProtocol):
-            def get_unsafe_protocol(self) -> JSONNetworkProtocol:
-                return JSONNetworkProtocol()
-
-    finally:
-        del environ["SECRET_KEY"]
-
-    assert SecuredJSONProtocol.SECRET_KEY == random_key
-
-
-def test_secured_protocol_secret_key_from_env_custom_var() -> None:
-    random_key: str = SecuredNetworkProtocol.generate_key()
-
-    from os import environ
-
-    environ["MY_SUPER_SECRET_KEY"] = random_key
-
-    try:
-
-        class SecuredJSONProtocol(SecuredNetworkProtocol, secret_key_var="MY_SUPER_SECRET_KEY"):
-            def get_unsafe_protocol(self) -> JSONNetworkProtocol:
-                return JSONNetworkProtocol()
-
-    finally:
-        del environ["MY_SUPER_SECRET_KEY"]
-
-    assert SecuredJSONProtocol.SECRET_KEY == random_key

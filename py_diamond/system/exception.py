@@ -57,7 +57,7 @@ def noexcept(func: Callable[_P, _R], /) -> Callable[_P, _R]:
                 async_gen: AsyncGenerator[Any, Any] = func(*args, **kwargs)  # type: ignore[assignment]
                 # Reproduced the pure python implementation of the 'yield from' statement
                 # See https://peps.python.org/pep-0380/#formal-semantics
-                _y = await async_gen.__anext__()
+                _y = await anext(async_gen)
                 while True:
                     try:
                         _s = yield _y

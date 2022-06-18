@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
-from io import BufferedReader
+from functools import partial
 from selectors import EVENT_READ, DefaultSelector
 from threading import Event
 from typing import Any, Generator
 
 from py_diamond.network.client import TCPNetworkClient
-from py_diamond.network.protocol import JSONNetworkProtocol, PicklingNetworkProtocol, SecuredNetworkProtocol, ValidationError
-from py_diamond.network.protocol.base import AbstractStreamNetworkProtocol
+from py_diamond.network.protocol import (
+    AbstractStreamNetworkProtocol,
+    EncryptorProtocol,
+    JSONNetworkProtocol,
+    PicklingNetworkProtocol,
+    SafePicklingNetworkProtocol,
+    ValidationError,
+)
 from py_diamond.network.socket import PythonTCPClientSocket, PythonTCPServerSocket
 from py_diamond.system.threading import Thread, thread_factory
 
@@ -17,12 +23,7 @@ import pytest
 
 from .random_port import random_port
 
-
-class SafePicklingProtocol(SecuredNetworkProtocol):
-    SECRET_KEY = SecuredNetworkProtocol.generate_key()
-
-    def get_unsafe_protocol(self) -> PicklingNetworkProtocol:
-        return PicklingNetworkProtocol()
+generate_key = EncryptorProtocol.generate_key
 
 
 @thread_factory
@@ -94,7 +95,7 @@ def test_custom_protocol() -> None:
     server_thread: Thread = launch_server(host, port, server_started, shutdow_requested)
     server_started.wait()
     try:
-        with TCPNetworkClient[Any]((host, port), protocol=SafePicklingProtocol()) as client:
+        with TCPNetworkClient[Any]((host, port), protocol=SafePicklingNetworkProtocol(generate_key())) as client:
             client.send_packet({"data": [5, 2]})
             assert client.recv_packet() == {"data": [5, 2]}
             client.send_packet("Hello")
@@ -105,18 +106,25 @@ def test_custom_protocol() -> None:
 
 
 class StringNetworkProtocol(AbstractStreamNetworkProtocol):
-    def parse_received_data(self, buffer: BufferedReader) -> Generator[bytes, None, None]:
-        while b"\n" in buffer.peek():
-            data = buffer.readline()
-            yield data[:-1]
-
-    def serialize(self, packet: str) -> bytes:
+    def incremental_serialize(self, packet: str) -> Generator[bytes, None, None]:
         if not isinstance(packet, str):
-            raise ValidationError
-        return packet.encode("ascii")
+            raise ValidationError("Invalid string")
+        yield from map(partial(str.encode, encoding="ascii"), packet.splitlines(True))
 
-    def deserialize(self, data: bytes) -> str:
-        return data.decode("ascii")
+    def incremental_deserialize(self, initial_bytes: bytes) -> Generator[Any, bytes | None, None]:
+        data: str = initial_bytes.decode("ascii")
+        del initial_bytes
+        while True:
+            packet: Any
+            new_chunk: bytes | None
+            if "\n" in data:
+                packet, _, data = data.partition("\n")
+            else:
+                packet = self.NO_PACKET
+            new_chunk = yield packet
+            if new_chunk:
+                data += new_chunk.decode("ascii")
+            del new_chunk
 
 
 def test_multiple_requests() -> None:
@@ -206,7 +214,7 @@ def test_several_successive_send_using_secured_pickling_protocol() -> None:
     server_thread: Thread = launch_server(host, port, server_started, shutdow_requested)
     try:
         server_started.wait()
-        with TCPNetworkClient[Any]((host, port), protocol=SafePicklingProtocol()) as client:
+        with TCPNetworkClient[Any]((host, port), protocol=SafePicklingNetworkProtocol(generate_key())) as client:
             client.send_packet({"data": [5, 2]})
             client.send_packet("Hello")
             client.send_packet(132)

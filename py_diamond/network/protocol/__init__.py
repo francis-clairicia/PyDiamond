@@ -8,15 +8,17 @@ from __future__ import annotations
 
 __all__ = [
     "AbstractNetworkProtocol",
+    "AbstractStreamNetworkProtocol",
     "AutoParsedStreamNetworkProtocol",
     "BZ2CompressorProtocol",
     "GzipCompressorProtocol",
     "JSONNetworkProtocol",
     "PicklingNetworkProtocol",
-    "SecuredNetworkProtocol",
-    "SecuredNetworkProtocolMeta",
+    "StreamNetworkPacketHandler",
     "ValidationError",
     "ZlibCompressorProtocol",
+    "EncryptorProtocol",
+    "SafePicklingNetworkProtocol",
 ]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -25,13 +27,9 @@ __license__ = "GNU GPL v3.0"
 
 
 ############ Package initialization ############
-from .base import (
-    AbstractNetworkProtocol,
-    AutoParsedStreamNetworkProtocol,
-    SecuredNetworkProtocol,
-    SecuredNetworkProtocolMeta,
-    ValidationError,
-)
+from .base import AbstractNetworkProtocol, ValidationError
 from .compressor import BZ2CompressorProtocol, GzipCompressorProtocol, ZlibCompressorProtocol
+from .encryptor import EncryptorProtocol
 from .json import JSONNetworkProtocol
-from .pickle import PicklingNetworkProtocol
+from .pickle import PicklingNetworkProtocol, SafePicklingNetworkProtocol
+from .stream import AbstractStreamNetworkProtocol, AutoParsedStreamNetworkProtocol, StreamNetworkPacketHandler

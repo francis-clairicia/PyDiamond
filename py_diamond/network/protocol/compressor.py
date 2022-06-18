@@ -15,18 +15,23 @@ __license__ = "GNU GPL v3.0"
 import bz2
 import gzip
 import zlib
-from typing import Any
+from typing import Any, TypeVar
 
 from ...system.object import final
 from ...system.utils.abc import concreteclass
-from .base import AbstractNetworkProtocol, AutoParsedStreamNetworkProtocol, ValidationError
+from .base import AbstractNetworkProtocol, GenericNetworkProtocolWrapper, ValidationError
+from .stream import AutoParsedStreamNetworkProtocol
+
+_P = TypeVar("_P", bound=AbstractNetworkProtocol)
+
+# TODO: Incremental compression/decompression
+# TODO: Do not use AutoParsedStreamNetworkProtocol
 
 
 @concreteclass
-class BZ2CompressorProtocol(AutoParsedStreamNetworkProtocol):
-    def __init__(self, protocol: AbstractNetworkProtocol, *, compresslevel: int = 9) -> None:
-        super().__init__()
-        self.__protocol: AbstractNetworkProtocol = protocol
+class BZ2CompressorProtocol(AutoParsedStreamNetworkProtocol, GenericNetworkProtocolWrapper[_P]):
+    def __init__(self, protocol: _P, *, compresslevel: int = 9) -> None:
+        super().__init__(protocol)
         self.__compresslevel: int = compresslevel
 
     @final
@@ -44,20 +49,14 @@ class BZ2CompressorProtocol(AutoParsedStreamNetworkProtocol):
 
     @property
     @final
-    def protocol(self) -> AbstractNetworkProtocol:
-        return self.__protocol
-
-    @property
-    @final
     def compresslevel(self) -> int:
         return self.__compresslevel
 
 
 @concreteclass
-class GzipCompressorProtocol(AutoParsedStreamNetworkProtocol):
-    def __init__(self, protocol: AbstractNetworkProtocol, *, compresslevel: int = 9) -> None:
-        super().__init__()
-        self.__protocol: AbstractNetworkProtocol = protocol
+class GzipCompressorProtocol(AutoParsedStreamNetworkProtocol, GenericNetworkProtocolWrapper[_P]):
+    def __init__(self, protocol: _P, *, compresslevel: int = zlib.Z_BEST_COMPRESSION) -> None:
+        super().__init__(protocol)
         self.__compresslevel: int = compresslevel
 
     @final
@@ -75,20 +74,14 @@ class GzipCompressorProtocol(AutoParsedStreamNetworkProtocol):
 
     @property
     @final
-    def protocol(self) -> AbstractNetworkProtocol:
-        return self.__protocol
-
-    @property
-    @final
     def compresslevel(self) -> int:
         return self.__compresslevel
 
 
 @concreteclass
-class ZlibCompressorProtocol(AutoParsedStreamNetworkProtocol):
-    def __init__(self, protocol: AbstractNetworkProtocol, *, compresslevel: int = zlib.Z_BEST_COMPRESSION) -> None:
-        super().__init__()
-        self.__protocol: AbstractNetworkProtocol = protocol
+class ZlibCompressorProtocol(AutoParsedStreamNetworkProtocol, GenericNetworkProtocolWrapper[_P]):
+    def __init__(self, protocol: _P, *, compresslevel: int = zlib.Z_BEST_COMPRESSION) -> None:
+        super().__init__(protocol)
         self.__compresslevel: int = compresslevel
 
     @final
@@ -103,11 +96,6 @@ class ZlibCompressorProtocol(AutoParsedStreamNetworkProtocol):
         except zlib.error as exc:
             raise ValidationError("zlib.error occured") from exc
         return self.protocol.deserialize(data)
-
-    @property
-    @final
-    def protocol(self) -> AbstractNetworkProtocol:
-        return self.__protocol
 
     @property
     @final

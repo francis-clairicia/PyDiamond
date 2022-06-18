@@ -31,7 +31,7 @@ from socket import (
     socket,
 )
 from threading import RLock
-from typing import Any, Callable, Concatenate, Final, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Concatenate, Final, ParamSpec, TypeVar
 
 from ...system.object import final
 from ...system.utils._mangling import delattr_pv, getattr_pv, hasattr_pv, setattr_pv
@@ -51,6 +51,9 @@ from .base import (
     SocketAddress,
 )
 from .constants import AF_INET, AF_INET6, AddressFamily, ShutdownFlag
+
+if TYPE_CHECKING:
+    from _typeshed import WriteableBuffer
 
 _MISSING: Any = object()
 
@@ -298,6 +301,16 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
 
     @final
     @_thread_safe_python_socket_method
+    def recv_into(self, buffer: WriteableBuffer, nbytes: int = 0, flags: int = 0) -> int:
+        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
+        if sock is _MISSING:
+            raise RuntimeError("Closed socket")
+        if OS_NAME in ("nt", "cygwin"):  # Flags not supported on Windows
+            return sock.recv_into(buffer, nbytes)
+        return sock.recv_into(buffer, nbytes, flags)
+
+    @final
+    @_thread_safe_python_socket_method
     def send(self, data: bytes, flags: int = 0) -> int:
         sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
         if sock is _MISSING:
@@ -379,6 +392,23 @@ class _AbstractPythonUDPSocket(_AbstractPythonSocket, AbstractUDPSocket):
         else:
             sender = IPv4SocketAddress(*addr)
         return ReceivedDatagram(data, sender)
+
+    @final
+    @_thread_safe_python_socket_method
+    def recvfrom_into(self, buffer: WriteableBuffer, nbytes: int = 0, flags: int = 0) -> tuple[int, SocketAddress]:
+        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
+        if sock is _MISSING:
+            raise RuntimeError("Closed socket")
+        if OS_NAME in ("nt", "cygwin"):  # Flags not supported on Windows
+            nbytes, addr = sock.recvfrom_into(buffer, nbytes)
+        else:
+            nbytes, addr = sock.recvfrom_into(buffer, nbytes, flags)
+        sender: SocketAddress
+        if int(sock.family) == AF_INET6:
+            sender = IPv6SocketAddress(*addr)
+        else:
+            sender = IPv4SocketAddress(*addr)
+        return (nbytes, sender)
 
     @final
     @_thread_safe_python_socket_method

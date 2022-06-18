@@ -33,8 +33,9 @@ from ..system.threading import Thread, thread_factory
 from ..system.utils.abc import concreteclass, concreteclasscheck
 from ..system.utils.functools import dsuppress
 from .client import DisconnectedClientError, TCPNetworkClient, UDPNetworkClient
-from .protocol.base import AbstractNetworkProtocol, AbstractStreamNetworkProtocol
+from .protocol.base import AbstractNetworkProtocol
 from .protocol.pickle import PicklingNetworkProtocol
+from .protocol.stream import AbstractStreamNetworkProtocol
 from .selector import DefaultSelector as _Selector
 from .socket.base import AbstractSocket, AbstractTCPServerSocket, AbstractUDPServerSocket, SocketAddress
 from .socket.python import PythonTCPServerSocket, PythonUDPServerSocket
@@ -593,7 +594,7 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_T]):
 
         def send_packet(self, packet: _T, *, flags: int = 0) -> None:
             client: UDPNetworkClient[_T] = self.__client
-            return client.send_packet(packet, self.address, flags=flags)
+            return client.send_packet(self.address, packet, flags=flags)
 
 
 @concreteclass

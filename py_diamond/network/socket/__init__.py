@@ -30,6 +30,7 @@ __all__ = [
     "ShutdownFlag",
     "SocketAddress",
     "SocketMeta",
+    "SocketRawIOWrapper",
 ]
 
 __author__ = "Francis Clairicia-Rose-Claire-Josephine"
@@ -51,6 +52,7 @@ from .base import (
     ReceivedDatagram,
     SocketAddress,
     SocketMeta,
+    SocketRawIOWrapper,
 )
 from .constants import AF_INET, AF_INET6, SHUT_RD, SHUT_RDWR, SHUT_WR, AddressFamily, ShutdownFlag
 from .python import PythonTCPClientSocket, PythonTCPServerSocket, PythonUDPClientSocket, PythonUDPServerSocket
