@@ -1,8 +1,10 @@
-#!/usr/bin/env -S python3 -Walways
+#!/usr/bin/env -S python3 -W default
 # -*- coding: Utf-8 -*-
 
 from __future__ import annotations
 
+import gc
+import weakref
 from argparse import ArgumentParser
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterator, Literal as L, Mapping, Sequence
 
@@ -1262,6 +1264,8 @@ class TestDialogScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawabl
 
 
 class SceneTransitionTranslation(SceneTransition):
+    __slots__ = "__side"
+
     def __init__(self, side: L["left", "right"]) -> None:
         super().__init__()
         self.__side: L["left", "right"] = side
@@ -1293,6 +1297,9 @@ class SceneTransitionTranslation(SceneTransition):
     def render(self) -> None:
         self.actual_scene.draw_onto(self.window)
         self.previous_scene.draw_onto(self.window)
+
+    def destroy(self) -> None:
+        self.__dict__.clear()
 
 
 class TextFramerate(Text, no_theme=True):
@@ -1363,6 +1370,7 @@ class MainWindow(SceneWindow):
         self.prev_button.topleft = self.left + 10, self.top + 10
         self.next_button.topright = self.right - 10, self.top + 10
 
+        self.event.bind_key_press(Keyboard.Key.F5, lambda _: gc.collect())  # type: ignore[arg-type]
         self.event.bind_key_release(Keyboard.Key.F11, lambda _: self.screenshot())
         self.event.bind(ScreenshotEvent, self.__show_screenshot)
         self.screenshot_image: Image | None = None
@@ -1420,6 +1428,7 @@ def main() -> None:
     parser = ArgumentParser()
     parser.add_argument("-i", "--index", type=int, default=0)
     parser.add_argument("-s", "--scenes", action="store_true")
+    parser.add_argument("-d", "--debug", action="store_true")
     args = parser.parse_args()
 
     if args.scenes:
@@ -1428,9 +1437,16 @@ def main() -> None:
         print(json.dumps({i: s.__name__ for i, s in enumerate(MainWindow.all_scenes)}, indent=4))
         return
 
+    if args.debug:
+        gc.set_debug(gc.DEBUG_STATS | gc.DEBUG_LEAK)
+
     with Mixer.init(), MainWindow().open() as window:
+        window_finalizer = weakref.finalize(window, print, "Window dead")
         MusicStream.set_volume(0)
         window.mainloop(args.index)
+    # Ensure there is no remaining reference to window
+    del window
+    assert not window_finalizer.alive
 
 
 if __name__ == "__main__":

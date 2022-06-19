@@ -6,9 +6,9 @@
 
 from __future__ import annotations
 
-__all__ = ["Window", "WindowCallback", "WindowError"]
+__all__ = ["Window", "WindowCallback", "WindowError", "WindowExit"]
 
-
+import gc
 import os
 import os.path
 from collections import deque
@@ -81,10 +81,11 @@ class WindowError(_pg_error):
     pass
 
 
-class Window(Object):
-    class __Exit(BaseException):
-        pass
+class WindowExit(BaseException):
+    pass
 
+
+class Window(Object):
     DEFAULT_TITLE: Final[str] = "PyDiamond window"
     DEFAULT_FRAMERATE: Final[int] = 60
     DEFAULT_FIXED_FRAMERATE: Final[int] = 50
@@ -145,7 +146,6 @@ class Window(Object):
         pass
 
     def __del__(self) -> None:
-        super().__del__()
         Window.__main_window = True
 
     if TYPE_CHECKING:
@@ -156,8 +156,7 @@ class Window(Object):
         if self.looping():
             raise WindowError("Trying to open already opened window")
 
-        self.__event.unbind_all()
-        with ExitStack() as stack, self.__stack, suppress(Window.__Exit):
+        with ExitStack() as stack, suppress(WindowExit):
             _pg_display.init()
             stack.callback(_pg_display.quit)
 
@@ -190,6 +189,7 @@ class Window(Object):
                 self.__display_renderer = None
                 self.__event.unbind_all()
 
+            stack.enter_context(self.__stack)
             self.__window_init__()
             stack.callback(self.__window_quit__)
 
@@ -202,6 +202,8 @@ class Window(Object):
             self.clear_all_events()
             self.__main_clock.tick()
             yield self
+
+        gc.collect()  # Run a full collection at the window close
 
     def set_title(self, title: str | None) -> None:
         _pg_display.set_caption(title or Window.DEFAULT_TITLE)
@@ -219,7 +221,7 @@ class Window(Object):
         while screenshot_threads:
             screenshot_threads.pop(0).join(timeout=1, terminate_on_timeout=True)
         self.__display_renderer = None
-        raise Window.__Exit
+        raise WindowExit
 
     @final
     def looping(self) -> bool:

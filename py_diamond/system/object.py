@@ -147,9 +147,6 @@ class ObjectMeta(ABCMeta):
 class Object(metaclass=ObjectMeta):
     __slots__ = ()
 
-    def __del__(self) -> None:
-        pass
-
 
 @overload
 def override(f: _T, /) -> _T:

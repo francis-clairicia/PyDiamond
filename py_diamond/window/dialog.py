@@ -55,8 +55,7 @@ class DialogMeta(SceneMeta):
         **kwargs: Any,
     ) -> None:
         super().__init__(name, bases, namespace, **kwargs)
-        if cls in _ALL_SCENES:
-            _ALL_SCENES.remove(cls)  # type: ignore[arg-type]
+        _ALL_SCENES.discard(cls)  # type: ignore[arg-type]
 
     @classmethod
     @cache

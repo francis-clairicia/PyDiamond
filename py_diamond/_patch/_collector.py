@@ -13,7 +13,6 @@ import importlib
 import importlib.machinery
 import importlib.util
 import inspect
-import itertools
 import os.path
 import pkgutil
 from collections import defaultdict, deque
@@ -55,9 +54,10 @@ class _PatchCollectorType:
         self.__all_patches: Mapping[PatchContext, Sequence[BasePatch]]
 
         all_patches: defaultdict[PatchContext, deque[BasePatch]] = defaultdict(deque)
-        forbidden_imports: set[str] = set.union(*self.__forbidden_imports_by_context.values())
+        forbidden_imports: set[str] = set().union(*self.__forbidden_imports_by_context.values())
         with self._mock_import("import", forbidden_imports=forbidden_imports):
-            for patch in itertools.chain.from_iterable(self.walk_in_plugins_module(".plugins")):
+            for patch_cls in set(self.walk_in_plugins_module(".plugins")):
+                patch = patch_cls()
                 all_patches[patch.get_required_context()].append(patch)
 
         self.__all_patches = MappingProxyType({k: tuple(v) for k, v in all_patches.items()})
@@ -75,7 +75,7 @@ class _PatchCollectorType:
                     patch.teardown()
                     del patch.run_context
 
-    def walk_in_plugins_module(self, plugins_module_name: str) -> Iterator[list[BasePatch]]:
+    def walk_in_plugins_module(self, plugins_module_name: str) -> Iterator[type[BasePatch]]:
         plugins_module_name = importlib.util.resolve_name(plugins_module_name, __package__)
         plugins_module = importlib.import_module(plugins_module_name)
         plugins_module_spec = plugins_module.__spec__
@@ -94,7 +94,7 @@ class _PatchCollectorType:
         else:
             plugins_path = getattr(plugins_module, "__path__", None)
         if plugins_path is None:  # Module
-            yield self._load_patches_from_module(plugins_module)
+            yield from self._load_patches_from_module(plugins_module)
             return
 
         for submodule_info in pkgutil.walk_packages(plugins_path):
@@ -102,11 +102,11 @@ class _PatchCollectorType:
             if submodule_info.ispkg:
                 yield from self.walk_in_plugins_module(submodule_fullname)
             else:
-                yield self._load_patches_from_module(importlib.import_module(submodule_fullname))
+                yield from self._load_patches_from_module(importlib.import_module(submodule_fullname))
 
-    def _load_patches_from_module(self, plugin_module: ModuleType) -> list[BasePatch]:
+    def _load_patches_from_module(self, plugin_module: ModuleType) -> list[type[BasePatch]]:
         return [
-            obj()
+            obj
             for obj in vars(plugin_module).values()
             if isinstance(obj, type) and issubclass(obj, BasePatch) and not inspect.isabstract(obj)
         ]

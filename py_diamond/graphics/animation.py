@@ -78,10 +78,12 @@ class AnimationInterpolator(Object):
             self.__previous_state = state = self.__actual_state
             if state is not None:
                 state.apply_on(obj)
+                self.__actual_state = None
             else:
                 self.__previous_state = self.__state_factory.from_object(obj)
             yield
-            self.__actual_state = self.__state_factory.from_object(obj)
+            if self.__previous_state is not None:  # reset() was not called
+                self.__actual_state = self.__state_factory.from_object(obj)
         finally:
             self.__state_update = False
 
@@ -97,8 +99,6 @@ class AnimationInterpolator(Object):
         previous.interpolate(actual, interpolation, obj)
 
     def reset(self) -> None:
-        if self.__state_update:
-            raise RuntimeError(f"reset() during state update")
         self.__actual_state = self.__previous_state = None
 
     @property
@@ -131,12 +131,13 @@ class AnimationInterpolatorPool(Object):
             interpolator.reset()
 
     def add(self, *objects: Movable | Transformable) -> None:
+        if not objects:
+            return
         interpolators = (AnimationInterpolator(obj) for obj in objects)
         self.__interpolators.update({interpolator.object: interpolator for interpolator in interpolators})
 
     def remove(self, obj: Movable | Transformable) -> None:
-        if isinstance(obj, (MovableProxy, TransformableProxy)):
-            obj = object.__getattribute__(obj, "_object")
+        obj = AnimationInterpolator(obj).object
         del self.__interpolators[obj]
 
 
@@ -200,6 +201,7 @@ class BaseAnimation(Object):
 
     def clear(self, *, pause: bool = False) -> None:
         self.__wait = bool(pause)
+        self.interpolator.reset()
 
     @abstractmethod
     def _launch_animations(self) -> None:
@@ -211,13 +213,11 @@ class BaseAnimation(Object):
         window: SceneWindow = scene.window
         self.__on_stop = None
         self.start()
-        fixed_update = self.fixed_update
-        interpolation_update = self.update
         with window.block_all_events_context(), window.no_window_callback_processing():
             while window.looping() and self.has_animation_started():
                 window.handle_events()
-                window._fixed_updates_call(fixed_update)
-                window._interpolation_updates_call(interpolation_update)
+                window._fixed_updates_call(self.fixed_update)
+                window._interpolation_updates_call(self.update)
                 scene.update()
                 window.render_scene()
                 window.refresh()

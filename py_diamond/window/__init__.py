@@ -74,6 +74,7 @@ __all__ = [
     "WindowCallback",
     "WindowEnterEvent",
     "WindowError",
+    "WindowExit",
     "WindowExposedEvent",
     "WindowFocusGainedEvent",
     "WindowFocusLostEvent",
@@ -111,7 +112,7 @@ from .clickable import Clickable
 from .clock import Clock
 from .cursor import AbstractCursor, Cursor, SystemCursor
 from .dialog import Dialog, DialogMeta, PopupDialog
-from .display import Window, WindowCallback, WindowError
+from .display import Window, WindowCallback, WindowError, WindowExit
 from .event import (
     BuiltinEvent,
     Event,

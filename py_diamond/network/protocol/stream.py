@@ -14,6 +14,7 @@ __all__ = [
 ]
 
 import hashlib
+import inspect
 from abc import abstractmethod
 from hmac import compare_digest
 from io import BytesIO
@@ -204,7 +205,8 @@ class StreamNetworkPacketHandler(Generic[_T], Object):
         assert isinstance(protocol, AbstractStreamNetworkProtocol)
         self.__protocol: AbstractStreamNetworkProtocol = protocol
         self.__incremental_deserialize: Generator[_T, bytes | None, None] = protocol.incremental_deserialize(b"")
-        next(self.__incremental_deserialize)  # Generator ready for send()
+        if inspect.getgeneratorstate(self.__incremental_deserialize) == "GEN_CREATED":
+            next(self.__incremental_deserialize)  # Generator ready for send()
 
     def produce(self, packet: _T) -> Generator[bytes, None, None]:
         yield from self.__protocol.incremental_serialize(packet)

@@ -23,9 +23,21 @@ __all__ = [
 
 from abc import abstractmethod
 from bisect import insort_left, insort_right
+from collections import deque
 from contextlib import suppress
 from itertools import dropwhile, filterfalse, takewhile
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Protocol, Sequence, TypeVar, overload, runtime_checkable
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterator,
+    MutableSequence,
+    Protocol,
+    Sequence,
+    TypeVar,
+    overload,
+    runtime_checkable,
+)
 from weakref import WeakKeyDictionary, WeakSet
 
 from ..system.object import Object, ObjectMeta, final
@@ -132,8 +144,8 @@ class Drawable(Object, metaclass=DrawableMeta):
                     g.remove(self)
 
     def kill(self) -> None:
-        actual_groups: WeakSet[BaseDrawableGroup[Any]] = self.__groups.copy()
-        self.__groups.clear()
+        actual_groups: WeakSet[BaseDrawableGroup[Any]] = self.__groups
+        self.__groups = WeakSet()
         for g in actual_groups:
             if self in g:
                 with suppress(ValueError):
@@ -194,7 +206,7 @@ class BaseDrawableGroup(Sequence[_D]):
 
     def __init__(self, *objects: _D, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.__list: list[_D] = []
+        self.__list: MutableSequence[_D] = deque()
         self.add(*objects)
 
     def __len__(self) -> int:
@@ -209,8 +221,7 @@ class BaseDrawableGroup(Sequence[_D]):
         ...
 
     def __getitem__(self, index: int | slice, /) -> _D | Sequence[_D]:
-        drawable_list: list[_D] = self.__list
-        return drawable_list[index]
+        return self.__list[index]
 
     def __bool__(self) -> bool:
         return self.__len__() > 0
@@ -220,7 +231,7 @@ class BaseDrawableGroup(Sequence[_D]):
             drawable.draw_onto(target)
 
     def add(self, *objects: _D) -> None:
-        drawable_list: list[_D] = self.__list
+        drawable_list: MutableSequence[_D] = self.__list
         for d in filterfalse(drawable_list.__contains__, objects):
             drawable_list.append(d)
             if self not in d.groups:
@@ -233,7 +244,7 @@ class BaseDrawableGroup(Sequence[_D]):
     def remove(self, *objects: _D) -> None:
         if not objects:
             return
-        drawable_list: list[_D] = self.__list
+        drawable_list: MutableSequence[_D] = self.__list
         for d in objects:
             if d not in drawable_list:
                 raise ValueError(f"{d!r} not in self")
@@ -244,7 +255,7 @@ class BaseDrawableGroup(Sequence[_D]):
                     d.remove_from_group(self)
 
     def pop(self, index: int = -1) -> _D:
-        drawable_list: list[_D] = self.__list
+        drawable_list: MutableSequence[_D] = self.__list
         d: _D = drawable_list.pop(index)
         if self in d.groups:
             with suppress(ValueError):
@@ -252,8 +263,12 @@ class BaseDrawableGroup(Sequence[_D]):
         return d
 
     def clear(self) -> None:
-        while self:
-            self.pop()
+        drawable_list: MutableSequence[_D] = self.__list
+        self.__list = deque()
+        for d in drawable_list:
+            if self in d.groups:
+                with suppress(ValueError):
+                    d.remove_from_group(self)
 
     def find(self, objtype: type[_T]) -> Iterator[_T]:
         return (obj for obj in self if isinstance(obj, objtype))
@@ -276,7 +291,7 @@ class BaseLayeredDrawableGroup(BaseDrawableGroup[_D]):
         if not objects:
             return
         layer_dict: WeakKeyDictionary[_D, int] = self.__layer_dict
-        drawable_list: list[_D] = getattr_pv(self, "list", owner=BaseDrawableGroup)
+        drawable_list: MutableSequence[_D] = getattr_pv(self, "list", owner=BaseDrawableGroup)
         if layer is None:
             layer = self.__default_layer
         for d in filterfalse(drawable_list.__contains__, objects):
@@ -299,6 +314,10 @@ class BaseLayeredDrawableGroup(BaseDrawableGroup[_D]):
         self.__layer_dict.pop(d, None)
         return d
 
+    def clear(self) -> None:
+        super().clear()
+        self.__layer_dict.clear()
+
     def get_layer(self, obj: _D) -> int:
         layer_dict: WeakKeyDictionary[_D, int] = self.__layer_dict
         try:
@@ -312,7 +331,7 @@ class BaseLayeredDrawableGroup(BaseDrawableGroup[_D]):
         actual_layer: int | None = layer_dict.get(obj, None)
         if (actual_layer is None and layer == self.__default_layer) or (actual_layer is not None and actual_layer == layer):
             return
-        drawable_list: list[_D] = getattr_pv(self, "list", owner=BaseDrawableGroup)
+        drawable_list: MutableSequence[_D] = getattr_pv(self, "list", owner=BaseDrawableGroup)
         try:
             drawable_list.remove(obj)
         except ValueError:
@@ -340,19 +359,17 @@ class BaseLayeredDrawableGroup(BaseDrawableGroup[_D]):
         self.change_layer(obj, self.get_bottom_layer() - int(bool(after_last)))
 
     def iter_in_layer(self, layer: int) -> Iterator[_D]:
-        return map(
-            lambda item: item[0],
-            takewhile(
-                lambda item: item[1] == layer,
-                dropwhile(
-                    lambda item: item[1] < layer,
-                    self.__layer_dict.items(),
-                ),
+        layer_dict = self.__layer_dict
+        return takewhile(
+            lambda item: layer_dict[item] == layer,
+            dropwhile(
+                lambda item: layer_dict[item] < layer,
+                self,
             ),
         )
 
     def get_from_layer(self, layer: int) -> Sequence[_D]:
-        return tuple(self.iter_in_layer(layer))
+        return list(self.iter_in_layer(layer))
 
     def remove_from_layer(self, layer: int) -> Sequence[_D]:
         drawable_list: Sequence[_D] = self.get_from_layer(layer)

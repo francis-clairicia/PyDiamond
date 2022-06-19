@@ -68,7 +68,7 @@ from .time import Time
 
 _P = ParamSpec("_P")
 
-_ALL_SCENES: Final[list[type[Scene]]] = []
+_ALL_SCENES: Final[set[type[Scene]]] = set()
 
 
 class SceneMeta(ClassWithThemeNamespaceMeta):
@@ -97,7 +97,7 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
 
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
         if isconcreteclass(cls):
-            _ALL_SCENES.append(cast(type[Scene], cls))
+            _ALL_SCENES.add(cast(type[Scene], cls))
             cls.__framerate = max(int(framerate), 0)
             cls.__fixed_framerate = max(int(fixed_framerate), 0)
             cls.__busy_loop = bool(busy_loop)
@@ -183,6 +183,7 @@ class SceneTransition(Object):
                 self.update()
                 self.render()
             except GeneratorExit:
+                self.destroy()
                 return
 
     @abstractmethod
@@ -205,6 +206,9 @@ class SceneTransition(Object):
     @final
     def stop(self) -> NoReturn:
         raise GeneratorExit
+
+    def destroy(self) -> None:
+        pass
 
 
 class ReturningSceneTransition(SceneTransition):
@@ -239,10 +243,12 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
     if TYPE_CHECKING:
         __slots__: Final[Sequence[str]] = ("__dict__",)
 
+        __Self = TypeVar("__Self", bound="Scene")
+
     __instances: ClassVar[set[type[Scene]]] = set()
 
     @final
-    def __new__(cls) -> Any:
+    def __new__(cls: type[__Self]) -> __Self:
         instances: set[type[Scene]] = Scene.__instances
         if cls in instances:
             raise TypeError(f"Trying to instantiate two scene of same type {f'{cls.__module__}.{cls.__name__}'!r}")
@@ -660,18 +666,18 @@ class SceneWindow(Window):
         self.__accumulator = 0
         self.__compute_interpolation_data()
         gc.collect()
+        on_start_loop: Callable[[], None] | None = None
         try:
             self.start_scene(default_scene, awake_kwargs=scene_kwargs)
         except _SceneManager.NewScene as exc:
             exc.actual_scene.on_start_loop_before_transition()
-            exc.actual_scene.on_start_loop()
+            on_start_loop = exc.actual_scene.on_start_loop
         looping = self.looping
         process_events = self.handle_events
         update_scene = self.update_scene
         render_scene = self.render_scene
         refresh_screen = self.refresh
         scene_transition = self.__scene_transition
-        on_start_loop: Callable[[], None] | None = None
 
         try:
             while looping():
@@ -703,6 +709,8 @@ class SceneWindow(Window):
                         except _SceneManager.SceneException as sub_exc:
                             raise RuntimeError("Open a new scene within a scene transition is forbidden") from sub_exc
                     on_start_loop = exc.actual_scene.on_start_loop
+                    del exc
+                    gc.collect()
                 except _SceneManager.SceneException as exc:
                     print(f"{type(exc).__name__}: {exc}", file=stderr)
                     continue
@@ -725,11 +733,9 @@ class SceneWindow(Window):
         actual_scene.on_start_loop_before_transition()
         if transition_factory is not None:
             with self.capture(draw_on_default_at_end=False) as previous_scene_surface:
-                self.clear(previous_scene.background_color)
-                previous_scene.render()
+                self.__scenes._render(previous_scene)
             with self.capture(draw_on_default_at_end=False) as actual_scene_surface:
-                self.clear(actual_scene.background_color)
-                actual_scene.render()
+                self.__scenes._render(actual_scene)
             with (
                 self.capture() as window_surface,
                 self.block_all_events_context(),
@@ -761,11 +767,11 @@ class SceneWindow(Window):
             with scene.on_quit_exit_stack:
                 scene.on_quit()
             self.__scenes._destroy_awaken_scene(scene)
+            self.__callback_after_scenes.pop(scene, None)
         self.__callback_after_scenes.pop(previous_scene, None)
         self.__accumulator = 0
         self.__compute_interpolation_data()
         self.clear_all_events()
-        gc.collect()
 
     def refresh(self) -> float:
         real_delta_time: float = super().refresh()
@@ -997,11 +1003,11 @@ class _SceneManager:
         self._render(obj, fill_background_color=False)
 
     def _render(self, scene: Scene, *, fill_background_color: bool = True) -> None:
-        if fill_background_color:
-            self.window.clear(scene.background_color)
         if isinstance(scene, Dialog):
             self._render(scene.master, fill_background_color=fill_background_color)
             self.window.clear(scene.background_color, blend_alpha=True)
+        elif fill_background_color:
+            self.window.clear(scene.background_color)
         scene.render()
 
     def go_to(
@@ -1074,7 +1080,7 @@ class _SceneManager:
         if awake_kwargs is None:
             awake_kwargs = {}
         master: Scene = self.__dialogs[0] if self.__dialogs else self.__stack[0]
-        obj: Dialog = object.__new__(dialog)
+        obj: Dialog = dialog.__new__(dialog)
         obj.__dict__[self.__scene_manager_attribute] = self
         obj.__dict__[self.__dialog_master_attribute] = master
         obj.__init__()  # type: ignore[misc]

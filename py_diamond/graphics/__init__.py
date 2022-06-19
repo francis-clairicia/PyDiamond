@@ -151,15 +151,6 @@ pygame.transform.set_smoothscale_backend(
     os.environ.setdefault("PYGAME_SMOOTHSCALE_BACKEND", pygame.transform.get_smoothscale_backend())
 )
 
-############ Surface pickling register ############
-copyreg.pickle(
-    pygame.surface.Surface,
-    lambda s, serializer=pygame.image.tostring, deserializer=pygame.image.fromstring: (  # type: ignore[misc]
-        deserializer,
-        (serializer(s, "ARGB"), s.get_size(), "ARGB"),
-    ),
-)
-
 ############ Cleanup ############
 del os, typing, pygame, copyreg
 
