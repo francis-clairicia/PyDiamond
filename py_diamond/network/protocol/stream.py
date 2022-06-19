@@ -38,15 +38,9 @@ class AbstractStreamNetworkProtocol(AbstractNetworkProtocol):
             packet = next(consumer)
         except Exception as exc:
             raise RuntimeError("generator stopped abruptly") from exc
+        consumer.close()
         if packet is self.__class__.NO_PACKET:
             raise ValidationError("Missing data to create packet")
-        try:
-            next_packet = next(consumer)
-        except Exception as exc:
-            raise RuntimeError("generator stopped abruptly") from exc
-        consumer.close()
-        if next_packet is not self.__class__.NO_PACKET:
-            raise ValidationError("Extra data")
         return packet
 
     @abstractmethod
@@ -90,17 +84,19 @@ class AutoSeparatedStreamNetworkProtocol(AbstractStreamNetworkProtocol):
         buffer: bytes = initial_bytes
         del initial_bytes
         separator: bytes = self.separator
+        keepends: bool = self.__keepends
         while True:
             packet: Any
             new_chunk: bytes | None
             if separator in buffer:
                 data, _, buffer = buffer.partition(separator)
-                if self.__keepends:
+                if keepends:
                     data += separator
                 try:
                     packet = self.deserialize(data)
                 except ValidationError:
                     packet = self.__class__.NO_PACKET
+                del data
             else:
                 packet = self.__class__.NO_PACKET
             new_chunk = yield packet
@@ -193,6 +189,8 @@ class AutoParsedStreamNetworkProtocol(AbstractStreamNetworkProtocol):
                         packet = self.deserialize(body)
                     except ValidationError:
                         packet = self.__class__.NO_PACKET
+                    del body, checksum_digest
+                del checksum
                 new_chunks = yield packet
                 header = buffer.read(None) + (new_chunks or b"")
                 del new_chunks

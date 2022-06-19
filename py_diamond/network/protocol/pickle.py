@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["PicklingNetworkProtocol", "SafePicklingNetworkProtocol"]
 
-
 from io import BytesIO
 from pickle import HIGHEST_PROTOCOL, STOP as STOP_OPCODE, Pickler, Unpickler, UnpicklingError
 from pickletools import optimize as pickletools_optimize

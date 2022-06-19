@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["BZ2CompressorProtocol", "GzipCompressorProtocol", "ZlibCompressorProtocol"]
 
-
 import bz2
 import gzip
 import zlib
@@ -41,7 +40,7 @@ class BZ2CompressorProtocol(AutoParsedStreamNetworkProtocol, GenericNetworkProto
         try:
             data = bz2.decompress(data)
         except Exception as exc:  # TODO: Find the appropriate exceptions
-            raise ValidationError("Unrelated exception occured") from exc
+            raise ValidationError("Unrelated exception occurred") from exc
         return self.protocol.deserialize(data)
 
     @property
@@ -66,7 +65,7 @@ class GzipCompressorProtocol(AutoParsedStreamNetworkProtocol, GenericNetworkProt
         try:
             data = gzip.decompress(data)
         except Exception as exc:  # TODO: Find the appropriate exceptions
-            raise ValidationError("Unrelated exception occured") from exc
+            raise ValidationError("Unrelated exception occurred") from exc
         return self.protocol.deserialize(data)
 
     @property
@@ -91,7 +90,7 @@ class ZlibCompressorProtocol(AutoParsedStreamNetworkProtocol, GenericNetworkProt
         try:
             data = zlib.decompress(data)
         except zlib.error as exc:
-            raise ValidationError("zlib.error occured") from exc
+            raise ValidationError("zlib.error occurred") from exc
         return self.protocol.deserialize(data)
 
     @property

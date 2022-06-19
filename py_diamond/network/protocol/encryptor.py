@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["EncryptorProtocol"]
 
-
 from typing import Any, TypeVar
 
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
@@ -25,9 +24,16 @@ _P = TypeVar("_P", bound=AbstractNetworkProtocol)
 class EncryptorProtocol(AutoSeparatedStreamNetworkProtocol, GenericNetworkProtocolWrapper[_P]):
     def __init__(self, protocol: _P, key: str | bytes | Fernet | MultiFernet) -> None:
         super().__init__(b"\r\n", keepends=False, protocol=protocol)
-        if not isinstance(key, (Fernet, MultiFernet)):
-            key = Fernet(key)
-        self.__key: Fernet | MultiFernet = key
+        self.__key: MultiFernet
+        match key:
+            case MultiFernet():
+                self.__key = key
+            case Fernet():
+                self.__key = MultiFernet([key])
+            case str() | bytes():
+                self.__key = MultiFernet([Fernet(key)])
+            case _:
+                raise TypeError("Invalid 'key' argument")
 
     @staticmethod
     def generate_key() -> str:
@@ -47,5 +53,5 @@ class EncryptorProtocol(AutoSeparatedStreamNetworkProtocol, GenericNetworkProtoc
 
     @property
     @final
-    def key(self) -> Fernet | MultiFernet:
+    def key(self) -> MultiFernet:
         return self.__key

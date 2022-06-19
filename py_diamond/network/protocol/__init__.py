@@ -12,14 +12,14 @@ __all__ = [
     "AutoParsedStreamNetworkProtocol",
     "AutoSeparatedStreamNetworkProtocol",
     "BZ2CompressorProtocol",
+    "EncryptorProtocol",
     "GzipCompressorProtocol",
     "JSONNetworkProtocol",
     "PicklingNetworkProtocol",
+    "SafePicklingNetworkProtocol",
     "StreamNetworkPacketHandler",
     "ValidationError",
     "ZlibCompressorProtocol",
-    "EncryptorProtocol",
-    "SafePicklingNetworkProtocol",
 ]
 
 
