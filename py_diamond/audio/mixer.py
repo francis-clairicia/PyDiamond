@@ -15,14 +15,15 @@ __all__ = ["AllowedAudioChanges", "AudioFormat", "Mixer", "MixerParams"]
 
 from contextlib import ExitStack, contextmanager
 from enum import IntEnum, IntFlag
-from typing import TYPE_CHECKING, Any, Iterator, Literal as L, NamedTuple, overload
+from typing import TYPE_CHECKING, Any, Iterator, Literal as L, NamedTuple
 
 import pygame.constants as _pg_constants
 import pygame.mixer as _pg_mixer
 from pygame import error as _pg_error
 
-from ..system.namespace import ClassNamespace
+from ..system.namespace import ClassNamespace, ClassNamespaceMeta
 from ..system.object import final
+from ..system.overload import AutoOverloadDocStringMeta, overload
 from .sound import Channel
 
 if TYPE_CHECKING:
@@ -76,7 +77,12 @@ class MixerParams(NamedTuple):
 
 
 @final
-class Mixer(ClassNamespace, frozen=True):
+class _MixerMeta(ClassNamespaceMeta, AutoOverloadDocStringMeta):
+    pass
+
+
+@final
+class Mixer(ClassNamespace, metaclass=_MixerMeta, frozen=True):
     """
     It is essentially a wrapper to the pygame.mixer module functions.
 
@@ -111,15 +117,6 @@ class Mixer(ClassNamespace, frozen=True):
 
     @staticmethod
     def pre_init(**kwargs: Any) -> None:
-        """Preset the mixer init arguments
-
-        Call pre_init to change the defaults used when the real Mixer.init() is called.
-
-        Raise pygame.error if pygame.mixer is already initialized
-
-        See more in pygame documentation: https://www.pygame.org/docs/ref/mixer.html#pygame.mixer.pre_init
-        """
-
         if _pg_mixer.get_init() is not None:
             raise _pg_error("Mixer module already initialized")
         return _pg_mixer.pre_init(**kwargs)
@@ -158,18 +155,6 @@ class Mixer(ClassNamespace, frozen=True):
     @staticmethod
     @contextmanager
     def init(**kwargs: Any) -> Iterator[MixerParams]:
-        """Initializes the mixer module
-
-        Initialize the pygame.mixer module for Sound loading and playback.
-        The default arguments can be overridden to provide specific audio mixing.
-
-        On context close, this will uninitialize pygame.mixer using pygame.mixer.quit().
-        All playback will stop and any loaded Sound objects may not be compatible with the mixer if it is reinitialized later.
-
-        Raise pygame.error if pygame.mixer is already initialized
-
-        See more in pygame documentation: https://www.pygame.org/docs/ref/mixer.html#pygame.mixer.init
-        """
         if _pg_mixer.get_init() is not None:
             raise _pg_error("Mixer module already initialized")
 
@@ -290,18 +275,13 @@ class Mixer(ClassNamespace, frozen=True):
 
     @overload
     @staticmethod
-    def find_channel() -> Channel | None:
+    def find_channel(force: L[False] = ...) -> Channel | None:
         """Find an unused channel
 
         This will find and return an inactive Channel object. If there are no inactive Channels this function will return None.
         If there are no inactive channels and the force argument is True, this will find the Channel with the longest
         running Sound and return it.
         """
-        ...
-
-    @overload
-    @staticmethod
-    def find_channel(force: L[False]) -> Channel | None:
         ...
 
     @overload
@@ -309,15 +289,14 @@ class Mixer(ClassNamespace, frozen=True):
     def find_channel(force: L[True]) -> Channel:
         ...
 
+    @overload
+    @staticmethod
+    def find_channel(force: bool) -> Channel | None:
+        ...
+
     @staticmethod
     def find_channel(force: bool = False) -> Channel | None:
-        """Find an unused channel
-
-        This will find and return an inactive Channel object. If there are no inactive Channels this function will return None.
-        If there are no inactive channels and the force argument is True, this will find the Channel with the longest
-        running Sound and return it.
-        """
         return _pg_mixer.find_channel(force)
 
 
-del _pg_constants
+del _pg_constants, _MixerMeta
