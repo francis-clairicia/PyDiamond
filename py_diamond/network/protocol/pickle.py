@@ -27,14 +27,16 @@ from .stream import AbstractStreamNetworkProtocol
 class PicklingNetworkProtocol(AbstractStreamNetworkProtocol):
     @final
     def serialize(self, packet: Any) -> bytes:
-        return next(self.incremental_serialize(packet))
-
-    @final
-    def incremental_serialize(self, packet: Any) -> Generator[bytes, None, None]:
+        if packet is None:
+            raise ValidationError("Couldn't serialize 'None'")
         buffer = BytesIO()
         pickler = self.get_pickler(buffer)
         pickler.dump(packet)
-        yield pickletools_optimize(buffer.getvalue())  # 'incremental' :)
+        return pickletools_optimize(buffer.getvalue())
+
+    @final
+    def incremental_serialize(self, packet: Any) -> Generator[bytes, None, None]:
+        yield self.serialize(packet)  # 'incremental' :)
 
     @final
     def deserialize(self, data: bytes) -> Any:
@@ -51,7 +53,7 @@ class PicklingNetworkProtocol(AbstractStreamNetworkProtocol):
         return packet
 
     @final
-    def incremental_deserialize(self, initial_bytes: bytes) -> Generator[Any, bytes | None, None]:
+    def incremental_deserialize(self, initial_bytes: bytes) -> Generator[Any | None, bytes | None, None]:
         data = BytesIO(initial_bytes)
         del initial_bytes
         while True:
@@ -63,14 +65,14 @@ class PicklingNetworkProtocol(AbstractStreamNetworkProtocol):
                 try:
                     packet = unpickler.load()
                 except UnpicklingError:
-                    packet = self.__class__.NO_PACKET
+                    packet = None
                     # We flush unused data as it may be corrupted
                     data = BytesIO(data.getvalue().partition(STOP_OPCODE)[2])
                 else:
                     # As we can't delete underlying bytes, we recreate a new BytesIO object with the remaining buffer
                     data = BytesIO(data.read(None))
             else:
-                packet = self.__class__.NO_PACKET
+                packet = None
             new_chunk = yield packet
             if new_chunk:
                 data.write(new_chunk)

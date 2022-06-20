@@ -21,6 +21,8 @@ from .stream import AutoParsedStreamNetworkProtocol
 class JSONNetworkProtocol(AutoParsedStreamNetworkProtocol):
     @final
     def serialize(self, packet: Any) -> bytes:
+        if packet is None:
+            raise ValidationError("Couldn't serialize 'None'")
         serializer = self.get_json_serializer()
         return serializer.encode(packet).encode(self.get_encoding())
 

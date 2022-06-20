@@ -28,8 +28,6 @@ _T = TypeVar("_T")
 
 
 class AbstractStreamNetworkProtocol(AbstractNetworkProtocol):
-    NO_PACKET: Final[Any] = object()
-
     def serialize(self, packet: Any) -> bytes:
         return b"".join(self.incremental_serialize(packet))
 
@@ -40,7 +38,7 @@ class AbstractStreamNetworkProtocol(AbstractNetworkProtocol):
         except Exception as exc:
             raise RuntimeError("generator stopped abruptly") from exc
         consumer.close()
-        if packet is self.__class__.NO_PACKET:
+        if packet is None:
             raise ValidationError("Missing data to create packet")
         return packet
 
@@ -49,7 +47,7 @@ class AbstractStreamNetworkProtocol(AbstractNetworkProtocol):
         raise NotImplementedError
 
     @abstractmethod
-    def incremental_deserialize(self, initial_bytes: bytes) -> Generator[Any, bytes | None, None]:
+    def incremental_deserialize(self, initial_bytes: bytes) -> Generator[Any | None, bytes | None, None]:
         raise NotImplementedError
 
 
@@ -81,7 +79,7 @@ class AutoSeparatedStreamNetworkProtocol(AbstractStreamNetworkProtocol):
             yield data + self.separator
 
     @final
-    def incremental_deserialize(self, initial_bytes: bytes) -> Generator[Any, bytes | None, None]:
+    def incremental_deserialize(self, initial_bytes: bytes) -> Generator[Any | None, bytes | None, None]:
         buffer: bytes = initial_bytes
         del initial_bytes
         separator: bytes = self.separator
@@ -96,10 +94,10 @@ class AutoSeparatedStreamNetworkProtocol(AbstractStreamNetworkProtocol):
                 try:
                     packet = self.deserialize(data)
                 except ValidationError:
-                    packet = self.__class__.NO_PACKET
+                    packet = None
                 del data
             else:
-                packet = self.__class__.NO_PACKET
+                packet = None
             new_chunk = yield packet
             if new_chunk:
                 buffer += new_chunk
@@ -140,14 +138,14 @@ class AutoParsedStreamNetworkProtocol(AbstractStreamNetworkProtocol):
         yield checksum.digest()
 
     @final
-    def incremental_deserialize(self, initial_bytes: bytes) -> Generator[Any, bytes | None, None]:
+    def incremental_deserialize(self, initial_bytes: bytes) -> Generator[Any | None, bytes | None, None]:
         header_struct: Struct = self.header
         header: bytes = initial_bytes
         del initial_bytes
         while True:
             new_chunks: bytes | None
             while len(header) < header_struct.size:
-                new_chunks = yield self.__class__.NO_PACKET
+                new_chunks = yield None
                 if new_chunks:
                     header += new_chunks
                 del new_chunks
@@ -169,7 +167,7 @@ class AutoParsedStreamNetworkProtocol(AbstractStreamNetworkProtocol):
                 checksum.update(header)
                 body_struct = Struct(f"{body_length}s{checksum.digest_size}s")
                 while len(buffer.getvalue()) < body_struct.size:
-                    new_chunks = yield self.__class__.NO_PACKET
+                    new_chunks = yield None
                     if new_chunks:
                         buffer.write(new_chunks)
                     del new_chunks
@@ -181,7 +179,7 @@ class AutoParsedStreamNetworkProtocol(AbstractStreamNetworkProtocol):
                     body, checksum_digest = body_struct.unpack(buffer.read(body_struct.size))
                 except (StructError, TypeError):
                     # data may be corrupted
-                    packet = self.__class__.NO_PACKET
+                    packet = None
                 else:
                     try:
                         checksum.update(body)
@@ -189,7 +187,7 @@ class AutoParsedStreamNetworkProtocol(AbstractStreamNetworkProtocol):
                             raise ValidationError
                         packet = self.deserialize(body)
                     except ValidationError:
-                        packet = self.__class__.NO_PACKET
+                        packet = None
                     del body, checksum_digest
                 del checksum
                 new_chunks = yield packet
@@ -204,7 +202,7 @@ class StreamNetworkPacketHandler(Generic[_T], Object):
         super().__init__()
         assert isinstance(protocol, AbstractStreamNetworkProtocol)
         self.__protocol: AbstractStreamNetworkProtocol = protocol
-        self.__incremental_deserialize: Generator[_T, bytes | None, None] = protocol.incremental_deserialize(b"")
+        self.__incremental_deserialize: Generator[_T | None, bytes | None, None] = protocol.incremental_deserialize(b"")
         if inspect.getgeneratorstate(self.__incremental_deserialize) == "GEN_CREATED":
             next(self.__incremental_deserialize)  # Generator ready for send()
 
@@ -216,18 +214,17 @@ class StreamNetworkPacketHandler(Generic[_T], Object):
             return
 
         incremental_deserialize = self.__incremental_deserialize
-        NO_PACKET = self.__protocol.__class__.NO_PACKET
 
         data: bytes | None = chunk
         del chunk
 
-        def send(gen: Generator[_T, Any, Any], v: Any) -> _T:
+        def send(gen: Generator[_T | None, Any, Any], v: Any) -> _T | None:
             try:
                 return gen.send(v)
             except Exception as exc:
                 raise RuntimeError("generator stopped abruptly") from exc
 
-        while (packet := send(incremental_deserialize, data)) is not NO_PACKET:
+        while (packet := send(incremental_deserialize, data)) is not None:
             yield packet
             data = None  # Ask to re-use internal buffer
 

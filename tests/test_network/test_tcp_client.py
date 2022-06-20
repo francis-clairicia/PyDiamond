@@ -111,7 +111,7 @@ class StringNetworkProtocol(AbstractStreamNetworkProtocol):
             raise ValidationError("Invalid string")
         yield from map(partial(str.encode, encoding="ascii"), packet.splitlines(True))
 
-    def incremental_deserialize(self, initial_bytes: bytes) -> Generator[Any, bytes | None, None]:
+    def incremental_deserialize(self, initial_bytes: bytes) -> Generator[Any | None, bytes | None, None]:
         data: str = initial_bytes.decode("ascii")
         del initial_bytes
         while True:
@@ -120,7 +120,7 @@ class StringNetworkProtocol(AbstractStreamNetworkProtocol):
             if "\n" in data:
                 packet, _, data = data.partition("\n")
             else:
-                packet = self.NO_PACKET
+                packet = None
             new_chunk = yield packet
             if new_chunk:
                 data += new_chunk.decode("ascii")

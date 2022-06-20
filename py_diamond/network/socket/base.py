@@ -71,7 +71,10 @@ class AbstractSocket(Object, metaclass=SocketMeta):
         return self.__repr__()
 
     def __del__(self) -> None:
-        self.close()
+        try:
+            self.close()
+        except Exception:
+            pass
 
     def __enter__(self: __Self) -> __Self:
         if not self.is_open():
