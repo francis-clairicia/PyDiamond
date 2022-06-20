@@ -15,15 +15,14 @@ __all__ = ["AllowedAudioChanges", "AudioFormat", "Mixer", "MixerParams"]
 
 from contextlib import ExitStack, contextmanager
 from enum import IntEnum, IntFlag
-from typing import TYPE_CHECKING, Any, Iterator, Literal as L, NamedTuple
+from typing import TYPE_CHECKING, Any, Iterator, Literal as L, NamedTuple, overload
 
 import pygame.constants as _pg_constants
 import pygame.mixer as _pg_mixer
 from pygame import error as _pg_error
 
-from ..system.namespace import ClassNamespace, ClassNamespaceMeta
+from ..system.namespace import ClassNamespace
 from ..system.object import final
-from ..system.overload import AutoOverloadDocStringMeta, overload
 from .sound import Channel
 
 if TYPE_CHECKING:
@@ -77,12 +76,7 @@ class MixerParams(NamedTuple):
 
 
 @final
-class _MixerMeta(ClassNamespaceMeta, AutoOverloadDocStringMeta):
-    pass
-
-
-@final
-class Mixer(ClassNamespace, metaclass=_MixerMeta, frozen=True):
+class Mixer(ClassNamespace, frozen=True):
     """
     It is essentially a wrapper to the pygame.mixer module functions.
 
@@ -299,4 +293,4 @@ class Mixer(ClassNamespace, metaclass=_MixerMeta, frozen=True):
         return _pg_mixer.find_channel(force)
 
 
-del _pg_constants, _MixerMeta
+del _pg_constants
