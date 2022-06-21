@@ -6,13 +6,23 @@
 
 from __future__ import annotations
 
-__all__ = ["flatten"]
+__all__ = ["consumer_start", "flatten"]
 
-
+import inspect
 from itertools import chain
-from typing import Any, Iterable, Iterator, Literal as L, TypeVar, overload
+from typing import Any, Generator, Iterable, Iterator, Literal as L, TypeVar, overload
 
 _T = TypeVar("_T")
+_T_co = TypeVar("_T_co", covariant=True)
+
+
+def consumer_start(gen: Generator[_T_co, Any, Any]) -> _T_co:
+    if inspect.getgeneratorstate(gen) != "GEN_CREATED":
+        raise RuntimeError("generator already started")
+    try:
+        return next(gen)
+    except StopIteration as exc:
+        raise RuntimeError("generator didn't yield") from exc
 
 
 @overload

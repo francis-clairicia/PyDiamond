@@ -19,11 +19,12 @@ __all__ = [
     "ReceivedDatagram",
     "SocketMeta",
     "SocketRawIOWrapper",
+    "new_socket_address",
 ]
 
 from abc import abstractmethod
 from io import RawIOBase
-from typing import TYPE_CHECKING, Any, NamedTuple, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, Any, Literal as L, NamedTuple, TypeAlias, TypeVar, overload
 
 from ...system.non_copyable import NonCopyableMeta
 from ...system.object import Object, ObjectMeta
@@ -47,6 +48,31 @@ class IPv6SocketAddress(NamedTuple):
 
 
 SocketAddress: TypeAlias = IPv4SocketAddress | IPv6SocketAddress
+
+
+@overload
+def new_socket_address(addr: tuple[str, int], family: L[AddressFamily.AF_INET]) -> IPv4SocketAddress:
+    ...
+
+
+@overload
+def new_socket_address(addr: tuple[str, int] | tuple[str, int, int, int], family: L[AddressFamily.AF_INET6]) -> IPv6SocketAddress:
+    ...
+
+
+@overload
+def new_socket_address(addr: tuple[Any, ...], family: int) -> SocketAddress:
+    ...
+
+
+def new_socket_address(addr: tuple[Any, ...], family: int) -> SocketAddress:
+    match AddressFamily(family):
+        case AddressFamily.AF_INET:
+            return IPv4SocketAddress(*addr)
+        case AddressFamily.AF_INET6:
+            return IPv6SocketAddress(*addr)
+        case _:
+            return IPv4SocketAddress(addr[0], addr[1])
 
 
 class SocketMeta(NonCopyableMeta, ObjectMeta):
@@ -275,7 +301,7 @@ class SocketRawIOWrapper(RawIOBase):
         super().__init__()
 
     def readable(self) -> bool:
-        return self._socket.is_connected()
+        return True
 
     def readinto(self, buffer: WriteableBuffer, /) -> int | None:
         try:
@@ -284,7 +310,7 @@ class SocketRawIOWrapper(RawIOBase):
             return None
 
     def writable(self) -> bool:
-        return self._socket.is_connected()
+        return True
 
     def write(self, b: ReadableBuffer, /) -> int | None:
         b = readable_buffer_to_bytes(b)

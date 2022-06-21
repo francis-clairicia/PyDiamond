@@ -14,14 +14,14 @@ __all__ = [
 ]
 
 import hashlib
-import inspect
 from abc import abstractmethod
 from hmac import compare_digest
 from io import BytesIO
 from struct import Struct, error as StructError
-from typing import Any, Final, Generator, Generic, TypeVar
+from typing import IO, Any, Final, Generator, Generic, TypeVar
 
 from ...system.object import Object, final
+from ...system.utils.itertools import consumer_start
 from .base import AbstractNetworkProtocol, ValidationError
 
 _T = TypeVar("_T")
@@ -32,27 +32,37 @@ class AbstractStreamNetworkProtocol(AbstractNetworkProtocol):
         return b"".join(self.incremental_serialize(packet))
 
     def deserialize(self, data: bytes) -> Any:
-        consumer = self.incremental_deserialize(data)
+        consumer: Generator[None, bytes, tuple[Any, bytes]] = self.incremental_deserialize()
+        consumer_start(consumer)
+        packet: Any
+        remaining: bytes
         try:
-            packet = next(consumer)
-        except Exception as exc:
-            raise RuntimeError("generator stopped abruptly") from exc
-        consumer.close()
-        if packet is None:
+            consumer.send(data)
+        except StopIteration as exc:
+            packet, remaining = exc.value
+        else:
+            consumer.close()
             raise ValidationError("Missing data to create packet")
+        if remaining:
+            raise ValidationError("Extra data caught")
         return packet
 
     @abstractmethod
     def incremental_serialize(self, packet: Any) -> Generator[bytes, None, None]:
         raise NotImplementedError
 
+    def incremental_serialize_to(self, file: IO[bytes], packet: Any) -> None:
+        assert file.writable()
+        for chunk in self.incremental_serialize(packet):
+            file.write(chunk)
+
     @abstractmethod
-    def incremental_deserialize(self, initial_bytes: bytes) -> Generator[Any | None, bytes | None, None]:
+    def incremental_deserialize(self) -> Generator[None, bytes, tuple[Any, bytes]]:
         raise NotImplementedError
 
 
 class AutoSeparatedStreamNetworkProtocol(AbstractStreamNetworkProtocol):
-    def __init__(self, separator: bytes, keepends: bool = False, **kwargs: Any) -> None:
+    def __init__(self, separator: bytes, *, keepends: bool = False, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         assert isinstance(separator, bytes)
         if len(separator) < 1:
@@ -71,37 +81,34 @@ class AutoSeparatedStreamNetworkProtocol(AbstractStreamNetworkProtocol):
     @final
     def incremental_serialize(self, packet: Any) -> Generator[bytes, None, None]:
         data: bytes = self.serialize(packet)
+        data = data.rstrip(self.separator)
         if self.separator in data:
-            if len(data[data.find(self.separator) + len(self.separator) :]) > 0:
-                raise ValidationError(f"{self.separator!r} separator found in serialized packet {packet!r} and is not at the end")
-            yield data
-        else:
-            yield data + self.separator
+            raise ValidationError(f"{self.separator!r} separator found in serialized packet {packet!r} and is not at the end")
+        yield data + self.separator
 
     @final
-    def incremental_deserialize(self, initial_bytes: bytes) -> Generator[Any | None, bytes | None, None]:
-        buffer: bytes = initial_bytes
-        del initial_bytes
+    def incremental_serialize_to(self, file: IO[bytes], packet: Any) -> None:
+        return AbstractStreamNetworkProtocol.incremental_serialize_to(self, file, packet)
+
+    @final
+    def incremental_deserialize(self) -> Generator[None, bytes, tuple[Any, bytes]]:
+        buffer: bytes = b""
         separator: bytes = self.separator
         keepends: bool = self.__keepends
         while True:
-            packet: Any
-            new_chunk: bytes | None
-            if separator in buffer:
-                data, _, buffer = buffer.partition(separator)
-                if keepends:
-                    data += separator
-                try:
-                    packet = self.deserialize(data)
-                except ValidationError:
-                    packet = None
+            buffer += yield
+            if separator not in buffer:
+                continue
+            data, _, buffer = buffer.partition(separator)
+            if keepends:
+                data += separator
+            try:
+                packet = self.deserialize(data)
+                return (packet, buffer)
+            except ValidationError:
+                continue
+            finally:
                 del data
-            else:
-                packet = None
-            new_chunk = yield packet
-            if new_chunk:
-                buffer += new_chunk
-            del new_chunk
 
     @property
     @final
@@ -130,25 +137,24 @@ class AutoParsedStreamNetworkProtocol(AbstractStreamNetworkProtocol):
     def incremental_serialize(self, packet: Any) -> Generator[bytes, None, None]:
         data: bytes = self.serialize(packet)
         header: bytes = self.header.pack(self.__class__.MAGIC, len(data))
+        yield header
+        yield data
         checksum = hashlib.md5(usedforsecurity=False)
         checksum.update(header)
         checksum.update(data)
-        yield header
-        yield data
         yield checksum.digest()
 
     @final
-    def incremental_deserialize(self, initial_bytes: bytes) -> Generator[Any | None, bytes | None, None]:
+    def incremental_serialize_to(self, file: IO[bytes], packet: Any) -> None:
+        return AbstractStreamNetworkProtocol.incremental_serialize_to(self, file, packet)
+
+    @final
+    def incremental_deserialize(self) -> Generator[None, bytes, tuple[Any, bytes]]:
         header_struct: Struct = self.header
-        header: bytes = initial_bytes
-        del initial_bytes
+        header: bytes = yield
         while True:
-            new_chunks: bytes | None
             while len(header) < header_struct.size:
-                new_chunks = yield None
-                if new_chunks:
-                    header += new_chunks
-                del new_chunks
+                header += yield
 
             buffer = BytesIO(header[header_struct.size :])
             header = header[: header_struct.size]
@@ -161,16 +167,13 @@ class AutoParsedStreamNetworkProtocol(AbstractStreamNetworkProtocol):
             except (StructError, TypeError):
                 # data may be corrupted
                 # Shift by 1 received data
-                header = header[1:] + buffer.read(None)
+                header = header[1:] + buffer.read()
             else:
                 checksum = hashlib.md5(usedforsecurity=False)
                 checksum.update(header)
                 body_struct = Struct(f"{body_length}s{checksum.digest_size}s")
                 while len(buffer.getvalue()) < body_struct.size:
-                    new_chunks = yield None
-                    if new_chunks:
-                        buffer.write(new_chunks)
-                    del new_chunks
+                    buffer.write((yield))
 
                 buffer.seek(0)
                 try:
@@ -179,54 +182,66 @@ class AutoParsedStreamNetworkProtocol(AbstractStreamNetworkProtocol):
                     body, checksum_digest = body_struct.unpack(buffer.read(body_struct.size))
                 except (StructError, TypeError):
                     # data may be corrupted
-                    packet = None
+                    pass
                 else:
                     try:
                         checksum.update(body)
                         if not compare_digest(checksum.digest(), checksum_digest):  # Data really corrupted
                             raise ValidationError
                         packet = self.deserialize(body)
+                        return (packet, buffer.read())
                     except ValidationError:
-                        packet = None
-                    del body, checksum_digest
-                del checksum
-                new_chunks = yield packet
-                header = buffer.read(None) + (new_chunks or b"")
-                del new_chunks
+                        pass
+                    finally:
+                        del body, checksum_digest
+                finally:
+                    del checksum
+                header = buffer.read()
             finally:
                 del buffer
 
 
 class StreamNetworkPacketHandler(Generic[_T], Object):
+    __slots__ = (
+        "__protocol",
+        "__incremental_deserialize",
+    )
+
     def __init__(self, protocol: AbstractStreamNetworkProtocol) -> None:
         super().__init__()
         assert isinstance(protocol, AbstractStreamNetworkProtocol)
         self.__protocol: AbstractStreamNetworkProtocol = protocol
-        self.__incremental_deserialize: Generator[_T | None, bytes | None, None] = protocol.incremental_deserialize(b"")
-        if inspect.getgeneratorstate(self.__incremental_deserialize) == "GEN_CREATED":
-            next(self.__incremental_deserialize)  # Generator ready for send()
+        self.__incremental_deserialize: Generator[None, bytes, tuple[_T, bytes]] | None = None
 
     def produce(self, packet: _T) -> Generator[bytes, None, None]:
-        yield from self.__protocol.incremental_serialize(packet)
+        return (yield from self.__protocol.incremental_serialize(packet))
+
+    def write(self, file: IO[bytes], packet: _T) -> None:
+        return self.__protocol.incremental_serialize_to(file, packet)
 
     def consume(self, chunk: bytes) -> Generator[_T, None, None]:
+        assert isinstance(chunk, bytes)
         if not chunk:
             return
 
         incremental_deserialize = self.__incremental_deserialize
+        self.__incremental_deserialize = None
 
-        data: bytes | None = chunk
-        del chunk
-
-        def send(gen: Generator[_T | None, Any, Any], v: Any) -> _T | None:
+        while chunk:
+            if incremental_deserialize is None:
+                incremental_deserialize = self.__protocol.incremental_deserialize()
+                consumer_start(incremental_deserialize)
+            packet: _T
             try:
-                return gen.send(v)
-            except Exception as exc:
-                raise RuntimeError("generator stopped abruptly") from exc
+                incremental_deserialize.send(chunk)
+            except StopIteration as exc:
+                incremental_deserialize = None
+                packet, chunk = exc.value
+            else:
+                break
+            yield packet  # yield out of exception clause, in order to erase the StopIteration except context
 
-        while (packet := send(incremental_deserialize, data)) is not None:
-            yield packet
-            data = None  # Ask to re-use internal buffer
+        self.__incremental_deserialize = incremental_deserialize
 
     @property
     @final

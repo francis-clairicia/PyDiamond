@@ -40,10 +40,9 @@ from .base import (
     AbstractUDPClientSocket,
     AbstractUDPServerSocket,
     AbstractUDPSocket,
-    IPv4SocketAddress,
-    IPv6SocketAddress,
     ReceivedDatagram,
     SocketAddress,
+    new_socket_address,
 )
 from .constants import AF_INET, AF_INET6, AddressFamily, ShutdownFlag
 
@@ -113,10 +112,7 @@ class _AbstractPythonSocket(AbstractSocket):
         sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
         if sock is _MISSING:
             raise RuntimeError("Closed socket")
-        addr: tuple[Any, ...] = sock.getsockname()
-        if int(sock.family) == AF_INET6:
-            return IPv6SocketAddress(*addr)
-        return IPv4SocketAddress(*addr)
+        return new_socket_address(sock.getsockname(), sock.family)
 
     @final
     @_thread_safe_python_socket_method
@@ -214,14 +210,10 @@ class PythonTCPServerSocket(_AbstractPythonTCPSocket, AbstractTCPServerSocket):
         addr: tuple[Any, ...]
         client, addr = sock.accept()
         try:
-            sockaddr: SocketAddress
-            if int(sock.family) == AF_INET6:
-                sockaddr = IPv6SocketAddress(*addr)
-            else:
-                sockaddr = IPv4SocketAddress(*addr)
-            tcp_client = PythonTCPClientSocket(client.family)
-            setattr_pv(tcp_client, "socket", client, owner=_AbstractPythonSocket)
-            return (tcp_client, sockaddr)
+            return (
+                PythonTCPClientSocket.from_builtin_socket(client, register_peername=False),
+                new_socket_address(addr, client.family),
+            )
         except:
             client.close()
             raise
@@ -260,10 +252,15 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
             except:
                 sock.close()
                 raise
-        self: PythonTCPClientSocket = cls(family)
         sock.settimeout(None)
+        return cls.from_builtin_socket(sock, register_peername=True)
+
+    @classmethod
+    def from_builtin_socket(cls, sock: socket, *, register_peername: bool) -> PythonTCPClientSocket:
+        self = cls(sock.family)
         setattr_pv(self, "socket", sock, owner=_AbstractPythonSocket)
-        setattr_pv(self, "peer", sock.getpeername())
+        if register_peername:
+            setattr_pv(self, "peer", sock.getpeername())
         return self
 
     @final
@@ -326,9 +323,7 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
             addr: tuple[Any, ...] = sock.getpeername()
         except OSError:
             return None
-        if int(sock.family) == AF_INET6:
-            return IPv6SocketAddress(*addr)
-        return IPv4SocketAddress(*addr)
+        return new_socket_address(addr, sock.family)
 
     @final
     @_thread_safe_python_socket_method
@@ -381,12 +376,7 @@ class _AbstractPythonUDPSocket(_AbstractPythonSocket, AbstractUDPSocket):
             data, addr = sock.recvfrom(bufsize)
         else:
             data, addr = sock.recvfrom(bufsize, flags)
-        sender: SocketAddress
-        if int(sock.family) == AF_INET6:
-            sender = IPv6SocketAddress(*addr)
-        else:
-            sender = IPv4SocketAddress(*addr)
-        return ReceivedDatagram(data, sender)
+        return ReceivedDatagram(data, new_socket_address(addr, sock.family))
 
     @final
     @_thread_safe_python_socket_method
@@ -398,12 +388,7 @@ class _AbstractPythonUDPSocket(_AbstractPythonSocket, AbstractUDPSocket):
             nbytes, addr = sock.recvfrom_into(buffer, nbytes)
         else:
             nbytes, addr = sock.recvfrom_into(buffer, nbytes, flags)
-        sender: SocketAddress
-        if int(sock.family) == AF_INET6:
-            sender = IPv6SocketAddress(*addr)
-        else:
-            sender = IPv4SocketAddress(*addr)
-        return (nbytes, sender)
+        return (nbytes, new_socket_address(addr, sock.family))
 
     @final
     @_thread_safe_python_socket_method

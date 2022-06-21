@@ -103,7 +103,6 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
     __slots__ = (
         "__socket",
         "__buffer_recv",
-        "__protocol",
         "__queue",
         "__lock",
         "__chunk_size",
@@ -181,8 +180,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
     def send_packet(self, packet: _T, *, flags: int = 0) -> None:
         with self.__lock, BufferedWriter(SocketRawIOWrapper(self.__socket, flags=flags), buffer_size=self.__chunk_size) as writer:
             try:
-                for chunk in self.__handler.produce(packet):
-                    writer.write(chunk)
+                self.__handler.write(writer, packet)
             except ConnectionError as exc:
                 raise DisconnectedClientError(self) from exc
 
@@ -190,11 +188,10 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
         if not packets:
             return
         with self.__lock, BufferedWriter(SocketRawIOWrapper(self.__socket, flags=flags), buffer_size=self.__chunk_size) as writer:
-            produce = self.__handler.produce
+            serialize = self.__handler.write
             try:
                 for packet in packets:
-                    for chunk in produce(packet):
-                        writer.write(chunk)
+                    serialize(writer, packet)
             except ConnectionError as exc:
                 raise DisconnectedClientError(self) from exc
 

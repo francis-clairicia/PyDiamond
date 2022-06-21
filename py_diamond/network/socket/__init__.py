@@ -31,6 +31,7 @@ __all__ = [
     "SocketAddress",
     "SocketMeta",
     "SocketRawIOWrapper",
+    "new_socket_address",
 ]
 
 
@@ -49,6 +50,7 @@ from .base import (
     SocketAddress,
     SocketMeta,
     SocketRawIOWrapper,
+    new_socket_address,
 )
 from .constants import AF_INET, AF_INET6, SHUT_RD, SHUT_RDWR, SHUT_WR, AddressFamily, ShutdownFlag
 from .python import PythonTCPClientSocket, PythonTCPServerSocket, PythonUDPClientSocket, PythonUDPServerSocket

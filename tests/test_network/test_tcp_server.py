@@ -141,21 +141,13 @@ class _IntegerNetworkProtocol(AbstractStreamNetworkProtocol):
     def incremental_serialize(self, packet: int) -> Generator[bytes, None, None]:
         yield packet.to_bytes(self.BYTES_LENGTH, byteorder="big", signed=True)
 
-    def incremental_deserialize(self, initial_bytes: bytes) -> Generator[Any | None, bytes | None, None]:
-        data: bytes = initial_bytes
-        del initial_bytes
+    def incremental_deserialize(self) -> Generator[None, bytes, tuple[Any, bytes]]:
+        data: bytes = b""
         while True:
-            packet: Any
-            new_chunk: bytes | None
+            data += yield
             if len(data) >= self.BYTES_LENGTH:
                 packet = self.deserialize(data[: self.BYTES_LENGTH])
-                data = data[self.BYTES_LENGTH :]
-            else:
-                packet = None
-            new_chunk = yield packet
-            if new_chunk:
-                data += new_chunk
-            del new_chunk
+                return packet, data[self.BYTES_LENGTH :]
 
 
 def test_request_handling() -> None:

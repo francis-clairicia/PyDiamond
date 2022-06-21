@@ -48,35 +48,32 @@ class PicklingNetworkProtocol(AbstractStreamNetworkProtocol):
             packet = unpickler.load()
         except UnpicklingError as exc:
             raise ValidationError("Unpickling error") from exc
-        if buffer.read(None):  # There is still data after pickling
+        if buffer.read():  # There is still data after pickling
             raise ValidationError("Extra data caught")
         return packet
 
     @final
-    def incremental_deserialize(self, initial_bytes: bytes) -> Generator[Any | None, bytes | None, None]:
-        data = BytesIO(initial_bytes)
-        del initial_bytes
+    def incremental_serialize_to(self, file: IO[bytes], packet: Any) -> None:
+        assert file.writable()
+        if packet is None:
+            raise ValidationError("Couldn't serialize 'None'")
+        pickler = self.get_pickler(file)
+        pickler.dump(packet)
+
+    @final
+    def incremental_deserialize(self) -> Generator[None, bytes, tuple[Any, bytes]]:
+        data = BytesIO()
         while True:
-            new_chunk: bytes | None
-            packet: Any
+            data.write((yield))
             if STOP_OPCODE in data.getvalue():
                 data.seek(0)
                 unpickler = self.get_unpickler(data)
                 try:
                     packet = unpickler.load()
+                    return (packet, data.read())
                 except UnpicklingError:
-                    packet = None
                     # We flush unused data as it may be corrupted
                     data = BytesIO(data.getvalue().partition(STOP_OPCODE)[2])
-                else:
-                    # As we can't delete underlying bytes, we recreate a new BytesIO object with the remaining buffer
-                    data = BytesIO(data.read(None))
-            else:
-                packet = None
-            new_chunk = yield packet
-            if new_chunk:
-                data.write(new_chunk)
-            del new_chunk
 
     def get_pickler(self, buffer: IO[bytes]) -> Pickler:
         return Pickler(buffer, protocol=HIGHEST_PROTOCOL, fix_imports=False, buffer_callback=None)
