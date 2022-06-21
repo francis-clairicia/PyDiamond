@@ -214,15 +214,15 @@ class AbstractTCPClientSocket(AbstractTCPSocket):
         return f"<{type(self).__name__} fd={sock_fd}, family={sock_family}, laddr={laddr}>"
 
     @abstractmethod
-    def recv(self, bufsize: int, flags: int = ...) -> bytes:
+    def recv(self, bufsize: int, *, flags: int = ...) -> bytes:
         raise NotImplementedError
 
     @abstractmethod
-    def recv_into(self, buffer: WriteableBuffer, nbytes: int = ..., flags: int = ...) -> int:
+    def recv_into(self, buffer: WriteableBuffer, nbytes: int = ..., *, flags: int = ...) -> int:
         raise NotImplementedError
 
     @abstractmethod
-    def send(self, data: bytes, flags: int = ...) -> int:
+    def send(self, data: bytes, *, flags: int = ...) -> int:
         raise NotImplementedError
 
     @abstractmethod
@@ -253,15 +253,15 @@ class AbstractUDPSocket(AbstractSocket):
     __slots__ = ()
 
     @abstractmethod
-    def recvfrom(self, flags: int = ...) -> ReceivedDatagram:
+    def recvfrom(self, *, flags: int = ...) -> ReceivedDatagram:
         raise NotImplementedError
 
     @abstractmethod
-    def recvfrom_into(self, buffer: WriteableBuffer, nbytes: int = ..., flags: int = ...) -> tuple[int, SocketAddress]:
+    def recvfrom_into(self, buffer: WriteableBuffer, nbytes: int = ..., *, flags: int = ...) -> tuple[int, SocketAddress]:
         raise NotImplementedError
 
     @abstractmethod
-    def sendto(self, data: bytes, address: SocketAddress, flags: int = ...) -> int:
+    def sendto(self, data: bytes, address: SocketAddress, *, flags: int = ...) -> int:
         raise NotImplementedError
 
 
@@ -295,7 +295,7 @@ class AbstractUDPClientSocket(AbstractUDPSocket):
 
 
 class SocketRawIOWrapper(RawIOBase):
-    def __init__(self, socket: AbstractTCPClientSocket, flags: int = 0) -> None:
+    def __init__(self, socket: AbstractTCPClientSocket, *, flags: int = 0) -> None:
         self._socket: AbstractTCPClientSocket = socket
         self._flags: int = flags
         super().__init__()

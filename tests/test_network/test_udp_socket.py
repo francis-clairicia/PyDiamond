@@ -38,12 +38,12 @@ def test_ipv4_client_server_connection() -> None:
         message: bytes = b"Hello, world"
 
         assert client.sendto(message, IPv4SocketAddress(host, port)) == len(message)
-        datagram = server.recvfrom(1024)
+        datagram = server.recvfrom()
         assert datagram.body == message
         assert isinstance(datagram.sender, IPv4SocketAddress)
         assert datagram.sender.port == client_addr.port
         assert server.sendto(datagram.body, datagram.sender) == len(datagram.body)
-        data, sender = client.recvfrom(1024)
+        data, sender = client.recvfrom()
         assert data == message
         assert isinstance(sender, IPv4SocketAddress)
         assert sender == server_addr
@@ -71,12 +71,12 @@ def test_ipv6_client_server_connection() -> None:
         message: bytes = b"Hello, world"
 
         assert client.sendto(message, IPv4SocketAddress(host, port)) == len(message)
-        datagram = server.recvfrom(1024)
+        datagram = server.recvfrom()
         assert datagram.body == message
         assert isinstance(datagram.sender, IPv6SocketAddress)
         assert datagram.sender.port == client_addr.port
         assert server.sendto(datagram.body, datagram.sender) == len(datagram.body)
-        data, sender = client.recvfrom(1024)
+        data, sender = client.recvfrom()
         assert data == message
         assert isinstance(sender, IPv6SocketAddress)
         assert sender == server_addr

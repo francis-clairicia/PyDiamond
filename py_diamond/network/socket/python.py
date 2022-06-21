@@ -13,7 +13,7 @@ __all__ = [
     "PythonUDPServerSocket",
 ]
 
-from os import name as OS_NAME
+import os
 from socket import (
     SO_REUSEADDR,
     SOCK_DGRAM,
@@ -283,34 +283,28 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
 
     @final
     @_thread_safe_python_socket_method
-    def recv(self, bufsize: int, flags: int = 0) -> bytes:
+    def recv(self, bufsize: int, *, flags: int = 0) -> bytes:
         sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
         if sock is _MISSING:
             raise RuntimeError("Closed socket")
-        if OS_NAME in ("nt", "cygwin"):  # Flags not supported on Windows
-            return sock.recv(bufsize)
         return sock.recv(bufsize, flags)
 
     @final
     @_thread_safe_python_socket_method
-    def recv_into(self, buffer: WriteableBuffer, nbytes: int = 0, flags: int = 0) -> int:
+    def recv_into(self, buffer: WriteableBuffer, nbytes: int = 0, *, flags: int = 0) -> int:
         sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
         if sock is _MISSING:
             raise RuntimeError("Closed socket")
-        if OS_NAME in ("nt", "cygwin"):  # Flags not supported on Windows
-            return sock.recv_into(buffer, nbytes)
         return sock.recv_into(buffer, nbytes, flags)
 
     @final
     @_thread_safe_python_socket_method
-    def send(self, data: bytes, flags: int = 0) -> int:
+    def send(self, data: bytes, *, flags: int = 0) -> int:
         sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
         if sock is _MISSING:
             raise RuntimeError("Closed socket")
         if not data:
             return 0
-        if OS_NAME in ("nt", "cygwin"):  # Flags not supported on Windows
-            return sock.send(data)
         return sock.send(data, flags)
 
     @final
@@ -367,32 +361,26 @@ class _AbstractPythonUDPSocket(_AbstractPythonSocket, AbstractUDPSocket):
 
     @final
     @_thread_safe_python_socket_method
-    def recvfrom(self, flags: int = 0) -> ReceivedDatagram:
+    def recvfrom(self, *, flags: int = 0) -> ReceivedDatagram:
         bufsize: int = self.MAX_PACKET_SIZE
         sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
         if sock is _MISSING:
             raise RuntimeError("Closed socket")
-        if OS_NAME in ("nt", "cygwin"):  # Flags not supported on Windows
-            data, addr = sock.recvfrom(bufsize)
-        else:
-            data, addr = sock.recvfrom(bufsize, flags)
+        data, addr = sock.recvfrom(bufsize, flags)
         return ReceivedDatagram(data, new_socket_address(addr, sock.family))
 
     @final
     @_thread_safe_python_socket_method
-    def recvfrom_into(self, buffer: WriteableBuffer, nbytes: int = 0, flags: int = 0) -> tuple[int, SocketAddress]:
+    def recvfrom_into(self, buffer: WriteableBuffer, nbytes: int = 0, *, flags: int = 0) -> tuple[int, SocketAddress]:
         sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
         if sock is _MISSING:
             raise RuntimeError("Closed socket")
-        if OS_NAME in ("nt", "cygwin"):  # Flags not supported on Windows
-            nbytes, addr = sock.recvfrom_into(buffer, nbytes)
-        else:
-            nbytes, addr = sock.recvfrom_into(buffer, nbytes, flags)
+        nbytes, addr = sock.recvfrom_into(buffer, nbytes, flags)
         return (nbytes, new_socket_address(addr, sock.family))
 
     @final
     @_thread_safe_python_socket_method
-    def sendto(self, data: bytes, address: SocketAddress, flags: int = 0) -> int:
+    def sendto(self, data: bytes, address: SocketAddress, *, flags: int = 0) -> int:
         sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
         if sock is _MISSING:
             raise RuntimeError("Closed socket")
@@ -400,8 +388,6 @@ class _AbstractPythonUDPSocket(_AbstractPythonSocket, AbstractUDPSocket):
             raise ValueError(f"Datagram too big ({data_length} > {self.MAX_PACKET_SIZE})")
         if not data_length:
             return 0
-        if OS_NAME in ("nt", "cygwin"):  # Flags not supported on Windows
-            return sock.sendto(data, address)
         return sock.sendto(data, flags, address)
 
 
@@ -422,7 +408,7 @@ class PythonUDPServerSocket(_AbstractPythonUDPSocket, AbstractUDPServerSocket):
         sock: socket = socket(family, SOCK_DGRAM)
 
         try:
-            if OS_NAME not in ("nt", "cygwin"):
+            if os.name not in ("nt", "cygwin"):
 
                 try:
                     sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
