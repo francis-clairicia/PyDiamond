@@ -243,7 +243,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
                 client_socket, address = socket.accept()
             except OSError:
                 return
-            client: TCPNetworkClient[_T] = TCPNetworkClient(client_socket, protocol=self.protocol_cls())
+            client: TCPNetworkClient[_T] = TCPNetworkClient(client_socket, protocol=self.protocol_cls(), give=True)
             verify_client(client, address)
 
         def parse_requests(client: TCPNetworkClient[_T]) -> None:

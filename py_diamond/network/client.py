@@ -130,6 +130,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
         /,
         *,
         protocol: AbstractStreamNetworkProtocol = ...,
+        give: bool = ...,
     ) -> None:
         ...
 
@@ -146,10 +147,11 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
         socket: AbstractTCPClientSocket
         self.__socket_cls: type[AbstractTCPClientSocket] | None
         if isinstance(arg, AbstractTCPClientSocket):
+            give: bool = kwargs.pop("give", False)
             if kwargs:
                 raise TypeError("Invalid arguments")
             socket = arg
-            self.__socket_cls = None
+            self.__socket_cls = None if not give else type(socket)
         elif isinstance(arg, tuple):
             address: tuple[str, int] = arg
             socket_cls: type[AbstractTCPClientSocket] = kwargs.pop("socket_cls", PythonTCPClientSocket)
@@ -346,6 +348,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
         /,
         *,
         protocol: AbstractNetworkProtocol = ...,
+        give: bool = ...,
     ) -> None:
         ...
 
@@ -361,11 +364,12 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
             protocol = PicklingNetworkProtocol()
         elif not isinstance(protocol, AbstractNetworkProtocol):
             raise TypeError("Invalid arguments")
-        self.__socket_cls: type[AbstractUDPClientSocket] | None
+        self.__socket_cls: type[AbstractUDPSocket] | None
         if isinstance(socket, AbstractUDPSocket):
+            give: bool = kwargs.pop("give", False)
             if kwargs:
                 raise TypeError("Invalid arguments")
-            self.__socket_cls = None
+            self.__socket_cls = None if not give else type(socket)
         elif socket is None:
             socket_cls: type[AbstractUDPClientSocket] = kwargs.pop("socket_cls", PythonUDPClientSocket)
             concreteclasscheck(socket_cls)
