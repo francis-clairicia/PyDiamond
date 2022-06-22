@@ -19,6 +19,7 @@ __all__ = [
     "ReceivedDatagram",
     "SocketMeta",
     "SocketRawIOWrapper",
+    "SocketAddress",
     "new_socket_address",
 ]
 

@@ -10,5 +10,5 @@ __all__ = ["Vector2", "angle_interpolation", "linear_interpolation"]
 
 
 ############ Package initialization ############
-from .interpolation import angle_interpolation, linear_interpolation
+from .interpolation import *
 from .vector2 import Vector2

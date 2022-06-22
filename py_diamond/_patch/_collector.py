@@ -64,6 +64,7 @@ class _PatchCollectorType:
 
     def run_patches(self, context: PatchContext) -> None:
         forbidden_imports = self.__forbidden_imports_by_context.get(context, set())
+        # TODO: Main package import allowed in context following AFTER_IMPORTING_SUBMODULES
         with self._mock_import(f"run ({context.name.replace('_', ' ').lower()})", forbidden_imports=forbidden_imports):
             # TODO (3.11): Exception groups
             for patch in (p for p in self.__all_patches.get(context, ()) if p.must_be_run()):
@@ -113,7 +114,9 @@ class _PatchCollectorType:
 
     @staticmethod
     @contextlib.contextmanager
-    def _mock_import(context: str, forbidden_imports: Iterable[str] = ()) -> Iterator[None]:
+    def _mock_import(
+        context: str, *, forbidden_imports: Iterable[str] = (), main_package_allowed: bool = False
+    ) -> Iterator[None]:
         import re
         import sys
 
@@ -145,7 +148,7 @@ class _PatchCollectorType:
                     for _ in range(level - 1):
                         actual_package = actual_package.rpartition(".")[0]
                     resolved_name = f"{actual_package}.{name}"
-                if main_package in resolved_name and patch_package not in resolved_name:
+                if main_package in resolved_name and patch_package not in resolved_name and not main_package_allowed:
                     msg = f"{main_package} sub-modules must not be imported during patch {context}"
                     raise ImportError(msg, name=importer_name, path=importer_path)
                 if forbidden_module := is_forbidden_module(resolved_name):

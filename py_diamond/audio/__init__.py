@@ -50,6 +50,6 @@ del os, pygame
 
 
 ############ Package initialization ############
-from .mixer import AllowedAudioChanges, AudioFormat, Mixer, MixerParams
-from .music import Music, MusicStream
-from .sound import Channel, Sound
+from .mixer import *
+from .music import *
+from .sound import *

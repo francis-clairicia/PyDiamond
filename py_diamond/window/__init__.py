@@ -108,76 +108,15 @@ os.environ.setdefault("SDL_VIDEO_CENTERED", "1")
 del os, pygame
 
 ############ Package initialization ############
-from .clickable import Clickable
-from .clock import Clock
-from .cursor import AbstractCursor, Cursor, SystemCursor
-from .dialog import Dialog, DialogMeta, PopupDialog
-from .display import Window, WindowCallback, WindowError, WindowExit
-from .event import (
-    BuiltinEvent,
-    Event,
-    EventFactory,
-    EventFactoryError,
-    EventManager,
-    EventType,
-    JoyAxisMotionEvent,
-    JoyBallMotionEvent,
-    JoyButtonDownEvent,
-    JoyButtonEvent,
-    JoyButtonUpEvent,
-    JoyDeviceAddedEvent,
-    JoyDeviceRemovedEvent,
-    JoyHatMotionEvent,
-    KeyDownEvent,
-    KeyEvent,
-    KeyUpEvent,
-    MouseButtonDownEvent,
-    MouseButtonEvent,
-    MouseButtonUpEvent,
-    MouseEvent,
-    MouseMotionEvent,
-    MouseWheelEvent,
-    MusicEndEvent,
-    TextEditingEvent,
-    TextEvent,
-    TextInputEvent,
-    UnknownEventTypeError,
-    UserEvent,
-    WindowEnterEvent,
-    WindowExposedEvent,
-    WindowFocusGainedEvent,
-    WindowFocusLostEvent,
-    WindowHiddenEvent,
-    WindowLeaveEvent,
-    WindowMaximizedEvent,
-    WindowMinimizedEvent,
-    WindowMovedEvent,
-    WindowResizedEvent,
-    WindowRestoredEvent,
-    WindowShownEvent,
-    WindowSizeChangedEvent,
-    WindowTakeFocusEvent,
-)
-from .gui import BoundFocus, BoundFocusProxy, FocusableContainer, GUIScene, NoFocusSupportError, SupportsFocus
-from .keyboard import Keyboard
-from .mouse import Mouse
-from .scene import (
-    AbstractAutoLayeredDrawableScene,
-    AbstractLayeredMainScene,
-    AbstractLayeredScene,
-    LayeredMainSceneMeta,
-    LayeredSceneMeta,
-    MainScene,
-    MainSceneMeta,
-    RenderedLayeredScene,
-    ReturningSceneTransition,
-    ReturningSceneTransitionProtocol,
-    Scene,
-    SceneMeta,
-    SceneTransition,
-    SceneTransitionCoroutine,
-    SceneTransitionProtocol,
-    SceneWindow,
-)
-from .time import Time
-from .widget import AbstractWidget
+from .clickable import *
+from .clock import *
+from .cursor import *
+from .dialog import *
+from .display import *
+from .event import *
+from .gui import *
+from .keyboard import *
+from .mouse import *
+from .scene import *
+from .time import *
+from .widget import *

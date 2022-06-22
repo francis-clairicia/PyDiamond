@@ -156,98 +156,26 @@ del os, typing, pygame, copyreg
 
 
 ############ Package initialization ############
-from .animation import AnimationInterpolator, AnimationInterpolatorPool, BaseAnimation, MoveAnimation, TransformAnimation
-from .button import Button, ButtonMeta, ImageButton
-from .checkbox import BooleanCheckBox, CheckBox, CheckBoxMeta
-from .color import (
-    BLACK,
-    BLUE,
-    BLUE_DARK,
-    BLUE_LIGHT,
-    COLOR_DICT,
-    CYAN,
-    GRAY,
-    GRAY_DARK,
-    GRAY_LIGHT,
-    GREEN,
-    GREEN_DARK,
-    GREEN_LIGHT,
-    MAGENTA,
-    ORANGE,
-    PURPLE,
-    RED,
-    RED_DARK,
-    RED_LIGHT,
-    TRANSPARENT,
-    WHITE,
-    YELLOW,
-    Color,
-    ImmutableColor,
-)
-from .drawable import (
-    BaseDrawableGroup,
-    BaseLayeredDrawableGroup,
-    Drawable,
-    DrawableGroup,
-    DrawableMeta,
-    LayeredDrawableGroup,
-    MDrawable,
-    MDrawableMeta,
-    SupportsDrawableGroups,
-    SupportsDrawing,
-    TDrawable,
-    TDrawableMeta,
-)
-from .entry import Entry, EntryMeta
-from .font import Font, SysFont
-from .form import Form, FormMeta
-from .gradients import (
-    GradientShape,
-    HorizontalGradientShape,
-    HorizontalMultiColorShape,
-    MultiColorShape,
-    RadialGradientShape,
-    SquaredGradientShape,
-    VerticalGradientShape,
-    VerticalMultiColorShape,
-)
-from .grid import Grid, GridElement
-from .image import Image
-from .movable import Movable, MovableMeta, MovableProxy
-from .progress import ProgressBar, ProgressBarMeta
-from .rect import ImmutableRect, Rect
-from .renderer import AbstractRenderer
-from .scale import ScaleBar
-from .scroll import ScrollArea, ScrollAreaElement, ScrollBar, ScrollBarMeta
-from .shape import (
-    AbstractCircleShape,
-    AbstractCrossShape,
-    AbstractRectangleShape,
-    AbstractShape,
-    CircleShape,
-    DiagonalCrossShape,
-    OutlinedShape,
-    PlusCrossShape,
-    PolygonShape,
-    RectangleShape,
-    ShapeMeta,
-    SingleColorShape,
-)
-from .sprite import AnimatedSprite, LayeredSpriteGroup, Mask, Sprite, SpriteGroup
-from .surface import Surface, SurfaceRenderer, create_surface, load_image, save_image
-from .text import Text, TextImage, TextMeta
-from .theme import (
-    ClassWithThemeNamespace,
-    ClassWithThemeNamespaceMeta,
-    NoTheme,
-    ThemedObject,
-    ThemedObjectMeta,
-    ThemeNamespace,
-    ThemeType,
-    abstract_theme_class,
-    closed_namespace,
-    force_apply_theme_decorator,
-    no_theme_decorator,
-    set_default_theme_namespace,
-)
-from .transformable import Transformable, TransformableMeta, TransformableProxy
+from .animation import *
+from .button import *
+from .checkbox import *
+from .color import *
+from .drawable import *
+from .entry import *
+from .font import *
+from .form import *
+from .gradients import *
+from .grid import *
+from .image import *
+from .movable import *
+from .progress import *
+from .rect import *
+from .renderer import *
+from .scale import *
+from .scroll import *
+from .shape import *
+from .sprite import *
+from .surface import *
+from .text import *
+from .theme import *
+from .transformable import *

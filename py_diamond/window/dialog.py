@@ -8,6 +8,7 @@ from __future__ import annotations
 
 __all__ = [
     "Dialog",
+    "DialogMeta",
     "PopupDialog",
 ]
 
