@@ -102,6 +102,7 @@ class NoValidPacket(ValueError):
 class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
     __slots__ = (
         "__socket",
+        "__socket_cls",
         "__buffer_recv",
         "__queue",
         "__lock",
@@ -143,15 +144,18 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
         if protocol is None:
             protocol = PicklingNetworkProtocol()
         socket: AbstractTCPClientSocket
+        self.__socket_cls: type[AbstractTCPClientSocket] | None
         if isinstance(arg, AbstractTCPClientSocket):
             if kwargs:
                 raise TypeError("Invalid arguments")
             socket = arg
+            self.__socket_cls = None
         elif isinstance(arg, tuple):
             address: tuple[str, int] = arg
             socket_cls: type[AbstractTCPClientSocket] = kwargs.pop("socket_cls", PythonTCPClientSocket)
             concreteclasscheck(socket_cls)
             socket = socket_cls.connect(address, **kwargs)
+            self.__socket_cls = socket_cls
         else:
             raise TypeError("Invalid arguments")
         self.__socket: AbstractTCPClientSocket = socket
@@ -168,6 +172,9 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
 
     def close(self) -> None:
         with self.__lock:
+            if self.__socket_cls is None:
+                return
+            self.__socket_cls = None
             socket: AbstractTCPClientSocket = self.__socket
             if socket.is_open():
                 try:
@@ -315,6 +322,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
 class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
     __slots__ = (
         "__socket",
+        "__socket_cls",
         "__protocol",
         "__queue",
         "__lock",
@@ -353,13 +361,16 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
             protocol = PicklingNetworkProtocol()
         elif not isinstance(protocol, AbstractNetworkProtocol):
             raise TypeError("Invalid arguments")
+        self.__socket_cls: type[AbstractUDPClientSocket] | None
         if isinstance(socket, AbstractUDPSocket):
             if kwargs:
                 raise TypeError("Invalid arguments")
+            self.__socket_cls = None
         elif socket is None:
             socket_cls: type[AbstractUDPClientSocket] = kwargs.pop("socket_cls", PythonUDPClientSocket)
             concreteclasscheck(socket_cls)
             socket = socket_cls.create(**kwargs)
+            self.__socket_cls = socket_cls
         else:
             raise TypeError("Invalid arguments")
         super().__init__()
@@ -370,6 +381,9 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
 
     def close(self) -> None:
         with self.__lock:
+            if self.__socket_cls is None:
+                return
+            self.__socket_cls = None
             socket: AbstractSocket = self.__socket
             if socket.is_open():
                 socket.close()

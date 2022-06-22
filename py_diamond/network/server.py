@@ -195,15 +195,18 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
         if not isinstance(protocol, AbstractStreamNetworkProtocol):
             raise TypeError("Invalid arguments")
         socket: AbstractTCPServerSocket
+        self.__socket_cls: type[AbstractTCPServerSocket] | None
         if isinstance(__arg, AbstractTCPServerSocket):
             if kwargs:
                 raise TypeError("Invalid arguments")
             socket = __arg
+            self.__socket_cls = None
         elif isinstance(__arg, tuple):
             address: tuple[str, int] | tuple[str, int, int, int] = __arg
             socket_cls: type[AbstractTCPServerSocket] = kwargs.pop("socket_cls", PythonTCPServerSocket)
             concreteclasscheck(socket_cls)
             socket = socket_cls.bind(address, **kwargs)
+            self.__socket_cls = socket_cls
         else:
             raise TypeError("Invalid arguments")
         self.__socket: AbstractTCPServerSocket = socket
@@ -327,6 +330,9 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
 
     def server_close(self) -> None:
         with self.__lock:
+            if self.__socket_cls is None:
+                return
+            self.__socket_cls = None
             socket: AbstractSocket = self.__socket
             if socket.is_open():
                 socket.close()
@@ -467,15 +473,18 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_T]):
         if not isinstance(protocol, AbstractNetworkProtocol):
             raise TypeError("Invalid arguments")
         socket: AbstractUDPServerSocket
+        self.__socket_cls: type[AbstractUDPServerSocket] | None
         if isinstance(__arg, AbstractUDPServerSocket):
             if kwargs:
                 raise TypeError("Invalid arguments")
             socket = __arg
+            self.__socket_cls = None
         elif isinstance(__arg, tuple):
             address: tuple[str, int] | tuple[str, int, int, int] = __arg
             socket_cls: type[AbstractUDPServerSocket] = kwargs.pop("socket_cls", PythonUDPServerSocket)
             concreteclasscheck(socket_cls)
             socket = socket_cls.bind(address, **kwargs)
+            self.__socket_cls = socket_cls
         else:
             raise TypeError("Invalid arguments")
         self.__socket: AbstractUDPServerSocket = socket
@@ -526,6 +535,9 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_T]):
 
     def server_close(self) -> None:
         with self.__lock:
+            if self.__socket_cls is None:
+                return
+            self.__socket_cls = None
             socket: AbstractSocket = self.__socket
             if socket.is_open():
                 socket.close()
