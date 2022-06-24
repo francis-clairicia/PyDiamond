@@ -247,6 +247,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
             chunk_reader.close()
 
     @staticmethod
+    @final
     def read_socket(
         socket: AbstractTCPClientSocket,
         chunk_size: int,
@@ -256,7 +257,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
     ) -> Generator[bytes, None, None]:
         if chunk_size <= 0:
             return
-        with _Selector() as selector:
+        with _Selector() as selector, suppress(BlockingIOError):
             selector.register(socket, EVENT_READ)
             if not block and not selector.select(timeout=0):
                 return
@@ -458,7 +459,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
         block: bool = True,
         flags: int = 0,
     ) -> Generator[ReceivedDatagram, None, None]:
-        with _Selector() as selector:
+        with _Selector() as selector, suppress(BlockingIOError):
             selector.register(socket, EVENT_READ)
             if not block and not selector.select(timeout=0):
                 return

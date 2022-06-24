@@ -11,13 +11,15 @@ __all__ = ["PicklingNetworkProtocol", "SafePicklingNetworkProtocol"]
 from io import BytesIO
 from pickle import HIGHEST_PROTOCOL, STOP as STOP_OPCODE, Pickler, Unpickler, UnpicklingError
 from pickletools import optimize as pickletools_optimize
-from typing import IO, TYPE_CHECKING, Any, Generator
+from typing import IO, TYPE_CHECKING, Any, Callable, Generator
+from weakref import ref as weakref
 
 if TYPE_CHECKING:
     from cryptography.fernet import Fernet, MultiFernet
 
 from ...system.object import final
 from ...system.utils.abc import concreteclass
+from ...system.utils.weakref import weakref_unwrap
 from .base import ValidationError
 from .encryptor import EncryptorProtocol
 from .stream import AbstractStreamNetworkProtocol
@@ -27,11 +29,8 @@ from .stream import AbstractStreamNetworkProtocol
 class PicklingNetworkProtocol(AbstractStreamNetworkProtocol):
     @final
     def serialize(self, packet: Any) -> bytes:
-        if packet is None:
-            raise ValidationError("Couldn't serialize 'None'")
         buffer = BytesIO()
-        pickler = self.get_pickler(buffer)
-        pickler.dump(packet)
+        self.incremental_serialize_to(buffer, packet)
         return pickletools_optimize(buffer.getvalue())
 
     @final
@@ -55,8 +54,6 @@ class PicklingNetworkProtocol(AbstractStreamNetworkProtocol):
     @final
     def incremental_serialize_to(self, file: IO[bytes], packet: Any) -> None:
         assert file.writable()
-        if packet is None:
-            raise ValidationError("Couldn't serialize 'None'")
         pickler = self.get_pickler(file)
         pickler.dump(packet)
 
@@ -70,10 +67,11 @@ class PicklingNetworkProtocol(AbstractStreamNetworkProtocol):
                 unpickler = self.get_unpickler(data)
                 try:
                     packet = unpickler.load()
-                    return (packet, data.read())
                 except UnpicklingError:
                     # We flush unused data as it may be corrupted
                     data = BytesIO(data.getvalue().partition(STOP_OPCODE)[2])
+                else:
+                    return (packet, data.read())
 
     def get_pickler(self, buffer: IO[bytes]) -> Pickler:
         return Pickler(buffer, protocol=HIGHEST_PROTOCOL, fix_imports=False, buffer_callback=None)
@@ -85,8 +83,29 @@ class PicklingNetworkProtocol(AbstractStreamNetworkProtocol):
 class SafePicklingNetworkProtocol(EncryptorProtocol[PicklingNetworkProtocol]):
     def __init__(self, key: str | bytes | Fernet | MultiFernet) -> None:
         super().__init__(PicklingNetworkProtocol(), key)
-        setattr(self.protocol, "get_pickler", lambda buffer: self.get_pickler(buffer))
-        setattr(self.protocol, "get_unpickler", lambda buffer: self.get_unpickler(buffer))
+
+        def monkeypatch_protocol(self: SafePicklingNetworkProtocol, method_name: str) -> None:
+            def unset_patch(_: Any, _protocol_ref: weakref[PicklingNetworkProtocol] = weakref(self.protocol)) -> None:
+                protocol: PicklingNetworkProtocol | None = _protocol_ref()
+                if protocol is not None:
+                    try:
+                        delattr(protocol, method_name)
+                    except AttributeError:
+                        pass
+
+            selfref: weakref[SafePicklingNetworkProtocol] = weakref(self, unset_patch)
+
+            def patch(*args: Any, **kwargs: Any) -> Any:
+                self: SafePicklingNetworkProtocol = weakref_unwrap(selfref)
+                method: Callable[..., Any] = getattr(self, method_name)
+                return method(*args, **kwargs)
+
+            setattr(self.protocol, method_name, patch)
+
+            del self  # Explicitly breaks the reference
+
+        monkeypatch_protocol(self, "get_pickler")
+        monkeypatch_protocol(self, "get_unpickler")
 
     def get_pickler(self, buffer: IO[bytes]) -> Pickler:
         protocol = self.protocol

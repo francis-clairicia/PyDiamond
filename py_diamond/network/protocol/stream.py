@@ -29,7 +29,9 @@ _T = TypeVar("_T")
 
 class AbstractStreamNetworkProtocol(AbstractNetworkProtocol):
     def serialize(self, packet: Any) -> bytes:
-        return b"".join(self.incremental_serialize(packet))
+        # The list call should be roughly
+        # equivalent to the PySequence_Fast that ''.join() would do.
+        return b"".join(list(self.incremental_serialize(packet)))
 
     def deserialize(self, data: bytes) -> Any:
         consumer: Generator[None, bytes, tuple[Any, bytes]] = self.incremental_deserialize()
@@ -53,8 +55,9 @@ class AbstractStreamNetworkProtocol(AbstractNetworkProtocol):
 
     def incremental_serialize_to(self, file: IO[bytes], packet: Any) -> None:
         assert file.writable()
+        write = file.write
         for chunk in self.incremental_serialize(packet):
-            file.write(chunk)
+            write(chunk)
 
     @abstractmethod
     def incremental_deserialize(self) -> Generator[None, bytes, tuple[Any, bytes]]:
@@ -104,9 +107,10 @@ class AutoSeparatedStreamNetworkProtocol(AbstractStreamNetworkProtocol):
                 data += separator
             try:
                 packet = self.deserialize(data)
-                return (packet, buffer)
             except ValidationError:
                 continue
+            else:
+                return (packet, buffer)
             finally:
                 del data
 
@@ -189,9 +193,10 @@ class AutoParsedStreamNetworkProtocol(AbstractStreamNetworkProtocol):
                         if not compare_digest(checksum.digest(), checksum_digest):  # Data really corrupted
                             raise ValidationError
                         packet = self.deserialize(body)
-                        return (packet, buffer.read())
                     except ValidationError:
                         pass
+                    else:
+                        return (packet, buffer.read())
                     finally:
                         del body, checksum_digest
                 finally:
