@@ -7,41 +7,87 @@
 from __future__ import annotations
 
 __all__ = [
-    "AbstractNetworkProtocol",
+    "GenericNetworkPacketDeserializerWrapper",
+    "GenericNetworkPacketSerializerWrapper",
     "GenericNetworkProtocolWrapper",
+    "NetworkPacketDeserializer",
+    "NetworkPacketSerializer",
+    "NetworkProtocol",
     "ValidationError",
 ]
 
 from abc import abstractmethod
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Protocol, TypeVar, runtime_checkable
 
-from ...system.object import Object, final
+from ...system.object import ProtocolObjectMeta, final
 
 
 class ValidationError(Exception):
     pass
 
 
-class AbstractNetworkProtocol(Object):
+_T_co = TypeVar("_T_co", covariant=True)
+_T_contra = TypeVar("_T_contra", contravariant=True)
+
+
+@runtime_checkable
+class NetworkPacketSerializer(Protocol[_T_contra]):
     @abstractmethod
-    def serialize(self, packet: Any) -> bytes:
+    def serialize(self, packet: _T_contra) -> bytes:
         raise NotImplementedError
 
+
+@runtime_checkable
+class NetworkPacketDeserializer(Protocol[_T_co]):
     @abstractmethod
-    def deserialize(self, data: bytes) -> Any:
+    def deserialize(self, data: bytes) -> _T_co:
         raise NotImplementedError
 
 
-_P = TypeVar("_P", bound=AbstractNetworkProtocol)
+@runtime_checkable
+class NetworkProtocol(NetworkPacketSerializer[_T_contra], NetworkPacketDeserializer[_T_co], Protocol[_T_contra, _T_co]):
+    pass
 
 
-class GenericNetworkProtocolWrapper(AbstractNetworkProtocol, Generic[_P]):
-    def __init__(self, protocol: _P, **kwargs: Any) -> None:
+_AnyP = TypeVar("_AnyP")
+_SP = TypeVar("_SP", bound=NetworkPacketSerializer[object])
+_DP = TypeVar("_DP", bound=NetworkPacketDeserializer[object])
+_P = TypeVar("_P", bound=NetworkProtocol[object, object])
+
+
+class _BaseGenericWrapper(Generic[_AnyP], metaclass=ProtocolObjectMeta):
+    def __init__(self, protocol: _AnyP, **kwargs: Any) -> None:
+        self.__protocol: _AnyP = protocol
         super().__init__(**kwargs)
-        assert isinstance(protocol, AbstractNetworkProtocol)
-        self.__protocol: _P = protocol
 
     @property
     @final
-    def protocol(self) -> _P:
+    def protocol(self) -> _AnyP:
         return self.__protocol
+
+
+class GenericNetworkPacketSerializerWrapper(
+    _BaseGenericWrapper[_SP],
+    NetworkPacketSerializer[_T_contra],
+    Generic[_T_contra, _SP],
+):
+    def __init__(self, protocol: _SP, **kwargs: Any) -> None:
+        super().__init__(protocol=protocol, **kwargs)
+
+
+class GenericNetworkPacketDeserializerWrapper(
+    _BaseGenericWrapper[_DP],
+    NetworkPacketDeserializer[_T_co],
+    Generic[_T_co, _DP],
+):
+    def __init__(self, protocol: _DP, **kwargs: Any) -> None:
+        super().__init__(protocol=protocol, **kwargs)
+
+
+class GenericNetworkProtocolWrapper(
+    GenericNetworkPacketSerializerWrapper[_T_contra, _P],
+    GenericNetworkPacketDeserializerWrapper[_T_co, _P],
+    Generic[_T_contra, _T_co, _P],
+):
+    def __init__(self, protocol: _P, **kwargs: Any) -> None:
+        super().__init__(protocol=protocol, **kwargs)

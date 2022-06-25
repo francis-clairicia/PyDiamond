@@ -6,7 +6,7 @@ from time import sleep
 from typing import Any, ClassVar, Generator
 
 from py_diamond.network.client import TCPNetworkClient
-from py_diamond.network.protocol import AbstractStreamNetworkProtocol, ValidationError
+from py_diamond.network.protocol import StreamNetworkProtocol, ValidationError
 from py_diamond.network.server import AbstractTCPRequestHandler, TCPNetworkServer
 from py_diamond.network.socket import SocketAddress
 from py_diamond.system.threading import Thread
@@ -14,7 +14,7 @@ from py_diamond.system.threading import Thread
 from .random_port import random_port
 
 
-class _BroadcastRequestHandler(AbstractTCPRequestHandler[Any]):
+class _BroadcastRequestHandler(AbstractTCPRequestHandler[Any, Any]):
     def handle(self) -> None:
         request: Any = self.request
         for client in filter(lambda client: client is not self.client, self.server.clients):
@@ -69,7 +69,7 @@ def test_serve_forver_in_thread_context_shut_down() -> None:
     assert not t.is_alive()
 
 
-class _TestServiceActionServer(TCPNetworkServer[Any]):
+class _TestServiceActionServer(TCPNetworkServer[Any, Any]):
     def service_actions(self) -> None:
         super().service_actions()
         self.service_actions_called: bool = True
@@ -91,15 +91,15 @@ def test_client_connection() -> None:
         server.serve_forever_in_thread(poll_interval=0.1)
         sleep(0.1)
         assert len(server.clients) == 0
-        with TCPNetworkClient[Any](address):
+        with TCPNetworkClient[Any, Any](address):
             sleep(0.3)
             assert len(server.clients) == 1
         sleep(0.3)
         assert len(server.clients) == 0
 
 
-class _TestWelcomeServer(TCPNetworkServer[Any]):
-    def _verify_new_client(self, client: TCPNetworkClient[Any], address: SocketAddress) -> bool:
+class _TestWelcomeServer(TCPNetworkServer[Any, Any]):
+    def _verify_new_client(self, client: TCPNetworkClient[Any, Any], address: SocketAddress) -> bool:
         client.send_packet("Welcome !")
         return True
 
@@ -109,7 +109,7 @@ def test_welcome_connection() -> None:
 
     with _TestWelcomeServer(address, _BroadcastRequestHandler, backlog=1) as server:
         server.serve_forever_in_thread(poll_interval=0.1)
-        with TCPNetworkClient[Any](address) as client:
+        with TCPNetworkClient[Any, Any](address) as client:
             assert client.recv_packet() == "Welcome !"
 
 
@@ -119,9 +119,9 @@ def test_multiple_connections() -> None:
     with _TestWelcomeServer(address, _BroadcastRequestHandler) as server:
         server.serve_forever_in_thread(poll_interval=0)
         with (
-            TCPNetworkClient[Any](address) as client_1,
-            TCPNetworkClient[Any](address) as client_2,
-            TCPNetworkClient[Any](address) as client_3,
+            TCPNetworkClient[Any, Any](address) as client_1,
+            TCPNetworkClient[Any, Any](address) as client_2,
+            TCPNetworkClient[Any, Any](address) as client_3,
         ):
             assert client_1.recv_packet() == "Welcome !"
             assert client_2.recv_packet() == "Welcome !"
@@ -130,7 +130,7 @@ def test_multiple_connections() -> None:
             assert len(server.clients) == 3
 
 
-class _IntegerNetworkProtocol(AbstractStreamNetworkProtocol):
+class _IntegerNetworkProtocol(StreamNetworkProtocol[int, int]):
     BYTES_LENGTH: ClassVar[int] = 8
 
     def deserialize(self, data: bytes) -> int:
@@ -156,9 +156,9 @@ def test_request_handling() -> None:
     with TCPNetworkServer(address, _BroadcastRequestHandler, protocol_cls=_IntegerNetworkProtocol) as server:
         server.serve_forever_in_thread(poll_interval=0)
         with (
-            TCPNetworkClient[int](address, protocol=server.protocol_cls()) as client_1,
-            TCPNetworkClient[int](address, protocol=server.protocol_cls()) as client_2,
-            TCPNetworkClient[int](address, protocol=server.protocol_cls()) as client_3,
+            TCPNetworkClient(address, protocol=_IntegerNetworkProtocol()) as client_1,
+            TCPNetworkClient(address, protocol=_IntegerNetworkProtocol()) as client_2,
+            TCPNetworkClient(address, protocol=_IntegerNetworkProtocol()) as client_3,
         ):
             while len(server.clients) < 3:
                 sleep(0.1)

@@ -7,9 +7,11 @@ from threading import Event
 from typing import Any
 
 from py_diamond.network.client import UDPNetworkClient
-from py_diamond.network.protocol import PicklingNetworkProtocol, SafePicklingNetworkProtocol
+from py_diamond.network.protocol import PickleNetworkProtocol, SafePickleNetworkProtocol
 from py_diamond.network.socket import IPv4SocketAddress, PythonUDPClientSocket, PythonUDPServerSocket
 from py_diamond.system.threading import Thread, thread_factory
+
+from cryptography.fernet import Fernet
 
 from .random_port import random_port
 
@@ -37,7 +39,7 @@ def test_default() -> None:
     address: IPv4SocketAddress = IPv4SocketAddress(host, port)
     try:
         server_started.wait()
-        with UDPNetworkClient[Any]() as client:
+        with UDPNetworkClient[Any, Any]() as client:
             client.send_packet(address, {"data": [5, 2]})
             assert client.recv_packet()[0] == {"data": [5, 2]}
             client.send_packet(address, "Hello")
@@ -62,7 +64,7 @@ def test_custom_socket() -> None:
     try:
         server_started.wait()
         with PythonUDPClientSocket.create() as socket:
-            client: UDPNetworkClient[Any] = UDPNetworkClient(socket)
+            client: UDPNetworkClient[Any, Any] = UDPNetworkClient(socket)
             client.send_packet(address, {"data": [5, 2]})
             assert client.recv_packet()[0] == {"data": [5, 2]}
             client.send_packet(address, "Hello")
@@ -84,7 +86,7 @@ def test_custom_protocol() -> None:
     address: IPv4SocketAddress = IPv4SocketAddress(host, port)
     try:
         server_started.wait()
-        with UDPNetworkClient[Any](protocol=SafePicklingNetworkProtocol(SafePicklingNetworkProtocol.generate_key())) as client:
+        with UDPNetworkClient[Any, Any](protocol=SafePickleNetworkProtocol(Fernet.generate_key())) as client:
             client.send_packet(address, {"data": [5, 2]})
             assert client.recv_packet()[0] == {"data": [5, 2]}
             client.send_packet(address, "Hello")
@@ -106,7 +108,7 @@ def test_several_successive_send() -> None:
     address: IPv4SocketAddress = IPv4SocketAddress(host, port)
     try:
         server_started.wait()
-        with UDPNetworkClient[Any](protocol=PicklingNetworkProtocol()) as client:
+        with UDPNetworkClient[Any, Any](protocol=PickleNetworkProtocol()) as client:
             client.send_packet(address, {"data": [5, 2]})
             client.send_packet(address, "Hello")
             client.send_packet(address, 132)

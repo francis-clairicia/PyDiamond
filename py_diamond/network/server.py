@@ -22,24 +22,25 @@ from abc import abstractmethod
 from contextlib import suppress
 from selectors import EVENT_READ, BaseSelector
 from threading import Event, RLock, current_thread
-from typing import TYPE_CHECKING, Any, Callable, Generic, Sequence, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Callable, Generic, Sequence, TypeAlias, TypeVar, overload
 
 from ..system.object import Object, final
 from ..system.threading import Thread, thread_factory
 from ..system.utils.abc import concreteclass, concreteclasscheck
 from ..system.utils.functools import dsuppress
 from .client import DisconnectedClientError, TCPNetworkClient, UDPNetworkClient
-from .protocol.base import AbstractNetworkProtocol
-from .protocol.pickle import PicklingNetworkProtocol
-from .protocol.stream import AbstractStreamNetworkProtocol
+from .protocol.base import NetworkPacketDeserializer, NetworkPacketSerializer, NetworkProtocol
+from .protocol.pickle import PickleNetworkProtocol
+from .protocol.stream import NetworkPacketIncrementalDeserializer, NetworkPacketIncrementalSerializer, StreamNetworkProtocol
 from .selector import DefaultSelector as _Selector
 from .socket.base import AbstractSocket, AbstractTCPServerSocket, AbstractUDPServerSocket, SocketAddress
 from .socket.python import PythonTCPServerSocket, PythonUDPServerSocket
 
-_T = TypeVar("_T")
+_RequestT = TypeVar("_RequestT")
+_ResponseT = TypeVar("_ResponseT")
 
 
-class ConnectedClient(Generic[_T], Object):
+class ConnectedClient(Generic[_ResponseT], Object):
     def __init__(self, address: SocketAddress) -> None:
         super().__init__()
         self.__addr: SocketAddress = address
@@ -49,7 +50,7 @@ class ConnectedClient(Generic[_T], Object):
         raise NotImplementedError
 
     @abstractmethod
-    def send_packet(self, packet: _T, *, flags: int = 0) -> None:
+    def send_packet(self, packet: _ResponseT, *, flags: int = 0) -> None:
         raise NotImplementedError
 
     @final
@@ -58,11 +59,11 @@ class ConnectedClient(Generic[_T], Object):
         return self.__addr
 
 
-class AbstractRequestHandler(Generic[_T], Object):
+class AbstractRequestHandler(Generic[_RequestT, _ResponseT], Object):
     @final
-    def __init__(self, request: _T, client: ConnectedClient[_T], server: AbstractNetworkServer) -> None:
-        self.request: _T = request
-        self.client: ConnectedClient[_T] = client
+    def __init__(self, request: _RequestT, client: ConnectedClient[_ResponseT], server: AbstractNetworkServer) -> None:
+        self.request: _RequestT = request
+        self.client: ConnectedClient[_ResponseT] = client
         self.server: AbstractNetworkServer = server
         self.setup()
         try:
@@ -75,18 +76,18 @@ class AbstractRequestHandler(Generic[_T], Object):
 
     @abstractmethod
     def handle(self) -> None:
-        pass
+        raise NotImplementedError
 
     def teardown(self) -> None:
         pass
 
 
-class AbstractTCPRequestHandler(AbstractRequestHandler[_T]):
-    server: AbstractTCPNetworkServer[_T]
+class AbstractTCPRequestHandler(AbstractRequestHandler[_RequestT, _ResponseT]):
+    server: AbstractTCPNetworkServer[_RequestT, _ResponseT]
 
 
-class AbstractUDPRequestHandler(AbstractRequestHandler[_T]):
-    server: AbstractUDPNetworkServer[_T]
+class AbstractUDPRequestHandler(AbstractRequestHandler[_RequestT, _ResponseT]):
+    server: AbstractUDPNetworkServer[_RequestT, _ResponseT]
 
 
 class AbstractNetworkServer(Object):
@@ -152,13 +153,17 @@ class AbstractNetworkServer(Object):
     def server_address(self) -> SocketAddress:
         raise NotImplementedError
 
-    @property
-    @abstractmethod
-    def protocol_cls(self) -> Callable[[], AbstractNetworkProtocol]:
-        raise NotImplementedError
+
+NetworkProtocolFactory: TypeAlias = Callable[[], NetworkProtocol[_ResponseT, _RequestT]]
+NetworkPacketDeserializerFactory: TypeAlias = Callable[[], NetworkPacketDeserializer[_RequestT]]
+NetworkPacketSerializerFactory: TypeAlias = Callable[[], NetworkPacketSerializer[_ResponseT]]
+
+StreamNetworkProtocolFactory: TypeAlias = Callable[[], StreamNetworkProtocol[_ResponseT, _RequestT]]
+NetworkPacketIncrementalDeserializerFactory: TypeAlias = Callable[[], NetworkPacketIncrementalDeserializer[_RequestT]]
+NetworkPacketIncrementalSerializerFactory: TypeAlias = Callable[[], NetworkPacketIncrementalSerializer[_ResponseT]]
 
 
-class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
+class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _ResponseT]):
     @overload
     def __init__(
         self,
@@ -168,7 +173,11 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
         family: int = ...,
         backlog: int | None = ...,
         dualstack_ipv6: bool = ...,
-        protocol_cls: Callable[[], AbstractStreamNetworkProtocol] = ...,
+        protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT]
+        | tuple[
+            NetworkPacketIncrementalSerializerFactory[_ResponseT],
+            NetworkPacketIncrementalDeserializerFactory[_RequestT],
+        ] = ...,
         socket_cls: type[AbstractTCPServerSocket] = ...,
     ) -> None:
         ...
@@ -179,7 +188,11 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
         socket: AbstractTCPServerSocket,
         /,
         *,
-        protocol_cls: Callable[[], AbstractStreamNetworkProtocol] = ...,
+        protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT]
+        | tuple[
+            NetworkPacketIncrementalSerializerFactory[_ResponseT],
+            NetworkPacketIncrementalDeserializerFactory[_RequestT],
+        ] = ...,
     ) -> None:
         ...
 
@@ -188,12 +201,17 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
         __arg: AbstractTCPServerSocket | tuple[str, int] | tuple[str, int, int, int],
         /,
         *,
-        protocol_cls: Callable[[], AbstractStreamNetworkProtocol] = PicklingNetworkProtocol,
+        protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT]
+        | tuple[
+            NetworkPacketIncrementalSerializerFactory[_ResponseT],
+            NetworkPacketIncrementalDeserializerFactory[_RequestT],
+        ] = PickleNetworkProtocol,
         **kwargs: Any,
     ) -> None:
-        protocol: AbstractStreamNetworkProtocol = protocol_cls()
-        if not isinstance(protocol, AbstractStreamNetworkProtocol):
-            raise TypeError("Invalid arguments")
+        if not isinstance(protocol_cls, tuple):
+            if not callable(protocol_cls):
+                raise TypeError("Invalid arguments")
+            protocol_cls = protocol_cls, protocol_cls
         socket: AbstractTCPServerSocket
         self.__socket_cls: type[AbstractTCPServerSocket] | None
         if isinstance(__arg, AbstractTCPServerSocket):
@@ -210,12 +228,15 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
         else:
             raise TypeError("Invalid arguments")
         self.__socket: AbstractTCPServerSocket = socket
-        self.__protocol_cls: Callable[[], AbstractStreamNetworkProtocol] = protocol_cls
+        self.__protocol_cls: tuple[
+            NetworkPacketIncrementalSerializerFactory[_ResponseT],
+            NetworkPacketIncrementalDeserializerFactory[_RequestT],
+        ] = protocol_cls
         self.__lock: RLock = RLock()
         self.__loop: bool = False
         self.__is_shutdown: Event = Event()
         self.__is_shutdown.set()
-        self.__clients: dict[TCPNetworkClient[_T], ConnectedClient[_T]] = {}
+        self.__clients: dict[TCPNetworkClient[_ResponseT, _RequestT], ConnectedClient[_ResponseT]] = {}
         self.__recv_flags: int = 0
         super().__init__()
 
@@ -227,11 +248,11 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
             self.__loop = True
             self.__is_shutdown.clear()
         socket: AbstractTCPServerSocket = self.__socket
-        clients_dict: dict[TCPNetworkClient[_T], ConnectedClient[_T]] = self.__clients
+        clients_dict: dict[TCPNetworkClient[_ResponseT, _RequestT], ConnectedClient[_ResponseT]] = self.__clients
         selector: BaseSelector = _Selector()
 
         @thread_factory(daemon=True)
-        def verify_client(client: TCPNetworkClient[_T], address: SocketAddress) -> None:
+        def verify_client(client: TCPNetworkClient[_ResponseT, _RequestT], address: SocketAddress) -> None:
             if not self._verify_new_client(client, address):
                 client.close()
                 return
@@ -243,14 +264,16 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
                 client_socket, address = socket.accept()
             except OSError:
                 return
-            client: TCPNetworkClient[_T] = TCPNetworkClient(client_socket, protocol=self.protocol_cls(), give=True)
+            serializer_cls, deserializer_cls = self.__protocol_cls
+            protocol = (serializer_cls(), deserializer_cls())
+            client: TCPNetworkClient[_ResponseT, _RequestT] = TCPNetworkClient(client_socket, protocol=protocol, give=True)
             verify_client(client, address)
 
-        def parse_requests(client: TCPNetworkClient[_T]) -> None:
+        def parse_requests(client: TCPNetworkClient[_ResponseT, _RequestT]) -> None:
             if not client.is_connected():
                 return
             try:
-                connected_client: ConnectedClient[_T] = clients_dict[client]
+                connected_client: ConnectedClient[_ResponseT] = clients_dict[client]
                 for request in client.recv_packets(block=True, flags=self.recv_flags):  # TODO: Handle one packet per loop
                     # TODO (3.11): Exception groups
                     try:
@@ -268,7 +291,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
                 shutdown_client(client)
                 raise
 
-        def shutdown_client(client: TCPNetworkClient[_T]) -> None:
+        def shutdown_client(client: TCPNetworkClient[_ResponseT, _RequestT]) -> None:
             with suppress(KeyError):
                 selector.unregister(client)
             with suppress(Exception):
@@ -315,17 +338,17 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
         pass
 
     @abstractmethod
-    def _process_request(self, request: _T, client: ConnectedClient[_T]) -> None:
+    def _process_request(self, request: _RequestT, client: ConnectedClient[_ResponseT]) -> None:
         raise NotImplementedError
 
-    def _handle_error(self, client: ConnectedClient[_T]) -> None:
+    def _handle_error(self, client: ConnectedClient[_ResponseT]) -> None:
         from sys import stderr
         from traceback import print_exc
 
         client_address: tuple[Any, ...] = tuple(client.address)
         print("-" * 40, file=stderr)
         print(f"Exception occurred during processing of request from {client_address}", file=stderr)
-        print_exc()
+        print_exc(file=stderr)
         print("-" * 40, file=stderr)
 
     def server_close(self) -> None:
@@ -342,7 +365,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
             self.__loop = False
         self.__is_shutdown.wait()
 
-    def _verify_new_client(self, client: TCPNetworkClient[_T], address: SocketAddress) -> bool:
+    def _verify_new_client(self, client: TCPNetworkClient[_ResponseT, _RequestT], address: SocketAddress) -> bool:
         return True
 
     @final
@@ -360,14 +383,9 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
 
     @final
     @property
-    def clients(self) -> Sequence[ConnectedClient[_T]]:
+    def clients(self) -> Sequence[ConnectedClient[_ResponseT]]:
         with self.__lock:
             return tuple(self.__clients.values())
-
-    @final
-    @property
-    def protocol_cls(self) -> Callable[[], AbstractStreamNetworkProtocol]:
-        return self.__protocol_cls
 
     @property
     def recv_flags(self) -> int:
@@ -380,33 +398,35 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_T]):
             self.__recv_flags = int(value)
 
     @final
-    class __ConnectedClient(ConnectedClient[_T]):
-        def __init__(self, client: TCPNetworkClient[_T], address: SocketAddress) -> None:
+    class __ConnectedClient(ConnectedClient[_ResponseT]):
+        def __init__(self, client: TCPNetworkClient[_ResponseT, Any], address: SocketAddress) -> None:
             super().__init__(address)
-            self.__client: TCPNetworkClient[_T] = client
+            self.__client: TCPNetworkClient[_ResponseT, Any] = client
 
         def close(self) -> None:
-            client: TCPNetworkClient[_T] = self.__client
-            return client.close()
+            return self.__client.close()
 
-        def send_packet(self, packet: _T, *, flags: int = 0) -> None:
-            client: TCPNetworkClient[_T] = self.__client
-            return client.send_packet(packet, flags=flags)
+        def send_packet(self, packet: _ResponseT, *, flags: int = 0) -> None:
+            return self.__client.send_packet(packet, flags=flags)
 
 
 @concreteclass
-class TCPNetworkServer(AbstractTCPNetworkServer[_T]):
+class TCPNetworkServer(AbstractTCPNetworkServer[_RequestT, _ResponseT]):
     @overload
     def __init__(
         self,
         address: tuple[str, int] | tuple[str, int, int, int],
         /,
-        request_handler_cls: type[AbstractTCPRequestHandler[_T]],
+        request_handler_cls: type[AbstractTCPRequestHandler[_RequestT, _ResponseT]],
         *,
         family: int = ...,
         backlog: int | None = ...,
         dualstack_ipv6: bool = ...,
-        protocol_cls: Callable[[], AbstractStreamNetworkProtocol] = ...,
+        protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT]
+        | tuple[
+            NetworkPacketIncrementalSerializerFactory[_ResponseT],
+            NetworkPacketIncrementalDeserializerFactory[_RequestT],
+        ] = ...,
         socket_cls: type[AbstractTCPServerSocket] = ...,
     ) -> None:
         ...
@@ -416,29 +436,39 @@ class TCPNetworkServer(AbstractTCPNetworkServer[_T]):
         self,
         socket: AbstractTCPServerSocket,
         /,
-        request_handler_cls: type[AbstractTCPRequestHandler[_T]],
+        request_handler_cls: type[AbstractTCPRequestHandler[_RequestT, _ResponseT]],
         *,
-        protocol_cls: Callable[[], AbstractStreamNetworkProtocol] = ...,
+        protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT]
+        | tuple[
+            NetworkPacketIncrementalSerializerFactory[_ResponseT],
+            NetworkPacketIncrementalDeserializerFactory[_RequestT],
+        ] = ...,
     ) -> None:
         ...
 
-    def __init__(self, __arg: Any, /, request_handler_cls: type[AbstractTCPRequestHandler[_T]], **kwargs: Any) -> None:
+    def __init__(
+        self,
+        __arg: Any,
+        /,
+        request_handler_cls: type[AbstractTCPRequestHandler[_RequestT, _ResponseT]],
+        **kwargs: Any,
+    ) -> None:
         concreteclasscheck(request_handler_cls)
         if not issubclass(request_handler_cls, AbstractTCPRequestHandler):
             raise TypeError(f"{request_handler_cls.__qualname__} is not a TCP request handler")
-        self.__request_handler_cls: type[AbstractTCPRequestHandler[_T]] = request_handler_cls
+        self.__request_handler_cls: type[AbstractTCPRequestHandler[_RequestT, _ResponseT]] = request_handler_cls
         super().__init__(__arg, **kwargs)
 
-    def _process_request(self, request: _T, client: ConnectedClient[_T]) -> None:
+    def _process_request(self, request: _RequestT, client: ConnectedClient[_ResponseT]) -> None:
         self.__request_handler_cls(request, client, self)
 
     @final
     @property
-    def request_handler_cls(self) -> type[AbstractTCPRequestHandler[_T]]:
+    def request_handler_cls(self) -> type[AbstractTCPRequestHandler[_RequestT, _ResponseT]]:
         return self.__request_handler_cls
 
 
-class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_T]):
+class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _ResponseT]):
     @overload
     def __init__(
         self,
@@ -446,7 +476,8 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_T]):
         /,
         *,
         family: int = ...,
-        protocol_cls: Callable[[], AbstractNetworkProtocol] = ...,
+        protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT]
+        | tuple[NetworkPacketSerializerFactory[_ResponseT], NetworkPacketDeserializerFactory[_RequestT]] = ...,
         socket_cls: type[AbstractUDPServerSocket] = ...,
     ) -> None:
         ...
@@ -457,7 +488,8 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_T]):
         socket: AbstractUDPServerSocket,
         /,
         *,
-        protocol_cls: Callable[[], AbstractNetworkProtocol] = ...,
+        protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT]
+        | tuple[NetworkPacketSerializerFactory[_ResponseT], NetworkPacketDeserializerFactory[_RequestT]] = ...,
     ) -> None:
         ...
 
@@ -466,12 +498,19 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_T]):
         __arg: AbstractUDPServerSocket | tuple[str, int] | tuple[str, int, int, int],
         /,
         *,
-        protocol_cls: Callable[[], AbstractNetworkProtocol] = PicklingNetworkProtocol,
+        protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT]
+        | tuple[NetworkPacketSerializerFactory[_ResponseT], NetworkPacketDeserializerFactory[_RequestT]] = PickleNetworkProtocol,
         **kwargs: Any,
     ) -> None:
-        protocol: AbstractNetworkProtocol = protocol_cls()
-        if not isinstance(protocol, AbstractNetworkProtocol):
-            raise TypeError("Invalid arguments")
+        serializer_cls: NetworkPacketSerializerFactory[_ResponseT]
+        deserializer_cls: NetworkPacketDeserializerFactory[_RequestT]
+        if not isinstance(protocol_cls, tuple):
+            if not callable(protocol_cls):
+                raise TypeError("Invalid arguments")
+            serializer_cls, deserializer_cls = protocol_cls, protocol_cls
+        else:
+            serializer_cls, deserializer_cls = protocol_cls
+        protocol = (serializer_cls(), deserializer_cls())
         socket: AbstractUDPServerSocket
         self.__socket_cls: type[AbstractUDPServerSocket] | None
         if isinstance(__arg, AbstractUDPServerSocket):
@@ -488,8 +527,7 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_T]):
         else:
             raise TypeError("Invalid arguments")
         self.__socket: AbstractUDPServerSocket = socket
-        self.__client: UDPNetworkClient[_T] = UDPNetworkClient(socket, protocol=protocol)
-        self.__protocol_cls: Callable[[], AbstractNetworkProtocol] = protocol_cls
+        self.__client: UDPNetworkClient[_ResponseT, _RequestT] = UDPNetworkClient(socket, protocol=protocol)
         self.__lock: RLock = RLock()
         self.__loop: bool = False
         self.__is_shutdown: Event = Event()
@@ -505,12 +543,12 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_T]):
             self.__loop = True
             self.__is_shutdown.clear()
 
-        client: UDPNetworkClient[_T] = self.__client
+        client: UDPNetworkClient[_ResponseT, _RequestT] = self.__client
 
         def parse_requests() -> None:
             with self.__lock:
                 for request, address in client.recv_packets(block=True, flags=self.recv_flags):
-                    connected_client: ConnectedClient[_T] = self.__ConnectedClient(client, address)
+                    connected_client: ConnectedClient[_ResponseT] = self.__ConnectedClient(client, address)
                     try:
                         self._process_request(request, connected_client)
                     except DisconnectedClientError:
@@ -546,10 +584,10 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_T]):
         pass
 
     @abstractmethod
-    def _process_request(self, request: _T, client: ConnectedClient[_T]) -> None:
+    def _process_request(self, request: _RequestT, client: ConnectedClient[_ResponseT]) -> None:
         raise NotImplementedError
 
-    def _handle_error(self, client: ConnectedClient[_T]) -> None:
+    def _handle_error(self, client: ConnectedClient[_ResponseT]) -> None:
         from sys import stderr
         from traceback import print_exc
 
@@ -575,11 +613,6 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_T]):
             socket: AbstractSocket = self.__socket
             return socket.getsockname()
 
-    @final
-    @property
-    def protocol_cls(self) -> Callable[[], AbstractNetworkProtocol]:
-        return self.__protocol_cls
-
     @property
     def recv_flags(self) -> int:
         with self.__lock:
@@ -591,31 +624,30 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_T]):
             self.__recv_flags = int(value)
 
     @final
-    class __ConnectedClient(ConnectedClient[_T]):
-        def __init__(self, client: UDPNetworkClient[_T], address: SocketAddress) -> None:
+    class __ConnectedClient(ConnectedClient[_ResponseT]):
+        def __init__(self, client: UDPNetworkClient[_ResponseT, Any], address: SocketAddress) -> None:
             super().__init__(address)
-            self.__client: UDPNetworkClient[_T] = client
+            self.__client: UDPNetworkClient[_ResponseT, Any] = client
 
         def close(self) -> None:
-            client: UDPNetworkClient[_T] = self.__client
-            return client.close()
+            return self.__client.close()
 
-        def send_packet(self, packet: _T, *, flags: int = 0) -> None:
-            client: UDPNetworkClient[_T] = self.__client
-            return client.send_packet(self.address, packet, flags=flags)
+        def send_packet(self, packet: _ResponseT, *, flags: int = 0) -> None:
+            return self.__client.send_packet(self.address, packet, flags=flags)
 
 
 @concreteclass
-class UDPNetworkServer(AbstractUDPNetworkServer[_T]):
+class UDPNetworkServer(AbstractUDPNetworkServer[_RequestT, _ResponseT]):
     @overload
     def __init__(
         self,
         address: tuple[str, int] | tuple[str, int, int, int],
         /,
-        request_handler_cls: type[AbstractUDPRequestHandler[_T]],
+        request_handler_cls: type[AbstractUDPRequestHandler[_RequestT, _ResponseT]],
         *,
         family: int = ...,
-        protocol_cls: type[AbstractNetworkProtocol] = ...,
+        protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT]
+        | tuple[NetworkPacketSerializerFactory[_ResponseT], NetworkPacketDeserializerFactory[_RequestT]] = ...,
         socket_cls: type[AbstractUDPServerSocket] = ...,
     ) -> None:
         ...
@@ -625,23 +657,30 @@ class UDPNetworkServer(AbstractUDPNetworkServer[_T]):
         self,
         socket: AbstractUDPServerSocket,
         /,
-        request_handler_cls: type[AbstractUDPRequestHandler[_T]],
+        request_handler_cls: type[AbstractUDPRequestHandler[_RequestT, _ResponseT]],
         *,
-        protocol_cls: type[AbstractNetworkProtocol] = ...,
+        protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT]
+        | tuple[NetworkPacketSerializerFactory[_ResponseT], NetworkPacketDeserializerFactory[_RequestT]] = ...,
     ) -> None:
         ...
 
-    def __init__(self, __arg: Any, /, request_handler_cls: type[AbstractUDPRequestHandler[_T]], **kwargs: Any) -> None:
+    def __init__(
+        self,
+        __arg: Any,
+        /,
+        request_handler_cls: type[AbstractUDPRequestHandler[_RequestT, _ResponseT]],
+        **kwargs: Any,
+    ) -> None:
         concreteclasscheck(request_handler_cls)
         if not issubclass(request_handler_cls, AbstractUDPRequestHandler):
             raise TypeError(f"{request_handler_cls.__qualname__} is not a UDP request handler")
-        self.__request_handler_cls: type[AbstractUDPRequestHandler[_T]] = request_handler_cls
+        self.__request_handler_cls: type[AbstractUDPRequestHandler[_RequestT, _ResponseT]] = request_handler_cls
         super().__init__(__arg, **kwargs)
 
-    def _process_request(self, request: _T, client: ConnectedClient[_T]) -> None:
+    def _process_request(self, request: _RequestT, client: ConnectedClient[_ResponseT]) -> None:
         self.__request_handler_cls(request, client, self)
 
     @final
     @property
-    def request_handler_cls(self) -> type[AbstractUDPRequestHandler[_T]]:
+    def request_handler_cls(self) -> type[AbstractUDPRequestHandler[_RequestT, _ResponseT]]:
         return self.__request_handler_cls

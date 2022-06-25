@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["AbstractNetworkClient", "ClientError", "DisconnectedClientError", "TCPNetworkClient", "UDPNetworkClient"]
+__all__ = ["AbstractNetworkClient", "DisconnectedClientError", "TCPClientError", "TCPNetworkClient", "UDPNetworkClient"]
 
 
 import os
@@ -20,9 +20,14 @@ from typing import TYPE_CHECKING, Any, Generator, Generic, TypeVar, overload
 
 from ..system.object import Object, final
 from ..system.utils.abc import concreteclass, concreteclasscheck
-from .protocol.base import AbstractNetworkProtocol, ValidationError
-from .protocol.pickle import PicklingNetworkProtocol
-from .protocol.stream import AbstractStreamNetworkProtocol, StreamNetworkPacketHandler
+from .protocol.base import NetworkPacketDeserializer, NetworkPacketSerializer, NetworkProtocol, ValidationError
+from .protocol.pickle import PickleNetworkProtocol
+from .protocol.stream import (
+    NetworkPacketIncrementalDeserializer,
+    NetworkPacketIncrementalSerializer,
+    StreamNetworkPacketHandler,
+    StreamNetworkProtocol,
+)
 from .socket.base import (
     AbstractSocket,
     AbstractTCPClientSocket,
@@ -36,6 +41,8 @@ from .socket.constants import SHUT_WR
 from .socket.python import PythonTCPClientSocket, PythonUDPClientSocket
 
 _T = TypeVar("_T")
+_ReceivedPacketT = TypeVar("_ReceivedPacketT")
+_SentPacketT = TypeVar("_SentPacketT")
 
 
 class AbstractNetworkClient(Object):
@@ -59,25 +66,12 @@ class AbstractNetworkClient(Object):
         raise NotImplementedError
 
     @abstractmethod
-    def getblocking(self) -> bool:
-        raise NotImplementedError
-
-    @abstractmethod
-    def setblocking(self, flag: bool) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
     def fileno(self) -> int:
         raise NotImplementedError
 
-    @property
-    @abstractmethod
-    def protocol(self) -> AbstractNetworkProtocol:
-        raise NotImplementedError
 
-
-class ClientError(Exception):
-    def __init__(self, client: TCPNetworkClient[Any], message: str | None = None) -> None:
+class TCPClientError(Exception):
+    def __init__(self, client: TCPNetworkClient[Any, Any], message: str | None = None) -> None:
         if not message:
             if not client.is_connected():
                 message = "Something went wrong for a client"
@@ -85,11 +79,11 @@ class ClientError(Exception):
                 addr: SocketAddress = client.getsockname()
                 message = f"Something went wrong for the client {addr.host}:{addr.port}"
         super().__init__(message)
-        self.client: TCPNetworkClient[Any] = client
+        self.client: TCPNetworkClient[Any, Any] = client
 
 
-class DisconnectedClientError(ClientError, ConnectionError):
-    def __init__(self, client: TCPNetworkClient[Any]) -> None:
+class DisconnectedClientError(TCPClientError, ConnectionError):
+    def __init__(self, client: TCPNetworkClient[Any, Any]) -> None:
         addr: SocketAddress = client.getsockname()
         super().__init__(client, f"{addr.host}:{addr.port} has been disconnected")
 
@@ -99,7 +93,7 @@ class NoValidPacket(ValueError):
 
 
 @concreteclass
-class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
+class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPacketT]):
     __slots__ = (
         "__socket",
         "__socket_cls",
@@ -118,7 +112,8 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
         *,
         family: int = ...,
         timeout: int = ...,
-        protocol: AbstractStreamNetworkProtocol = ...,
+        protocol: StreamNetworkProtocol[_SentPacketT, _ReceivedPacketT]
+        | tuple[NetworkPacketIncrementalSerializer[_SentPacketT], NetworkPacketIncrementalDeserializer[_ReceivedPacketT]] = ...,
         socket_cls: type[AbstractTCPClientSocket] = ...,
     ) -> None:
         ...
@@ -129,7 +124,8 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
         socket: AbstractTCPClientSocket,
         /,
         *,
-        protocol: AbstractStreamNetworkProtocol = ...,
+        protocol: StreamNetworkProtocol[_SentPacketT, _ReceivedPacketT]
+        | tuple[NetworkPacketIncrementalSerializer[_SentPacketT], NetworkPacketIncrementalDeserializer[_ReceivedPacketT]] = ...,
         give: bool = ...,
     ) -> None:
         ...
@@ -139,11 +135,36 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
         arg: AbstractTCPClientSocket | tuple[str, int],
         /,
         *,
-        protocol: AbstractStreamNetworkProtocol | None = None,
+        protocol: StreamNetworkProtocol[_SentPacketT, _ReceivedPacketT]
+        | tuple[NetworkPacketIncrementalSerializer[_SentPacketT], NetworkPacketIncrementalDeserializer[_ReceivedPacketT]]
+        | None = None,
         **kwargs: Any,
     ) -> None:
+        serializer: NetworkPacketIncrementalSerializer[_SentPacketT]
+        deserializer: NetworkPacketIncrementalDeserializer[_ReceivedPacketT]
+        # match protocol:
+        #     case None:
+        #         serializer = deserializer = PickleNetworkProtocol()
+        #     case StreamNetworkProtocol():
+        #         serializer = deserializer = protocol
+        #     case (NetworkPacketIncrementalSerializer(), NetworkPacketIncrementalDeserializer()):
+        #         serializer, deserializer = protocol
+        #     case _:
+        #         raise TypeError("Invalid argument")
+        # TODO: mypy crash on match statement (I know, this is not a todo)
         if protocol is None:
-            protocol = PicklingNetworkProtocol()
+            serializer = deserializer = PickleNetworkProtocol[_SentPacketT, _ReceivedPacketT]()
+        elif isinstance(protocol, StreamNetworkProtocol):
+            serializer = deserializer = protocol
+        elif (
+            isinstance(protocol, tuple)
+            and len(protocol) == 2
+            and isinstance(protocol[0], NetworkPacketIncrementalSerializer)
+            and isinstance(protocol[1], NetworkPacketIncrementalDeserializer)
+        ):
+            serializer, deserializer = protocol
+        else:
+            raise TypeError("Invalid argument")
         socket: AbstractTCPClientSocket
         self.__socket_cls: type[AbstractTCPClientSocket] | None
         if isinstance(arg, AbstractTCPClientSocket):
@@ -161,8 +182,10 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
         else:
             raise TypeError("Invalid arguments")
         self.__socket: AbstractTCPClientSocket = socket
-        self.__handler: StreamNetworkPacketHandler[_T] = StreamNetworkPacketHandler(protocol)
-        self.__queue: deque[_T] = deque()
+        self.__handler: StreamNetworkPacketHandler[_SentPacketT, _ReceivedPacketT] = StreamNetworkPacketHandler(
+            serializer, deserializer
+        )
+        self.__queue: deque[_ReceivedPacketT] = deque()
         self.__lock: RLock = RLock()
         self.__chunk_size: int = DEFAULT_BUFFER_SIZE
         with suppress(OSError):  # Will not work on Windows
@@ -186,14 +209,14 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
                 finally:
                     socket.close()
 
-    def send_packet(self, packet: _T, *, flags: int = 0) -> None:
+    def send_packet(self, packet: _SentPacketT, *, flags: int = 0) -> None:
         with self.__lock, BufferedWriter(SocketRawIOWrapper(self.__socket, flags=flags), buffer_size=self.__chunk_size) as writer:
             try:
                 self.__handler.write(writer, packet)
             except ConnectionError as exc:
                 raise DisconnectedClientError(self) from exc
 
-    def send_packets(self, *packets: _T, flags: int = 0) -> None:
+    def send_packets(self, *packets: _SentPacketT, flags: int = 0) -> None:
         if not packets:
             return
         with self.__lock, BufferedWriter(SocketRawIOWrapper(self.__socket, flags=flags), buffer_size=self.__chunk_size) as writer:
@@ -204,9 +227,9 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
             except ConnectionError as exc:
                 raise DisconnectedClientError(self) from exc
 
-    def recv_packet(self, *, flags: int = 0, retry_on_fail: bool = True) -> _T:
+    def recv_packet(self, *, flags: int = 0, retry_on_fail: bool = True) -> _ReceivedPacketT:
         with self.__lock:
-            queue: deque[_T] = self.__queue
+            queue: deque[_ReceivedPacketT] = self.__queue
             while not queue:
                 queue.extend(self.__recv_packets(flags=flags, block=True))
                 if not retry_on_fail:
@@ -215,24 +238,32 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
                 raise NoValidPacket
             return queue.popleft()
 
-    def recv_packet_no_wait(self, *, flags: int = 0) -> _T | None:
+    @overload
+    def recv_packet_no_wait(self, *, flags: int = 0, default: None = ...) -> _ReceivedPacketT | None:
+        ...
+
+    @overload
+    def recv_packet_no_wait(self, *, flags: int = 0, default: _T) -> _ReceivedPacketT | _T:
+        ...
+
+    def recv_packet_no_wait(self, *, flags: int = 0, default: Any = None) -> Any:
         with self.__lock:
-            queue: deque[_T] = self.__queue
+            queue: deque[_ReceivedPacketT] = self.__queue
             if not queue:
                 queue.extend(self.__recv_packets(flags=flags, block=False))
                 if not queue:
-                    return None
+                    return default
             return queue.popleft()
 
-    def recv_packets(self, *, flags: int = 0, block: bool = True) -> Generator[_T, None, None]:
+    def recv_packets(self, *, flags: int = 0, block: bool = True) -> Generator[_ReceivedPacketT, None, None]:
         with self.__lock:
-            queue: deque[_T] = self.__queue
+            queue: deque[_ReceivedPacketT] = self.__queue
             if not queue:
                 queue.extend(self.__recv_packets(flags=flags, block=block))
             while queue:
                 yield queue.popleft()
 
-    def __recv_packets(self, flags: int, block: bool) -> Generator[_T, None, None]:
+    def __recv_packets(self, flags: int, block: bool) -> Generator[_ReceivedPacketT, None, None]:
         chunk_reader: Generator[bytes, None, None] = self.read_socket(self.__socket, self.__chunk_size, block=block, flags=flags)
         try:
             while True:
@@ -315,18 +346,14 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_T]):
         with self.__lock:
             return self.__socket.try_reconnect(timeout=timeout)
 
-    @final
-    @property
-    def protocol(self) -> AbstractStreamNetworkProtocol:
-        return self.__handler.protocol
-
 
 @concreteclass
-class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
+class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPacketT]):
     __slots__ = (
         "__socket",
         "__socket_cls",
-        "__protocol",
+        "__serializer",
+        "__deserializer",
         "__queue",
         "__lock",
     )
@@ -337,7 +364,8 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
         /,
         *,
         family: int = ...,
-        protocol: AbstractNetworkProtocol = ...,
+        protocol: NetworkProtocol[_SentPacketT, _ReceivedPacketT]
+        | tuple[NetworkPacketSerializer[_SentPacketT], NetworkPacketDeserializer[_ReceivedPacketT]] = ...,
         socket_cls: AbstractUDPClientSocket = ...,
     ) -> None:
         ...
@@ -348,7 +376,8 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
         socket: AbstractUDPSocket,
         /,
         *,
-        protocol: AbstractNetworkProtocol = ...,
+        protocol: NetworkProtocol[_SentPacketT, _ReceivedPacketT]
+        | tuple[NetworkPacketSerializer[_SentPacketT], NetworkPacketDeserializer[_ReceivedPacketT]] = ...,
         give: bool = ...,
     ) -> None:
         ...
@@ -358,13 +387,37 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
         socket: AbstractUDPSocket | None = None,
         /,
         *,
-        protocol: AbstractNetworkProtocol | None = None,
+        protocol: NetworkProtocol[_SentPacketT, _ReceivedPacketT]
+        | tuple[NetworkPacketSerializer[_SentPacketT], NetworkPacketDeserializer[_ReceivedPacketT]]
+        | None = None,
         **kwargs: Any,
     ) -> None:
+        self.__serializer: NetworkPacketSerializer[_SentPacketT]
+        self.__deserializer: NetworkPacketDeserializer[_ReceivedPacketT]
+        # match protocol:
+        #     case None:
+        #         self.__serializer = self.__deserializer = PickleNetworkProtocol()
+        #     case NetworkProtocol():
+        #         self.__serializer = self.__deserializer = protocol
+        #     case (NetworkPacketSerializer(), NetworkPacketDeserializer()):
+        #         self.__serializer, self.__deserializer = protocol
+        #     case _:
+        #         raise TypeError("Invalid arguments")
+        # TODO: mypy crash on match statement (I know, this is not a todo)
         if protocol is None:
-            protocol = PicklingNetworkProtocol()
-        elif not isinstance(protocol, AbstractNetworkProtocol):
-            raise TypeError("Invalid arguments")
+            self.__serializer = self.__deserializer = PickleNetworkProtocol[_SentPacketT, _ReceivedPacketT]()
+        elif isinstance(protocol, NetworkProtocol):
+            self.__serializer = self.__deserializer = protocol
+        elif (
+            isinstance(protocol, tuple)
+            and len(protocol) == 2
+            and isinstance(protocol[0], NetworkPacketSerializer)
+            and isinstance(protocol[1], NetworkPacketDeserializer)
+        ):
+            self.__serializer, self.__deserializer = protocol
+        else:
+            raise TypeError("Invalid argument")
+
         self.__socket_cls: type[AbstractUDPSocket] | None
         if isinstance(socket, AbstractUDPSocket):
             give: bool = kwargs.pop("give", False)
@@ -380,8 +433,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
             raise TypeError("Invalid arguments")
         super().__init__()
         self.__socket: AbstractUDPSocket = socket
-        self.__protocol: AbstractNetworkProtocol = protocol
-        self.__queue: deque[tuple[_T, SocketAddress]] = deque()
+        self.__queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = deque()
         self.__lock: RLock = RLock()
 
     def close(self) -> None:
@@ -393,24 +445,21 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
             if socket.is_open():
                 socket.close()
 
-    def send_packet(self, address: SocketAddress, packet: _T, *, flags: int = 0) -> None:
+    def send_packet(self, address: SocketAddress, packet: _SentPacketT, *, flags: int = 0) -> None:
         with self.__lock:
-            socket: AbstractUDPSocket = self.__socket
-            protocol: AbstractNetworkProtocol = self.__protocol
-            data: bytes = protocol.serialize(packet)
-            socket.sendto(data, address, flags=flags)
+            self.__socket.sendto(self.__serializer.serialize(packet), address, flags=flags)
 
-    def send_packets(self, address: SocketAddress, *packets: _T, flags: int = 0) -> None:
+    def send_packets(self, address: SocketAddress, *packets: _SentPacketT, flags: int = 0) -> None:
         if not packets:
             return
         with self.__lock:
             sendto = self.__socket.sendto
-            for data in map(self.__protocol.serialize, packets):
+            for data in map(self.__serializer.serialize, packets):
                 sendto(data, address, flags=flags)
 
-    def recv_packet(self, *, flags: int = 0, retry_on_fail: bool = True) -> tuple[_T, SocketAddress]:
+    def recv_packet(self, *, flags: int = 0, retry_on_fail: bool = True) -> tuple[_ReceivedPacketT, SocketAddress]:
         with self.__lock:
-            queue: deque[tuple[_T, SocketAddress]] = self.__queue
+            queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = self.__queue
             while not queue:
                 queue.extend(self.__recv_packets(flags=flags, block=True))
                 if not retry_on_fail:
@@ -419,32 +468,42 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
                 raise NoValidPacket
             return queue.popleft()
 
-    def recv_packet_no_wait(self, *, flags: int = 0) -> tuple[_T, SocketAddress] | None:
+    @overload
+    def recv_packet_no_wait(self, *, flags: int = 0, default: None = ...) -> tuple[_ReceivedPacketT, SocketAddress] | None:
+        ...
+
+    @overload
+    def recv_packet_no_wait(self, *, flags: int = 0, default: _T) -> tuple[_ReceivedPacketT, SocketAddress] | _T:
+        ...
+
+    def recv_packet_no_wait(self, *, flags: int = 0, default: Any = None) -> Any:
         with self.__lock:
-            queue: deque[tuple[_T, SocketAddress]] = self.__queue
+            queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = self.__queue
             if not queue:
                 queue.extend(self.__recv_packets(flags=flags, block=False))
                 if not queue:
-                    return None
+                    return default
             return queue.popleft()
 
-    def recv_packets(self, *, flags: int = 0, block: bool = True) -> Generator[tuple[_T, SocketAddress], None, None]:
+    def recv_packets(
+        self, *, flags: int = 0, block: bool = True
+    ) -> Generator[tuple[_ReceivedPacketT, SocketAddress], None, None]:
         with self.__lock:
-            queue: deque[tuple[_T, SocketAddress]] = self.__queue
+            queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = self.__queue
             if not queue:
                 queue.extend(self.__recv_packets(flags=flags, block=block))
             while queue:
                 yield queue.popleft()
 
-    def __recv_packets(self, flags: int, block: bool) -> Generator[tuple[_T, SocketAddress], None, None]:
-        deserialize = self.__protocol.deserialize
+    def __recv_packets(self, flags: int, block: bool) -> Generator[tuple[_ReceivedPacketT, SocketAddress], None, None]:
+        deserialize = self.__deserializer.deserialize
 
         chunk_generator = self.read_socket(self.__socket, block=block, flags=flags)
 
         for data, sender in chunk_generator:
             try:
                 try:
-                    packet: _T = deserialize(data)
+                    packet: _ReceivedPacketT = deserialize(data)
                 except ValidationError:
                     continue
                 yield (packet, sender)
@@ -476,22 +535,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_T]):
             socket: AbstractSocket = self.__socket
             return socket.getsockname()
 
-    def getblocking(self) -> bool:
-        with self.__lock:
-            socket: AbstractSocket = self.__socket
-            return socket.getblocking()
-
-    def setblocking(self, flag: bool) -> None:
-        with self.__lock:
-            socket: AbstractSocket = self.__socket
-            return socket.setblocking(flag)
-
     def fileno(self) -> int:
         with self.__lock:
             socket: AbstractSocket = self.__socket
             return socket.fileno()
-
-    @final
-    @property
-    def protocol(self) -> AbstractNetworkProtocol:
-        return self.__protocol

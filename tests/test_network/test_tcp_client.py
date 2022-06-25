@@ -9,21 +9,19 @@ from typing import Any, Generator
 
 from py_diamond.network.client import TCPNetworkClient
 from py_diamond.network.protocol import (
-    AbstractStreamNetworkProtocol,
-    EncryptorProtocol,
     JSONNetworkProtocol,
-    PicklingNetworkProtocol,
-    SafePicklingNetworkProtocol,
+    PickleNetworkProtocol,
+    SafePickleNetworkProtocol,
+    StreamNetworkProtocol,
     ValidationError,
 )
 from py_diamond.network.socket import PythonTCPClientSocket, PythonTCPServerSocket
 from py_diamond.system.threading import Thread, thread_factory
 
 import pytest
+from cryptography.fernet import Fernet
 
 from .random_port import random_port
-
-generate_key = EncryptorProtocol.generate_key
 
 
 @thread_factory
@@ -50,7 +48,7 @@ def test_default() -> None:
     server_thread: Thread = launch_server(host, port, server_started, shutdow_requested)
     try:
         server_started.wait()
-        with TCPNetworkClient[Any]((host, port)) as client:
+        with TCPNetworkClient[Any, Any]((host, port)) as client:
             client.send_packet({"data": [5, 2]})
             assert client.recv_packet() == {"data": [5, 2]}
             client.send_packet("Hello")
@@ -74,7 +72,7 @@ def test_custom_socket() -> None:
     try:
         server_started.wait()
         with PythonTCPClientSocket.connect((host, port)) as s:
-            client: TCPNetworkClient[Any] = TCPNetworkClient(s)
+            client: TCPNetworkClient[Any, Any] = TCPNetworkClient(s)
             client.send_packet({"data": [5, 2]})
             assert client.recv_packet() == {"data": [5, 2]}
             client.send_packet("Hello")
@@ -95,7 +93,7 @@ def test_custom_protocol() -> None:
     server_thread: Thread = launch_server(host, port, server_started, shutdow_requested)
     server_started.wait()
     try:
-        with TCPNetworkClient[Any]((host, port), protocol=SafePicklingNetworkProtocol(generate_key())) as client:
+        with TCPNetworkClient[Any, Any]((host, port), protocol=SafePickleNetworkProtocol(Fernet.generate_key())) as client:
             client.send_packet({"data": [5, 2]})
             assert client.recv_packet() == {"data": [5, 2]}
             client.send_packet("Hello")
@@ -105,7 +103,7 @@ def test_custom_protocol() -> None:
         server_thread.join()
 
 
-class StringNetworkProtocol(AbstractStreamNetworkProtocol):
+class StringNetworkProtocol(StreamNetworkProtocol[str, str]):
     def incremental_serialize(self, packet: str) -> Generator[bytes, None, None]:
         if not isinstance(packet, str):
             raise ValidationError("Invalid string")
@@ -132,7 +130,7 @@ def test_multiple_requests() -> None:
     try:
         server_started.wait()
         with PythonTCPClientSocket.connect((host, port)) as s:
-            client: TCPNetworkClient[str] = TCPNetworkClient(s, protocol=StringNetworkProtocol())
+            client: TCPNetworkClient[str, str] = TCPNetworkClient(s, protocol=StringNetworkProtocol())
             client.send_packet("A\nB\nC\nD\n")
             assert list(client.recv_packets()) == ["A", "B", "C", "D"]
             client.send_packet("E\nF\nG\nH\nI")
@@ -161,7 +159,7 @@ def test_several_successive_send_using_pickling_protocol() -> None:
     server_thread: Thread = launch_server(host, port, server_started, shutdow_requested)
     try:
         server_started.wait()
-        with TCPNetworkClient[Any]((host, port), protocol=PicklingNetworkProtocol()) as client:
+        with TCPNetworkClient[Any, Any]((host, port), protocol=PickleNetworkProtocol()) as client:
             client.send_packet({"data": [5, 2]})
             client.send_packet("Hello")
             client.send_packet(132)
@@ -184,7 +182,7 @@ def test_several_successive_send_using_json_protocol() -> None:
     server_thread: Thread = launch_server(host, port, server_started, shutdow_requested)
     try:
         server_started.wait()
-        with TCPNetworkClient[Any]((host, port), protocol=JSONNetworkProtocol()) as client:
+        with TCPNetworkClient[Any, Any]((host, port), protocol=JSONNetworkProtocol()) as client:
             client.send_packet({"data": [5, 2]})
             client.send_packet("Hello")
             client.send_packet(132)
@@ -207,7 +205,7 @@ def test_several_successive_send_using_secured_pickling_protocol() -> None:
     server_thread: Thread = launch_server(host, port, server_started, shutdow_requested)
     try:
         server_started.wait()
-        with TCPNetworkClient[Any]((host, port), protocol=SafePicklingNetworkProtocol(generate_key())) as client:
+        with TCPNetworkClient[Any, Any]((host, port), protocol=SafePickleNetworkProtocol(Fernet.generate_key())) as client:
             client.send_packet({"data": [5, 2]})
             client.send_packet("Hello")
             client.send_packet(132)

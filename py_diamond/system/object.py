@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Object", "ObjectMeta", "final", "mro", "override"]
+__all__ = ["Object", "ObjectMeta", "ProtocolObjectMeta", "final", "mro", "override"]
 
 
 from abc import ABCMeta
@@ -66,27 +66,21 @@ class ObjectMeta(ABCMeta):
 
         # Verify conflict for final methods in multiple inheritance
         conflict_final_methods: dict[str, set[type]] = {
-            method_name: bases_set
-            for method_name in bases_final_methods_set
-            if len(
-                (
-                    bases_set := {
-                        base
-                        for actual_base in bases_mro
-                        if method_name in bases_final_methods_dict.get(actual_base, [])
-                        for base in chain(
-                            takewhile(
-                                lambda base: base is not actual_base,
-                                (base for base in bases_mro if method_name in vars(base)),
-                            ),
-                            [actual_base],
-                        )
-                    }
+            method_name: {
+                base
+                for actual_base in bases_mro
+                if method_name in bases_final_methods_dict.get(actual_base, [])
+                for base in chain(
+                    takewhile(
+                        lambda base: base is not actual_base,
+                        (base for base in bases_mro if method_name in vars(base)),
+                    ),
+                    [actual_base],
                 )
-            )
-            > 1
+            }
+            for method_name in bases_final_methods_set
         }
-
+        conflict_final_methods = {k: v for k, v in conflict_final_methods.items() if len(v) > 1}
         if conflict_final_methods:
             conflict_message = ", ".join(
                 f"{method} in {tuple(b.__qualname__ for b in bases)}" for method, bases in conflict_final_methods.items()
@@ -146,6 +140,16 @@ class ObjectMeta(ABCMeta):
 
 class Object(metaclass=ObjectMeta):
     __slots__ = ()
+
+
+from typing import _ProtocolMeta
+
+
+class ProtocolObjectMeta(_ProtocolMeta, ObjectMeta):
+    pass
+
+
+del _ProtocolMeta
 
 
 @overload

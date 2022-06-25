@@ -17,9 +17,9 @@ __all__ = [
     "IPv4SocketAddress",
     "IPv6SocketAddress",
     "ReceivedDatagram",
+    "SocketAddress",
     "SocketMeta",
     "SocketRawIOWrapper",
-    "SocketAddress",
     "new_socket_address",
 ]
 

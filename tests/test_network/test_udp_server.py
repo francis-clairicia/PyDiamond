@@ -13,7 +13,7 @@ from py_diamond.system.threading import Thread
 from .random_port import random_port
 
 
-class _MirrorRequestHandler(AbstractUDPRequestHandler[Any]):
+class _MirrorRequestHandler(AbstractUDPRequestHandler[Any, Any]):
     def handle(self) -> None:
         self.client.send_packet(self.request)
 
@@ -66,7 +66,7 @@ def test_serve_forver_in_thread_context_shut_down() -> None:
     assert not t.is_alive()
 
 
-class _TestServiceActionServer(UDPNetworkServer[Any]):
+class _TestServiceActionServer(UDPNetworkServer[Any, Any]):
     def service_actions(self) -> None:
         super().service_actions()
         self.service_actions_called: bool = True
@@ -90,9 +90,9 @@ def test_request_handling() -> None:
     with UDPNetworkServer(address, _MirrorRequestHandler, protocol_cls=_IntegerNetworkProtocol) as server:
         server.serve_forever_in_thread(poll_interval=0.1)
         with (
-            UDPNetworkClient[int](protocol=server.protocol_cls()) as client_1,
-            UDPNetworkClient[int](protocol=server.protocol_cls()) as client_2,
-            UDPNetworkClient[int](protocol=server.protocol_cls()) as client_3,
+            UDPNetworkClient(protocol=_IntegerNetworkProtocol()) as client_1,
+            UDPNetworkClient(protocol=_IntegerNetworkProtocol()) as client_2,
+            UDPNetworkClient(protocol=_IntegerNetworkProtocol()) as client_3,
         ):
             client_1.send_packet(address, 350)
             client_2.send_packet(address, -634)
