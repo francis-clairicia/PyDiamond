@@ -21,12 +21,6 @@ from ..system.utils.functools import wraps
 from .movable import Movable, MovableMeta, MovableProxy
 from .rect import Rect
 
-if TYPE_CHECKING:
-    from .movable import _MovableProxyMeta
-else:
-    _MovableProxyMeta = type(MovableProxy)
-
-
 _ALL_VALID_ROTATION_PIVOTS: tuple[str, ...] = (
     "center",
     "topleft",
@@ -315,6 +309,12 @@ class Transformable(Movable, metaclass=TransformableMeta):
     @height.setter
     def height(self, height: float) -> None:
         self.scale_to_height(height)
+
+
+if TYPE_CHECKING:
+    from .movable import _MovableProxyMeta
+else:
+    _MovableProxyMeta = type(MovableProxy)
 
 
 class _TransformableProxyMeta(TransformableMeta, _MovableProxyMeta):

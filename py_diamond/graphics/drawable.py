@@ -209,6 +209,9 @@ class BaseDrawableGroup(Sequence[_D]):
         self.__list: MutableSequence[_D] = deque()
         self.add(*objects)
 
+    def __iter__(self) -> Iterator[_D]:
+        return self.__list.__iter__()
+
     def __len__(self) -> int:
         return self.__list.__len__()
 
@@ -224,7 +227,7 @@ class BaseDrawableGroup(Sequence[_D]):
         return self.__list[index]
 
     def __bool__(self) -> bool:
-        return self.__len__() > 0
+        return bool(self.__list)
 
     def draw_onto(self, target: AbstractRenderer) -> None:
         for drawable in self.__list:
@@ -352,11 +355,11 @@ class BaseLayeredDrawableGroup(BaseDrawableGroup[_D]):
     def get_bottom_drawable(self) -> _D:
         return self[0]
 
-    def move_to_front(self, obj: _D) -> None:
-        self.change_layer(obj, self.get_top_layer())
+    def move_to_front(self, obj: _D, *, top_of_layer: bool = True) -> None:
+        self.change_layer(obj, self.get_top_layer(), top_of_layer=top_of_layer)
 
-    def move_to_back(self, obj: _D, after_last: bool = True) -> None:
-        self.change_layer(obj, self.get_bottom_layer() - int(bool(after_last)))
+    def move_to_back(self, obj: _D, *, after_last: bool = True, top_of_layer: bool = False) -> None:
+        self.change_layer(obj, self.get_bottom_layer() - int(bool(after_last)), top_of_layer=top_of_layer)
 
     def iter_in_layer(self, layer: int) -> Iterator[_D]:
         layer_dict = self.__layer_dict

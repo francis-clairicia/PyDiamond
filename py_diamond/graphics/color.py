@@ -48,8 +48,7 @@ class Color(pygame.color.Color):
     @h.setter
     def h(self, value: float) -> None:
         _, S, V, A = self.hsva
-        H = value % 360
-        self.hsva = (H, S, V, A)
+        self.hsva = (value, S, V, A)
 
     @property
     def s(self) -> float:
@@ -58,12 +57,7 @@ class Color(pygame.color.Color):
     @s.setter
     def s(self, value: float) -> None:
         H, _, V, A = self.hsva
-        S = value
-        if S > 100:
-            S = 100
-        elif S < 0:
-            S = 0
-        self.hsva = (H, S, V, A)
+        self.hsva = (H, value, V, A)
 
     @property
     def v(self) -> float:
@@ -72,12 +66,7 @@ class Color(pygame.color.Color):
     @v.setter
     def v(self, value: float) -> None:
         H, S, _, A = self.hsva
-        V = value
-        if V > 100:
-            V = 100
-        elif V < 0:
-            V = 0
-        self.hsva = (H, S, V, A)
+        self.hsva = (H, S, value, A)
 
     def with_brightness(self, value: float) -> Color:
         c = Color(self)
@@ -102,6 +91,9 @@ class ImmutableColor(Color):
     g: int
     b: int
     a: int
+    h: float
+    s: float
+    v: float
     cmy: tuple[float, float, float]
     hsva: tuple[float, float, float, float]
     hsla: tuple[float, float, float, float]
@@ -119,7 +111,7 @@ WHITE: Final[ImmutableColor] = COLOR_DICT.get("white", ImmutableColor(255, 255, 
 BLACK: Final[ImmutableColor] = COLOR_DICT.get("black", ImmutableColor(0, 0, 0, 255))
 GRAY: Final[ImmutableColor] = COLOR_DICT.get("gray50", ImmutableColor(127, 127, 127, 255))
 GRAY_DARK: Final[ImmutableColor] = COLOR_DICT.get("gray37", ImmutableColor(95, 95, 95, 255))
-GRAY_LIGHT: Final[ImmutableColor] = COLOR_DICT.get("gray69", ImmutableColor(175, 75, 175, 255))
+GRAY_LIGHT: Final[ImmutableColor] = COLOR_DICT.get("gray69", ImmutableColor(175, 175, 175, 255))
 RED: Final[ImmutableColor] = COLOR_DICT.get("red", ImmutableColor(255, 0, 0, 255))
 RED_DARK: Final[ImmutableColor] = COLOR_DICT.get("darkred", ImmutableColor(140, 0, 0, 255))
 RED_LIGHT: Final[ImmutableColor] = ImmutableColor(255, 128, 128)

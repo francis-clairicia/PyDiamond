@@ -525,14 +525,14 @@ class ThemedObjectMeta(ObjectMeta):
         return super().__delattr__(name)
 
     @overload
-    def set_theme(cls, name: str, options: dict[str, Any], update: bool = False, ignore_unusable: bool = True) -> None:
+    def set_theme(cls, name: str, options: dict[str, Any], *, update: bool = False, ignore_unusable: bool = True) -> None:
         ...
 
     @overload
     def set_theme(cls, name: str, options: None) -> None:
         ...
 
-    def set_theme(cls, name: str, options: dict[str, Any] | None, update: bool = False, ignore_unusable: bool = True) -> None:
+    def set_theme(cls, name: str, options: dict[str, Any] | None, *, update: bool = False, ignore_unusable: bool = True) -> None:
         if cls.is_abstract_theme_class():
             raise TypeError("Abstract theme classes cannot set themes.")
         if getattr(cls, "_no_use_of_themes_", False):
