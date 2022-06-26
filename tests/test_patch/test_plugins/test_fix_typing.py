@@ -62,21 +62,24 @@ class TestFixTypingFinal:
     @pytest.fixture
     @staticmethod
     def patch(mock_default_final: MagicMock) -> Iterator[OverrideFinalFunctionsPatch]:
+        from py_diamond._patch import PatchContext
         from py_diamond._patch.plugins.fix_typing import OverrideFinalFunctionsPatch
 
         patch = OverrideFinalFunctionsPatch()
+        patch.run_context = PatchContext.BEFORE_ALL
         patch.setup()
         yield patch
         patch.teardown()
 
-    def test__patch__context(self, patch: OverrideFinalFunctionsPatch) -> None:
+    def test__patch__context(self) -> None:
         # Arrange
         from py_diamond._patch import PatchContext
+        from py_diamond._patch.plugins.fix_typing import OverrideFinalFunctionsPatch
 
         expected_context = PatchContext.BEFORE_ALL
 
         # Act
-        context = patch.get_required_context()
+        context = OverrideFinalFunctionsPatch.get_required_context()
 
         # Assert
         assert isinstance(context, PatchContext)

@@ -26,4 +26,4 @@ class MockEventModule(NamedTuple):
 
 @pytest.fixture
 def mock_pygame_event_module(mocker: MockerFixture) -> MockEventModule:
-    return MockEventModule._make(mocker.patch(f"pygame.event.{field}") for field in MockEventModule._fields)
+    return MockEventModule._make(mocker.patch(f"pygame.event.{field}", autospec=True) for field in MockEventModule._fields)

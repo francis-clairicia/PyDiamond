@@ -105,10 +105,9 @@ class TestWindowUnit:
 
         window = Window()
 
-        # Act
+        # Act & Assert
         with window.open():
 
-            # Assert
             mock_pygame_display_module.init.assert_called()
             mock_pygame_display_module.quit.assert_not_called()
 
@@ -146,10 +145,9 @@ class TestWindowUnit:
 
         window = Window(size=size, resizable=resizable, fullscreen=fullscreen, vsync=vsync)
 
-        # Act
+        # Act & Assert
         with window.open():
 
-            # Assert
             mock_pygame_display_module.set_mode.assert_called_once_with(size, flags=expected_flags, vsync=int(vsync))
 
     def test__open__context_manager_return_reference_to_window(self) -> None:
@@ -157,10 +155,9 @@ class TestWindowUnit:
 
         window = Window()
 
-        # Act
+        # Act & Assert
         with window.open() as window_ref:
 
-            # Assert
             assert window_ref is window
 
     @pytest.mark.parametrize("error", [pytest.param(pygame.error, id="pygame.error"), ValueError, KeyError, ZeroDivisionError])
@@ -214,10 +211,9 @@ class TestWindowUnit:
         mock_window_init = mocker.patch.object(window, "__window_init__")
         mock_window_quit = mocker.patch.object(window, "__window_quit__")
 
-        # Act
+        # Act & Assert
         with window.open():
 
-            # Assert
             mock_window_init.assert_called()
             mock_window_quit.assert_not_called()
 

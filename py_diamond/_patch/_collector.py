@@ -31,11 +31,14 @@ if not __package__:
     raise ImportError("There is no package name. Perhaps you should import the module instead of run the script file")
 
 
+__main_package__ = __package__.rpartition(".")[0]
+
+
 class _PatchCollectorType:
     __initialized: bool = False
-    __forbidden_imports_by_context: Mapping[PatchContext, set[str]] = {
-        PatchContext.BEFORE_ALL: {"pygame"},
-        PatchContext.BEFORE_IMPORTING_PYGAME: {"pygame"},
+    __forbidden_imports_until_context: Mapping[str, PatchContext] = {
+        "pygame": PatchContext.AFTER_IMPORTING_PYGAME,
+        __main_package__: PatchContext.AFTER_IMPORTING_SUBMODULES,
     }
 
     def __new__(cls: type[Self]) -> Self:
@@ -54,17 +57,16 @@ class _PatchCollectorType:
         self.__all_patches: Mapping[PatchContext, Sequence[BasePatch]]
 
         all_patches: defaultdict[PatchContext, deque[BasePatch]] = defaultdict(deque)
-        forbidden_imports: set[str] = set().union(*self.__forbidden_imports_by_context.values())
-        with self._mock_import("import", forbidden_imports=forbidden_imports):
+        with self._mock_import("import", forbidden_imports=list(self.__forbidden_imports_until_context)):
             for patch_cls in set(self.walk_in_plugins_module(".plugins")):
-                patch = patch_cls()
-                all_patches[patch.get_required_context()].append(patch)
+                all_patches[patch_cls.get_required_context()].append(patch_cls())
 
         self.__all_patches = MappingProxyType({k: tuple(v) for k, v in all_patches.items()})
 
     def run_patches(self, context: PatchContext) -> None:
-        forbidden_imports = self.__forbidden_imports_by_context.get(context, set())
-        # TODO: Main package import allowed in context following AFTER_IMPORTING_SUBMODULES
+        forbidden_imports = [
+            module for module, context_ceiling in self.__forbidden_imports_until_context.items() if context < context_ceiling
+        ]
         with self._mock_import(f"run ({context.name.replace('_', ' ').lower()})", forbidden_imports=forbidden_imports):
             # TODO (3.11): Exception groups
             for patch in (p for p in self.__all_patches.get(context, ()) if p.must_be_run()):
@@ -114,9 +116,7 @@ class _PatchCollectorType:
 
     @staticmethod
     @contextlib.contextmanager
-    def _mock_import(
-        context: str, *, forbidden_imports: Iterable[str] = (), main_package_allowed: bool = False
-    ) -> Iterator[None]:
+    def _mock_import(context: str, *, forbidden_imports: Iterable[str] = ()) -> Iterator[None]:
         import re
         import sys
 
@@ -135,7 +135,6 @@ class _PatchCollectorType:
 
         original_import = __import__
         patch_package = __package__
-        main_package = patch_package.rpartition(".")[0]
 
         @no_type_check
         def import_mock(name, globals=None, locals=None, fromlist=(), level=0):
@@ -148,10 +147,7 @@ class _PatchCollectorType:
                     for _ in range(level - 1):
                         actual_package = actual_package.rpartition(".")[0]
                     resolved_name = f"{actual_package}.{name}"
-                if main_package in resolved_name and patch_package not in resolved_name and not main_package_allowed:
-                    msg = f"{main_package} sub-modules must not be imported during patch {context}"
-                    raise ImportError(msg, name=importer_name, path=importer_path)
-                if forbidden_module := is_forbidden_module(resolved_name):
+                if patch_package not in resolved_name and (forbidden_module := is_forbidden_module(resolved_name)):
                     msg = f"{forbidden_module!r} must not be imported during patch {context}"
                     raise ImportError(msg, name=importer_name, path=importer_path)
             return original_import(name, globals, locals, fromlist, level)

@@ -33,4 +33,4 @@ class MockDisplayModule(NamedTuple):
 
 @pytest.fixture
 def mock_pygame_display_module(mocker: MockerFixture) -> MockDisplayModule:
-    return MockDisplayModule._make(mocker.patch(f"pygame.display.{field}") for field in MockDisplayModule._fields)
+    return MockDisplayModule._make(mocker.patch(f"pygame.display.{field}", autospec=True) for field in MockDisplayModule._fields)

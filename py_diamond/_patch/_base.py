@@ -10,11 +10,11 @@ __all__ = ["BasePatch"]
 
 import os
 from abc import ABCMeta, abstractmethod
-from enum import Enum, auto, unique
+from enum import IntEnum, auto, unique
 
 
 @unique
-class PatchContext(Enum):
+class PatchContext(IntEnum):
     BEFORE_ALL = auto()
     BEFORE_IMPORTING_PYGAME = auto()
     AFTER_IMPORTING_PYGAME = auto()
@@ -22,11 +22,18 @@ class PatchContext(Enum):
     AFTER_IMPORTING_SUBMODULES = auto()
     AFTER_ALL = auto()
 
+    def __repr__(self) -> str:
+        return f"<{type(self).__name__}.{self.name}: {self.value}>"
+
+    def __str__(self) -> str:
+        return f"{type(self).__name__}.{self.name}"
+
 
 class BasePatch(metaclass=ABCMeta):
     run_context: PatchContext
 
-    def get_required_context(self) -> PatchContext:
+    @classmethod
+    def get_required_context(cls) -> PatchContext:
         return PatchContext.BEFORE_ALL
 
     def must_be_run(self) -> bool:

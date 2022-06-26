@@ -37,7 +37,7 @@ class MockMixerModule(NamedTuple):
 
 @pytest.fixture
 def mock_pygame_mixer_module(mocker: MockerFixture) -> MockMixerModule:
-    return MockMixerModule._make(mocker.patch(f"pygame.mixer.{field}") for field in MockMixerModule._fields)
+    return MockMixerModule._make(mocker.patch(f"pygame.mixer.{field}", autospec=True) for field in MockMixerModule._fields)
 
 
 class MockMixerMusicModule(NamedTuple):
@@ -62,4 +62,6 @@ class MockMixerMusicModule(NamedTuple):
 
 @pytest.fixture
 def mock_pygame_mixer_music_module(mocker: MockerFixture) -> MockMixerMusicModule:
-    return MockMixerMusicModule._make(mocker.patch(f"pygame.mixer.music.{field}") for field in MockMixerMusicModule._fields)
+    return MockMixerMusicModule._make(
+        mocker.patch(f"pygame.mixer.music.{field}", autospec=True) for field in MockMixerMusicModule._fields
+    )

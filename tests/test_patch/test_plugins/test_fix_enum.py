@@ -19,21 +19,24 @@ class TestFixIntEnum:
     @pytest.fixture
     @staticmethod
     def patch() -> Iterator[IntEnumMonkeyPatch]:
+        from py_diamond._patch import PatchContext
         from py_diamond._patch.plugins.fix_enum import IntEnumMonkeyPatch
 
         patch = IntEnumMonkeyPatch()
+        patch.run_context = PatchContext.BEFORE_ALL
         patch.setup()
         yield patch
         patch.teardown()
 
-    def test__context__good_context(self, patch: IntEnumMonkeyPatch) -> None:
+    def test__context__good_context(self) -> None:
         # Arrange
         from py_diamond._patch import PatchContext
+        from py_diamond._patch.plugins.fix_enum import IntEnumMonkeyPatch
 
         expected_context = PatchContext.BEFORE_ALL
 
         # Act
-        context = patch.get_required_context()
+        context = IntEnumMonkeyPatch.get_required_context()
 
         # Assert
         assert isinstance(context, PatchContext)

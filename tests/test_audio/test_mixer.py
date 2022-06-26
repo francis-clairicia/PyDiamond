@@ -33,18 +33,15 @@ class TestMixerUnit:
     @pytest.fixture(autouse=True)
     @staticmethod
     def mock_music_stream(mocker: MockerFixture) -> MagicMock:
-        from py_diamond.audio.music import MusicStream
-
-        return mocker.patch("py_diamond.audio.music.MusicStream", spec=MusicStream)
+        return mocker.patch("py_diamond.audio.music.MusicStream", autospec=True)
 
     @pytest.mark.usefixtures("mixer_init_default_side_effect")
     def test__init__pygame_mixer_init_and_quit(self, mock_pygame_mixer_module: MockMixerModule) -> None:
         # Arrange
 
-        # Act
+        # Act & Assert
         with Mixer.init():
 
-            # Assert
             mock_pygame_mixer_module.init.assert_called()
             mock_pygame_mixer_module.quit.assert_not_called()
 
@@ -88,12 +85,12 @@ class TestMixerUnit:
                 pass
 
     @pytest.mark.parametrize(
-        ["error"],
+        "error",
         [
             pytest.param(pygame.error, id="pygame.error"),
-            pytest.param(ValueError),
-            pytest.param(KeyError),
-            pytest.param(ZeroDivisionError),
+            ValueError,
+            KeyError,
+            ZeroDivisionError,
         ],
     )
     @pytest.mark.usefixtures("mixer_init_default_side_effect")
@@ -149,7 +146,7 @@ class TestMixerUnit:
             pytest.param("fadeout_all_sounds", "fadeout", (5,), id="fadeout(5)"),
             pytest.param("set_num_channels", "set_num_channels", (12,), id="set_num_channels(12)"),
             pytest.param("get_num_channels", "get_num_channels", None, id="get_num_channels"),
-            pytest.param("find_channel", "find_channel", (False,), id="find_channel"),
+            pytest.param("find_channel", "find_channel", (False,), id="find_channel(False)"),
             pytest.param("find_channel", "find_channel", (True,), id="find_channel(True)"),
         ],
     )
