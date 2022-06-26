@@ -363,11 +363,12 @@ class BaseLayeredDrawableGroup(BaseDrawableGroup[_D]):
 
     def iter_in_layer(self, layer: int) -> Iterator[_D]:
         layer_dict = self.__layer_dict
+        drawable_list: MutableSequence[_D] = getattr_pv(self, "list", owner=BaseDrawableGroup)
         return takewhile(
             lambda item: layer_dict[item] == layer,
             dropwhile(
                 lambda item: layer_dict[item] < layer,
-                self,
+                drawable_list,
             ),
         )
 

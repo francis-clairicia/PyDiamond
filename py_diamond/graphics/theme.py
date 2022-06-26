@@ -488,10 +488,8 @@ class ThemedObjectMeta(ObjectMeta):
             theme = (theme,)
         else:
             theme = tuple(theme)
-            if not all(isinstance(t, str) for t in theme):
-                raise TypeError("Themes must be str objects")
-            if any(t is NoTheme for t in theme):
-                raise ValueError("The 'NoTheme' special value is in the sequence")
+            assert all(isinstance(t, str) for t in theme), "Themes must be str objects"
+            assert not any(t is NoTheme for t in theme), "The 'NoTheme' special value is in the sequence"
 
         theme_kwargs: dict[str, Any] = cls.get_theme_options(
             *theme, parent_themes=True, use_default_themes=True, use_parent_default_themes=True, ignore_unusable=True
@@ -707,6 +705,11 @@ class ThemedObjectMeta(ObjectMeta):
         return theme_kwargs
 
     def get_default_themes(cls, *, parent_default_themes: bool = True) -> tuple[str, ...]:
+        if cls.is_abstract_theme_class():
+            raise TypeError("Abstract theme classes does not have themes.")
+        if getattr(cls, "_no_use_of_themes_", False):
+            raise TypeError(f"{cls.__qualname__} do not use themes")
+
         default_theme: dict[str, None] = dict()
 
         _DEFAULT_THEME: _ClassDefaultThemeDict = getattr_pv(ThemeNamespace, "DEFAULT_THEME")

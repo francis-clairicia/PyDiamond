@@ -274,8 +274,7 @@ class Font(Object):
         rotation: int = 0,
         size: float = 0,
     ) -> tuple[Surface, Rect]:
-        if fgcolor is None:
-            raise TypeError("Give a foreground color")
+        assert fgcolor is not None, "Give a foreground color"
         return self.__ft.render(
             text or "",
             fgcolor=fgcolor,
@@ -296,8 +295,7 @@ class Font(Object):
         rotation: int = 0,
         size: float = 0,
     ) -> Rect:
-        if fgcolor is None:
-            raise TypeError("Give a foreground color")
+        assert fgcolor is not None, "Give a foreground color"
         return self.__ft.render_to(
             surf,
             dest,  # type: ignore[arg-type]

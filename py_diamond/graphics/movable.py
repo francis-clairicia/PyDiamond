@@ -117,9 +117,7 @@ class Movable(Object, metaclass=MovableMeta):
         ...
 
     def set_position(self, **position: float | tuple[float, float]) -> None:
-        for name in position:
-            if name not in _ALL_VALID_POSITIONS:
-                raise AttributeError(f"Unknown position attribute {name!r}")
+        assert all(name in _ALL_VALID_POSITIONS for name in position), f"Unknown position attribute caught"
         for name, value in position.items():
             setattr(self, name, value)
 

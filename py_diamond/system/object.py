@@ -69,12 +69,9 @@ class ObjectMeta(ABCMeta):
             method_name: {
                 base
                 for actual_base in bases_mro
-                if method_name in bases_final_methods_dict.get(actual_base, [])
+                if method_name in bases_final_methods_dict.get(actual_base, ())
                 for base in chain(
-                    takewhile(
-                        lambda base: base is not actual_base,
-                        (base for base in bases_mro if method_name in vars(base)),
-                    ),
+                    takewhile(lambda base: base is not actual_base, (base for base in bases_mro if method_name in vars(base))),
                     [actual_base],
                 )
             }

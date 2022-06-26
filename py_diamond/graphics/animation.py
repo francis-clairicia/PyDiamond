@@ -228,8 +228,7 @@ class MoveAnimation(BaseAnimation):
     __slots__ = ("__animation",)
 
     def __init__(self, movable: Movable) -> None:
-        if not isinstance(movable, Movable):
-            raise TypeError("Invalid argument")
+        assert isinstance(movable, Movable), "Expected a Movable object"
         if isinstance(movable, MovableProxy):
             movable = object.__getattribute__(movable, "_object")
         super().__init__(movable)
@@ -276,8 +275,6 @@ class MoveAnimation(BaseAnimation):
         ...
 
     def smooth_set_position(self: __Self, speed: float = 100, **position: float | tuple[float, float]) -> __Self:
-        if not position:
-            raise ValueError("Please give position parameter")
         self.__animation = _AnimationSetPosition(self.object, speed, position)
         return self
 
@@ -316,8 +313,7 @@ class TransformAnimation(BaseAnimation):
     __animations_order: Final[tuple[_AnimationType, ...]] = ("scale", "rotate", "rotate_point", "move")
 
     def __init__(self, transformable: Transformable) -> None:
-        if not isinstance(transformable, Transformable):
-            raise TypeError("Invalid argument")
+        assert isinstance(transformable, Transformable), "Expected a Transformable object"
         if isinstance(transformable, TransformableProxy):
             transformable = object.__getattribute__(transformable, "_object")
         super().__init__(transformable)
@@ -364,8 +360,6 @@ class TransformAnimation(BaseAnimation):
         ...
 
     def smooth_set_position(self: __Self, speed: float = 100, **position: float | tuple[float, float]) -> __Self:
-        if not position:
-            raise ValueError("Please give position parameter")
         transformable: Transformable = self.object
         self.__animations["move"] = _AnimationSetPosition(transformable, speed, position)
         return self
@@ -595,6 +589,7 @@ class _AnimationSetPosition(_AbstractAnimationClass):
     __slots__ = ("__position",)
 
     def __init__(self, movable: Movable, speed: float, position: dict[str, float | tuple[float, float]]) -> None:
+        assert len(position) > 0, "Please give position parameter"
         super().__init__(movable, speed)
         self.__position: dict[str, float | tuple[float, float]] = position
 

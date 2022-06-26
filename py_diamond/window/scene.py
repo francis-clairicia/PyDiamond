@@ -725,8 +725,7 @@ class SceneWindow(Window):
         closing_scenes: Sequence[Scene],
         transition_factory: Callable[[AbstractRenderer, Surface, Surface], SceneTransitionCoroutine] | None,
     ) -> None:
-        if previous_scene is None:
-            raise TypeError("Previous scene must not be None")
+        assert previous_scene is not None
         previous_scene.on_quit_before_transition()
         for scene in closing_scenes:
             scene.on_quit_before_transition()

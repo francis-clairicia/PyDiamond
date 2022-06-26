@@ -110,8 +110,7 @@ class Transformable(Movable, metaclass=TransformableMeta):
         self.center = center.x, center.y
 
     def get_pivot_from_attribute(self, pivot: str) -> Vector2:
-        if pivot not in _ALL_VALID_ROTATION_PIVOTS:
-            raise AttributeError(f"Bad pivot attribute: {pivot!r}")
+        assert pivot in _ALL_VALID_ROTATION_PIVOTS, f"Bad pivot attribute: {pivot!r}"
         return Vector2(getattr(self, pivot))
 
     def set_scale(self, scale: float) -> None:
