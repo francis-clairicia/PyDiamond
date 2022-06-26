@@ -48,7 +48,8 @@ class ObjectMeta(ABCMeta):
 
         # Verify final bases
         final_bases: list[type]
-        if final_bases := list(filter(lambda base: getattr(base, "__final__", False), bases)):
+        # Metaclasses can be decorated with @final, but this is the metaclass, not the base class
+        if final_bases := list(filter(lambda base: vars(base).get("__final__", False), bases)):
             raise TypeError(
                 f"{name!r}: Base classes marked as final class: {', '.join(base.__qualname__ for base in final_bases)}"
             )

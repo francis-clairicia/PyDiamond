@@ -8,14 +8,7 @@ from __future__ import annotations
 
 __all__ = [
     "Font",
-    "FontSizeInfo",
-    "FontStyle",
-    "GlyphMetrics",
-    "STYLE_DEFAULT",
     "SysFont",
-    "get_default_font",
-    "get_fonts",
-    "match_font",
 ]
 
 from enum import IntFlag, unique

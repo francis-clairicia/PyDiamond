@@ -12,7 +12,7 @@ __all__ = [
     "EventFactory",
     "EventFactoryError",
     "EventManager",
-    "EventType",
+    "EventMeta",
     "JoyAxisMotionEvent",
     "JoyBallMotionEvent",
     "JoyButtonDownEvent",
@@ -55,6 +55,7 @@ __all__ = [
 
 import weakref
 from abc import abstractmethod
+from collections import ChainMap
 from contextlib import suppress
 from dataclasses import Field, asdict as dataclass_asdict, dataclass, field, fields
 from enum import IntEnum, unique
@@ -80,7 +81,7 @@ from pygame.event import Event as _PygameEvent, custom_type as _pg_event_custom_
 
 from ..system.namespace import ClassNamespaceMeta
 from ..system.object import Object, ObjectMeta, final
-from ..system.utils.abc import concreteclass, isconcreteclass
+from ..system.utils.abc import isabstract
 from ..system.utils.weakref import weakref_unwrap
 from .keyboard import Keyboard
 from .mouse import Mouse
@@ -93,15 +94,26 @@ if TYPE_CHECKING:
 
 _T = TypeVar("_T")
 
+_ASSOCIATIONS: dict[SupportsInt, type[Event]] = {}
+_PYGAME_EVENT_TYPE: dict[type[Event], SupportsInt] = {}
 
-EventType: TypeAlias = SupportsInt
 
+class EventMeta(ObjectMeta):
+    __associations: Final[dict[SupportsInt, type[Event]]] = _ASSOCIATIONS
+    __type: Final[dict[type[Event], SupportsInt]] = _PYGAME_EVENT_TYPE
 
-class _EventMeta(ObjectMeta):
-    __associations: Final[dict[EventType, type[Event]]] = {}
-    associations: Final[MappingProxyType[EventType, type[Event]]] = MappingProxyType(__associations)
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="EventMeta")
 
-    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _EventMeta:
+    def __new__(
+        mcs: type[__Self],
+        name: str,
+        bases: tuple[type, ...],
+        namespace: dict[str, Any],
+        *,
+        model: bool = False,
+        **kwargs: Any,
+    ) -> __Self:
         try:
             Event
         except NameError:
@@ -109,77 +121,52 @@ class _EventMeta(ObjectMeta):
         else:
             if len(bases) != 1 or not issubclass(bases[0], Event):
                 raise TypeError(f"{name!r} must only inherits from Event without multiple inheritance")
-            if isconcreteclass(bases[0]):
-                raise TypeError(f"{name!r}: {bases[0].__qualname__} is a concrete class")
-            try:
-                BuiltinEvent
-            except NameError:
-                pass
-            else:
-                if not issubclass(bases[0], BuiltinEvent) and "type" in namespace:
-                    raise TypeError("'type' attribute must not be set explicitly")
+            if not bases[0].is_model():
+                raise TypeError(f"{name!r}: {bases[0].__qualname__} is a not a Event model class")
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
-        if isconcreteclass(cls):
-            event_type: EventType
-            if not hasattr(cls, "type"):
-                event_type = _pg_event_custom_type()
-                setattr(cls, "type", event_type)
-            else:
-                event_type = getattr(cls, "type")
-                if isinstance(event_type, Field):  # Dataclass fields will be handled after the class creation
-                    if event_type.init:
-                        raise ValueError("'type' field must not be given at initialization")
-                    if not isinstance(event_type.default, EventType):
-                        raise ValueError("'type' field default value should be an integer")
-                    event_type = event_type.default
-                elif not isinstance(event_type, EventType):
-                    raise TypeError("Events must have an integer 'type' class attribute")
-            if event_type in mcs.__associations:
-                event_cls = mcs.__associations[event_type]
-                raise TypeError(f"Event with type {event_type!r} already exists: {event_cls}")
-            mcs.__associations[event_type] = cast(type[Event], cls)
+        setattr(cls, "_model_", bool(model))
+        if not cls.is_model() and not issubclass(cls, BuiltinEvent):
+            cls = final(cls)
+            event_type: SupportsInt = _pg_event_custom_type()
+            if event_type in EventFactory.associations:  # Should not happen
+                event_cls = EventFactory.associations[event_type]
+                raise SystemError(f"Event with type {event_type!r} already exists: {event_cls}")
+            event_cls = cast(type[Event], cls)
+            mcs.__associations[event_type] = event_cls
+            mcs.__type[event_cls] = event_type
         return cls
 
+    def __call__(cls, *args: Any, **kwds: Any) -> Any:
+        if cls.is_model():
+            raise TypeError("Event models are not instanciable")
+        return super().__call__(*args, **kwds)
+
     def __setattr__(cls, __name: str, __value: Any) -> None:
-        if __name in {"type"} and hasattr(cls, __name):
-            if not isinstance(getattr(cls, __name), Field):  # Happen for post-process dataclass
-                raise AttributeError("Read-only attribute")
+        # if __name in {} and hasattr(cls, __name):
+        #     raise AttributeError("Read-only attribute")
+        if __name in {"_model_"} and __name in vars(cls):
+            raise AttributeError("Read-only attribute")
         return super().__setattr__(__name, __value)
 
     def __delattr__(cls, __name: str) -> None:
-        if __name in {"type"}:
-            if not isinstance(getattr(cls, __name), Field):  # Happen for post-process dataclass
-                raise AttributeError("Read-only attribute")
-        return super().__delattr__(__name)
-
-
-class Event(Object, metaclass=_EventMeta):
-    @classmethod
-    @abstractmethod
-    def from_dict(cls: type[Self], event_dict: dict[str, Any]) -> Self:
-        raise NotImplementedError
-
-    @abstractmethod
-    def to_dict(self) -> dict[str, Any]:
-        raise NotImplementedError
-
-    def __setattr__(self, __name: str, __value: Any) -> None:
-        if __name in {"type"}:
-            raise AttributeError("Read-only attribute")
-        return super().__setattr__(__name, __value)
-
-    def __delattr__(self, __name: str) -> None:
-        if __name in {"type"}:
+        if __name in {"_model_"}:
             raise AttributeError("Read-only attribute")
         return super().__delattr__(__name)
 
-    type: ClassVar[EventType]
+    def is_model(cls) -> bool:
+        return bool(isabstract(cls) or getattr(cls, "_model_"))
 
 
-class _BuiltinEventMeta(_EventMeta):
-    __associations: Final[dict[BuiltinEvent.Type, type[BuiltinEvent]]] = {}  # type: ignore[misc]
+_BUILTIN_ASSOCIATIONS: dict[SupportsInt, type[Event]] = {}
+_BUILTIN_PYGAME_EVENT_TYPE: dict[type[Event], SupportsInt] = {}
 
-    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _EventMeta:
+
+@final
+class _BuiltinEventMeta(EventMeta):
+    __associations: Final[dict[SupportsInt, type[Event]]] = _BUILTIN_ASSOCIATIONS  # type: ignore[misc]
+    __type: Final[dict[type[Event], SupportsInt]] = _BUILTIN_PYGAME_EVENT_TYPE  # type: ignore[misc]
+
+    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _BuiltinEventMeta:
         try:
             BuiltinEvent
         except NameError:
@@ -187,17 +174,17 @@ class _BuiltinEventMeta(_EventMeta):
         else:
             if all(event_type in mcs.__associations for event_type in BuiltinEvent.Type):
                 raise TypeError("Trying to create custom event from BuiltinEvent class")
-            if len(bases) != 1 or not issubclass(bases[0], BuiltinEvent):
-                raise TypeError(f"{name!r} must only inherits from BuiltinEvent without multiple inheritance")
-            cls = concreteclass(super().__new__(mcs, name, bases, namespace, **kwargs))
-            event_type: Any = getattr(cls, "type", None)
+            assert len(bases) == 1 and issubclass(bases[0], BuiltinEvent)
+            cls = super().__new__(mcs, name, bases, namespace, **kwargs)
+            assert not cls.is_model()
+            event_type: Any = getattr(cls, "type")
             if isinstance(event_type, Field):
                 event_type = event_type.default
-            if not isinstance(event_type, BuiltinEvent.Type):
-                raise TypeError(f"BuiltinEvents must have a BuiltinEvent.Type 'type' class attribute, got {event_type!r}")
-            if event_type in mcs.__associations:
-                raise TypeError("Trying to create custom event from BuiltinEvent class")
-            mcs.__associations[event_type] = cast(type[BuiltinEvent], cls)
+            assert isinstance(event_type, BuiltinEvent.Type), f"Got {event_type!r}"
+            assert event_type not in mcs.__associations, f"{event_type!r} event already taken"
+            event_cls = cast(type[BuiltinEvent], cls)
+            mcs.__associations[event_type] = event_cls
+            mcs.__type[event_cls] = event_type
             return cls
         return super().__new__(mcs, name, bases, namespace, **kwargs)
 
@@ -211,16 +198,23 @@ class _BuiltinEventMeta(_EventMeta):
             raise AttributeError("Read-only attribute")
         return super().__delattr__(__name)
 
+
+class Event(Object, metaclass=EventMeta):
+    __slots__ = ()
+
     @classmethod
-    def _check_event_types_association(mcs) -> None:
-        for event_type in BuiltinEvent.Type:
-            if event_type not in mcs.__associations:
-                raise TypeError(f"{event_type.name} event does not have an associated BuiltinEvent class")
+    @abstractmethod
+    def from_dict(cls: type[Self], event_dict: dict[str, Any]) -> Self:
+        raise NotImplementedError
+
+    @abstractmethod
+    def to_dict(self) -> dict[str, Any]:
+        raise NotImplementedError
 
 
 # TODO (3.11) dataclass_transform (PEP-681)
-@dataclass(kw_only=True)  # type: ignore[misc]
-class BuiltinEvent(Event, metaclass=_BuiltinEventMeta):  # See Issue #5374: https://github.com/python/mypy/issues/5374
+@dataclass(kw_only=True)
+class BuiltinEvent(Event, metaclass=_BuiltinEventMeta, model=True):
     @unique
     class Type(IntEnum):
         # pygame's built-in events
@@ -266,14 +260,22 @@ class BuiltinEvent(Event, metaclass=_BuiltinEventMeta):  # See Issue #5374: http
         def real_name(self) -> str:
             return _pg_event_name(self)
 
+    def __setattr__(self, __name: str, __value: Any) -> None:
+        if __name in {"type"}:
+            raise AttributeError("Read-only attribute")
+        return super().__setattr__(__name, __value)
+
+    def __delattr__(self, __name: str) -> None:
+        if __name in {"type"}:
+            raise AttributeError("Read-only attribute")
+        return super().__delattr__(__name)
+
     @classmethod
-    @abstractmethod
     def from_dict(cls: type[Self], event_dict: dict[str, Any]) -> Self:
         event_fields: Sequence[str] = tuple(f.name for f in fields(cls))
         kwargs: dict[str, Any] = {k: event_dict[k] for k in filter(event_fields.__contains__, event_dict)}
         return cls(**kwargs)
 
-    @abstractmethod
     def to_dict(self) -> dict[str, Any]:
         return dataclass_asdict(self)
 
@@ -289,13 +291,6 @@ class KeyDownEvent(BuiltinEvent):
     unicode: str
     scancode: int
 
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> KeyDownEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
-
 
 @final
 @dataclass(kw_only=True)
@@ -303,13 +298,6 @@ class KeyUpEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.KEYUP]] = field(default=BuiltinEvent.Type.KEYUP, init=False)
     key: int
     mod: int
-
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> KeyUpEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
 
 
 KeyEvent: TypeAlias = KeyDownEvent | KeyUpEvent
@@ -322,13 +310,6 @@ class MouseButtonDownEvent(BuiltinEvent):
     pos: tuple[int, int]
     button: int
 
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> MouseButtonDownEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
-
 
 @final
 @dataclass(kw_only=True)
@@ -336,13 +317,6 @@ class MouseButtonUpEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.MOUSEBUTTONUP]] = field(default=BuiltinEvent.Type.MOUSEBUTTONUP, init=False)
     pos: tuple[int, int]
     button: int
-
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> MouseButtonUpEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
 
 
 MouseButtonEvent: TypeAlias = MouseButtonDownEvent | MouseButtonUpEvent
@@ -356,13 +330,6 @@ class MouseMotionEvent(BuiltinEvent):
     rel: tuple[int, int]
     buttons: tuple[bool, bool, bool]
 
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> MouseMotionEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
-
 
 @final
 @dataclass(kw_only=True)
@@ -371,13 +338,6 @@ class MouseWheelEvent(BuiltinEvent):
     flipped: bool
     x: int
     y: int
-
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> MouseWheelEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
 
 
 MouseEvent: TypeAlias = MouseButtonEvent | MouseWheelEvent | MouseMotionEvent
@@ -391,13 +351,6 @@ class JoyAxisMotionEvent(BuiltinEvent):
     axis: int
     value: float
 
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> JoyAxisMotionEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
-
 
 @final
 @dataclass(kw_only=True)
@@ -406,13 +359,6 @@ class JoyBallMotionEvent(BuiltinEvent):
     instance_id: int
     ball: int
     rel: float
-
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> JoyBallMotionEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
 
 
 @final
@@ -423,13 +369,6 @@ class JoyHatMotionEvent(BuiltinEvent):
     hat: int
     value: tuple[int, int]
 
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> JoyHatMotionEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
-
 
 @final
 @dataclass(kw_only=True)
@@ -438,13 +377,6 @@ class JoyButtonDownEvent(BuiltinEvent):
     instance_id: int
     button: int
 
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> JoyButtonDownEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
-
 
 @final
 @dataclass(kw_only=True)
@@ -452,13 +384,6 @@ class JoyButtonUpEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.JOYBUTTONUP]] = field(default=BuiltinEvent.Type.JOYBUTTONUP, init=False)
     instance_id: int
     button: int
-
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> JoyButtonUpEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
 
 
 JoyButtonEvent: TypeAlias = JoyButtonDownEvent | JoyButtonUpEvent
@@ -470,26 +395,12 @@ class JoyDeviceAddedEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.JOYDEVICEADDED]] = field(default=BuiltinEvent.Type.JOYDEVICEADDED, init=False)
     device_index: int
 
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> JoyDeviceAddedEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
-
 
 @final
 @dataclass(kw_only=True)
 class JoyDeviceRemovedEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.JOYDEVICEREMOVED]] = field(default=BuiltinEvent.Type.JOYDEVICEREMOVED, init=False)
     instance_id: int
-
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> JoyDeviceRemovedEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
 
 
 @final
@@ -500,26 +411,12 @@ class TextEditingEvent(BuiltinEvent):
     start: int
     length: int
 
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> TextEditingEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
-
 
 @final
 @dataclass(kw_only=True)
 class TextInputEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.TEXTINPUT]] = field(default=BuiltinEvent.Type.TEXTINPUT, init=False)
     text: str
-
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> TextInputEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
 
 
 TextEvent: TypeAlias = TextEditingEvent | TextInputEvent
@@ -553,38 +450,17 @@ class UserEvent(BuiltinEvent):
 class WindowShownEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWSHOWN]] = field(default=BuiltinEvent.Type.WINDOWSHOWN, init=False)
 
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> WindowShownEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
-
 
 @final
 @dataclass(kw_only=True)
 class WindowHiddenEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWHIDDEN]] = field(default=BuiltinEvent.Type.WINDOWHIDDEN, init=False)
 
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> WindowHiddenEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
-
 
 @final
 @dataclass(kw_only=True)
 class WindowExposedEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWEXPOSED]] = field(default=BuiltinEvent.Type.WINDOWEXPOSED, init=False)
-
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> WindowExposedEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
 
 
 @final
@@ -594,13 +470,6 @@ class WindowMovedEvent(BuiltinEvent):
     x: int
     y: int
 
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> WindowMovedEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
-
 
 @final
 @dataclass(kw_only=True)
@@ -608,13 +477,6 @@ class WindowResizedEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWRESIZED]] = field(default=BuiltinEvent.Type.WINDOWRESIZED, init=False)
     x: int
     y: int
-
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> WindowResizedEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
 
 
 @final
@@ -624,25 +486,11 @@ class WindowSizeChangedEvent(BuiltinEvent):
     x: int
     y: int
 
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> WindowSizeChangedEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
-
 
 @final
 @dataclass(kw_only=True)
 class WindowMinimizedEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWMINIMIZED]] = field(default=BuiltinEvent.Type.WINDOWMINIMIZED, init=False)
-
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> WindowMinimizedEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
 
 
 @final
@@ -650,25 +498,11 @@ class WindowMinimizedEvent(BuiltinEvent):
 class WindowMaximizedEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWMAXIMIZED]] = field(default=BuiltinEvent.Type.WINDOWMAXIMIZED, init=False)
 
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> WindowMaximizedEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
-
 
 @final
 @dataclass(kw_only=True)
 class WindowRestoredEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWRESTORED]] = field(default=BuiltinEvent.Type.WINDOWRESTORED, init=False)
-
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> WindowRestoredEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
 
 
 @final
@@ -676,25 +510,11 @@ class WindowRestoredEvent(BuiltinEvent):
 class WindowEnterEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWENTER]] = field(default=BuiltinEvent.Type.WINDOWENTER, init=False)
 
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> WindowEnterEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
-
 
 @final
 @dataclass(kw_only=True)
 class WindowLeaveEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWLEAVE]] = field(default=BuiltinEvent.Type.WINDOWLEAVE, init=False)
-
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> WindowLeaveEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
 
 
 @final
@@ -702,38 +522,17 @@ class WindowLeaveEvent(BuiltinEvent):
 class WindowFocusGainedEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWFOCUSGAINED]] = field(default=BuiltinEvent.Type.WINDOWFOCUSGAINED, init=False)
 
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> WindowFocusGainedEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
-
 
 @final
 @dataclass(kw_only=True)
 class WindowFocusLostEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWFOCUSLOST]] = field(default=BuiltinEvent.Type.WINDOWFOCUSLOST, init=False)
 
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> WindowFocusLostEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
-
 
 @final
 @dataclass(kw_only=True)
 class WindowTakeFocusEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEvent.Type.WINDOWTAKEFOCUS]] = field(default=BuiltinEvent.Type.WINDOWTAKEFOCUS, init=False)
-
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> WindowTakeFocusEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
 
 
 @final
@@ -743,13 +542,6 @@ class MusicEndEvent(BuiltinEvent):
     finished: Music
     next: Music | None
 
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> MusicEndEvent:
-        return super().from_dict(event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
-
 
 @final
 @dataclass(kw_only=True)
@@ -758,15 +550,17 @@ class ScreenshotEvent(BuiltinEvent):
     filepath: str
     screen: Surface
 
-    @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> ScreenshotEvent:
-        return super().from_dict(event_dict)
 
-    def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
+def _check_event_types_association() -> None:
+    if unbound_types := set(filter(lambda e: e not in _BUILTIN_ASSOCIATIONS, BuiltinEvent.Type)):
+        raise SystemError(
+            f"The following events do not have an associated BuiltinEvent class: {', '.join(e.name for e in unbound_types)}"
+        )
 
 
-_BuiltinEventMeta._check_event_types_association()
+_check_event_types_association()
+
+del _check_event_types_association
 
 _EventCallback: TypeAlias = Callable[[Event], bool | None]
 _TE = TypeVar("_TE", bound=Event)
@@ -783,17 +577,14 @@ class UnknownEventTypeError(EventFactoryError):
 
 
 class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
-    associations: Final[MappingProxyType[EventType, type[Event]]] = _EventMeta.associations
+    associations: Final[MappingProxyType[SupportsInt, type[Event]]] = MappingProxyType(
+        ChainMap(_BUILTIN_ASSOCIATIONS, _ASSOCIATIONS)
+    )
+    pygame_type: Final[MappingProxyType[type[Event], SupportsInt]] = MappingProxyType(
+        ChainMap(_BUILTIN_PYGAME_EVENT_TYPE, _PYGAME_EVENT_TYPE)
+    )
 
     NUMEVENTS: Final[int] = _pg_constants.NUMEVENTS
-
-    @staticmethod
-    def get_all_event_types() -> tuple[EventType, ...]:
-        return tuple(EventFactory.associations.keys())
-
-    @staticmethod
-    def is_valid_type(event_type: EventType) -> bool:
-        return event_type in EventFactory.associations
 
     @staticmethod
     def from_pygame_event(event: _PygameEvent, *, handle_user_events: bool = True) -> Event:
@@ -804,6 +595,14 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
                 return UserEvent.from_dict(event.__dict__ | {"code": event.type})
             raise UnknownEventTypeError(f"Unknown event with type {_pg_event_name(event.type)!r}") from exc
         return event_cls.from_dict(event.__dict__)
+
+    @staticmethod
+    def make_pygame_event(event: Event) -> _PygameEvent:
+        assert not event.__class__.is_model()  # Should not happen but who knows...?
+        event_dict = event.to_dict()
+        event_dict.pop("type", None)
+        event_type = EventFactory.pygame_type[event.__class__]
+        return _PygameEvent(int(event_type), event_dict)
 
 
 class EventManager:
@@ -821,15 +620,29 @@ class EventManager:
     )
 
     def __init__(self) -> None:
-        self.__event_handler_dict: dict[EventType, list[_EventCallback]] = dict()
+        self.__event_handler_dict: dict[type[Event], list[_EventCallback]] = dict()
         self.__key_pressed_handler_dict: dict[Keyboard.Key, list[_EventCallback]] = dict()
         self.__key_released_handler_dict: dict[Keyboard.Key, list[_EventCallback]] = dict()
         self.__mouse_button_pressed_handler_dict: dict[Mouse.Button, list[_EventCallback]] = dict()
         self.__mouse_button_released_handler_dict: dict[Mouse.Button, list[_EventCallback]] = dict()
         self.__mouse_pos_handler_list: list[_MousePositionCallback] = list()
         self.__other_manager_list: list[EventManager] = list()
-        self.__priority_callback: dict[EventType, _EventCallback] = dict()
-        self.__priority_manager: dict[EventType, EventManager] = dict()
+        self.__priority_callback: dict[type[Event], _EventCallback] = dict()
+        self.__priority_manager: dict[type[Event], EventManager] = dict()
+
+    @overload
+    @staticmethod
+    def __bind(
+        handler_dict: dict[type[Event], list[_EventCallback]],
+        key: type[Event],
+        callback: Callable[[_TE], bool | None],
+    ) -> None:
+        ...
+
+    @overload
+    @staticmethod
+    def __bind(handler_dict: dict[_T, list[_EventCallback]], key: _T, callback: Callable[[_TE], bool | None]) -> None:
+        ...
 
     @staticmethod
     def __bind(handler_dict: dict[_T, list[_EventCallback]], key: _T, callback: Callable[[_TE], bool | None]) -> None:
@@ -840,6 +653,20 @@ class EventManager:
         if callback not in handler_list:
             handler_list.append(cast(_EventCallback, callback))
 
+    @overload
+    @staticmethod
+    def __unbind(
+        handler_dict: dict[type[Event], list[_EventCallback]],
+        key: type[Event],
+        callback: Callable[[_TE], bool | None],
+    ) -> None:
+        ...
+
+    @overload
+    @staticmethod
+    def __unbind(handler_dict: dict[_T, list[_EventCallback]], key: _T, callback: Callable[[_TE], bool | None]) -> None:
+        ...
+
     @staticmethod
     def __unbind(handler_dict: dict[_T, list[_EventCallback]], key: _T, callback: Callable[[_TE], bool | None]) -> None:
         with suppress(KeyError, ValueError):
@@ -848,12 +675,12 @@ class EventManager:
     def bind(self, event_cls: type[_TE], callback: Callable[[_TE], bool | None]) -> None:
         if not issubclass(event_cls, Event):
             raise TypeError("Invalid argument")
-        EventManager.__bind(self.__event_handler_dict, event_cls.type, callback)
+        EventManager.__bind(self.__event_handler_dict, event_cls, callback)
 
     def unbind(self, event_cls: type[_TE], callback_to_remove: Callable[[_TE], bool | None]) -> None:
         if not issubclass(event_cls, Event):
             raise TypeError("Invalid argument")
-        EventManager.__unbind(self.__event_handler_dict, event_cls.type, callback_to_remove)
+        EventManager.__unbind(self.__event_handler_dict, event_cls, callback_to_remove)
         for event_type in tuple(
             event_type
             for event_type, priority_callback in self.__priority_callback.items()
@@ -943,26 +770,26 @@ class EventManager:
         elif isinstance(event, (MouseButtonUpEvent, MouseButtonDownEvent)):
             self.__handle_mouse_event(event)
 
-        priority_callback: _EventCallback | None = self.__priority_callback.get(event.type)
+        priority_callback: _EventCallback | None = self.__priority_callback.get(type(event))
         if priority_callback is not None:
             if priority_callback(event):
                 return True
-            del self.__priority_callback[event.type]
+            del self.__priority_callback[type(event)]
 
-        priority_manager: EventManager | None = self.__priority_manager.get(event.type)
+        priority_manager: EventManager | None = self.__priority_manager.get(type(event))
         if priority_manager is not None:
             if priority_manager.process_event(event):
                 return True
-            del self.__priority_manager[event.type]
+            del self.__priority_manager[type(event)]
 
-        event_dict: dict[EventType, list[_EventCallback]] = self.__event_handler_dict
-        for callback in event_dict.get(event.type, ()):
+        event_dict: dict[type[Event], list[_EventCallback]] = self.__event_handler_dict
+        for callback in event_dict.get(type(event), ()):
             if callback is not priority_callback and callback(event):
-                self.__priority_callback[event.type] = callback
+                self.__priority_callback[type(event)] = callback
                 return True
         for manager in self.__other_manager_list:
             if manager is not priority_manager and manager.process_event(event):
-                self.__priority_manager[event.type] = manager
+                self.__priority_manager[type(event)] = manager
                 return True
         return False
 
@@ -1226,4 +1053,5 @@ class BoundEventManager(Generic[_T]):
         return weakref_unwrap(self.__ref)
 
 
-del _pg_constants, _EventMeta, _BuiltinEventMeta
+del _pg_constants, _BuiltinEventMeta
+del _ASSOCIATIONS, _PYGAME_EVENT_TYPE, _BUILTIN_ASSOCIATIONS, _BUILTIN_PYGAME_EVENT_TYPE
