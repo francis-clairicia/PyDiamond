@@ -55,6 +55,7 @@ class _PatchCollectorType:
 
         self.__initialized = True
         self.__all_patches: Mapping[PatchContext, Sequence[BasePatch]]
+        self.__record: set[str] | None = None
 
         all_patches: defaultdict[PatchContext, deque[BasePatch]] = defaultdict(deque)
         with self._mock_import("import", forbidden_imports=list(self.__forbidden_imports_until_context)):
@@ -69,14 +70,27 @@ class _PatchCollectorType:
         ]
         with self._mock_import(f"run ({context.name.replace('_', ' ').lower()})", forbidden_imports=forbidden_imports):
             # TODO (3.11): Exception groups
-            for patch in (p for p in self.__all_patches.get(context, ()) if p.must_be_run()):
+            for patch in self.__all_patches.get(context, ()):
+                if not patch.__class__.enabled():
+                    continue
                 patch.run_context = context
                 patch.setup()
                 try:
                     patch.run()
+                    if self.__record is not None:
+                        self.__record.add(patch.__class__.get_name())
                 finally:
                     patch.teardown()
                     del patch.run_context
+
+    def start_record(self) -> None:
+        if self.__record is None:
+            self.__record = set()
+
+    def stop_record(self) -> frozenset[str]:
+        record = self.__record
+        self.__record = None
+        return frozenset(record or ())
 
     def walk_in_plugins_module(self, plugins_module_name: str) -> Iterator[type[BasePatch]]:
         plugins_module_name = importlib.util.resolve_name(plugins_module_name, __package__)

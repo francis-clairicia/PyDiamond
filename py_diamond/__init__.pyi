@@ -14,6 +14,8 @@ __maintainer__: Final[str]
 __email__: Final[str]
 __status__: Final[str]
 
+__patches__: frozenset[str]
+
 from . import (
     audio as audio,
     environ as environ,

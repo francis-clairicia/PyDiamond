@@ -55,15 +55,7 @@ from ..system.utils._mangling import setattr_pv
 from ..system.utils.functools import wraps
 from .clock import Clock
 from .cursor import AbstractCursor
-from .event import (
-    Event,
-    EventFactory,
-    EventFactoryError,
-    EventManager,
-    ScreenshotEvent,
-    UnknownEventTypeError,
-    WindowSizeChangedEvent,
-)
+from .event import Event, EventFactory, EventFactoryError, EventManager, ScreenshotEvent, UnknownEventTypeError
 from .keyboard import Keyboard
 from .mouse import Mouse
 from .time import Time
@@ -234,8 +226,7 @@ class Window(Object):
 
     def clear(self, color: _ColorValue = BLACK, *, blend_alpha: bool = False) -> None:
         screen: SurfaceRenderer = self.__surface
-        color = Color(color)
-        if blend_alpha and color.a < 255:
+        if blend_alpha and (color := Color(color)).a < 255:
             fake_screen: Surface = self.__clear_surface
             fake_screen.fill(color)
             screen.draw_surface(fake_screen, (0, 0))
@@ -310,6 +301,7 @@ class Window(Object):
                 default_surface.blit(captured_surface, (0, 0))
             self.__surface = SurfaceRenderer(default_surface)
 
+    @final
     def get_screen_copy(self) -> Surface:
         return self.__surface.surface.copy()
 
@@ -378,8 +370,13 @@ class Window(Object):
                 self._handle_close_event()
                 continue
             if pg_event.type == _PG_VIDEORESIZE:
-                screen = _pg_display.set_mode(self.__surface.get_size(), flags=self.__flags, vsync=int(self.__vsync))
-                self.__display_renderer = SurfaceRenderer(screen)
+                former_surface = self.__surface.surface
+                new_surface = SurfaceRenderer(pg_event.size)
+                new_surface.draw_surface(former_surface, (0, 0))
+                self.__surface = new_surface
+                self.__clear_surface = create_surface(new_surface.get_size())
+                self.__rect = ImmutableRect.convert(new_surface.get_rect())
+                del former_surface, new_surface
                 continue
             if MusicStream._handle_event(pg_event):
                 continue
@@ -390,14 +387,6 @@ class Window(Object):
                 continue
             except EventFactoryError:
                 continue
-            if isinstance(event, WindowSizeChangedEvent):
-                former_surface = self.__surface.surface
-                new_surface = SurfaceRenderer((event.x, event.y))
-                new_surface.draw_surface(former_surface, (0, 0))
-                self.__surface = new_surface
-                self.__clear_surface = create_surface(new_surface.get_size())
-                self.__rect = ImmutableRect.convert(new_surface.get_rect())
-                del former_surface, new_surface
             if not process_event(event):
                 yield event
         self._handle_mouse_position(Mouse.get_pos())

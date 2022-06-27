@@ -6,8 +6,6 @@ from typing import TYPE_CHECKING, Iterator
 
 import pytest
 
-from ...mock.sys import MockVersionInfo
-
 if TYPE_CHECKING:
     from py_diamond._patch.plugins.fix_enum import IntEnumMonkeyPatch
 
@@ -70,35 +68,3 @@ class TestFixIntEnum:
         # Assert
         assert getattr(IntEnum, method_name) is not intenum_method
         assert getattr(IntEnum, method_name) is getattr(int, method_name)
-
-    @pytest.mark.parametrize(
-        ["python_version", "expected_result"],
-        [
-            pytest.param(MockVersionInfo(3, 10, 4, "final", 0), True),
-            pytest.param(MockVersionInfo(3, 10, 12, "final", 0), True),
-            pytest.param(MockVersionInfo(3, 11, 0, "alpha", 5), False),
-            pytest.param(MockVersionInfo(3, 11, 2, "final", 0), False),
-            pytest.param(MockVersionInfo(3, 12, 0, "final", 0), False),
-        ],
-        ids=str,
-    )
-    def test__must_be_run__according_to_python_version(
-        self,
-        python_version: MockVersionInfo,
-        expected_result: bool,
-        monkeypatch: pytest.MonkeyPatch,
-        mocker: MockerFixture,
-    ) -> None:
-        # Arrange
-        from py_diamond._patch.plugins.fix_enum import IntEnumMonkeyPatch
-
-        monkeypatch.delenv("PYDIAMOND_PATCH_DISABLE", raising=False)
-        mocker.patch("sys.version_info", python_version)
-
-        patch = IntEnumMonkeyPatch()
-
-        # Act
-        must_be_run = patch.must_be_run()
-
-        # Assert
-        assert must_be_run == expected_result

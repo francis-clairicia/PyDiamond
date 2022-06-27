@@ -41,7 +41,6 @@ else:
 from ..system.namespace import ClassNamespace
 from ..system.non_copyable import NonCopyable
 from ..system.object import final
-from ..system.utils.functools import forbidden_call
 
 
 @final
@@ -102,10 +101,6 @@ class MusicStream(ClassNamespace, frozen=True):
 
     This class provides a high-level interface, which handles several queued musics (playlists) and keeps tracking running and queued sounds.
     """
-
-    if not getattr(_pg_music.set_endevent, "__forbidden_call__", False):
-        _pg_music.set_endevent(_pg_event.custom_type())
-        _pg_music.set_endevent = forbidden_call(_pg_music.set_endevent)
 
     @dataclass
     class _PlayingMusic:

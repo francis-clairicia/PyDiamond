@@ -33,15 +33,19 @@ class BasePatch(metaclass=ABCMeta):
     run_context: PatchContext
 
     @classmethod
+    def get_name(cls) -> str:
+        return f"{cls.__module__.removeprefix(__package__ + '.')}.{cls.__name__}"
+
+    @classmethod
     def get_required_context(cls) -> PatchContext:
         return PatchContext.BEFORE_ALL
 
-    def must_be_run(self) -> bool:
+    @classmethod
+    def enabled(cls) -> bool:
         patch_disable_value: str = os.environ.get("PYDIAMOND_PATCH_DISABLE", "")
         if patch_disable_value.lower() == "all":
             return False
-        cls = self.__class__
-        return cls.__name__ not in [patch_name for name in patch_disable_value.split(":") if (patch_name := name.strip())]
+        return cls.get_name() not in [patch_name for name in patch_disable_value.split(":") if (patch_name := name.strip())]
 
     def setup(self) -> None:
         pass

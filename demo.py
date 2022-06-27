@@ -1350,7 +1350,7 @@ class MainWindow(SceneWindow):
 
     def __init__(self) -> None:
         # super().__init__("my window", (0, 0))
-        super().__init__("my window", (1366, 768))
+        super().__init__("my window", (1366, 768), resizable=True)
 
     def __window_init__(self) -> None:
         super().__window_init__()

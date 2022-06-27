@@ -34,8 +34,9 @@ if sys.version_info < (3, 10):
 #### Apply various patch that must be run before importing the main modules
 from py_diamond._patch import PatchContext, collector
 
+collector.start_record()
+
 collector.run_patches(PatchContext.BEFORE_ALL)
-####
 
 if any(name == "pygame" or name.startswith("pygame.") for name in list(sys.modules)):
     import warnings
@@ -72,6 +73,8 @@ import py_diamond.window
 collector.run_patches(PatchContext.AFTER_IMPORTING_SUBMODULES)
 
 collector.run_patches(PatchContext.AFTER_ALL)
+
+__patches__ = collector.stop_record()
 
 ############ Cleanup ############
 del os, sys, py_diamond, pygame, collector, PatchContext

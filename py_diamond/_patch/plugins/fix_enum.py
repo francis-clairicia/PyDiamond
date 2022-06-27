@@ -14,10 +14,10 @@ from .._base import BasePatch
 
 
 class IntEnumMonkeyPatch(BasePatch):
-    def must_be_run(self) -> bool:
-        return super().must_be_run() and sys.version_info < (3, 11)
-
     def run(self) -> None:
+        if sys.version_info >= (3, 11):
+            return
+
         from enum import IntEnum
 
         for attr in ("__repr__", "__str__", "__format__"):
