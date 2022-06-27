@@ -10,13 +10,13 @@ __all__ = [
     "concreteclass",
     "concreteclasscheck",
     "concreteclassmethod",
-    "isabstract",
+    "isabstractclass",
     "isabstractmethod",
     "isconcreteclass",
 ]
 
 from functools import wraps
-from inspect import isabstract
+from inspect import isabstract as isabstractclass
 from typing import Any, Callable, Concatenate, ParamSpec, TypeVar
 
 _P = ParamSpec("_P")
@@ -47,7 +47,7 @@ def concreteclasscheck(cls: Any) -> None:
 def isconcreteclass(cls: type) -> bool:
     if not isinstance(cls, type):
         raise TypeError("'cls' must be a type")
-    return not isabstract(cls)
+    return not isabstractclass(cls)
 
 
 def isabstractmethod(func: Any) -> bool:

@@ -13,6 +13,7 @@ from types import MethodType
 from typing import Any, Callable, TypeVar
 
 from .object import Object, ObjectMeta, final
+from .utils.abc import isabstractclass
 
 _T = TypeVar("_T")
 
@@ -34,7 +35,7 @@ class SingletonMeta(ObjectMeta):
         cls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], *, abstract: bool = False, **kwargs: Any
     ) -> None:
         super().__init__(name, bases, namespace, **kwargs)
-        cls.__abstractsingleton__: bool = bool(abstract or cls.__abstractmethods__)
+        cls.__abstractsingleton__: bool = bool(abstract or isabstractclass(cls))
         if not cls.__abstractsingleton__:
             instance = cls()
             setattr(cls, "_singleton_instance_", instance)
@@ -78,7 +79,7 @@ class SingletonMeta(ObjectMeta):
             cls: type = __cls_or_self if isinstance(__cls_or_self, type) else type(__cls_or_self)
             if not isinstance(cls, SingletonMeta):
                 raise TypeError("Called from a non-singleton class")
-            if cls.__abstractsingleton__ and not cls.__abstractmethods__:
+            if cls.__abstractsingleton__:
                 raise TypeError(f"{cls.__name__} cannot be instantiated")
             if "_singleton_instance_" in cls.__dict__:
                 raise TypeError("Cannot instantiate a singleton twice")

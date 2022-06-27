@@ -662,7 +662,6 @@ class SceneWindow(Window):
             raise WindowError("SceneWindow already running")
         self.__running = True
         self.__scenes.clear()
-        ClassWithThemeNamespaceMeta.theme_initialize_all()
         self.__accumulator = 0
         self.__compute_interpolation_data()
         gc.collect()

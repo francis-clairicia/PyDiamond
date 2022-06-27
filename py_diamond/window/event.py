@@ -81,7 +81,7 @@ from pygame.event import Event as _PygameEvent, custom_type as _pg_event_custom_
 
 from ..system.namespace import ClassNamespaceMeta
 from ..system.object import Object, ObjectMeta, final
-from ..system.utils.abc import isabstract
+from ..system.utils.abc import isabstractclass
 from ..system.utils.weakref import weakref_unwrap
 from .keyboard import Keyboard
 from .mouse import Mouse
@@ -154,7 +154,7 @@ class EventMeta(ObjectMeta):
         return super().__delattr__(__name)
 
     def is_model(cls) -> bool:
-        return bool(isabstract(cls) or getattr(cls, "_model_"))
+        return bool(isabstractclass(cls) or getattr(cls, "_model_"))
 
 
 _BUILTIN_ASSOCIATIONS: dict[SupportsInt, type[Event]] = {}

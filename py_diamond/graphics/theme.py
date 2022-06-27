@@ -52,7 +52,7 @@ from typing import (
 
 from ..system.object import Object, ObjectMeta, mro
 from ..system.utils._mangling import getattr_pv
-from ..system.utils.abc import concreteclassmethod, isabstractmethod
+from ..system.utils.abc import concreteclassmethod, isabstractclass, isabstractmethod
 from ..system.utils.functools import cache, wraps
 
 _ClassTheme: TypeAlias = MutableMapping[str, MappingProxyType[str, Any]]
@@ -837,7 +837,7 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
         namespace["_theme_decorator_exempt_"] = frozenset(cls_theme_decorator_exempt)
 
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
-        if hasattr(cls, "__theme_init__") and not cls.__abstractmethods__:
+        if hasattr(cls, "__theme_init__") and not isabstractclass(cls):
             mcs.__classes.add(cls)
         return cls
 

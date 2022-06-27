@@ -188,6 +188,12 @@ class Window(Object):
                 self.__display_renderer = None
                 self.__event.unbind_all()
 
+            from ..graphics.theme import ClassWithThemeNamespaceMeta
+
+            ClassWithThemeNamespaceMeta.theme_initialize_all()
+
+            del ClassWithThemeNamespaceMeta
+
             stack.enter_context(self.__stack)
             self.__window_init__()
             stack.callback(self.__window_quit__)
