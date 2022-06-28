@@ -17,7 +17,7 @@ import os.path
 import pkgutil
 from collections import defaultdict, deque
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Final, Iterable, Iterator, Mapping, Sequence, no_type_check
+from typing import TYPE_CHECKING, Any, Final, Iterable, Iterator, Mapping, Sequence, no_type_check
 
 from ._base import BasePatch, PatchContext
 
@@ -134,18 +134,20 @@ class _PatchCollectorType:
         import re
         import sys
 
-        unittest_was_imported: bool = any(n == "unittest" or n.startswith("unittest.") for n in tuple(sys.modules))
-
         forbidden_modules = {
             module: re.compile(r"{}(?:\.\w+)*".format(module))
             for module in set(forbidden_imports)
             if not any(n == module or n.startswith(f"{module}.") for n in tuple(sys.modules))  # If module was not imported
         }
 
+        if not forbidden_modules:  # Do not need to mock then
+            yield
+            return
+
         def is_forbidden_module(resolved_name: str) -> str | None:
             return next((module_name for module_name, pattern in forbidden_modules.items() if pattern.match(resolved_name)), None)
 
-        from unittest.mock import patch
+        patch = _PatchCollectorType._patch
 
         original_import = __import__
         patch_package = __package__
@@ -166,14 +168,20 @@ class _PatchCollectorType:
                     raise ImportError(msg, name=importer_name, path=importer_path)
             return original_import(name, globals, locals, fromlist, level)
 
+        with patch("builtins.__import__", import_mock), patch("importlib.__import__", import_mock):
+            yield
+
+    @staticmethod
+    @contextlib.contextmanager
+    def _patch(target: str, new: Any) -> Iterator[None]:
+        module_name, _, target_name = target.rpartition(".")
+        module = importlib.import_module(module_name)
+        default_value: Any = getattr(module, target_name)
+        setattr(module, target_name, new)
         try:
-            with patch("builtins.__import__", import_mock), patch("importlib.__import__", import_mock):
-                yield
+            yield
         finally:
-            del patch
-            if not unittest_was_imported:  # Useless for game runtime, unload it
-                for module_name in filter(lambda n: n == "unittest" or n.startswith("unittest."), tuple(sys.modules)):
-                    sys.modules.pop(module_name, None)
+            setattr(module, target_name, default_value)
 
 
 PatchCollector: Final[_PatchCollectorType] = _PatchCollectorType()

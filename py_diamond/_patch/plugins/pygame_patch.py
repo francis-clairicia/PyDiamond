@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+__all__ = []  # type: list[str]
+
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, ParamSpec, TypeVar
 
