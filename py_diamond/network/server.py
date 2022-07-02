@@ -14,8 +14,8 @@ __all__ = [
     "AbstractUDPNetworkServer",
     "AbstractUDPRequestHandler",
     "ConnectedClient",
-    "TCPNetworkServer",
-    "UDPNetworkServer",
+    "StateLessTCPNetworkServer",
+    "StateLessUDPNetworkServer",
 ]
 
 from abc import abstractmethod
@@ -84,6 +84,10 @@ class AbstractRequestHandler(Generic[_RequestT, _ResponseT], Object):
 
 class AbstractTCPRequestHandler(AbstractRequestHandler[_RequestT, _ResponseT]):
     server: AbstractTCPNetworkServer[_RequestT, _ResponseT]
+
+    @classmethod
+    def welcome(cls, client: TCPNetworkClient[_ResponseT, _RequestT], address: SocketAddress) -> bool:
+        return True
 
 
 class AbstractUDPRequestHandler(AbstractRequestHandler[_RequestT, _ResponseT]):
@@ -411,7 +415,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
 
 
 @concreteclass
-class TCPNetworkServer(AbstractTCPNetworkServer[_RequestT, _ResponseT]):
+class StateLessTCPNetworkServer(AbstractTCPNetworkServer[_RequestT, _ResponseT]):
     @overload
     def __init__(
         self,
@@ -461,6 +465,9 @@ class TCPNetworkServer(AbstractTCPNetworkServer[_RequestT, _ResponseT]):
 
     def _process_request(self, request: _RequestT, client: ConnectedClient[_ResponseT]) -> None:
         self.__request_handler_cls(request, client, self)
+
+    def _verify_new_client(self, client: TCPNetworkClient[_ResponseT, _RequestT], address: SocketAddress) -> bool:
+        return self.__request_handler_cls.welcome(client, address)
 
     @final
     @property
@@ -594,7 +601,7 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
         client_address: tuple[Any, ...] = tuple(client.address)
         print("-" * 40, file=stderr)
         print(f"Exception occurred during processing of request from {client_address}", file=stderr)
-        print_exc()
+        print_exc(file=stderr)
         print("-" * 40, file=stderr)
 
     def running(self) -> bool:
@@ -637,7 +644,7 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
 
 
 @concreteclass
-class UDPNetworkServer(AbstractUDPNetworkServer[_RequestT, _ResponseT]):
+class StateLessUDPNetworkServer(AbstractUDPNetworkServer[_RequestT, _ResponseT]):
     @overload
     def __init__(
         self,

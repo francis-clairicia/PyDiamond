@@ -74,7 +74,7 @@ class TCPClientError(Exception):
     def __init__(self, client: TCPNetworkClient[Any, Any], message: str | None = None) -> None:
         if not message:
             if not client.is_connected():
-                message = "Something went wrong for a client"
+                message = "Something went wrong for a client, and was disconnected"
             else:
                 addr: SocketAddress = client.getsockname()
                 message = f"Something went wrong for the client {addr.host}:{addr.port}"
@@ -263,7 +263,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
             while queue:
                 yield queue.popleft()
 
-    def __recv_packets(self, flags: int, block: bool) -> Generator[_ReceivedPacketT, None, None]:
+    def __recv_packets(self, *, flags: int, block: bool) -> Generator[_ReceivedPacketT, None, None]:
         chunk_reader: Generator[bytes, None, None] = self.read_socket(self.__socket, self.__chunk_size, block=block, flags=flags)
         try:
             while True:

@@ -7,7 +7,7 @@ from typing import Any, ClassVar, Generator
 
 from py_diamond.network.client import TCPNetworkClient
 from py_diamond.network.protocol import StreamNetworkProtocol, ValidationError
-from py_diamond.network.server import AbstractTCPRequestHandler, TCPNetworkServer
+from py_diamond.network.server import AbstractTCPRequestHandler, StateLessTCPNetworkServer
 from py_diamond.network.socket import SocketAddress
 from py_diamond.system.threading import Thread
 
@@ -24,7 +24,7 @@ class _BroadcastRequestHandler(AbstractTCPRequestHandler[Any, Any]):
 def test_serve_forever_default() -> None:
     address: tuple[str, int] = ("localhost", random_port())
 
-    with TCPNetworkServer(address, _BroadcastRequestHandler) as server:
+    with StateLessTCPNetworkServer(address, _BroadcastRequestHandler) as server:
         assert not server.running()
         t: Thread = Thread(target=server.serve_forever, args=(0.1,))
         t.start()
@@ -38,7 +38,7 @@ def test_serve_forever_default() -> None:
 def test_serve_forever_context_shut_down() -> None:
     address: tuple[str, int] = ("localhost", random_port())
 
-    with TCPNetworkServer(address, _BroadcastRequestHandler) as server:
+    with StateLessTCPNetworkServer(address, _BroadcastRequestHandler) as server:
         t: Thread = Thread(target=server.serve_forever, args=(0.1,))
         t.start()
         sleep(0.15)
@@ -49,7 +49,7 @@ def test_serve_forever_context_shut_down() -> None:
 def test_serve_forever_in_thread_default() -> None:
     address: tuple[str, int] = ("localhost", random_port())
 
-    with TCPNetworkServer(address, _BroadcastRequestHandler) as server:
+    with StateLessTCPNetworkServer(address, _BroadcastRequestHandler) as server:
         t: Thread = server.serve_forever_in_thread(poll_interval=0.1)
         sleep(0.15)
         assert server.running()
@@ -61,7 +61,7 @@ def test_serve_forever_in_thread_default() -> None:
 def test_serve_forver_in_thread_context_shut_down() -> None:
     address: tuple[str, int] = ("localhost", random_port())
 
-    with TCPNetworkServer(address, _BroadcastRequestHandler) as server:
+    with StateLessTCPNetworkServer(address, _BroadcastRequestHandler) as server:
         t: Thread = server.serve_forever_in_thread(poll_interval=0.1)
         sleep(0.15)
         assert server.running()
@@ -69,7 +69,7 @@ def test_serve_forver_in_thread_context_shut_down() -> None:
     assert not t.is_alive()
 
 
-class _TestServiceActionServer(TCPNetworkServer[Any, Any]):
+class _TestServiceActionServer(StateLessTCPNetworkServer[Any, Any]):
     def service_actions(self) -> None:
         super().service_actions()
         self.service_actions_called: bool = True
@@ -87,7 +87,7 @@ def test_service_actions() -> None:
 def test_client_connection() -> None:
     address: tuple[str, int] = ("localhost", random_port())
 
-    with TCPNetworkServer(address, _BroadcastRequestHandler, backlog=1) as server:
+    with StateLessTCPNetworkServer(address, _BroadcastRequestHandler, backlog=1) as server:
         server.serve_forever_in_thread(poll_interval=0.1)
         sleep(0.1)
         assert len(server.clients) == 0
@@ -98,7 +98,7 @@ def test_client_connection() -> None:
         assert len(server.clients) == 0
 
 
-class _TestWelcomeServer(TCPNetworkServer[Any, Any]):
+class _TestWelcomeServer(StateLessTCPNetworkServer[Any, Any]):
     def _verify_new_client(self, client: TCPNetworkClient[Any, Any], address: SocketAddress) -> bool:
         client.send_packet("Welcome !")
         return True
@@ -153,7 +153,7 @@ class _IntegerNetworkProtocol(StreamNetworkProtocol[int, int]):
 def test_request_handling() -> None:
     address: tuple[str, int] = ("localhost", random_port())
 
-    with TCPNetworkServer(address, _BroadcastRequestHandler, protocol_cls=_IntegerNetworkProtocol) as server:
+    with StateLessTCPNetworkServer(address, _BroadcastRequestHandler, protocol_cls=_IntegerNetworkProtocol) as server:
         server.serve_forever_in_thread(poll_interval=0)
         with (
             TCPNetworkClient(address, protocol=_IntegerNetworkProtocol()) as client_1,

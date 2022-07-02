@@ -6,7 +6,7 @@ from time import sleep
 from typing import Any
 
 from py_diamond.network.client import UDPNetworkClient
-from py_diamond.network.server import AbstractUDPRequestHandler, UDPNetworkServer
+from py_diamond.network.server import AbstractUDPRequestHandler, StateLessUDPNetworkServer
 from py_diamond.network.socket import IPv4SocketAddress
 from py_diamond.system.threading import Thread
 
@@ -21,7 +21,7 @@ class _MirrorRequestHandler(AbstractUDPRequestHandler[Any, Any]):
 def test_serve_forever_default() -> None:
     address: tuple[str, int] = ("localhost", random_port())
 
-    with UDPNetworkServer(address, _MirrorRequestHandler) as server:
+    with StateLessUDPNetworkServer(address, _MirrorRequestHandler) as server:
         assert not server.running()
         t: Thread = Thread(target=server.serve_forever, args=(0.1,))
         t.start()
@@ -35,7 +35,7 @@ def test_serve_forever_default() -> None:
 def test_serve_forever_context_shut_down() -> None:
     address: tuple[str, int] = ("localhost", random_port())
 
-    with UDPNetworkServer(address, _MirrorRequestHandler) as server:
+    with StateLessUDPNetworkServer(address, _MirrorRequestHandler) as server:
         t: Thread = Thread(target=server.serve_forever, args=(0.1,))
         t.start()
         sleep(0.15)
@@ -46,7 +46,7 @@ def test_serve_forever_context_shut_down() -> None:
 def test_serve_forever_in_thread_default() -> None:
     address: tuple[str, int] = ("localhost", random_port())
 
-    with UDPNetworkServer(address, _MirrorRequestHandler) as server:
+    with StateLessUDPNetworkServer(address, _MirrorRequestHandler) as server:
         t: Thread = server.serve_forever_in_thread(poll_interval=0.1)
         sleep(0.15)
         assert server.running()
@@ -58,7 +58,7 @@ def test_serve_forever_in_thread_default() -> None:
 def test_serve_forver_in_thread_context_shut_down() -> None:
     address: tuple[str, int] = ("localhost", random_port())
 
-    with UDPNetworkServer(address, _MirrorRequestHandler) as server:
+    with StateLessUDPNetworkServer(address, _MirrorRequestHandler) as server:
         t: Thread = server.serve_forever_in_thread(poll_interval=0.1)
         sleep(0.15)
         assert server.running()
@@ -66,7 +66,7 @@ def test_serve_forver_in_thread_context_shut_down() -> None:
     assert not t.is_alive()
 
 
-class _TestServiceActionServer(UDPNetworkServer[Any, Any]):
+class _TestServiceActionServer(StateLessUDPNetworkServer[Any, Any]):
     def service_actions(self) -> None:
         super().service_actions()
         self.service_actions_called: bool = True
@@ -87,7 +87,7 @@ from .test_tcp_server import _IntegerNetworkProtocol
 def test_request_handling() -> None:
     address: IPv4SocketAddress = IPv4SocketAddress("localhost", random_port())
 
-    with UDPNetworkServer(address, _MirrorRequestHandler, protocol_cls=_IntegerNetworkProtocol) as server:
+    with StateLessUDPNetworkServer(address, _MirrorRequestHandler, protocol_cls=_IntegerNetworkProtocol) as server:
         server.serve_forever_in_thread(poll_interval=0.1)
         with (
             UDPNetworkClient(protocol=_IntegerNetworkProtocol()) as client_1,

@@ -1,4 +1,8 @@
 # -*- coding: Utf-8 -*-
+# Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine
+#
+#
+"""PyDiamond's patch plugins module"""
 
 from __future__ import annotations
 
@@ -139,7 +143,9 @@ class PyDiamondEventPatch(BasePatch):
         return super().teardown()
 
     def run(self) -> None:
-        if not hasattr(self, "event_name_dispatch_table"):
+        try:
+            self.event_name_dispatch_table
+        except AttributeError:
             return
 
         from pygame.mixer import music

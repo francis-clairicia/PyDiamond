@@ -62,8 +62,7 @@ def _thread_safe_python_socket_method(
 ) -> Callable[Concatenate[_SocketVar, _P], _R]:
     @wraps(func)
     def wrapper(self: _SocketVar, /, *args: _P.args, **kwargs: _P.kwargs) -> Any:
-        lock: RLock = getattr_pv(self, "lock", owner=_AbstractPythonSocket)
-        with lock:
+        with getattr_pv(self, "lock", owner=_AbstractPythonSocket):
             return func(self, *args, **kwargs)
 
     return wrapper
@@ -101,7 +100,7 @@ class _AbstractPythonSocket(AbstractSocket):
             raise RuntimeError("Closed socket")
         try:
             sock.close()
-        except:
+        except OSError:
             pass
         finally:
             delattr_pv(self, "socket", owner=_AbstractPythonSocket)

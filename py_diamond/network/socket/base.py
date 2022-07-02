@@ -114,11 +114,11 @@ class AbstractSocket(Object, metaclass=SocketMeta):
                 self.close()
             except Exception:
 
-                from sys import stderr
-                from traceback import print_exc
+                import traceback
+                import warnings
 
-                print(f"Exception ignored in {AbstractSocket.__exit__}", file=stderr)
-                print_exc()
+                msg = f"Exception ignored in {AbstractSocket.__exit__}\n{traceback.format_exc()}"
+                warnings.warn(msg, ResourceWarning)
 
     @abstractmethod
     def is_open(self) -> bool:

@@ -12,6 +12,8 @@ Allow to draw some gradients relatively easy.
 Original code available on pygame site: https://www.pygame.org/project-gradients-307-.html
 """
 
+__all__ = []
+
 __author__ = "$Author: DR0ID $"
 __version__= "$Revision: 109 $"
 __date__   = "$Date: 2007-08-09 20:33:32 +0200 (Do, 09 Aug 2007) $"

@@ -93,6 +93,18 @@ class TestGlobalImport:
             del py_diamond
 
 
+def _catch_all_py_diamond_packages_and_modules() -> list[str]:
+    from pkgutil import walk_packages
+
+    py_diamond_spec = import_module("py_diamond").__spec__
+
+    assert py_diamond_spec is not None
+
+    py_diamond_paths = py_diamond_spec.submodule_search_locations or import_module("py_diamond").__path__
+
+    return [info.name for info in walk_packages(py_diamond_paths, prefix=f"{py_diamond_spec.name}.")]
+
+
 @pytest.mark.functional
 class TestStarImports:
     AUTO_IMPORTED_MODULES: dict[str, list[str]] = {
@@ -174,6 +186,7 @@ class TestStarImports:
         # Arrange
         module = import_module(f"py_diamond.{module_name}")
         submodule = import_module(f"py_diamond.{module_name}.{submodule_name}")
+        module_namespace = vars(module)
 
         # Act
         __all_module__: list[str] = module.__all__
@@ -182,19 +195,20 @@ class TestStarImports:
         # Assert
         for name in __all_submodule__:
             assert name in __all_module__
-            assert name in dir(module)
+            assert name in module_namespace
 
-    @pytest.mark.parametrize("module_name", sorted(AUTO_IMPORTED_MODULES))
+    @pytest.mark.parametrize("module_name", _catch_all_py_diamond_packages_and_modules())
     def test__all__values_declared_exists_in_namespace(self, module_name: str) -> None:
         # Arrange
-        module = import_module(f"py_diamond.{module_name}")
+        module = import_module(module_name)
+        module_namespace = vars(module)
 
         # Act
         __all_module__: list[str] = module.__all__
 
         # Assert
         for name in __all_module__:
-            assert name in dir(module)
+            assert name in module_namespace
 
     @pytest.mark.parametrize("module_name", sorted(AUTO_IMPORTED_MODULES))
     def test__all__no_conflict_between_submodules(self, module_name: str) -> None:

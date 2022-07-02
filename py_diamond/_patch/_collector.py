@@ -58,8 +58,8 @@ class _PatchCollectorType:
         self.__record: set[str] | None = None
 
         all_patches: defaultdict[PatchContext, deque[BasePatch]] = defaultdict(deque)
-        with self._mock_import("import", forbidden_imports=list(self.__forbidden_imports_until_context)):
-            for patch_cls in set(self.walk_in_plugins_module(".plugins")):
+        with self.mock_import("import", forbidden_imports=list(self.__forbidden_imports_until_context)):
+            for patch_cls in self.find_patches(".plugins", package=__package__):
                 all_patches[patch_cls.get_required_context()].append(patch_cls())
 
         self.__all_patches = MappingProxyType({k: tuple(v) for k, v in all_patches.items()})
@@ -68,7 +68,7 @@ class _PatchCollectorType:
         forbidden_imports = [
             module for module, context_ceiling in self.__forbidden_imports_until_context.items() if context < context_ceiling
         ]
-        with self._mock_import(f"run ({context.name.replace('_', ' ').lower()})", forbidden_imports=forbidden_imports):
+        with self.mock_import(f"run ({context.name.replace('_', ' ').lower()})", forbidden_imports=forbidden_imports):
             # TODO (3.11): Exception groups
             for patch in self.__all_patches.get(context, ()):
                 if not patch.__class__.enabled():
@@ -92,8 +92,9 @@ class _PatchCollectorType:
         self.__record = None
         return frozenset(record or ())
 
-    def walk_in_plugins_module(self, plugins_module_name: str) -> Iterator[type[BasePatch]]:
-        plugins_module_name = importlib.util.resolve_name(plugins_module_name, __package__)
+    @classmethod
+    def find_patches(cls, plugins_module_name: str, *, package: str | None = None) -> Iterator[type[BasePatch]]:
+        plugins_module_name = importlib.util.resolve_name(plugins_module_name, package=package)
         plugins_module = importlib.import_module(plugins_module_name)
         plugins_module_spec = plugins_module.__spec__
 
@@ -111,17 +112,24 @@ class _PatchCollectorType:
         else:
             plugins_path = getattr(plugins_module, "__path__", None)
         if plugins_path is None:  # Module
-            yield from self._load_patches_from_module(plugins_module)
+            yield from cls._load_patches_from_module(plugins_module)
             return
 
-        for submodule_info in pkgutil.walk_packages(plugins_path):
-            submodule_fullname = f"{plugins_module_name}.{submodule_info.name}"
-            if submodule_info.ispkg:
-                yield from self.walk_in_plugins_module(submodule_fullname)
-            else:
-                yield from self._load_patches_from_module(importlib.import_module(submodule_fullname))
+        _cache: set[type[BasePatch]] = set()
 
-    def _load_patches_from_module(self, plugin_module: ModuleType) -> list[type[BasePatch]]:
+        def seen(patch_cls: type[BasePatch]) -> bool:
+            _seen = patch_cls in _cache
+            _cache.add(patch_cls)
+            return _seen
+
+        for submodule_info in pkgutil.walk_packages(plugins_path, prefix=f"{plugins_module_name}."):
+            if not submodule_info.ispkg:
+                for patch_cls in cls._load_patches_from_module(importlib.import_module(submodule_info.name)):
+                    if not seen(patch_cls):
+                        yield patch_cls
+
+    @staticmethod
+    def _load_patches_from_module(plugin_module: ModuleType) -> list[type[BasePatch]]:
         return [
             obj
             for obj in vars(plugin_module).values()
@@ -130,7 +138,7 @@ class _PatchCollectorType:
 
     @staticmethod
     @contextlib.contextmanager
-    def _mock_import(context: str, *, forbidden_imports: Iterable[str] = ()) -> Iterator[None]:
+    def mock_import(context: str, *, forbidden_imports: Iterable[str] = ()) -> Iterator[None]:
         import re
         import sys
 

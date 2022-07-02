@@ -41,11 +41,7 @@ def hasattr_pv(obj: object, name: str, *, owner: type | None = None) -> bool:
             owner = obj
         else:
             owner = type(obj)
-    name = mangle_private_attribute(owner, name)
-    try:
-        return hasattr(obj, name)
-    except AttributeError as exc:
-        raise AttributeError(f"Error when checking private attribute {name!r}: {exc}") from None
+    return hasattr(obj, mangle_private_attribute(owner, name))
 
 
 @overload
@@ -65,9 +61,9 @@ def getattr_pv(obj: object, name: str, default: Any = _NO_DEFAULT, *, owner: typ
         else:
             owner = type(obj)
     name = mangle_private_attribute(owner, name)
+    if default is not _NO_DEFAULT:
+        return getattr(obj, name, default)
     try:
-        if default is not _NO_DEFAULT:
-            return getattr(obj, name, default)
         return getattr(obj, name)
     except AttributeError:
         raise AttributeError(f"Missing private attribute {name!r}") from None
