@@ -193,26 +193,47 @@ def __valid_number(value_type: type[_Number], optional: bool, /, **kwargs: Any) 
         if _min > _max:
             raise ValueError(f"min_value ({_min}) > max_value ({_max})")
 
-        def valid_number(val: Any) -> _Number | None:
-            if optional and val is None:
-                return None
-            return min(max(value_type(val), _min), _max)
+        if optional:
+
+            def valid_number(val: Any) -> _Number | None:
+                if val is None:
+                    return None
+                return min(max(value_type(val), _min), _max)
+
+        else:
+
+            def valid_number(val: Any) -> _Number | None:
+                return min(max(value_type(val), _min), _max)
 
     elif min_value is not _MISSING:
         _min = value_type(min_value)
 
-        def valid_number(val: Any) -> _Number | None:
-            if optional and val is None:
-                return None
-            return max(value_type(val), _min)
+        if optional:
+
+            def valid_number(val: Any) -> _Number | None:
+                if val is None:
+                    return None
+                return max(value_type(val), _min)
+
+        else:
+
+            def valid_number(val: Any) -> _Number | None:
+                return max(value_type(val), _min)
 
     elif max_value is not _MISSING:
         _max = value_type(max_value)
 
-        def valid_number(val: Any) -> _Number | None:
-            if optional and val is None:
-                return None
-            return min(value_type(val), _max)
+        if optional:
+
+            def valid_number(val: Any) -> _Number | None:
+                if val is None:
+                    return None
+                return min(value_type(val), _max)
+
+        else:
+
+            def valid_number(val: Any) -> _Number | None:
+                return min(value_type(val), _max)
 
     else:
         raise TypeError("Invalid arguments")

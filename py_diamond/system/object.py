@@ -125,8 +125,11 @@ class ObjectMeta(ABCMeta):
 
     @staticmethod
     def __check_attr(obj: Any, attr: str) -> bool:
-        if getattr(obj, attr, False):
-            return True
+        try:
+            if vars(obj).get(attr, False):
+                return True
+        except TypeError:  # Do not have __dict__ attribute
+            pass
         match obj:
             case property(fget=fget, fset=fset, fdel=fdel):
                 return any(getattr(func, attr, False) for func in filter(callable, (fget, fset, fdel)))

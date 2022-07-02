@@ -25,7 +25,7 @@ _NO_DEFAULT: Any = object()
 
 
 @cache
-def mangle_private_attribute(cls: type, name: str) -> str:
+def mangle_private_attribute(cls: type, name: str, /) -> str:
     if not name:
         raise ValueError(f"Empty attribute string")
     if all(c == "_" for c in name):

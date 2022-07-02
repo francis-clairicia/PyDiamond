@@ -122,6 +122,7 @@ _MISSING: Any = object()
 _NO_DEFAULT: Any = object()
 
 
+@final
 class ConfigurationTemplate(Object):
     __slots__ = (
         "__template",
@@ -131,6 +132,8 @@ class ConfigurationTemplate(Object):
         "__lock",
         "__info",
     )
+
+    __cache: WeakKeyDictionary[Any, Configuration[Any]] = WeakKeyDictionary()
 
     def __init__(
         self,
@@ -170,6 +173,29 @@ class ConfigurationTemplate(Object):
         template: _ConfigInfoTemplate = self.__template
         if name in template.options:
             raise OptionError(name, "ConfigurationTemplate attribute name is an option")
+
+        def retrieve_configuration(cls: type) -> ConfigurationTemplate | None:
+            try:
+                return _retrieve_configuration(cls, invalid_type_exception=AssertionError)
+            except TypeError:
+                return None
+
+        if list(template.parents) != [config.__template for config in map(retrieve_configuration, owner.__bases__) if config]:
+            raise TypeError("Inconsistent configuration template hierarchy")
+
+        default_init_subclass = owner.__init_subclass__
+
+        @wraps(default_init_subclass)
+        def __init_subclass__(cls: type, **kwargs: Any) -> None:
+            config: ConfigurationTemplate = getattr(cls, name)
+            if config.__bound_class is not cls:
+                subclass_config = ConfigurationTemplate(parent=list(filter(None, map(retrieve_configuration, cls.__bases__))))
+                setattr(cls, name, subclass_config)
+                subclass_config.__set_name__(cls, name)
+            return default_init_subclass(**kwargs)
+
+        owner.__init_subclass__ = classmethod(__init_subclass__)  # type: ignore[assignment]
+
         self.__bound_class = owner
         self.__attr_name = name
         attribute_class_owner: dict[str, type] = template.attribute_class_owner
@@ -200,49 +226,37 @@ class ConfigurationTemplate(Object):
     def __get__(self, obj: _T, objtype: type | None = None, /) -> Configuration[_T]:
         ...
 
-    # TODO: Optimize this BIG block function
     def __get__(self, obj: Any, objtype: type | None = None, /) -> ConfigurationTemplate | Configuration[Any]:
         if obj is None:
             if objtype is None:
                 raise TypeError("__get__(None, None) is invalid")
             return self
-        attr_name = self.__attr_name
+        try:
+            return self.__cache[obj]
+        except (KeyError, TypeError):
+            pass
+
+        # Must always use the template of its class, so we replace 'self' by the right template
+        if self.__bound_class is not type(obj):
+            self = _retrieve_configuration(type(obj))
+
         info = self.__info
         bound_class = self.__bound_class
-        if not attr_name or info is None or bound_class is None:
+        if info is None or bound_class is None:
             raise TypeError("Cannot use ConfigurationTemplate instance without calling __set_name__ on it.")
         try:
             objref: WeakReferenceType[Any] = weakref(obj)
         except TypeError:
             return Configuration(obj, info)
-        if objtype is None:
-            objtype = type(obj)
-        if getattr(objtype, attr_name, None) is not self:
-            return Configuration(objref, info)
-        try:
-            obj_cache = obj.__dict__
-        except AttributeError:
-            return Configuration(objref, info)
-        bound_config: Configuration[Any] = obj_cache.get(attr_name, _MISSING)
-        if bound_config is not _MISSING:
+        with self.__lock:
             try:
-                if bound_config.__self__ is not obj:  # __self__ will raise ReferenceError if the underlying object is dead
-                    raise ReferenceError
-            except ReferenceError:
-                bound_config = Configuration(objref, info)
-                with self.__lock, suppress(Exception):
-                    obj_cache[attr_name] = bound_config
-        else:
-            with self.__lock:
-                bound_config = obj_cache.get(attr_name, _MISSING)
-                if bound_config is _MISSING:
-                    bound_config = Configuration(objref, info)
-                    with suppress(Exception):
-                        obj_cache[attr_name] = bound_config
-        return bound_config
+                return self.__cache[obj]
+            except TypeError:  # Not hashable this time (or something else)
+                return Configuration(objref, info)
+            except KeyError:
+                self.__cache[obj] = bound_config = Configuration(objref, info)
+                return bound_config
 
-    # TODO: __set__ and __delete__ exist only to force the call of __get__
-    # There is some issues with cache and copy.copy ...
     def __set__(self, obj: _T, value: Any) -> None:
         raise AttributeError("Read-only attribute")
 
@@ -333,7 +347,7 @@ class ConfigurationTemplate(Object):
         template: _ConfigInfoTemplate = self.__template
         actual_descriptor: _Descriptor | None = template.value_descriptors.get(option)
         if not isinstance(actual_descriptor, _ReadOnlyOptionBuildPayload):
-            if actual_descriptor is not None and not isinstance(actual_descriptor, _ConfigProperty):
+            if actual_descriptor is not None:
                 raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
             actual_property: _ConfigProperty | None = actual_descriptor
             if (
@@ -413,7 +427,7 @@ class ConfigurationTemplate(Object):
             hash(use_key)
         key: Hashable = (option, use_key)
 
-        def wrapper_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        def wrapper_decorator(func: Callable[..., Any], *, use_key: Hashable = use_key) -> Callable[..., Any]:
             return lambda self: func(self, use_key)
 
         def decorator(func: _KeyGetterVar, /) -> _KeyGetterVar:
@@ -540,7 +554,7 @@ class ConfigurationTemplate(Object):
             hash(use_key)
         key: Hashable = (option, use_key)
 
-        def wrapper_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        def wrapper_decorator(func: Callable[..., Any], *, use_key: Hashable = use_key) -> Callable[..., Any]:
             return lambda self, value: func(self, use_key, value)
 
         def decorator(func: _KeySetterVar, /) -> _KeySetterVar:
@@ -664,7 +678,7 @@ class ConfigurationTemplate(Object):
             hash(use_key)
         key: Hashable = (option, use_key)
 
-        def wrapper_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        def wrapper_decorator(func: Callable[..., Any], *, use_key: Hashable = use_key) -> Callable[..., Any]:
             return lambda self: func(self, use_key)
 
         def decorator(func: _KeyDeleterVar, /) -> _KeyDeleterVar:
@@ -835,7 +849,7 @@ class ConfigurationTemplate(Object):
             hash(use_key)
         key: Hashable = (option, use_key)
 
-        def wrapper_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        def wrapper_decorator(func: Callable[..., Any], *, use_key: Hashable = use_key) -> Callable[..., Any]:
             return lambda self: func(self, use_key)
 
         def decorator(func: _KeyUpdaterVar, /) -> _KeyUpdaterVar:
@@ -958,7 +972,7 @@ class ConfigurationTemplate(Object):
             hash(use_key)
         key: Hashable = (option, use_key)
 
-        def wrapper_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        def wrapper_decorator(func: Callable[..., Any], *, use_key: Hashable = use_key) -> Callable[..., Any]:
             return lambda self, value: func(self, use_key, value)
 
         def decorator(func: _KeyValueUpdaterVar, /) -> _KeyValueUpdaterVar:
@@ -1313,7 +1327,6 @@ class OptionAttribute(Generic[_T], Object):
             if self.__name != name:
                 raise ValueError(f"Assigning {self.__name!r} config attribute to {name}")
         self.__name: str = name
-        self.__owner: type = owner
         config: ConfigurationTemplate = _retrieve_configuration(owner)
         if config.name is None:
             raise TypeError("OptionAttribute must be declared after the ConfigurationTemplate object")
@@ -1331,9 +1344,8 @@ class OptionAttribute(Generic[_T], Object):
     def __get__(self, obj: object, objtype: type | None = None, /) -> _T | OptionAttribute[_T]:
         if obj is None:
             return self
-        config_name: str = self.__config_name
         name: str = self.__name
-        config: Configuration[Any] = getattr(obj, config_name)  # TODO: Fix use of super()
+        config: Configuration[Any] = getattr(obj, self.__config_name)
 
         try:
             value: _T = config.get(name)
@@ -1700,16 +1712,16 @@ class Configuration(Generic[_T], Object):
             raise ReferenceError("weakly-referenced object no longer exists")
         return obj
 
-    @staticmethod
-    def __update_options(obj: object, *options: str, info: ConfigurationInfo) -> None:
+    @classmethod
+    def __update_options(cls, obj: object, *options: str, info: ConfigurationInfo) -> None:
         nb_options = len(options)
         if nb_options < 1:
             return
         if nb_options == 1:
-            return Configuration.__update_single_option(obj, options[0], info)
+            return cls.__update_single_option(obj, options[0], info)
 
         objtype: type = type(obj)
-        with Configuration.__updating_many_options(obj, *options, info=info, call_updaters=False) as update_contexts:
+        with cls.__updating_many_options(obj, *options, info=info, call_updaters=False) as update_contexts:
             options = tuple(option for option, context in update_contexts.items() if context.first_call)
             if not options:
                 return
@@ -1735,11 +1747,11 @@ class Configuration(Generic[_T], Object):
             if main_updater is not None:
                 main_updater(obj)
 
-    @staticmethod
-    def __update_single_option(obj: object, option: str, info: ConfigurationInfo) -> None:
+    @classmethod
+    def __update_single_option(cls, obj: object, option: str, info: ConfigurationInfo) -> None:
         descriptor = info.get_value_descriptor(option, type(obj))
 
-        with Configuration.__updating_option(obj, option, info, call_updaters=False) as update_context:
+        with cls.__updating_option(obj, option, info, call_updaters=False) as update_context:
             if not update_context.first_call:
                 return
             try:
@@ -1757,21 +1769,21 @@ class Configuration(Generic[_T], Object):
             if main_updater is not None:
                 main_updater(obj)
 
-    @staticmethod
+    @classmethod
     @contextmanager
     def __updating_option(
-        obj: object, option: str, info: ConfigurationInfo, *, call_updaters: bool
+        cls, obj: object, option: str, info: ConfigurationInfo, *, call_updaters: bool
     ) -> Iterator[__OptionUpdateContext]:
-        UpdateContext = Configuration.__OptionUpdateContext
+        UpdateContext = cls.__OptionUpdateContext
 
-        with Configuration.__lazy_lock(obj):
-            register = Configuration.__init_context.get(obj, None)
+        with cls.__lazy_lock(obj):
+            register = cls.__init_context.get(obj, None)
             if register is not None:
                 yield UpdateContext(first_call=False, init_context=register, updated=[])
                 return
 
-            update_register: _UpdateRegister = Configuration.__update_context.setdefault(obj, [])
-            update_stack: list[str] = Configuration.__update_stack.setdefault(obj, [])
+            update_register: _UpdateRegister = cls.__update_context.setdefault(obj, [])
+            update_stack: list[str] = cls.__update_stack.setdefault(obj, [])
             if option in update_stack:
                 yield UpdateContext(first_call=False, init_context=None, updated=update_register)
                 return
@@ -1780,7 +1792,7 @@ class Configuration(Generic[_T], Object):
                 with suppress(ValueError):
                     update_stack.remove(option)
                 if not update_stack:
-                    Configuration.__update_stack.pop(obj, None)
+                    cls.__update_stack.pop(obj, None)
 
             update_stack.append(option)
             with ExitStack() as stack:
@@ -1788,7 +1800,7 @@ class Configuration(Generic[_T], Object):
                 yield UpdateContext(first_call=True, init_context=None, updated=update_register)
             if update_stack:
                 return
-            update_register = list(dict.fromkeys(Configuration.__update_context.pop(obj, update_register)))
+            update_register = list(dict.fromkeys(cls.__update_context.pop(obj, update_register)))
             if not call_updaters:
                 return
             if update_register:
@@ -1804,35 +1816,35 @@ class Configuration(Generic[_T], Object):
                 if main_updater is not None:
                     main_updater(obj)
 
-    @staticmethod
+    @classmethod
     @contextmanager
     def __updating_many_options(
-        obj: object, *options: str, info: ConfigurationInfo, call_updaters: bool
+        cls, obj: object, *options: str, info: ConfigurationInfo, call_updaters: bool
     ) -> Iterator[dict[str, __OptionUpdateContext]]:
         nb_options = len(options)
         if nb_options < 1:
             yield {}
             return
         if nb_options == 1:
-            with Configuration.__updating_option(obj, options[0], info, call_updaters=call_updaters) as update_context:
+            with cls.__updating_option(obj, options[0], info, call_updaters=call_updaters) as update_context:
                 yield {options[0]: update_context}
             return
 
-        with Configuration.__lazy_lock(obj), ExitStack() as stack:
+        with cls.__lazy_lock(obj), ExitStack() as stack:
             yield {
-                option: stack.enter_context(Configuration.__updating_option(obj, option, info, call_updaters=call_updaters))
+                option: stack.enter_context(cls.__updating_option(obj, option, info, call_updaters=call_updaters))
                 for option in options
             }
 
-    @staticmethod
-    def __lazy_lock(obj: object) -> RLock | nullcontext[None]:
-        lock_cache = Configuration.__lock_cache
+    @classmethod
+    def __lazy_lock(cls, obj: object) -> RLock | nullcontext[None]:
+        lock_cache = cls.__lock_cache
         try:
             lock: RLock = lock_cache.get(obj, _MISSING)
         except TypeError:
             return nullcontext()
         if lock is _MISSING:
-            with Configuration.__default_lock:
+            with cls.__default_lock:
                 lock = lock_cache.get(obj, _MISSING)
                 if lock is _MISSING:
                     try:
@@ -1874,7 +1886,7 @@ class _FunctionWrapperBuilder:
 
     def __new__(cls, func: Any, check_override: bool, no_object: bool) -> _FunctionWrapperBuilder:
         if isinstance(func, cls):
-            if func.info.check_override == check_override and func.info.no_object:
+            if func.info.check_override == check_override and func.info.no_object == no_object:
                 return func
             func = func.info.func
         info = cls.Info(func=func, check_override=check_override, no_object=no_object)
@@ -2033,8 +2045,14 @@ class _WrappedFunctionWrapper:
 
 @_no_type_check_cache
 def _make_type_checker(_type: type | tuple[type, ...], accept_none: bool) -> Callable[[Any], None]:
-    def type_checker(val: Any, /) -> None:
-        if (accept_none and val is None) or isinstance(val, _type):
+    if accept_none:
+        if isinstance(_type, type):
+            _type = (_type,)
+        if type(None) not in _type:
+            _type += (type(None),)
+
+    def type_checker(val: Any, /, *, _type: Any = _type) -> None:
+        if isinstance(val, _type):
             return
         expected: str
         if isinstance(_type, type):
@@ -2050,8 +2068,13 @@ def _make_type_checker(_type: type | tuple[type, ...], accept_none: bool) -> Cal
 
 @_no_type_check_cache
 def _make_value_converter(_type: type, accept_none: bool) -> Callable[[Any], Any]:
+    assert isinstance(_type, type)
+
+    if not accept_none:
+        return lambda val, /, *, _type=_type: _type(val)  # type: ignore[misc]
+
     def value_converter(val: Any, /, *, _type: Callable[[Any], Any] = _type) -> Any:
-        if accept_none and val is None:
+        if val is None:
             return None
         return _type(val)
 
@@ -2060,21 +2083,27 @@ def _make_value_converter(_type: type, accept_none: bool) -> Callable[[Any], Any
 
 @_no_type_check_cache
 def _make_enum_converter(enum: type[Enum], store_value: bool, accept_none: bool) -> Callable[[Any], Any]:
+    assert issubclass(enum, Enum)
+
     if not store_value:
 
+        if not accept_none:
+            return lambda val, /, *, enum=enum: enum(val)  # type: ignore[misc]
+
         def value_converter(val: Any, /, *, enum: type[Enum] = enum) -> Any:
-            if accept_none and val is None:
+            if val is None:
                 return None
-            val = enum(val)
-            return val
+            return enum(val)
 
     else:
 
+        if not accept_none:
+            return lambda val, /, *, enum=enum: enum(val).value  # type: ignore[misc]
+
         def value_converter(val: Any, /, *, enum: type[Enum] = enum) -> Any:
-            if accept_none and val is None:
+            if val is None:
                 return None
-            val = enum(val)
-            return val.value
+            return enum(val).value
 
     return value_converter
 
@@ -2086,22 +2115,22 @@ def _all_members(cls: type) -> MutableMapping[str, Any]:
 def _register_configuration(cls: type, config: ConfigurationTemplate | None) -> ConfigurationTemplate | None:
     former_config: ConfigurationTemplate | None = None
     with suppress(TypeError):
-        former_config = _retrieve_configuration(cls)
+        former_config = _retrieve_configuration(cls, invalid_type_exception=AssertionError)
     if isinstance(config, ConfigurationTemplate):
-        setattr(cls, "_bound_configuration_", config)
+        setattr(cls, "_configuration_template_", config)
     else:
         with suppress(AttributeError):
-            delattr(cls, "_bound_configuration_")
+            delattr(cls, "_configuration_template_")
     return former_config
 
 
-def _retrieve_configuration(cls: type) -> ConfigurationTemplate:
+def _retrieve_configuration(cls: type, *, invalid_type_exception: type[BaseException] = TypeError) -> ConfigurationTemplate:
     try:
-        config: ConfigurationTemplate = getattr(cls, "_bound_configuration_")
-        if not isinstance(config, ConfigurationTemplate):
-            raise AttributeError
+        config: ConfigurationTemplate = getattr(cls, "_configuration_template_")
     except AttributeError:
         raise TypeError(f"{cls.__name__} does not have a {ConfigurationTemplate.__name__} object") from None
+    if not isinstance(config, ConfigurationTemplate):
+        raise invalid_type_exception(f"{cls.__name__} does not have a {ConfigurationTemplate.__name__} object")
     return config
 
 
@@ -2127,8 +2156,10 @@ _KT = TypeVar("_KT")
 _VT = TypeVar("_VT")
 
 
+@final
 class _ConfigInfoTemplate:
     def __init__(self, known_options: Sequence[str], autocopy: bool | None, parents: Sequence[_ConfigInfoTemplate]) -> None:
+        self.parents: tuple[_ConfigInfoTemplate, ...] = tuple(parents)
         self.options: frozenset[str] = frozenset(known_options)
         self.main_updater: list[Callable[[object], None]] = list()
         self.option_updater: dict[str, list[Callable[[object], None]]] = dict()
