@@ -55,11 +55,9 @@ __all__ = [
 
 import weakref
 from abc import abstractmethod
-from collections import ChainMap
 from contextlib import suppress
 from dataclasses import Field, asdict as dataclass_asdict, dataclass, field, fields
 from enum import IntEnum, unique
-from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -68,6 +66,7 @@ from typing import (
     Final,
     Generic,
     Literal as L,
+    Mapping,
     Sequence,
     SupportsInt,
     TypeAlias,
@@ -79,6 +78,7 @@ from typing import (
 import pygame.constants as _pg_constants
 from pygame.event import Event as _PygameEvent, custom_type as _pg_event_custom_type, event_name as _pg_event_name
 
+from ..system.collections import ChainMapProxy
 from ..system.namespace import ClassNamespaceMeta
 from ..system.object import Object, ObjectMeta, final
 from ..system.utils.abc import isabstractclass
@@ -576,12 +576,8 @@ class UnknownEventTypeError(EventFactoryError):
 
 
 class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
-    associations: Final[MappingProxyType[type[Event], SupportsInt]] = MappingProxyType(
-        ChainMap(_BUILTIN_ASSOCIATIONS, _ASSOCIATIONS)
-    )
-    pygame_type: Final[MappingProxyType[SupportsInt, type[Event]]] = MappingProxyType(
-        ChainMap(_BUILTIN_PYGAME_EVENT_TYPE, _PYGAME_EVENT_TYPE)
-    )
+    associations: Final[Mapping[type[Event], SupportsInt]] = ChainMapProxy(_BUILTIN_ASSOCIATIONS, _ASSOCIATIONS)
+    pygame_type: Final[Mapping[SupportsInt, type[Event]]] = ChainMapProxy(_BUILTIN_PYGAME_EVENT_TYPE, _PYGAME_EVENT_TYPE)
 
     NUMEVENTS: Final[int] = _pg_constants.NUMEVENTS
 

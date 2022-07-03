@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 __all__ = [
+    "ChainMapProxy",
     "OrderedSet",
     "OrderedSetIndexError",
     "OrderedWeakSet",
@@ -16,6 +17,7 @@ __all__ = [
     "SortedDictValuesView",
 ]
 
+from ._chainmap import ChainMapProxy
 from ._orderedset import OrderedSet, OrderedSetIndexError
 from ._orderedweakset import OrderedWeakSet
 from ._sorteddict import SortedDict, SortedDictItemsView, SortedDictKeysView, SortedDictValuesView
