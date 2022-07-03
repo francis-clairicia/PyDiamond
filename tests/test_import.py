@@ -69,7 +69,7 @@ class TestGlobalImport:
         mocker.patch("builtins.__import__", import_mock)
 
         # Begin test
-        with pytest.raises(ImportError, match=r"'pygame' package must be installed in order to use the PyDiamond engine"):
+        with pytest.raises(ModuleNotFoundError, match=r"'pygame' package must be installed in order to use the PyDiamond engine"):
             import py_diamond
 
             del py_diamond

@@ -50,8 +50,8 @@ collector.run_patches(PatchContext.BEFORE_IMPORTING_PYGAME)
 
 try:
     import pygame
-except ImportError as exc:
-    raise ImportError(
+except ModuleNotFoundError as exc:
+    raise ModuleNotFoundError(
         "'pygame' package must be installed in order to use the PyDiamond engine",
         name=exc.name,
         path=exc.path,
