@@ -63,7 +63,7 @@ class AbstractRenderer(Object):
         raise NotImplementedError
 
     @abstractmethod
-    def fill(self, color: _ColorValue) -> None:
+    def fill(self, color: _ColorValue, rect: _CanBeRect = ...) -> Rect:
         raise NotImplementedError
 
     @abstractmethod
@@ -100,6 +100,18 @@ class AbstractRenderer(Object):
         ],
         doreturn: L[False],
     ) -> None:
+        ...
+
+    @overload
+    def draw_many_surfaces(
+        self,
+        sequence: Iterable[
+            tuple[Surface, _Coordinate | _CanBeRect]
+            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
+            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
+        ],
+        doreturn: bool,
+    ) -> list[Rect] | None:
         ...
 
     @no_type_check  # TODO: mypy crash on match statement (I know, this is not a todo)

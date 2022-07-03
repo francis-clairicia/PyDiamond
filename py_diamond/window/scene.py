@@ -52,7 +52,7 @@ from typing import (
     runtime_checkable,
 )
 
-from ..graphics.color import Color
+from ..graphics.color import BLACK, Color
 from ..graphics.drawable import Drawable, LayeredDrawableGroup
 from ..graphics.renderer import AbstractRenderer
 from ..graphics.surface import Surface, SurfaceRenderer
@@ -65,6 +65,9 @@ from ..system.utils.functools import cache, wraps
 from .display import Window, WindowCallback, WindowError, _WindowCallbackList
 from .event import Event, EventManager
 from .time import Time
+
+if TYPE_CHECKING:
+    from pygame._common import _ColorValue  # pyright: reportMissingModuleSource=false
 
 _P = ParamSpec("_P")
 
@@ -637,6 +640,7 @@ class SceneWindow(Window):
         self.__accumulator: float = 0
         self.__compute_interpolation_data()
         self.__running: bool = False
+        self.__last_clear_color: Color | None = None
 
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="SceneWindow")
@@ -647,6 +651,7 @@ class SceneWindow(Window):
             self.__callback_after_scenes.clear()
             self.__scenes.clear()
             self.__scenes.__del_manager__()
+            self.__last_clear_color = None
             del self.__scenes
 
         with super().open(), ExitStack() as stack:
@@ -770,6 +775,14 @@ class SceneWindow(Window):
         self.__accumulator = 0
         self.__compute_interpolation_data()
         self.clear_all_events()
+
+    def clear(self, color: _ColorValue = BLACK, *, blend_alpha: bool = False) -> None:
+        color = Color(color)
+        if not blend_alpha and color == self.__last_clear_color:
+            self.renderer.repaint_color(color)
+            return
+        self.__last_clear_color = color
+        return super().clear(color, blend_alpha=blend_alpha)
 
     def refresh(self) -> float:
         real_delta_time: float = super().refresh()

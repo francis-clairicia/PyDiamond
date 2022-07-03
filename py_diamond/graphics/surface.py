@@ -97,8 +97,8 @@ class SurfaceRenderer(AbstractRenderer):
     def get_height(self) -> float:
         return self.__target.get_height()
 
-    def fill(self, color: _ColorValue) -> None:
-        self.__target.fill(color)
+    def fill(self, color: _ColorValue, rect: _CanBeRect | None = None) -> Rect:
+        return self.__target.fill(color, rect=rect)
 
     def draw_surface(
         self,
@@ -133,6 +133,18 @@ class SurfaceRenderer(AbstractRenderer):
         ],
         doreturn: L[False],
     ) -> None:
+        ...
+
+    @overload
+    def draw_many_surfaces(
+        self,
+        sequence: Iterable[
+            tuple[Surface, _Coordinate | _CanBeRect]
+            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
+            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
+        ],
+        doreturn: bool,
+    ) -> list[Rect] | None:
         ...
 
     def draw_many_surfaces(
@@ -265,3 +277,8 @@ class SurfaceRenderer(AbstractRenderer):
     @property
     def surface(self) -> Surface:
         return self.__target
+
+    @surface.setter
+    def surface(self, new_target: Surface) -> None:
+        assert isinstance(new_target, Surface)
+        self.__target = new_target

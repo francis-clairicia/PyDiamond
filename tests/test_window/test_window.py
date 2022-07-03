@@ -33,6 +33,7 @@ class TestWindowUnit:
     @staticmethod
     def set_mode_return_value(init_pygame_display_module: Surface, mock_pygame_display_module: MockDisplayModule) -> None:
         mock_pygame_display_module.set_mode.return_value = init_pygame_display_module
+        mock_pygame_display_module.get_surface.return_value = init_pygame_display_module
 
     def test__init__default_arguments(self, monkeypatch: MonkeyPatch, mock_pygame_display_module: MockDisplayModule) -> None:
         # Arrange
@@ -178,7 +179,7 @@ class TestWindowUnit:
         # Assert
         mock_pygame_display_module.quit.assert_not_called()
 
-    @pytest.mark.parametrize("error", ["set_mode failed", "create_surface failed", "window_init failed"])
+    @pytest.mark.parametrize("error", ["set_mode failed", "window_init failed"])
     def test__open__always_call_pygame_display_quit_on_internal_setup_error(
         self, error: str, mocker: MockerFixture, mock_pygame_display_module: MockDisplayModule
     ) -> None:
@@ -189,8 +190,6 @@ class TestWindowUnit:
         match error:
             case "set_mode failed":
                 mock_pygame_display_module.set_mode.side_effect = pygame.error(error)
-            case "create_surface failed":
-                mocker.patch("py_diamond.window.display.create_surface", side_effect=pygame.error(error))
             case "window_init failed":
                 mocker.patch.object(window, "__window_init__", side_effect=pygame.error(error))
             case _:

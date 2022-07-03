@@ -44,7 +44,6 @@ from py_diamond.graphics.gradients import (
 from py_diamond.graphics.grid import Grid
 from py_diamond.graphics.image import Image
 from py_diamond.graphics.progress import ProgressBar
-from py_diamond.graphics.renderer import AbstractRenderer
 from py_diamond.graphics.scale import ScaleBar
 from py_diamond.graphics.scroll import ScrollArea, ScrollBar
 from py_diamond.graphics.shape import CircleShape, DiagonalCrossShape, PlusCrossShape, PolygonShape, RectangleShape
@@ -116,7 +115,7 @@ class ShapeScene(MainScene, busy_loop=True):
                 (20, 20),
             ]
         )
-        self.__shape_copy: PolygonShape = PolygonShape(TRANSPARENT, outline_color=WHITE)
+        self.__shape_copy: PolygonShape = PolygonShape(TRANSPARENT, outline_color=WHITE, outline=2)
         self.__r.center = self.window.center
         self.__p.center = self.__r.centerx - self.window.centery / 4, self.window.centery
         self.__x.center = self.__r.centerx - self.window.centery / 2, self.window.centery
@@ -604,7 +603,7 @@ class SpriteGroupCollisionScene(MainScene, framerate=60, fixed_framerate=50):
 
         @self.every(200)
         def _() -> None:
-            if len(self.cacti) >= 150:
+            if len(self.cacti) >= 500:
                 return
             cactus = Sprite(ImagesResources.cactus, height=200)
 
@@ -1391,15 +1390,15 @@ class MainWindow(SceneWindow):
         super().render_scene()
         self.draw(self.prev_button, self.next_button)
 
-    def system_display(self, screen: AbstractRenderer) -> None:
-        super().system_display(screen)
+    def _system_display(self) -> None:
+        super()._system_display()
         text_framerate: TextFramerate = self.text_framerate
         if text_framerate.is_shown():
             if not text_framerate.message or self.__framerate_update_clock.elapsed_time(text_framerate.refresh_rate):
                 text_framerate.message = f"{round(self.framerate)} FPS"
-            text_framerate.draw_onto(screen)
+            text_framerate.draw_onto(self.renderer)
         if screenshot_img := self.screenshot_image:
-            screenshot_img.draw_onto(screen)
+            screenshot_img.draw_onto(self.renderer)
 
     def __next_scene(self) -> None:
         self.index = (self.index + 1) % len(self.all_scenes)

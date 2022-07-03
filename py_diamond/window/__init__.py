@@ -84,6 +84,7 @@ __all__ = [
     "WindowMaximizedEvent",
     "WindowMinimizedEvent",
     "WindowMovedEvent",
+    "WindowRenderer",
     "WindowResizedEvent",
     "WindowRestoredEvent",
     "WindowShownEvent",

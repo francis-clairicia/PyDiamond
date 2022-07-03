@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Window", "WindowCallback", "WindowError", "WindowExit"]
+__all__ = ["Window", "WindowCallback", "WindowError", "WindowExit", "WindowRenderer"]
 
 import gc
 import os
@@ -22,6 +22,7 @@ from typing import (
     Any,
     Callable,
     ClassVar,
+    ContextManager,
     Final,
     Iterable,
     Iterator,
@@ -45,10 +46,9 @@ from pygame.constants import (
 from ..audio.music import MusicStream
 from ..environ.executable import get_executable_path
 from ..graphics.color import BLACK, Color
-from ..graphics.rect import ImmutableRect
-from ..graphics.renderer import AbstractRenderer
+from ..graphics.rect import ImmutableRect, Rect
 from ..graphics.surface import Surface, SurfaceRenderer, create_surface, save_image
-from ..system.object import Object, final
+from ..system.object import Object, ObjectMeta, final
 from ..system.path import ConstantFileNotFoundError, set_constant_file
 from ..system.threading import Thread, thread_factory
 from ..system.utils._mangling import setattr_pv
@@ -111,11 +111,9 @@ class Window(Object):
                 raise WindowError("'size' parameter must not be given if 'fullscreen' is set")
             self.__flags |= _PG_FULLSCREEN
         self.__vsync: bool = bool(vsync)
-        self.__surface: SurfaceRenderer = SurfaceRenderer(Surface((0, 0)))
-        self.__clear_surface: Surface = Surface((0, 0))
-        self.__rect: ImmutableRect = ImmutableRect.convert(self.__surface.get_rect())
 
-        self.__display_renderer: SurfaceRenderer | None = None
+        self.__display_renderer: WindowRenderer | None = None
+        self.__rect: ImmutableRect = ImmutableRect(0, 0, 0, 0)
         self.__main_clock: _FramerateManager = _FramerateManager()
         self.__event: EventManager = EventManager()
 
@@ -164,20 +162,15 @@ class Window(Object):
             size: tuple[int, int] = self.__size
             flags: int = self.__flags
             vsync = int(bool(self.__vsync))
-            screen: Surface = _pg_display.set_mode(size, flags=flags, vsync=vsync)
-            size = screen.get_size()
-            self.__surface = SurfaceRenderer(size)
-            self.__clear_surface = create_surface(size)
-            self.__rect = ImmutableRect.convert(self.__surface.get_rect())
-            self.__display_renderer = SurfaceRenderer(screen)
+            _pg_display.set_mode(size, flags=flags, vsync=vsync)
+            self.__display_renderer = WindowRenderer()
+            self.__rect = ImmutableRect.convert(self.__display_renderer.get_rect())
 
             @stack.callback
             def _() -> None:
                 self.__callback_after.clear()
-                self.__surface = SurfaceRenderer(Surface((0, 0)))
-                self.__clear_surface = Surface((0, 0))
-                self.__rect = ImmutableRect.convert(self.__surface.get_rect())
                 self.__display_renderer = None
+                self.__rect = ImmutableRect(0, 0, 0, 0)
                 self.__event.unbind_all()
 
             from ..graphics.theme import ClassWithThemeNamespaceMeta
@@ -225,9 +218,11 @@ class Window(Object):
         return _pg_display.get_surface() is not None and self.__display_renderer is not None
 
     def clear(self, color: _ColorValue = BLACK, *, blend_alpha: bool = False) -> None:
-        screen: SurfaceRenderer = self.__surface
+        screen = self.__display_renderer
+        if screen is None:
+            return
         if blend_alpha and (color := Color(color)).a < 255:
-            fake_screen: Surface = self.__clear_surface
+            fake_screen: Surface = create_surface(screen.get_size())
             fake_screen.fill(color)
             screen.draw_surface(fake_screen, (0, 0))
         else:
@@ -261,11 +256,9 @@ class Window(Object):
         screen = self.__display_renderer
         if screen is None:
             return 0
-        screen.fill((0, 0, 0))
-        screen.draw_surface(self.__surface.surface, (0, 0))
-        self.system_display(screen)
+        self._system_display()
         AbstractCursor._update()
-        _pg_display.flip()
+        screen.present()
 
         framerate: int = self.used_framerate()
         real_time: float
@@ -279,31 +272,22 @@ class Window(Object):
         setattr_pv(Time, "fixed_delta", 1 / fixed_framerate if fixed_framerate > 0 else Time.delta())
         return real_time
 
-    def system_display(self, screen: AbstractRenderer) -> None:
+    def _system_display(self) -> None:
         pass
 
     def draw(self, *targets: SupportsDrawing) -> None:
-        renderer: SurfaceRenderer = self.__surface
-
+        renderer = self.__display_renderer
+        if renderer is None:
+            return
         for target in targets:
-            with suppress(_pg_error):
-                target.draw_onto(renderer)
+            target.draw_onto(renderer)
 
-    @contextmanager
-    def capture(self, draw_on_default_at_end: bool = True) -> Iterator[Surface]:
-        default_surface = self.__surface.surface
-        captured_surface = self.get_screen_copy()
-        self.__surface = SurfaceRenderer(captured_surface)
-        try:
-            yield captured_surface
-        finally:
-            if draw_on_default_at_end:
-                default_surface.blit(captured_surface, (0, 0))
-            self.__surface = SurfaceRenderer(default_surface)
+    def capture(self, draw_on_default_at_end: bool = True) -> ContextManager[Surface]:
+        return self.renderer.capture(draw_on_default_at_end=draw_on_default_at_end)
 
     @final
     def get_screen_copy(self) -> Surface:
-        return self.__surface.surface.copy()
+        return self.renderer.surface.copy()
 
     def screenshot(self) -> None:
         screen: Surface = self.get_screen_copy()
@@ -370,13 +354,7 @@ class Window(Object):
                 self._handle_close_event()
                 continue
             if pg_event.type == _PG_VIDEORESIZE:
-                former_surface = self.__surface.surface
-                new_surface = SurfaceRenderer(pg_event.size)
-                new_surface.draw_surface(former_surface, (0, 0))
-                self.__surface = new_surface
-                self.__clear_surface = create_surface(new_surface.get_size())
-                self.__rect = ImmutableRect.convert(new_surface.get_rect())
-                del former_surface, new_surface
+                self.__rect = ImmutableRect.convert(self.renderer.get_rect())
                 continue
             if MusicStream._handle_event(pg_event):
                 continue
@@ -415,22 +393,22 @@ class Window(Object):
         if not self.resizable:
             raise WindowError("Trying to resize not resizable window")
         size = (width, height)
-        screen: Surface = _pg_display.get_surface()
+        renderer = self.renderer
+        screen: Surface = renderer.screen
         if size == screen.get_size():
             return
         flags: int = self.__flags
         vsync = int(bool(self.__vsync))
-        screen = _pg_display.set_mode(size, flags=flags, vsync=vsync)
-        self.__display_renderer = SurfaceRenderer(screen)
+        _pg_display.set_mode(size, flags=flags, vsync=vsync)
 
     @final
     def set_width(self, width: int) -> None:
-        height = int(self.__surface.get_height())
+        height = int(self.renderer.get_height())
         return self.set_size((width, height))
 
     @final
     def set_height(self, height: int) -> None:
-        width = int(self.__surface.get_width())
+        width = int(self.renderer.get_width())
         return self.set_size((width, height))
 
     @final
@@ -615,8 +593,10 @@ class Window(Object):
 
     @property
     @final
-    def renderer(self) -> AbstractRenderer:
-        return self.__surface
+    def renderer(self) -> WindowRenderer:
+        renderer = self.__display_renderer
+        assert renderer is not None, "No active renderer"
+        return renderer
 
     @property
     def framerate(self) -> float:
@@ -827,3 +807,124 @@ class _WindowCallbackList(list[WindowCallback]):
             return
         for callback in tuple(self):
             callback()
+
+
+@final
+class _WindowRendererMeta(ObjectMeta):
+    def __new__(
+        mcs,
+        name: str,
+        bases: tuple[type, ...],
+        namespace: dict[str, Any],
+        **kwargs: Any,
+    ) -> _WindowRendererMeta:
+        draw_function_names = {
+            "fill",
+            "draw_surface",
+            "draw_rect",
+            "draw_polygon",
+            "draw_circle",
+            "draw_ellipse",
+            "draw_arc",
+            "draw_line",
+            "draw_lines",
+            "draw_aaline",
+            "draw_aalines",
+        }
+        for draw_function_name in draw_function_names:
+            draw_function: Callable[..., Rect] = getattr(SurfaceRenderer, draw_function_name)
+
+            @wraps(draw_function)  # type: ignore[arg-type]
+            def draw_wrapper(self: WindowRenderer, /, *args: Any, __name: str = str(draw_function_name), **kwargs: Any) -> Rect:
+                rect: Rect = getattr(super(WindowRenderer, self), __name)(*args, **kwargs)
+                self._append_dirty(self._dirty, rect)
+                return rect
+
+            namespace[draw_function_name] = draw_wrapper
+
+        @wraps(SurfaceRenderer.draw_many_surfaces)
+        def draw_many_surfaces(self: WindowRenderer, /, sequence: Iterable[Any], doreturn: bool = True) -> list[Rect] | None:
+            rects = super(WindowRenderer, self).draw_many_surfaces(sequence, doreturn=True)
+            if rects:
+                append = self._append_dirty
+                dirty_rects = self._dirty
+                for rect in rects:
+                    append(dirty_rects, rect)
+            return rects if doreturn else None
+
+        namespace["draw_many_surfaces"] = draw_many_surfaces
+
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
+
+
+@final
+class WindowRenderer(SurfaceRenderer, metaclass=_WindowRendererMeta):
+    __slots__ = ("_dirty", "__drawn_rects")
+
+    def __init__(self) -> None:
+        screen: Surface | None = _pg_display.get_surface()
+        if screen is None:
+            raise _pg_error("No display mode configured")
+        self.__drawn_rects: deque[Rect] = deque()
+        self._dirty: deque[Rect] = deque()
+        super().__init__(screen)
+
+    def repaint_color(self, color: _ColorValue) -> None:
+        self.surface.fill(color)
+
+    def present(self) -> None:
+        screen = self.screen
+        if self.surface is not screen:
+            screen.fill((0, 0, 0))
+            screen.blit(self.surface, (0, 0))
+            _pg_display.flip()
+            self.__drawn_rects = deque([screen.get_rect()])
+        else:
+            drawn_rects = self.__drawn_rects
+            drawn_rects.extend(self._dirty)
+            _pg_display.update(drawn_rects)  # type: ignore[arg-type]
+            del drawn_rects
+            self.__drawn_rects = self._dirty
+        self._dirty = deque()
+
+    @contextmanager
+    def capture(self, draw_on_default_at_end: bool = True) -> Iterator[Surface]:
+        fset = SurfaceRenderer.surface.fset  # type: ignore[attr-defined]
+
+        default_surface = self.surface
+        captured_surface = default_surface.copy()
+        fset(self, captured_surface)
+        try:
+            yield captured_surface
+        finally:
+            fset(self, default_surface)
+            if draw_on_default_at_end:
+                default_surface.blit(captured_surface, (0, 0))
+
+    @classmethod
+    def _append_dirty(cls, dirty_rects: deque[Rect], rect: Rect) -> None:
+        nb_rects = len(dirty_rects)
+        for _ in range(nb_rects):
+            actual_rect = dirty_rects[0]
+            if actual_rect.colliderect(rect):
+                actual_rect.union_ip(rect)
+                del rect
+                if nb_rects > 1:
+                    dirty_rects.popleft()
+                    cls._append_dirty(dirty_rects, actual_rect)
+                break
+            dirty_rects.rotate(1)
+        else:
+            dirty_rects.append(rect)
+
+    @property
+    def screen(self) -> Surface:
+        screen: Surface | None = _pg_display.get_surface()
+        assert screen is not None, "No display mode configured"
+        return screen
+
+    if not TYPE_CHECKING:
+
+        @SurfaceRenderer.surface.setter
+        def surface(self, new_target: Surface) -> None:
+            raise AttributeError("Read-only property")
