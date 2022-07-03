@@ -1370,7 +1370,7 @@ class MainWindow(SceneWindow):
         self.prev_button.topleft = self.left + 10, self.top + 10
         self.next_button.topright = self.right - 10, self.top + 10
 
-        self.event.bind_key_press(Keyboard.Key.F5, lambda _: gc.collect())  # type: ignore[arg-type]
+        self.event.bind_key_press(Keyboard.Key.F5, lambda _: gc.collect())
         self.event.bind_key_release(Keyboard.Key.F11, lambda _: self.screenshot())
         self.event.bind(ScreenshotEvent, self.__show_screenshot)
         self.screenshot_image: Image | None = None
