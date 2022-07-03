@@ -94,13 +94,13 @@ if TYPE_CHECKING:
 
 _T = TypeVar("_T")
 
-_ASSOCIATIONS: dict[SupportsInt, type[Event]] = {}
-_PYGAME_EVENT_TYPE: dict[type[Event], SupportsInt] = {}
+_PYGAME_EVENT_TYPE: dict[SupportsInt, type[Event]] = {}
+_ASSOCIATIONS: dict[type[Event], SupportsInt] = {}
 
 
 class EventMeta(ObjectMeta):
-    __associations: Final[dict[SupportsInt, type[Event]]] = _ASSOCIATIONS
-    __type: Final[dict[type[Event], SupportsInt]] = _PYGAME_EVENT_TYPE
+    __associations: Final[dict[type[Event], SupportsInt]] = _ASSOCIATIONS
+    __type: Final[dict[SupportsInt, type[Event]]] = _PYGAME_EVENT_TYPE
 
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="EventMeta")
@@ -119,21 +119,22 @@ class EventMeta(ObjectMeta):
         except NameError:
             pass
         else:
-            if len(bases) != 1 or not issubclass(bases[0], Event):
-                raise TypeError(f"{name!r} must only inherits from Event without multiple inheritance")
-            if not bases[0].is_model():
-                raise TypeError(f"{name!r}: {bases[0].__qualname__} is a not a Event model class")
+            if not any(issubclass(b, Event) for b in bases):
+                raise TypeError(f"{name!r} must inherit from Event")
+            if concrete_events := [b for b in bases if issubclass(b, Event) and not b.is_model()]:
+                concrete_events_qualnames = ", ".join(b.__qualname__ for b in concrete_events)
+                raise TypeError(f"{name!r}: Events which are not model classes caught: {concrete_events_qualnames}")
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
         setattr(cls, "_model_", bool(model))
         if not cls.is_model() and not issubclass(cls, BuiltinEvent):
             cls = final(cls)
             event_type: SupportsInt = _pg_event_custom_type()
-            if event_type in EventFactory.associations:  # Should not happen
-                event_cls = EventFactory.associations[event_type]
-                raise SystemError(f"Event with type {event_type!r} already exists: {event_cls}")
+            if event_type in EventFactory.pygame_type:  # Should not happen
+                event_cls = EventFactory.pygame_type[event_type]
+                raise SystemError(f"Event with type {_pg_event_name(int(event_type))!r} already exists: {event_cls}")
             event_cls = cast(type[Event], cls)
-            mcs.__associations[event_type] = event_cls
-            mcs.__type[event_cls] = event_type
+            mcs.__associations[event_cls] = event_type
+            mcs.__type[event_type] = event_cls
         return cls
 
     def __call__(cls, *args: Any, **kwds: Any) -> Any:
@@ -142,8 +143,6 @@ class EventMeta(ObjectMeta):
         return super().__call__(*args, **kwds)
 
     def __setattr__(cls, __name: str, __value: Any) -> None:
-        # if __name in {} and hasattr(cls, __name):
-        #     raise AttributeError("Read-only attribute")
         if __name in {"_model_"} and __name in vars(cls):
             raise AttributeError("Read-only attribute")
         return super().__setattr__(__name, __value)
@@ -157,14 +156,14 @@ class EventMeta(ObjectMeta):
         return bool(isabstractclass(cls) or getattr(cls, "_model_"))
 
 
-_BUILTIN_ASSOCIATIONS: dict[SupportsInt, type[Event]] = {}
-_BUILTIN_PYGAME_EVENT_TYPE: dict[type[Event], SupportsInt] = {}
+_BUILTIN_PYGAME_EVENT_TYPE: dict[SupportsInt, type[Event]] = {}
+_BUILTIN_ASSOCIATIONS: dict[type[Event], SupportsInt] = {}
 
 
 @final
 class _BuiltinEventMeta(EventMeta):
-    __associations: Final[dict[SupportsInt, type[Event]]] = _BUILTIN_ASSOCIATIONS  # type: ignore[misc]
-    __type: Final[dict[type[Event], SupportsInt]] = _BUILTIN_PYGAME_EVENT_TYPE  # type: ignore[misc]
+    __associations: Final[dict[type[Event], SupportsInt]] = _BUILTIN_ASSOCIATIONS  # type: ignore[misc]
+    __type: Final[dict[SupportsInt, type[Event]]] = _BUILTIN_PYGAME_EVENT_TYPE  # type: ignore[misc]
 
     def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _BuiltinEventMeta:
         try:
@@ -172,7 +171,7 @@ class _BuiltinEventMeta(EventMeta):
         except NameError:
             pass
         else:
-            if all(event_type in mcs.__associations for event_type in BuiltinEvent.Type):
+            if all(event_type in mcs.__type for event_type in BuiltinEvent.Type):
                 raise TypeError("Trying to create custom event from BuiltinEvent class")
             assert len(bases) == 1 and issubclass(bases[0], BuiltinEvent)
             cls = super().__new__(mcs, name, bases, namespace, **kwargs)
@@ -181,10 +180,10 @@ class _BuiltinEventMeta(EventMeta):
             if isinstance(event_type, Field):
                 event_type = event_type.default
             assert isinstance(event_type, BuiltinEvent.Type), f"Got {event_type!r}"
-            assert event_type not in mcs.__associations, f"{event_type!r} event already taken"
+            assert event_type not in mcs.__type, f"{event_type!r} event already taken"
             event_cls = cast(type[BuiltinEvent], cls)
-            mcs.__associations[event_type] = event_cls
-            mcs.__type[event_cls] = event_type
+            mcs.__associations[event_cls] = event_type
+            mcs.__type[event_type] = event_cls
             return cls
         return super().__new__(mcs, name, bases, namespace, **kwargs)
 
@@ -552,7 +551,7 @@ class ScreenshotEvent(BuiltinEvent):
 
 
 def _check_event_types_association() -> None:
-    if unbound_types := set(filter(lambda e: e not in _BUILTIN_ASSOCIATIONS, BuiltinEvent.Type)):
+    if unbound_types := set(filter(lambda e: e not in _BUILTIN_PYGAME_EVENT_TYPE, BuiltinEvent.Type)):
         raise SystemError(
             f"The following events do not have an associated BuiltinEvent class: {', '.join(e.name for e in unbound_types)}"
         )
@@ -577,10 +576,10 @@ class UnknownEventTypeError(EventFactoryError):
 
 
 class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
-    associations: Final[MappingProxyType[SupportsInt, type[Event]]] = MappingProxyType(
+    associations: Final[MappingProxyType[type[Event], SupportsInt]] = MappingProxyType(
         ChainMap(_BUILTIN_ASSOCIATIONS, _ASSOCIATIONS)
     )
-    pygame_type: Final[MappingProxyType[type[Event], SupportsInt]] = MappingProxyType(
+    pygame_type: Final[MappingProxyType[SupportsInt, type[Event]]] = MappingProxyType(
         ChainMap(_BUILTIN_PYGAME_EVENT_TYPE, _PYGAME_EVENT_TYPE)
     )
 
@@ -589,7 +588,7 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
     @staticmethod
     def from_pygame_event(event: _PygameEvent, *, handle_user_events: bool = True) -> Event:
         try:
-            event_cls: type[Event] = EventFactory.associations[event.type]
+            event_cls: type[Event] = EventFactory.pygame_type[event.type]
         except KeyError as exc:
             if handle_user_events and BuiltinEvent.Type.USEREVENT < event.type < EventFactory.NUMEVENTS:
                 return UserEvent.from_dict(event.__dict__ | {"code": event.type})
@@ -601,7 +600,7 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
         assert not event.__class__.is_model()  # Should not happen but who knows...?
         event_dict = event.to_dict()
         event_dict.pop("type", None)
-        event_type = EventFactory.pygame_type[event.__class__]
+        event_type = EventFactory.associations[event.__class__]
         return _PygameEvent(int(event_type), event_dict)
 
 
@@ -675,11 +674,15 @@ class EventManager:
     def bind(self, event_cls: type[_TE], callback: Callable[[_TE], bool | None]) -> None:
         if not issubclass(event_cls, Event):
             raise TypeError("Invalid argument")
+        if event_cls.is_model():
+            raise TypeError("Cannot assign events to event models")
         EventManager.__bind(self.__event_handler_dict, event_cls, callback)
 
     def unbind(self, event_cls: type[_TE], callback_to_remove: Callable[[_TE], bool | None]) -> None:
         if not issubclass(event_cls, Event):
             raise TypeError("Invalid argument")
+        if event_cls.is_model():
+            raise TypeError("Cannot assign events to event models")
         EventManager.__unbind(self.__event_handler_dict, event_cls, callback_to_remove)
         for event_type in tuple(
             event_type

@@ -435,11 +435,11 @@ class Window(Object):
 
     @final
     def event_is_allowed(self, event_type: type[Event]) -> bool:
-        return not _pg_event.get_blocked(EventFactory.pygame_type[event_type])
+        return not _pg_event.get_blocked(EventFactory.associations[event_type])
 
     @final
     def allow_event(self, *event_types: type[Event]) -> None:
-        pg_event_types = tuple(map(EventFactory.pygame_type.__getitem__, event_types))
+        pg_event_types = tuple(map(EventFactory.associations.__getitem__, event_types))
         _pg_event.set_allowed(pg_event_types)
 
     @contextmanager
@@ -464,11 +464,11 @@ class Window(Object):
 
     @final
     def allow_all_events(self, *, except_for: Iterable[type[Event]] = ()) -> None:
-        ignored_pg_events = tuple(map(EventFactory.pygame_type.__getitem__, except_for))
+        ignored_pg_events = tuple(map(EventFactory.associations.__getitem__, except_for))
         if not ignored_pg_events:
-            _pg_event.set_allowed(tuple(EventFactory.associations.keys()))
+            _pg_event.set_allowed(tuple(EventFactory.pygame_type.keys()))
             return
-        _pg_event.set_allowed(tuple(filterfalse(ignored_pg_events.__contains__, EventFactory.associations.keys())))
+        _pg_event.set_allowed(tuple(filterfalse(ignored_pg_events.__contains__, EventFactory.pygame_type.keys())))
         _pg_event.set_blocked(ignored_pg_events)
 
     @contextmanager
@@ -483,11 +483,11 @@ class Window(Object):
 
     @final
     def event_is_blocked(self, event_type: type[Event]) -> bool:
-        return bool(_pg_event.get_blocked(EventFactory.pygame_type[event_type]))
+        return bool(_pg_event.get_blocked(EventFactory.associations[event_type]))
 
     @final
     def block_event(self, *event_types: type[Event]) -> None:
-        pg_event_types = tuple(map(EventFactory.pygame_type.__getitem__, event_types))
+        pg_event_types = tuple(map(EventFactory.associations.__getitem__, event_types))
         _pg_event.set_blocked(pg_event_types)
 
     @contextmanager
@@ -512,11 +512,11 @@ class Window(Object):
 
     @final
     def block_all_events(self, *, except_for: Iterable[type[Event]] = ()) -> None:
-        ignored_pg_events = tuple(map(EventFactory.pygame_type.__getitem__, except_for))
+        ignored_pg_events = tuple(map(EventFactory.associations.__getitem__, except_for))
         if not ignored_pg_events:
-            _pg_event.set_blocked(tuple(EventFactory.associations.keys()))
+            _pg_event.set_blocked(tuple(EventFactory.pygame_type.keys()))
             return
-        _pg_event.set_blocked(tuple(filterfalse(ignored_pg_events.__contains__, EventFactory.associations.keys())))
+        _pg_event.set_blocked(tuple(filterfalse(ignored_pg_events.__contains__, EventFactory.pygame_type.keys())))
         _pg_event.set_allowed(ignored_pg_events)
 
     @contextmanager
@@ -527,7 +527,7 @@ class Window(Object):
 
     @contextmanager
     def __save_blocked_events(self, *, do_not_reinitialize_on_success: bool = False) -> Iterator[None]:
-        all_blocked_events: Sequence[type[Event]] = tuple(filter(self.event_is_blocked, EventFactory.pygame_type))
+        all_blocked_events: Sequence[type[Event]] = tuple(filter(self.event_is_blocked, EventFactory.associations))
 
         def set_blocked_events() -> None:
             if not _pg_display.get_init():
