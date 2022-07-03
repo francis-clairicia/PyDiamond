@@ -18,16 +18,16 @@ __all__ = [
 ]
 
 from itertools import pairwise
-from typing import Any, ClassVar, Sequence
+from typing import Any, Callable, ClassVar, Sequence
 
 from pygame.transform import rotate as _surface_rotate, smoothscale as _surface_scale
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ._gradients import (  # type: ignore[attr-defined]
-    horizontal as _gradient_horizontal,
-    radial as _gradient_radial,
-    squared as _gradient_squared,
-    vertical as _gradient_vertical,
+    horizontal_func as _gradient_horizontal,
+    radial_func as _gradient_radial,
+    squared_func as _gradient_squared,
+    vertical_func as _gradient_vertical,
 )
 from .color import Color
 from .shape import AbstractCircleShape, AbstractRectangleShape, AbstractShape, AbstractSquareShape
@@ -55,11 +55,37 @@ class GradientShape(AbstractShape):
 
 
 class HorizontalGradientShape(AbstractRectangleShape, GradientShape):
-    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(parent=[AbstractRectangleShape.config, GradientShape.config])
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
+        "rfunc",
+        "gfunc",
+        "bfunc",
+        "afunc",
+        parent=[AbstractRectangleShape.config, GradientShape.config],
+    )
+
+    rfunc: OptionAttribute[Callable[[float], float]] = OptionAttribute()
+    gfunc: OptionAttribute[Callable[[float], float]] = OptionAttribute()
+    bfunc: OptionAttribute[Callable[[float], float]] = OptionAttribute()
+    afunc: OptionAttribute[Callable[[float], float]] = OptionAttribute()
 
     @initializer
-    def __init__(self, width: float, height: float, first_color: Color, second_color: Color) -> None:
+    def __init__(
+        self,
+        width: float,
+        height: float,
+        first_color: Color,
+        second_color: Color,
+        *,
+        rfunc: Callable[[float], float] | None = None,
+        gfunc: Callable[[float], float] | None = None,
+        bfunc: Callable[[float], float] | None = None,
+        afunc: Callable[[float], float] | None = None,
+    ) -> None:
         super().__init__(width=width, height=height, first_color=first_color, second_color=second_color)
+        self.rfunc: Callable[[float], float] = rfunc or (lambda x: x)
+        self.gfunc: Callable[[float], float] = gfunc or (lambda x: x)
+        self.bfunc: Callable[[float], float] = bfunc or (lambda x: x)
+        self.afunc: Callable[[float], float] = afunc or (lambda _: 1)
 
     def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
         width, height = self.local_size
@@ -70,18 +96,57 @@ class HorizontalGradientShape(AbstractRectangleShape, GradientShape):
         size: tuple[int, int] = (int(width), int(height))
         if size[0] < 1 or size[1] < 1:
             return create_surface(size)
-        surface: Surface = _gradient_horizontal(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore[arg-type]
+        surface: Surface = _gradient_horizontal(
+            size,
+            tuple(self.first_color),  # type: ignore[arg-type]
+            tuple(self.second_color),  # type: ignore[arg-type]
+            Rfunc=self.rfunc,
+            Gfunc=self.gfunc,
+            Bfunc=self.bfunc,
+            Afunc=self.afunc,
+        )
         if apply_rotation:
             surface = _surface_rotate(surface, self.angle)
         return surface
+
+    config.add_value_validator_static("rfunc", callable)
+    config.add_value_validator_static("gfunc", callable)
+    config.add_value_validator_static("bfunc", callable)
+    config.add_value_validator_static("afunc", callable)
 
 
 class VerticalGradientShape(AbstractRectangleShape, GradientShape):
-    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(parent=[AbstractRectangleShape.config, GradientShape.config])
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
+        "rfunc",
+        "gfunc",
+        "bfunc",
+        "afunc",
+        parent=[AbstractRectangleShape.config, GradientShape.config],
+    )
+
+    rfunc: OptionAttribute[Callable[[float], float]] = OptionAttribute()
+    gfunc: OptionAttribute[Callable[[float], float]] = OptionAttribute()
+    bfunc: OptionAttribute[Callable[[float], float]] = OptionAttribute()
+    afunc: OptionAttribute[Callable[[float], float]] = OptionAttribute()
 
     @initializer
-    def __init__(self, width: float, height: float, first_color: Color, second_color: Color) -> None:
+    def __init__(
+        self,
+        width: float,
+        height: float,
+        first_color: Color,
+        second_color: Color,
+        *,
+        rfunc: Callable[[float], float] | None = None,
+        gfunc: Callable[[float], float] | None = None,
+        bfunc: Callable[[float], float] | None = None,
+        afunc: Callable[[float], float] | None = None,
+    ) -> None:
         super().__init__(width=width, height=height, first_color=first_color, second_color=second_color)
+        self.rfunc: Callable[[float], float] = rfunc or (lambda x: x)
+        self.gfunc: Callable[[float], float] = gfunc or (lambda x: x)
+        self.bfunc: Callable[[float], float] = bfunc or (lambda x: x)
+        self.afunc: Callable[[float], float] = afunc or (lambda _: 1)
 
     def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
         width, height = self.local_size
@@ -92,44 +157,139 @@ class VerticalGradientShape(AbstractRectangleShape, GradientShape):
         size: tuple[int, int] = (int(width), int(height))
         if size[0] < 1 or size[1] < 1:
             return create_surface(size)
-        surface: Surface = _gradient_vertical(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore[arg-type]
+        surface: Surface = _gradient_vertical(
+            size,
+            tuple(self.first_color),  # type: ignore[arg-type]
+            tuple(self.second_color),  # type: ignore[arg-type]
+            Rfunc=self.rfunc,
+            Gfunc=self.gfunc,
+            Bfunc=self.bfunc,
+            Afunc=self.afunc,
+        )
         if apply_rotation:
             surface = _surface_rotate(surface, self.angle)
         return surface
 
+    config.add_value_validator_static("rfunc", callable)
+    config.add_value_validator_static("gfunc", callable)
+    config.add_value_validator_static("bfunc", callable)
+    config.add_value_validator_static("afunc", callable)
+
 
 class SquaredGradientShape(AbstractSquareShape, GradientShape):
-    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(parent=[AbstractSquareShape.config, GradientShape.config])
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
+        "rfunc",
+        "gfunc",
+        "bfunc",
+        "afunc",
+        "center_offset",
+        parent=[AbstractSquareShape.config, GradientShape.config],
+    )
+
+    rfunc: OptionAttribute[Callable[[float], float]] = OptionAttribute()
+    gfunc: OptionAttribute[Callable[[float], float]] = OptionAttribute()
+    bfunc: OptionAttribute[Callable[[float], float]] = OptionAttribute()
+    afunc: OptionAttribute[Callable[[float], float]] = OptionAttribute()
+    center_offset: OptionAttribute[tuple[float, float]] = OptionAttribute()
 
     @initializer
-    def __init__(self, size: float, first_color: Color, second_color: Color) -> None:
+    def __init__(
+        self,
+        size: float,
+        first_color: Color,
+        second_color: Color,
+        *,
+        rfunc: Callable[[float], float] | None = None,
+        gfunc: Callable[[float], float] | None = None,
+        bfunc: Callable[[float], float] | None = None,
+        afunc: Callable[[float], float] | None = None,
+        center_offset: tuple[float, float] = (0, 0),
+    ) -> None:
         super().__init__(size=size, first_color=first_color, second_color=second_color)
+        self.rfunc: Callable[[float], float] = rfunc or (lambda x: x)
+        self.gfunc: Callable[[float], float] = gfunc or (lambda x: x)
+        self.bfunc: Callable[[float], float] = bfunc or (lambda x: x)
+        self.afunc: Callable[[float], float] = afunc or (lambda _: 1)
+        self.center_offset = center_offset
 
     def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
         size: int = int(self.local_size * self.scale if apply_scale else self.local_size)
         if size < 1:
             return create_surface((0, 0))
-        surface: Surface = _gradient_squared(size, tuple(self.first_color), tuple(self.second_color))  # type: ignore[arg-type]
+        surface: Surface = _gradient_squared(
+            size,
+            tuple(self.first_color),  # type: ignore[arg-type]
+            tuple(self.second_color),  # type: ignore[arg-type]
+            Rfunc=self.rfunc,
+            Gfunc=self.gfunc,
+            Bfunc=self.bfunc,
+            Afunc=self.afunc,
+            offset=self.center_offset,
+        )
         if apply_rotation:
             surface = _surface_rotate(surface, self.angle)
         return surface
 
+    config.add_value_validator_static("rfunc", callable)
+    config.add_value_validator_static("gfunc", callable)
+    config.add_value_validator_static("bfunc", callable)
+    config.add_value_validator_static("afunc", callable)
+    config.add_value_converter_static("center_offset", tuple)
+
 
 class RadialGradientShape(AbstractCircleShape, GradientShape):
-    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(parent=[AbstractCircleShape.config, GradientShape.config])
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
+        "rfunc",
+        "gfunc",
+        "bfunc",
+        "afunc",
+        parent=[AbstractCircleShape.config, GradientShape.config],
+    )
+
+    rfunc: OptionAttribute[Callable[[float], float]] = OptionAttribute()
+    gfunc: OptionAttribute[Callable[[float], float]] = OptionAttribute()
+    bfunc: OptionAttribute[Callable[[float], float]] = OptionAttribute()
+    afunc: OptionAttribute[Callable[[float], float]] = OptionAttribute()
 
     @initializer
-    def __init__(self, radius: float, first_color: Color, second_color: Color) -> None:
+    def __init__(
+        self,
+        radius: float,
+        first_color: Color,
+        second_color: Color,
+        *,
+        rfunc: Callable[[float], float] | None = None,
+        gfunc: Callable[[float], float] | None = None,
+        bfunc: Callable[[float], float] | None = None,
+        afunc: Callable[[float], float] | None = None,
+    ) -> None:
         super().__init__(radius=radius, first_color=first_color, second_color=second_color)
+        self.rfunc: Callable[[float], float] = rfunc or (lambda x: x)
+        self.gfunc: Callable[[float], float] = gfunc or (lambda x: x)
+        self.bfunc: Callable[[float], float] = bfunc or (lambda x: x)
+        self.afunc: Callable[[float], float] = afunc or (lambda _: 1)
 
     def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
         radius: int = int(self.radius * self.scale if apply_scale else self.radius)
         if radius < 1:
             return create_surface((0, 0))
-        surface: Surface = _gradient_radial(radius, tuple(self.first_color), tuple(self.second_color))  # type: ignore[arg-type]
+        surface: Surface = _gradient_radial(
+            radius,
+            tuple(self.first_color),  # type: ignore[arg-type]
+            tuple(self.second_color),  # type: ignore[arg-type]
+            Rfunc=self.rfunc,
+            Gfunc=self.gfunc,
+            Bfunc=self.bfunc,
+            Afunc=self.afunc,
+        )
         if apply_rotation:
             surface = _surface_rotate(surface, self.angle)
         return surface
+
+    config.add_value_validator_static("rfunc", callable)
+    config.add_value_validator_static("gfunc", callable)
+    config.add_value_validator_static("bfunc", callable)
+    config.add_value_validator_static("afunc", callable)
 
 
 class MultiColorShape(AbstractShape):

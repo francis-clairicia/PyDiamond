@@ -47,6 +47,7 @@ from typing import (
     Sequence,
     SupportsIndex,
     TypeAlias,
+    TypeGuard,
     TypeVar,
     cast,
     overload,
@@ -68,8 +69,8 @@ _DeleterVar = TypeVar("_DeleterVar", bound=Callable[[Any], None])
 _KeyGetterVar = TypeVar("_KeyGetterVar", bound=Callable[[Any, Any], Any])
 _KeySetterVar = TypeVar("_KeySetterVar", bound=Callable[[Any, Any, Any], None])
 _KeyDeleterVar = TypeVar("_KeyDeleterVar", bound=Callable[[Any, Any], None])
-_ValueValidatorVar = TypeVar("_ValueValidatorVar", bound=Callable[[Any, Any], None])
-_StaticValueValidatorVar = TypeVar("_StaticValueValidatorVar", bound=Callable[[Any], None])
+_ValueValidatorVar = TypeVar("_ValueValidatorVar", bound=Callable[[Any, Any], TypeGuard[Any] | None])
+_StaticValueValidatorVar = TypeVar("_StaticValueValidatorVar", bound=Callable[[Any], TypeGuard[Any] | None])
 _ValueConverterVar = TypeVar("_ValueConverterVar", bound=Callable[[Any, Any], Any])
 _StaticValueConverterVar = TypeVar("_StaticValueConverterVar", bound=Callable[[Any], Any])
 _T = TypeVar("_T")
