@@ -165,7 +165,6 @@ class ThemeNamespace(ContextManager["ThemeNamespace"], Object):
     ) -> __ExtendedDefaultThemeDict:
         return ThemeNamespace.__ExtendedDefaultThemeDict(actual, extension)
 
-    # TODO: ChainMap ?
     class __ExtendedThemeDict(_ClassThemeDict):
         def __init__(self, actual: _ClassThemeDict, extension: _ClassThemeDict) -> None:
             super().__init__()
