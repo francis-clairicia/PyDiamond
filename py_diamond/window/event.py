@@ -769,26 +769,28 @@ class EventManager:
         elif isinstance(event, (MouseButtonUpEvent, MouseButtonDownEvent)):
             self.__handle_mouse_event(event)
 
-        priority_callback: _EventCallback | None = self.__priority_callback.get(type(event))
+        event_type: type[Event] = type(event)
+
+        priority_callback: _EventCallback | None = self.__priority_callback.get(event_type)
         if priority_callback is not None:
             if priority_callback(event):
                 return True
-            del self.__priority_callback[type(event)]
+            del self.__priority_callback[event_type]
 
-        priority_manager: EventManager | None = self.__priority_manager.get(type(event))
+        priority_manager: EventManager | None = self.__priority_manager.get(event_type)
         if priority_manager is not None:
             if priority_manager.process_event(event):
                 return True
-            del self.__priority_manager[type(event)]
+            del self.__priority_manager[event_type]
 
         event_dict: dict[type[Event], list[_EventCallback]] = self.__event_handler_dict
-        for callback in event_dict.get(type(event), ()):
+        for callback in event_dict.get(event_type, ()):
             if callback is not priority_callback and callback(event):
-                self.__priority_callback[type(event)] = callback
+                self.__priority_callback[event_type] = callback
                 return True
         for manager in self.__other_manager_list:
             if manager is not priority_manager and manager.process_event(event):
-                self.__priority_manager[type(event)] = manager
+                self.__priority_manager[event_type] = manager
                 return True
         return False
 
@@ -839,12 +841,12 @@ class BoundEventManager(Generic[_T]):
     )
 
     def __init__(self, obj: _T) -> None:
-        def unbind_all(selfref: weakref.ReferenceType[BoundEventManager[_T]] = weakref.ref(self)) -> None:
+        def unbind_all(_: Any, /, selfref: weakref.ReferenceType[BoundEventManager[_T]] = weakref.ref(self)) -> None:
             self = selfref()
             if self is not None:
                 self.__manager.unbind_all()
 
-        self.__ref: weakref.ReferenceType[_T] = weakref.ref(obj, lambda _: unbind_all())
+        self.__ref: weakref.ReferenceType[_T] = weakref.ref(obj, unbind_all)
         self.__manager: EventManager = EventManager()
 
     def register_to_existing_manager(self, manager: EventManager | BoundEventManager[Any]) -> None:

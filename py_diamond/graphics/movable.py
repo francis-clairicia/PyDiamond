@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Movable", "MovableMeta", "MovableProxy"]
+__all__ = ["Movable", "MovableMeta", "MovableProxy", "MovableProxyMeta"]
 
 
 from abc import abstractmethod
@@ -314,7 +314,7 @@ class Movable(Object, metaclass=MovableMeta):
         self.__y = midright[1] - (h / 2)
 
 
-class _MovableProxyMeta(MovableMeta):
+class MovableProxyMeta(MovableMeta):
     def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> MovableMeta:
         if "MovableProxy" not in globals() and name == "MovableProxy":
             from ..system.utils._mangling import mangle_private_attribute
@@ -354,7 +354,7 @@ class _MovableProxyMeta(MovableMeta):
 
 
 @concreteclass
-class MovableProxy(Movable, metaclass=_MovableProxyMeta):
+class MovableProxy(Movable, metaclass=MovableProxyMeta):
     def __init__(self, movable: Movable) -> None:
         object.__setattr__(self, "_object", movable)
 
@@ -366,6 +366,3 @@ class MovableProxy(Movable, metaclass=_MovableProxyMeta):
         movable: Movable = object.__getattribute__(self, "_object")
         movable._on_move()
         return super()._on_move()
-
-
-del _MovableProxyMeta

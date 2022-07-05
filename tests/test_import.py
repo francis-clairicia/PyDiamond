@@ -168,6 +168,7 @@ class TestStarImports:
             "cursor",
             "dialog",
             "display",
+            "draggable",
             "event",
             "gui",
             "keyboard",

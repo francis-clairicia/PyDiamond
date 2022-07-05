@@ -52,17 +52,16 @@ from py_diamond.graphics.surface import Surface, SurfaceRenderer
 from py_diamond.graphics.text import Text, TextImage
 from py_diamond.resource.loader import FontLoader, ImageLoader, MusicLoader, SoundLoader
 from py_diamond.resource.manager import ResourceManager
-from py_diamond.window.clickable import Clickable
 from py_diamond.window.clock import Clock
 from py_diamond.window.dialog import PopupDialog
 from py_diamond.window.display import Window, WindowCallback
+from py_diamond.window.draggable import Draggable
 from py_diamond.window.event import (
     BuiltinEvent,
     Event,
     KeyDownEvent,
     KeyUpEvent,
     MouseButtonEvent,
-    MouseMotionEvent,
     MusicEndEvent,
     ScreenshotEvent,
 )
@@ -529,7 +528,7 @@ class AnimatedSpriteScene(MainScene):
         self.window.draw(self.sprite)
 
 
-class DraggableSprite(Sprite, Clickable):
+class DraggableSprite(Sprite, Draggable["DraggableSprite"]):
     def __init__(
         self,
         master: Scene | Window,
@@ -539,18 +538,7 @@ class DraggableSprite(Sprite, Clickable):
         height: float | None = None,
     ) -> None:
         Sprite.__init__(self, image, width=width, height=height)
-        Clickable.__init__(self, master)
-
-    def invoke(self) -> None:
-        pass
-
-    def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
-        return self.rect.collidepoint(mouse_pos)
-
-    def _on_mouse_motion(self, event: MouseMotionEvent) -> None:
-        if self.active:
-            self.translate(event.rel)
-        return super()._on_mouse_motion(event)
+        Draggable.__init__(self, master=master, target=self)
 
 
 class SpriteCollisionScene(MainScene):
@@ -1242,6 +1230,10 @@ class MyDialog(PopupDialog, GUIScene):
         self.cancel.topleft = (self.popup.left + 20, self.popup.top + 20)
         self.text.center = self.popup.center
         return super().update()
+
+    def _on_popup_resize(self) -> None:
+        self.popup.center = self.window.center
+        return super()._on_popup_resize()
 
     def _render(self) -> None:
         self.window.draw(self.cancel, self.text)

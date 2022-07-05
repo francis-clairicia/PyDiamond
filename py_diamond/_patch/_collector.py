@@ -140,13 +140,11 @@ class _PatchCollectorType:
     @contextlib.contextmanager
     def mock_import(context: str, *, forbidden_imports: Iterable[str] = ()) -> Iterator[None]:
         import re
-        import sys
 
-        forbidden_modules = {
-            module: re.compile(r"{}(?:\.\w+)*".format(module))
-            for module in set(forbidden_imports)
-            if not any(n == module or n.startswith(f"{module}.") for n in tuple(sys.modules))  # If module was not imported
-        }
+        if isinstance(forbidden_imports, str):
+            forbidden_imports = (forbidden_imports,)
+
+        forbidden_modules = {module: re.compile(r"{}(?:\.\w+)*".format(module)) for module in set(forbidden_imports)}
 
         if not forbidden_modules:  # Do not need to mock then
             yield

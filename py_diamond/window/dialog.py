@@ -22,6 +22,7 @@ from ..graphics.shape import RectangleShape
 from ..system.object import final
 from ..system.utils.functools import cache
 from ..system.validation import valid_optional_float
+from .event import WindowSizeChangedEvent
 from .scene import _ALL_SCENES, Scene, SceneMeta, SceneWindow
 
 
@@ -101,7 +102,7 @@ class PopupDialog(Dialog):
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
-        # fixed_position: bool = True,
+        # draggable: bool = False,
         **kwargs: Any,
     ) -> None:
         super().awake(**kwargs)
@@ -115,16 +116,20 @@ class PopupDialog(Dialog):
         if height is not None and height_ratio is not None:
             raise ValueError("Must give either 'height' or 'height_ratio', not both")
 
+        self.__width_ratio: float | None = None
+        self.__height_ratio: float | None = None
+
         if width is None:
             if width_ratio is None:
                 width_ratio = 0.5
+            self.__width_ratio = width_ratio
             width = window.width * width_ratio
         if height is None:
             if height_ratio is None:
                 height_ratio = 0.5
+            self.__height_ratio = height_ratio
             height = window.height * height_ratio
 
-        # self.__fixed_position: bool = bool(fixed_position)
         self.__bg: RectangleShape = RectangleShape(
             width,
             height,
@@ -149,6 +154,12 @@ class PopupDialog(Dialog):
             border_bottom_right_radius=border_bottom_right_radius,
         )
 
+        if self.__width_ratio or self.__height_ratio:  # Exclude '0' value
+            self.event.bind(WindowSizeChangedEvent, self.__handle_window_resize)
+        # if draggable:
+        #     from .draggable import Draggable  # lazy import to avoid circular import
+        #     setattr(self, "__draggable", Draggable(self, target=self.__bg))
+
     def on_start_loop_before_transition(self) -> None:
         self.set_default_popup_position()
         return super().on_start_loop_before_transition()
@@ -166,6 +177,28 @@ class PopupDialog(Dialog):
     @abstractmethod
     def _render(self) -> None:
         raise NotImplementedError
+
+    def _on_popup_resize(self) -> None:
+        pass
+
+    def __handle_window_resize(self, event: WindowSizeChangedEvent) -> None:
+        bg: RectangleShape = self.__bg
+        outline: RectangleShape = self.__outline
+        width_ratio: float | None = self.__width_ratio
+        height_ratio: float | None = self.__height_ratio
+        width: float | None = event.x * width_ratio if width_ratio is not None else None
+        height: float | None = event.y * height_ratio if height_ratio is not None else None
+
+        if width is not None and height is not None:
+            bg.local_size = (width, height)
+        elif width is not None:
+            bg.local_width = width
+        elif height is not None:
+            bg.local_height = height
+        else:
+            return
+        outline.local_size = bg.local_size
+        return self._on_popup_resize()
 
     @property
     def popup(self) -> MovableProxy:

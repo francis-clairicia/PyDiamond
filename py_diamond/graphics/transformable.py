@@ -6,11 +6,11 @@
 
 from __future__ import annotations
 
-__all__ = ["Transformable", "TransformableMeta", "TransformableProxy"]
+__all__ = ["Transformable", "TransformableMeta", "TransformableProxy", "TransformableProxyMeta"]
 
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Mapping
+from typing import Any, Callable, Mapping
 
 from pygame import error as _pg_error
 
@@ -18,7 +18,7 @@ from ..math import Vector2
 from ..system.object import final
 from ..system.utils.abc import concreteclass
 from ..system.utils.functools import wraps
-from .movable import Movable, MovableMeta, MovableProxy
+from .movable import Movable, MovableMeta, MovableProxy, MovableProxyMeta
 from .rect import Rect
 
 _ALL_VALID_ROTATION_PIVOTS: tuple[str, ...] = (
@@ -310,13 +310,7 @@ class Transformable(Movable, metaclass=TransformableMeta):
         self.scale_to_height(height)
 
 
-if TYPE_CHECKING:
-    from .movable import _MovableProxyMeta
-else:
-    _MovableProxyMeta = type(MovableProxy)
-
-
-class _TransformableProxyMeta(TransformableMeta, _MovableProxyMeta):
+class TransformableProxyMeta(TransformableMeta, MovableProxyMeta):
     def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> Any:
         if "TransformableProxy" not in globals() and name == "TransformableProxy":
             from ..system.utils._mangling import mangle_private_attribute
@@ -369,7 +363,7 @@ class _TransformableProxyMeta(TransformableMeta, _MovableProxyMeta):
 
 
 @concreteclass
-class TransformableProxy(Transformable, MovableProxy, metaclass=_TransformableProxyMeta):
+class TransformableProxy(Transformable, MovableProxy, metaclass=TransformableProxyMeta):
     def __init__(self, transformable: Transformable) -> None:
         MovableProxy.__init__(self, transformable)
 
@@ -388,6 +382,3 @@ class TransformableProxy(Transformable, MovableProxy, metaclass=_TransformablePr
     def _apply_only_scale(self) -> None:
         transformable: Transformable = object.__getattribute__(self, "_object")
         return transformable._apply_only_scale()
-
-
-del _TransformableProxyMeta, _MovableProxyMeta

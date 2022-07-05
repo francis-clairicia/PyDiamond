@@ -20,6 +20,7 @@ __all__ = [
     "Cursor",
     "Dialog",
     "DialogMeta",
+    "Draggable",
     "Event",
     "EventFactory",
     "EventFactoryError",
@@ -115,6 +116,7 @@ from .clock import *
 from .cursor import *
 from .dialog import *
 from .display import *
+from .draggable import *
 from .event import *
 from .gui import *
 from .keyboard import *
