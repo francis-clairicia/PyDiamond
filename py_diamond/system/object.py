@@ -189,6 +189,19 @@ def override(f: Any = ..., /, *, final: bool = False) -> Any:
     return decorator if f is Ellipsis else decorator(f)
 
 
+_MetaClassT = TypeVar("_MetaClassT", bound=type)
+
+
+@overload
+def mro(*bases: type[_T], attr: str = "__mro__") -> tuple[type[_T], ...]:
+    ...
+
+
+@overload
+def mro(*bases: _MetaClassT, attr: str = "__mro__") -> tuple[_MetaClassT, ...]:
+    ...
+
+
 # Ref: https://code.activestate.com/recipes/577748-calculate-the-mro-of-a-class/
 def mro(*bases: type, attr: str = "__mro__") -> tuple[type, ...]:
     """Calculate the Method Resolution Order of bases using the C3 algorithm.
@@ -202,8 +215,7 @@ def mro(*bases: type, attr: str = "__mro__") -> tuple[type, ...]:
     """
     if not bases:
         return ()
-    seqs: list[list[type]] = [list(getattr(C, attr, C.__mro__) if attr != "__mro__" else C.__mro__) for C in bases]
-    seqs += [list(bases)]
+    seqs: list[list[type]] = [list(getattr(C, attr)) for C in bases] + [list(bases)]
     res: list[type] = []
     while True:
         non_empty = list(filter(None, seqs))

@@ -86,14 +86,6 @@ class Mixer(ClassNamespace, frozen=True):
     @overload
     @staticmethod
     def pre_init() -> None:
-        """Preset the mixer init arguments
-
-        Call pre_init to change the defaults used when the real Mixer.init() is called.
-
-        Raise pygame.error if pygame.mixer is already initialized
-
-        See more in pygame documentation: https://www.pygame.org/docs/ref/mixer.html#pygame.mixer.pre_init
-        """
         ...
 
     @overload
@@ -111,6 +103,14 @@ class Mixer(ClassNamespace, frozen=True):
 
     @staticmethod
     def pre_init(**kwargs: Any) -> None:
+        """Preset the mixer init arguments
+
+        Call pre_init to change the defaults used when the real Mixer.init() is called.
+
+        Raise pygame.error if pygame.mixer is already initialized
+
+        See more in pygame documentation: https://www.pygame.org/docs/ref/mixer.html#pygame.mixer.pre_init
+        """
         if _pg_mixer.get_init() is not None:
             raise _pg_error("Mixer module already initialized")
         return _pg_mixer.pre_init(**kwargs)
@@ -118,18 +118,6 @@ class Mixer(ClassNamespace, frozen=True):
     @overload
     @staticmethod
     def init() -> _GeneratorContextManager[MixerParams]:
-        """Initializes the mixer module
-
-        Initialize the pygame.mixer module for Sound loading and playback.
-        The default arguments can be overridden to provide specific audio mixing.
-
-        On context close, this will uninitialize pygame.mixer using pygame.mixer.quit().
-        All playback will stop and any loaded Sound objects may not be compatible with the mixer if it is reinitialized later.
-
-        Raise pygame.error if pygame.mixer is already initialized
-
-        See more in pygame documentation: https://www.pygame.org/docs/ref/mixer.html#pygame.mixer.init
-        """
         ...
 
     @overload
@@ -149,6 +137,18 @@ class Mixer(ClassNamespace, frozen=True):
     @staticmethod
     @contextmanager
     def init(**kwargs: Any) -> Iterator[MixerParams]:
+        """Initializes the mixer module
+
+        Initialize the pygame.mixer module for Sound loading and playback.
+        The default arguments can be overridden to provide specific audio mixing.
+
+        On context close, this will uninitialize pygame.mixer using pygame.mixer.quit().
+        All playback will stop and any loaded Sound objects may not be compatible with the mixer if it is reinitialized later.
+
+        Raise pygame.error if pygame.mixer is already initialized
+
+        See more in pygame documentation: https://www.pygame.org/docs/ref/mixer.html#pygame.mixer.init
+        """
         if _pg_mixer.get_init() is not None:
             raise _pg_error("Mixer module already initialized")
 
@@ -270,12 +270,6 @@ class Mixer(ClassNamespace, frozen=True):
     @overload
     @staticmethod
     def find_channel(force: L[False] = ...) -> Channel | None:
-        """Find an unused channel
-
-        This will find and return an inactive Channel object. If there are no inactive Channels this function will return None.
-        If there are no inactive channels and the force argument is True, this will find the Channel with the longest
-        running Sound and return it.
-        """
         ...
 
     @overload
@@ -290,6 +284,12 @@ class Mixer(ClassNamespace, frozen=True):
 
     @staticmethod
     def find_channel(force: bool = False) -> Channel | None:
+        """Find an unused channel
+
+        This will find and return an inactive Channel object. If there are no inactive Channels this function will return None.
+        If there are no inactive channels and the force argument is True, this will find the Channel with the longest
+        running Sound and return it.
+        """
         return _pg_mixer.find_channel(force)
 
 

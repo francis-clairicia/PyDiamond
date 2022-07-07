@@ -25,7 +25,7 @@ from collections import OrderedDict, defaultdict, deque
 from contextlib import nullcontext, suppress
 from functools import cached_property
 from inspect import Parameter, Signature
-from itertools import chain, filterfalse
+from itertools import chain
 from re import compile as re_compile
 from threading import RLock
 from types import FunctionType, LambdaType, MappingProxyType
@@ -375,25 +375,18 @@ class _ThemedObjectMROResolver(Object):
             mro: tuple[ThemedObjectMeta, ...] = lru_cache.get(cache_key, null)
             if mro is not null:
                 lru_cache.move_to_end(cache_key)
-                return mro
-            lru_cache[cache_key] = mro = self.resolve(obj)
-            if len(lru_cache) > self.__max_size:
-                lru_cache.popitem(last=False)
+            else:
+                lru_cache[cache_key] = mro = self.resolve(obj)
+                if len(lru_cache) > self.__max_size:
+                    lru_cache.popitem(last=False)
             return mro
 
     def resolve(self, cls: ThemedObjectMeta) -> tuple[ThemedObjectMeta, ...]:
         name: str | None = self.__name
         if name is None:
             raise TypeError("__set_name__() was not called")
-        cls_mro: Sequence[type]
-        try:
-            # Will work in most common cases
-            cls_mro = (cls,) + mro(*cls.__virtual_themed_class_bases__, *cls.__bases__, attr=name)
-        except TypeError:
-            # Try in the inverse order ?
-            cls_mro = (cls,) + mro(*cls.__bases__, *cls.__virtual_themed_class_bases__, attr=name)
-
-        return tuple(c for c in cls_mro if isinstance(c, ThemedObjectMeta))
+        real_themed_class_bases: tuple[ThemedObjectMeta, ...] = tuple(c for c in cls.__bases__ if isinstance(c, ThemedObjectMeta))
+        return (cls,) + mro(*real_themed_class_bases, *cls.__virtual_themed_class_bases__, attr=name)
 
 
 class ThemedObjectMeta(ObjectMeta):
@@ -557,7 +550,7 @@ class ThemedObjectMeta(ObjectMeta):
             parameters: Mapping[str, Parameter] = sig.parameters
             has_kwargs: bool = any(param.kind == Parameter.VAR_KEYWORD for param in parameters.values())
 
-            for option in filterfalse(ignored_parameters.__contains__, list(options)):
+            for option in list(options):
                 if option not in parameters:
                     if not has_kwargs:
                         if not ignore_unusable:
@@ -743,6 +736,7 @@ class ThemedObjectMeta(ObjectMeta):
             raise TypeError("Already a themed subclass")
         virtual_themed_class_bases = (*subclass.__virtual_themed_class_bases__, cls)
         super(ThemedObjectMeta, subclass).__setattr__("__virtual_themed_class_bases__", virtual_themed_class_bases)
+        subclass.__class__.__themed_class_mro__.__get__(subclass)  # Compute it now to check if add it will work
         if not getattr(subclass, "_no_parent_theme_", False):
             cls.__CLASSES_NOT_USING_PARENT_THEMES.discard(subclass)
         if not getattr(subclass, "_no_parent_default_theme_", False):
