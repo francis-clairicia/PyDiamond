@@ -258,8 +258,10 @@ class BaseDrawableGroup(Sequence[_D]):
                     d.remove_from_group(self)
 
     def pop(self, index: int = -1) -> _D:
+        assert isinstance(index, int)
         drawable_list: MutableSequence[_D] = self.__list
-        d: _D = drawable_list.pop(index)
+        d: _D = drawable_list[index]  # deque.pop() does not accept argument
+        del drawable_list[index]
         if self in d.groups:
             with suppress(ValueError):
                 d.remove_from_group(self)

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = [
     "BoundFocus",
-    "BoundFocusProxy",
     "FocusableContainer",
     "GUIScene",
     "NoFocusSupportError",
@@ -18,7 +17,7 @@ __all__ = [
 import weakref
 from abc import abstractmethod
 from enum import auto, unique
-from types import FunctionType, LambdaType, MappingProxyType
+from types import MappingProxyType
 from typing import (
     Any,
     Callable,
@@ -34,13 +33,11 @@ from typing import (
     runtime_checkable,
 )
 
-from ..graphics.drawable import Drawable
 from ..graphics.theme import no_theme_decorator
 from ..system.collections import OrderedWeakSet
 from ..system.enum import AutoLowerNameEnum
 from ..system.object import final
-from ..system.utils._mangling import getattr_pv
-from ..system.utils.functools import setdefaultattr, wraps
+from ..system.utils.functools import setdefaultattr
 from ..system.utils.weakref import weakref_unwrap
 from .event import (
     Event,
@@ -87,8 +84,6 @@ class GUIScene(Scene):
         if not self.looping():
             return None
         focus_index: int = self.__focus_index
-        if focus_index < 0:
-            return None
         try:
             focusable: SupportsFocus = self.__container[focus_index]
         except IndexError:
@@ -143,26 +138,24 @@ class GUIScene(Scene):
         focus_index: int = self.__focus_index
         if focusable is None:
             self.__focus_index = -1
-            if focus_index >= 0:
-                try:
-                    focusable = focusable_list[focus_index]
-                except IndexError:
-                    pass
-                else:
-                    self.__on_focus_leave(focusable)
+            try:
+                focusable = focusable_list[focus_index]
+            except IndexError:
+                pass
+            else:
+                self.__on_focus_leave(focusable)
             return None
         if focusable not in focusable_list or not focusable.focus.take():
             return False
         self.__focus_index = focusable_list.index(focusable)
-        if focus_index >= 0:
-            try:
-                actual_focusable: SupportsFocus = focusable_list[focus_index]
-            except IndexError:
-                pass
-            else:
-                if actual_focusable is focusable:
-                    return True
-                self.__on_focus_leave(actual_focusable)
+        try:
+            actual_focusable: SupportsFocus = focusable_list[focus_index]
+        except IndexError:
+            pass
+        else:
+            if actual_focusable is focusable:
+                return True
+            self.__on_focus_leave(actual_focusable)
         self.__on_focus_set(focusable)
         return True
 
@@ -218,7 +211,7 @@ class GUIScene(Scene):
         if obj is None:
             self.focus_next()
             return
-        while (obj := obj.focus.get_obj_on_side(side)) is not None and not obj.focus.take():  # type: ignore[union-attr]
+        while ((obj := obj.focus.get_obj_on_side(side)) is not None) and not obj.focus.take():  # type: ignore[union-attr]
             continue
         if obj is not None:
             self.focus_set(obj)
@@ -231,6 +224,10 @@ class GUIScene(Scene):
 
 @runtime_checkable
 class _HasFocusMethods(Protocol):
+    @abstractmethod
+    def is_shown(self) -> bool:
+        raise NotImplementedError
+
     def _on_focus_set(self) -> None:
         pass
 
@@ -310,12 +307,9 @@ class BoundFocus:
             if scene is not None:
                 scene.focus_get()  # Force update
             return None
-        if scene is None:
+        if scene is None or not f.is_shown():
             return False
-        taken: bool = bool(getattr(f, "_take_focus_", False))
-        if isinstance(f, Drawable):
-            taken = taken and f.is_shown()
-        return taken
+        return bool(getattr(f, "_take_focus_", False))
 
     def set(self) -> bool:
         return scene.focus_set(self.__self__) if (scene := self.__scene) else False
@@ -450,88 +444,6 @@ class BoundFocus:
         return weakref_unwrap(self.__f)
 
 
-class _BoundFocusProxyMeta(type):
-    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _BoundFocusProxyMeta:
-        if "BoundFocusProxy" in globals() and not any(issubclass(cls, BoundFocusProxy) for cls in bases):
-            raise TypeError(
-                f"{name!r} must inherit from a {BoundFocusProxy.__name__} class in order to use {_BoundFocusProxyMeta.__name__} metaclass"
-            )
-
-        if "BoundFocusProxy" not in globals() and name == "BoundFocusProxy":
-            FOCUS_OBJ_ATTR = f"_{name}__focus"
-
-            def proxy_method_wrapper(method_name: str, func: Callable[..., Any]) -> Callable[..., Any]:
-                @wraps(func)
-                def wrapper(self: BoundFocusProxy, /, *args: Any, **kwargs: Any) -> Any:
-                    focus: BoundFocus = object.__getattribute__(self, FOCUS_OBJ_ATTR)
-                    method: Callable[..., Any] = getattr(focus, method_name)
-                    return method(*args, **kwargs)
-
-                return wrapper
-
-            def proxy_property_wrapper(name: str, obj: property) -> property:
-                if callable(obj.fget):
-
-                    @wraps(obj.fget)
-                    def getter(self: BoundFocusProxy, /) -> Any:
-                        focus: BoundFocus = object.__getattribute__(self, FOCUS_OBJ_ATTR)
-                        return getattr(focus, name)
-
-                    obj = obj.getter(getter)
-
-                if callable(obj.fset):
-
-                    @wraps(obj.fset)
-                    def setter(self: BoundFocusProxy, value: Any, /) -> None:
-                        focus: BoundFocus = object.__getattribute__(self, FOCUS_OBJ_ATTR)
-                        return setattr(focus, name, value)
-
-                    obj = obj.setter(setter)
-
-                if callable(obj.fdel):
-
-                    @wraps(obj.fdel)
-                    def deleter(self: BoundFocusProxy, /) -> None:
-                        focus: BoundFocus = object.__getattribute__(self, FOCUS_OBJ_ATTR)
-                        return delattr(focus, name)
-
-                    obj = obj.deleter(deleter)
-
-                return obj
-
-            ignored_attributes = [
-                "__init__",
-            ]
-
-            for attr_name, attr_obj in vars(BoundFocus).items():
-                if attr_name in ignored_attributes:
-                    continue
-                if isinstance(attr_obj, property):
-                    namespace[attr_name] = proxy_property_wrapper(attr_name, attr_obj)
-                elif isinstance(attr_obj, (FunctionType, LambdaType)):
-                    namespace[attr_name] = proxy_method_wrapper(attr_name, attr_obj)
-
-        return super().__new__(mcs, name, bases, namespace, **kwargs)
-
-
-class BoundFocusProxy(BoundFocus, metaclass=_BoundFocusProxyMeta):
-
-    __slots__ = ("__focus",)
-
-    def __init__(self, focus: BoundFocus) -> None:
-        super().__init__(focus.__self__, getattr_pv(focus, "scene", None, owner=BoundFocus))
-        self.__focus: BoundFocus = focus
-
-    def __getattr__(self, name: str, /) -> Any:
-        return self.__focus.__getattribute__(name)
-
-    def __setattr__(self, name: str, value: Any, /) -> None:
-        return self.__focus.__setattr__(name, value)
-
-    def __delattr__(self, name: str, /) -> None:
-        return self.__focus.__delattr__(name)
-
-
 _SIDE_WITH_KEY_EVENT: Final[MappingProxyType[int, BoundFocus.Side]] = MappingProxyType(
     {
         Keyboard.Key.LEFT: BoundFocus.Side.ON_LEFT,
@@ -575,6 +487,8 @@ class FocusableContainer(Sequence[SupportsFocus]):
         ...
 
     def __getitem__(self, index: int | slice, /) -> SupportsFocus | Sequence[SupportsFocus]:
+        if not isinstance(index, slice) and index < 0:
+            raise IndexError("list index out of range")
         return self.__list[index]
 
     def add(self, focusable: SupportsFocus | BoundFocus) -> None:
@@ -608,6 +522,3 @@ class FocusableContainer(Sequence[SupportsFocus]):
 
     def count(self, value: Any) -> int:
         return self.__list.count(value)
-
-
-del _BoundFocusProxyMeta

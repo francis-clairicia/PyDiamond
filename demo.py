@@ -70,7 +70,6 @@ from py_diamond.window.keyboard import Keyboard
 from py_diamond.window.mouse import Mouse
 from py_diamond.window.scene import (
     AbstractAutoLayeredDrawableScene,
-    AbstractLayeredMainScene,
     MainScene,
     RenderedLayeredScene,
     Scene,
@@ -853,7 +852,7 @@ class EntryScene(MainScene):
 LOREM_IPSUM = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin euismod justo ac pharetra fermentum. Duis neque massa, commodo eu est vel, dignissim interdum eros. Nulla augue ex, blandit ac magna dapibus, dignissim venenatis massa. Donec tempus laoreet eros tristique rhoncus. Sed eget metus vitae purus ultricies semper. Suspendisse sodales rhoncus quam ac aliquam. Duis quis elit rhoncus, condimentum dolor nec, elementum lorem. Integer placerat dui orci, in ultricies nulla viverra ac. Morbi at justo eu libero rutrum dignissim a in velit. Suspendisse magna odio, fermentum vel tortor eget, condimentum sagittis ex. Vivamus tristique venenatis purus, at pharetra erat lobortis id. Pellentesque tincidunt bibendum erat, ac faucibus ligula semper vitae. Vestibulum ac quam in nulla tristique congue id quis lectus. Sed fermentum hendrerit velit."
 
 
-class ScrollBarScene(RenderedLayeredScene, AbstractAutoLayeredDrawableScene, AbstractLayeredMainScene):
+class ScrollBarScene(RenderedLayeredScene, AbstractAutoLayeredDrawableScene, MainScene):
     window: MainWindow
 
     def awake(self, **kwargs: Any) -> None:
@@ -1126,7 +1125,7 @@ class AudioScene(MainScene):
         return super().on_quit()
 
 
-class GUIAudioScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableScene, AbstractLayeredMainScene):
+class GUIAudioScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableScene, MainScene):
     @classmethod
     def __theme_init__(cls) -> None:
         super().__theme_init__()

@@ -9,11 +9,9 @@ from __future__ import annotations
 __all__ = [
     "AbstractAutoLayeredDrawableScene",
     "AbstractCursor",
-    "AbstractLayeredMainScene",
     "AbstractLayeredScene",
     "AbstractWidget",
     "BoundFocus",
-    "BoundFocusProxy",
     "BuiltinEvent",
     "Clickable",
     "Clock",

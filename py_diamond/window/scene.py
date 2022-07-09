@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = [
     "AbstractAutoLayeredDrawableScene",
-    "AbstractLayeredMainScene",
     "AbstractLayeredScene",
     "MainScene",
     "MainSceneMeta",
@@ -256,6 +255,9 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
 
     @abstractmethod
     def awake(self, **kwargs: Any) -> None:
+        pass
+
+    def on_restart(self, **kwargs: Any) -> None:
         pass
 
     def on_start_loop_before_transition(self) -> None:
@@ -525,10 +527,6 @@ class AbstractAutoLayeredDrawableScene(AbstractLayeredScene):
         super().__delattr__(name)
         if value is not _MISSING and isinstance(value, Drawable) and value in group:
             group.remove(value)
-
-
-class AbstractLayeredMainScene(AbstractLayeredScene, MainScene):
-    pass
 
 
 class SceneWindow(Window):
@@ -849,28 +847,36 @@ class _SceneManager:
         return scene
 
     def _delete_scene(self, scene: Scene) -> None:
-        with scene.destroy_exit_stack:
+        try:
             scene.on_quit_exit_stack.close()
-            scene.__del_scene__()
+            with scene.destroy_exit_stack.pop_all():
+                scene.__del_scene__()
+        finally:
+            self.__awaken.discard(scene)
+            scene_cls = scene.__class__
+            if self.__all_scenes.get(scene_cls) is scene:
+                self.__all_scenes.pop(scene_cls)
 
     def _awake_scene(self, scene: Scene, awake_kwargs: dict[str, Any]) -> None:
-        scene.awake(**awake_kwargs)
-        self.__awaken.add(scene)
+        if scene not in self.__awaken:
+            scene.awake(**awake_kwargs)
+            self.__awaken.add(scene)
+        else:
+            scene.on_restart(**awake_kwargs)
 
-    def _destroy_awaken_scene(self, scene: Scene) -> None:
-        with scene.on_quit_exit_stack:
+    def _exit_scene(self, scene: Scene) -> None:
+        with scene.on_quit_exit_stack.pop_all():
             scene.on_quit()
-        self.__awaken.discard(scene)
 
     @contextmanager
     def closing_scenes(self, *scenes: Scene) -> Iterator[None]:
+        if tuple(set(scenes)) != scenes:
+            raise ValueError("Duplicates found")
         with ExitStack() as stack:
-            all_scenes = self.__all_scenes
             for scene in scenes:
                 if not self.started(scene):
-                    stack.callback(lambda scene: all_scenes.pop(scene, None), scene.__class__)
                     stack.callback(self._delete_scene, scene)
-                stack.callback(self._destroy_awaken_scene, scene)
+                stack.callback(self._exit_scene, scene)
             yield
 
     def __iter__(self) -> Iterator[Scene]:
@@ -938,8 +944,6 @@ class _SceneManager:
             raise TypeError(f"{scene_cls.__name__} is an abstract class")
         if issubclass(scene_cls, Dialog):
             raise TypeError(f"{scene_cls.__name__} must be opened with open_dialog()")
-        if awake_kwargs is None:
-            awake_kwargs = {}
         try:
             next_scene = self.__all_scenes[scene_cls]
         except KeyError:
@@ -948,11 +952,11 @@ class _SceneManager:
         actual_scene = stack[0] if stack else None
         if actual_scene is next_scene:
             raise _SceneManager.SameScene(actual_scene)
+        self._awake_scene(next_scene, awake_kwargs or {})
         scene_transition: Callable[[AbstractRenderer, Surface, Surface], SceneTransitionCoroutine] | None = None
         closing_scenes: list[Scene] = []
         if actual_scene is None or next_scene not in stack:
             stack.insert(0, next_scene)
-            self._awake_scene(next_scene, awake_kwargs)
             if actual_scene is not None:
                 if isinstance(transition, ReturningSceneTransitionProtocol):
                     self.__returning_transitions[actual_scene.__class__] = transition
@@ -961,7 +965,6 @@ class _SceneManager:
                 if remove_actual:
                     stack.remove(actual_scene)
         else:
-            self._awake_scene(next_scene, awake_kwargs)
             returning_transition = self.__returning_transitions.pop(scene_cls, None)
             while stack[0] is not next_scene:
                 closed_scene = stack.popleft()
@@ -1006,7 +1009,7 @@ class _SceneManager:
             dialogs_stack.insert(0, dialog)
             exit_stack.callback(dialogs_stack.remove, dialog)
             self._awake_scene(dialog, awake_kwargs)
-            exit_stack.callback(self._destroy_awaken_scene, dialog)
+            exit_stack.callback(self._exit_scene, dialog)
 
             window = self.window
             dialog.on_start_loop_before_transition()
