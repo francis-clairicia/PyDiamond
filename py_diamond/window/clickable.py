@@ -14,6 +14,8 @@ from enum import auto, unique
 from typing import TYPE_CHECKING, Any, TypeVar
 from weakref import WeakMethod
 
+from typing_extensions import assert_never
+
 from ..audio.sound import Sound
 from ..system.enum import AutoLowerNameEnum
 from ..system.object import Object
@@ -35,7 +37,7 @@ class Clickable(Object):
 
     def __init__(
         self,
-        master: Scene | Window,
+        master: Clickable | Scene | Window,
         *,
         state: str = "normal",
         hover_sound: Sound | None = None,
@@ -44,12 +46,19 @@ class Clickable(Object):
         hover_cursor: AbstractCursor | None = None,
         disabled_cursor: AbstractCursor | None = None,
     ) -> None:
-        self.__master: Scene | Window = master
+        if master is self:
+            raise RecursionError("master is self")
+        self.__master: Clickable | Scene | Window = master
         self.__scene: Scene | None
-        if isinstance(master, Scene):
-            self.__scene = master
-        else:
-            self.__scene = None
+        match master:
+            case Clickable():
+                self.__scene = master.__scene
+            case Scene():
+                self.__scene = master
+            case Window():
+                self.__scene = None
+            case _:
+                assert_never(master)
         self.__state: Clickable.State = Clickable.State.NORMAL
         self.__hover: bool = False
         self.__active: bool = False
@@ -212,12 +221,12 @@ class Clickable(Object):
         pass
 
     @property
-    def master(self) -> Scene | Window:
+    def master(self) -> Clickable | Scene | Window:
         return self.__master
 
     @property
     def window(self) -> Window:
-        master: Scene | Window = self.__master
+        master: Clickable | Scene | Window = self.__master
         if isinstance(master, Window):
             return master
         return master.window

@@ -527,7 +527,7 @@ class AnimatedSpriteScene(MainScene):
         self.window.draw(self.sprite)
 
 
-class DraggableSprite(Sprite, Draggable["DraggableSprite"]):
+class DraggableSprite(Sprite, Draggable):
     def __init__(
         self,
         master: Scene | Window,
@@ -537,7 +537,13 @@ class DraggableSprite(Sprite, Draggable["DraggableSprite"]):
         height: float | None = None,
     ) -> None:
         Sprite.__init__(self, image, width=width, height=height)
-        Draggable.__init__(self, master=master, target=self)
+        Draggable.__init__(self, master=master)
+
+    def invoke(self) -> None:
+        pass
+
+    def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
+        return self.rect.collidepoint(mouse_pos)
 
 
 class SpriteCollisionScene(MainScene):
@@ -1201,11 +1207,11 @@ class MyDialog(PopupDialog, GUIScene):
 
     def awake(self, **kwargs: Any) -> None:
         print(kwargs)
-        super().awake(border_radius=30, **kwargs)
+        super().awake(border_radius=30, draggable=True, **kwargs)
         self.background_color = BLACK.with_alpha(200)
         self.event.bind_key_press(Keyboard.Key.ESCAPE, lambda _: self.stop())
         self.cancel = ImageButton(
-            self,
+            self if self.draggable_popup is None else self.draggable_popup,
             img=ImagesResources.cross["normal"],
             active_img=ImagesResources.cross["hover"],
             callback=self.stop,
@@ -1229,10 +1235,6 @@ class MyDialog(PopupDialog, GUIScene):
         self.cancel.topleft = (self.popup.left + 20, self.popup.top + 20)
         self.text.center = self.popup.center
         return super().update()
-
-    def _on_popup_resize(self) -> None:
-        self.popup.center = self.window.center
-        return super()._on_popup_resize()
 
     def _render(self) -> None:
         self.window.draw(self.cancel, self.text)

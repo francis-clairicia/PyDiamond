@@ -549,6 +549,10 @@ class ScreenshotEvent(BuiltinEvent):
     filepath: str
     screen: Surface
 
+    def to_dict(self) -> dict[str, Any]:
+        # dataclasses.as_dict() calls copy.deepcopy() but a Surface is not pickleable
+        return {"filepath": self.filepath, "screen": self.screen}
+
 
 def _check_event_types_association() -> None:
     if unbound_types := set(filter(lambda e: e not in _BUILTIN_PYGAME_EVENT_TYPE, BuiltinEvent.Type)):
@@ -560,11 +564,6 @@ def _check_event_types_association() -> None:
 _check_event_types_association()
 
 del _check_event_types_association
-
-_EventCallback: TypeAlias = Callable[[Event], bool | None]
-_TE = TypeVar("_TE", bound=Event)
-
-_MousePositionCallback: TypeAlias = Callable[[tuple[float, float]], Any]
 
 
 class EventFactoryError(Exception):
@@ -600,6 +599,12 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
         return _PygameEvent(int(event_type), event_dict)
 
 
+_EventCallback: TypeAlias = Callable[[Event], bool | None]
+_TE = TypeVar("_TE", bound=Event)
+
+_MousePositionCallback: TypeAlias = Callable[[tuple[float, float]], Any]
+
+
 class EventManager:
 
     __slots__ = (
@@ -616,10 +621,10 @@ class EventManager:
 
     def __init__(self) -> None:
         self.__event_handler_dict: dict[type[Event], list[_EventCallback]] = dict()
-        self.__key_pressed_handler_dict: dict[Keyboard.Key, list[_EventCallback]] = dict()
-        self.__key_released_handler_dict: dict[Keyboard.Key, list[_EventCallback]] = dict()
-        self.__mouse_button_pressed_handler_dict: dict[Mouse.Button, list[_EventCallback]] = dict()
-        self.__mouse_button_released_handler_dict: dict[Mouse.Button, list[_EventCallback]] = dict()
+        self.__key_pressed_handler_dict: dict[Keyboard.Key, Callable[[KeyDownEvent], Any]] = dict()
+        self.__key_released_handler_dict: dict[Keyboard.Key, Callable[[KeyUpEvent], Any]] = dict()
+        self.__mouse_button_pressed_handler_dict: dict[Mouse.Button, Callable[[MouseButtonDownEvent], Any]] = dict()
+        self.__mouse_button_released_handler_dict: dict[Mouse.Button, Callable[[MouseButtonUpEvent], Any]] = dict()
         self.__mouse_pos_handler_list: list[_MousePositionCallback] = list()
         self.__other_manager_list: list[EventManager] = list()
         self.__priority_callback: dict[type[Event], _EventCallback] = dict()
@@ -667,6 +672,16 @@ class EventManager:
         with suppress(KeyError, ValueError):
             handler_dict[key].remove(cast(_EventCallback, callback))
 
+    @staticmethod
+    def __bind_single(handler_dict: dict[_T, Callable[[_TE], Any]], key: _T, callback: Callable[[_TE], Any]) -> None:
+        if key in handler_dict and handler_dict[key] is not callback:
+            raise ValueError(f"Conflict when setting {key!r}: a callback is already registered")
+        handler_dict[key] = callback
+
+    @staticmethod
+    def __unbind_single(handler_dict: dict[_T, Callable[[_TE], Any]], key: _T) -> None:
+        handler_dict.pop(key, None)
+
     def bind(self, event_cls: type[_TE], callback: Callable[[_TE], bool | None]) -> None:
         if not issubclass(event_cls, Event):
             raise TypeError("Invalid argument")
@@ -702,40 +717,40 @@ class EventManager:
         self.bind_key_release(key, callback)
 
     def bind_key_press(self, key: Keyboard.Key, callback: Callable[[KeyDownEvent], Any]) -> None:
-        EventManager.__bind(self.__key_pressed_handler_dict, Keyboard.Key(key), callback)
+        EventManager.__bind_single(self.__key_pressed_handler_dict, Keyboard.Key(key), callback)
 
     def bind_key_release(self, key: Keyboard.Key, callback: Callable[[KeyUpEvent], Any]) -> None:
-        EventManager.__bind(self.__key_released_handler_dict, Keyboard.Key(key), callback)
+        EventManager.__bind_single(self.__key_released_handler_dict, Keyboard.Key(key), callback)
 
-    def unbind_key(self, key: Keyboard.Key, callback_to_remove: Callable[[KeyEvent], Any]) -> None:
-        self.unbind_key_press(key, callback_to_remove)
-        self.unbind_key_release(key, callback_to_remove)
+    def unbind_key(self, key: Keyboard.Key) -> None:
+        self.unbind_key_press(key)
+        self.unbind_key_release(key)
 
-    def unbind_key_press(self, key: Keyboard.Key, callback_to_remove: Callable[[KeyDownEvent], Any]) -> None:
-        EventManager.__unbind(self.__key_pressed_handler_dict, Keyboard.Key(key), callback_to_remove)
+    def unbind_key_press(self, key: Keyboard.Key) -> None:
+        EventManager.__unbind_single(self.__key_pressed_handler_dict, Keyboard.Key(key))
 
-    def unbind_key_release(self, key: Keyboard.Key, callback_to_remove: Callable[[KeyUpEvent], Any]) -> None:
-        EventManager.__unbind(self.__key_released_handler_dict, Keyboard.Key(key), callback_to_remove)
+    def unbind_key_release(self, key: Keyboard.Key) -> None:
+        EventManager.__unbind_single(self.__key_released_handler_dict, Keyboard.Key(key))
 
     def bind_mouse_button(self, button: Mouse.Button, callback: Callable[[MouseButtonEvent], Any]) -> None:
         self.bind_mouse_button_press(button, callback)
         self.bind_mouse_button_release(button, callback)
 
     def bind_mouse_button_press(self, button: Mouse.Button, callback: Callable[[MouseButtonDownEvent], Any]) -> None:
-        EventManager.__bind(self.__mouse_button_pressed_handler_dict, Mouse.Button(button), callback)
+        EventManager.__bind_single(self.__mouse_button_pressed_handler_dict, Mouse.Button(button), callback)
 
     def bind_mouse_button_release(self, button: Mouse.Button, callback: Callable[[MouseButtonUpEvent], Any]) -> None:
-        EventManager.__bind(self.__mouse_button_released_handler_dict, Mouse.Button(button), callback)
+        EventManager.__bind_single(self.__mouse_button_released_handler_dict, Mouse.Button(button), callback)
 
-    def unbind_mouse_button(self, button: Mouse.Button, callback_to_remove: Callable[[MouseButtonEvent], Any]) -> None:
-        self.unbind_mouse_button_press(button, callback_to_remove)
-        self.unbind_mouse_button_release(button, callback_to_remove)
+    def unbind_mouse_button(self, button: Mouse.Button) -> None:
+        self.unbind_mouse_button_press(button)
+        self.unbind_mouse_button_release(button)
 
-    def unbind_mouse_button_press(self, button: Mouse.Button, callback_to_remove: Callable[[MouseButtonDownEvent], Any]) -> None:
-        EventManager.__unbind(self.__mouse_button_pressed_handler_dict, Mouse.Button(button), callback_to_remove)
+    def unbind_mouse_button_press(self, button: Mouse.Button) -> None:
+        EventManager.__unbind_single(self.__mouse_button_pressed_handler_dict, Mouse.Button(button))
 
-    def unbind_mouse_button_release(self, button: Mouse.Button, callback_to_remove: Callable[[MouseButtonUpEvent], Any]) -> None:
-        EventManager.__unbind(self.__mouse_button_released_handler_dict, Mouse.Button(button), callback_to_remove)
+    def unbind_mouse_button_release(self, button: Mouse.Button) -> None:
+        EventManager.__unbind_single(self.__mouse_button_released_handler_dict, Mouse.Button(button))
 
     def bind_mouse_position(self, callback: _MousePositionCallback) -> None:
         mouse_pos_handler_list: list[_MousePositionCallback] = self.__mouse_pos_handler_list
@@ -764,18 +779,7 @@ class EventManager:
             self.__priority_manager.pop(event_type)
 
     def process_event(self, event: Event) -> bool:
-        if isinstance(event, (KeyUpEvent, KeyDownEvent)):
-            self.__handle_key_event(event)
-        elif isinstance(event, (MouseButtonUpEvent, MouseButtonDownEvent)):
-            self.__handle_mouse_event(event)
-
         event_type: type[Event] = type(event)
-
-        priority_callback: _EventCallback | None = self.__priority_callback.get(event_type)
-        if priority_callback is not None:
-            if priority_callback(event):
-                return True
-            del self.__priority_callback[event_type]
 
         priority_manager: EventManager | None = self.__priority_manager.get(event_type)
         if priority_manager is not None:
@@ -783,50 +787,65 @@ class EventManager:
                 return True
             del self.__priority_manager[event_type]
 
+        for manager in self.__other_manager_list:
+            if manager is not priority_manager and manager.process_event(event):
+                self.__priority_manager[event_type] = manager
+                return True
+
+        # mypy does not handle isinstance() with TypeAlias of UnionTypes yet
+        if isinstance(event, KeyEvent):  # type: ignore[arg-type,misc]
+            if self.__handle_key_event(event):  # type: ignore[arg-type]
+                return True
+        elif isinstance(event, MouseButtonEvent):  # type: ignore[arg-type,misc]
+            if self.__handle_mouse_event(event):  # type: ignore[arg-type]
+                return True
+
+        priority_callback: _EventCallback | None = self.__priority_callback.get(event_type)
+        if priority_callback is not None:
+            if priority_callback(event):
+                return True
+            del self.__priority_callback[event_type]
+
         event_dict: dict[type[Event], list[_EventCallback]] = self.__event_handler_dict
         for callback in event_dict.get(event_type, ()):
             if callback is not priority_callback and callback(event):
                 self.__priority_callback[event_type] = callback
                 return True
-        for manager in self.__other_manager_list:
-            if manager is not priority_manager and manager.process_event(event):
-                self.__priority_manager[event_type] = manager
-                return True
         return False
 
     def handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
-        for callback in self.__mouse_pos_handler_list:
-            callback(mouse_pos)
         for manager in self.__other_manager_list:
             manager.handle_mouse_position(mouse_pos)
+        for callback in self.__mouse_pos_handler_list:
+            callback(mouse_pos)
 
-    def __handle_key_event(self, event: KeyEvent) -> None:
-        key_handler_dict: dict[Keyboard.Key, list[_EventCallback]] | None = None
-        if event.type == BuiltinEvent.Type.KEYDOWN:
-            key_handler_dict = self.__key_pressed_handler_dict
-        elif event.type == BuiltinEvent.Type.KEYUP:
-            key_handler_dict = self.__key_released_handler_dict
-        if key_handler_dict:
-            try:
-                key = Keyboard.Key(event.key)
-            except ValueError:
-                return None
-            for callback in key_handler_dict.get(key, ()):
-                callback(event)
+    def __handle_key_event(self, event: KeyEvent) -> bool:
+        try:
+            key = Keyboard.Key(event.key)
+        except ValueError:
+            return False
+        match event:
+            case KeyDownEvent() if key in self.__key_pressed_handler_dict:
+                self.__key_pressed_handler_dict[key](event)
+                return True
+            case KeyUpEvent() if key in self.__key_released_handler_dict:
+                self.__key_released_handler_dict[key](event)
+                return True
+        return False
 
-    def __handle_mouse_event(self, event: MouseButtonEvent) -> None:
-        mouse_handler_dict: dict[Mouse.Button, list[_EventCallback]] | None = None
-        if event.type == BuiltinEvent.Type.MOUSEBUTTONDOWN:
-            mouse_handler_dict = self.__mouse_button_pressed_handler_dict
-        elif event.type == BuiltinEvent.Type.MOUSEBUTTONUP:
-            mouse_handler_dict = self.__mouse_button_released_handler_dict
-        if mouse_handler_dict:
-            try:
-                mouse_button = Mouse.Button(event.button)
-            except ValueError:
-                return None
-            for callback in mouse_handler_dict.get(mouse_button, ()):
-                callback(event)
+    def __handle_mouse_event(self, event: MouseButtonEvent) -> bool:
+        try:
+            mouse_button = Mouse.Button(event.button)
+        except ValueError:
+            return False
+        match event:
+            case MouseButtonDownEvent() if mouse_button in self.__mouse_button_pressed_handler_dict:
+                self.__mouse_button_pressed_handler_dict[mouse_button](event)
+                return True
+            case MouseButtonUpEvent() if mouse_button in self.__mouse_button_released_handler_dict:
+                self.__mouse_button_released_handler_dict[mouse_button](event)
+                return True
+        return False
 
 
 _U = TypeVar("_U")

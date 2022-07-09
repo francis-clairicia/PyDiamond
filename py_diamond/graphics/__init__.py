@@ -127,7 +127,6 @@ __all__ = [
     "set_default_theme_namespace",
 ]
 
-import copyreg
 import os
 import typing
 
@@ -154,7 +153,7 @@ pygame.transform.set_smoothscale_backend(
 )
 
 ############ Cleanup ############
-del os, typing, pygame, copyreg
+del os, typing, pygame
 
 
 ############ Package initialization ############

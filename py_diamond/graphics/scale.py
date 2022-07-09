@@ -22,6 +22,7 @@ from .progress import ProgressBar
 
 if TYPE_CHECKING:
     from ..audio.sound import Sound
+    from ..window.clickable import Clickable
     from ..window.cursor import AbstractCursor
     from ..window.display import Window
     from ..window.scene import Scene
@@ -54,7 +55,7 @@ class ScaleBar(ProgressBar, AbstractWidget):
     @initializer
     def __init__(
         self,
-        master: Scene | Window,
+        master: AbstractWidget | Clickable | Scene | Window,
         width: float,
         height: float,
         *,

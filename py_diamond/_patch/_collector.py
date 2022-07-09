@@ -164,9 +164,9 @@ class _PatchCollectorType:
                 importer_name = globals.get("__name__", None)
                 importer_path = globals.get("__file__", None)
                 resolved_name = name
-                if level > 0 and "__package__" in globals:
-                    actual_package = str(globals["__package__"])
-                    for _ in range(level - 1):
+                if level > 0:
+                    actual_package = str(globals["__name__"])
+                    for _ in range(level):
                         actual_package = actual_package.rpartition(".")[0]
                     resolved_name = f"{actual_package}.{name}"
                 if patch_package not in resolved_name and (forbidden_module := is_forbidden_module(resolved_name)):

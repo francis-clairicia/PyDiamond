@@ -22,6 +22,7 @@ from .theme import ThemedObjectMeta, ThemeType
 
 if TYPE_CHECKING:
     from ..audio.sound import Sound
+    from ..window.clickable import Clickable
     from ..window.cursor import AbstractCursor
     from ..window.display import Window
     from ..window.scene import Scene
@@ -73,7 +74,7 @@ class CheckBox(TDrawable, AbstractWidget, Generic[_OnValue, _OffValue], metaclas
     @initializer
     def __init__(
         self,
-        master: Scene | Window,
+        master: AbstractWidget | Clickable | Scene | Window,
         width: float,
         height: float,
         color: Color,
@@ -298,7 +299,7 @@ class CheckBox(TDrawable, AbstractWidget, Generic[_OnValue, _OffValue], metaclas
 class BooleanCheckBox(CheckBox[bool, bool]):
     def __init__(
         self,
-        master: Scene | Window,
+        master: AbstractWidget | Clickable | Scene | Window,
         width: float,
         height: float,
         color: Color,

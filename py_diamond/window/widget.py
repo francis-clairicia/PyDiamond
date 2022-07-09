@@ -10,7 +10,7 @@ __all__ = ["AbstractWidget"]
 
 
 from functools import cached_property
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from ..audio.sound import Sound
 from .clickable import Clickable
@@ -27,7 +27,7 @@ class AbstractWidget(Clickable):
 
     def __init__(
         self,
-        master: Scene | Window,
+        master: AbstractWidget | Clickable | Scene | Window,
         *,
         state: str = "normal",
         hover_sound: Sound | None = None,
@@ -181,6 +181,12 @@ class AbstractWidget(Clickable):
 
     def _on_focus_leave(self) -> None:
         pass
+
+    if TYPE_CHECKING:
+
+        @property
+        def master(self) -> AbstractWidget | Clickable | Scene | Window:
+            ...
 
     @cached_property
     def focus(self) -> BoundFocus:

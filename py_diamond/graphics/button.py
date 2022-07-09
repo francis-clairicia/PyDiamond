@@ -206,7 +206,7 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     @initializer
     def __init__(
         self,
-        master: Scene | Window,
+        master: AbstractWidget | Clickable | Scene | Window,
         text: str = "",
         callback: Callable[[], None] | None = None,
         *,
@@ -910,7 +910,7 @@ class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     @initializer
     def __init__(
         self,
-        master: Scene | Window,
+        master: AbstractWidget | Clickable | Scene | Window,
         img: Surface,
         callback: Callable[[], None] | None = None,
         *,

@@ -30,6 +30,7 @@ from .theme import NoTheme, ThemedObjectMeta, ThemeType
 
 if TYPE_CHECKING:
     from ..audio.sound import Sound
+    from ..window.clickable import Clickable
     from ..window.display import Window
     from ..window.scene import Scene
     from .font import Font
@@ -107,7 +108,7 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
     @initializer
     def __init__(
         self,
-        master: Scene | Window,
+        master: AbstractWidget | Clickable | Scene | Window,
         *,
         on_validate: Callable[[], Any] | None = None,
         max_nb_chars: int = 10,
