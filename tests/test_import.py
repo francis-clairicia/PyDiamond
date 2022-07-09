@@ -191,28 +191,29 @@ class TestStarImports:
         module = import_module(f"py_diamond.{module_name}")
         submodule = import_module(f"py_diamond.{module_name}.{submodule_name}")
         module_namespace = vars(module)
-
-        # Act
         __all_module__: list[str] = module.__all__
         __all_submodule__: list[str] = submodule.__all__
 
+        # Act
+        missing_names_in_declaration = set(__all_submodule__) - set(__all_module__)
+        missing_names_in_namespace = set(__all_submodule__) - set(module_namespace)
+
         # Assert
-        for name in __all_submodule__:
-            assert name in __all_module__
-            assert name in module_namespace
+        assert not missing_names_in_namespace
+        assert not missing_names_in_declaration
 
     @pytest.mark.parametrize("module_name", _catch_all_py_diamond_packages_and_modules())
     def test__all__values_declared_exists_in_namespace(self, module_name: str) -> None:
         # Arrange
         module = import_module(module_name)
         module_namespace = vars(module)
-
-        # Act
         __all_module__: list[str] = module.__all__
 
+        # Act
+        unknown_names = set(__all_module__) - set(module_namespace)
+
         # Assert
-        for name in __all_module__:
-            assert name in module_namespace
+        assert not unknown_names
 
     @pytest.mark.parametrize("module_name", sorted(AUTO_IMPORTED_MODULES))
     def test__all__no_conflict_between_submodules(self, module_name: str) -> None:

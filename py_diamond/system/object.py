@@ -34,10 +34,15 @@ class ObjectMeta(ABCMeta):
         no_slots: bool = False,
         **kwargs: Any,
     ) -> __Self:
+        no_slots_attr = "_ObjectMeta__no_slots"
+        no_slots = bool(no_slots or any(getattr(b, no_slots_attr, False) for b in bases if isinstance(b, ObjectMeta)))
+
         if no_slots and "__slots__" in namespace:
             raise TypeError("__slots__ override is forbidden")
 
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
+
+        setattr(cls, no_slots_attr, no_slots)
 
         name = cls.__name__
         bases = cls.__bases__
@@ -87,8 +92,9 @@ class ObjectMeta(ABCMeta):
 
         # Verify final override
         if final_methods_overridden := list(filter(bases_final_methods_set.__contains__, namespace)):
-            final_method_overridden_names = ", ".join(repr(f) for f in final_methods_overridden)
-            raise TypeError(f"{name!r}: These attributes would override final methods: {final_method_overridden_names}")
+            raise TypeError(
+                f"{name!r}: These attributes would override final methods: {', '.join(map(repr, final_methods_overridden))}"
+            )
 
         # Verify override() decorator usage
         if methods_that_will_not_override := [
@@ -96,8 +102,9 @@ class ObjectMeta(ABCMeta):
             for attr_name in {attr_name for attr_name, attr_obj in namespace.items() if must_override(attr_obj)}
             if not any(hasattr(b, attr_name) for b in bases)
         ]:
-            method_names_that_will_not_override = ", ".join(repr(f) for f in methods_that_will_not_override)
-            raise TypeError(f"{name!r}: These methods will not override base method: {method_names_that_will_not_override}")
+            raise TypeError(
+                f"{name!r}: These methods will not override base method: {', '.join(map(repr, methods_that_will_not_override))}"
+            )
 
         # Retrieve final methods from namespace
         cls_final_methods: set[str] = {attr_name for attr_name, attr_obj in namespace.items() if is_final_override(attr_obj)}

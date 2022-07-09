@@ -168,16 +168,11 @@ class Window(Object):
 
             @stack.callback
             def _() -> None:
-                self.__callback_after.clear()
+                for callback in list(self.__callback_after):
+                    callback.kill()
                 self.__display_renderer = None
                 self.__rect = ImmutableRect(0, 0, 0, 0)
                 self.__event.unbind_all()
-
-            from ..graphics.theme import ClassWithThemeNamespaceMeta
-
-            ClassWithThemeNamespaceMeta.theme_initialize_all()
-
-            del ClassWithThemeNamespaceMeta
 
             stack.enter_context(self.__stack)
             self.__window_init__()
@@ -590,6 +585,7 @@ class Window(Object):
     def _remove_window_callback(self, window_callback: WindowCallback) -> None:
         with suppress(ValueError):
             self.__callback_after.remove(window_callback)
+            window_callback.kill()
 
     @property
     @final
@@ -796,6 +792,10 @@ class WindowCallback:
                 self.kill()
 
     def kill(self) -> None:
+        try:
+            self.__master
+        except AttributeError:
+            return
         self.__master._remove_window_callback(self)
         with suppress(AttributeError):
             del self.__master, self.__args, self.__kwargs, self.__callback, self.__clock

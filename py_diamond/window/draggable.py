@@ -29,7 +29,7 @@ class SupportsDragging(Protocol):
     @abstractmethod
     def rect(self) -> Rect:
         raise NotImplementedError
-    
+
     @abstractmethod
     def translate(self, __vector: tuple[int, int], /) -> None:
         raise NotImplementedError

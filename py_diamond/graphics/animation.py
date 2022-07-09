@@ -151,9 +151,9 @@ class BaseAnimation(Object):
 
     def __init__(self, obj: Any) -> None:
         super().__init__()
-        self.__object: weakref[Any] = weakref(obj)
-        self.__on_stop: Callable[[], None] | None = None
         self.__interpolator = AnimationInterpolator(obj)
+        self.__object: weakref[Any] = weakref(self.__interpolator.object)
+        self.__on_stop: Callable[[], None] | None = None
         self.__wait: bool = True
 
     @property
@@ -229,8 +229,6 @@ class MoveAnimation(BaseAnimation):
 
     def __init__(self, movable: Movable) -> None:
         assert isinstance(movable, Movable), "Expected a Movable object"
-        if isinstance(movable, MovableProxy):
-            movable = object.__getattribute__(movable, "_object")
         super().__init__(movable)
         self.__animation: _AbstractAnimationClass | None = None
 
@@ -314,8 +312,6 @@ class TransformAnimation(BaseAnimation):
 
     def __init__(self, transformable: Transformable) -> None:
         assert isinstance(transformable, Transformable), "Expected a Transformable object"
-        if isinstance(transformable, TransformableProxy):
-            transformable = object.__getattribute__(transformable, "_object")
         super().__init__(transformable)
         self.__animations: dict[_AnimationType, _AbstractAnimationClass] = {}
 
@@ -460,11 +456,7 @@ class TransformAnimation(BaseAnimation):
         self.__animations.clear()
 
     def _launch_animations(self) -> None:
-        get_animation = self.__animations.get
-        for animation_name in self.__animations_order:
-            animation: _AbstractAnimationClass | None = get_animation(animation_name)
-            if animation is None:
-                continue
+        for animation in filter(None, map(self.__animations.get, self.__animations_order)):
             if animation.started():
                 animation.fixed_update()
             else:

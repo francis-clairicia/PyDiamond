@@ -52,7 +52,7 @@ from typing import (
 
 from ..system.object import Object, ObjectMeta, mro
 from ..system.utils._mangling import getattr_pv
-from ..system.utils.abc import concreteclassmethod, isabstractclass, isabstractmethod
+from ..system.utils.abc import concreteclassmethod, isabstractmethod
 from ..system.utils.functools import cache, wraps
 
 _ClassTheme: TypeAlias = MutableMapping[str, MappingProxyType[str, Any]]
@@ -776,7 +776,6 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
         __Self = TypeVar("__Self", bound="ClassWithThemeNamespaceMeta")
 
     __namespaces: Final[dict[type, ThemeNamespace]] = dict()
-    __classes: Final[set[ClassWithThemeNamespaceMeta]] = set()
 
     __unique_theme_namespace_cache: Final[dict[str, ThemeNamespace]] = dict()
     __extended_unique_theme_namespace_cache: Final[dict[str, ThemeNamespace]] = dict()
@@ -830,8 +829,6 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
         namespace["_theme_decorator_exempt_"] = frozenset(cls_theme_decorator_exempt)
 
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
-        if hasattr(cls, "__theme_init__") and not isabstractclass(cls):
-            mcs.__classes.add(cls)
         return cls
 
     def __setattr__(cls, name: str, value: Any, /) -> None:
@@ -871,12 +868,7 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
     def theme_initialize(cls) -> None:
         theme_initialize: Callable[[], None] = getattr(cls, "__theme_init__")
         theme_initialize()
-
-    @final
-    @staticmethod
-    def theme_initialize_all() -> None:
-        for cls in ClassWithThemeNamespaceMeta.__classes:
-            cls.theme_initialize()
+        type.__setattr__(cls, "theme_initialize", classmethod(concreteclassmethod(lambda _: None)))  # Mute future calls
 
     @classmethod
     @cache

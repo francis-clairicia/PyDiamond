@@ -8,64 +8,22 @@ from __future__ import annotations
 
 __all__ = [
     "Dialog",
-    "DialogMeta",
     "PopupDialog",
 ]
 
 from abc import abstractmethod
-from itertools import chain
-from typing import TYPE_CHECKING, Any, Sequence, TypeVar
+from typing import Any
 
 from ..graphics.color import BLACK, TRANSPARENT, WHITE, Color
 from ..graphics.movable import MovableProxy
 from ..graphics.shape import RectangleShape
 from ..system.object import final
-from ..system.utils.functools import cache
 from ..system.validation import valid_optional_float
 from .event import WindowSizeChangedEvent
-from .scene import _ALL_SCENES, Scene, SceneMeta, SceneWindow
+from .scene import Scene, SceneWindow
 
 
-class DialogMeta(SceneMeta):
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="DialogMeta")
-
-    __theme_namespace_decorator_exempt: Sequence[str] = ("render",)
-
-    def __new__(
-        mcs: type[__Self],
-        name: str,
-        bases: tuple[type, ...],
-        namespace: dict[str, Any],
-        **kwargs: Any,
-    ) -> __Self:
-        if "Dialog" not in globals():
-            return super().__new__(mcs, name, bases, namespace, **kwargs)
-
-        if not any(issubclass(cls, Dialog) for cls in bases):
-            raise TypeError(
-                f"{name!r} must inherit from a {Dialog.__name__} class in order to use {DialogMeta.__name__} metaclass"
-            )
-
-        return super().__new__(mcs, name, bases, namespace, **kwargs)
-
-    def __init__(
-        cls,
-        name: str,
-        bases: tuple[type, ...],
-        namespace: dict[str, Any],
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(name, bases, namespace, **kwargs)
-        _ALL_SCENES.discard(cls)  # type: ignore[arg-type]
-
-    @classmethod
-    @cache
-    def get_default_theme_decorator_exempt(mcs) -> frozenset[str]:
-        return frozenset(chain(super().get_default_theme_decorator_exempt(), mcs.__theme_namespace_decorator_exempt))
-
-
-class Dialog(Scene, metaclass=DialogMeta):
+class Dialog(Scene):
     def __init__(self) -> None:
         super().__init__()
         self.__master: Scene

@@ -10,8 +10,6 @@ __all__ = [
     "AbstractAutoLayeredDrawableScene",
     "AbstractLayeredMainScene",
     "AbstractLayeredScene",
-    "LayeredMainSceneMeta",
-    "LayeredSceneMeta",
     "MainScene",
     "MainSceneMeta",
     "RenderedLayeredScene",
@@ -27,17 +25,15 @@ __all__ = [
 
 import gc
 from abc import abstractmethod
+from collections import deque
 from contextlib import ExitStack, contextmanager, suppress
 from enum import auto, unique
 from inspect import isgeneratorfunction
 from itertools import chain
-from sys import stderr
-from types import MethodType
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    ClassVar,
     Final,
     Generator,
     Iterator,
@@ -47,7 +43,6 @@ from typing import (
     Sequence,
     TypeAlias,
     TypeVar,
-    cast,
     overload,
     runtime_checkable,
 )
@@ -61,7 +56,7 @@ from ..system.enum import AutoLowerNameEnum
 from ..system.object import Object, final
 from ..system.utils._mangling import getattr_pv, mangle_private_attribute
 from ..system.utils.abc import concreteclassmethod, isconcreteclass
-from ..system.utils.functools import cache, wraps
+from ..system.utils.functools import wraps
 from .display import Window, WindowCallback, WindowError, _WindowCallbackList
 from .event import Event, EventManager
 from .time import Time
@@ -70,8 +65,6 @@ if TYPE_CHECKING:
     from pygame._common import _ColorValue  # pyright: reportMissingModuleSource=false
 
 _P = ParamSpec("_P")
-
-_ALL_SCENES: Final[set[type[Scene]]] = set()
 
 
 class SceneMeta(ClassWithThemeNamespaceMeta):
@@ -100,7 +93,6 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
 
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
         if isconcreteclass(cls):
-            _ALL_SCENES.add(cast(type[Scene], cls))
             cls.__framerate = max(int(framerate), 0)
             cls.__fixed_framerate = max(int(fixed_framerate), 0)
             cls.__busy_loop = bool(busy_loop)
@@ -125,27 +117,6 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
     @concreteclassmethod
     def require_busy_loop(cls) -> bool:
         return cls.__busy_loop  # type: ignore[no-any-return, attr-defined]
-
-    @classmethod
-    @cache
-    def get_default_theme_decorator_exempt(mcs) -> frozenset[str]:
-        return frozenset(
-            chain(
-                super().get_default_theme_decorator_exempt(),
-                (
-                    "__del_scene__",
-                    "render",
-                    "fixed_update",
-                    "interpolation_update",
-                    "is_awaken",
-                    "looping",
-                    "start",
-                    "stop",
-                    "after",
-                    "every",
-                ),
-            )
-        )
 
 
 SceneTransitionCoroutine: TypeAlias = Generator[None, float | None, None]
@@ -248,17 +219,10 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
 
         __Self = TypeVar("__Self", bound="Scene")
 
-    __instances: ClassVar[set[type[Scene]]] = set()
-
     @final
     def __new__(cls: type[__Self]) -> __Self:
-        instances: set[type[Scene]] = Scene.__instances
-        if cls in instances:
-            raise TypeError(f"Trying to instantiate two scene of same type {f'{cls.__module__}.{cls.__name__}'!r}")
-        scene = super().__new__(cls)
-        if not issubclass(cls, Dialog):
-            instances.add(cls)
-        return scene
+        cls.theme_initialize()
+        return super().__new__(cls)
 
     def __init__(self) -> None:
         self.__manager: _SceneManager
@@ -280,10 +244,15 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
     def __theme_init__(cls) -> None:
         pass
 
-    @final
+    @no_theme_decorator
     def __del_scene__(self) -> None:
-        with suppress(KeyError):
-            Scene.__instances.remove(type(self))
+        self.__stack_quit.close()
+        with self.__stack_destroy:
+            self.__event.unbind_all()
+            for window_callback in list(self.__callback_after):
+                window_callback.kill()
+            self.__callback_after_dict.pop(self, None)
+            self.__dict__.clear()
 
     @abstractmethod
     def awake(self, **kwargs: Any) -> None:
@@ -295,9 +264,11 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
     def on_start_loop(self) -> None:
         pass
 
+    @no_theme_decorator
     def fixed_update(self) -> None:
         pass
 
+    @no_theme_decorator
     def interpolation_update(self, interpolation: float) -> None:
         pass
 
@@ -308,12 +279,10 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
         pass
 
     def on_quit(self) -> None:
-        pass
-
-    def destroy(self) -> None:
-        pass
+        self.__stack_quit.close()
 
     @abstractmethod
+    @no_theme_decorator
     def render(self) -> None:
         raise NotImplementedError
 
@@ -324,10 +293,12 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
         return self.event.process_event(event)
 
     @final
+    @no_theme_decorator
     def is_awaken(self) -> bool:
         return self.__manager.is_awaken(self)
 
     @final
+    @no_theme_decorator
     def looping(self) -> bool:
         return self.__manager.top() is self
 
@@ -386,6 +357,7 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
     def after(self, __milliseconds: float, /) -> Callable[[Callable[[], None]], WindowCallback]:
         ...
 
+    @no_theme_decorator
     def after(
         self, __milliseconds: float, __callback: Callable[..., None] | None = None, /, *args: Any, **kwargs: Any
     ) -> WindowCallback | Callable[[Callable[..., None]], WindowCallback]:
@@ -418,6 +390,7 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
     def every(self, __milliseconds: float, /) -> Callable[[Callable[[], Iterator[None] | None]], WindowCallback]:
         ...
 
+    @no_theme_decorator
     def every(
         self, __milliseconds: float, __callback: Callable[..., Any] | None = None, /, *args: Any, **kwargs: Any
     ) -> WindowCallback | Callable[[Callable[..., Any]], WindowCallback]:
@@ -496,95 +469,15 @@ class MainScene(Scene, metaclass=MainSceneMeta):
     pass
 
 
-class LayeredSceneMeta(SceneMeta):
-    def __new__(
-        mcs,
-        name: str,
-        bases: tuple[type, ...],
-        namespace: dict[str, Any],
-        *,
-        add_drawable_attributes: bool = False,
-        **kwargs: Any,
-    ) -> SceneMeta:
-        if "AbstractLayeredScene" not in globals():
-            return super().__new__(mcs, name, bases, namespace, **kwargs)
-
-        if not any(issubclass(cls, AbstractLayeredScene) for cls in bases):
-            raise TypeError(
-                f"{name!r} must inherit from a {AbstractLayeredScene.__name__} class in order to use {LayeredSceneMeta.__name__} metaclass"
-            )
-
-        setattr_wrapper_cls = mcs.__setattr_wrapper
-
-        if any(isinstance(getattr(cls, "__setattr__", None), setattr_wrapper_cls) for cls in bases):
-            add_drawable_attributes = False
-
-        if add_drawable_attributes:
-            setattr_func: Callable[[AbstractLayeredScene, str, Any], Any] = namespace.get("__setattr__", bases[0].__setattr__)
-            delattr_func: Callable[[AbstractLayeredScene, str], Any] = namespace.get("__delattr__", bases[0].__delattr__)
-
-            @setattr_wrapper_cls
-            @wraps(setattr_func)
-            def setattr_wrapper(self: AbstractLayeredScene, name: str, value: Any, /) -> Any:
-                try:
-                    group: LayeredDrawableGroup = self.group
-                except AttributeError:
-                    return setattr_func(self, name, value)
-                output: Any = setattr_func(self, name, value)
-                if isinstance(value, Drawable):
-                    group.add(value)
-                return output
-
-            @wraps(delattr_func)
-            def delattr_wrapper(self: AbstractLayeredScene, name: str, /) -> Any:
-                try:
-                    group: LayeredDrawableGroup = self.group
-                except AttributeError:
-                    return delattr_func(self, name)
-                _MISSING: Any = object()
-                value: Any = getattr(self, name, _MISSING)
-                output: Any = delattr_func(self, name)
-                if value is not _MISSING and isinstance(value, Drawable) and value in group:
-                    group.remove(value)
-                return output
-
-            namespace["__setattr__"] = setattr_wrapper
-            namespace["__delattr__"] = delattr_wrapper
-
-        return super().__new__(mcs, name, bases, namespace, **kwargs)
-
-    @classmethod
-    @cache
-    def get_default_theme_decorator_exempt(mcs) -> frozenset[str]:
-        return frozenset(chain(super().get_default_theme_decorator_exempt(), ("__setattr__", "__delattr__")))
-
-    class __setattr_wrapper:
-        def __init__(self, setattr_func: Callable[[Any, str, Any], None]) -> None:
-            self.__func__: Callable[[object, str, Any], None] = setattr_func
-
-        def __call__(self, __obj: object, __name: str, __value: Any, /) -> None:
-            func = self.__func__
-            return func(__obj, __name, __value)
-
-        def __get__(self, obj: object, objtype: type | None = None, /) -> Callable[..., Any]:
-            if obj is None:
-                return self
-            return MethodType(self, obj)
-
-        @property
-        def __wrapped__(self) -> Callable[..., Any]:
-            return self.__func__
-
-
-class AbstractLayeredScene(Scene, metaclass=LayeredSceneMeta):
+class AbstractLayeredScene(Scene):
     @property
     @abstractmethod
     def group(self) -> LayeredDrawableGroup:
         raise NotImplementedError
 
-    def destroy(self) -> None:
-        super().destroy()
+    def __del_scene__(self) -> None:
         self.group.clear()
+        super().__del_scene__()
 
 
 class RenderedLayeredScene(AbstractLayeredScene):
@@ -612,15 +505,29 @@ class RenderedLayeredScene(AbstractLayeredScene):
         return self.__group
 
 
-class AbstractAutoLayeredDrawableScene(AbstractLayeredScene, add_drawable_attributes=True):
-    pass
+class AbstractAutoLayeredDrawableScene(AbstractLayeredScene):
+    def __setattr__(self, name: str, value: Any, /) -> None:
+        try:
+            group: LayeredDrawableGroup = self.group
+        except AttributeError:
+            return super().__setattr__(name, value)
+        super().__setattr__(name, value)
+        if isinstance(value, Drawable):
+            group.add(value)
+
+    def __delattr__(self, name: str, /) -> None:
+        try:
+            group: LayeredDrawableGroup = self.group
+        except AttributeError:
+            return super().__delattr__(name)
+        _MISSING: Any = object()
+        value: Any = getattr(self, name, _MISSING)
+        super().__delattr__(name)
+        if value is not _MISSING and isinstance(value, Drawable) and value in group:
+            group.remove(value)
 
 
-class LayeredMainSceneMeta(LayeredSceneMeta, MainSceneMeta):
-    pass
-
-
-class AbstractLayeredMainScene(AbstractLayeredScene, MainScene, metaclass=LayeredMainSceneMeta):
+class AbstractLayeredMainScene(AbstractLayeredScene, MainScene):
     pass
 
 
@@ -638,7 +545,7 @@ class SceneWindow(Window):
         self.__callback_after_scenes: dict[Scene, _WindowCallbackList] = dict()
         self.__scenes: _SceneManager
         self.__accumulator: float = 0
-        self.__compute_interpolation_data()
+        self.__reset_interpolation_data()
         self.__running: bool = False
         self.__last_clear_color: Color | None = None
 
@@ -648,16 +555,15 @@ class SceneWindow(Window):
     @contextmanager
     def open(self: __Self) -> Iterator[__Self]:
         def cleanup() -> None:
-            self.__callback_after_scenes.clear()
             self.__scenes.clear()
-            self.__scenes.__del_manager__()
+            self.__callback_after_scenes.clear()
             self.__last_clear_color = None
             del self.__scenes
+            self.__reset_interpolation_data()
 
         with super().open(), ExitStack() as stack:
             self.__scenes = _SceneManager(self)
-            self.__accumulator = 0
-            self.__compute_interpolation_data()
+            self.__reset_interpolation_data()
             stack.callback(cleanup)
             yield self
 
@@ -667,15 +573,17 @@ class SceneWindow(Window):
             raise WindowError("SceneWindow already running")
         self.__running = True
         self.__scenes.clear()
-        self.__accumulator = 0
-        self.__compute_interpolation_data()
+        self.__reset_interpolation_data()
         gc.collect()
-        on_start_loop: Callable[[], None] | None = None
+        on_start_loop: Callable[[], None]
         try:
             self.start_scene(default_scene, awake_kwargs=scene_kwargs)
         except _SceneManager.NewScene as exc:
             exc.actual_scene.on_start_loop_before_transition()
             on_start_loop = exc.actual_scene.on_start_loop
+            del exc
+        else:
+            raise RuntimeError("self.start_scene() didn't raise")
         looping = self.looping
         process_events = self.handle_events
         update_scene = self.update_scene
@@ -684,10 +592,8 @@ class SceneWindow(Window):
         scene_transition = self.__scene_transition
 
         try:
+            on_start_loop()
             while looping():
-                if on_start_loop is not None:
-                    on_start_loop()
-                    on_start_loop = None
                 try:
                     process_events()
                     update_scene()
@@ -696,28 +602,19 @@ class SceneWindow(Window):
                 except _SceneManager.NewScene as exc:
                     if exc.previous_scene is None:
                         raise TypeError("Previous scene must not be None") from None
-                    with ExitStack() as all_scenes_stack:
-                        for scene in reversed(exc.closing_scenes):
-                            all_scenes_stack.enter_context(scene.destroy_exit_stack)
-                            all_scenes_stack.enter_context(scene.on_quit_exit_stack)
-                        if not self.__scenes.started(exc.previous_scene):
-                            all_scenes_stack.enter_context(exc.previous_scene.destroy_exit_stack)
-                        all_scenes_stack.enter_context(exc.previous_scene.on_quit_exit_stack)
-                        try:
-                            scene_transition(
-                                exc.previous_scene,
-                                exc.actual_scene,
-                                exc.closing_scenes,
-                                exc.transition,
-                            )
-                        except _SceneManager.SceneException as sub_exc:
-                            raise RuntimeError("Open a new scene within a scene transition is forbidden") from sub_exc
+                    try:
+                        scene_transition(
+                            exc.previous_scene,
+                            exc.actual_scene,
+                            exc.closing_scenes,
+                            exc.transition,
+                        )
+                    except _SceneManager.SceneException as sub_exc:
+                        raise RuntimeError("Open a new scene within a scene transition is forbidden") from sub_exc
                     on_start_loop = exc.actual_scene.on_start_loop
                     del exc
                     gc.collect()
-                except _SceneManager.SceneException as exc:
-                    print(f"{type(exc).__name__}: {exc}", file=stderr)
-                    continue
+                    on_start_loop()
         finally:
             self.__running = False
             self.__scenes.clear()
@@ -729,65 +626,54 @@ class SceneWindow(Window):
         closing_scenes: Sequence[Scene],
         transition_factory: Callable[[AbstractRenderer, Surface, Surface], SceneTransitionCoroutine] | None,
     ) -> None:
-        assert previous_scene is not None
-        previous_scene.on_quit_before_transition()
-        for scene in closing_scenes:
-            scene.on_quit_before_transition()
-        actual_scene.on_start_loop_before_transition()
-        if transition_factory is not None:
-            with self.capture(draw_on_default_at_end=False) as previous_scene_surface:
-                self.__scenes._render(previous_scene)
-            with self.capture(draw_on_default_at_end=False) as actual_scene_surface:
-                self.__scenes._render(actual_scene)
-            with (
-                self.capture() as window_surface,
-                self.block_all_events_context(),
-                self.no_window_callback_processing(),
-            ):
-                transition: SceneTransitionCoroutine
-                transition = transition_factory(SurfaceRenderer(window_surface), previous_scene_surface, actual_scene_surface)
-                animating = True
-                try:
-                    next(transition)
-                except StopIteration:
-                    animating = False
-                next_transition = transition.send
-                next_fixed_transition = lambda: next_transition(None)
-                while self.looping() and animating:
-                    self.handle_events()
+        with self.__scenes.closing_scenes(previous_scene, *closing_scenes):
+            self.__stop_all_window_callbacks(previous_scene)
+            previous_scene.on_quit_before_transition()
+            for scene in closing_scenes:
+                self.__stop_all_window_callbacks(scene)
+                scene.on_quit_before_transition()
+            actual_scene.on_start_loop_before_transition()
+            if transition_factory is not None:
+                with self.capture(draw_on_default_at_end=False) as previous_scene_surface:
+                    self.__scenes._render(previous_scene)
+                with self.capture(draw_on_default_at_end=False) as actual_scene_surface:
+                    self.__scenes._render(actual_scene)
+                with self.capture() as window_surface, self.block_all_events_context(), self.no_window_callback_processing():
+                    transition: SceneTransitionCoroutine
+                    transition = transition_factory(SurfaceRenderer(window_surface), previous_scene_surface, actual_scene_surface)
+                    animating = True
                     try:
-                        self._fixed_updates_call(next_fixed_transition)
-                        self._interpolation_updates_call(next_transition)
+                        next(transition)
                     except StopIteration:
                         animating = False
-                    self.refresh()
-                del next_fixed_transition, next_transition, transition
-        with previous_scene.on_quit_exit_stack:
-            previous_scene.on_quit()
-        if not self.__scenes.started(previous_scene):
-            self.__scenes._destroy_awaken_scene(previous_scene)
-        for scene in closing_scenes:
-            with scene.on_quit_exit_stack:
-                scene.on_quit()
-            self.__scenes._destroy_awaken_scene(scene)
-            self.__callback_after_scenes.pop(scene, None)
-        self.__callback_after_scenes.pop(previous_scene, None)
-        self.__accumulator = 0
-        self.__compute_interpolation_data()
+                    next_transition = transition.send
+                    next_fixed_transition = lambda: next_transition(None)
+                    while self.looping() and animating:
+                        self.handle_events()
+                        try:
+                            self._fixed_updates_call(next_fixed_transition)
+                            self._interpolation_updates_call(next_transition)
+                        except StopIteration:
+                            animating = False
+                        self.refresh()
+                    del next_fixed_transition, next_transition, transition
+        self.__reset_interpolation_data()
         self.clear_all_events()
 
     def clear(self, color: _ColorValue = BLACK, *, blend_alpha: bool = False) -> None:
         color = Color(color)
-        if not blend_alpha and color == self.__last_clear_color:
-            self.renderer.repaint_color(color)
-            return
+        if not blend_alpha:
+            color = color.with_alpha(255)
+            if color == self.__last_clear_color:
+                self.renderer.repaint_color(color)
+                return
         self.__last_clear_color = color
         return super().clear(color, blend_alpha=blend_alpha)
 
     def refresh(self) -> float:
         real_delta_time: float = super().refresh()
-        self.__accumulator += max(real_delta_time, 0) / 1000
-        self.__compute_interpolation_data()
+        if real_delta_time > 0:
+            self.__compute_interpolation_data(real_delta_time / 1000)
         return real_delta_time
 
     def _fixed_updates_call(self, *funcs: Callable[[], None]) -> None:
@@ -833,8 +719,9 @@ class SceneWindow(Window):
     def _process_callbacks(self) -> None:
         super()._process_callbacks()
         actual_scene = self.__scenes.top()
-        if actual_scene in self.__callback_after_scenes:
-            self.__callback_after_scenes[actual_scene].process()
+        window_callback_list = self.__callback_after_scenes.get(actual_scene) if actual_scene else None
+        if window_callback_list:
+            window_callback_list.process()
 
     def _process_event(self, event: Event) -> bool:
         if super()._process_event(event):
@@ -881,22 +768,34 @@ class SceneWindow(Window):
             return
         with suppress(ValueError):
             scene_callback_after.remove(window_callback)
+            window_callback.kill()
         if not scene_callback_after:
-            self.__callback_after_scenes.pop(scene)
+            self.__callback_after_scenes.pop(scene, None)
 
-    def __compute_interpolation_data(self) -> None:
+    def __stop_all_window_callbacks(self, scene: Scene) -> None:
+        for window_callback in list(self.__callback_after_scenes.get(scene, ())):
+            window_callback.kill()
+
+    def __reset_interpolation_data(self) -> None:
+        return self.__compute_interpolation_data(-1)
+
+    def __compute_interpolation_data(self, elapsed_time: float) -> None:
         self.__nb_fixed_update_call = 0
-        dt: float = Time.fixed_delta()
-        while self.__accumulator >= dt:
-            self.__nb_fixed_update_call += 1
-            self.__accumulator -= dt
-        try:
-            alpha: float = self.__accumulator / dt
-        except ZeroDivisionError:
-            alpha = 1
+        if elapsed_time < 0:
+            self.__accumulator = 0
         else:
-            alpha = min(max(alpha, 0), 1)
-        self.__alpha_interpolation = alpha
+            self.__accumulator += elapsed_time
+        dt: float = Time.fixed_delta()
+        if dt > 0:
+            while self.__accumulator >= dt:
+                self.__nb_fixed_update_call += 1
+                self.__accumulator -= dt
+            self.__alpha_interpolation = min(max(self.__accumulator / dt, 0.0), 1.0)
+        else:
+            self.__alpha_interpolation = 1.0
+
+
+_S = TypeVar("_S", bound=Scene)
 
 
 class _SceneManager:
@@ -932,44 +831,47 @@ class _SceneManager:
         self.__scene_manager_attribute: Final[str] = mangle_private_attribute(Scene, "manager")
         self.__dialog_master_attribute: Final[str] = mangle_private_attribute(Dialog, "master")
 
-        def new_scene(cls: type[Scene]) -> Scene:
-            scene: Scene = cls.__new__(cls)
-            scene.__dict__[self.__scene_manager_attribute] = self
-            scene.__init__()  # type: ignore[misc]
-            return scene
-
         self.__window: SceneWindow = window
-        self.__all: dict[type[Scene], Scene] = {cls: new_scene(cls) for cls in _ALL_SCENES}
-        self.__stack: list[Scene] = []
+        self.__all_scenes: dict[type[Scene], Scene] = {}
+        self.__stack: deque[Scene] = deque()
         self.__returning_transitions: dict[type[Scene], ReturningSceneTransitionProtocol] = {}
         self.__awaken: set[Scene] = set()
-        self.__dialogs: list[Dialog] = []
+        self.__dialogs: deque[Dialog] = deque()
 
-    def __del__(self) -> None:
-        for scene in self.__all.values():
+    def _new_scene(self, cls: type[_S]) -> _S:
+        scene: _S = cls.__new__(cls)
+        scene.__dict__[self.__scene_manager_attribute] = self
+        if issubclass(cls, Dialog):
+            if not self.__stack:
+                raise RuntimeError("Trying to open dialog without opened scene")
+            scene.__dict__[self.__dialog_master_attribute] = self.__dialogs[0] if self.__dialogs else self.__stack[0]
+        scene.__init__()  # type: ignore[misc]
+        return scene
+
+    def _delete_scene(self, scene: Scene) -> None:
+        with scene.destroy_exit_stack:
+            scene.on_quit_exit_stack.close()
             scene.__del_scene__()
-        self.__all.clear()
-
-    def __del_manager__(self) -> None:
-        for scene in self.__all.values():
-            delattr(scene, self.__scene_manager_attribute)
 
     def _awake_scene(self, scene: Scene, awake_kwargs: dict[str, Any]) -> None:
         scene.awake(**awake_kwargs)
         self.__awaken.add(scene)
 
     def _destroy_awaken_scene(self, scene: Scene) -> None:
-        with scene.destroy_exit_stack:
-            try:
-                self.__awaken.remove(scene)
-            except KeyError:
-                return
-            scene.destroy()
-            scene.event.unbind_all()
-        scene.__dict__.clear()
-        if not isinstance(scene, Dialog):
-            scene.__dict__[self.__scene_manager_attribute] = self
-            scene.__init__()  # type: ignore[misc]
+        with scene.on_quit_exit_stack:
+            scene.on_quit()
+        self.__awaken.discard(scene)
+
+    @contextmanager
+    def closing_scenes(self, *scenes: Scene) -> Iterator[None]:
+        with ExitStack() as stack:
+            all_scenes = self.__all_scenes
+            for scene in scenes:
+                if not self.started(scene):
+                    stack.callback(lambda scene: all_scenes.pop(scene, None), scene.__class__)
+                    stack.callback(self._delete_scene, scene)
+                stack.callback(self._destroy_awaken_scene, scene)
+            yield
 
     def __iter__(self) -> Iterator[Scene]:
         return self.from_top_to_bottom()
@@ -992,26 +894,29 @@ class _SceneManager:
         return scene in self.__awaken
 
     def clear(self) -> None:
-        while self.__stack:
-            scene = self.__stack.pop(0)
-            with scene.on_quit_exit_stack:
-                scene.on_quit_before_transition()
-                scene.on_quit()
-            with scene.destroy_exit_stack:
-                self._destroy_awaken_scene(scene)
-        gc.collect()
+        all_scenes = list(self.from_top_to_bottom())
+        self.__dialogs.clear()
+        self.__stack.clear()
+        with self.closing_scenes(*all_scenes):
+            pass
+        self.__returning_transitions.clear()
 
-    def render(self, scene: type[Scene]) -> None:
-        if not isconcreteclass(scene):
-            raise TypeError(f"{scene.__name__} is an abstract class")
-        if issubclass(scene, Dialog):
+    def render(self, scene_cls: type[Scene]) -> None:
+        if not isconcreteclass(scene_cls):
+            raise TypeError(f"{scene_cls.__name__} is an abstract class")
+        if issubclass(scene_cls, Dialog):
             raise TypeError(f"Trying to draw a Dialog scene")
-        obj = self.__all[scene]
-        if not obj.is_awaken():
-            raise ValueError("Trying to draw non-awaken scene")
-        if obj.looping():
-            raise ValueError("Trying to draw actual looping scene")
-        self._render(obj, fill_background_color=False)
+        try:
+            scene = self.__all_scenes[scene_cls]
+            if not self.started(scene):
+                raise KeyError(scene_cls)
+        except KeyError:
+            raise RuntimeError("Scene not started") from None
+        if not scene.is_awaken():
+            raise RuntimeError("Trying to draw non-awaken scene")
+        if scene.looping():
+            raise RuntimeError("Trying to draw actual looping scene")
+        self._render(scene, fill_background_color=False)
 
     def _render(self, scene: Scene, *, fill_background_color: bool = True) -> None:
         if isinstance(scene, Dialog):
@@ -1023,19 +928,22 @@ class _SceneManager:
 
     def go_to(
         self,
-        scene: type[Scene],
+        scene_cls: type[Scene],
         *,
         transition: SceneTransitionProtocol | None = None,
         remove_actual: bool = False,
         awake_kwargs: dict[str, Any] | None = None,
     ) -> NoReturn:
-        if not isconcreteclass(scene):
-            raise TypeError(f"{scene.__name__} is an abstract class")
-        if issubclass(scene, Dialog):
-            raise TypeError(f"{scene.__name__} must be opened with open_dialog()")
+        if not isconcreteclass(scene_cls):
+            raise TypeError(f"{scene_cls.__name__} is an abstract class")
+        if issubclass(scene_cls, Dialog):
+            raise TypeError(f"{scene_cls.__name__} must be opened with open_dialog()")
         if awake_kwargs is None:
             awake_kwargs = {}
-        next_scene = self.__all[scene]
+        try:
+            next_scene = self.__all_scenes[scene_cls]
+        except KeyError:
+            self.__all_scenes[scene_cls] = next_scene = self._new_scene(scene_cls)
         stack = self.__stack
         actual_scene = stack[0] if stack else None
         if actual_scene is next_scene:
@@ -1053,9 +961,10 @@ class _SceneManager:
                 if remove_actual:
                     stack.remove(actual_scene)
         else:
-            returning_transition = self.__returning_transitions.pop(scene, None)
+            self._awake_scene(next_scene, awake_kwargs)
+            returning_transition = self.__returning_transitions.pop(scene_cls, None)
             while stack[0] is not next_scene:
-                closed_scene = stack.pop(0)
+                closed_scene = stack.popleft()
                 if closed_scene is not actual_scene:
                     closing_scenes.append(closed_scene)
                 self.__returning_transitions.pop(closed_scene.__class__, None)
@@ -1078,34 +987,22 @@ class _SceneManager:
 
     def open_dialog(
         self,
-        dialog: type[Dialog],
+        dialog_cls: type[Dialog],
         *,
         awake_kwargs: dict[str, Any] | None = None,
     ) -> None:
-        if not isconcreteclass(dialog):
-            raise TypeError(f"{dialog.__name__} is an abstract class")
-        if not self.__stack:
-            raise TypeError("Trying to open dialog without opened scene")
-        if not issubclass(dialog, Dialog):
-            raise TypeError(f"{dialog.__name__} must be opened with go_to()")
+        if not isconcreteclass(dialog_cls):
+            raise TypeError(f"{dialog_cls.__name__} is an abstract class")
+        if not issubclass(dialog_cls, Dialog):
+            raise TypeError(f"{dialog_cls.__name__} must be opened with go_to()")
         if awake_kwargs is None:
             awake_kwargs = {}
-        master: Scene = self.__dialogs[0] if self.__dialogs else self.__stack[0]
-        obj: Dialog = dialog.__new__(dialog)
-        obj.__dict__[self.__scene_manager_attribute] = self
-        obj.__dict__[self.__dialog_master_attribute] = master
-        obj.__init__()  # type: ignore[misc]
-        return self.__open_dialog(obj, awake_kwargs=awake_kwargs)
 
-    def __open_dialog(
-        self,
-        dialog: Dialog,
-        *,
-        awake_kwargs: dict[str, Any],
-    ) -> None:
+        dialog = self._new_scene(dialog_cls)
         dialogs_stack = self.__dialogs
 
         with ExitStack() as exit_stack:
+            exit_stack.callback(self._delete_scene, dialog)
             dialogs_stack.insert(0, dialog)
             exit_stack.callback(dialogs_stack.remove, dialog)
             self._awake_scene(dialog, awake_kwargs)
@@ -1117,7 +1014,6 @@ class _SceneManager:
                 dialog.run_start_transition()
             dialog.on_start_loop()
 
-            exit_stack.enter_context(dialog.on_quit_exit_stack)
             try:
                 while window.looping():
                     window.handle_events()
@@ -1128,11 +1024,6 @@ class _SceneManager:
                 dialog.on_quit_before_transition()
                 with window.block_all_events_context(), window.no_window_callback_processing():
                     dialog.run_quit_transition()
-            except:
-                dialog.on_quit_before_transition()
-                raise
-            finally:
-                dialog.on_quit()
 
     @property
     def window(self) -> SceneWindow:
