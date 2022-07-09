@@ -14,13 +14,16 @@ __author__ = "Francis Clairicia-Rose-Claire-Josephine"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
 __credits__ = ["Francis Clairicia-Rose-Claire-Josephine"]
 __license__ = "GNU GPL v3.0"
-__version__ = "1.0.0"
 __maintainer__ = "Francis Clairicia-Rose-Claire-Josephine"
 __email__ = "clairicia.rcj.francis@gmail.com"
 __status__ = "Development"
 
 import os
 import sys
+
+from .version import version_info
+
+__version__ = str(version_info)
 
 ############ Environment initialization ############
 if sys.version_info < (3, 10):
@@ -32,7 +35,7 @@ if sys.version_info < (3, 10):
 
 ############ Package initialization ############
 #### Apply various patch that must be run before importing the main modules
-from py_diamond._patch import PatchContext, collector
+from ._patch import PatchContext, collector
 
 collector.start_record()
 
@@ -42,11 +45,14 @@ if any(name == "pygame" or name.startswith("pygame.") for name in list(sys.modul
     import warnings
 
     warn_msg = "'pygame' module already imported, this can cause unwanted behavior. Consider importing py_diamond first."
-    warnings.warn(warn_msg, ImportWarning)
+    warnings.warn(warn_msg)
 
     del warnings, warn_msg
 
-collector.run_patches(PatchContext.BEFORE_IMPORTING_PYGAME)
+else:
+    # No need to run patch that must be done specifically before importing pygame if it was already imported
+
+    collector.run_patches(PatchContext.BEFORE_IMPORTING_PYGAME)
 
 try:
     import pygame

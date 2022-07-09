@@ -77,7 +77,10 @@ class TestGlobalImport:
     def test__import__raise_warning_if_pygame_is_already_imported(self) -> None:
         import pygame
 
-        with pytest.warns(ImportWarning):
+        expected_message = (
+            r"'pygame' module already imported, this can cause unwanted behavior. Consider importing py_diamond first."
+        )
+        with pytest.warns(UserWarning, match=expected_message):
             import py_diamond
 
             del py_diamond
