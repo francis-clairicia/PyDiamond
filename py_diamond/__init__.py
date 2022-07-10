@@ -84,14 +84,16 @@ collector.run_patches(PatchContext.AFTER_IMPORTING_PYGAME)
 
 collector.run_patches(PatchContext.BEFORE_IMPORTING_SUBMODULES)
 
-import py_diamond.audio
-import py_diamond.environ
-import py_diamond.graphics
-import py_diamond.math
-import py_diamond.network
-import py_diamond.resource
-import py_diamond.system
-import py_diamond.window
+from . import (
+    audio as audio,
+    environ as environ,
+    graphics as graphics,
+    math as math,
+    network as network,
+    resource as resource,
+    system as system,
+    window as window,
+)
 
 collector.run_patches(PatchContext.AFTER_IMPORTING_SUBMODULES)
 
@@ -100,4 +102,4 @@ collector.run_patches(PatchContext.AFTER_ALL)
 __patches__ = collector.stop_record()
 
 ############ Cleanup ############
-del os, sys, py_diamond, pygame, collector, PatchContext
+del os, sys, pygame, collector, PatchContext
