@@ -19,6 +19,7 @@ from typing import Any, ClassVar, Final, Mapping, TypeAlias
 from weakref import proxy as weakproxy
 
 from pygame.transform import rotozoom as _surface_rotozoom
+from typing_extensions import assert_never
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
@@ -486,6 +487,8 @@ class TextImage(Text):
             case TextImage.Compound.CENTER:
                 render_width = max(text_width, img_width)
                 render_height = max(text_height, img_height)
+            case _:
+                assert_never(compound)
 
         render: Surface = create_surface((render_width, render_height))
         render_rect: Rect = render.get_rect()
@@ -505,6 +508,8 @@ class TextImage(Text):
                 img.midtop = render_rect.midtop
             case TextImage.Compound.CENTER:
                 img.center = text_rect.center = render_rect.center
+            case _:
+                assert_never(compound)
 
         img.draw_onto(SurfaceRenderer(render))
         render.blit(text, text_rect)

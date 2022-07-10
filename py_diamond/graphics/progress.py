@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from enum import auto, unique
 from typing import TYPE_CHECKING, Any, ClassVar, Literal as L, Mapping, Sequence
 
+from typing_extensions import assert_never
+
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
 from ..system.validation import valid_float, valid_integer
@@ -189,6 +191,8 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
                     case "percent":
                         value = self.__percent * 100
                         text.message = f"{message_fmt.format(value if round_n > 0 else round(value))}%"
+                    case _:
+                        assert_never(text_type)
 
                 self.__place_text(text, side, offset=offset)
                 text.draw_onto(target)
@@ -210,6 +214,8 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
                 text.midtop = (self.centerx, self.bottom + offset)
             case ProgressBar.Side.INSIDE:
                 text.center = self.center
+            case _:
+                assert_never(side)
 
     def set_bounds(self, from_: float, to: float) -> None:
         from_ = float(from_)

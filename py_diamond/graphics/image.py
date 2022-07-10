@@ -12,6 +12,7 @@ __all__ = ["Image"]
 from typing import TYPE_CHECKING, Any, Mapping, overload
 
 from pygame.transform import rotozoom as _surface_rotozoom
+from typing_extensions import assert_never
 
 from .color import Color
 from .drawable import TDrawable
@@ -64,7 +65,7 @@ class Image(TDrawable):
             case str():
                 image = load_image(image)
             case _:
-                raise TypeError(f"Invalid argument: {image!r}")
+                assert_never(image)
 
         self.__default_image = image
         self.__image = image
@@ -79,7 +80,7 @@ class Image(TDrawable):
             case (None, None):
                 pass
             case _:
-                raise TypeError(f"Invalid argument: {image!r}")
+                raise TypeError(f"Invalid argument: {(width, height)!r}")
 
         self.topleft = (0, 0)
 

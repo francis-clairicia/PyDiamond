@@ -90,7 +90,7 @@ class Sprite(TDrawable):
             case (None, None):
                 pass
             case _:
-                raise TypeError(f"Invalid argument: {image!r}")
+                raise TypeError(f"Invalid argument: {(width, height)!r}")
 
         self.topleft = (0, 0)
 

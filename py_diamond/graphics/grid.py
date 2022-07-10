@@ -15,6 +15,8 @@ from enum import auto, unique
 from typing import Any, ClassVar, Container, Iterator, Literal as L, Protocol, Sequence, TypeVar, overload, runtime_checkable
 from weakref import ref as weakref
 
+from typing_extensions import assert_never
+
 from ..system.collections import SortedDict
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
@@ -660,6 +662,8 @@ class _GridCell(MDrawable):
                 obj.set_position(midbottom=(self.centerx, self.bottom - self.__pady))
             case Grid.Justify.CENTER:
                 obj.set_position(center=self.center)
+            case _:
+                assert_never(self.__justify)
 
     @property
     def grid(self) -> Grid:

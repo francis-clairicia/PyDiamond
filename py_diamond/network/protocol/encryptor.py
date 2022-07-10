@@ -15,6 +15,7 @@ __all__ = [
 from typing import Any, Generic, TypeVar
 
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
+from typing_extensions import assert_never
 
 from ...system.object import final
 from ...system.utils.abc import concreteclass
@@ -52,7 +53,7 @@ class _BaseEncryptor(_BaseAutoSeparatedPacket):
             case str() | bytes():
                 self.__key = MultiFernet([Fernet(key)])
             case _:
-                raise TypeError("Invalid 'key' argument")
+                assert_never(key)
         super().__init__(separator=b"\r\n", keepends=False, **kwargs)
 
     @property

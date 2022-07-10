@@ -310,11 +310,10 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
             case KeyDownEvent(key=Keyboard.Key.ESCAPE):
                 self.stop_edit()
                 return True
-            case KeyDownEvent(key=Keyboard.Key.BACKSPACE) if self.cursor > 0:
-                text.message = text.message[: self.cursor - 1] + text.message[self.cursor :]
-                self.cursor -= 1
-                return True
             case KeyDownEvent(key=Keyboard.Key.BACKSPACE):
+                if self.cursor > 0:
+                    text.message = text.message[: self.cursor - 1] + text.message[self.cursor :]
+                    self.cursor -= 1
                 return True
             case KeyDownEvent(key=Keyboard.Key.DELETE):
                 text.message = text.message[: self.cursor] + text.message[self.cursor + 1 :]

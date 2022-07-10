@@ -192,10 +192,13 @@ class GUIScene(Scene):
         match event.key:
             case Keyboard.Key.TAB if event.mod & Keyboard.Modifiers.SHIFT:
                 self.focus_prev()
+                return True
             case Keyboard.Key.TAB:
                 self.focus_next()
+                return True
             case Keyboard.Key.ESCAPE:
                 self.focus_set(None)
+                return True
         side_with_key_event = self.get_side_with_key_event()
         if event.key in side_with_key_event:
             side: BoundFocus.Side = side_with_key_event[event.key]
