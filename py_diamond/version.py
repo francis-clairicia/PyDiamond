@@ -37,4 +37,4 @@ class VersionInfo(typing.NamedTuple):
         return f"{self.major}.{self.minor}.{self.patch}{releaselevel}{self.suffix}"
 
 
-version_info: typing.Final[VersionInfo] = VersionInfo(1, 0, 0, "alpha", 0, ".dev1")
+version_info: typing.Final[VersionInfo] = VersionInfo(1, 0, 0, "alpha", 0, ".dev2")
