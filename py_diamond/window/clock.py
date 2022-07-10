@@ -8,22 +8,32 @@ from __future__ import annotations
 
 __all__ = ["Clock"]
 
-
-from time import monotonic_ns as time_ns
+import time
+from typing import TYPE_CHECKING
 
 
 class Clock:
 
     __slots__ = ("__time", "__last_tick")
 
+    if TYPE_CHECKING:
+
+        @staticmethod
+        def get_time_ns() -> int:
+            ...
+
+    else:
+
+        get_time_ns = staticmethod(time.monotonic_ns)
+
     def __init__(self, start: bool = False) -> None:
         self.__time: float = 0
         self.__last_tick: int = 0
         if start:
-            self.__last_tick = time_ns()
+            self.__last_tick = self.get_time_ns()
 
     def get_elapsed_time(self) -> float:
-        now: int = time_ns()
+        now: int = self.get_time_ns()
         if last_tick := self.__last_tick:
             self.__time += (now - last_tick) / 1000000.0
         self.__last_tick = now
@@ -37,6 +47,6 @@ class Clock:
         return False
 
     def restart(self, reset: bool = True) -> None:
-        self.__last_tick = time_ns()
+        self.__last_tick = self.get_time_ns()
         if reset:
             self.__time = 0
