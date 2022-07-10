@@ -46,4 +46,4 @@ Dependency version:
 - [OrderedSet](https://github.com/rspeer/ordered-set) collection by rspeer
 
 ## License
-This project is licensed under the terms of the [GNU General Public License v3.0](./LICENSE).
+This project is licensed under the terms of the [GNU General Public License v3.0](https://github.com/francis-clairicia/PyDiamond/blob/main/LICENSE).
