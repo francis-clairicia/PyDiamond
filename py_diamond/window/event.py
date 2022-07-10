@@ -58,6 +58,7 @@ from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import Field, asdict as dataclass_asdict, dataclass, field, fields
 from enum import IntEnum, unique
+from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -68,7 +69,6 @@ from typing import (
     Literal as L,
     Mapping,
     Sequence,
-    SupportsInt,
     TypeAlias,
     TypeVar,
     cast,
@@ -94,13 +94,13 @@ if TYPE_CHECKING:
 
 _T = TypeVar("_T")
 
-_PYGAME_EVENT_TYPE: dict[SupportsInt, type[Event]] = {}
-_ASSOCIATIONS: dict[type[Event], SupportsInt] = {}
+_PYGAME_EVENT_TYPE: dict[int, type[Event]] = {}
+_ASSOCIATIONS: dict[type[Event], int] = {}
 
 
 class EventMeta(ObjectMeta):
-    __associations: Final[dict[type[Event], SupportsInt]] = _ASSOCIATIONS
-    __type: Final[dict[SupportsInt, type[Event]]] = _PYGAME_EVENT_TYPE
+    __associations: Final[dict[type[Event], int]] = _ASSOCIATIONS
+    __type: Final[dict[int, type[Event]]] = _PYGAME_EVENT_TYPE
 
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="EventMeta")
@@ -128,10 +128,10 @@ class EventMeta(ObjectMeta):
         setattr(cls, "_model_", bool(model))
         if not cls.is_model() and not issubclass(cls, BuiltinEvent):
             cls = final(cls)
-            event_type: SupportsInt = _pg_event_custom_type()
+            event_type: int = int(_pg_event_custom_type())
             if event_type in EventFactory.pygame_type:  # Should not happen
                 event_cls = EventFactory.pygame_type[event_type]
-                raise SystemError(f"Event with type {_pg_event_name(int(event_type))!r} already exists: {event_cls}")
+                raise SystemError(f"Event with type {_pg_event_name(event_type)!r} already exists: {event_cls}")
             event_cls = cast(type[Event], cls)
             mcs.__associations[event_cls] = event_type
             mcs.__type[event_type] = event_cls
@@ -156,14 +156,14 @@ class EventMeta(ObjectMeta):
         return bool(isabstractclass(cls) or getattr(cls, "_model_"))
 
 
-_BUILTIN_PYGAME_EVENT_TYPE: dict[SupportsInt, type[Event]] = {}
-_BUILTIN_ASSOCIATIONS: dict[type[Event], SupportsInt] = {}
+_BUILTIN_PYGAME_EVENT_TYPE: dict[int, type[Event]] = {}
+_BUILTIN_ASSOCIATIONS: dict[type[Event], int] = {}
 
 
 @final
 class _BuiltinEventMeta(EventMeta):
-    __associations: Final[dict[type[Event], SupportsInt]] = _BUILTIN_ASSOCIATIONS  # type: ignore[misc]
-    __type: Final[dict[SupportsInt, type[Event]]] = _BUILTIN_PYGAME_EVENT_TYPE  # type: ignore[misc]
+    __associations: Final[dict[type[Event], int]] = _BUILTIN_ASSOCIATIONS  # type: ignore[misc]
+    __type: Final[dict[int, type[Event]]] = _BUILTIN_PYGAME_EVENT_TYPE  # type: ignore[misc]
 
     def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> _BuiltinEventMeta:
         try:
@@ -575,10 +575,24 @@ class UnknownEventTypeError(EventFactoryError):
 
 
 class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
-    associations: Final[Mapping[type[Event], SupportsInt]] = ChainMapProxy(_BUILTIN_ASSOCIATIONS, _ASSOCIATIONS)
-    pygame_type: Final[Mapping[SupportsInt, type[Event]]] = ChainMapProxy(_BUILTIN_PYGAME_EVENT_TYPE, _PYGAME_EVENT_TYPE)
+    associations: Final[Mapping[type[Event], int]] = ChainMapProxy(
+        MappingProxyType(_BUILTIN_ASSOCIATIONS), MappingProxyType(_ASSOCIATIONS)
+    )
+    pygame_type: Final[Mapping[int, type[Event]]] = ChainMapProxy(
+        MappingProxyType(_BUILTIN_PYGAME_EVENT_TYPE), MappingProxyType(_PYGAME_EVENT_TYPE)
+    )
 
     NUMEVENTS: Final[int] = _pg_constants.NUMEVENTS
+
+    @staticmethod
+    def get_pygame_event_type(event: Event | type[Event]) -> int:
+        if not isinstance(event, type):
+            event = event.__class__
+        return EventFactory.associations[event]
+
+    @staticmethod
+    def get_available_custom_event_number() -> int:
+        return max(EventFactory.NUMEVENTS - 1 - max(EventFactory.pygame_type), 0)
 
     @staticmethod
     def from_pygame_event(event: _PygameEvent, *, handle_user_events: bool = True) -> Event:
@@ -596,7 +610,7 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
         event_dict = event.to_dict()
         event_dict.pop("type", None)
         event_type = EventFactory.associations[event.__class__]
-        return _PygameEvent(int(event_type), event_dict)
+        return _PygameEvent(event_type, event_dict)
 
 
 _EventCallback: TypeAlias = Callable[[Event], bool | None]
