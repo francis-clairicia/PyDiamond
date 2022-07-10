@@ -4,12 +4,10 @@ requires = ["setuptools", "wheel"]
 
 [project]
 name = "PyDiamond"
-version = "1.0.0a0.dev1"
-description = "pygame-based game engine"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
-  {name = "Francis Clairicia-Rose-Claire-Josephine", email = "clairicia.rcj.francis@gmail.com"},
+  {name = "FrankySnow9", email = "clairicia.rcj.francis@gmail.com"},
 ]
 license = {file = "LICENSE"}
 dependencies = [
@@ -29,9 +27,10 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: pygame",
   "Typing :: Typed"
 ]
+dynamic = ["version", "description"]
 
 [project.urls]
-Source = "https://github.com/francis-clairicia/PyDiamond"
+Homepage = "https://github.com/francis-clairicia/PyDiamond"
 
 [project.optional-dependencies]
 dev = [

@@ -2,28 +2,45 @@
 # Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine
 #
 #
-"""PyDiamond engine is a game engine intended to game developers in Python language.
+"""pygame-based game engine
+
+PyDiamond engine is a game engine intended to game developers in Python language.
 The framework uses the popular pygame library (https://github.com/pygame/pygame/).
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 from __future__ import annotations
 
 __all__ = []  # type: list[str]
 
-__author__ = "Francis Clairicia-Rose-Claire-Josephine"
+__author__ = "FrankySnow9"
 __copyright__ = "Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine"
-__credits__ = ["Francis Clairicia-Rose-Claire-Josephine"]
+__credits__ = ["FrankySnow9"]
 __license__ = "GNU GPL v3.0"
-__maintainer__ = "Francis Clairicia-Rose-Claire-Josephine"
+__maintainer__ = "FrankySnow9"
 __email__ = "clairicia.rcj.francis@gmail.com"
-__status__ = "Development"
-
-import os
-import sys
 
 from .version import version_info
 
 __version__ = str(version_info)
+
+match version_info.releaselevel:
+    case "final" if not version_info.suffix:
+        __status__ = "Production"
+    case _:
+        __status__ = "Development"
+
+import os
+import sys
 
 ############ Environment initialization ############
 if sys.version_info < (3, 10):

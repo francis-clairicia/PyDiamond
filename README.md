@@ -24,6 +24,9 @@ if __name__ == "__main__":
 ```
 This code will open a small window.
 
+### Documentation
+Coming soon. :)
+
 ## Dependencies
 ```sh
 python3 -m pip install -r requirements.txt
