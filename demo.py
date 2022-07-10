@@ -427,7 +427,7 @@ class ImagesResources(ResourceManager):
     cross: Mapping[str, Surface]
     autumn_tree: Surface
     __resource_loader__ = ImageLoader
-    __resources_directory__ = "./files/img"
+    __resources_directory__ = "./demo_resources/img"
     __resources_files__ = {
         "cactus": "cactus.png",
         "car": [f"gameplay/voiture_7/{i + 1}.png" for i in range(10)],
@@ -442,7 +442,7 @@ class ImagesResources(ResourceManager):
 class FontResources(ResourceManager):
     cooperblack: str
     __resource_loader__ = FontLoader
-    __resources_directory__ = "./files/fonts"
+    __resources_directory__ = "./demo_resources/fonts"
     __resources_files__ = {"cooperblack": "COOPBL.ttf"}
 
 
@@ -1055,7 +1055,7 @@ class MusicManager(ResourceManager):
     garage: Music
     gameplay: Music
     __resource_loader__ = MusicLoader
-    __resources_directory__ = "./files/sounds"
+    __resources_directory__ = "./demo_resources/sounds"
     __resources_files__ = {"menu": "menu.wav", "garage": "garage.wav", "gameplay": "gameplay.wav"}
 
 
@@ -1064,7 +1064,7 @@ class SoundManager(ResourceManager):
     validate: Sound
     block: Sound
     __resource_loader__ = SoundLoader
-    __resources_directory__ = "./files/sounds"
+    __resources_directory__ = "./demo_resources/sounds"
     __resources_files__ = {"select": "sfx-menu-select.wav", "validate": "sfx-menu-validate.wav", "block": "sfx-menu-block.wav"}
 
 
