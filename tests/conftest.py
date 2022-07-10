@@ -61,12 +61,16 @@ pytest_plugins = [
 
 
 @pytest.fixture(scope="session", autouse=True)
-def __patch_pygame_environment(monkeypatch_session: MonkeyPatch) -> None:
+def __patch_environment(monkeypatch_session: MonkeyPatch) -> None:
     # Always hide support on pygame import
     monkeypatch_session.setenv("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 
     # Tell pygame that we do not have a graphic environment
     monkeypatch_session.setenv("SDL_VIDEODRIVER", "dummy")
+
+    # This is the default but we enforce the value for the tests
+    monkeypatch_session.setenv("PYDIAMOND_IMPORT_WARNINGS", "1")
+    monkeypatch_session.delenv("PYDIAMOND_PATCH_DISABLE", raising=False)
 
 
 @pytest.fixture(scope="session", autouse=True)

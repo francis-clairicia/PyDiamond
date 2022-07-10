@@ -64,6 +64,11 @@ class _PatchCollectorType:
 
         self.__all_patches = MappingProxyType({k: tuple(v) for k, v in all_patches.items()})
 
+    def has_any_patch_to_run(self, *contexts: PatchContext) -> bool:
+        if not contexts:
+            contexts = tuple(PatchContext)
+        return any(patch.__class__.enabled() for ctx in contexts for patch in self.__all_patches.get(ctx, ()))
+
     def run_patches(self, context: PatchContext) -> None:
         forbidden_imports = [
             module for module, context_ceiling in self.__forbidden_imports_until_context.items() if context < context_ceiling

@@ -50,6 +50,9 @@ if sys.version_info < (3, 10):
         path=__file__,
     )
 
+if os.environ.get("PYDIAMOND_IMPORT_WARNINGS", "1") not in ("0", "1"):
+    raise ValueError(f"Invalid value for 'PYDIAMOND_IMPORT_WARNINGS', got {os.environ['PYDIAMOND_IMPORT_WARNINGS']!r}")
+
 ############ Package initialization ############
 #### Apply various patch that must be run before importing the main modules
 from ._patch import PatchContext, collector
@@ -58,18 +61,20 @@ collector.start_record()
 
 collector.run_patches(PatchContext.BEFORE_ALL)
 
-if any(name == "pygame" or name.startswith("pygame.") for name in list(sys.modules)):
-    import warnings
+if collector.has_any_patch_to_run(PatchContext.BEFORE_IMPORTING_PYGAME):
+    if any(name == "pygame" or name.startswith("pygame.") for name in list(sys.modules)):
+        if os.environ.get("PYDIAMOND_IMPORT_WARNINGS", "1") == "1":
+            import warnings
 
-    warn_msg = "'pygame' module already imported, this can cause unwanted behavior. Consider importing py_diamond first."
-    warnings.warn(warn_msg)
+            warn_msg = "'pygame' module already imported, this can cause unwanted behavior. Consider importing py_diamond first."
+            warnings.warn(warn_msg)
 
-    del warnings, warn_msg
+            del warnings, warn_msg
 
-else:
-    # No need to run patch that must be done specifically before importing pygame if it was already imported
+    else:
+        # No need to run patch that must be done specifically before importing pygame if it was already imported
 
-    collector.run_patches(PatchContext.BEFORE_IMPORTING_PYGAME)
+        collector.run_patches(PatchContext.BEFORE_IMPORTING_PYGAME)
 
 try:
     import pygame

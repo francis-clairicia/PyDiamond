@@ -9,6 +9,7 @@ from __future__ import annotations
 __all__ = ["BasePatch"]
 
 import os
+import re
 from abc import ABCMeta, abstractmethod
 from enum import IntEnum, auto, unique
 
@@ -45,7 +46,18 @@ class BasePatch(metaclass=ABCMeta):
         patch_disable_value: str = os.environ.get("PYDIAMOND_PATCH_DISABLE", "")
         if patch_disable_value.lower() == "all":
             return False
-        return cls.get_name() not in [patch_name for name in patch_disable_value.split(":") if (patch_name := name.strip())]
+        if match := re.match(r"context\[\s*(?P<contexts>\w+(?:\s*,\s*\w+)*)\s*\]", patch_disable_value):
+            contexts: set[str] = set(filter(None, (name.strip() for name in match.group("contexts").split(","))))
+            valid_contexts = set(name for name in contexts if name in PatchContext._member_map_)
+            if unknown_contexts := contexts - valid_contexts:
+                import warnings
+
+                warnings.warn(f"Unknown patch contexts caught in environment: {', '.join(map(repr, unknown_contexts))}")
+
+            return cls.get_required_context() not in [PatchContext[name] for name in valid_contexts]
+
+        patches: list[str] = list(filter(None, (name.strip() for name in patch_disable_value.split(":"))))
+        return cls.get_name() not in patches
 
     def setup(self) -> None:
         pass

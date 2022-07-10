@@ -87,6 +87,44 @@ class TestGlobalImport:
 
         del pygame
 
+    def test__import__do_not_raise_warning_if_pygame_is_already_imported_and_there_is_no_patch_to_run(
+        self,
+        monkeypatch: MonkeyPatch,
+    ) -> None:
+        import warnings
+
+        import pygame
+
+        monkeypatch.setenv("PYDIAMOND_PATCH_DISABLE", "context[BEFORE_IMPORTING_PYGAME]")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", category=UserWarning)
+
+            import py_diamond
+
+            del py_diamond
+
+        del pygame
+
+    def test__import__do_not_raise_warning_if_environment_variable_is_set(
+        self,
+        monkeypatch: MonkeyPatch,
+    ) -> None:
+        import warnings
+
+        import pygame
+
+        monkeypatch.setenv("PYDIAMOND_IMPORT_WARNINGS", "0")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", category=UserWarning)
+
+            import py_diamond
+
+            del py_diamond
+
+        del pygame
+
     def test__import__raise_error_for_incompatible_python_version(self, mocker: MockerFixture) -> None:
         mocker.patch("sys.version_info", MockVersionInfo(3, 9, 5, "final", 0))
 
