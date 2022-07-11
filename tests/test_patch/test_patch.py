@@ -18,7 +18,7 @@ class TestPatch:
         "fix_typing.OverrideFinalFunctionsPatch",
         "environment.ArrangePygameEnvironmentBeforeImport",
         "environment.VerifyBooleanEnvironmentVariables",
-        "pygame_patch.PygameEventPatch",
+        "pygame_patch.PygamePatch",
         "pygame_patch.PyDiamondEventPatch",
     ]
 
@@ -43,31 +43,3 @@ class TestPatch:
 
     def test__patch__get_name(self, patch_cls: type[BasePatch], patch_qualname: str) -> None:
         assert patch_cls.get_name() == f"plugins.{patch_qualname}"
-
-    def test__patch__must_not_be_run_if_disabled_from_env(
-        self,
-        patch_cls: type[BasePatch],
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        # Arrange
-        monkeypatch.setenv("PYDIAMOND_PATCH_DISABLE", patch_cls.get_name())
-
-        # Act
-        must_be_run = patch_cls.enabled()
-
-        # Assert
-        assert not must_be_run
-
-    def test__patch__must_not_be_run_if_disabled_from_env_using_all(
-        self,
-        patch_cls: type[BasePatch],
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        # Arrange
-        monkeypatch.setenv("PYDIAMOND_PATCH_DISABLE", "all")
-
-        # Act
-        must_be_run = patch_cls.enabled()
-
-        # Assert
-        assert not must_be_run

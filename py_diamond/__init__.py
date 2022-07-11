@@ -61,20 +61,18 @@ collector.start_record()
 
 collector.run_patches(PatchContext.BEFORE_ALL)
 
-if collector.has_any_patch_to_run(PatchContext.BEFORE_IMPORTING_PYGAME):
-    if any(name == "pygame" or name.startswith("pygame.") for name in list(sys.modules)):
-        if os.environ.get("PYDIAMOND_IMPORT_WARNINGS", "1") == "1":
-            import warnings
+if any(name == "pygame" or name.startswith("pygame.") for name in list(sys.modules)):
+    if os.environ.get("PYDIAMOND_IMPORT_WARNINGS", "1") == "1":
+        import warnings as _warnings
 
-            warn_msg = "'pygame' module already imported, this can cause unwanted behavior. Consider importing py_diamond first."
-            warnings.warn(warn_msg)
+        from .warnings import PyDiamondImportWarning
 
-            del warnings, warn_msg
+        warn_msg = "'pygame' module already imported, this can cause unwanted behavior. Consider importing py_diamond first."
+        _warnings.warn(warn_msg, category=PyDiamondImportWarning)
 
-    else:
-        # No need to run patch that must be done specifically before importing pygame if it was already imported
+        del _warnings, warn_msg, PyDiamondImportWarning
 
-        collector.run_patches(PatchContext.BEFORE_IMPORTING_PYGAME)
+collector.run_patches(PatchContext.BEFORE_IMPORTING_PYGAME)
 
 try:
     import pygame
@@ -97,6 +95,8 @@ from . import (
     network as network,
     resource as resource,
     system as system,
+    version as version,
+    warnings as warnings,
     window as window,
 )
 

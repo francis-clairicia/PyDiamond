@@ -11,7 +11,7 @@ __all__ = []  # type: list[str]
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, ParamSpec, TypeVar
 
-from .._base import BasePatch, PatchContext
+from .._base import PatchContext, RequiredPatch
 
 if TYPE_CHECKING:
     from pygame.event import _EventTypes
@@ -30,7 +30,7 @@ def forbidden_call(func: Callable[_P, _R]) -> Callable[_P, _R]:
     return not_callable
 
 
-class PygameEventPatch(BasePatch):
+class PygamePatch(RequiredPatch):
     @classmethod
     def get_required_context(cls) -> PatchContext:
         return PatchContext.AFTER_IMPORTING_PYGAME
@@ -116,7 +116,7 @@ class PygameEventPatch(BasePatch):
         return wrapper
 
 
-class PyDiamondEventPatch(BasePatch):
+class PyDiamondEventPatch(RequiredPatch):
     @classmethod
     def get_required_context(cls) -> PatchContext:
         return PatchContext.AFTER_IMPORTING_SUBMODULES

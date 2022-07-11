@@ -8,10 +8,18 @@ from __future__ import annotations
 
 __all__ = ["BasePatch"]
 
+import importlib
+import inspect
 import os
 import re
+import typing
+import warnings
 from abc import ABCMeta, abstractmethod
 from enum import IntEnum, auto, unique
+
+
+class PyDiamondPatchWarning(UserWarning):
+    pass
 
 
 @unique
@@ -33,6 +41,10 @@ class PatchContext(IntEnum):
 class BasePatch(metaclass=ABCMeta):
     run_context: PatchContext
 
+    DISABLED_PATCHES: typing.ClassVar[set[str]] = set()
+    DISABLED_CONTEXTS: typing.ClassVar[set[PatchContext]] = set()
+    ENABLE_PATCH: typing.ClassVar[bool] = True
+
     @classmethod
     def get_name(cls) -> str:
         return f"{cls.__module__.removeprefix(__package__ + '.')}.{cls.__name__}"
@@ -42,22 +54,13 @@ class BasePatch(metaclass=ABCMeta):
         return PatchContext.BEFORE_ALL
 
     @classmethod
+    @typing.final
     def enabled(cls) -> bool:
-        patch_disable_value: str = os.environ.get("PYDIAMOND_PATCH_DISABLE", "")
-        if patch_disable_value.lower() == "all":
+        if issubclass(cls, RequiredPatch):
+            return True
+        if not BasePatch.ENABLE_PATCH:
             return False
-        if match := re.match(r"context\[\s*(?P<contexts>\w+(?:\s*,\s*\w+)*)\s*\]", patch_disable_value):
-            contexts: set[str] = set(filter(None, (name.strip() for name in match.group("contexts").split(","))))
-            valid_contexts = set(name for name in contexts if name in PatchContext._member_map_)
-            if unknown_contexts := contexts - valid_contexts:
-                import warnings
-
-                warnings.warn(f"Unknown patch contexts caught in environment: {', '.join(map(repr, unknown_contexts))}")
-
-            return cls.get_required_context() not in [PatchContext[name] for name in valid_contexts]
-
-        patches: list[str] = list(filter(None, (name.strip() for name in patch_disable_value.split(":"))))
-        return cls.get_name() not in patches
+        return cls.get_name() not in BasePatch.DISABLED_PATCHES and cls.get_required_context() not in BasePatch.DISABLED_CONTEXTS
 
     def setup(self) -> None:
         pass
@@ -68,3 +71,62 @@ class BasePatch(metaclass=ABCMeta):
 
     def teardown(self) -> None:
         pass
+
+
+class RequiredPatch(BasePatch):
+    """
+    Base class used to identify required patches
+    """
+
+
+def __read_environment() -> None:
+    patch_disable_value: str = os.environ.get("PYDIAMOND_PATCH_DISABLE", "")
+    if patch_disable_value.lower() == "all":
+        BasePatch.ENABLE_PATCH = False
+    elif match := re.match(r"context\[\s*(?P<contexts>\w+(?:\s*,\s*\w+)*)\s*\]", patch_disable_value):
+        contexts: set[str] = set(filter(None, (name.strip().upper() for name in match.group("contexts").split(","))))
+        valid_contexts = set(name for name in contexts if name in PatchContext._member_map_)
+        if unknown_contexts := contexts - valid_contexts:
+            msg = f"Unknown patch contexts caught in environment: {', '.join(map(repr, unknown_contexts))}"
+            warnings.warn(msg, category=PyDiamondPatchWarning)
+
+        BasePatch.DISABLED_CONTEXTS.update(PatchContext[name] for name in valid_contexts)
+    else:
+        invalid_patches: dict[str, str] = dict()
+        for patch_path in set(filter(None, (name.strip() for name in patch_disable_value.split(":")))):
+            patch_module_path, _, patch_name = patch_path.rpartition(".")
+            if patch_module_path:
+                patch_module_path = f"{__package__}.{patch_module_path}"
+            else:
+                patch_module_path = __package__
+            try:
+                patch_module = importlib.import_module(patch_module_path)
+            except ModuleNotFoundError:
+                invalid_patches[patch_path] = f"Module {patch_module_path!r} not found"
+                continue
+            try:
+                patch_cls: typing.Any = getattr(patch_module, patch_name)
+            except AttributeError:
+                invalid_patches[patch_path] = f"Unable to resolve {patch_name!r} in {patch_module_path!r}"
+                continue
+            finally:
+                del patch_module
+            if not isinstance(patch_cls, type) or not issubclass(patch_cls, BasePatch):
+                invalid_patches[patch_path] = f"Invalid patch object"
+                continue
+            if inspect.isabstract(patch_cls):
+                invalid_patches[patch_path] = f"It is an abstract base patch class"
+                continue
+            if issubclass(patch_cls, RequiredPatch):
+                invalid_patches[patch_path] = f"It is a required patch and cannot be disabled"
+                continue
+            BasePatch.DISABLED_PATCHES.add(patch_name)
+        if invalid_patches:
+            msg = "Invalid instructions from environment:\n"
+            msg += "\n".join(f"- {p}: {m}" for p, m in invalid_patches.items())
+            warnings.warn(msg, category=PyDiamondPatchWarning)
+
+
+__read_environment()
+
+del __read_environment

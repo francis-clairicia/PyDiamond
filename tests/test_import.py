@@ -38,6 +38,8 @@ class TestGlobalImport:
             "network",
             "resource",
             "system",
+            "version",
+            "warnings",
             "window",
         ],
         ids=lambda name: f"py_diamond.{name}",
@@ -81,25 +83,6 @@ class TestGlobalImport:
             r"'pygame' module already imported, this can cause unwanted behavior. Consider importing py_diamond first."
         )
         with pytest.warns(UserWarning, match=expected_message):
-            import py_diamond
-
-            del py_diamond
-
-        del pygame
-
-    def test__import__do_not_raise_warning_if_pygame_is_already_imported_and_there_is_no_patch_to_run(
-        self,
-        monkeypatch: MonkeyPatch,
-    ) -> None:
-        import warnings
-
-        import pygame
-
-        monkeypatch.setenv("PYDIAMOND_PATCH_DISABLE", "context[BEFORE_IMPORTING_PYGAME]")
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", category=UserWarning)
-
             import py_diamond
 
             del py_diamond
