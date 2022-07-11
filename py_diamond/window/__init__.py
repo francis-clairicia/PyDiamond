@@ -13,6 +13,7 @@ __all__ = [
     "AbstractWidget",
     "BoundFocus",
     "BuiltinEvent",
+    "BuiltinEventType",
     "Clickable",
     "Clock",
     "Cursor",

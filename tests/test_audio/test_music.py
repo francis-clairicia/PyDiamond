@@ -341,16 +341,6 @@ class TestMusicStreamUnit:
         # Assert
         mock_pygame_mixer_music_module.queue.assert_not_called()
 
-    def test__get_endevent__refers_to_builtin_event_type(self) -> None:
-        # Arrange
-        from py_diamond.window.event import BuiltinEvent
-
-        # Act
-        endevent = MusicStream.get_endevent()
-
-        # Assert
-        assert endevent is BuiltinEvent.Type.MUSICEND
-
 
 @pytest.mark.functional
 @pytest.mark.usefixtures("mock_pygame_event_module", "mock_pygame_mixer_module")
@@ -410,20 +400,6 @@ class TestMusicStreamFunctional:
         mock_pygame_mixer_music_module.load.assert_not_called()
         mock_pygame_mixer_music_module.play.assert_called_once_with(loops=123, fade_ms=456)
 
-    @pytest.mark.usefixtures("mock_pygame_mixer_music_module")
-    def test__stop__post_event_for_stopped_playback(
-        self,
-        music_factory: Callable[[str], Music],
-        mock_pygame_event_module: MockEventModule,
-    ) -> None:
-        music_wav = music_factory("music.wav")
-        Event = pygame.event.Event
-
-        MusicStream.play(music_wav)
-        MusicStream.stop()
-
-        mock_pygame_event_module.post.assert_called_once_with(Event(MusicStream.get_endevent(), finished=music_wav, next=None))
-
     def test__stop__does_not_post_if_there_was_no_playbacks(
         self,
         mock_pygame_event_module: MockEventModule,
@@ -446,39 +422,10 @@ class TestMusicStreamFunctional:
 
         assert MusicStream.get_music() is None
 
-    def test__handle_event__catches_those_from_pygame_mixer_music(self, mixer_music_endevent: pygame.event.Event) -> None:
-        assert MusicStream._handle_event(mixer_music_endevent)
-
-    @pytest.mark.parametrize(
-        "event_type",
-        [
-            "QUIT",
-            "ACTIVEEVENT",
-            "KEYDOWN",
-            "KEYUP",
-            "MOUSEMOTION",
-            "MOUSEBUTTONUP",
-            "MOUSEBUTTONDOWN",
-            "JOYAXISMOTION",
-            "JOYBALLMOTION",
-            "JOYHATMOTION",
-            "JOYBUTTONUP",
-            "JOYBUTTONDOWN",
-            "VIDEORESIZE",
-            "VIDEOEXPOSE",
-            "USEREVENT",
-        ],
-    )
-    def test__handle_event__ignores_other_events(self, event_type: str) -> None:
-        Event = pygame.event.Event
-
-        assert not MusicStream._handle_event(Event(getattr(pygame.constants, event_type)))
-
     @pytest.mark.usefixtures("mock_pygame_mixer_music_module")
     def test__fadeout__post_event_for_stopped_playback(
         self,
         music_factory: Callable[[str], Music],
-        mock_pygame_event_module: MockEventModule,
         mixer_music_endevent: pygame.event.Event,
     ) -> None:
         music_wav = music_factory("music.wav")
@@ -490,13 +437,13 @@ class TestMusicStreamFunctional:
 
         assert MusicStream._handle_event(mixer_music_endevent)
 
-        mock_pygame_event_module.post.assert_called_once_with(Event(MusicStream.get_endevent(), finished=music_wav, next=None))
+        assert mixer_music_endevent.finished is music_wav
+        assert mixer_music_endevent.next is None
 
     def test__queue__scenario_mutiple_calls(
         self,
         music_factory: Callable[[str], Music],
         mock_pygame_mixer_music_module: MockMixerMusicModule,
-        mock_pygame_event_module: MockEventModule,
         mixer_music_endevent: pygame.event.Event,
     ) -> None:
         """Senario: Playlist and events"""
@@ -528,7 +475,8 @@ class TestMusicStreamFunctional:
         assert MusicStream._handle_event(mixer_music_endevent)
         # We can then queue the next song in the mixer.music stream
         mock_pygame_mixer_music_module.queue.assert_called_once_with(music3_wav.filepath, loops=4)
-        mock_pygame_event_module.post.assert_called_with(Event(MusicStream.get_endevent(), finished=music1_wav, next=music2_wav))
+        assert mixer_music_endevent.finished is music1_wav
+        assert mixer_music_endevent.next is music2_wav
         # Load/play the next is performed by pygame.mixer.music module, so there is no need to call load and play
         mock_pygame_mixer_music_module.load.assert_not_called()
         mock_pygame_mixer_music_module.play.assert_not_called()
@@ -541,7 +489,8 @@ class TestMusicStreamFunctional:
         # music2_wav ends playing, same scenario:
         assert MusicStream._handle_event(mixer_music_endevent)
         mock_pygame_mixer_music_module.queue.assert_called_once_with(music4_wav.filepath, loops=0)
-        mock_pygame_event_module.post.assert_called_with(Event(MusicStream.get_endevent(), finished=music2_wav, next=music3_wav))
+        assert mixer_music_endevent.finished is music2_wav
+        assert mixer_music_endevent.next is music3_wav
         mock_pygame_mixer_music_module.load.assert_not_called()
         mock_pygame_mixer_music_module.play.assert_not_called()
         assert MusicStream.get_music() is music3_wav
@@ -553,7 +502,8 @@ class TestMusicStreamFunctional:
         # music3_wav ends playing, same scenario (except for one thing: there is no following musics after music4_wav):
         assert MusicStream._handle_event(mixer_music_endevent)
         mock_pygame_mixer_music_module.queue.assert_not_called()
-        mock_pygame_event_module.post.assert_called_with(Event(MusicStream.get_endevent(), finished=music3_wav, next=music4_wav))
+        assert mixer_music_endevent.finished is music3_wav
+        assert mixer_music_endevent.next is music4_wav
         mock_pygame_mixer_music_module.load.assert_not_called()
         mock_pygame_mixer_music_module.play.assert_not_called()
         assert MusicStream.get_music() is music4_wav
@@ -565,7 +515,8 @@ class TestMusicStreamFunctional:
         # music4_wav ends playing, simply notify user
         assert MusicStream._handle_event(mixer_music_endevent)
         mock_pygame_mixer_music_module.queue.assert_not_called()
-        mock_pygame_event_module.post.assert_called_with(Event(MusicStream.get_endevent(), finished=music4_wav, next=None))
+        assert mixer_music_endevent.finished is music4_wav
+        assert mixer_music_endevent.next is None
         assert MusicStream.get_music() is None
         assert MusicStream.get_queue() == []
         assert MusicStream.get_playlist() == []
@@ -576,8 +527,11 @@ class TestPygameMixerMusicModuleAlteration:
     def test__get_endevent__returns_custom_userevent(self) -> None:
         assert pygame.mixer.music.get_endevent() != pygame.NOEVENT
         assert pygame.USEREVENT < pygame.mixer.music.get_endevent() < pygame.NUMEVENTS
+
         # Just to be sure...
-        assert pygame.mixer.music.get_endevent() != MusicStream.get_endevent()
+        from py_diamond.window.event import BuiltinEventType
+
+        assert pygame.mixer.music.get_endevent() == BuiltinEventType.MUSICEND
 
     def test__set_endevent__cannot_be_called_anymore(self) -> None:
         with pytest.raises(TypeError, match=r"Call to function [\w\.]+ is forbidden"):

@@ -57,7 +57,7 @@ from py_diamond.window.dialog import PopupDialog
 from py_diamond.window.display import Window, WindowCallback
 from py_diamond.window.draggable import Draggable
 from py_diamond.window.event import (
-    BuiltinEvent,
+    BuiltinEventType,
     Event,
     KeyDownEvent,
     KeyUpEvent,
@@ -653,9 +653,9 @@ class EventScene(MainScene):
         self.window.draw(self.cross, self.circle)
 
     def __switch_color(self, event: MouseButtonEvent) -> None:
-        if event.type == BuiltinEvent.Type.MOUSEBUTTONDOWN:
+        if event.type == BuiltinEventType.MOUSEBUTTONDOWN:
             self.cross.color = YELLOW
-        elif event.type == BuiltinEvent.Type.MOUSEBUTTONUP:
+        elif event.type == BuiltinEventType.MOUSEBUTTONUP:
             self.cross.color = RED
         self.window.post_event(MyCustomEvent(f"mouse_pos=({event.pos})"))
 
@@ -1088,6 +1088,7 @@ class AudioScene(MainScene):
     def __init__(self) -> None:
         super().__init__()
         self.event.bind(MusicEndEvent, print)
+        self.event.bind_key_press(Keyboard.Key.F2, lambda _: MusicStream.fadeout(1000))
 
     @classmethod
     def __theme_init__(cls) -> None:

@@ -55,7 +55,7 @@ from ..system.utils._mangling import setattr_pv
 from ..system.utils.functools import wraps
 from .clock import Clock
 from .cursor import AbstractCursor
-from .event import Event, EventFactory, EventFactoryError, EventManager, ScreenshotEvent, UnknownEventTypeError
+from .event import Event, EventFactory, EventManager, ScreenshotEvent, UnknownEventTypeError
 from .keyboard import Keyboard
 from .mouse import Mouse
 from .time import Time
@@ -351,14 +351,12 @@ class Window(Object):
             if pg_event.type == _PG_VIDEORESIZE:
                 self.__rect = ImmutableRect.convert(self.renderer.get_rect())
                 continue
-            if MusicStream._handle_event(pg_event):
+            if not MusicStream._handle_event(pg_event):
                 continue
             try:
                 event = make_event(pg_event, handle_user_events=True)
             except UnknownEventTypeError:
                 _pg_event.set_blocked(pg_event.type)
-                continue
-            except EventFactoryError:
                 continue
             if not process_event(event):
                 yield event
@@ -486,10 +484,11 @@ class Window(Object):
     @final
     def block_all_events(self, *, except_for: Iterable[type[Event]] = ()) -> None:
         ignored_pg_events = tuple(map(EventFactory.associations.__getitem__, except_for))
+        blockable_events = tuple(filter(EventFactory.is_blockable, EventFactory.pygame_type.keys()))
         if not ignored_pg_events:
-            _pg_event.set_blocked(tuple(EventFactory.pygame_type.keys()))
+            _pg_event.set_blocked(blockable_events)
             return
-        _pg_event.set_blocked(tuple(filterfalse(ignored_pg_events.__contains__, EventFactory.pygame_type.keys())))
+        _pg_event.set_blocked(tuple(filterfalse(ignored_pg_events.__contains__, blockable_events)))
         _pg_event.set_allowed(ignored_pg_events)
 
     @contextmanager

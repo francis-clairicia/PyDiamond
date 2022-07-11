@@ -100,17 +100,20 @@ class PygamePatch(RequiredPatch):
         def wrapper(type: _EventTypes | None) -> None:
             caught_events: set[int]
             if type is not None:
+                event_set: set[int]
                 try:
-                    event_set: set[int] = set(map(int, type))  # type: ignore[arg-type]
+                    iter(type)  # type: ignore[arg-type]
                 except TypeError:  # Integer
                     event_set = {int(type)}  # type: ignore[arg-type]
+                else:
+                    type = tuple(type)  # type: ignore[arg-type]  # Preserve values in case it is an iterator
+                    event_set = set(map(int, type))
                 caught_events = event_set & set(forbidden_events)
             else:
                 caught_events = set(forbidden_events)
             if caught_events:
-                msg = f"{', '.join(map(_pg_event.event_name, caught_events))} must always be allowed"
-                raise ValueError(msg)
-            _orig_pg_event_set_blocked(type)
+                raise ValueError(f"{', '.join(map(_pg_event.event_name, caught_events))} must always be allowed")
+            return _orig_pg_event_set_blocked(type)
 
         setattr(wrapper, "__set_blocked_wrapper__", True)
         return wrapper
@@ -126,15 +129,12 @@ class PyDiamondEventPatch(RequiredPatch):
 
         from pygame import event
 
-        self.event = event
         self.event_name_dispatch_table: dict[int, str]
-        event_name_dispatch_table = getattr(self.event.event_name, "__event_name_dispatch_table__", None)
+        event_name_dispatch_table = getattr(event.event_name, "__event_name_dispatch_table__", None)
         if isinstance(event_name_dispatch_table, dict):
             self.event_name_dispatch_table = event_name_dispatch_table
 
     def teardown(self) -> None:
-        del self.event
-
         try:
             del self.event_name_dispatch_table
         except AttributeError:
@@ -144,14 +144,11 @@ class PyDiamondEventPatch(RequiredPatch):
 
     def run(self) -> None:
         try:
-            self.event_name_dispatch_table
+            dispatch_table = self.event_name_dispatch_table
         except AttributeError:
             return
 
-        from pygame.mixer import music
+        from ...window.event import BuiltinEventType
 
-        from ...window.event import BuiltinEvent
-
-        self.event_name_dispatch_table[music.get_endevent()] = "MusicEndEvent"
-        self.event_name_dispatch_table[BuiltinEvent.Type.MUSICEND] = "MusicEndEvent"
-        self.event_name_dispatch_table[BuiltinEvent.Type.SCREENSHOT] = "ScreenshotEvent"
+        dispatch_table[BuiltinEventType.MUSICEND] = "MusicEndEvent"
+        dispatch_table[BuiltinEventType.SCREENSHOT] = "ScreenshotEvent"

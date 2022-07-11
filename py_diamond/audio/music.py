@@ -22,10 +22,9 @@ import os.path
 from collections import deque
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Final, Literal as L
+from typing import TYPE_CHECKING, Any, Final
 from weakref import WeakValueDictionary
 
-import pygame.event as _pg_event
 import pygame.mixer as _pg_mixer
 from pygame import encode_file_path
 from pygame.event import Event as _PygameEvent
@@ -33,8 +32,6 @@ from pygame.mixer import music as _pg_music
 
 if TYPE_CHECKING:
     _PygameEventType = _PygameEvent
-
-    from ..window.event import BuiltinEvent
 else:
     from pygame.event import EventType as _PygameEventType
 
@@ -77,7 +74,7 @@ class Music(NonCopyable):
         """
         MusicStream.play(self, repeat=repeat, fade_ms=fade_ms)
 
-    def queue(self, repeat: int = 0) -> None:
+    def queue(self, *, repeat: int = 0) -> None:
         """Queue a music file to follow the current
 
         See MusicStream.queue() docstring for more information
@@ -135,6 +132,7 @@ class MusicStream(ClassNamespace, frozen=True):
             else:
                 played_music.repeat = repeat
             return
+        MusicStream.__playing.payload = None
         MusicStream.stop()
         _pg_music.load(encode_file_path(music.filepath))
         _pg_music.play(loops=repeat, fade_ms=fade_ms)
@@ -144,8 +142,8 @@ class MusicStream(ClassNamespace, frozen=True):
     def stop(*, unload: bool = False) -> None:
         """Stop the music playback
 
-        Stops the music playback if it is currently playing. MUSICEND event will be triggered.
-        It won't unload the music unless 'unload' argument is True.
+        Stops the music playback if it is currently playing. MUSICEND event will NOT be triggered.
+        It will not unload the music unless 'unload' argument is True.
         """
         queue: deque[_MusicPayload] = MusicStream.__queue
         queue.clear()
@@ -153,17 +151,13 @@ class MusicStream(ClassNamespace, frozen=True):
         if played_music is not None:
             played_music.repeat = 0
             MusicStream.__playing.stopped = played_music.music
-        else:
-            MusicStream.__playing.stopped = None
-        MusicStream.__playing.payload = None
+            MusicStream.__playing.payload = None
         MusicStream.__playing.fadeout = False
         if _pg_mixer.get_init():
             _pg_music.stop()
             if unload:
                 _pg_music.unload()
                 MusicStream.__playing.stopped = None
-        if played_music is not None:
-            MusicStream.__post_event(played_music.music, None)
 
     @staticmethod
     def get_music() -> Music | None:
@@ -284,43 +278,32 @@ class MusicStream(ClassNamespace, frozen=True):
     def _handle_event(event: _PygameEvent) -> bool:
         match event:
             case _PygameEventType(type=event_type) if event_type == _pg_music.get_endevent():
-                MusicStream.__update()
-                return True
-        return False
+                return MusicStream.__update(event)
+        return True
 
     @staticmethod
-    def __update() -> None:
+    def __update(event: _PygameEvent) -> bool:
         played_music: _MusicPayload | None = MusicStream.__playing.payload
-        if MusicStream.__playing.fadeout:
-            MusicStream.stop()
-            return
-        if played_music is None or played_music.repeat < 0:
-            return
+        if played_music is None:
+            return False
         next_music: Music | None
-        queue: deque[_MusicPayload] = MusicStream.__queue
-        if not queue:
-            MusicStream.__playing.payload = next_music = None
+        if MusicStream.__playing.fadeout:
+            MusicStream.stop(unload=False)
+            next_music = None
         else:
-            MusicStream.__playing.payload = payload = queue.popleft()
-            next_music = payload.music
-            if queue:
-                _pg_music.queue(encode_file_path(queue[0].music.filepath), loops=queue[0].repeat)
-        MusicStream.__post_event(played_music.music, next_music)
-
-    @staticmethod
-    def __post_event(finished_music: Music, next_music: Music | None) -> bool:
-        return _pg_event.post(_PygameEvent(MusicStream.get_endevent(), finished=finished_music, next=next_music))
-
-    @staticmethod
-    def get_endevent() -> L[BuiltinEvent.Type.MUSICEND]:
-        """Get music end event type
-
-        Returns BuiltinEvent.Type.MUSICEND. This method exists because of circular import with py_diamond.window module
-        """
-
-        from ..window.event import BuiltinEvent  # Lazy import for circular import
-
-        return BuiltinEvent.Type.MUSICEND
+            if played_music.repeat < 0:
+                return False
+            queue: deque[_MusicPayload] = MusicStream.__queue
+            if not queue:
+                MusicStream.__playing.payload = next_music = None
+            else:
+                MusicStream.__playing.payload = payload = queue.popleft()
+                next_music = payload.music
+                if queue:
+                    _pg_music.queue(encode_file_path(queue[0].music.filepath), loops=queue[0].repeat)
+        setattr(event, "finished", played_music.music)
+        setattr(event, "next", next_music)
+        return True
 
 
 @dataclass
