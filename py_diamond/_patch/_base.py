@@ -12,6 +12,7 @@ import importlib
 import inspect
 import os
 import re
+import sys
 import typing
 import warnings
 from abc import ABCMeta, abstractmethod
@@ -111,14 +112,15 @@ def __read_environment() -> None:
                 continue
             finally:
                 del patch_module
+                sys.modules.pop(patch_module_path, None)
             if not isinstance(patch_cls, type) or not issubclass(patch_cls, BasePatch):
-                invalid_patches[patch_path] = f"Invalid patch object"
+                invalid_patches[patch_path] = "Invalid patch object"
                 continue
             if inspect.isabstract(patch_cls):
-                invalid_patches[patch_path] = f"It is an abstract base patch class"
+                invalid_patches[patch_path] = "It is an abstract base patch class"
                 continue
             if issubclass(patch_cls, RequiredPatch):
-                invalid_patches[patch_path] = f"It is a required patch and cannot be disabled"
+                invalid_patches[patch_path] = "It is a required patch and cannot be disabled"
                 continue
             BasePatch.DISABLED_PATCHES.add(patch_name)
         if invalid_patches:
