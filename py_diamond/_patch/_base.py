@@ -40,8 +40,6 @@ class PatchContext(IntEnum):
 
 
 class BasePatch(metaclass=ABCMeta):
-    run_context: PatchContext
-
     DISABLED_PATCHES: typing.ClassVar[set[str]] = set()
     DISABLED_CONTEXTS: typing.ClassVar[set[PatchContext]] = set()
     ENABLE_PATCH: typing.ClassVar[bool] = True

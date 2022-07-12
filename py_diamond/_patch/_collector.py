@@ -78,7 +78,6 @@ class _PatchCollectorType:
             for patch in self.__all_patches.get(context, ()):
                 if not patch.__class__.enabled():
                     continue
-                patch.run_context = context
                 patch.setup()
                 try:
                     patch.run()
@@ -86,7 +85,6 @@ class _PatchCollectorType:
                         self.__record.add(patch.__class__.get_name())
                 finally:
                     patch.teardown()
-                    del patch.run_context
 
     def start_record(self) -> None:
         if self.__record is None:

@@ -9,25 +9,12 @@ from __future__ import annotations
 __all__ = []  # type: list[str]
 
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Callable
 
 from .._base import PatchContext, RequiredPatch
 
 if TYPE_CHECKING:
     from pygame.event import _EventTypes
-
-_P = ParamSpec("_P")
-_R = TypeVar("_R")
-
-
-# Backport of the one from py_diamond.system.utils.functools
-def forbidden_call(func: Callable[_P, _R]) -> Callable[_P, _R]:
-    @wraps(func)
-    def not_callable(*args: Any, **kwargs: Any) -> Any:
-        raise TypeError(f"Call to function {func.__qualname__} is forbidden")
-
-    setattr(not_callable, "__forbidden_call__", True)
-    return not_callable
 
 
 class PygamePatch(RequiredPatch):
@@ -54,7 +41,7 @@ class PygamePatch(RequiredPatch):
 
         if not self._music_set_endevent_patched():
             self.music.set_endevent(self.event.custom_type())
-            self.music.set_endevent = forbidden_call(self.music.set_endevent)
+            setattr(self.music, "set_endevent", self._make_music_set_endevent_wrapper())
 
         if not self._event_name_patched():
             setattr(self.event, "event_name", self._make_event_name_wrapper())
@@ -66,18 +53,29 @@ class PygamePatch(RequiredPatch):
         return bool(getattr(self.event.set_blocked, "__set_blocked_wrapper__", False))
 
     def _music_set_endevent_patched(self) -> bool:
-        return bool(getattr(self.music.set_endevent, "__forbidden_call__", False))
+        return bool(getattr(self.music.set_endevent, "__set_endevent_wrapper__", False))
 
     def _event_name_patched(self) -> bool:
         return isinstance(getattr(self.event.event_name, "__event_name_dispatch_table__", None), dict)
+
+    def _make_music_set_endevent_wrapper(self) -> Callable[[int], None]:
+        _orig_pg_music_set_endevent = self.music.set_endevent
+
+        @wraps(_orig_pg_music_set_endevent)
+        def patch_set_endevent(event_type: int) -> None:
+            func_qualname = _orig_pg_music_set_endevent.__qualname__
+            raise TypeError(f"Call to function {func_qualname} is forbidden")
+
+        setattr(patch_set_endevent, "__set_endevent_wrapper__", True)
+        return patch_set_endevent
 
     def _make_event_name_wrapper(self) -> Callable[[int], str]:
         _orig_pg_event_name = self.event.event_name
 
         @wraps(_orig_pg_event_name)
-        def wrapper(type: int) -> str:
+        def patch_event_name(type: int) -> str:
             type = int(type)
-            dispatch_table: dict[int, str] = getattr(wrapper, "__event_name_dispatch_table__")
+            dispatch_table: dict[int, str] = getattr(patch_event_name, "__event_name_dispatch_table__")
             try:
                 name: str = dispatch_table[type]
             except KeyError:
@@ -86,8 +84,8 @@ class PygamePatch(RequiredPatch):
                 name = _orig_pg_event_name(type)
             return name
 
-        setattr(wrapper, "__event_name_dispatch_table__", {})
-        return wrapper
+        setattr(patch_event_name, "__event_name_dispatch_table__", {})
+        return patch_event_name
 
     def _make_set_blocked_wrapper(self, *forbidden_events: int) -> Callable[..., None]:
         _pg_event = self.event
@@ -97,8 +95,8 @@ class PygamePatch(RequiredPatch):
             return _orig_pg_event_set_blocked
 
         @wraps(_orig_pg_event_set_blocked)
-        def wrapper(type: _EventTypes | None) -> None:
-            caught_events: set[int]
+        def patch_set_blocked(type: _EventTypes | None) -> None:
+            caught_events: set[int] | tuple[int, ...]
             if type is not None:
                 event_set: set[int]
                 try:
@@ -108,15 +106,15 @@ class PygamePatch(RequiredPatch):
                 else:
                     type = tuple(type)  # type: ignore[arg-type]  # Preserve values in case it is an iterator
                     event_set = set(map(int, type))
-                caught_events = event_set & set(forbidden_events)
+                caught_events = event_set.intersection(forbidden_events)
             else:
-                caught_events = set(forbidden_events)
+                caught_events = forbidden_events
             if caught_events:
                 raise ValueError(f"{', '.join(map(_pg_event.event_name, caught_events))} must always be allowed")
             return _orig_pg_event_set_blocked(type)
 
-        setattr(wrapper, "__set_blocked_wrapper__", True)
-        return wrapper
+        setattr(patch_set_blocked, "__set_blocked_wrapper__", True)
+        return patch_set_blocked
 
 
 class PyDiamondEventPatch(RequiredPatch):

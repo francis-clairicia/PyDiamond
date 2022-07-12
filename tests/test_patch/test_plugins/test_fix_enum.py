@@ -17,11 +17,9 @@ class TestFixIntEnum:
     @pytest.fixture
     @staticmethod
     def patch() -> Iterator[IntEnumMonkeyPatch]:
-        from py_diamond._patch import PatchContext
         from py_diamond._patch.plugins.fix_enum import IntEnumMonkeyPatch
 
         patch = IntEnumMonkeyPatch()
-        patch.run_context = PatchContext.BEFORE_ALL
         patch.setup()
         yield patch
         patch.teardown()

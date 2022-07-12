@@ -62,11 +62,9 @@ class TestFixTypingFinal:
     @pytest.fixture
     @staticmethod
     def patch(mock_default_final: MagicMock) -> Iterator[OverrideFinalFunctionsPatch]:
-        from py_diamond._patch import PatchContext
         from py_diamond._patch.plugins.fix_typing import OverrideFinalFunctionsPatch
 
         patch = OverrideFinalFunctionsPatch()
-        patch.run_context = PatchContext.BEFORE_ALL
         patch.setup()
         yield patch
         patch.teardown()

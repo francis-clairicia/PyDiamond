@@ -37,11 +37,9 @@ class TestArrangePygameEnvironment:
     @pytest.fixture
     @staticmethod
     def patch(fake_environ: MutableMapping[str, str]) -> Iterator[ArrangePygameEnvironmentBeforeImport]:
-        from py_diamond._patch import PatchContext
         from py_diamond._patch.plugins.environment import ArrangePygameEnvironmentBeforeImport
 
         patch = ArrangePygameEnvironmentBeforeImport()
-        patch.run_context = PatchContext.BEFORE_IMPORTING_PYGAME
         patch.setup()
         assert patch.environ is fake_environ
         yield patch
@@ -148,11 +146,9 @@ class TestVerifyBooleanEnvironmentVariables:
     @pytest.fixture
     @staticmethod
     def patch(fake_environ: MutableMapping[str, str]) -> Iterator[VerifyBooleanEnvironmentVariables]:
-        from py_diamond._patch import PatchContext
         from py_diamond._patch.plugins.environment import VerifyBooleanEnvironmentVariables
 
         patch = VerifyBooleanEnvironmentVariables()
-        patch.run_context = PatchContext.AFTER_IMPORTING_SUBMODULES
         patch.setup()
         assert patch.environ is fake_environ
         yield patch
