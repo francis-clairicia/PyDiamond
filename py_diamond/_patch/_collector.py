@@ -149,7 +149,7 @@ class _PatchCollectorType:
         if isinstance(forbidden_imports, str):
             forbidden_imports = (forbidden_imports,)
 
-        forbidden_modules = {module: re.compile(r"{}(?:\.\w+)*".format(module)) for module in set(forbidden_imports)}
+        forbidden_modules = {module: re.compile(r"{}(?:\.\w+)*".format(module)) for module in set(forbidden_imports) if module}
 
         if not forbidden_modules:  # Do not need to mock then
             yield
@@ -168,15 +168,17 @@ class _PatchCollectorType:
             if globals is not None:
                 importer_name = globals.get("__name__", None)
                 importer_path = globals.get("__file__", None)
-                resolved_name = name
-                if level > 0:
-                    actual_package = str(globals["__name__"])
-                    for _ in range(level):
-                        actual_package = actual_package.rpartition(".")[0]
-                    resolved_name = f"{actual_package}.{name}"
-                if patch_package not in resolved_name and (forbidden_module := is_forbidden_module(resolved_name)):
-                    msg = f"{forbidden_module!r} must not be imported during patch {context}"
-                    raise ImportError(msg, name=importer_name, path=importer_path)
+            else:
+                importer_name = importer_path = None
+            resolved_name = name
+            if level > 0:
+                actual_package = str(globals["__name__"])
+                for _ in range(level):
+                    actual_package = actual_package.rpartition(".")[0]
+                resolved_name = f"{actual_package}.{name}"
+            if patch_package not in resolved_name and (forbidden_module := is_forbidden_module(resolved_name)):
+                msg = f"{forbidden_module!r} must not be imported during patch {context}"
+                raise ImportError(msg, name=importer_name, path=importer_path)
             return original_import(name, globals, locals, fromlist, level)
 
         with patch("builtins.__import__", import_mock), patch("importlib.__import__", import_mock):
