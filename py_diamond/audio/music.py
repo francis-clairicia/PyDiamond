@@ -209,7 +209,7 @@ class MusicStream(ClassNamespace, frozen=True):
 
     @staticmethod
     def unpause() -> None:
-        """resume paused music
+        """Resume paused music
 
         This will resume the playback of a music stream after it has been paused.
         """
