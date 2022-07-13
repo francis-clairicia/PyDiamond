@@ -152,12 +152,13 @@ class MusicStream(ClassNamespace, frozen=True):
             played_music.repeat = 0
             MusicStream.__playing.stopped = played_music.music
             MusicStream.__playing.payload = None
+        if unload:
+            MusicStream.__playing.stopped = None
         MusicStream.__playing.fadeout = False
         if _pg_mixer.get_init():
             _pg_music.stop()
             if unload:
                 _pg_music.unload()
-                MusicStream.__playing.stopped = None
 
     @staticmethod
     def get_music() -> Music | None:
