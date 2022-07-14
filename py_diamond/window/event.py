@@ -9,6 +9,11 @@ from __future__ import annotations
 __all__ = [
     "BuiltinEvent",
     "BuiltinEventType",
+    "BuiltinUserEventCode",
+    "DropBeginEvent",
+    "DropCompleteEvent",
+    "DropFileEvent",
+    "DropTextEvent",
     "Event",
     "EventFactory",
     "EventFactoryError",
@@ -180,6 +185,7 @@ class _BuiltinEventMeta(EventMeta):
             assert not cls.is_model()
             event_type: Any = getattr(cls, "type")
             if isinstance(event_type, Field):
+                assert not event_type.init
                 event_type = event_type.default
             assert isinstance(event_type, BuiltinEventType), f"Got {event_type!r}"
             assert event_type not in mcs.__type, f"{event_type!r} event already taken"
@@ -232,6 +238,10 @@ class BuiltinEventType(IntEnum):
     USEREVENT = _pg_constants.USEREVENT
     TEXTEDITING = _pg_constants.TEXTEDITING
     TEXTINPUT = _pg_constants.TEXTINPUT
+    DROPBEGIN = _pg_constants.DROPBEGIN
+    DROPCOMPLETE = _pg_constants.DROPCOMPLETE
+    DROPFILE = _pg_constants.DROPFILE
+    DROPTEXT = _pg_constants.DROPTEXT
     WINDOWSHOWN = _pg_constants.WINDOWSHOWN
     WINDOWHIDDEN = _pg_constants.WINDOWHIDDEN
     WINDOWEXPOSED = _pg_constants.WINDOWEXPOSED
@@ -257,6 +267,13 @@ class BuiltinEventType(IntEnum):
     @property
     def real_name(self) -> str:
         return _pg_event.event_name(self)
+
+
+class BuiltinUserEventCode(IntEnum):
+    DROPFILE = _pg_constants.USEREVENT_DROPFILE
+
+    def __repr__(self) -> str:
+        return f"<{self.name}: {self.value}>"
 
 
 # TODO (3.11) dataclass_transform (PEP-681)
@@ -449,6 +466,32 @@ class UserEvent(BuiltinEvent):
 
 @final
 @dataclass(kw_only=True)
+class DropBeginEvent(BuiltinEvent):
+    type: ClassVar[L[BuiltinEventType.DROPBEGIN]] = field(default=BuiltinEventType.DROPBEGIN, init=False)
+
+
+@final
+@dataclass(kw_only=True)
+class DropCompleteEvent(BuiltinEvent):
+    type: ClassVar[L[BuiltinEventType.DROPCOMPLETE]] = field(default=BuiltinEventType.DROPCOMPLETE, init=False)
+
+
+@final
+@dataclass(kw_only=True)
+class DropFileEvent(BuiltinEvent):
+    type: ClassVar[L[BuiltinEventType.DROPFILE]] = field(default=BuiltinEventType.DROPFILE, init=False)
+    file: str
+
+
+@final
+@dataclass(kw_only=True)
+class DropTextEvent(BuiltinEvent):
+    type: ClassVar[L[BuiltinEventType.DROPTEXT]] = field(default=BuiltinEventType.DROPTEXT, init=False)
+    text: str
+
+
+@final
+@dataclass(kw_only=True)
 class WindowShownEvent(BuiltinEvent):
     type: ClassVar[L[BuiltinEventType.WINDOWSHOWN]] = field(default=BuiltinEventType.WINDOWSHOWN, init=False)
 
@@ -604,9 +647,9 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
         try:
             event_cls: type[Event] = EventFactory.pygame_type[event.type]
         except KeyError as exc:
-            if handle_user_events and BuiltinEventType.USEREVENT < event.type < EventFactory.NUMEVENTS:
-                return UserEvent.from_dict(event.__dict__ | {"code": event.type})
-            raise UnknownEventTypeError(f"Unknown event with type {_pg_event.event_name(event.type)!r}") from exc
+            if not handle_user_events or not (BuiltinEventType.USEREVENT < event.type < EventFactory.NUMEVENTS):
+                raise UnknownEventTypeError(f"Unknown event with type {_pg_event.event_name(event.type)!r}") from exc
+            return UserEvent.from_dict(event.__dict__ | {"code": event.type})
         return event_cls.from_dict(event.__dict__)
 
     @staticmethod

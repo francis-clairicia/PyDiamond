@@ -11,7 +11,7 @@ from py_diamond.window.display import Window
 def main() -> int:
     w: Window = Window(title="my window", size=(800, 600))
     with w.open():
-        while w.looping():
+        while w.loop():
             for event in w.process_events():
                 # do some stuff
                 pass

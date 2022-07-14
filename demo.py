@@ -1433,12 +1433,13 @@ def main() -> None:
     if args.debug:
         gc.set_debug(gc.DEBUG_STATS | gc.DEBUG_LEAK)
 
-    with Mixer.init(), MainWindow().open() as window:
+    with Mixer.init(), MainWindow() as window:
         weakref.finalize(window, print, "Window dead")
         MusicStream.set_volume(0)
         window.mainloop(args.index)
     # Ensure there is no remaining reference to window
     del window
+    print("end of main()")
 
 
 if __name__ == "__main__":

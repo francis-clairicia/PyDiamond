@@ -53,7 +53,7 @@ from ..graphics.surface import Surface, SurfaceRenderer
 from ..graphics.theme import ClassWithThemeNamespaceMeta, closed_namespace, no_theme_decorator
 from ..system.enum import AutoLowerNameEnum
 from ..system.object import Object, final
-from ..system.utils._mangling import getattr_pv, mangle_private_attribute
+from ..system.utils._mangling import getattr_pv, mangle_private_attribute, setattr_pv
 from ..system.utils.abc import concreteclassmethod, isconcreteclass
 from ..system.utils.functools import wraps
 from .display import Window, WindowCallback, WindowError, _WindowCallbackList
@@ -530,10 +530,12 @@ class AbstractAutoLayeredDrawableScene(AbstractLayeredScene):
 
 
 class SceneWindow(Window):
+    DEFAULT_FIXED_FRAMERATE: Final[int] = 50
+
     def __init__(
         self,
         title: str | None = None,
-        size: tuple[int, int] = (0, 0),
+        size: tuple[int, int] | None = None,
         *,
         resizable: bool = False,
         fullscreen: bool = False,
@@ -542,16 +544,14 @@ class SceneWindow(Window):
         super().__init__(title=title, size=size, resizable=resizable, fullscreen=fullscreen, vsync=vsync)
         self.__callback_after_scenes: dict[Scene, _WindowCallbackList] = dict()
         self.__scenes: _SceneManager
+        self.__default_fixed_framerate: int = self.DEFAULT_FIXED_FRAMERATE
         self.__accumulator: float = 0
         self.__reset_interpolation_data()
         self.__running: bool = False
         self.__last_clear_color: Color | None = None
 
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="SceneWindow")
-
     @contextmanager
-    def open(self: __Self) -> Iterator[__Self]:
+    def open(self) -> Iterator[None]:
         def cleanup() -> None:
             self.__scenes.clear()
             self.__callback_after_scenes.clear()
@@ -563,10 +563,12 @@ class SceneWindow(Window):
             self.__scenes = _SceneManager(self)
             self.__reset_interpolation_data()
             stack.callback(cleanup)
-            yield self
+            yield
 
     @final
     def run(self, default_scene: type[Scene], **scene_kwargs: Any) -> None:
+        if not self.is_open():
+            raise WindowError("Window not open")
         if self.__running:
             raise WindowError("SceneWindow already running")
         self.__running = True
@@ -582,7 +584,7 @@ class SceneWindow(Window):
             del exc
         else:
             raise RuntimeError("self.start_scene() didn't raise")
-        looping = self.looping
+        loop = self.loop
         process_events = self.handle_events
         update_scene = self.update_scene
         render_scene = self.render_scene
@@ -591,15 +593,14 @@ class SceneWindow(Window):
 
         try:
             on_start_loop()
-            while looping():
+            while loop():
                 try:
                     process_events()
                     update_scene()
                     render_scene()
                     refresh_screen()
                 except _SceneManager.NewScene as exc:
-                    if exc.previous_scene is None:
-                        raise TypeError("Previous scene must not be None") from None
+                    assert exc.previous_scene is not None, "Previous scene must not be None"
                     try:
                         scene_transition(
                             exc.previous_scene,
@@ -646,7 +647,7 @@ class SceneWindow(Window):
                         animating = False
                     next_transition = transition.send
                     next_fixed_transition = lambda: next_transition(None)
-                    while self.looping() and animating:
+                    while self.loop() and animating:
                         try:
                             self._fixed_updates_call(next_fixed_transition)
                             self._interpolation_updates_call(next_transition)
@@ -669,6 +670,8 @@ class SceneWindow(Window):
 
     def refresh(self) -> float:
         real_delta_time: float = super().refresh()
+        fixed_framerate: int = self.used_fixed_framerate()
+        setattr_pv(Time, "fixed_delta", 1 / fixed_framerate if fixed_framerate > 0 else Time.delta())
         if real_delta_time > 0:
             self.__compute_interpolation_data(real_delta_time / 1000)
         return real_delta_time
@@ -707,7 +710,7 @@ class SceneWindow(Window):
         remove_actual: bool = False,
         **awake_kwargs: Any,
     ) -> NoReturn:
-        if not self.looping():
+        if not self.__running:
             raise WindowError("Consider using run() to start a first scene")
         if issubclass(__scene, Dialog):
             raise TypeError(f"start_scene() does not accept Dialogs")
@@ -743,8 +746,14 @@ class SceneWindow(Window):
                 break
         return framerate
 
+    def get_default_fixed_framerate(self) -> int:
+        return self.__default_fixed_framerate
+
+    def set_default_fixed_framerate(self, value: int) -> None:
+        self.__default_fixed_framerate = max(int(value), 0)
+
     def used_fixed_framerate(self) -> int:
-        framerate = super().used_fixed_framerate()
+        framerate = self.__default_fixed_framerate
         for scene in self.__scenes.from_top_to_bottom():
             f: int = scene.use_fixed_framerate()
             if f > 0:
@@ -840,7 +849,7 @@ class _SceneManager:
         scene.__dict__[self.__scene_manager_attribute] = self
         if issubclass(cls, Dialog):
             if not self.__stack:
-                raise RuntimeError("Trying to open dialog without opened scene")
+                raise RuntimeError("Trying to open dialog without open scene")
             scene.__dict__[self.__dialog_master_attribute] = self.__dialogs[0] if self.__dialogs else self.__stack[0]
         scene.__init__()  # type: ignore[misc]
         return scene
@@ -942,7 +951,7 @@ class _SceneManager:
         if not isconcreteclass(scene_cls):
             raise TypeError(f"{scene_cls.__name__} is an abstract class")
         if issubclass(scene_cls, Dialog):
-            raise TypeError(f"{scene_cls.__name__} must be opened with open_dialog()")
+            raise TypeError(f"{scene_cls.__name__} must be open with open_dialog()")
         try:
             next_scene = self.__all_scenes[scene_cls]
         except KeyError:
@@ -996,7 +1005,7 @@ class _SceneManager:
         if not isconcreteclass(dialog_cls):
             raise TypeError(f"{dialog_cls.__name__} is an abstract class")
         if not issubclass(dialog_cls, Dialog):
-            raise TypeError(f"{dialog_cls.__name__} must be opened with go_to()")
+            raise TypeError(f"{dialog_cls.__name__} must be open with go_to()")
         if awake_kwargs is None:
             awake_kwargs = {}
 
@@ -1017,7 +1026,7 @@ class _SceneManager:
             dialog.on_start_loop()
 
             try:
-                while window.looping():
+                while window.loop():
                     window.handle_events()
                     window.update_scene()
                     window.render_scene()

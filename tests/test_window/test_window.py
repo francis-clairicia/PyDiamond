@@ -118,11 +118,11 @@ class TestWindowUnit:
     @pytest.mark.parametrize(
         ("size", "resizable", "fullscreen", "vsync", "expected_flags"),
         [
-            pytest.param((0, 0), False, False, False, 0, id="(0, 0), False, False, False, NOFLAGS"),
-            pytest.param((0, 0), True, False, False, pygame.RESIZABLE, id="(0, 0), True, False, False, RESIZABLE"),
-            pytest.param((0, 0), False, True, False, pygame.FULLSCREEN, id="(0, 0), False, True, False, FULLSCREEN"),
-            pytest.param((0, 0), False, False, True, 0, id="(0, 0), False, False, True, NOFLAGS"),
-            pytest.param((0, 0), True, False, True, pygame.RESIZABLE, id="(0, 0), True, False, True, RESIZABLE"),
+            pytest.param(None, False, False, False, 0, id="None, False, False, False, NOFLAGS"),
+            pytest.param(None, True, False, False, pygame.RESIZABLE, id="None, True, False, False, RESIZABLE"),
+            pytest.param(None, False, True, False, pygame.FULLSCREEN, id="None, False, True, False, FULLSCREEN"),
+            pytest.param(None, False, False, True, 0, id="None, False, False, True, NOFLAGS"),
+            pytest.param(None, True, False, True, pygame.RESIZABLE, id="None, True, False, True, RESIZABLE"),
             pytest.param((640, 480), False, False, False, 0, id="(640, 480), False, False, False, NOFLAGS"),
             pytest.param((640, 480), True, False, False, pygame.RESIZABLE, id="(640, 480), True, False, False, RESIZABLE"),
             pytest.param((640, 480), False, False, True, 0, id="(640, 480), False, False, True, NOFLAGS"),
@@ -135,7 +135,7 @@ class TestWindowUnit:
     )
     def test__open__specific_mode(
         self,
-        size: tuple[int, int],
+        size: tuple[int, int] | None,
         resizable: bool,
         fullscreen: bool,
         vsync: bool,
@@ -143,23 +143,39 @@ class TestWindowUnit:
         mock_pygame_display_module: MockDisplayModule,
     ) -> None:
         # Arrange
+        if size is None:
+            expected_size = (0, 0) if fullscreen else Window.DEFAULT_SIZE
+        else:
+            expected_size = size
 
         window = Window(size=size, resizable=resizable, fullscreen=fullscreen, vsync=vsync)
 
         # Act & Assert
         with window.open():
 
-            mock_pygame_display_module.set_mode.assert_called_once_with(size, flags=expected_flags, vsync=int(vsync))
+            mock_pygame_display_module.set_mode.assert_called_once_with(expected_size, flags=expected_flags, vsync=int(vsync))
 
-    def test__open__context_manager_return_reference_to_window(self) -> None:
+    def test__enter__context_manager_return_reference_to_window(self) -> None:
         # Arrange
 
         window = Window()
 
         # Act & Assert
-        with window.open() as window_ref:
+        with window as window_ref:
 
             assert window_ref is window
+
+    def test__enter__calls_window_open(self, mocker: MockerFixture) -> None:
+        # Arrange
+        window = Window()
+        mock_window_open = mocker.patch.object(window, "open")
+
+        # Act
+        with window:
+            pass
+
+        # Assert
+        mock_window_open.assert_called_once()
 
     @pytest.mark.parametrize("error", [pytest.param(pygame.error, id="pygame.error"), ValueError, KeyError, ZeroDivisionError])
     def test__open__do_not_call_pygame_display_quit_on_init_error(

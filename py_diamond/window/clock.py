@@ -20,11 +20,11 @@ class Clock:
 
         @staticmethod
         def get_time_ns() -> int:
-            return time.monotonic_ns()
+            return time.perf_counter_ns()
 
     else:
 
-        get_time_ns = staticmethod(time.monotonic_ns)
+        get_time_ns = staticmethod(time.perf_counter_ns)
 
     def __init__(self, start: bool = False) -> None:
         self.__time: float = 0

@@ -9,16 +9,16 @@ from __future__ import annotations
 __all__ = ["Time"]
 
 
-from time import monotonic_ns as time_ns
 from typing import ClassVar, Final
 
-from pygame.time import delay as _pg_time_delay, wait as _pg_time_wait
+import pygame.time as _pg_time
 
 from ..system.namespace import ClassNamespace
+from .clock import Clock
 
 
 class Time(ClassNamespace):
-    __start: Final[int] = time_ns()
+    __start: Final[int] = Clock.get_time_ns()
     __delta: ClassVar[float] = 1
     __fixed_delta: ClassVar[float] = 1
 
@@ -32,12 +32,12 @@ class Time(ClassNamespace):
 
     @staticmethod
     def get_ticks() -> float:
-        return (time_ns() - Time.__start) / 1000000
+        return (Clock.get_time_ns() - Time.__start) / 1000000
 
     @staticmethod
-    def wait(milliseconds: float) -> float:
-        return float(_pg_time_wait(round(milliseconds)))
+    def wait(milliseconds: float) -> int | float:
+        return _pg_time.wait(round(milliseconds))
 
     @staticmethod
-    def delay(milliseconds: float) -> float:
-        return float(_pg_time_delay(round(milliseconds)))
+    def delay(milliseconds: float) -> int | float:
+        return _pg_time.delay(round(milliseconds))

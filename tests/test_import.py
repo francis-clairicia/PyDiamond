@@ -228,7 +228,12 @@ class TestStarImports:
         # Arrange
         module = import_module(module_name)
         module_namespace = vars(module)
-        __all_module__: list[str] = module.__all__
+        try:
+            __all_module__: list[str] = module.__all__
+        except AttributeError:
+            pytest.fail(f"{module_name!r} does not define __all__ variable")
+        if sorted(set(__all_module__)) != sorted(__all_module__):
+            pytest.fail(f"{module_name!r}: Duplicates found in __all__")
 
         # Act
         unknown_names = set(__all_module__) - set(module_namespace)

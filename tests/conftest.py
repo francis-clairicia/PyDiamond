@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Iterator
 
@@ -10,9 +11,20 @@ import pytest
 if TYPE_CHECKING:
     from threading import ExceptHookArgs
 
-    from pytest import MonkeyPatch
     from pytest_mock import MockerFixture
 
+
+################################## Environment initialization ##################################
+# Always hide support on pygame import
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+
+# Tell pygame that we do not have a graphic environment
+os.environ["SDL_VIDEODRIVER"] = "dummy"
+os.environ["SDL_AUDIODRIVER"] = "disk"
+
+# This is the default but we enforce the values for the tests
+os.environ["PYDIAMOND_IMPORT_WARNINGS"] = "1"
+os.environ.pop("PYDIAMOND_PATCH_DISABLE", None)
 
 ################################## Fixture-like functions ##################################
 
@@ -58,19 +70,6 @@ pytest_plugins = [
 ]
 
 ################################## Auto used fixtures for all session test ##################################
-
-
-@pytest.fixture(scope="session", autouse=True)
-def __patch_environment(monkeypatch_session: MonkeyPatch) -> None:
-    # Always hide support on pygame import
-    monkeypatch_session.setenv("PYGAME_HIDE_SUPPORT_PROMPT", "1")
-
-    # Tell pygame that we do not have a graphic environment
-    monkeypatch_session.setenv("SDL_VIDEODRIVER", "dummy")
-
-    # This is the default but we enforce the value for the tests
-    monkeypatch_session.setenv("PYDIAMOND_IMPORT_WARNINGS", "1")
-    monkeypatch_session.delenv("PYDIAMOND_PATCH_DISABLE", raising=False)
 
 
 @pytest.fixture(scope="session", autouse=True)

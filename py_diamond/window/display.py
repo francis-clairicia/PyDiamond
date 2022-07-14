@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Window", "WindowCallback", "WindowError", "WindowExit", "WindowRenderer"]
+__all__ = ["Window", "WindowCallback", "WindowError", "WindowExit"]
 
 import gc
 import os
@@ -24,8 +24,10 @@ from typing import (
     ClassVar,
     ContextManager,
     Final,
+    Generator,
     Iterable,
     Iterator,
+    Literal,
     NoReturn,
     ParamSpec,
     Sequence,
@@ -80,7 +82,7 @@ class WindowExit(BaseException):
 class Window(Object):
     DEFAULT_TITLE: Final[str] = "PyDiamond window"
     DEFAULT_FRAMERATE: Final[int] = 60
-    DEFAULT_FIXED_FRAMERATE: Final[int] = 50
+    DEFAULT_SIZE: Final[tuple[int, int]] = (800, 600)
 
     __main_window: ClassVar[bool] = True
     __screenshot_lock = RLock()
@@ -94,33 +96,43 @@ class Window(Object):
     def __init__(
         self,
         title: str | None = None,
-        size: tuple[int, int] = (0, 0),
+        size: tuple[int, int] | None = None,
         *,
         resizable: bool = False,
         fullscreen: bool = False,
         vsync: bool = False,
     ) -> None:
         self.set_title(title)
-        self.__size: tuple[int, int] = (max(size[0], 0), max(size[1], 0))
+        if size is not None:
+            width, height = size
+            if not isinstance(width, int) or not isinstance(height, int):
+                raise TypeError("Invalid 'size' argument")
+            if width < 0:
+                raise ValueError("'size': Negative width")
+            if height < 0:
+                raise ValueError("'size': Negative height")
         self.__flags: int = 0
         if resizable and fullscreen:
             raise WindowError("Choose between resizable or fullscreen window, both cannot exist")
         if resizable:
             self.__flags |= _PG_RESIZABLE
         if fullscreen:
-            if size != (0, 0):
+            if size is not None:
                 raise WindowError("'size' parameter must not be given if 'fullscreen' is set")
+            size = (0, 0)
             self.__flags |= _PG_FULLSCREEN
+        if size is None:
+            size = self.DEFAULT_SIZE
+        self.__size: tuple[int, int] = size
         self.__vsync: bool = bool(vsync)
 
-        self.__display_renderer: WindowRenderer | None = None
+        self.__display_renderer: _WindowRenderer | None = None
         self.__rect: ImmutableRect = ImmutableRect(0, 0, 0, 0)
         self.__main_clock: _FramerateManager = _FramerateManager()
         self.__event: EventManager = EventManager()
         self.__event_queue: deque[_pg_event.Event] = deque()
 
         self.__default_framerate: int = self.DEFAULT_FRAMERATE
-        self.__default_fixed_framerate: int = self.DEFAULT_FIXED_FRAMERATE
         self.__busy_loop: bool = False
 
         self.__callback_after: _WindowCallbackList = _WindowCallbackList()
@@ -142,10 +154,27 @@ class Window(Object):
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="Window")
 
+    def __enter__(self: __Self) -> __Self:
+        cm = self.open()
+        cm.__enter__()
+        cm_exit = cm.__exit__
+        setattr(self, "__exit__", cm_exit)
+        setattr(self, "__open_exit__", cm_exit)
+        return self
+
+    def __exit__(self, *args: Any) -> bool | None:
+        # When using the 'with' statement, the __exit__ method will be retrieved through the class, not the object
+        # The __exit__ mock made in __enter__ will, therefore, not be used
+        try:
+            open_exit: Callable[..., bool | None] = self.__open_exit__  # type: ignore[attr-defined]
+        except AttributeError:
+            return False
+        return open_exit(*args)
+
     @contextmanager
-    def open(self: __Self) -> Iterator[__Self]:
-        if self.looping():
-            raise WindowError("Trying to open already opened window")
+    def open(self) -> Iterator[None]:
+        if self.is_open():
+            raise WindowError("Trying to open already open window")
 
         with ExitStack() as stack, suppress(WindowExit):
             _pg_display.init()
@@ -165,7 +194,7 @@ class Window(Object):
             flags: int = self.__flags
             vsync = int(bool(self.__vsync))
             _pg_display.set_mode(size, flags=flags, vsync=vsync)
-            self.__display_renderer = WindowRenderer()
+            self.__display_renderer = _WindowRenderer()
             self.__rect = ImmutableRect.convert(self.__display_renderer.get_rect())
 
             @stack.callback
@@ -187,14 +216,23 @@ class Window(Object):
                 while screenshot_threads:
                     screenshot_threads.pop(0).join(timeout=1, terminate_on_timeout=True)
 
+            @stack.callback
+            def _() -> None:  # Ensure patches added by __enter__ are deleted
+                with suppress(AttributeError):
+                    delattr(self, "__open_exit__")
+                with suppress(AttributeError):
+                    delattr(self, "__exit__")
+
+            del _
+
             self.clear_all_events()
             self.__main_clock.tick()
-            yield self
+            yield
 
         gc.collect()  # Run a full collection at the window close
 
     def set_title(self, title: str | None) -> None:
-        _pg_display.set_caption(title or Window.DEFAULT_TITLE)
+        _pg_display.set_caption(title or self.DEFAULT_TITLE)
 
     @final
     def get_title(self) -> str:
@@ -212,10 +250,13 @@ class Window(Object):
         raise WindowExit
 
     @final
-    def looping(self) -> bool:
-        display_renderer = self.__display_renderer
-        if _pg_display.get_surface() is None or display_renderer is None:
-            return False
+    def is_open(self) -> bool:
+        return _pg_display.get_surface() is not None and self.__display_renderer is not None
+
+    @final
+    def loop(self) -> Literal[True]:
+        if _pg_display.get_surface() is None or self.__display_renderer is None:
+            self.close()
 
         event_queue = self.__event_queue
         event_queue.clear()
@@ -239,9 +280,6 @@ class Window(Object):
                 except WindowExit:
                     self.__display_renderer = None
                     raise
-                continue
-            if event.type == _PG_VIDEORESIZE:
-                self.__rect = ImmutableRect.convert(display_renderer.get_rect())
                 continue
             if not handle_music_event(event):  # If it's a music event which is not expected
                 continue
@@ -269,15 +307,6 @@ class Window(Object):
     def used_framerate(self) -> int:
         return self.__default_framerate
 
-    def get_default_fixed_framerate(self) -> int:
-        return self.__default_fixed_framerate
-
-    def set_default_fixed_framerate(self, value: int) -> None:
-        self.__default_fixed_framerate = max(int(value), 0)
-
-    def used_fixed_framerate(self) -> int:
-        return self.__default_fixed_framerate
-
     def get_busy_loop(self) -> bool:
         return self.__busy_loop
 
@@ -300,8 +329,6 @@ class Window(Object):
             real_time = self.__main_clock.tick_busy_loop(framerate)
         else:
             real_time = self.__main_clock.tick(framerate)
-        fixed_framerate: int = self.used_fixed_framerate()
-        setattr_pv(Time, "fixed_delta", 1 / fixed_framerate if fixed_framerate > 0 else Time.delta())
         return real_time
 
     def _system_display(self) -> None:
@@ -369,11 +396,14 @@ class Window(Object):
     def _process_callbacks(self) -> None:
         self.__callback_after.process()
 
-    def process_events(self) -> Iterator[Event]:
+    def process_events(self) -> Generator[Event, None, None]:
         event_queue, self.__event_queue = self.__event_queue, deque()
         process_event = self._process_event
         make_event = EventFactory.from_pygame_event
         for pg_event in event_queue:
+            if pg_event.type == _PG_VIDEORESIZE:
+                self.__rect = ImmutableRect.convert(self.renderer.get_rect())
+                continue
             try:
                 event = make_event(pg_event, handle_user_events=True)
             except UnknownEventTypeError:
@@ -402,8 +432,8 @@ class Window(Object):
         height = int(height)
         if width <= 0 or height <= 0:
             raise ValueError("Invalid window size")
-        if not self.looping():
-            raise WindowError("Trying to resize not opened window")
+        if not self.is_open():
+            raise WindowError("Trying to resize not open window")
         if not self.resizable:
             raise WindowError("Trying to resize not resizable window")
         size = (width, height)
@@ -610,7 +640,7 @@ class Window(Object):
 
     @property
     @final
-    def renderer(self) -> WindowRenderer:
+    def renderer(self) -> _WindowRenderer:
         renderer = self.__display_renderer
         assert renderer is not None, "No active renderer"
         return renderer
@@ -859,16 +889,16 @@ class _WindowRendererMeta(ObjectMeta):
             draw_function: Callable[..., Rect] = getattr(SurfaceRenderer, draw_function_name)
 
             @wraps(draw_function)  # type: ignore[arg-type]
-            def draw_wrapper(self: WindowRenderer, /, *args: Any, __name: str = str(draw_function_name), **kwargs: Any) -> Rect:
-                rect: Rect = getattr(super(WindowRenderer, self), __name)(*args, **kwargs)
+            def draw_wrapper(self: _WindowRenderer, /, *args: Any, __name: str = str(draw_function_name), **kwargs: Any) -> Rect:
+                rect: Rect = getattr(super(_WindowRenderer, self), __name)(*args, **kwargs)
                 self._append_dirty(self._dirty, rect)
                 return rect
 
             namespace[draw_function_name] = draw_wrapper
 
         @wraps(SurfaceRenderer.draw_many_surfaces)
-        def draw_many_surfaces(self: WindowRenderer, /, sequence: Iterable[Any], doreturn: bool = True) -> list[Rect] | None:
-            rects = super(WindowRenderer, self).draw_many_surfaces(sequence, doreturn=True)
+        def draw_many_surfaces(self: _WindowRenderer, /, sequence: Iterable[Any], doreturn: bool = True) -> list[Rect] | None:
+            rects = super(_WindowRenderer, self).draw_many_surfaces(sequence, doreturn=True)
             if rects:
                 append = self._append_dirty
                 dirty_rects = self._dirty
@@ -882,7 +912,7 @@ class _WindowRendererMeta(ObjectMeta):
 
 
 @final
-class WindowRenderer(SurfaceRenderer, metaclass=_WindowRendererMeta):
+class _WindowRenderer(SurfaceRenderer, metaclass=_WindowRendererMeta):
     __slots__ = ("_dirty", "__drawn_rects")
 
     def __init__(self) -> None:
