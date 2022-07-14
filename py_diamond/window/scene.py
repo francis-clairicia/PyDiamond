@@ -647,7 +647,6 @@ class SceneWindow(Window):
                     next_transition = transition.send
                     next_fixed_transition = lambda: next_transition(None)
                     while self.looping() and animating:
-                        self.handle_events()
                         try:
                             self._fixed_updates_call(next_fixed_transition)
                             self._interpolation_updates_call(next_transition)

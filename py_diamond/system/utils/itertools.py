@@ -6,9 +6,10 @@
 
 from __future__ import annotations
 
-__all__ = ["consumer_start", "flatten"]
+__all__ = ["consume", "consumer_start", "flatten"]
 
 import inspect
+from collections import deque
 from itertools import chain
 from typing import Any, Generator, Iterable, Iterator, Literal as L, TypeVar, overload
 
@@ -23,6 +24,10 @@ def consumer_start(gen: Generator[_T_co, Any, Any]) -> _T_co:
         return next(gen)
     except StopIteration as exc:
         raise RuntimeError("generator didn't yield") from exc
+
+
+def consume(it: Iterator[Any]) -> None:
+    deque(it, maxlen=0)  # Consume iterator at C level
 
 
 @overload

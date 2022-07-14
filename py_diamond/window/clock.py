@@ -20,7 +20,7 @@ class Clock:
 
         @staticmethod
         def get_time_ns() -> int:
-            ...
+            return time.monotonic_ns()
 
     else:
 

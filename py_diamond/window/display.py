@@ -53,6 +53,7 @@ from ..system.path import ConstantFileNotFoundError, set_constant_file
 from ..system.threading import Thread, thread_factory
 from ..system.utils._mangling import setattr_pv
 from ..system.utils.functools import wraps
+from ..system.utils.itertools import consume
 from .clock import Clock
 from .cursor import AbstractCursor
 from .event import Event, EventFactory, EventManager, ScreenshotEvent, UnknownEventTypeError
@@ -116,6 +117,7 @@ class Window(Object):
         self.__rect: ImmutableRect = ImmutableRect(0, 0, 0, 0)
         self.__main_clock: _FramerateManager = _FramerateManager()
         self.__event: EventManager = EventManager()
+        self.__event_queue: deque[_pg_event.Event] = deque()
 
         self.__default_framerate: int = self.DEFAULT_FRAMERATE
         self.__default_fixed_framerate: int = self.DEFAULT_FIXED_FRAMERATE
@@ -173,6 +175,7 @@ class Window(Object):
                 self.__display_renderer = None
                 self.__rect = ImmutableRect(0, 0, 0, 0)
                 self.__event.unbind_all()
+                self.__event_queue.clear()
 
             stack.enter_context(self.__stack)
             self.__window_init__()
@@ -210,7 +213,41 @@ class Window(Object):
 
     @final
     def looping(self) -> bool:
-        return _pg_display.get_surface() is not None and self.__display_renderer is not None
+        display_renderer = self.__display_renderer
+        if _pg_display.get_surface() is None or display_renderer is None:
+            return False
+
+        event_queue = self.__event_queue
+        event_queue.clear()
+
+        add_event = event_queue.append
+
+        Keyboard._update()
+        Mouse._update()
+
+        if screenshot_threads := self.__screenshot_threads:
+            screenshot_threads[:] = [t for t in screenshot_threads if t.is_alive()]
+
+        if self.__process_callbacks:
+            self._process_callbacks()
+
+        handle_music_event = MusicStream._handle_event
+        for event in _pg_event.get():
+            if event.type == _PG_QUIT:
+                try:
+                    self._handle_close_event()
+                except WindowExit:
+                    self.__display_renderer = None
+                    raise
+                continue
+            if event.type == _PG_VIDEORESIZE:
+                self.__rect = ImmutableRect.convert(display_renderer.get_rect())
+                continue
+            if not handle_music_event(event):  # If it's a music event which is not expected
+                continue
+            add_event(event)
+
+        return True
 
     def clear(self, color: _ColorValue = BLACK, *, blend_alpha: bool = False) -> None:
         screen = self.__display_renderer
@@ -319,7 +356,7 @@ class Window(Object):
         return os.path.join(os.path.dirname(get_executable_path()), "screenshots")
 
     def handle_events(self) -> None:
-        deque(self.process_events(), maxlen=0)  # Consume iterator at C level
+        consume(self.process_events())
 
     @contextmanager
     def no_window_callback_processing(self) -> Iterator[None]:
@@ -333,26 +370,10 @@ class Window(Object):
         self.__callback_after.process()
 
     def process_events(self) -> Iterator[Event]:
-        Keyboard._update()
-        Mouse._update()
-
-        if screenshot_threads := self.__screenshot_threads:
-            screenshot_threads[:] = [t for t in screenshot_threads if t.is_alive()]
-
-        if self.__process_callbacks:
-            self._process_callbacks()
-
+        event_queue, self.__event_queue = self.__event_queue, deque()
         process_event = self._process_event
         make_event = EventFactory.from_pygame_event
-        for pg_event in _pg_event.get():
-            if pg_event.type == _PG_QUIT:
-                self._handle_close_event()
-                continue
-            if pg_event.type == _PG_VIDEORESIZE:
-                self.__rect = ImmutableRect.convert(self.renderer.get_rect())
-                continue
-            if not MusicStream._handle_event(pg_event):
-                continue
+        for pg_event in event_queue:
             try:
                 event = make_event(pg_event, handle_user_events=True)
             except UnknownEventTypeError:
@@ -406,11 +427,11 @@ class Window(Object):
 
     @final
     def event_is_allowed(self, event_type: type[Event]) -> bool:
-        return not _pg_event.get_blocked(EventFactory.associations[event_type])
+        return not _pg_event.get_blocked(EventFactory.get_pygame_event_type(event_type))
 
     @final
     def allow_event(self, *event_types: type[Event]) -> None:
-        pg_event_types = tuple(map(EventFactory.associations.__getitem__, event_types))
+        pg_event_types = tuple(map(EventFactory.get_pygame_event_type, event_types))
         _pg_event.set_allowed(pg_event_types)
 
     @contextmanager
@@ -435,7 +456,7 @@ class Window(Object):
 
     @final
     def allow_all_events(self, *, except_for: Iterable[type[Event]] = ()) -> None:
-        ignored_pg_events = tuple(map(EventFactory.associations.__getitem__, except_for))
+        ignored_pg_events = tuple(map(EventFactory.get_pygame_event_type, except_for))
         if not ignored_pg_events:
             _pg_event.set_allowed(tuple(EventFactory.pygame_type.keys()))
             return
@@ -451,14 +472,15 @@ class Window(Object):
     @final
     def clear_all_events(self) -> None:
         _pg_event.clear()
+        self.__event_queue.clear()
 
     @final
     def event_is_blocked(self, event_type: type[Event]) -> bool:
-        return bool(_pg_event.get_blocked(EventFactory.associations[event_type]))
+        return bool(_pg_event.get_blocked(EventFactory.get_pygame_event_type(event_type)))
 
     @final
     def block_event(self, *event_types: type[Event]) -> None:
-        pg_event_types = tuple(map(EventFactory.associations.__getitem__, event_types))
+        pg_event_types = tuple(map(EventFactory.get_pygame_event_type, event_types))
         _pg_event.set_blocked(pg_event_types)
 
     @contextmanager
@@ -483,8 +505,8 @@ class Window(Object):
 
     @final
     def block_all_events(self, *, except_for: Iterable[type[Event]] = ()) -> None:
-        ignored_pg_events = tuple(map(EventFactory.associations.__getitem__, except_for))
-        blockable_events = tuple(filter(EventFactory.is_blockable, EventFactory.pygame_type.keys()))
+        ignored_pg_events = tuple(map(EventFactory.get_pygame_event_type, except_for))
+        blockable_events = tuple(filter(EventFactory.is_blockable, EventFactory.pygame_type))
         if not ignored_pg_events:
             _pg_event.set_blocked(blockable_events)
             return
@@ -720,24 +742,27 @@ class Window(Object):
 
 class _FramerateManager:
     def __init__(self) -> None:
+        self.get_ticks = Time.get_ticks
+        self.delay = Time.delay
+        self.wait = Time.wait
         self.__fps: float = 0
         self.__fps_count: int = 0
-        self.__fps_tick: float = Time.get_ticks()
+        self.__fps_tick: float = self.get_ticks()
         self.__last_tick: float = self.__fps_tick
 
     def __tick_impl(self, framerate: int, use_accurate_delay: bool) -> float:
-        actual_tick: float = Time.get_ticks()
+        actual_tick: float = self.get_ticks()
         elapsed: float = actual_tick - self.__last_tick
-        if framerate > 0:
+        if framerate >= 1:
             tick_time: float = 1000 / framerate
             if elapsed < tick_time:
                 delay: float = tick_time - elapsed
                 if delay >= 2:
                     if use_accurate_delay:
-                        actual_tick += Time.delay(delay)
+                        actual_tick += self.delay(delay)
                     else:
-                        actual_tick += Time.wait(delay)
-        elapsed = actual_tick - self.__last_tick
+                        actual_tick += self.wait(delay)
+                    elapsed = actual_tick - self.__last_tick
         setattr_pv(Time, "delta", elapsed / 1000)
         self.__last_tick = actual_tick
 

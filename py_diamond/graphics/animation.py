@@ -215,7 +215,6 @@ class BaseAnimation(Object):
         self.start()
         with window.block_all_events_context(), window.no_window_callback_processing():
             while window.looping() and self.has_animation_started():
-                window.handle_events()
                 window._fixed_updates_call(self.fixed_update)
                 window._interpolation_updates_call(self.update)
                 scene.update()
