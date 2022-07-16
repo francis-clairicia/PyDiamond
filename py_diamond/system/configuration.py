@@ -2258,13 +2258,12 @@ class _ConfigInfoTemplate:
             option: set(build_wrapper_if_needed(func) for func in func_set)
             for option, func_set in self.option_value_updater.items()
         }
-        callback_list: list[Callable[..., Any]]
         for callback_list in chain(
             self.value_converter_on_get.values(),
             self.value_converter_on_set.values(),
             self.value_validator.values(),
         ):
-            callback_list[:] = [build_wrapper_if_needed(func) for func in callback_list]  # type: ignore[var-annotated]
+            callback_list[:] = [build_wrapper_if_needed(func) for func in callback_list]
         for option, descriptor in tuple(self.value_descriptors.items()):
             self.value_descriptors[option] = build_wrapper_within_descriptor(descriptor)
 
@@ -2368,22 +2367,18 @@ class _ConfigProperty(property):
 
 class _PrivateAttributeOptionPropertyFallback:
     def __set_name__(self, owner: type, name: str, /) -> None:
-        self.__name: str = name
         self.__attribute: str = _private_attribute(owner, name)
 
     def __get__(self, obj: object, objtype: type | None = None, /) -> Any:
         if obj is None:
             return self
-        attribute: str = self.__attribute
-        return getattr(obj, attribute)
+        return getattr(obj, self.__attribute)
 
     def __set__(self, obj: object, value: Any, /) -> None:
-        attribute: str = self.__attribute
-        return setattr(obj, attribute, value)
+        return setattr(obj, self.__attribute, value)
 
     def __delete__(self, obj: object, /) -> None:
-        attribute: str = self.__attribute
-        return delattr(obj, attribute)
+        return delattr(obj, self.__attribute)
 
 
 class _ReadOnlyOptionBuildPayload:
