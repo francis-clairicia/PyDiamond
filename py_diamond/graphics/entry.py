@@ -350,12 +350,12 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
             outline = self.outline
         shape.config(outline=outline, outline_color=outline_color)
 
-    @config.add_value_converter("cursor")
+    @config.add_value_converter_on_set("cursor")
     def __cursor_validator(self, cursor: Any) -> int:
         return valid_integer(value=cursor, min_value=0, max_value=len(self.get()))
 
-    config.add_value_converter_static("interval", valid_integer(min_value=0))
-    config.add_value_converter_static("fixed_width", valid_optional_float(min_value=0))
+    config.add_value_converter_on_set_static("interval", valid_integer(min_value=0))
+    config.add_value_converter_on_set_static("fixed_width", valid_optional_float(min_value=0))
 
     @config.getter_key("fg", use_key="color")
     @config.getter_key("font")
@@ -414,10 +414,10 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
         height: float = entry_size[1] + self.__cursor_height_offset
         self.__outline_shape.local_size = self.__shape.local_size = (width, height)
 
-    config.add_value_converter_static("outline", valid_integer(min_value=0))
+    config.add_value_converter_on_set_static("outline", valid_integer(min_value=0))
     config.add_value_validator_static("outline_color", Color)
     config.add_value_validator_static("highlight_color", Color)
-    config.add_value_converter_static("highlight_thickness", valid_integer(min_value=0))
+    config.add_value_converter_on_set_static("highlight_thickness", valid_integer(min_value=0))
 
     config.on_update("outline", __update_shape_outline)
     config.on_update("outline_color", __update_shape_outline)
@@ -468,6 +468,6 @@ class _TextEntry(Text):
 
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate("max_width", parent=Text.config)
 
-    config.add_value_converter_static("max_width", valid_optional_integer(min_value=0))
+    config.add_value_converter_on_set_static("max_width", valid_optional_integer(min_value=0))
 
     max_width: OptionAttribute[int | None] = OptionAttribute()

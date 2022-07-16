@@ -630,14 +630,14 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config.on_update("compound", __update_shape_size)
     config.on_update("distance_text_img", __update_shape_size)
 
-    config.add_value_converter_static("fixed_width", valid_optional_float(min_value=0))
-    config.add_value_converter_static("fixed_height", valid_optional_float(min_value=0))
+    config.add_value_converter_on_set_static("fixed_width", valid_optional_float(min_value=0))
+    config.add_value_converter_on_set_static("fixed_height", valid_optional_float(min_value=0))
 
     config.on_update("fixed_width", __update_shape_size)
     config.on_update("fixed_height", __update_shape_size)
 
-    config.add_value_converter_static("x_add_size", valid_float(min_value=0))
-    config.add_value_converter_static("y_add_size", valid_float(min_value=0))
+    config.add_value_converter_on_set_static("x_add_size", valid_float(min_value=0))
+    config.add_value_converter_on_set_static("y_add_size", valid_float(min_value=0))
     config.on_update("x_add_size", __update_shape_size)
     config.on_update("y_add_size", __update_shape_size)
 
@@ -768,9 +768,9 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config.add_enum_converter("text_align_x", HorizontalAlign, return_value_on_get=True)
     config.add_enum_converter("text_align_y", VerticalAlign, return_value_on_get=True)
 
-    @config.add_value_converter_static("text_offset")
-    @config.add_value_converter_static("text_hover_offset")
-    @config.add_value_converter_static("text_active_offset")
+    @config.add_value_converter_on_set_static("text_offset")
+    @config.add_value_converter_on_set_static("text_hover_offset")
+    @config.add_value_converter_on_set_static("text_active_offset")
     @staticmethod
     def __text_offset_validator(offset: tuple[float, float]) -> tuple[float, float]:
         return (float(offset[0]), float(offset[1]))
@@ -791,10 +791,10 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     def __set_shape_option(self, option: str, value: Any) -> None:
         return self.__shape.config.set(option, value)
 
-    config.add_value_converter_static("outline", valid_integer(min_value=0))
+    config.add_value_converter_on_set_static("outline", valid_integer(min_value=0))
     config.add_value_validator_static("outline_color", Color)
     config.add_value_validator_static("highlight_color", Color)
-    config.add_value_converter_static("highlight_thickness", valid_integer(min_value=0))
+    config.add_value_converter_on_set_static("highlight_thickness", valid_integer(min_value=0))
 
     config.on_update("outline", __update_shape_outline)
     config.on_update("outline_color", __update_shape_outline)
@@ -1083,14 +1083,14 @@ class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
             self.__shape.local_size = new_size
             self.center = center
 
-    @config.add_value_converter_static("hover_offset")
-    @config.add_value_converter_static("active_offset")
+    @config.add_value_converter_on_set_static("hover_offset")
+    @config.add_value_converter_on_set_static("active_offset")
     @staticmethod
     def __img_offset_validator(offset: tuple[float, float]) -> tuple[float, float]:
         return (float(offset[0]), float(offset[1]))
 
-    config.add_value_converter_static("x_add_size", valid_float(min_value=0))
-    config.add_value_converter_static("y_add_size", valid_float(min_value=0))
+    config.add_value_converter_on_set_static("x_add_size", valid_float(min_value=0))
+    config.add_value_converter_on_set_static("y_add_size", valid_float(min_value=0))
     config.on_update("x_add_size", __update_shape_size)
     config.on_update("y_add_size", __update_shape_size)
 
@@ -1194,10 +1194,10 @@ class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     def __set_shape_option(self, option: str, value: Any) -> None:
         return self.__shape.config.set(option, value)
 
-    config.add_value_converter_static("outline", valid_integer(min_value=0))
+    config.add_value_converter_on_set_static("outline", valid_integer(min_value=0))
     config.add_value_validator_static("outline_color", Color)
     config.add_value_validator_static("highlight_color", Color)
-    config.add_value_converter_static("highlight_thickness", valid_integer(min_value=0))
+    config.add_value_converter_on_set_static("highlight_thickness", valid_integer(min_value=0))
 
     config.on_update("outline", __update_shape_outline)
     config.on_update("outline_color", __update_shape_outline)

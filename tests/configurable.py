@@ -47,9 +47,9 @@ class Configurable:
 
     config.on_update_key_value("d", lambda self, name, val: print((self, name, val)))
 
-    @config.add_value_converter_static("a")
-    @config.add_value_converter_static("b")
-    @config.add_value_converter_static("c")
+    @config.add_value_converter_on_set_static("a")
+    @config.add_value_converter_on_set_static("b")
+    @config.add_value_converter_on_set_static("c")
     @staticmethod
     def __valid_int(val: Any) -> int:
         return max(int(val), 0)
@@ -80,7 +80,7 @@ class SubConfigurable(Configurable):
     config.remove_parent_ownership("b")
     e: OptionAttribute[int] = OptionAttribute()
 
-    config.add_value_converter_static("e", int)
+    config.add_value_converter_on_set_static("e", int)
 
     def _update(self) -> None:
         super()._update()

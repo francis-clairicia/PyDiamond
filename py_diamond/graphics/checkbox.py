@@ -266,10 +266,10 @@ class CheckBox(TDrawable, AbstractWidget, Generic[_OnValue, _OffValue], metaclas
     def __set_shape_option(self, option: str, value: Any) -> Any:
         return self.__shape.config.set(option, value)
 
-    config.add_value_converter_static("outline", valid_integer(min_value=0))
+    config.add_value_converter_on_set_static("outline", valid_integer(min_value=0))
     config.add_value_validator_static("outline_color", Color)
     config.add_value_validator_static("highlight_color", Color)
-    config.add_value_converter_static("highlight_thickness", valid_integer(min_value=0))
+    config.add_value_converter_on_set_static("highlight_thickness", valid_integer(min_value=0))
 
     config.on_update("outline", __update_shape_outline)
     config.on_update("outline_color", __update_shape_outline)

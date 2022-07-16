@@ -234,7 +234,7 @@ class SquaredGradientShape(AbstractSquareShape, GradientShape):
     config.add_value_validator_static("gfunc", callable)
     config.add_value_validator_static("bfunc", callable)
     config.add_value_validator_static("afunc", callable)
-    config.add_value_converter_static("center_offset", tuple)
+    config.add_value_converter_on_set_static("center_offset", tuple)
 
 
 class RadialGradientShape(AbstractCircleShape, GradientShape):

@@ -206,16 +206,15 @@ class ScaleBar(ProgressBar, AbstractWidget):
     def __on_update_resolution(self) -> None:
         self.config.set("value", self.config.get("value"))
 
-    @config.add_value_converter("value")
+    @config.add_value_converter_on_set("value")
     def __apply_resolution_on_value(self, value: float) -> float:
         return round(value, self.resolution)
 
-    @config.add_value_converter("percent")
+    @config.add_value_converter_on_set("percent")
     def __apply_resolution_on_percent(self, percent: float) -> float:
         start: float = self.from_value
         end: float = self.to_value
-        value: float = start + (percent * (end - start)) if end > start else 0
-        value = self.__apply_resolution_on_value(value)
+        value: float = round(start + (percent * (end - start)) if end > start else 0, self.resolution)
         percent = (value - start) / (end - start) if end > start else 0
         return percent
 
@@ -223,7 +222,7 @@ class ScaleBar(ProgressBar, AbstractWidget):
     config.reset_getter_setter_deleter("outline_color")
 
     config.add_value_validator_static("highlight_color", Color)
-    config.add_value_converter_static("highlight_thickness", valid_integer(min_value=0))
+    config.add_value_converter_on_set_static("highlight_thickness", valid_integer(min_value=0))
 
     config.on_update("outline", __update_shape_outline)
     config.on_update("outline_color", __update_shape_outline)

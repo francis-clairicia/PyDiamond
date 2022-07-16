@@ -310,14 +310,14 @@ class Text(TDrawable, metaclass=TextMeta):
     config.add_enum_converter("justify", Justify, return_value_on_get=True)
 
     config.add_value_validator_static("message", str)
-    config.add_value_converter_static("font", create_font)
-    config.add_value_converter_static("wrap", valid_integer(min_value=0))
+    config.add_value_converter_on_set_static("font", create_font)
+    config.add_value_converter_on_set_static("wrap", valid_integer(min_value=0))
     config.add_value_validator_static("color", Color)
-    config.add_value_converter_static("shadow_x", float)
-    config.add_value_converter_static("shadow_y", float)
-    config.add_value_converter_static("shadow", tuple)
+    config.add_value_converter_on_set_static("shadow_x", float)
+    config.add_value_converter_on_set_static("shadow_y", float)
+    config.add_value_converter_on_set_static("shadow", tuple)
     config.add_value_validator_static("shadow_color", Color)
-    config.add_value_converter_static("line_spacing", float)
+    config.add_value_converter_on_set_static("line_spacing", float)
 
     @config.add_main_update
     def __update_surface(self) -> None:
@@ -518,7 +518,7 @@ class TextImage(Text):
     config.add_enum_converter("compound", Compound, return_value_on_get=True)
 
     config.add_value_validator_static("img", Surface, accept_none=True)
-    config.add_value_converter_static("distance", valid_float(min_value=0))
+    config.add_value_converter_on_set_static("distance", valid_float(min_value=0))
 
     @config.getter("img")
     def __get_img_surface(self) -> Surface | None:

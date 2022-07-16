@@ -173,8 +173,8 @@ class Form(MDrawable, metaclass=FormMeta):
         for row in range(grid.nb_rows):
             grid.modify(row=row, column=column, justify=justify)
 
-    config.add_value_converter_static("padx", valid_integer(min_value=0))
-    config.add_value_converter_static("pady", valid_integer(min_value=0))
+    config.add_value_converter_on_set_static("padx", valid_integer(min_value=0))
+    config.add_value_converter_on_set_static("pady", valid_integer(min_value=0))
 
     @config.on_update_key_value("padx")
     @config.on_update_key_value("pady")

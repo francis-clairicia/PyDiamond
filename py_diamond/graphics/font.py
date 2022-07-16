@@ -300,22 +300,20 @@ class Font(Object):
             size=size,
         )
 
-    config.add_enum_converter("style", FontStyle)
-    config.add_value_converter_static("underline", bool)
-    config.add_value_converter_static("strong", bool)
-    config.add_value_converter_static("oblique", bool)
-    config.add_value_converter_static("wide", bool)
-    config.add_value_converter_static("strength", float)
-    config.add_value_converter_static("underline_adjustment", float)
-    config.add_value_converter_static("use_bitmap_strikes", bool)
-    config.add_value_converter_static("antialiased", bool)
-    config.add_value_converter_static("kerning", bool)
+    config.add_enum_converter("style", FontStyle, store_value=True)
+    config.add_value_converter_on_set_static("underline", bool)
+    config.add_value_converter_on_set_static("strong", bool)
+    config.add_value_converter_on_set_static("oblique", bool)
+    config.add_value_converter_on_set_static("wide", bool)
+    config.add_value_converter_on_set_static("strength", float)
+    config.add_value_converter_on_set_static("underline_adjustment", float)
+    config.add_value_converter_on_set_static("use_bitmap_strikes", bool)
+    config.add_value_converter_on_set_static("antialiased", bool)
+    config.add_value_converter_on_set_static("kerning", bool)
     # config.add_value_converter_static("vertical", bool)
-    config.add_value_converter_static("ucs4", bool)
+    config.add_value_converter_on_set_static("ucs4", bool)
 
-    config.getter("style", lambda self: FontStyle(self.__ft.style), use_override=False)
-    config.setter("style", lambda self, value: setattr(self.__ft, "style", int(value)), use_override=False)
-
+    @config.getter_key("style", use_override=False)
     @config.getter_key("underline", use_override=False)
     @config.getter_key("strong", use_override=False)
     @config.getter_key("oblique", use_override=False)
@@ -330,6 +328,7 @@ class Font(Object):
     def __get_property(self, option: str) -> Any:
         return getattr(self.__ft, option)
 
+    @config.setter_key("style", use_override=False)
     @config.setter_key("underline", use_override=False)
     @config.setter_key("strong", use_override=False)
     @config.setter_key("oblique", use_override=False)

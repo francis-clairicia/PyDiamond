@@ -193,7 +193,7 @@ class OutlinedShape(AbstractShape):
         self.outline_color = outline_color
         super().__init__(**kwargs)
 
-    config.add_value_converter_static("outline", valid_integer(min_value=0))
+    config.add_value_converter_on_set_static("outline", valid_integer(min_value=0))
     config.add_value_validator_static("outline_color", Color)
 
 
@@ -260,7 +260,7 @@ class PolygonShape(OutlinedShape, SingleColorShape):
     def set_points(self, points: PointList) -> None:
         self.config.set("points", points)
 
-    @config.add_value_converter_static("points")
+    @config.add_value_converter_on_set_static("points")
     @staticmethod
     def __valid_points(points: PointList) -> tuple[Vector2, ...]:
         points = tuple(Vector2(p) for p in points)
@@ -305,9 +305,9 @@ class AbstractRectangleShape(AbstractShape):
     def get_local_size(self) -> tuple[float, float]:
         return self.local_size
 
-    config.add_value_converter_static("local_width", valid_float(min_value=0))
-    config.add_value_converter_static("local_height", valid_float(min_value=0))
-    config.add_value_converter_static("local_size", tuple)
+    config.add_value_converter_on_set_static("local_width", valid_float(min_value=0))
+    config.add_value_converter_on_set_static("local_height", valid_float(min_value=0))
+    config.add_value_converter_on_set_static("local_size", tuple)
 
     config.getter("local_size", lambda self: (self.local_width, self.local_height))
     config.setter("local_size", lambda self, size: self.config(local_width=size[0], local_height=size[1]))
@@ -336,7 +336,7 @@ class AbstractSquareShape(AbstractShape):
         size = self.local_size
         return (size, size)
 
-    config.add_value_converter_static("local_size", valid_float(min_value=0))
+    config.add_value_converter_on_set_static("local_size", valid_float(min_value=0))
 
 
 @concreteclass
@@ -406,11 +406,11 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape):
             surface = _surface_rotozoom(surface, angle, 1)
         return surface
 
-    config.add_value_converter_static("border_radius", valid_integer(min_value=-1))
-    config.add_value_converter_static("border_top_left_radius", valid_integer(min_value=-1))
-    config.add_value_converter_static("border_top_right_radius", valid_integer(min_value=-1))
-    config.add_value_converter_static("border_bottom_left_radius", valid_integer(min_value=-1))
-    config.add_value_converter_static("border_bottom_right_radius", valid_integer(min_value=-1))
+    config.add_value_converter_on_set_static("border_radius", valid_integer(min_value=-1))
+    config.add_value_converter_on_set_static("border_top_left_radius", valid_integer(min_value=-1))
+    config.add_value_converter_on_set_static("border_top_right_radius", valid_integer(min_value=-1))
+    config.add_value_converter_on_set_static("border_bottom_left_radius", valid_integer(min_value=-1))
+    config.add_value_converter_on_set_static("border_bottom_right_radius", valid_integer(min_value=-1))
 
     @config.getter_key("border_radius")
     @config.getter_key("border_top_left_radius")
@@ -457,7 +457,7 @@ class AbstractCircleShape(AbstractShape):
         diameter: float = self.radius * 2
         return (diameter, diameter)
 
-    config.add_value_converter_static("radius", valid_float(min_value=0))
+    config.add_value_converter_on_set_static("radius", valid_float(min_value=0))
 
 
 @concreteclass
@@ -522,10 +522,10 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape):
     def get_local_edges(self) -> Sequence[Vector2]:
         return [v.copy() for v in self.__points]
 
-    config.add_value_converter_static("draw_top_left", bool)
-    config.add_value_converter_static("draw_top_right", bool)
-    config.add_value_converter_static("draw_bottom_left", bool)
-    config.add_value_converter_static("draw_bottom_right", bool)
+    config.add_value_converter_on_set_static("draw_top_left", bool)
+    config.add_value_converter_on_set_static("draw_top_right", bool)
+    config.add_value_converter_on_set_static("draw_bottom_left", bool)
+    config.add_value_converter_on_set_static("draw_bottom_right", bool)
 
     @config.getter_key("draw_top_left")
     @config.getter_key("draw_top_right")
@@ -645,10 +645,10 @@ class AbstractCrossShape(OutlinedShape, SingleColorShape):
     def get_cross_points(local_size: tuple[float, float], line_width: float) -> tuple[Vector2, ...]:
         raise NotImplementedError
 
-    config.add_value_converter_static("local_width", valid_float(min_value=0))
-    config.add_value_converter_static("local_height", valid_float(min_value=0))
-    config.add_value_converter_static("local_size", tuple)
-    config.add_value_converter_static("line_width_percent", valid_float(min_value=0, max_value=1))
+    config.add_value_converter_on_set_static("local_width", valid_float(min_value=0))
+    config.add_value_converter_on_set_static("local_height", valid_float(min_value=0))
+    config.add_value_converter_on_set_static("local_size", tuple)
+    config.add_value_converter_on_set_static("line_width_percent", valid_float(min_value=0, max_value=1))
 
     config.getter("local_size", lambda self: (self.local_width, self.local_height))
     config.setter("local_size", lambda self, size: self.config(local_width=size[0], local_height=size[1]))

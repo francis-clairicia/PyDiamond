@@ -46,7 +46,6 @@ from typing import (
     Sequence,
     SupportsIndex,
     TypeAlias,
-    TypeGuard,
     TypeVar,
     cast,
     overload,
@@ -68,8 +67,8 @@ _DeleterVar = TypeVar("_DeleterVar", bound=Callable[[Any], None])
 _KeyGetterVar = TypeVar("_KeyGetterVar", bound=Callable[[Any, Any], Any])
 _KeySetterVar = TypeVar("_KeySetterVar", bound=Callable[[Any, Any, Any], None])
 _KeyDeleterVar = TypeVar("_KeyDeleterVar", bound=Callable[[Any, Any], None])
-_ValueValidatorVar = TypeVar("_ValueValidatorVar", bound=Callable[[Any, Any], TypeGuard[Any] | None])
-_StaticValueValidatorVar = TypeVar("_StaticValueValidatorVar", bound=Callable[[Any], TypeGuard[Any] | None])
+_ValueValidatorVar = TypeVar("_ValueValidatorVar", bound=Callable[[Any, Any], Any])
+_StaticValueValidatorVar = TypeVar("_StaticValueValidatorVar", bound=Callable[[Any], Any])
 _ValueConverterVar = TypeVar("_ValueConverterVar", bound=Callable[[Any, Any], Any])
 _StaticValueConverterVar = TypeVar("_StaticValueConverterVar", bound=Callable[[Any], Any])
 _T = TypeVar("_T")
@@ -146,8 +145,6 @@ class ConfigurationTemplate(Object):
             parent = []
         elif isinstance(parent, ConfigurationTemplate):
             parent = [parent]
-        else:
-            parent = list(dict.fromkeys(parent))
 
         self.__template: _ConfigInfoTemplate = _ConfigInfoTemplate(known_options, list(p.__template for p in parent))
         self.__no_parent_ownership: set[str] = set()
@@ -157,7 +154,7 @@ class ConfigurationTemplate(Object):
         self.__info: ConfigurationInfo | None = None
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({{{', '.join(repr(s) for s in sorted(self.known_options()))}}})"
+        return f"{type(self).__name__}({{{', '.join(map(repr, sorted(self.known_options())))}}})"
 
     def __set_name__(self, owner: type, name: str, /) -> None:
         if self.__bound_class is not None:
@@ -1083,16 +1080,16 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def add_value_converter(
+    def add_value_converter_on_get(
         self, option: str, /, *, use_override: bool = True
     ) -> Callable[[_ValueConverterVar], _ValueConverterVar]:
         ...
 
     @overload
-    def add_value_converter(self, option: str, func: _ValueConverterVar, /, *, use_override: bool = True) -> None:
+    def add_value_converter_on_get(self, option: str, func: _ValueConverterVar, /, *, use_override: bool = True) -> None:
         ...
 
-    def add_value_converter(
+    def add_value_converter_on_get(
         self,
         option: str,
         func: _ValueConverterVar | None = None,
@@ -1105,10 +1102,10 @@ class ConfigurationTemplate(Object):
         self.check_option_validity(option)
 
         if isinstance(func, type):
-            raise TypeError("Use add_value_converter_static() to convert value using type")
+            raise TypeError("Use add_value_converter_on_set_static() to convert value using type")
 
         def decorator(func: _ValueConverterVar) -> _ValueConverterVar:
-            value_converter_list = template.value_converter.setdefault(option, [])
+            value_converter_list = template.value_converter_on_get.setdefault(option, [])
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             if wrapper in value_converter_list:
                 raise OptionError(option, "Function already registered")
@@ -1121,22 +1118,24 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def add_value_converter_static(
+    def add_value_converter_on_get_static(
         self, option: str, /, *, use_override: bool = True
     ) -> Callable[[_StaticValueConverterVar], _StaticValueConverterVar]:
         ...
 
     @overload
-    def add_value_converter_static(
+    def add_value_converter_on_get_static(
         self, option: str, convert_to_type: type[Any], /, *, accept_none: bool = False, use_override: bool = True
     ) -> None:
         ...
 
     @overload
-    def add_value_converter_static(self, option: str, func: _StaticValueConverterVar, /, *, use_override: bool = True) -> None:
+    def add_value_converter_on_get_static(
+        self, option: str, func: _StaticValueConverterVar, /, *, use_override: bool = True
+    ) -> None:
         ...
 
-    def add_value_converter_static(
+    def add_value_converter_on_get_static(
         self,
         option: str,
         func: _StaticValueConverterVar | type | None = None,
@@ -1152,7 +1151,7 @@ class ConfigurationTemplate(Object):
         def decorator(
             func: _StaticValueConverterVar, /, *, check_override: bool = bool(use_override)
         ) -> _StaticValueConverterVar:
-            value_converter_list = template.value_converter.setdefault(option, [])
+            value_converter_list = template.value_converter_on_get.setdefault(option, [])
             wrapper = _make_function_wrapper(func, check_override=check_override, no_object=True)
             if wrapper in value_converter_list:
                 raise OptionError(option, "Function already registered")
@@ -1175,38 +1174,124 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def add_enum_converter(self, option: str, enum: type[Enum], *, store_value: bool = False, accept_none: bool = False) -> None:
+    def add_value_converter_on_set(
+        self, option: str, /, *, use_override: bool = True
+    ) -> Callable[[_ValueConverterVar], _ValueConverterVar]:
         ...
 
     @overload
-    def add_enum_converter(self, option: str, enum: type[Enum], *, return_value_on_get: bool, accept_none: bool = False) -> None:
+    def add_value_converter_on_set(self, option: str, func: _ValueConverterVar, /, *, use_override: bool = True) -> None:
         ...
 
-    def add_enum_converter(self, option: str, enum: type[Enum], *, accept_none: bool = False, **kwargs: bool) -> None:
+    def add_value_converter_on_set(
+        self,
+        option: str,
+        func: _ValueConverterVar | None = None,
+        /,
+        *,
+        use_override: bool = True,
+    ) -> Callable[[_ValueConverterVar], _ValueConverterVar] | None:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
+        self.check_option_validity(option)
+
+        if isinstance(func, type):
+            raise TypeError("Use add_value_converter_on_set_static() to convert value using type")
+
+        def decorator(func: _ValueConverterVar) -> _ValueConverterVar:
+            value_converter_list = template.value_converter_on_set.setdefault(option, [])
+            wrapper = _make_function_wrapper(func, check_override=bool(use_override))
+            if wrapper in value_converter_list:
+                raise OptionError(option, "Function already registered")
+            value_converter_list.append(wrapper)
+            return func
+
+        if func is None:
+            return decorator
+        decorator(func)
+        return None
+
+    @overload
+    def add_value_converter_on_set_static(
+        self, option: str, /, *, use_override: bool = True
+    ) -> Callable[[_StaticValueConverterVar], _StaticValueConverterVar]:
+        ...
+
+    @overload
+    def add_value_converter_on_set_static(
+        self, option: str, convert_to_type: type[Any], /, *, accept_none: bool = False, use_override: bool = True
+    ) -> None:
+        ...
+
+    @overload
+    def add_value_converter_on_set_static(
+        self, option: str, func: _StaticValueConverterVar, /, *, use_override: bool = True
+    ) -> None:
+        ...
+
+    def add_value_converter_on_set_static(
+        self,
+        option: str,
+        func: _StaticValueConverterVar | type | None = None,
+        /,
+        *,
+        accept_none: bool = False,
+        use_override: bool = True,
+    ) -> Callable[[_StaticValueConverterVar], _StaticValueConverterVar] | None:
+        self.__check_locked()
+        template: _ConfigInfoTemplate = self.__template
+        self.check_option_validity(option)
+
+        def decorator(
+            func: _StaticValueConverterVar, /, *, check_override: bool = bool(use_override)
+        ) -> _StaticValueConverterVar:
+            value_converter_list = template.value_converter_on_set.setdefault(option, [])
+            wrapper = _make_function_wrapper(func, check_override=check_override, no_object=True)
+            if wrapper in value_converter_list:
+                raise OptionError(option, "Function already registered")
+            value_converter_list.append(wrapper)
+            return func
+
+        if isinstance(func, type):
+
+            if issubclass(func, Enum):
+                raise TypeError("Use add_enum_converter() instead for enum conversions")
+
+            value_converter: Any = _make_value_converter(func, accept_none)
+
+            decorator(value_converter, check_override=False)
+            return None
+
+        if func is None:
+            return decorator
+        decorator(func)
+        return None
+
+    def add_enum_converter(
+        self,
+        option: str,
+        enum: type[Enum],
+        *,
+        accept_none: bool = False,
+        store_value: bool = False,
+        return_value_on_get: bool = False,
+    ) -> None:
+        self.__check_locked()
         self.check_option_validity(option)
 
         if not issubclass(enum, Enum):
             raise TypeError("Not an Enum class")
 
-        if "store_value" in kwargs and "return_value_on_get" in kwargs:
-            raise TypeError("Invalid arguments")
-
-        store_value: bool = kwargs.pop("store_value", False)
-        return_value_on_get: bool | None = kwargs.pop("return_value_on_get", None)
-
-        if kwargs:
-            raise TypeError("Invalid arguments")
-
-        if option in template.enum_converter_registered:
-            enum = template.enum_converter_registered[option]
-            raise ValueError(f"Enum converter already set for option {option!r}: {enum.__qualname__!r}")
-
-        self.add_value_converter_static(option, _make_enum_converter(enum, store_value, accept_none), use_override=False)
-        template.enum_converter_registered[option] = enum
-        if return_value_on_get is not None:
-            template.enum_return_value[option] = bool(return_value_on_get)
+        self.add_value_converter_on_get_static(
+            option,
+            _make_enum_converter(enum, return_value_on_get, accept_none),
+            use_override=False,
+        )
+        self.add_value_converter_on_set_static(
+            option,
+            _make_enum_converter(enum, store_value, accept_none),
+            use_override=False,
+        )
 
     def set_alias(self, option: str, alias: str, /, *aliases: str) -> None:
         self.__check_locked()
@@ -1332,13 +1417,13 @@ class ConfigurationInfo(Object):
     option_value_updater: Mapping[str, Set[Callable[[object, Any], None]]] = field(default_factory=_default_mapping)
     option_updater: Mapping[str, Set[Callable[[object], None]]] = field(default_factory=_default_mapping)
     main_updater: Set[Callable[[object], None]] = field(default_factory=frozenset)
-    value_converter: Mapping[str, Sequence[Callable[[object, Any], Any]]] = field(default_factory=_default_mapping)
+    value_converter_on_get: Mapping[str, Sequence[Callable[[object, Any], Any]]] = field(default_factory=_default_mapping)
+    value_converter_on_set: Mapping[str, Sequence[Callable[[object, Any], Any]]] = field(default_factory=_default_mapping)
     value_validator: Mapping[str, Sequence[Callable[[object, Any], None]]] = field(default_factory=_default_mapping)
     value_descriptors: Mapping[str, _Descriptor] = field(default_factory=_default_mapping)
     attribute_class_owner: Mapping[str, type] = field(default_factory=_default_mapping)
     aliases: Mapping[str, str] = field(default_factory=_default_mapping)
     readonly_options: Set[str] = field(default_factory=frozenset)
-    enum_return_value: Set[str] = field(default_factory=frozenset)
 
     if TYPE_CHECKING:
         __hash__: None  # type: ignore[assignment]
@@ -1450,8 +1535,8 @@ class Configuration(Generic[_T], Object):
             if default is _NO_DEFAULT:
                 raise
             return default
-        if option in info.enum_return_value and isinstance(value, Enum):
-            return value.value
+        for value_converter in info.value_converter_on_get.get(option, ()):
+            value = value_converter(obj, value)
         return value
 
     def __getitem__(self, option: str, /) -> Any:
@@ -1483,7 +1568,7 @@ class Configuration(Generic[_T], Object):
 
         for value_validator in info.value_validator.get(option, ()):
             value_validator(obj, value)
-        for value_converter in info.value_converter.get(option, ()):
+        for value_converter in info.value_converter_on_set.get(option, ()):
             value = value_converter(obj, value)
 
         with self.__updating_option(obj, option, info) as update_context:
@@ -1935,7 +2020,7 @@ class _WrappedFunctionWrapper:
 
 
 @_no_type_check_cache
-def _make_type_checker(_type: type | tuple[type, ...], accept_none: bool) -> Callable[[Any], None]:
+def _make_type_checker(_type: type | tuple[type, ...], accept_none: bool, /) -> Callable[[Any], None]:
     if accept_none:
         if isinstance(_type, type):
             _type = (_type,)
@@ -1958,7 +2043,7 @@ def _make_type_checker(_type: type | tuple[type, ...], accept_none: bool) -> Cal
 
 
 @_no_type_check_cache
-def _make_value_converter(_type: type, accept_none: bool) -> Callable[[Any], Any]:
+def _make_value_converter(_type: type, accept_none: bool, /) -> Callable[[Any], Any]:
     assert isinstance(_type, type)
 
     if not accept_none:
@@ -1973,10 +2058,10 @@ def _make_value_converter(_type: type, accept_none: bool) -> Callable[[Any], Any
 
 
 @_no_type_check_cache
-def _make_enum_converter(enum: type[Enum], store_value: bool, accept_none: bool) -> Callable[[Any], Any]:
+def _make_enum_converter(enum: type[Enum], return_value: bool, accept_none: bool, /) -> Callable[[Any], Any]:
     assert issubclass(enum, Enum)
 
-    if not store_value:
+    if not return_value:
 
         if not accept_none:
             return lambda val, /, *, enum=enum: enum(val)  # type: ignore[misc]
@@ -2056,12 +2141,11 @@ class _ConfigInfoTemplate:
         self.option_updater: dict[str, set[Callable[[object], None]]] = dict()
         self.option_value_updater: dict[str, set[Callable[[object, Any], None]]] = dict()
         self.value_descriptors: dict[str, _Descriptor] = dict()
-        self.value_converter: dict[str, list[Callable[[object, Any], Any]]] = dict()
+        self.value_converter_on_get: dict[str, list[Callable[[object, Any], Any]]] = dict()
+        self.value_converter_on_set: dict[str, list[Callable[[object, Any], Any]]] = dict()
         self.value_validator: dict[str, list[Callable[[object, Any], None]]] = dict()
         self.attribute_class_owner: dict[str, type] = dict()
         self.aliases: dict[str, str] = dict()
-        self.enum_converter_registered: dict[str, type[Enum]] = dict()
-        self.enum_return_value: dict[str, bool] = dict()
 
         merge_dict = self.__merge_dict
         merge_updater_dict = self.__merge_updater_dict
@@ -2072,10 +2156,17 @@ class _ConfigInfoTemplate:
             merge_updater_dict(self.option_value_updater, p.option_value_updater)
             merge_dict(self.value_descriptors, p.value_descriptors, on_conflict="raise", setting="descriptor")
             merge_dict(
-                self.value_converter,
-                p.value_converter,
+                self.value_converter_on_get,
+                p.value_converter_on_get,
                 on_conflict="raise",
-                setting="value_converter",
+                setting="value_converter_on_get",
+                copy=list.copy,
+            )
+            merge_dict(
+                self.value_converter_on_set,
+                p.value_converter_on_set,
+                on_conflict="raise",
+                setting="value_converter_on_set",
                 copy=list.copy,
             )
             merge_dict(
@@ -2087,13 +2178,6 @@ class _ConfigInfoTemplate:
             )
             merge_dict(self.attribute_class_owner, p.attribute_class_owner, on_conflict="skip", setting="class_owner")
             merge_dict(self.aliases, p.aliases, on_conflict="raise", setting="aliases")
-            merge_dict(
-                self.enum_converter_registered,
-                p.enum_converter_registered,
-                on_conflict="raise",
-                setting="enum_converter_registered",
-            )
-            merge_dict(self.enum_return_value, p.enum_return_value, on_conflict="raise", setting="enum_return_value")
 
         self.parent_descriptors: frozenset[_Descriptor] = frozenset(self.value_descriptors.values())
 
@@ -2138,13 +2222,13 @@ class _ConfigInfoTemplate:
             option_value_updater=self.__build_option_value_updater_dict(),
             option_updater=self.__build_option_updater_dict(),
             main_updater=frozenset(self.main_updater),
-            value_converter=self.__build_value_converter_dict(),
+            value_converter_on_get=self.__build_value_converter_dict(on="get"),
+            value_converter_on_set=self.__build_value_converter_dict(on="set"),
             value_validator=self.__build_value_validator_dict(),
             value_descriptors=self.__build_value_descriptor_dict(),
             attribute_class_owner=MappingProxyType(self.attribute_class_owner.copy()),
             aliases=MappingProxyType(self.aliases.copy()),
             readonly_options=self.__build_readonly_options_set(),
-            enum_return_value=self.__build_enum_return_value_set(),
         )
 
     def __intern_build_all_wrappers(self, owner: type) -> None:
@@ -2176,7 +2260,8 @@ class _ConfigInfoTemplate:
         }
         callback_list: list[Callable[..., Any]]
         for callback_list in chain(
-            self.value_converter.values(),
+            self.value_converter_on_get.values(),
+            self.value_converter_on_set.values(),
             self.value_validator.values(),
         ):
             callback_list[:] = [build_wrapper_if_needed(func) for func in callback_list]  # type: ignore[var-annotated]
@@ -2201,9 +2286,12 @@ class _ConfigInfoTemplate:
             }
         )
 
-    def __build_value_converter_dict(self) -> MappingProxyType[str, tuple[Callable[[object, Any], Any], ...]]:
+    def __build_value_converter_dict(
+        self, *, on: L["get", "set"]
+    ) -> MappingProxyType[str, tuple[Callable[[object, Any], Any], ...]]:
+        value_converter: dict[str, list[Callable[[object, Any], Any]]] = getattr(self, f"value_converter_on_{on}")
         return MappingProxyType(
-            {option: tuple(converter_list) for option, converter_list in self.value_converter.items() if len(converter_list) > 0}
+            {option: tuple(converter_list) for option, converter_list in value_converter.items() if len(converter_list) > 0}
         )
 
     def __build_value_validator_dict(self) -> MappingProxyType[str, tuple[Callable[[object, Any], None], ...]]:
@@ -2228,9 +2316,6 @@ class _ConfigInfoTemplate:
         return frozenset(
             option for option, descriptor in self.value_descriptors.items() if isinstance(descriptor, _ReadOnlyOptionBuildPayload)
         )
-
-    def __build_enum_return_value_set(self) -> frozenset[str]:
-        return frozenset(option for option, value in self.enum_return_value.items() if value)
 
 
 class _ConfigInitializer:
