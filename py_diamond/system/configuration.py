@@ -22,7 +22,7 @@ __all__ = [
 import inspect
 import re
 from collections import ChainMap
-from contextlib import ExitStack, contextmanager, nullcontext, suppress
+from contextlib import ExitStack, contextmanager, suppress
 from dataclasses import KW_ONLY, dataclass, field
 from enum import Enum
 from functools import cache, update_wrapper, wraps
@@ -162,6 +162,10 @@ class ConfigurationTemplate(Object):
     def __set_name__(self, owner: type, name: str, /) -> None:
         if self.__bound_class is not None:
             raise TypeError(f"This configuration object is bound to a class: {self.__bound_class.__name__!r}")
+
+        if not hasattr(owner, "__weakref__") and not inspect.isabstract(owner):
+            raise TypeError(f"{owner.__qualname__} objects are not weak-referenceable. Consider adding '__weakref__' to slots.")
+
         if getattr(owner, name) is not self:
             raise AttributeError("The attribute name does not correspond")
         template: _ConfigInfoTemplate = self.__template
@@ -225,9 +229,10 @@ class ConfigurationTemplate(Object):
             if objtype is None:
                 raise TypeError("__get__(None, None) is invalid")
             return self
+
         try:
             return self.__cache[obj]
-        except (KeyError, TypeError):
+        except KeyError:
             pass
 
         # Must always use the template of its class, so we replace 'self' by the right template
@@ -235,20 +240,13 @@ class ConfigurationTemplate(Object):
             self = _retrieve_configuration(type(obj))
 
         info = self.__info
-        bound_class = self.__bound_class
-        if info is None or bound_class is None:
-            raise TypeError("Cannot use ConfigurationTemplate instance without calling __set_name__ on it.")
-        try:
-            objref: WeakReferenceType[Any] = weakref(obj)
-        except TypeError:
-            return Configuration(obj, info)
+        assert info is not None, "Cannot use ConfigurationTemplate instance without calling __set_name__ on it."
+
         with self.__lock:
             try:
                 return self.__cache[obj]
-            except TypeError:  # Not hashable this time (or something else)
-                return Configuration(objref, info)
-            except KeyError:
-                self.__cache[obj] = bound_config = Configuration(objref, info)
+            except KeyError:  # Not added by another thread
+                self.__cache[obj] = bound_config = Configuration(weakref(obj), info)
                 return bound_config
 
     def __set__(self, obj: _T, value: Any) -> None:
@@ -1408,6 +1406,8 @@ class Configuration(Generic[_T], Object):
     __DELETED: Any = object()
 
     def __init__(self, obj: _T | WeakReferenceType[_T], info: ConfigurationInfo) -> None:
+        if not isinstance(obj, WeakReferenceType):
+            weakref(obj)  # Even if we store a strong reference, the object MUST be weak-referenceable
         self.__obj: Callable[[], _T | None] = obj if isinstance(obj, WeakReferenceType) else lambda obj=obj: obj  # type: ignore[misc]
         self.__info: ConfigurationInfo = info
 
@@ -1734,20 +1734,14 @@ class Configuration(Generic[_T], Object):
             yield {option: stack.enter_context(cls.__updating_option(obj, option, info)) for option in options}
 
     @classmethod
-    def __lazy_lock(cls, obj: object) -> RLock | nullcontext[None]:
+    def __lazy_lock(cls, obj: object) -> RLock:
         lock_cache = cls.__lock_cache
-        try:
-            lock: RLock = lock_cache.get(obj, _MISSING)
-        except TypeError:
-            return nullcontext()
+        lock: RLock = lock_cache.get(obj, _MISSING)
         if lock is _MISSING:
             with cls.__default_lock:
                 lock = lock_cache.get(obj, _MISSING)
                 if lock is _MISSING:
-                    try:
-                        lock_cache[obj] = lock = RLock()
-                    except Exception:
-                        return nullcontext()
+                    lock_cache[obj] = lock = RLock()
         return lock
 
 
