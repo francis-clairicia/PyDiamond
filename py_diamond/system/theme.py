@@ -328,13 +328,13 @@ class _NoThemeType(str):
         try:
             return NoTheme
         except NameError:
-            NoTheme = super().__new__(_NoThemeType, "NoTheme")
+            NoTheme = super().__new__(_NoThemeType, "NoTheme")  # type: ignore[misc]
         return NoTheme
 
 
-NoTheme: _NoThemeType = _NoThemeType()
+NoTheme: Final[_NoThemeType] = _NoThemeType()
 
-ThemeType: TypeAlias = str | Iterable[str]
+ThemeType: TypeAlias = str | Iterable[str] | _NoThemeType
 
 
 @final
