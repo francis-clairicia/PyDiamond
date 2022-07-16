@@ -18,7 +18,8 @@ class IntEnumMonkeyPatch(BasePatch):
         if sys.version_info >= (3, 11):
             return
 
-        from enum import IntEnum
+        from enum import IntEnum, IntFlag
 
-        for attr in ("__repr__", "__str__", "__format__"):
-            setattr(IntEnum, attr, getattr(int, attr))
+        for attr in ("__str__", "__format__"):
+            for enum_cls in (IntEnum, IntFlag):
+                setattr(enum_cls, attr, getattr(int, attr))

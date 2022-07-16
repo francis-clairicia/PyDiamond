@@ -32,9 +32,6 @@ class PatchContext(IntEnum):
     AFTER_IMPORTING_SUBMODULES = auto()
     AFTER_ALL = auto()
 
-    def __repr__(self) -> str:
-        return f"<{type(self).__name__}.{self.name}: {self.value}>"
-
     def __str__(self) -> str:
         return f"{type(self).__name__}.{self.name}"
 
