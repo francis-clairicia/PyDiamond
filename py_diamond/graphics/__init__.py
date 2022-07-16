@@ -30,8 +30,6 @@ __all__ = [
     "CheckBox",
     "CheckBoxMeta",
     "CircleShape",
-    "ClassWithThemeNamespace",
-    "ClassWithThemeNamespaceMeta",
     "Color",
     "DiagonalCrossShape",
     "Drawable",
@@ -69,7 +67,6 @@ __all__ = [
     "MovableProxyMeta",
     "MoveAnimation",
     "MultiColorShape",
-    "NoTheme",
     "ORANGE",
     "OutlinedShape",
     "PURPLE",
@@ -104,10 +101,6 @@ __all__ = [
     "Text",
     "TextImage",
     "TextMeta",
-    "ThemeNamespace",
-    "ThemeType",
-    "ThemedObject",
-    "ThemedObjectMeta",
     "TransformAnimation",
     "Transformable",
     "TransformableMeta",
@@ -117,14 +110,9 @@ __all__ = [
     "VerticalMultiColorShape",
     "WHITE",
     "YELLOW",
-    "abstract_theme_class",
-    "closed_namespace",
     "create_surface",
-    "force_apply_theme_decorator",
     "load_image",
-    "no_theme_decorator",
     "save_image",
-    "set_default_theme_namespace",
 ]
 
 import os
@@ -178,5 +166,4 @@ from .shape import *
 from .sprite import *
 from .surface import *
 from .text import *
-from .theme import *
 from .transformable import *

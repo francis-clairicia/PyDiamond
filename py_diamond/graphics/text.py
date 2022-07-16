@@ -23,6 +23,7 @@ from typing_extensions import assert_never
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
+from ..system.theme import ThemedObjectMeta, ThemeType
 from ..system.validation import valid_float, valid_integer
 from .color import BLACK, Color
 from .drawable import TDrawable, TDrawableMeta
@@ -31,7 +32,6 @@ from .image import Image
 from .rect import Rect
 from .renderer import AbstractRenderer
 from .surface import Surface, SurfaceRenderer, create_surface
-from .theme import ThemedObjectMeta, ThemeType
 
 _TupleFont: TypeAlias = tuple[str | None, int]
 _TextFont: TypeAlias = Font | _TupleFont

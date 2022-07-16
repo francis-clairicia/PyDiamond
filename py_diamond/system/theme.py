@@ -50,10 +50,10 @@ from typing import (
     overload,
 )
 
-from ..system.object import Object, ObjectMeta, mro
-from ..system.utils._mangling import getattr_pv
-from ..system.utils.abc import concreteclassmethod, isabstractmethod
-from ..system.utils.functools import cache, wraps
+from .object import Object, ObjectMeta, mro
+from .utils._mangling import getattr_pv
+from .utils.abc import concreteclassmethod, isabstractmethod
+from .utils.functools import cache, wraps
 
 _ClassTheme: TypeAlias = MutableMapping[str, MappingProxyType[str, Any]]
 _ClassThemeProxy: TypeAlias = MappingProxyType[str, MappingProxyType[str, Any]]

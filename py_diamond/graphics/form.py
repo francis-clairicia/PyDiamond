@@ -14,13 +14,13 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Mapping, Sequence, Ty
 from weakref import WeakValueDictionary
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
+from ..system.theme import ThemedObjectMeta, ThemeType
 from ..system.validation import valid_integer
 from .color import BLACK, TRANSPARENT, Color
 from .drawable import MDrawable, MDrawableMeta
 from .entry import Entry
 from .grid import Grid, GridElement
 from .renderer import AbstractRenderer
-from .theme import ThemedObjectMeta, ThemeType
 
 if TYPE_CHECKING:
     from ..window.gui import GUIScene

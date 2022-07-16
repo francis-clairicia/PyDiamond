@@ -158,7 +158,6 @@ class TestStarImports:
             "shape",
             "surface",
             "text",
-            "theme",
             "transformable",
         ],
         "math": [

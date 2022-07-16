@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Sequence, TypeAlias
 from weakref import WeakMethod
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
+from ..system.theme import NoTheme, ThemedObjectMeta, ThemeType
 from ..system.validation import valid_integer, valid_optional_float, valid_optional_integer
 from ..window.clock import Clock
 from ..window.cursor import SystemCursor
@@ -26,7 +27,6 @@ from .drawable import TDrawable, TDrawableMeta
 from .shape import RectangleShape
 from .surface import Surface
 from .text import Text
-from .theme import NoTheme, ThemedObjectMeta, ThemeType
 
 if TYPE_CHECKING:
     from ..audio.sound import Sound

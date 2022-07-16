@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal as L, 
 from ..math import Vector2
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
+from ..system.theme import NoTheme, ThemedObjectMeta, ThemeType
 from ..system.validation import valid_float, valid_integer, valid_optional_float
 from ..window.clickable import Clickable
 from ..window.widget import AbstractWidget
@@ -24,7 +25,6 @@ from .rect import Rect
 from .shape import RectangleShape
 from .surface import Surface
 from .text import TextImage
-from .theme import NoTheme, ThemedObjectMeta, ThemeType
 
 if TYPE_CHECKING:
     from ..audio.sound import Sound

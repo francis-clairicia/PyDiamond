@@ -11,6 +11,7 @@ __all__ = ["BooleanCheckBox", "CheckBox", "CheckBoxMeta"]
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, TypeVar
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
+from ..system.theme import ThemedObjectMeta, ThemeType
 from ..system.validation import valid_integer
 from ..window.widget import AbstractWidget
 from .color import BLACK, BLUE, Color
@@ -18,7 +19,6 @@ from .drawable import TDrawable, TDrawableMeta
 from .image import Image
 from .shape import DiagonalCrossShape, RectangleShape
 from .surface import Surface
-from .theme import ThemedObjectMeta, ThemeType
 
 if TYPE_CHECKING:
     from ..audio.sound import Sound

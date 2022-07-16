@@ -22,12 +22,12 @@ from .progress import ProgressBar
 
 if TYPE_CHECKING:
     from ..audio.sound import Sound
+    from ..system.theme import ThemeType
     from ..window.clickable import Clickable
     from ..window.cursor import AbstractCursor
     from ..window.display import Window
     from ..window.scene import Scene
     from .shape import AbstractRectangleShape
-    from .theme import ThemeType
 
 
 class ScaleBar(ProgressBar, AbstractWidget):

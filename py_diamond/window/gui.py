@@ -33,10 +33,10 @@ from typing import (
     runtime_checkable,
 )
 
-from ..graphics.theme import no_theme_decorator
 from ..system.collections import OrderedWeakSet
 from ..system.enum import AutoLowerNameEnum
 from ..system.object import final
+from ..system.theme import no_theme_decorator
 from ..system.utils.functools import setdefaultattr
 from ..system.utils.weakref import weakref_unwrap
 from .event import (

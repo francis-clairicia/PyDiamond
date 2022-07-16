@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Protocol, Sequence, final, runt
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
+from ..system.theme import ThemedObjectMeta, ThemeType
 from ..system.utils._mangling import mangle_private_attribute
 from ..window.clickable import Clickable
 from ..window.event import MouseButtonDownEvent, MouseButtonUpEvent, MouseMotionEvent, MouseWheelEvent
@@ -26,7 +27,6 @@ from .rect import Rect
 from .renderer import AbstractRenderer
 from .shape import RectangleShape
 from .surface import SurfaceRenderer
-from .theme import ThemedObjectMeta, ThemeType
 
 if TYPE_CHECKING:
     from ..audio.sound import Sound

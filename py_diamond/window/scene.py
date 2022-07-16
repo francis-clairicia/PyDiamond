@@ -50,9 +50,9 @@ from ..graphics.color import BLACK, Color
 from ..graphics.drawable import Drawable, LayeredDrawableGroup
 from ..graphics.renderer import AbstractRenderer
 from ..graphics.surface import Surface, SurfaceRenderer
-from ..graphics.theme import ClassWithThemeNamespaceMeta, closed_namespace, no_theme_decorator
 from ..system.enum import AutoLowerNameEnum
 from ..system.object import Object, final
+from ..system.theme import ClassWithThemeNamespaceMeta, closed_namespace, no_theme_decorator
 from ..system.utils._mangling import getattr_pv, mangle_private_attribute, setattr_pv
 from ..system.utils.abc import concreteclassmethod, isconcreteclass
 from ..system.utils.functools import wraps

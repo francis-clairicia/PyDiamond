@@ -17,11 +17,11 @@ from typing_extensions import assert_never
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
+from ..system.theme import ThemedObjectMeta, ThemeType
 from ..system.validation import valid_float, valid_integer
 from .color import BLACK, GRAY, TRANSPARENT, WHITE, Color
 from .shape import RectangleShape, ShapeMeta
 from .text import Text
-from .theme import ThemedObjectMeta, ThemeType
 
 if TYPE_CHECKING:
     from .renderer import AbstractRenderer
