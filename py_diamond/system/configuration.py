@@ -31,6 +31,7 @@ from threading import RLock
 from types import BuiltinFunctionType, BuiltinMethodType, MappingProxyType
 from typing import (
     TYPE_CHECKING,
+    AbstractSet as Set,
     Any,
     Callable,
     ClassVar,
@@ -732,7 +733,7 @@ class ConfigurationTemplate(Object):
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             if wrapper in template.main_updater:
                 raise ConfigurationError("Function already registered")
-            template.main_updater.append(wrapper)
+            template.main_updater.add(wrapper)
             return func
 
         if func is None:
@@ -755,11 +756,11 @@ class ConfigurationTemplate(Object):
         self.check_option_validity(option)
 
         def decorator(func: _UpdaterVar, /) -> _UpdaterVar:
-            updater_list = template.option_updater.setdefault(option, [])
+            updater_list = template.option_updater.setdefault(option, set())
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             if wrapper in updater_list:
                 raise OptionError(option, "Function already registered")
-            updater_list.append(wrapper)
+            updater_list.add(wrapper)
             return func
 
         if func is None:
@@ -874,11 +875,11 @@ class ConfigurationTemplate(Object):
         self.check_option_validity(option)
 
         def decorator(func: _ValueUpdaterVar, /) -> _ValueUpdaterVar:
-            updater_list = template.option_value_updater.setdefault(option, [])
+            updater_list = template.option_value_updater.setdefault(option, set())
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             if wrapper in updater_list:
                 raise OptionError(option, "Function already registered")
-            updater_list.append(wrapper)
+            updater_list.add(wrapper)
             return func
 
         if func is None:
@@ -1240,7 +1241,7 @@ class ConfigurationTemplate(Object):
             template.value_descriptors[option] = _ReadOnlyOptionBuildPayload(descriptor)
 
     def __check_locked(self) -> None:
-        if self.__bound_class is not None:
+        if self.__info is not None:
             raise TypeError(f"Attempt to modify template after the class creation")
 
     @property
@@ -1328,19 +1329,18 @@ def _default_mapping() -> MappingProxyType[Any, Any]:
 @final
 @dataclass(frozen=True, eq=False, slots=True)
 class ConfigurationInfo(Object):
-    options: frozenset[str]
+    options: Set[str]
     _: KW_ONLY
-    option_value_updater: Mapping[str, Callable[[object, Any], None]] = field(default_factory=_default_mapping)
-    option_updater: Mapping[str, Callable[[object], None]] = field(default_factory=_default_mapping)
-    many_options_updater: Callable[[object, Sequence[str]], None] | None = field(default=None)
-    main_updater: Callable[[object], None] | None = field(default=None)
-    value_converter: Mapping[str, Callable[[object, Any], Any]] = field(default_factory=_default_mapping)
-    value_validator: Mapping[str, Callable[[object, Any], None]] = field(default_factory=_default_mapping)
+    option_value_updater: Mapping[str, Set[Callable[[object, Any], None]]] = field(default_factory=_default_mapping)
+    option_updater: Mapping[str, Set[Callable[[object], None]]] = field(default_factory=_default_mapping)
+    main_updater: Set[Callable[[object], None]] = field(default_factory=frozenset)
+    value_converter: Mapping[str, Sequence[Callable[[object, Any], Any]]] = field(default_factory=_default_mapping)
+    value_validator: Mapping[str, Sequence[Callable[[object, Any], None]]] = field(default_factory=_default_mapping)
     value_descriptors: Mapping[str, _Descriptor] = field(default_factory=_default_mapping)
     attribute_class_owner: Mapping[str, type] = field(default_factory=_default_mapping)
     aliases: Mapping[str, str] = field(default_factory=_default_mapping)
-    readonly_options: frozenset[str] = field(default_factory=frozenset)
-    enum_return_value: frozenset[str] = field(default_factory=frozenset)
+    readonly_options: Set[str] = field(default_factory=frozenset)
+    enum_return_value: Set[str] = field(default_factory=frozenset)
 
     if TYPE_CHECKING:
         __hash__: None  # type: ignore[assignment]
@@ -1377,15 +1377,22 @@ class ConfigurationInfo(Object):
             descriptor = self.__ReadOnlyOptionWrapper(descriptor)
         return descriptor
 
+    def get_options_updaters(self, *options: str, exclude_main_updaters: bool) -> Set[Callable[[object], None]]:
+        get_option_updater = self.option_updater.get
+        updaters = set(chain.from_iterable(get_option_updater(option, ()) for option in set(options)))
+        if exclude_main_updaters and (main_updater := self.main_updater):
+            updaters.difference_update(main_updater)
+        return updaters
+
 
 del _default_mapping
 
 _InitializationRegister: TypeAlias = dict[str, Any]
-_UpdateRegister: TypeAlias = list[str]
+_UpdateRegister: TypeAlias = set[str]
 
 
 class Configuration(Generic[_T], Object):
-    __update_stack: ClassVar[dict[object, list[str]]] = dict()
+    __update_stack: ClassVar[dict[object, set[str]]] = dict()
     __init_context: ClassVar[dict[object, _InitializationRegister]] = dict()
     __update_context: ClassVar[dict[object, _UpdateRegister]] = dict()
     __lock_cache: ClassVar[WeakKeyDictionary[object, RLock]] = WeakKeyDictionary()
@@ -1474,14 +1481,12 @@ class Configuration(Generic[_T], Object):
         if not isinstance(descriptor, _MutableDescriptor):
             raise OptionError(option, "Cannot be set")
 
-        value_validator: Callable[[object, Any], None] | None = info.value_validator.get(option, None)
-        value_converter: Callable[[object, Any], Any] | None = info.value_converter.get(option, None)
-        if value_validator is not None:
+        for value_validator in info.value_validator.get(option, ()):
             value_validator(obj, value)
-        if value_converter is not None:
+        for value_converter in info.value_converter.get(option, ()):
             value = value_converter(obj, value)
 
-        with self.__updating_option(obj, option, info, call_updaters=True) as update_context:
+        with self.__updating_option(obj, option, info) as update_context:
             try:
                 actual_value = descriptor.__get__(obj, type(obj))
             except (AttributeError, UnregisteredOptionError):
@@ -1491,16 +1496,16 @@ class Configuration(Generic[_T], Object):
                     return
 
             descriptor.__set__(obj, value)
-            update_context.updated.append(option)
 
             register = update_context.init_context
             if register is not None:
                 register[option] = value
                 return
 
-            value_updater = info.option_value_updater.get(option, None)
-            if value_updater is not None:
+            for value_updater in info.option_value_updater.get(option, ()):
                 value_updater(obj, value)
+
+            update_context.updated.add(option)
 
     def __setitem__(self, option: str, value: Any, /) -> None:
         try:
@@ -1517,13 +1522,15 @@ class Configuration(Generic[_T], Object):
         if not isinstance(descriptor, _RemovableDescriptor):
             raise OptionError(option, "Cannot be deleted")
 
-        with self.__updating_option(obj, option, info, call_updaters=True) as update_context:
+        with self.__updating_option(obj, option, info) as update_context:
             descriptor.__delete__(obj)
-            update_context.updated.append(option)
+
             register = update_context.init_context
             if register is not None:
                 register[option] = self.__DELETED
                 return
+
+            update_context.updated.add(option)
 
     def __delitem__(self, option: str, /) -> None:
         try:
@@ -1549,58 +1556,51 @@ class Configuration(Generic[_T], Object):
         options = [info.check_option_validity(option, use_alias=True) for option in kwargs]
         if any(options.count(option) > 1 for option in kwargs):
             raise TypeError("Multiple aliases to the same option given")
-        with self.__updating_many_options(obj, *options, info=self.__info, call_updaters=True):
+        with self.__updating_many_options(obj, *options, info=self.__info):
+            set_value = self.set
             for option, value in kwargs.items():
-                self.set(option, value)
+                set_value(option, value)
 
     @contextmanager
     def initialization(self) -> Iterator[None]:
         obj: _T = self.__self__
 
-        with self.__lazy_lock(obj):
-            if obj in Configuration.__init_context:
-                yield
-                return
+        if obj in Configuration.__init_context:
+            yield
+            return
 
+        with self.__lazy_lock(obj):
             if obj in Configuration.__update_stack:
                 raise InitializationError("Cannot use initialization context while updating an option value")
 
-            def cleanup() -> None:
-                if obj is not None:
-                    Configuration.__init_context.pop(obj, None)
+            def cleanup(obj: _T) -> None:
+                Configuration.__init_context.pop(obj, None)
 
             with ExitStack() as stack:
                 initialization_register: _InitializationRegister = {}
                 Configuration.__init_context[obj] = initialization_register
-                stack.callback(cleanup)
+                stack.callback(cleanup, obj)
                 yield
                 update_register: _InitializationRegister = {}
                 Configuration.__init_context[obj] = update_register
                 info: ConfigurationInfo = self.__info
-                with self.__updating_many_options(obj, *initialization_register, info=info, call_updaters=False):
-                    for option, value in initialization_register.items():
-                        if value is self.__DELETED:
-                            continue
-                        value_update = info.option_value_updater.get(option, None)
-                        if value_update is not None:
-                            value_update(obj, value)
-                    if update_register:
-                        raise OptionError("", "Options were modified after value update in initialization context")
-                    many_options_updater = info.many_options_updater
-                    if many_options_updater is not None and len(initialization_register) > 1:
-                        many_options_updater(obj, tuple(initialization_register))
-                    else:
-                        for option in initialization_register:
-                            option_updater = info.option_updater.get(option, None)
-                            if option_updater is not None:
-                                option_updater(obj)
-                    if update_register:
-                        raise OptionError("", "Options were modified after update in initialization context")
-                    main_updater = info.main_updater
-                    if main_updater is not None:
-                        main_updater(obj)
+                for option, value in initialization_register.items():
+                    if value is self.__DELETED:
+                        continue
+                    for value_updater in info.option_value_updater.get(option, ()):
+                        value_updater(obj, value)
                         if update_register:
-                            raise OptionError("", "Options were modified after main update in initialization context")
+                            raise OptionError(option, "was modified after value update in initialization context")
+                for option_updater in info.get_options_updaters(*initialization_register, exclude_main_updaters=True):
+                    option_updater(obj)
+                    if update_register:
+                        options = ", ".join(update_register)
+                        raise OptionError(options, "Options were modified after update in initialization context")
+                for main_updater in info.main_updater:
+                    main_updater(obj)
+                    if update_register:
+                        options = ", ".join(update_register)
+                        raise OptionError(options, "Options were modified after main update in initialization context")
 
     @final
     def has_initialization_context(self) -> bool:
@@ -1615,8 +1615,8 @@ class Configuration(Generic[_T], Object):
     def update_options(self, *options: str) -> None:
         obj: _T = self.__self__
         info: ConfigurationInfo = self.__info
-        options = tuple(dict.fromkeys(info.check_option_validity(option, use_alias=True) for option in options))
-        return self.__update_options(obj, *options, info=info)
+        valid_option = info.check_option_validity
+        return self.__update_options(obj, *set(valid_option(option, use_alias=True) for option in options), info=info)
 
     def update_all_options(self) -> None:
         obj: _T = self.__self__
@@ -1651,37 +1651,25 @@ class Configuration(Generic[_T], Object):
             return cls.__update_single_option(obj, options[0], info)
 
         objtype: type = type(obj)
-        with cls.__updating_many_options(obj, *options, info=info, call_updaters=False) as update_contexts:
-            options = tuple(option for option, context in update_contexts.items() if context.first_call)
-            if not options:
-                return
-            for option in options:
+        with cls.__updating_many_options(obj, *options, info=info) as update_contexts:
+            for option, context in update_contexts.items():
+                if not context.first_call:
+                    continue
                 descriptor = info.get_value_descriptor(option, objtype)
                 try:
                     value: Any = descriptor.__get__(obj, type(obj))
                 except (AttributeError, UnregisteredOptionError):
                     pass
                 else:
-                    value_update = info.option_value_updater.get(option, None)
-                    if value_update is not None:
-                        value_update(obj, value)
-            many_options_updater = info.many_options_updater
-            if many_options_updater is not None and len(options) > 1:
-                many_options_updater(obj, options)
-            else:
-                for option in options:
-                    option_updater = info.option_updater.get(option, None)
-                    if option_updater is not None:
-                        option_updater(obj)
-            main_updater = info.main_updater
-            if main_updater is not None:
-                main_updater(obj)
+                    for value_updater in info.option_value_updater.get(option, ()):
+                        value_updater(obj, value)
+                context.updated.add(option)
 
     @classmethod
     def __update_single_option(cls, obj: object, option: str, info: ConfigurationInfo) -> None:
         descriptor = info.get_value_descriptor(option, type(obj))
 
-        with cls.__updating_option(obj, option, info, call_updaters=False) as update_context:
+        with cls.__updating_option(obj, option, info) as update_context:
             if not update_context.first_call:
                 return
             try:
@@ -1689,82 +1677,61 @@ class Configuration(Generic[_T], Object):
             except (AttributeError, UnregisteredOptionError):
                 pass
             else:
-                value_update = info.option_value_updater.get(option, None)
-                if value_update is not None:
-                    value_update(obj, value)
-            option_updater = info.option_updater.get(option, None)
-            if option_updater is not None:
-                option_updater(obj)
-            main_updater = info.main_updater
-            if main_updater is not None:
-                main_updater(obj)
+                for value_updater in info.option_value_updater.get(option, ()):
+                    value_updater(obj, value)
+
+            update_context.updated.add(option)
 
     @classmethod
     @contextmanager
-    def __updating_option(
-        cls, obj: object, option: str, info: ConfigurationInfo, *, call_updaters: bool
-    ) -> Iterator[__OptionUpdateContext]:
+    def __updating_option(cls, obj: object, option: str, info: ConfigurationInfo) -> Iterator[__OptionUpdateContext]:
         UpdateContext = cls.__OptionUpdateContext
 
         with cls.__lazy_lock(obj):
             register = cls.__init_context.get(obj, None)
             if register is not None:
-                yield UpdateContext(first_call=False, init_context=register, updated=[])
+                yield UpdateContext(first_call=False, init_context=register, updated=set())
                 return
 
-            update_register: _UpdateRegister = cls.__update_context.setdefault(obj, [])
-            update_stack: list[str] = cls.__update_stack.setdefault(obj, [])
+            update_register: _UpdateRegister = cls.__update_context.setdefault(obj, set())
+            update_stack: set[str] = cls.__update_stack.setdefault(obj, set())
             if option in update_stack:
                 yield UpdateContext(first_call=False, init_context=None, updated=update_register)
                 return
 
-            def cleanup() -> None:
-                with suppress(ValueError):
-                    update_stack.remove(option)
+            def cleanup(obj: object) -> None:
+                update_stack.discard(option)
                 if not update_stack:
                     cls.__update_stack.pop(obj, None)
 
-            update_stack.append(option)
+            update_stack.add(option)
             with ExitStack() as stack:
-                stack.callback(cleanup)
+                stack.callback(cleanup, obj)
                 yield UpdateContext(first_call=True, init_context=None, updated=update_register)
             if update_stack:
                 return
-            update_register = list(dict.fromkeys(cls.__update_context.pop(obj, update_register)))
-            if not call_updaters:
+            update_register = cls.__update_context.pop(obj, update_register)
+            if not update_register:
                 return
-            if update_register:
-                main_updater = info.main_updater
-                many_options_updater = info.many_options_updater if len(update_register) > 1 else None
-                if many_options_updater is not None:
-                    many_options_updater(obj, update_register)
-                else:
-                    for option in update_register:
-                        option_updater = info.option_updater.get(option, None)
-                        if option_updater is not None and option_updater is not main_updater:
-                            option_updater(obj)
-                if main_updater is not None:
-                    main_updater(obj)
+            for option_updater in info.get_options_updaters(*update_register, exclude_main_updaters=True):
+                option_updater(obj)
+            for main_updater in info.main_updater:
+                main_updater(obj)
 
     @classmethod
     @contextmanager
     def __updating_many_options(
-        cls, obj: object, *options: str, info: ConfigurationInfo, call_updaters: bool
+        cls,
+        obj: object,
+        *options: str,
+        info: ConfigurationInfo,
     ) -> Iterator[dict[str, __OptionUpdateContext]]:
-        nb_options = len(options)
-        if nb_options < 1:
+        if len(options) < 1:  # No need to take the lock and init something
             yield {}
-            return
-        if nb_options == 1:
-            with cls.__updating_option(obj, options[0], info, call_updaters=call_updaters) as update_context:
-                yield {options[0]: update_context}
             return
 
         with cls.__lazy_lock(obj), ExitStack() as stack:
-            yield {
-                option: stack.enter_context(cls.__updating_option(obj, option, info, call_updaters=call_updaters))
-                for option in options
-            }
+            yield {option: stack.enter_context(cls.__updating_option(obj, option, info)) for option in options}
 
     @classmethod
     def __lazy_lock(cls, obj: object) -> RLock | nullcontext[None]:
@@ -2091,9 +2058,9 @@ class _ConfigInfoTemplate:
     def __init__(self, known_options: Sequence[str], parents: Sequence[_ConfigInfoTemplate]) -> None:
         self.parents: tuple[_ConfigInfoTemplate, ...] = tuple(parents)
         self.options: frozenset[str] = frozenset(known_options)
-        self.main_updater: list[Callable[[object], None]] = list()
-        self.option_updater: dict[str, list[Callable[[object], None]]] = dict()
-        self.option_value_updater: dict[str, list[Callable[[object, Any], None]]] = dict()
+        self.main_updater: set[Callable[[object], None]] = set()
+        self.option_updater: dict[str, set[Callable[[object], None]]] = dict()
+        self.option_value_updater: dict[str, set[Callable[[object, Any], None]]] = dict()
         self.value_descriptors: dict[str, _Descriptor] = dict()
         self.value_converter: dict[str, list[Callable[[object, Any], Any]]] = dict()
         self.value_validator: dict[str, list[Callable[[object, Any], None]]] = dict()
@@ -2103,13 +2070,12 @@ class _ConfigInfoTemplate:
         self.enum_return_value: dict[str, bool] = dict()
 
         merge_dict = self.__merge_dict
-        merge_list = self.__merge_list
         merge_updater_dict = self.__merge_updater_dict
         for p in parents:
             self.options |= p.options
-            merge_list(self.main_updater, p.main_updater, on_duplicate="skip", setting="main_update")
-            merge_updater_dict(self.option_updater, p.option_updater, setting="update")
-            merge_updater_dict(self.option_value_updater, p.option_value_updater, setting="value_update")
+            self.main_updater |= p.main_updater
+            merge_updater_dict(self.option_updater, p.option_updater)
+            merge_updater_dict(self.option_value_updater, p.option_value_updater)
             merge_dict(self.value_descriptors, p.value_descriptors, on_conflict="raise", setting="descriptor")
             merge_dict(
                 self.value_converter,
@@ -2159,41 +2125,16 @@ class _ConfigInfoTemplate:
                 value = copy(value)
             d1[key] = value
 
-    @staticmethod
-    def __merge_list(
-        l1: list[_T],
-        l2: list[_T],
-        /,
-        *,
-        on_duplicate: L["keep", "put_at_end", "raise", "skip"],
-        setting: str,
-        copy: Callable[[_T], _T] | None = None,
-    ) -> None:
-        for value in l2:
-            if value in l1:
-                if on_duplicate == "skip":
-                    continue
-                if on_duplicate == "put_at_end":
-                    l1.remove(value)
-                elif on_duplicate == "raise":
-                    raise ConfigurationError(f"Conflict of setting {setting!r}: Duplicate of value {value!r}")
-            if copy is not None:
-                value = copy(value)
-            l1.append(value)
-
     @classmethod
     def __merge_updater_dict(
         cls,
-        d1: dict[str, list[_FuncVar]],
-        d2: dict[str, list[_FuncVar]],
+        d1: dict[str, set[_FuncVar]],
+        d2: dict[str, set[_FuncVar]],
         /,
-        *,
-        setting: str,
     ) -> None:
-        merge_list = cls.__merge_list
-        for key, l2 in d2.items():
-            l1 = d1.setdefault(key, [])
-            merge_list(l1, l2, on_duplicate="skip", setting=setting)
+        for key, s2 in d2.items():
+            s1 = d1.setdefault(key, set())
+            s1.update(s2)
 
     def build(self, owner: type) -> ConfigurationInfo:
         self.__intern_build_all_wrappers(owner)
@@ -2202,8 +2143,7 @@ class _ConfigInfoTemplate:
             options=frozenset(self.options),
             option_value_updater=self.__build_option_value_updater_dict(),
             option_updater=self.__build_option_updater_dict(),
-            many_options_updater=self.__build_many_options_updater(),
-            main_updater=self.__build_main_updater(),
+            main_updater=frozenset(self.main_updater),
             value_converter=self.__build_value_converter_dict(),
             value_validator=self.__build_value_validator_dict(),
             value_descriptors=self.__build_value_descriptor_dict(),
@@ -2232,166 +2172,50 @@ class _ConfigInfoTemplate:
                     descriptor.set_new_descriptor(build_wrapper_within_descriptor(underlying_descriptor))
             return descriptor
 
+        self.main_updater = set(build_wrapper_if_needed(func) for func in self.main_updater)
+        self.option_updater = {
+            option: set(build_wrapper_if_needed(func) for func in func_set) for option, func_set in self.option_updater.items()
+        }
+        self.option_value_updater = {
+            option: set(build_wrapper_if_needed(func) for func in func_set)
+            for option, func_set in self.option_value_updater.items()
+        }
         callback_list: list[Callable[..., Any]]
-        for callback_list in chain(  # type: ignore[assignment]
-            [self.main_updater],
-            self.option_updater.values(),
-            self.option_value_updater.values(),
+        for callback_list in chain(
             self.value_converter.values(),
             self.value_validator.values(),
         ):
-            callback_list[:] = [build_wrapper_if_needed(func) for func in callback_list]
+            callback_list[:] = [build_wrapper_if_needed(func) for func in callback_list]  # type: ignore[var-annotated]
         for option, descriptor in tuple(self.value_descriptors.items()):
             self.value_descriptors[option] = build_wrapper_within_descriptor(descriptor)
 
-    def __build_option_value_updater_dict(self) -> MappingProxyType[str, Callable[[object, Any], None]]:
-        build_option_value_updater = self.__build_option_value_updater_func
-
+    def __build_option_value_updater_dict(self) -> MappingProxyType[str, frozenset[Callable[[object, Any], None]]]:
         return MappingProxyType(
             {
-                option: build_option_value_updater(updater_list)
+                option: frozenset(updater_list)
                 for option, updater_list in self.option_value_updater.items()
                 if len(updater_list) > 0
             }
         )
 
-    @staticmethod
-    def __build_option_value_updater_func(updater_list: Sequence[Callable[[object, Any], None]]) -> Callable[[object, Any], None]:
-        if len(updater_list) == 1:
-            return updater_list[0]
-
-        def option_value_updater_func(
-            obj: object, value: Any, /, *, updater_list: Sequence[Callable[[object, Any], None]] = tuple(updater_list)
-        ) -> None:
-            for option_value_updater in updater_list:
-                option_value_updater(obj, value)
-
-        return option_value_updater_func
-
-    def __build_main_updater(self) -> Callable[[object], None] | None:
-        main_updater_list = self.main_updater
-        if not main_updater_list:
-            return None
-        build_updater = self.__build_updater_func
-        return build_updater(main_updater_list)
-
-    def __build_option_updater_dict(self) -> MappingProxyType[str, Callable[[object], None]]:
-        build_updater = self.__build_updater_func
-        main_updater_list = self.main_updater
-
+    def __build_option_updater_dict(self) -> MappingProxyType[str, frozenset[Callable[[object], None]]]:
         return MappingProxyType(
             {
-                option: build_updater(filtered_updater_list)
+                option: frozenset(filtered_updater_list)
                 for option, updater_list in self.option_updater.items()
-                if len((filtered_updater_list := [f for f in updater_list if f not in main_updater_list])) > 0
+                if len((filtered_updater_list := updater_list.difference(self.main_updater))) > 0
             }
         )
 
-    @staticmethod
-    def __build_updater_func(updater_list: Sequence[Callable[[object], None]]) -> Callable[[object], None]:
-        if len(updater_list) == 1:
-            return updater_list[0]
-
-        def updater_func(obj: object, /, *, updater_list: Sequence[Callable[[object], None]] = tuple(updater_list)) -> None:
-            for updater in updater_list:
-                updater(obj)
-
-        return updater_func
-
-    def __build_many_options_updater(self) -> Callable[[object, Sequence[str]], None] | None:
-        main_updater_list = self.main_updater
-        option_updater_dict = {
-            option: filtered_updater_list
-            for option, updater_list in self.option_updater.items()
-            if len((filtered_updater_list := [f for f in updater_list if f not in main_updater_list])) > 0
-        }
-        if len(option_updater_dict) < 2:
-            return None
-
-        # Check if all callbacks are hashable
-        # (Commonly true but who knows...)
-        try:
-            _ = [hash(f) for f in chain.from_iterable(option_updater_dict.values())]
-        except TypeError:
-            # Not hashable, use our (less optmized) merge_list for unique call
-
-            merge_list = _ConfigInfoTemplate.__merge_list
-
-            def many_options_updater_func(
-                obj: object,
-                options: Sequence[str],
-                /,
-                *,
-                option_updater_dict: dict[str, list[Callable[[object], None]]] = option_updater_dict,
-            ) -> None:
-                updater_list: list[Callable[[object], None]] = []
-                for option in options:
-                    merge_list(updater_list, option_updater_dict.get(option, []), on_duplicate="skip", setting="")
-                for updater in updater_list:
-                    updater(obj)
-
-        else:
-
-            def many_options_updater_func(
-                obj: object,
-                options: Sequence[str],
-                /,
-                *,
-                option_updater_dict: dict[str, list[Callable[[object], None]]] = option_updater_dict,
-            ) -> None:
-                for updater in dict.fromkeys(chain.from_iterable(option_updater_dict.get(option, ()) for option in options)):
-                    updater(obj)
-
-        return many_options_updater_func
-
-    def __build_value_converter_dict(self) -> MappingProxyType[str, Callable[[object, Any], Any]]:
-        build_converter = self.__build_value_converter_func
-
+    def __build_value_converter_dict(self) -> MappingProxyType[str, tuple[Callable[[object, Any], Any], ...]]:
         return MappingProxyType(
-            {
-                option: build_converter(converter_list)
-                for option, converter_list in self.value_converter.items()
-                if len(converter_list) > 0
-            }
+            {option: tuple(converter_list) for option, converter_list in self.value_converter.items() if len(converter_list) > 0}
         )
 
-    @staticmethod
-    def __build_value_converter_func(converter_list: Sequence[Callable[[object, Any], Any]]) -> Callable[[object, Any], Any]:
-        if len(converter_list) == 1:
-            return converter_list[0]
-
-        def value_converter_func(
-            obj: object, value: Any, /, *, converter_list: Sequence[Callable[[object, Any], Any]] = tuple(converter_list)
-        ) -> Any:
-            for converter in converter_list:
-                value = converter(obj, value)
-            return value
-
-        return value_converter_func
-
-    def __build_value_validator_dict(self) -> MappingProxyType[str, Callable[[object, Any], None]]:
-        build_value_validator = self.__build_value_validator_func
-
+    def __build_value_validator_dict(self) -> MappingProxyType[str, tuple[Callable[[object, Any], None], ...]]:
         return MappingProxyType(
-            {
-                option: build_value_validator(validator_list)
-                for option, validator_list in self.value_validator.items()
-                if len(validator_list) > 0
-            }
+            {option: tuple(validator_list) for option, validator_list in self.value_validator.items() if len(validator_list) > 0}
         )
-
-    @staticmethod
-    def __build_value_validator_func(validator_list: Sequence[Callable[[object, Any], None]]) -> Callable[[object, Any], None]:
-        if len(validator_list) == 1:
-            return validator_list[0]
-
-        def value_validator_func(
-            obj: object, value: Any, /, *, validator_list: Sequence[Callable[[object, Any], None]] = tuple(validator_list)
-        ) -> None:
-            for value_validator in validator_list:
-                value_validator(obj, value)
-
-        return value_validator_func
 
     def __build_value_descriptor_dict(self) -> MappingProxyType[str, _Descriptor]:
         value_descriptors: dict[str, _Descriptor] = {}
