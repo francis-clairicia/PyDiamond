@@ -93,7 +93,7 @@ class UnknownOptionError(OptionError):
         super().__init__(name, message)
 
 
-class UnregisteredOptionError(OptionError):
+class UnregisteredOptionError(OptionError, AttributeError):
     def __init__(self, name: str) -> None:
         super().__init__(name, "Unregistered option")
 
@@ -1426,7 +1426,7 @@ class Configuration(Generic[_T], Object):
         try:
             with self.__lazy_lock(obj):
                 descriptor.__get__(obj, type(obj))
-        except (AttributeError, UnregisteredOptionError):
+        except AttributeError:
             return False
         return True
 
@@ -1446,7 +1446,7 @@ class Configuration(Generic[_T], Object):
         try:
             with self.__lazy_lock(obj):
                 value: Any = descriptor.__get__(obj, type(obj))
-        except (AttributeError, UnregisteredOptionError):
+        except AttributeError:
             if default is _NO_DEFAULT:
                 raise
             return default
@@ -1489,7 +1489,7 @@ class Configuration(Generic[_T], Object):
         with self.__updating_option(obj, option, info) as update_context:
             try:
                 actual_value = descriptor.__get__(obj, type(obj))
-            except (AttributeError, UnregisteredOptionError):
+            except AttributeError:
                 pass
             else:
                 if actual_value is value or actual_value == value:
@@ -1658,7 +1658,7 @@ class Configuration(Generic[_T], Object):
                 descriptor = info.get_value_descriptor(option, objtype)
                 try:
                     value: Any = descriptor.__get__(obj, type(obj))
-                except (AttributeError, UnregisteredOptionError):
+                except AttributeError:
                     pass
                 else:
                     for value_updater in info.option_value_updater.get(option, ()):
@@ -1674,7 +1674,7 @@ class Configuration(Generic[_T], Object):
                 return
             try:
                 value: Any = descriptor.__get__(obj, type(obj))
-            except (AttributeError, UnregisteredOptionError):
+            except AttributeError:
                 pass
             else:
                 for value_updater in info.option_value_updater.get(option, ()):
@@ -2296,11 +2296,7 @@ class _PrivateAttributeOptionPropertyFallback:
         if obj is None:
             return self
         attribute: str = self.__attribute
-        try:
-            return getattr(obj, attribute)
-        except AttributeError as exc:
-            name: str = self.__name
-            raise UnregisteredOptionError(name) from exc
+        return getattr(obj, attribute)
 
     def __set__(self, obj: object, value: Any, /) -> None:
         attribute: str = self.__attribute
@@ -2308,11 +2304,7 @@ class _PrivateAttributeOptionPropertyFallback:
 
     def __delete__(self, obj: object, /) -> None:
         attribute: str = self.__attribute
-        try:
-            return delattr(obj, attribute)
-        except AttributeError as exc:
-            name: str = self.__name
-            raise UnregisteredOptionError(name) from exc
+        return delattr(obj, attribute)
 
 
 class _ReadOnlyOptionBuildPayload:
