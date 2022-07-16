@@ -45,20 +45,6 @@ class TestArrangePygameEnvironment:
         yield patch
         patch.teardown()
 
-    def test__context__good_context(self) -> None:
-        # Arrange
-        from py_diamond._patch import PatchContext
-        from py_diamond._patch.plugins.environment import ArrangePygameEnvironmentBeforeImport
-
-        expected_context = PatchContext.BEFORE_IMPORTING_PYGAME
-
-        # Act
-        context = ArrangePygameEnvironmentBeforeImport.get_required_context()
-
-        # Assert
-        assert isinstance(context, PatchContext)
-        assert context is expected_context
-
     @pytest.mark.parametrize(
         "environ_var_value",
         [
@@ -153,20 +139,6 @@ class TestVerifyBooleanEnvironmentVariables:
         assert patch.environ is fake_environ
         yield patch
         patch.teardown()
-
-    def test__context__good_context(self) -> None:
-        # Arrange
-        from py_diamond._patch import PatchContext
-        from py_diamond._patch.plugins.environment import VerifyBooleanEnvironmentVariables
-
-        expected_context = PatchContext.AFTER_IMPORTING_SUBMODULES
-
-        # Act
-        context = VerifyBooleanEnvironmentVariables.get_required_context()
-
-        # Assert
-        assert isinstance(context, PatchContext)
-        assert context is expected_context
 
     def test__run__calls_check_booleans_excluding_already_checked(
         self,

@@ -22,6 +22,7 @@ class MockEventModule(NamedTuple):
     get: MagicMock
     clear: MagicMock
     post: MagicMock
+    event_name: MagicMock
 
 
 @pytest.fixture

@@ -616,6 +616,7 @@ class UnknownEventTypeError(EventFactoryError):
     pass
 
 
+@final
 class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
     associations: Final[Mapping[type[Event], int]] = ChainMapProxy(
         MappingProxyType(_BUILTIN_ASSOCIATIONS), MappingProxyType(_ASSOCIATIONS)
@@ -625,6 +626,7 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
     )
 
     NUMEVENTS: Final[int] = _pg_constants.NUMEVENTS
+    NON_BLOCKABLE_EVENTS: Final[frozenset[int]] = frozenset(map(int, getattr(_pg_event.set_blocked, "__forbidden_events__", ())))
 
     @staticmethod
     def get_pygame_event_type(event: Event | type[Event]) -> int:
@@ -636,7 +638,7 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
     def is_blockable(event: type[Event] | int) -> bool:
         if not isinstance(event, int):
             event = EventFactory.associations[event]
-        return event not in {BuiltinEventType.MUSICEND}
+        return event not in EventFactory.NON_BLOCKABLE_EVENTS
 
     @staticmethod
     def get_available_custom_event_number() -> int:

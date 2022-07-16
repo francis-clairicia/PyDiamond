@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.functional
-class TestPatch:
+class TestPatchCommon:
     ALL_PATCHES = [
         "fix_enum.IntEnumMonkeyPatch",
         "fix_typing.OverrideFinalFunctionsPatch",
@@ -21,6 +21,14 @@ class TestPatch:
         "pygame_patch.PygamePatch",
         "pygame_patch.PyDiamondEventPatch",
     ]
+    EXPECTED_CONTEXT = {
+        "fix_enum.IntEnumMonkeyPatch": "BEFORE_ALL",
+        "fix_typing.OverrideFinalFunctionsPatch": "BEFORE_ALL",
+        "environment.ArrangePygameEnvironmentBeforeImport": "BEFORE_IMPORTING_PYGAME",
+        "environment.VerifyBooleanEnvironmentVariables": "AFTER_IMPORTING_SUBMODULES",
+        "pygame_patch.PygamePatch": "AFTER_IMPORTING_PYGAME",
+        "pygame_patch.PyDiamondEventPatch": "AFTER_IMPORTING_SUBMODULES",
+    }
 
     @pytest.fixture(params=ALL_PATCHES)
     @staticmethod
@@ -36,10 +44,17 @@ class TestPatch:
         patch_cls: type[BasePatch] = getattr(importlib.import_module(module_path), patch_name)
         return patch_cls
 
-    @pytest.fixture
-    @staticmethod
-    def patch(patch_cls: type[BasePatch]) -> BasePatch:
-        return patch_cls()
+    # @pytest.fixture
+    # @staticmethod
+    # def patch(patch_cls: type[BasePatch]) -> BasePatch:
+    #     return patch_cls()
 
     def test__patch__get_name(self, patch_cls: type[BasePatch], patch_qualname: str) -> None:
         assert patch_cls.get_name() == f"plugins.{patch_qualname}"
+
+    def test__patch__required_context(self, patch_cls: type[BasePatch], patch_qualname: str) -> None:
+        from py_diamond._patch._base import PatchContext
+
+        expected_context = PatchContext[self.EXPECTED_CONTEXT[patch_qualname]]
+
+        assert patch_cls.get_required_context() is expected_context

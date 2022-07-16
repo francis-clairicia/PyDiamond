@@ -69,20 +69,6 @@ class TestFixTypingFinal:
         yield patch
         patch.teardown()
 
-    def test__patch__context(self) -> None:
-        # Arrange
-        from py_diamond._patch import PatchContext
-        from py_diamond._patch.plugins.fix_typing import OverrideFinalFunctionsPatch
-
-        expected_context = PatchContext.BEFORE_ALL
-
-        # Act
-        context = OverrideFinalFunctionsPatch.get_required_context()
-
-        # Assert
-        assert isinstance(context, PatchContext)
-        assert context == expected_context
-
     def test__patch__wrap_default_final(
         self,
         patch: OverrideFinalFunctionsPatch,

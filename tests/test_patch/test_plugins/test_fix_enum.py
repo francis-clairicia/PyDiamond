@@ -24,20 +24,6 @@ class TestFixIntEnum:
         yield patch
         patch.teardown()
 
-    def test__context__good_context(self) -> None:
-        # Arrange
-        from py_diamond._patch import PatchContext
-        from py_diamond._patch.plugins.fix_enum import IntEnumMonkeyPatch
-
-        expected_context = PatchContext.BEFORE_ALL
-
-        # Act
-        context = IntEnumMonkeyPatch.get_required_context()
-
-        # Assert
-        assert isinstance(context, PatchContext)
-        assert context == expected_context
-
     @pytest.mark.parametrize(
         "method_name",
         [

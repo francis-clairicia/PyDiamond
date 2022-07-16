@@ -96,7 +96,7 @@ class PygamePatch(RequiredPatch):
 
         @wraps(_orig_pg_event_set_blocked)
         def patch_set_blocked(type: _EventTypes | None) -> None:
-            caught_events: set[int] | tuple[int, ...]
+            caught_events: tuple[int, ...]
             if type is not None:
                 event_set: set[int]
                 try:
@@ -106,7 +106,8 @@ class PygamePatch(RequiredPatch):
                 else:
                     type = tuple(type)  # type: ignore[arg-type]  # Preserve values in case it is an iterator
                     event_set = set(map(int, type))
-                caught_events = event_set.intersection(forbidden_events)
+                event_set.intersection_update(forbidden_events)
+                caught_events = tuple(e for e in forbidden_events if e in event_set)
             else:
                 caught_events = forbidden_events
             if caught_events:
@@ -114,6 +115,7 @@ class PygamePatch(RequiredPatch):
             return _orig_pg_event_set_blocked(type)
 
         setattr(patch_set_blocked, "__set_blocked_wrapper__", True)
+        setattr(patch_set_blocked, "__forbidden_events__", forbidden_events)
         return patch_set_blocked
 
 
@@ -148,5 +150,5 @@ class PyDiamondEventPatch(RequiredPatch):
 
         from ...window.event import BuiltinEventType
 
-        dispatch_table[BuiltinEventType.MUSICEND] = "MusicEndEvent"
-        dispatch_table[BuiltinEventType.SCREENSHOT] = "ScreenshotEvent"
+        dispatch_table[BuiltinEventType.MUSICEND] = "MusicEnd"
+        dispatch_table[BuiltinEventType.SCREENSHOT] = "Screenshot"
