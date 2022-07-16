@@ -291,8 +291,6 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
 
     config.add_value_converter_static("percent", valid_float(min_value=0, max_value=1))
 
-    config.set_autocopy("cursor_color", copy_on_get=True, copy_on_set=True)
-
     config.add_value_validator_static("cursor_color", Color)
     config.add_value_converter_static("cursor_thickness", valid_integer(min_value=0))
 

@@ -24,8 +24,7 @@ def benchmark() -> Iterator[None]:
 
 
 class Configurable:
-    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate("a", "b", "c", "d", autocopy=True)
-    config.set_autocopy("d", copy_on_get=False, copy_on_set=False)
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate("a", "b", "c", "d")
 
     a: OptionAttribute[int] = OptionAttribute()
     b: OptionAttribute[int] = OptionAttribute()

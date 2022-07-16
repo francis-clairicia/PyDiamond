@@ -225,9 +225,6 @@ class ScaleBar(ProgressBar, AbstractWidget):
     config.add_value_validator_static("highlight_color", Color)
     config.add_value_converter_static("highlight_thickness", valid_integer(min_value=0))
 
-    config.set_autocopy("outline_color", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("highlight_color", copy_on_get=True, copy_on_set=True)
-
     config.on_update("outline", __update_shape_outline)
     config.on_update("outline_color", __update_shape_outline)
     config.on_update("highlight_color", __update_shape_outline)

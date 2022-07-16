@@ -174,7 +174,6 @@ class SingleColorShape(AbstractShape):
         self.color = color
         super().__init__(**kwargs)
 
-    config.set_autocopy("color", copy_on_get=True, copy_on_set=True)
     config.add_value_validator_static("color", Color)
 
 
@@ -194,7 +193,6 @@ class OutlinedShape(AbstractShape):
         self.outline_color = outline_color
         super().__init__(**kwargs)
 
-    config.set_autocopy("outline_color", copy_on_get=True, copy_on_set=True)
     config.add_value_converter_static("outline", valid_integer(min_value=0))
     config.add_value_validator_static("outline_color", Color)
 
@@ -261,8 +259,6 @@ class PolygonShape(OutlinedShape, SingleColorShape):
     @final
     def set_points(self, points: PointList) -> None:
         self.config.set("points", points)
-
-    config.set_autocopy("points", copy_on_get=True, copy_on_set=False)
 
     @config.add_value_converter_static("points")
     @staticmethod

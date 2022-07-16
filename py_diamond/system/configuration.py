@@ -7,10 +7,9 @@
 from __future__ import annotations
 
 __all__ = [
-    "ConfigError",
     "Configuration",
+    "ConfigurationError",
     "ConfigurationTemplate",
-    "EmptyOptionNameError",
     "InitializationError",
     "InvalidAliasError",
     "OptionAttribute",
@@ -24,7 +23,6 @@ import inspect
 import re
 from collections import ChainMap
 from contextlib import ExitStack, contextmanager, nullcontext, suppress
-from copy import copy
 from dataclasses import KW_ONLY, dataclass, field
 from enum import Enum
 from functools import cache, update_wrapper, wraps
@@ -77,11 +75,11 @@ _T = TypeVar("_T")
 _DT = TypeVar("_DT")
 
 
-class ConfigError(Exception):
+class ConfigurationError(Exception):
     pass
 
 
-class OptionError(ConfigError):
+class OptionError(ConfigurationError):
     def __init__(self, name: str, message: str) -> None:
         if name:
             message = f"{name!r}: {message}"
@@ -99,17 +97,12 @@ class UnregisteredOptionError(OptionError):
         super().__init__(name, "Unregistered option")
 
 
-class EmptyOptionNameError(UnknownOptionError):
-    def __init__(self) -> None:
-        super().__init__("", "Empty string option given")
-
-
 class InvalidAliasError(OptionError):
     def __init__(self, name: str, message: str) -> None:
         super().__init__(name, message)
 
 
-class InitializationError(ConfigError):
+class InitializationError(ConfigurationError):
     def __init__(self, message: str) -> None:
         super().__init__(message)
 
@@ -139,7 +132,6 @@ class ConfigurationTemplate(Object):
     def __init__(
         self,
         *known_options: str,
-        autocopy: bool | None = None,
         parent: ConfigurationTemplate | Sequence[ConfigurationTemplate] | None = None,
     ) -> None:
         for option in known_options:
@@ -156,7 +148,7 @@ class ConfigurationTemplate(Object):
         else:
             parent = list(dict.fromkeys(parent))
 
-        self.__template: _ConfigInfoTemplate = _ConfigInfoTemplate(known_options, autocopy, list(p.__template for p in parent))
+        self.__template: _ConfigInfoTemplate = _ConfigInfoTemplate(known_options, list(p.__template for p in parent))
         self.__no_parent_ownership: set[str] = set()
         self.__bound_class: type | None = None
         self.__attr_name: str | None = None
@@ -277,55 +269,15 @@ class ConfigurationTemplate(Object):
         if use_alias:
             option = template.aliases.get(option, option)
         if option not in template.options:
-            if not option:
-                raise EmptyOptionNameError()
             raise UnknownOptionError(option)
         return option
 
     def is_option_valid(self, option: str, *, use_alias: bool = False) -> bool:
         try:
             self.check_option_validity(option, use_alias=use_alias)
-        except OptionError:
+        except UnknownOptionError:
             return False
         return True
-
-    @overload
-    def set_autocopy(self, autocopy: bool, /) -> None:
-        ...
-
-    @overload
-    def set_autocopy(self, option: str, /, *, copy_on_get: bool | None) -> None:
-        ...
-
-    @overload
-    def set_autocopy(self, option: str, /, *, copy_on_set: bool | None) -> None:
-        ...
-
-    @overload
-    def set_autocopy(self, option: str, /, *, copy_on_get: bool | None, copy_on_set: bool | None) -> None:
-        ...
-
-    def set_autocopy(self, arg1: bool | str, /, **kwargs: bool | None) -> None:
-        self.__check_locked()
-        template: _ConfigInfoTemplate = self.__template
-        if isinstance(arg1, bool) and not kwargs:
-            template.autocopy = arg1
-        elif isinstance(arg1, str) and ("copy_on_get" in kwargs or "copy_on_set" in kwargs):
-            self.check_option_validity(arg1)
-            if "copy_on_get" in kwargs:
-                copy_on_get: bool | None = kwargs["copy_on_get"]
-                if copy_on_get is None:
-                    template.value_autocopy_get.pop(arg1, None)
-                else:
-                    template.value_autocopy_get[arg1] = bool(copy_on_get)
-            if "copy_on_set" in kwargs:
-                copy_on_set: bool | None = kwargs["copy_on_set"]
-                if copy_on_set is None:
-                    template.value_autocopy_set.pop(arg1, None)
-                else:
-                    template.value_autocopy_set[arg1] = bool(copy_on_set)
-        else:
-            raise TypeError("Invalid argument")
 
     def remove_parent_ownership(self, option: str) -> None:
         self.__check_locked()
@@ -779,7 +731,7 @@ class ConfigurationTemplate(Object):
         def decorator(func: _UpdaterVar, /) -> _UpdaterVar:
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             if wrapper in template.main_updater:
-                raise ConfigError("Function already registered")
+                raise ConfigurationError("Function already registered")
             template.main_updater.append(wrapper)
             return func
 
@@ -1274,16 +1226,6 @@ class ConfigurationTemplate(Object):
                 raise InvalidAliasError(alias, f"Already bound to option {template.aliases[alias]!r}")
             template.aliases[alias] = option
 
-    def register_copy_func(self, cls: type, func: Callable[[Any], Any], *, allow_subclass: bool = False) -> None:
-        self.__check_locked()
-        if not isinstance(cls, type):
-            raise TypeError("'cls' argument must be a type")
-        if not callable(func):
-            raise TypeError("'func' is not callable")
-        template: _ConfigInfoTemplate = self.__template
-        template.value_copy[cls] = func
-        template.value_copy_allow_subclass[cls] = bool(allow_subclass)
-
     def readonly(self, *options: str) -> None:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
@@ -1295,7 +1237,7 @@ class ConfigurationTemplate(Object):
             if isinstance(descriptor, (_MutableDescriptor, _RemovableDescriptor)):
                 if not isinstance(descriptor, property) or descriptor.fset is not None or descriptor.fdel is not None:
                     raise OptionError(option, "Trying to flag option as read-only with custom setter/deleter")
-            template.value_descriptors[option] = _ReadOnlyOptionBuildPayload()
+            template.value_descriptors[option] = _ReadOnlyOptionBuildPayload(descriptor)
 
     def __check_locked(self) -> None:
         if self.__bound_class is not None:
@@ -1317,9 +1259,9 @@ class OptionAttribute(Generic[_T], Object):
 
     __slots__ = ("__name", "__owner", "__config_name", "__doc__")
 
-    def __init__(self, doc: str | None = None) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        self.__doc__ = doc
+        self.__doc__ = None
 
     def __set_name__(self, owner: type, name: str, /) -> None:
         if len(name) == 0:
@@ -1395,13 +1337,8 @@ class ConfigurationInfo(Object):
     value_converter: Mapping[str, Callable[[object, Any], Any]] = field(default_factory=_default_mapping)
     value_validator: Mapping[str, Callable[[object, Any], None]] = field(default_factory=_default_mapping)
     value_descriptors: Mapping[str, _Descriptor] = field(default_factory=_default_mapping)
-    autocopy: bool = field(default=False)
-    value_autocopy_get: Mapping[str, bool] = field(default_factory=_default_mapping)
-    value_autocopy_set: Mapping[str, bool] = field(default_factory=_default_mapping)
     attribute_class_owner: Mapping[str, type] = field(default_factory=_default_mapping)
     aliases: Mapping[str, str] = field(default_factory=_default_mapping)
-    value_copy: Mapping[type, Callable[[Any], Any]] = field(default_factory=_default_mapping)
-    value_copy_allow_subclass: Mapping[type, bool] = field(default_factory=_default_mapping)
     readonly_options: frozenset[str] = field(default_factory=frozenset)
     enum_return_value: frozenset[str] = field(default_factory=frozenset)
 
@@ -1412,25 +1349,22 @@ class ConfigurationInfo(Object):
 
     class __ReadOnlyOptionWrapper:
         def __init__(self, default_descriptor: _Descriptor) -> None:
-            self.__descriptor: Callable[[], _Descriptor] = lambda: default_descriptor
+            self.__descriptor_get = default_descriptor.__get__
 
         def __get__(self, obj: object, objtype: type | None = None, /) -> Any:
-            descriptor: _Descriptor = self.__descriptor()
-            return descriptor.__get__(obj, objtype)
+            return self.__descriptor_get(obj, objtype)
 
     def check_option_validity(self, option: str, *, use_alias: bool = False) -> str:
         if use_alias:
             option = self.aliases.get(option, option)
         if option not in self.options:
-            if not option:
-                raise EmptyOptionNameError()
             raise UnknownOptionError(option)
         return option
 
     def is_option_valid(self, option: str, *, use_alias: bool = False) -> bool:
         try:
             self.check_option_validity(option, use_alias=use_alias)
-        except OptionError:
+        except UnknownOptionError:
             return False
         return True
 
@@ -1443,16 +1377,8 @@ class ConfigurationInfo(Object):
             descriptor = self.__ReadOnlyOptionWrapper(descriptor)
         return descriptor
 
-    def get_copy_func(self, objtype: type) -> Callable[[Any], Any]:
-        try:
-            return self.value_copy[objtype]
-        except KeyError:
-            if self.value_copy_allow_subclass.get(objtype, False):
-                for _type, func in self.value_copy.items():
-                    if issubclass(objtype, _type):
-                        return func
-        return copy
 
+del _default_mapping
 
 _InitializationRegister: TypeAlias = dict[str, Any]
 _UpdateRegister: TypeAlias = list[str]
@@ -1479,11 +1405,23 @@ class Configuration(Generic[_T], Object):
         self.__info: ConfigurationInfo = info
 
     def __repr__(self) -> str:
-        option_dict = self.as_dict()
-        return f"{type(self).__name__}({', '.join(f'{k}={option_dict[k]!r}' for k in sorted(option_dict))})"
+        option_dict = self.as_dict(sorted_keys=True)
+        return f"{type(self).__name__}({', '.join(f'{k}={v!r}' for k, v in option_dict.items())})"
 
     def __contains__(self, option: str) -> bool:
-        return self.get(option, _MISSING) is not _MISSING
+        obj: _T = self.__self__
+        info: ConfigurationInfo = self.__info
+        try:
+            option = info.check_option_validity(option, use_alias=True)
+        except UnknownOptionError:
+            return False
+        descriptor = info.get_value_descriptor(option, type(obj))
+        try:
+            with self.__lazy_lock(obj):
+                descriptor.__get__(obj, type(obj))
+        except (AttributeError, UnregisteredOptionError):
+            return False
+        return True
 
     @overload
     def get(self, option: str) -> Any:
@@ -1507,9 +1445,6 @@ class Configuration(Generic[_T], Object):
             return default
         if option in info.enum_return_value and isinstance(value, Enum):
             return value.value
-        if info.value_autocopy_get.get(option, info.autocopy):
-            copy_func = info.get_copy_func(type(value))
-            value = copy_func(value)
         return value
 
     def __getitem__(self, option: str, /) -> Any:
@@ -1543,10 +1478,8 @@ class Configuration(Generic[_T], Object):
         value_converter: Callable[[object, Any], Any] | None = info.value_converter.get(option, None)
         if value_validator is not None:
             value_validator(obj, value)
-        converter_applied: bool = False
         if value_converter is not None:
             value = value_converter(obj, value)
-            converter_applied = True
 
         with self.__updating_option(obj, option, info, call_updaters=True) as update_context:
             try:
@@ -1556,10 +1489,6 @@ class Configuration(Generic[_T], Object):
             else:
                 if actual_value is value or actual_value == value:
                     return
-
-            if not converter_applied and info.value_autocopy_set.get(option, info.autocopy):
-                copy_func = info.get_copy_func(type(value))
-                value = copy_func(value)
 
             descriptor.__set__(obj, value)
             update_context.updated.append(option)
@@ -2159,7 +2088,7 @@ _VT = TypeVar("_VT")
 
 @final
 class _ConfigInfoTemplate:
-    def __init__(self, known_options: Sequence[str], autocopy: bool | None, parents: Sequence[_ConfigInfoTemplate]) -> None:
+    def __init__(self, known_options: Sequence[str], parents: Sequence[_ConfigInfoTemplate]) -> None:
         self.parents: tuple[_ConfigInfoTemplate, ...] = tuple(parents)
         self.options: frozenset[str] = frozenset(known_options)
         self.main_updater: list[Callable[[object], None]] = list()
@@ -2168,13 +2097,8 @@ class _ConfigInfoTemplate:
         self.value_descriptors: dict[str, _Descriptor] = dict()
         self.value_converter: dict[str, list[Callable[[object, Any], Any]]] = dict()
         self.value_validator: dict[str, list[Callable[[object, Any], None]]] = dict()
-        self.autocopy: bool = bool(autocopy) if autocopy is not None else False
-        self.value_autocopy_get: dict[str, bool] = dict()
-        self.value_autocopy_set: dict[str, bool] = dict()
         self.attribute_class_owner: dict[str, type] = dict()
         self.aliases: dict[str, str] = dict()
-        self.value_copy: dict[type, Callable[[Any], Any]] = dict()
-        self.value_copy_allow_subclass: dict[type, bool] = dict()
         self.enum_converter_registered: dict[str, type[Enum]] = dict()
         self.enum_return_value: dict[str, bool] = dict()
 
@@ -2183,8 +2107,6 @@ class _ConfigInfoTemplate:
         merge_updater_dict = self.__merge_updater_dict
         for p in parents:
             self.options |= p.options
-            if autocopy is None:
-                self.autocopy |= p.autocopy
             merge_list(self.main_updater, p.main_updater, on_duplicate="skip", setting="main_update")
             merge_updater_dict(self.option_updater, p.option_updater, setting="update")
             merge_updater_dict(self.option_value_updater, p.option_value_updater, setting="value_update")
@@ -2203,27 +2125,8 @@ class _ConfigInfoTemplate:
                 setting="value_validator",
                 copy=list.copy,
             )
-            merge_dict(
-                self.value_autocopy_get,
-                p.value_autocopy_get,
-                on_conflict=lambda _, v1, v2: v1 | v2,
-                setting="autocopy_get",
-            )
-            merge_dict(
-                self.value_autocopy_set,
-                p.value_autocopy_set,
-                on_conflict=lambda _, v1, v2: v1 | v2,
-                setting="autocopy_set",
-            )
             merge_dict(self.attribute_class_owner, p.attribute_class_owner, on_conflict="skip", setting="class_owner")
             merge_dict(self.aliases, p.aliases, on_conflict="raise", setting="aliases")
-            merge_dict(self.value_copy, p.value_copy, on_conflict="raise", setting="value_copy_func")
-            merge_dict(
-                self.value_copy_allow_subclass,
-                p.value_copy_allow_subclass,
-                on_conflict="raise",
-                setting="copy_allow_subclass",
-            )
             merge_dict(
                 self.enum_converter_registered,
                 p.enum_converter_registered,
@@ -2249,7 +2152,7 @@ class _ConfigInfoTemplate:
                 if d1[key] == value or on_conflict == "skip":
                     continue
                 if on_conflict == "raise":
-                    raise ConfigError(f"Conflict of setting {setting!r} for {key!r} key")
+                    raise ConfigurationError(f"Conflict of setting {setting!r} for {key!r} key")
                 if callable(on_conflict):
                     value = on_conflict(key, d1[key], value)
             if copy is not None:
@@ -2273,7 +2176,7 @@ class _ConfigInfoTemplate:
                 if on_duplicate == "put_at_end":
                     l1.remove(value)
                 elif on_duplicate == "raise":
-                    raise ConfigError(f"Conflict of setting {setting!r}: Duplicate of value {value!r}")
+                    raise ConfigurationError(f"Conflict of setting {setting!r}: Duplicate of value {value!r}")
             if copy is not None:
                 value = copy(value)
             l1.append(value)
@@ -2304,13 +2207,8 @@ class _ConfigInfoTemplate:
             value_converter=self.__build_value_converter_dict(),
             value_validator=self.__build_value_validator_dict(),
             value_descriptors=self.__build_value_descriptor_dict(),
-            autocopy=bool(self.autocopy),
-            value_autocopy_get=MappingProxyType(self.value_autocopy_get.copy()),
-            value_autocopy_set=MappingProxyType(self.value_autocopy_set.copy()),
             attribute_class_owner=MappingProxyType(self.attribute_class_owner.copy()),
             aliases=MappingProxyType(self.aliases.copy()),
-            value_copy=MappingProxyType(self.value_copy.copy()),
-            value_copy_allow_subclass=MappingProxyType(self.value_copy_allow_subclass.copy()),
             readonly_options=self.__build_readonly_options_set(),
             enum_return_value=self.__build_enum_return_value_set(),
         )
@@ -2594,7 +2492,7 @@ class _PrivateAttributeOptionPropertyFallback:
 
 
 class _ReadOnlyOptionBuildPayload:
-    def __init__(self, default_descriptor: _Descriptor | None = None) -> None:
+    def __init__(self, default_descriptor: _Descriptor | None) -> None:
         self.__descriptor: Callable[[], _Descriptor | None]
         self.set_new_descriptor(default_descriptor)
 

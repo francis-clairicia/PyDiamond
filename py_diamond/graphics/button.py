@@ -663,13 +663,6 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
         "disabled_active_img": (Clickable.State.DISABLED, "active"),
     }
 
-    config.set_autocopy("background", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("hover_background", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("active_background", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("disabled_background", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("disabled_hover_background", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("disabled_active_background", copy_on_get=True, copy_on_set=True)
-
     @config.getter_key_from_map("background", __STATE)
     @config.getter_key_from_map("hover_background", __STATE)
     @config.getter_key_from_map("active_background", __STATE)
@@ -704,13 +697,6 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config.on_update("disabled_hover_background", __update_state)
     config.on_update("disabled_active_background", __update_state)
 
-    config.set_autocopy("foreground", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("hover_foreground", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("active_foreground", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("disabled_foreground", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("disabled_hover_foreground", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("disabled_active_foreground", copy_on_get=True, copy_on_set=True)
-
     @config.getter_key_from_map("foreground", __STATE)
     @config.getter_key_from_map("hover_foreground", __STATE)
     @config.getter_key_from_map("active_foreground", __STATE)
@@ -744,13 +730,6 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config.on_update("disabled_foreground", __update_state)
     config.on_update("disabled_hover_foreground", __update_state)
     config.on_update("disabled_active_foreground", __update_state)
-
-    config.set_autocopy("img", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("hover_img", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("active_img", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("disabled_img", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("disabled_hover_img", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("disabled_active_img", copy_on_get=True, copy_on_set=True)
 
     @config.getter_key_from_map("img", __STATE)
     @config.getter_key_from_map("hover_img", __STATE)
@@ -816,9 +795,6 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config.add_value_validator_static("outline_color", Color)
     config.add_value_validator_static("highlight_color", Color)
     config.add_value_converter_static("highlight_thickness", valid_integer(min_value=0))
-
-    config.set_autocopy("outline_color", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("highlight_color", copy_on_get=True, copy_on_set=True)
 
     config.on_update("outline", __update_shape_outline)
     config.on_update("outline_color", __update_shape_outline)
@@ -1134,13 +1110,6 @@ class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
         "disabled_active_img": (Clickable.State.DISABLED, "active"),
     }
 
-    config.set_autocopy("background", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("hover_background", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("active_background", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("disabled_background", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("disabled_hover_background", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("disabled_active_background", copy_on_get=True, copy_on_set=True)
-
     @config.getter_key_from_map("background", __STATE)
     @config.getter_key_from_map("hover_background", __STATE)
     @config.getter_key_from_map("active_background", __STATE)
@@ -1174,13 +1143,6 @@ class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config.on_update("disabled_background", __update_state)
     config.on_update("disabled_hover_background", __update_state)
     config.on_update("disabled_active_background", __update_state)
-
-    config.set_autocopy("img", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("hover_img", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("active_img", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("disabled_img", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("disabled_hover_img", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("disabled_active_img", copy_on_get=True, copy_on_set=True)
 
     @config.getter_key_from_map("img", __STATE)
     @config.getter_key_from_map("hover_img", __STATE)
@@ -1236,9 +1198,6 @@ class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config.add_value_validator_static("outline_color", Color)
     config.add_value_validator_static("highlight_color", Color)
     config.add_value_converter_static("highlight_thickness", valid_integer(min_value=0))
-
-    config.set_autocopy("outline_color", copy_on_get=True, copy_on_set=True)
-    config.set_autocopy("highlight_color", copy_on_get=True, copy_on_set=True)
 
     config.on_update("outline", __update_shape_outline)
     config.on_update("outline_color", __update_shape_outline)

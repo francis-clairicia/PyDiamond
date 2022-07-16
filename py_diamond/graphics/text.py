@@ -59,7 +59,6 @@ class Text(TDrawable, metaclass=TextMeta):
         "shadow",
         "shadow_color",
         "line_spacing",
-        autocopy=True,
     )
 
     message: OptionAttribute[str] = OptionAttribute()
@@ -515,8 +514,6 @@ class TextImage(Text):
         render.blit(text, text_rect)
 
         return render
-
-    config.set_autocopy("img", copy_on_get=False, copy_on_set=False)
 
     config.add_enum_converter("compound", Compound, return_value_on_get=True)
 
