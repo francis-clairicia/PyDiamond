@@ -269,17 +269,12 @@ class Mixer(ClassNamespace, frozen=True):
 
     @overload
     @staticmethod
-    def find_channel(force: L[False] = ...) -> Channel | None:
-        ...
-
-    @overload
-    @staticmethod
     def find_channel(force: L[True]) -> Channel:
         ...
 
     @overload
     @staticmethod
-    def find_channel(force: bool) -> Channel | None:
+    def find_channel(force: bool = ...) -> Channel | None:
         ...
 
     @staticmethod
