@@ -201,13 +201,13 @@ class Text(TDrawable, metaclass=TextMeta):
         if index < 0:
             raise ValueError(f"Negative index: {index}")
         self.__custom_font[index] = Text.create_font(font, bold=bold, italic=italic, underline=underline)
-        self.config.update_all_options()
+        self.config.update_object()
 
     def remove_custom_line_font(self, index: int) -> None:
         if index < 0:
             raise ValueError(f"Negative index: {index}")
         self.__custom_font.pop(index, None)
-        self.config.update_all_options()
+        self.config.update_object()
 
     def _apply_both_rotation_and_scale(self) -> None:
         self.__image = _surface_rotozoom(self.__default_image, self.angle, self.scale)
@@ -548,16 +548,16 @@ class _BoundImage(Image):
 
     def _apply_both_rotation_and_scale(self) -> None:
         super()._apply_both_rotation_and_scale()
-        self.__text.config.update_all_options()
+        self.__text.config.update_object()
 
     def _apply_only_rotation(self) -> None:
         super()._apply_only_rotation()
-        self.__text.config.update_all_options()
+        self.__text.config.update_object()
 
     def _apply_only_scale(self) -> None:
         super()._apply_only_scale()
-        self.__text.config.update_all_options()
+        self.__text.config.update_object()
 
     def set(self, image: Surface | None, copy: bool = True) -> None:
         super().set(image, copy=copy)  # type: ignore[arg-type]
-        self.__text.config.update_all_options()
+        self.__text.config.update_object()

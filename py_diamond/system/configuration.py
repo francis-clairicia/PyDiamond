@@ -1703,7 +1703,7 @@ class Configuration(Generic[_T], Object):
         valid_option = info.check_option_validity
         return self.__update_options(obj, *set(valid_option(option, use_alias=True) for option in options), info=info)
 
-    def update_all_options(self) -> None:
+    def update_object(self) -> None:
         obj: _T = self.__self__
         info: ConfigurationInfo = self.__info
         return self.__update_options(obj, *info.options, info=info)
