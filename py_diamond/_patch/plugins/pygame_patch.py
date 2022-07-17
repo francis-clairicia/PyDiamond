@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Callable
 from .._base import PatchContext, RequiredPatch
 
 if TYPE_CHECKING:
-    from pygame.event import _EventTypes
+    from pygame.event import Event as _Event, _EventTypes
 
 
 class PygamePatch(RequiredPatch):
@@ -47,7 +47,10 @@ class PygamePatch(RequiredPatch):
             setattr(self.event, "event_name", self._make_event_name_wrapper())
 
         if not self._event_set_blocked_patched():
-            setattr(self.event, "set_blocked", self._make_set_blocked_wrapper(QUIT, VIDEORESIZE, self.music.get_endevent()))
+            setattr(self.event, "set_blocked", self._make_event_set_blocked_wrapper(QUIT, VIDEORESIZE, self.music.get_endevent()))
+
+        if not self._event_post_patched():
+            setattr(self.event, "post", self._make_event_post_wrapper(self.music.get_endevent()))
 
     def _event_set_blocked_patched(self) -> bool:
         return bool(getattr(self.event.set_blocked, "__set_blocked_wrapper__", False))
@@ -57,6 +60,9 @@ class PygamePatch(RequiredPatch):
 
     def _event_name_patched(self) -> bool:
         return isinstance(getattr(self.event.event_name, "__event_name_dispatch_table__", None), dict)
+
+    def _event_post_patched(self) -> bool:
+        return bool(getattr(self.event.post, "__post_wrapper__", False))
 
     def _make_music_set_endevent_wrapper(self) -> Callable[[int], None]:
         _orig_pg_music_set_endevent = self.music.set_endevent
@@ -87,7 +93,7 @@ class PygamePatch(RequiredPatch):
         setattr(patch_event_name, "__event_name_dispatch_table__", {})
         return patch_event_name
 
-    def _make_set_blocked_wrapper(self, *forbidden_events: int) -> Callable[..., None]:
+    def _make_event_set_blocked_wrapper(self, *forbidden_events: int) -> Callable[[_EventTypes | None], None]:
         _pg_event = self.event
         _orig_pg_event_set_blocked = self.event.set_blocked
 
@@ -117,6 +123,23 @@ class PygamePatch(RequiredPatch):
         setattr(patch_set_blocked, "__set_blocked_wrapper__", True)
         setattr(patch_set_blocked, "__forbidden_events__", forbidden_events)
         return patch_set_blocked
+
+    def _make_event_post_wrapper(self, *forbidden_events: int) -> Callable[[_Event], bool]:
+        _pg_event = self.event
+        _orig_pg_event_post = self.event.post
+
+        if not forbidden_events:
+            return _orig_pg_event_post
+
+        @wraps(_orig_pg_event_post)
+        def patch_post(event: _Event) -> bool:
+            if event.type in forbidden_events:
+                raise ValueError(f"{_pg_event.event_name(event.type)} cannot be added externally")
+            return _orig_pg_event_post(event)
+
+        setattr(patch_post, "__post_wrapper__", True)
+        setattr(patch_post, "__forbidden_events__", forbidden_events)
+        return patch_post
 
 
 class PyDiamondEventPatch(RequiredPatch):
