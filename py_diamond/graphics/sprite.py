@@ -19,6 +19,7 @@ from pygame.transform import rotozoom as _surface_rotozoom
 
 from ..system.object import Object, final
 from ..window.clock import Clock
+from ._transform import rotozoom2 as _surface_rotozoom2, scale_by as _surface_scale_by
 from .animation import TransformAnimation
 from .drawable import BaseDrawableGroup, BaseLayeredDrawableGroup, Drawable, TDrawable
 from .rect import Rect
@@ -111,7 +112,7 @@ class Sprite(TDrawable):
         return self.__default_image.get_size()
 
     def _apply_both_rotation_and_scale(self) -> None:
-        self.__image = _surface_rotozoom(self.__default_image, self.angle, self.scale)
+        self.__image = _surface_rotozoom2(self.__default_image, self.angle, self.scale)
         self.update_mask()
 
     def _apply_only_rotation(self) -> None:
@@ -119,7 +120,7 @@ class Sprite(TDrawable):
         self.update_mask()
 
     def _apply_only_scale(self) -> None:
-        self.__image = _surface_rotozoom(self.__default_image, 0, self.scale)
+        self.__image = _surface_scale_by(self.__default_image, self.scale)
         self.update_mask()
 
     def _freeze_state(self) -> dict[str, Any] | None:
@@ -130,7 +131,7 @@ class Sprite(TDrawable):
         state["mask"] = self.__mask
         return state
 
-    def _set_frozen_state(self, angle: float, scale: float, state: Mapping[str, Any] | None) -> bool:
+    def _set_frozen_state(self, angle: float, scale: tuple[float, float], state: Mapping[str, Any] | None) -> bool:
         res = super()._set_frozen_state(angle, scale, state)
         if state is None:
             return res

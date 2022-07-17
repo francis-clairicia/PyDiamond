@@ -292,10 +292,10 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
         raise NotImplementedError
 
     def _apply_only_scale(self) -> None:
-        scale: float = self.scale
+        scale: tuple[float, float] = self.scale
         self.__outline_shape.scale = self.__shape.scale = self.__text.scale = scale
-        self.__cursor_width_offset = 15 * scale
-        self.__cursor_height_offset = 10 * scale
+        self.__cursor_width_offset = 15 * scale[0]
+        self.__cursor_height_offset = 10 * scale[1]
 
     def __edit(self) -> bool:
         if not self.__start_edit:

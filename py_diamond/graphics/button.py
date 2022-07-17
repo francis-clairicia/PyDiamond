@@ -366,10 +366,10 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
 
     def draw_onto(self, target: AbstractRenderer) -> None:
         angle: float = self.angle
-        scale: float = self.scale
+        scale_x, scale_y = self.scale
 
         def compute_offset(offset: tuple[float, float]) -> tuple[float, float]:
-            return offset[0] * scale, offset[1] * scale
+            return offset[0] * scale_x, offset[1] * scale_y
 
         text_align_x: str = Button.__HORIZONTAL_ALIGN_POS[self.__text_align_x]
         text_align_y: str = Button.__VERTICAL_ALIGN_POS[self.__text_align_y]
@@ -431,8 +431,40 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
         self.__text.img_set_rotation(angle)
         self.__update_shape_size()
 
-    def img_set_scale(self, scale: float) -> None:
-        self.__text.img_set_scale(scale)
+    @overload
+    def img_set_scale(self, *, scale_x: float) -> None:
+        ...
+
+    @overload
+    def img_set_scale(self, *, scale_y: float) -> None:
+        ...
+
+    @overload
+    def img_set_scale(self, *, scale_x: float, scale_y: float) -> None:
+        ...
+
+    @overload
+    def img_set_scale(self, __scale: tuple[float, float], /) -> None:
+        ...
+
+    def img_set_scale(  # type: ignore[misc]  # mypy will not understand
+        self,
+        scale: tuple[float, float] | None = None,
+        /,
+        *,
+        scale_x: float | None = None,
+        scale_y: float | None = None,
+    ) -> None:
+        if scale is not None:
+            self.__text.set_scale(scale)
+        elif scale_x is not None and scale_y is not None:
+            self.__text.set_scale(scale_x=scale_x, scale_y=scale_y)
+        elif scale_x is not None:
+            self.__text.set_scale(scale_x=scale_x)
+        elif scale_y is not None:
+            self.__text.set_scale(scale_y=scale_y)
+        else:
+            raise TypeError("Invalid parameters")
         self.__update_shape_size()
 
     def img_scale_to_width(self, width: float) -> None:
@@ -563,8 +595,9 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
 
     def __update_shape_size(self) -> None:
         text_width, text_height = self.__text.get_local_size()
-        x_add_size: float = self.x_add_size * self.scale
-        y_add_size: float = self.y_add_size * self.scale
+        scale_x, scale_y = self.scale
+        x_add_size: float = self.x_add_size * scale_x
+        y_add_size: float = self.y_add_size * scale_y
         fixed_width: float | None = self.fixed_width
         fixed_height: float | None = self.fixed_height
 
@@ -981,10 +1014,10 @@ class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
         self.active_offset = active_offset
 
     def draw_onto(self, target: AbstractRenderer) -> None:
-        scale: float = self.scale
+        scale_x, scale_y = self.scale
 
         def compute_offset(offset: tuple[float, float]) -> tuple[float, float]:
-            return offset[0] * scale, offset[1] * scale
+            return offset[0] * scale_x, offset[1] * scale_y
 
         shape: RectangleShape = self.__shape
         image: Image = self.__image
@@ -1072,9 +1105,9 @@ class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
 
     def __update_shape_size(self) -> None:
         img_width, img_height = self.__image.get_local_size()
-        scale: float = self.scale
-        x_add_size: float = self.x_add_size * scale
-        y_add_size: float = self.y_add_size * scale
+        scale_x, scale_y = self.scale
+        x_add_size: float = self.x_add_size * scale_x
+        y_add_size: float = self.y_add_size * scale_y
         new_size: tuple[float, float] = (img_width + x_add_size, img_height + y_add_size)
         if self.config.has_initialization_context():
             self.__shape.local_size = new_size

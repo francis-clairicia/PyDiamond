@@ -497,7 +497,7 @@ class _MoveState(NamedTuple):
 @final
 class _TransformState(NamedTuple):
     angle: float
-    scale: float
+    scale: tuple[float, float]
     center: Vector2
     data: MappingProxyType[str, Any] | None
 
@@ -511,7 +511,10 @@ class _TransformState(NamedTuple):
 
     def interpolate(self, other: _TransformState, alpha: float, t: Transformable) -> None:
         angle = angle_interpolation(self.angle, other.angle, alpha)
-        scale = linear_interpolation(self.scale, other.scale, alpha)
+        scale = (
+            linear_interpolation(self.scale[0], other.scale[0], alpha),
+            linear_interpolation(self.scale[1], other.scale[1], alpha),
+        )
         center = self.center.lerp(other.center, alpha)
         if not t._set_frozen_state(angle, scale, None):
             t.apply_rotation_scale()

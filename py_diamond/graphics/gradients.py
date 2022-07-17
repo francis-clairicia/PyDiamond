@@ -90,9 +90,9 @@ class HorizontalGradientShape(AbstractRectangleShape, GradientShape):
     def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
         width, height = self.local_size
         if apply_scale:
-            scale: float = self.scale
-            width *= scale
-            height *= scale
+            scale_x, scale_y = self.scale
+            width *= scale_x
+            height *= scale_y
         size: tuple[int, int] = (int(width), int(height))
         if size[0] < 1 or size[1] < 1:
             return create_surface(size)
@@ -151,9 +151,9 @@ class VerticalGradientShape(AbstractRectangleShape, GradientShape):
     def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
         width, height = self.local_size
         if apply_scale:
-            scale: float = self.scale
-            width *= scale
-            height *= scale
+            scale_x, scale_y = self.scale
+            width *= scale_x
+            height *= scale_y
         size: tuple[int, int] = (int(width), int(height))
         if size[0] < 1 or size[1] < 1:
             return create_surface(size)
@@ -213,7 +213,7 @@ class SquaredGradientShape(AbstractSquareShape, GradientShape):
         self.center_offset = center_offset
 
     def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
-        size: int = int(self.local_size * self.scale if apply_scale else self.local_size)
+        size: int = int(self.local_size * max(self.scale) if apply_scale else self.local_size)
         if size < 1:
             return create_surface((0, 0))
         surface: Surface = _gradient_squared(
@@ -270,7 +270,7 @@ class RadialGradientShape(AbstractCircleShape, GradientShape):
         self.afunc: Callable[[float], float] = afunc or (lambda _: 1)
 
     def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
-        radius: int = int(self.radius * self.scale if apply_scale else self.radius)
+        radius: int = int(self.radius * max(self.scale) if apply_scale else self.radius)
         if radius < 1:
             return create_surface((0, 0))
         surface: Surface = _gradient_radial(
@@ -334,7 +334,8 @@ class HorizontalMultiColorShape(AbstractRectangleShape, MultiColorShape):
             gradient.draw_onto(renderer)
         surface = renderer.surface
         if apply_scale:
-            surface = _surface_scale(surface, (width * self.scale, height * self.scale))
+            scale_x, scale_y = self.scale
+            surface = _surface_scale(surface, (width * scale_x, height * scale_y))
         if apply_rotation:
             surface = _surface_rotate(surface, self.angle)
         return surface
@@ -374,7 +375,8 @@ class VerticalMultiColorShape(AbstractRectangleShape, MultiColorShape):
             gradient.draw_onto(renderer)
         surface = renderer.surface
         if apply_scale:
-            surface = _surface_scale(surface, (width * self.scale, height * self.scale))
+            scale_x, scale_y = self.scale
+            surface = _surface_scale(surface, (width * scale_x, height * scale_y))
         if apply_rotation:
             surface = _surface_rotate(surface, self.angle)
         return surface

@@ -197,7 +197,7 @@ class CheckBox(TDrawable, AbstractWidget, Generic[_OnValue, _OffValue], metaclas
 
     def _apply_both_rotation_and_scale(self) -> None:
         angle: float = self.angle
-        scale: float = self.scale
+        scale: tuple[float, float] = self.scale
         self.__shape.set_rotation(angle)
         self.__shape.set_scale(scale)
         if self.__active_img is not None:
@@ -214,7 +214,7 @@ class CheckBox(TDrawable, AbstractWidget, Generic[_OnValue, _OffValue], metaclas
         self.__cross.set_rotation(angle)
 
     def _apply_only_scale(self) -> None:
-        scale: float = self.scale
+        scale: tuple[float, float] = self.scale
         self.__shape.set_scale(scale)
         if self.__active_img is not None:
             self.__active_img.set_scale(scale)

@@ -163,9 +163,9 @@ class ShapeScene(MainScene, busy_loop=True):
             elif self.__scale <= 0.2:
                 self.__scale_growth = 1
             # self.__r.scale = self.__scale
-            self.__p.scale = self.__scale
-            self.__x.scale = self.__scale
-            self.__c.scale = self.__scale
+            self.__p.scale = (self.__scale, self.__scale)
+            self.__x.scale = (self.__scale, self.__scale)
+            self.__c.scale = (self.__scale, self.__scale)
 
     def interpolation_update(self, interpolation: float) -> None:
         self.__interpolator_pool.update(interpolation)
@@ -199,7 +199,7 @@ class AnimationScene(MainScene, busy_loop=True):
     def on_start_loop_before_transition(self) -> None:
         window: Window = self.window
         self.rectangle.angle = 0
-        self.rectangle.scale = 1
+        self.rectangle.scale = (1, 1)
         self.rectangle.midleft = window.midleft
 
     def on_start_loop(self) -> None:
@@ -246,7 +246,7 @@ class AnimationStateFullScene(MainScene, busy_loop=True):
     def on_start_loop_before_transition(self) -> None:
         window: Window = self.window
         self.rectangle.angle = 0
-        self.rectangle.scale = 1
+        self.rectangle.scale = (1, 1)
         self.rectangle.center = (window.centerx / 2, window.centery)
 
     def on_start_loop(self) -> None:
@@ -321,7 +321,8 @@ class ShapeTransformTestScene(MainScene):
         @self.every(20)
         def _() -> Iterator[None]:
             while polygon.height < window_size[1]:
-                polygon.scale += 0.02
+                polygon.scale_x += 0.02
+                polygon.scale_y += 0.02
                 yield
             for angle in range(360):
                 polygon.angle = angle + 1
@@ -675,7 +676,7 @@ class TextImageScene(MainScene):
 
     def on_start_loop_before_transition(self) -> None:
         self.text.angle = 0
-        self.text.scale = 1
+        self.text.scale = (1, 1)
 
     def on_start_loop(self) -> None:
         self.animation = TransformAnimation(self.text)
@@ -722,7 +723,7 @@ class ButtonScene(MainScene):
     def on_start_loop_before_transition(self) -> None:
         self.counter = 0
         self.button.text = "0"
-        self.button.scale = 1
+        self.button.scale = (1, 1)
         self.button.angle = 0
 
     def on_start_loop(self) -> None:

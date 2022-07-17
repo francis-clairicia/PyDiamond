@@ -15,7 +15,7 @@ from contextlib import suppress
 from copy import copy
 from enum import auto, unique
 from textwrap import wrap as textwrap
-from typing import Any, ClassVar, Final, Mapping, TypeAlias
+from typing import Any, ClassVar, Final, Mapping, TypeAlias, overload
 from weakref import proxy as weakproxy
 
 from pygame.transform import rotozoom as _surface_rotozoom
@@ -25,6 +25,7 @@ from ..system.configuration import ConfigurationTemplate, OptionAttribute, initi
 from ..system.enum import AutoLowerNameEnum
 from ..system.theme import ThemedObjectMeta, ThemeType
 from ..system.validation import valid_float, valid_integer
+from ._transform import rotozoom2 as _surface_rotozoom2, scale_by as _surface_scale_by
 from .color import BLACK, Color
 from .drawable import TDrawable, TDrawableMeta
 from .font import Font, SysFont, get_default_font
@@ -210,13 +211,13 @@ class Text(TDrawable, metaclass=TextMeta):
         self.config.update_object()
 
     def _apply_both_rotation_and_scale(self) -> None:
-        self.__image = _surface_rotozoom(self.__default_image, self.angle, self.scale)
-
-    def _apply_only_scale(self) -> None:
-        self.__image = _surface_rotozoom(self.__default_image, 0, self.scale)
+        self.__image = _surface_rotozoom2(self.__default_image, self.angle, self.scale)
 
     def _apply_only_rotation(self) -> None:
         self.__image = _surface_rotozoom(self.__default_image, self.angle, 1)
+
+    def _apply_only_scale(self) -> None:
+        self.__image = _surface_scale_by(self.__default_image, self.scale)
 
     def _freeze_state(self) -> dict[str, Any] | None:
         state = super()._freeze_state()
@@ -225,7 +226,7 @@ class Text(TDrawable, metaclass=TextMeta):
         state["image"] = self.__image
         return state
 
-    def _set_frozen_state(self, angle: float, scale: float, state: Mapping[str, Any] | None) -> bool:
+    def _set_frozen_state(self, angle: float, scale: tuple[float, float], state: Mapping[str, Any] | None) -> bool:
         res = super()._set_frozen_state(angle, scale, state)
         if state is None:
             return res
@@ -388,7 +389,7 @@ class TextImage(Text):
         self.__img: Image | None = None
         self.__compound: TextImage.Compound
         self.__img_angle: float = 0
-        self.__img_scale: float = 1
+        self.__img_scale: tuple[float, float] = (1, 1)
         self.distance = distance
         self.compound = compound
         self.img = img
@@ -396,7 +397,7 @@ class TextImage(Text):
     def get_img_angle(self) -> float:
         return self.__img_angle
 
-    def get_img_scale(self) -> float:
+    def get_img_scale(self) -> tuple[float, float]:
         return self.__img_scale
 
     def img_rotate(self, angle_offset: float) -> None:
@@ -409,9 +410,41 @@ class TextImage(Text):
             self.__img.set_rotation(angle)
             self.__img_angle = self.__img.angle
 
-    def img_set_scale(self, scale: float) -> None:
+    @overload
+    def img_set_scale(self, *, scale_x: float) -> None:
+        ...
+
+    @overload
+    def img_set_scale(self, *, scale_y: float) -> None:
+        ...
+
+    @overload
+    def img_set_scale(self, *, scale_x: float, scale_y: float) -> None:
+        ...
+
+    @overload
+    def img_set_scale(self, __scale: tuple[float, float], /) -> None:
+        ...
+
+    def img_set_scale(  # type: ignore[misc]  # mypy will not understand
+        self,
+        scale: tuple[float, float] | None = None,
+        /,
+        *,
+        scale_x: float | None = None,
+        scale_y: float | None = None,
+    ) -> None:
         if self.__img is not None:
-            self.__img.set_scale(scale)
+            if scale is not None:
+                self.__img.set_scale(scale)
+            elif scale_x is not None and scale_y is not None:
+                self.__img.set_scale(scale_x=scale_x, scale_y=scale_y)
+            elif scale_x is not None:
+                self.__img.set_scale(scale_x=scale_x)
+            elif scale_y is not None:
+                self.__img.set_scale(scale_y=scale_y)
+            else:
+                raise TypeError("Invalid parameters")
             self.__img_scale = self.__img.scale
 
     def img_scale_to_width(self, width: float) -> None:

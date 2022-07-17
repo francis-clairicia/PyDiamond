@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, Mapping, overload
 from pygame.transform import rotozoom as _surface_rotozoom
 from typing_extensions import assert_never
 
+from ._transform import rotozoom2 as _surface_rotozoom2, scale_by as _surface_scale_by
 from .color import Color
 from .drawable import TDrawable
 from .rect import Rect
@@ -131,13 +132,13 @@ class Image(TDrawable):
         return self.__image.get_size()
 
     def _apply_both_rotation_and_scale(self) -> None:
-        self.__image = _surface_rotozoom(self.__default_image, self.angle, self.scale)
+        self.__image = _surface_rotozoom2(self.__default_image, self.angle, self.scale)
 
     def _apply_only_rotation(self) -> None:
         self.__image = _surface_rotozoom(self.__default_image, self.angle, 1)
 
     def _apply_only_scale(self) -> None:
-        self.__image = _surface_rotozoom(self.__default_image, 0, self.scale)
+        self.__image = _surface_scale_by(self.__default_image, self.scale)
 
     def _freeze_state(self) -> dict[str, Any] | None:
         state = super()._freeze_state()
@@ -146,7 +147,7 @@ class Image(TDrawable):
         state["image"] = self.__image
         return state
 
-    def _set_frozen_state(self, angle: float, scale: float, state: Mapping[str, Any] | None) -> bool:
+    def _set_frozen_state(self, angle: float, scale: tuple[float, float], state: Mapping[str, Any] | None) -> bool:
         res = super()._set_frozen_state(angle, scale, state)
         if state is None:
             return res

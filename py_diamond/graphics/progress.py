@@ -280,7 +280,7 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
     def _freeze_state(self) -> dict[str, Any] | None:
         return None
 
-    def _set_frozen_state(self, angle: float, scale: float, state: Mapping[str, Any] | None) -> bool:
+    def _set_frozen_state(self, angle: float, scale: tuple[float, float], state: Mapping[str, Any] | None) -> bool:
         return super()._set_frozen_state(angle, scale, state)
 
     config.add_enum_converter("orient", Orient, return_value_on_get=True)

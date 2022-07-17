@@ -78,7 +78,7 @@ class AbstractShape(TDrawable, metaclass=ShapeMeta):
         state["image"] = self.__image
         return state
 
-    def _set_frozen_state(self, angle: float, scale: float, state: Mapping[str, Any] | None) -> bool:
+    def _set_frozen_state(self, angle: float, scale: tuple[float, float], state: Mapping[str, Any] | None) -> bool:
         res = super()._set_frozen_state(angle, scale, state)
         if state is None:
             return res
@@ -117,7 +117,7 @@ class AbstractShape(TDrawable, metaclass=ShapeMeta):
         apply_scale: bool = True,
     ) -> Sequence[Vector2]:
         angle: float = self.angle
-        scale: float = self.scale
+        scale_x, scale_y = self.scale
         all_points: Sequence[Vector2] = self.get_local_edges()
         if len(all_points) < 2 or (not apply_rotation and not apply_scale):
             return all_points
@@ -143,9 +143,10 @@ class AbstractShape(TDrawable, metaclass=ShapeMeta):
         for point in all_points:
             offset: Vector2 = point - local_center
             if apply_scale:
-                try:
-                    offset.scale_to_length(offset.length() * scale)
-                except ValueError:
+                if scale_x > 0 and scale_y > 0:
+                    offset.x *= scale_x
+                    offset.y *= scale_y
+                else:
                     offset = Vector2(0, 0)
             if apply_rotation:
                 offset.rotate_ip(-angle)
@@ -223,7 +224,7 @@ class PolygonShape(OutlinedShape, SingleColorShape):
     def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
         outline: int = self.outline
         if apply_scale:
-            outline = int(outline * self.scale)
+            outline = int(outline * max(self.scale))
         all_points: Sequence[Vector2] = self.get_edges(apply_rotation=apply_rotation, apply_scale=apply_scale)
         nb_points = len(all_points)
 
@@ -390,11 +391,13 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape):
         w, h = self.get_local_size()
         draw_params = self.__draw_params
         if apply_scale:
-            scale: float = self.scale
-            outline = int(outline * scale)
-            w *= scale
-            h *= scale
-            draw_params = {param: round(value * scale) if value > 0 else value for param, value in draw_params.items()}
+            scale_x, scale_y = self.scale
+            outline = int(outline * max(scale_x, scale_y))
+            w *= scale_x
+            h *= scale_y
+            draw_params = {
+                param: round(value * max(scale_x, scale_y)) if value > 0 else value for param, value in draw_params.items()
+            }
         image: SurfaceRenderer = SurfaceRenderer((w, h))
         rect: Rect = image.get_rect()
         image.draw_rect(self.color, rect, **draw_params)
@@ -502,7 +505,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape):
         outline: int = self.outline
         width, height = self.get_local_size()
         if apply_scale:
-            scale: float = self.scale
+            scale: float = max(self.scale)
             outline = int(outline * scale)
             radius *= scale
             width *= scale
@@ -612,9 +615,8 @@ class AbstractCrossShape(OutlinedShape, SingleColorShape):
 
     def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
         outline: int = self.outline
-        scale: float = self.scale
         if apply_scale:
-            outline = int(outline * scale)
+            outline = int(outline * max(self.scale))
         all_points: Sequence[Vector2] = self.get_edges(apply_rotation=apply_rotation, apply_scale=apply_scale)
         if not all_points:
             return create_surface((0, 0))

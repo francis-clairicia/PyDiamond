@@ -10,7 +10,7 @@ __all__ = ["Transformable", "TransformableMeta", "TransformableProxy", "Transfor
 
 
 from abc import abstractmethod
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Mapping, overload
 
 from pygame import error as _pg_error
 
@@ -63,7 +63,8 @@ class Transformable(Movable, metaclass=TransformableMeta):
     def __init__(self) -> None:
         Movable.__init__(self)
         self.__angle: float = 0
-        self.__scale: float = 1
+        self.__scale_x: float = 1
+        self.__scale_y: float = 1
 
     def rotate(self, angle_offset: float, pivot: tuple[float, float] | Vector2 | str | None = None) -> None:
         self.set_rotation(self.__angle + angle_offset, pivot=pivot)
@@ -113,11 +114,47 @@ class Transformable(Movable, metaclass=TransformableMeta):
         assert pivot in _ALL_VALID_ROTATION_PIVOTS, f"Bad pivot attribute: {pivot!r}"
         return Vector2(getattr(self, pivot))
 
-    def set_scale(self, scale: float) -> None:
-        scale = max(float(scale), 0)
-        if self.__scale == scale:
+    @overload
+    def set_scale(self, *, scale_x: float) -> None:
+        ...
+
+    @overload
+    def set_scale(self, *, scale_y: float) -> None:
+        ...
+
+    @overload
+    def set_scale(self, *, scale_x: float, scale_y: float) -> None:
+        ...
+
+    @overload
+    def set_scale(self, __scale: tuple[float, float], /) -> None:
+        ...
+
+    def set_scale(  # type: ignore[misc]  # mypy will not understand
+        self,
+        scale: tuple[float, float] | None = None,
+        /,
+        *,
+        scale_x: float | None = None,
+        scale_y: float | None = None,
+    ) -> None:
+        if scale is not None:
+            if scale_x is not None or scale_y is not None:
+                raise TypeError("Invalid parameters")
+            scale_x, scale_y = scale
+        elif scale_x is None and scale_y is None:
+            raise TypeError("Invalid parameters")
+        del scale
+        if scale_x is not None:
+            scale_x = max(float(scale_x), 0)
+        if scale_y is not None:
+            scale_y = max(float(scale_y), 0)
+        if (scale_x is None or self.__scale_x == scale_x) and (scale_y is None or self.__scale_y == scale_y):
             return
-        self.__scale = scale
+        if scale_x is not None:
+            self.__scale_x = scale_x
+        if scale_y is not None:
+            self.__scale_y = scale_y
         center: tuple[float, float] = self.center
         try:
             try:
@@ -125,7 +162,7 @@ class Transformable(Movable, metaclass=TransformableMeta):
             except NotImplementedError:
                 self._apply_only_scale()
         except NotImplementedError:
-            self.__scale = 1
+            self.__scale_x = self.__scale_y = 1
             raise NotImplementedError from None
         except _pg_error:
             pass
@@ -133,17 +170,20 @@ class Transformable(Movable, metaclass=TransformableMeta):
 
     def scale_to_width(self, width: float) -> None:
         w: float = self.get_local_size()[0]
-        self.set_scale(width / w if w > 0 else 0)
+        scale = width / w if w > 0 else 0
+        self.set_scale((scale, scale))
 
     def scale_to_height(self, height: float) -> None:
         h: float = self.get_local_size()[1]
-        self.set_scale(height / h if h > 0 else 0)
+        scale = height / h if h > 0 else 0
+        self.set_scale((scale, scale))
 
     def scale_to_size(self, size: tuple[float, float]) -> None:
         w, h = self.get_local_size()
         scale_width: float = size[0] / w if w > 0 else 0
         scale_height: float = size[1] / h if h > 0 else 0
-        self.set_scale(min(scale_width, scale_height))
+        scale = min(scale_width, scale_height)
+        self.set_scale((scale, scale))
 
     def set_min_width(self, width: float) -> None:
         if self.width < width:
@@ -209,9 +249,11 @@ class Transformable(Movable, metaclass=TransformableMeta):
     def _freeze_state(self) -> dict[str, Any] | None:
         return None
 
-    def _set_frozen_state(self, angle: float, scale: float, state: Mapping[str, Any] | None) -> bool:
+    def _set_frozen_state(self, angle: float, scale: tuple[float, float], state: Mapping[str, Any] | None) -> bool:
         self.__angle = float(angle) % 360
-        self.__scale = max(float(scale), 0)
+        scale_x, scale_y = scale
+        self.__scale_x = max(float(scale_x), 0)
+        self.__scale_y = max(float(scale_y), 0)
         return False
 
     @abstractmethod
@@ -234,12 +276,13 @@ class Transformable(Movable, metaclass=TransformableMeta):
         if not apply_scale and not apply_rotation:
             return self.get_local_size()
 
-        scale: float = self.__scale
+        scale_x: float = self.__scale_x
+        scale_y: float = self.__scale_y
         angle: float = self.__angle
         w, h = self.get_local_size()
         if apply_scale:
-            w *= scale
-            h *= scale
+            w *= scale_x
+            h *= scale_y
         if not apply_rotation or angle == 0 or angle == 180:
             return (w, h)
         if angle == 90 or angle == 270:
@@ -278,12 +321,28 @@ class Transformable(Movable, metaclass=TransformableMeta):
         self.set_rotation(angle)
 
     @property
-    def scale(self) -> float:
-        return self.__scale
+    def scale(self) -> tuple[float, float]:
+        return self.__scale_x, self.__scale_y
 
     @scale.setter
-    def scale(self, scale: float) -> None:
+    def scale(self, scale: tuple[float, float]) -> None:
         self.set_scale(scale)
+
+    @property
+    def scale_x(self) -> float:
+        return self.__scale_x
+
+    @scale_x.setter
+    def scale_x(self, scale: float) -> None:
+        self.set_scale(scale_x=scale)
+
+    @property
+    def scale_y(self) -> float:
+        return self.__scale_y
+
+    @scale_y.setter
+    def scale_y(self, scale: float) -> None:
+        self.set_scale(scale_y=scale)
 
     @property
     def size(self) -> tuple[float, float]:
@@ -315,7 +374,7 @@ class TransformableProxyMeta(TransformableMeta, MovableProxyMeta):
         if "TransformableProxy" not in globals() and name == "TransformableProxy":
             from ..system.utils._mangling import mangle_private_attribute
 
-            for attr in ("angle", "scale"):
+            for attr in ("angle", "scale", "scale_x", "scale_y"):
                 attr = mangle_private_attribute(Transformable, attr)
 
                 def getter(self: TransformableProxy, /, *, attr: str = str(attr)) -> Any:
