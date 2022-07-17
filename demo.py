@@ -177,14 +177,14 @@ class ShapeScene(MainScene, busy_loop=True):
 
     def render(self) -> None:
         self.window.draw(
-            self.__r,
-            self.__p,
             self.__c,
             self.__c_center,
             self.__c_trajectory,
             self.__x,
             self.__x_center,
             self.__x_trajectory,
+            self.__p,
+            self.__r,
             self.__shape_copy,
         )
 

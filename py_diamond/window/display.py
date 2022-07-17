@@ -67,6 +67,7 @@ if TYPE_CHECKING:
     from pygame._common import _ColorValue  # pyright: reportMissingModuleSource=false
 
     from ..graphics.drawable import SupportsDrawing
+    from ..graphics.renderer import AbstractRenderer
 
 _P = ParamSpec("_P")
 
@@ -342,11 +343,15 @@ class Window(Object):
             target.draw_onto(renderer)
 
     def capture(self, draw_on_default_at_end: bool = True) -> ContextManager[Surface]:
-        return self.renderer.capture(draw_on_default_at_end=draw_on_default_at_end)
+        renderer = self.__display_renderer
+        assert renderer is not None, "No active renderer"
+        return renderer.capture(draw_on_default_at_end=draw_on_default_at_end)
 
     @final
     def get_screen_copy(self) -> Surface:
-        return self.renderer.surface.copy()
+        renderer = self.__display_renderer
+        assert renderer is not None, "No active renderer"
+        return renderer.surface.copy()
 
     def screenshot(self) -> None:
         screen: Surface = self.get_screen_copy()
@@ -358,7 +363,7 @@ class Window(Object):
             filename_fmt: str = self.get_screenshot_filename_format()
             extension: str = ".png"
 
-            if any(c in filename_fmt for c in {"/", "\\", os.sep}):
+            if any(c in filename_fmt for c in {"/", "\\", os.path.sep}):
                 raise ValueError("filename format contains invalid characters")
 
             screeshot_dir: str = os.path.abspath(os.path.realpath(self.get_screenshot_directory()))
@@ -397,10 +402,15 @@ class Window(Object):
         self.__callback_after.process()
 
     def process_events(self) -> Generator[Event, None, None]:
-        event_queue, self.__event_queue = self.__event_queue, deque()
+        self._handle_mouse_position(Mouse.get_pos())
+        poll_event = self.__event_queue.popleft
         process_event = self._process_event
         make_event = EventFactory.from_pygame_event
-        for pg_event in event_queue:
+        while True:
+            try:
+                pg_event = poll_event()
+            except IndexError:
+                break
             if pg_event.type == _PG_VIDEORESIZE:
                 self.__rect = ImmutableRect.convert(self.renderer.get_rect())
                 continue
@@ -411,7 +421,6 @@ class Window(Object):
                 continue
             if not process_event(event):
                 yield event
-        self._handle_mouse_position(Mouse.get_pos())
 
     def _process_event(self, event: Event) -> bool:
         return self.event.process_event(event)
@@ -437,7 +446,8 @@ class Window(Object):
         if not self.resizable:
             raise WindowError("Trying to resize not resizable window")
         size = (width, height)
-        renderer = self.renderer
+        renderer = self.__display_renderer
+        assert renderer is not None, "No active renderer"
         screen: Surface = renderer.screen
         if size == screen.get_size():
             return
@@ -640,7 +650,7 @@ class Window(Object):
 
     @property
     @final
-    def renderer(self) -> _WindowRenderer:
+    def renderer(self) -> AbstractRenderer:
         renderer = self.__display_renderer
         assert renderer is not None, "No active renderer"
         return renderer
@@ -915,6 +925,8 @@ class _WindowRendererMeta(ObjectMeta):
 class _WindowRenderer(SurfaceRenderer, metaclass=_WindowRendererMeta):
     __slots__ = ("_dirty", "__drawn_rects")
 
+    __render_debug: bool = os.environ.get("PYDIAMOND_RENDER_DEBUG", "0") == "1"
+
     def __init__(self) -> None:
         screen: Surface | None = _pg_display.get_surface()
         if screen is None:
@@ -934,9 +946,15 @@ class _WindowRenderer(SurfaceRenderer, metaclass=_WindowRendererMeta):
             _pg_display.flip()
             self.__drawn_rects = deque([screen.get_rect()])
         else:
-            drawn_rects = self.__drawn_rects
-            drawn_rects.extend(self._dirty)
-            _pg_display.update(drawn_rects)  # type: ignore[arg-type]
+            drawn_rects: Sequence[Rect]
+            drawn_rects = list(set(map(ImmutableRect.convert, self.__drawn_rects)).union(map(ImmutableRect.convert, self._dirty)))
+            if drawn_rects:
+                if self.__render_debug:
+                    draw_rect = super().draw_rect
+                    for rect in drawn_rects:
+                        draw_rect((127, 127, 127), rect, width=2)
+                    drawn_rects = [screen.get_rect()]
+                _pg_display.update(drawn_rects)  # type: ignore[arg-type]
             del drawn_rects
             self.__drawn_rects = self._dirty
         self._dirty = deque()
@@ -958,14 +976,16 @@ class _WindowRenderer(SurfaceRenderer, metaclass=_WindowRendererMeta):
     @classmethod
     def _append_dirty(cls, dirty_rects: deque[Rect], rect: Rect) -> None:
         nb_rects = len(dirty_rects)
-        for _ in range(nb_rects):
+        for nb_rotate in range(nb_rects):
             actual_rect = dirty_rects[0]
             if actual_rect.colliderect(rect):
-                actual_rect.union_ip(rect)
-                del rect
-                if nb_rects > 1:
-                    dirty_rects.popleft()
-                    cls._append_dirty(dirty_rects, actual_rect)
+                if not actual_rect.contains(rect):
+                    actual_rect.union_ip(rect)
+                    del rect
+                    if nb_rects > 1:
+                        dirty_rects.popleft()
+                        cls._append_dirty(dirty_rects, actual_rect)
+                dirty_rects.rotate(-nb_rotate)
                 break
             dirty_rects.rotate(1)
         else:
