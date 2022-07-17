@@ -207,6 +207,7 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
         self.__cursor: int = 0
         self.__show_cursor: bool = False
         self.__start_edit: bool = False
+        self.__insert_mode: bool = False
         self.__cursor_animation_clock = Clock()
 
         self.event.bind(KeyDownEvent, WeakMethod(self.__key_press))
@@ -230,8 +231,9 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
         text.midleft = (self.left + self.__cursor_width_offset, self.centery)
         text.draw_onto(target)
 
-        show_cursor: bool = self.__show_cursor
+        show_cursor: bool
         if self.__edit():
+            show_cursor = self.__show_cursor
             if self.__cursor_animation_clock.elapsed_time(self.interval):
                 self.__show_cursor = show_cursor = not show_cursor
         else:
@@ -239,9 +241,15 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
         if show_cursor:
             width: float = text.font.get_rect(text.message[:cursor]).width + 1
             height: float = self.height - self.__cursor_height_offset
-            cursor_start: tuple[float, float] = (text.left + width, text.centery - height // 2)
-            cursor_end: tuple[float, float] = (text.left + width, text.centery + height // 2)
-            target.draw_line(text.color, cursor_start, cursor_end, width=2)
+            if not self.__insert_mode or self.cursor == len(text.message):
+                cursor_start: tuple[float, float] = (text.left + width, text.centery - height // 2)
+                cursor_end: tuple[float, float] = (text.left + width, text.centery + height // 2)
+                target.draw_line(text.color, cursor_start, cursor_end, width=2)
+            else:
+                char_rect = text.font.get_rect(text.message[cursor])
+                char_rect.left = int(text.left + width)
+                char_rect.centery = int(text.centery)
+                target.draw_rect(text.color, char_rect)
 
         outline_shape.draw_onto(target)
 
@@ -255,17 +263,16 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
         Keyboard.IME.start_text_input()
         self.__start_edit = True
         self.__show_cursor = True
+        self.__insert_mode = False
 
     def stop_edit(self) -> None:
         Keyboard.IME.stop_text_input()
         self.__start_edit = False
+        self.__insert_mode = False
 
     def invoke(self) -> None:
         if self.focus.get_mode() == BoundFocus.Mode.MOUSE:
             self.start_edit()
-        else:
-            on_validate: Callable[[], None] = self.__on_validate
-            on_validate()
 
     def _on_focus_set(self) -> None:
         self.start_edit()
@@ -307,6 +314,12 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
         self.__cursor_animation_clock.restart()
         text: Text = self.__text
         match event:
+            case KeyDownEvent(key=Keyboard.Key.RETURN | Keyboard.Key.KP_ENTER) if text.message:
+                self.__on_validate()
+                return True
+            case KeyDownEvent(key=Keyboard.Key.INSERT):
+                self.__insert_mode = not self.__insert_mode
+                return True
             case KeyDownEvent(key=Keyboard.Key.ESCAPE):
                 self.stop_edit()
                 return True
@@ -331,7 +344,11 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
                 self.cursor = len(text.message)
                 return True
             case TextInputEvent(text=entered_text):
-                new_text: str = text.message[: self.cursor] + entered_text + text.message[self.cursor :]
+                new_text: str
+                if not self.__insert_mode:
+                    new_text = text.message[: self.cursor] + entered_text + text.message[self.cursor :]
+                else:
+                    new_text = text.message[: self.cursor] + entered_text + text.message[self.cursor + len(entered_text) :]
                 if (max_nb_char := self.__nb_chars) == 0 or len(new_text) <= max_nb_char:
                     text.message = new_text
                     self.cursor += len(entered_text)
