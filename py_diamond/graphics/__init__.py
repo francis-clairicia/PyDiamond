@@ -136,9 +136,6 @@ if SDL_IMAGE_VERSION < (2, 0, 0):
         path=__file__,
     )
 
-pygame.transform.set_smoothscale_backend(
-    os.environ.setdefault("PYGAME_SMOOTHSCALE_BACKEND", pygame.transform.get_smoothscale_backend())
-)
 
 ############ Cleanup ############
 del os, typing, pygame
