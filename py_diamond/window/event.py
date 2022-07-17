@@ -103,6 +103,7 @@ _T = TypeVar("_T")
 
 _PYGAME_EVENT_TYPE: dict[int, type[Event]] = {}
 _ASSOCIATIONS: dict[type[Event], int] = {}
+_EVENT_NAME_DISPATCH_TABLE: dict[int, str] = getattr(_pg_event.event_name, "__event_name_dispatch_table__")
 
 
 class EventMeta(ObjectMeta):
@@ -111,6 +112,8 @@ class EventMeta(ObjectMeta):
 
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="EventMeta")
+
+    __event_name_dispatch_table: dict[int, str] = _EVENT_NAME_DISPATCH_TABLE
 
     def __new__(
         mcs: type[__Self],
@@ -138,10 +141,13 @@ class EventMeta(ObjectMeta):
             event_type: int = int(_pg_event.custom_type())
             if event_type in EventFactory.pygame_type:  # Should not happen
                 event_cls = EventFactory.pygame_type[event_type]
-                raise SystemError(f"Event with type {_pg_event.event_name(event_type)!r} already exists: {event_cls}")
+                raise SystemError(
+                    f"Event with type {_pg_event.event_name(event_type)!r} ({event_type}) already exists: {event_cls}"
+                )
             event_cls = cast(type[Event], cls)
             mcs.__associations[event_cls] = event_type
             mcs.__type[event_type] = event_cls
+            mcs.__event_name_dispatch_table[event_type] = event_cls.__name__
         return cls
 
     def __call__(cls, *args: Any, **kwds: Any) -> Any:
@@ -195,23 +201,13 @@ class _BuiltinEventMeta(EventMeta):
             return cls
         return super().__new__(mcs, name, bases, namespace, **kwargs)
 
-    def __setattr__(cls, __name: str, __value: Any) -> None:
-        if __name in {"Type"}:
-            raise AttributeError("Read-only attribute")
-        return super().__setattr__(__name, __value)
-
-    def __delattr__(cls, __name: str) -> None:
-        if __name in {"Type"}:
-            raise AttributeError("Read-only attribute")
-        return super().__delattr__(__name)
-
 
 class Event(Object, metaclass=EventMeta):
     __slots__ = ()
 
     @classmethod
     @abstractmethod
-    def from_dict(cls: type[Self], event_dict: dict[str, Any]) -> Self:
+    def from_dict(cls: type[Self], event_dict: Mapping[str, Any]) -> Self:
         raise NotImplementedError
 
     @abstractmethod
@@ -269,6 +265,10 @@ class BuiltinEventType(IntEnum):
         return _pg_event.event_name(self)
 
 
+_EVENT_NAME_DISPATCH_TABLE[BuiltinEventType.MUSICEND] = "MusicEnd"
+_EVENT_NAME_DISPATCH_TABLE[BuiltinEventType.SCREENSHOT] = "Screenshot"
+
+
 class BuiltinUserEventCode(IntEnum):
     DROPFILE = _pg_constants.USEREVENT_DROPFILE
 
@@ -290,7 +290,7 @@ class BuiltinEvent(Event, metaclass=_BuiltinEventMeta, model=True):
         return super().__delattr__(__name)
 
     @classmethod
-    def from_dict(cls: type[Self], event_dict: dict[str, Any]) -> Self:
+    def from_dict(cls: type[Self], event_dict: Mapping[str, Any]) -> Self:
         event_fields: Sequence[str] = tuple(f.name for f in fields(cls))
         kwargs: dict[str, Any] = {k: event_dict[k] for k in filter(event_fields.__contains__, event_dict)}
         return cls(**kwargs)
@@ -457,7 +457,7 @@ class UserEvent(BuiltinEvent):
             ...
 
     @classmethod
-    def from_dict(cls, event_dict: dict[str, Any]) -> UserEvent:
+    def from_dict(cls, event_dict: Mapping[str, Any]) -> UserEvent:
         return cls(**event_dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -645,14 +645,19 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
         return max(EventFactory.NUMEVENTS - 1 - max(EventFactory.pygame_type), 0)
 
     @staticmethod
-    def from_pygame_event(event: _pg_event.Event, *, handle_user_events: bool = True) -> Event:
+    def from_pygame_event(pygame_event: _pg_event.Event, *, handle_user_events: bool = True) -> Event:
         try:
-            event_cls: type[Event] = EventFactory.pygame_type[event.type]
+            event_cls: type[Event] = EventFactory.pygame_type[pygame_event.type]
         except KeyError as exc:
-            if not handle_user_events or not (BuiltinEventType.USEREVENT < event.type < EventFactory.NUMEVENTS):
-                raise UnknownEventTypeError(f"Unknown event with type {_pg_event.event_name(event.type)!r}") from exc
-            return UserEvent.from_dict(event.__dict__ | {"code": event.type})
-        return event_cls.from_dict(event.__dict__)
+            if not handle_user_events or not (BuiltinEventType.USEREVENT < pygame_event.type < EventFactory.NUMEVENTS):
+                raise UnknownEventTypeError(f"Unknown event with type {_pg_event.event_name(pygame_event.type)!r}") from exc
+            return UserEvent.from_dict(pygame_event.__dict__ | {"code": pygame_event.type})
+        match event_cls.from_dict(pygame_event.__dict__):
+            case UserEvent(code=BuiltinUserEventCode.DROPFILE, filename=filename):
+                # c.f.: https://www.pygame.org/docs/ref/event.html#:~:text=%3Dpygame.-,USEREVENT_DROPFILE,-%2C%20filename
+                return DropFileEvent(file=filename)
+            case event:
+                return event
 
     @staticmethod
     def make_pygame_event(event: Event) -> _pg_event.Event:
@@ -1237,4 +1242,4 @@ class BoundEventManager(Generic[_T]):
 
 
 del _pg_constants, _pg_music, _BuiltinEventMeta
-del _ASSOCIATIONS, _PYGAME_EVENT_TYPE, _BUILTIN_ASSOCIATIONS, _BUILTIN_PYGAME_EVENT_TYPE
+del _ASSOCIATIONS, _PYGAME_EVENT_TYPE, _BUILTIN_ASSOCIATIONS, _BUILTIN_PYGAME_EVENT_TYPE, _EVENT_NAME_DISPATCH_TABLE

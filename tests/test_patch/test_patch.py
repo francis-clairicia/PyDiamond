@@ -18,14 +18,12 @@ class TestPatchCommon:
         "environment.ArrangePygameEnvironmentBeforeImport",
         "environment.VerifyBooleanEnvironmentVariables",
         "pygame_patch.PygamePatch",
-        "pygame_patch.PyDiamondEventPatch",
     ]
     EXPECTED_CONTEXT = {
         "fix_typing.OverrideFinalFunctionsPatch": "BEFORE_ALL",
         "environment.ArrangePygameEnvironmentBeforeImport": "BEFORE_IMPORTING_PYGAME",
         "environment.VerifyBooleanEnvironmentVariables": "AFTER_IMPORTING_SUBMODULES",
         "pygame_patch.PygamePatch": "AFTER_IMPORTING_PYGAME",
-        "pygame_patch.PyDiamondEventPatch": "AFTER_IMPORTING_SUBMODULES",
     }
 
     @pytest.fixture(params=ALL_PATCHES)

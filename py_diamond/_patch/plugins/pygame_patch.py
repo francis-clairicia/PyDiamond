@@ -140,38 +140,3 @@ class PygamePatch(RequiredPatch):
         setattr(patch_post, "__post_wrapper__", True)
         setattr(patch_post, "__forbidden_events__", forbidden_events)
         return patch_post
-
-
-class PyDiamondEventPatch(RequiredPatch):
-    @classmethod
-    def get_required_context(cls) -> PatchContext:
-        return PatchContext.AFTER_IMPORTING_SUBMODULES
-
-    def setup(self) -> None:
-        super().setup()
-
-        from pygame import event
-
-        self.event_name_dispatch_table: dict[int, str]
-        event_name_dispatch_table = getattr(event.event_name, "__event_name_dispatch_table__", None)
-        if isinstance(event_name_dispatch_table, dict):
-            self.event_name_dispatch_table = event_name_dispatch_table
-
-    def teardown(self) -> None:
-        try:
-            del self.event_name_dispatch_table
-        except AttributeError:
-            pass
-
-        return super().teardown()
-
-    def run(self) -> None:
-        try:
-            dispatch_table = self.event_name_dispatch_table
-        except AttributeError:
-            return
-
-        from ...window.event import BuiltinEventType
-
-        dispatch_table[BuiltinEventType.MUSICEND] = "MusicEnd"
-        dispatch_table[BuiltinEventType.SCREENSHOT] = "Screenshot"

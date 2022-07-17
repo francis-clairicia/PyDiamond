@@ -624,7 +624,7 @@ class MyCustomEvent(Event):
         self.message: str = message
 
     @classmethod
-    def from_dict(cls: type[Self], event_dict: dict[str, Any]) -> Self:
+    def from_dict(cls: type[Self], event_dict: Mapping[str, Any]) -> Self:
         return cls(**event_dict)
 
     def to_dict(self) -> dict[str, Any]:

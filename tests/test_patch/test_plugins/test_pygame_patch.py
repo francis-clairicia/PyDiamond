@@ -9,7 +9,7 @@ import pytest
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
 
-    from py_diamond._patch.plugins.pygame_patch import PyDiamondEventPatch, PygamePatch
+    from py_diamond._patch.plugins.pygame_patch import PygamePatch
 
     from pytest_mock import MockerFixture
 
@@ -275,46 +275,3 @@ class TestPygamePatch:
             pygame.event.post(Event(music_end_event))
         mock_pygame_event_post.assert_not_called()
         mock_pygame_event_event_name.assert_called_with(music_end_event)
-
-
-@pytest.mark.functional
-class TestPyDiamondEventPatch:
-    @pytest.fixture
-    @staticmethod
-    def patch() -> Iterator[PyDiamondEventPatch]:
-        from py_diamond._patch.plugins.pygame_patch import PyDiamondEventPatch
-
-        patch = PyDiamondEventPatch()
-        yield patch
-        patch.teardown()
-
-    def test__run__set_custom_name_to_event_name_dispatch_table(
-        self,
-        patch: PyDiamondEventPatch,
-        mocker: MockerFixture,
-    ) -> None:
-        # Arrange
-        from py_diamond.window.event import BuiltinEventType
-
-        import pygame
-
-        mock_dispatch_table: MagicMock = mocker.patch.object(
-            pygame.event.event_name,
-            "__event_name_dispatch_table__",
-            create=True,
-            spec={},
-        )
-        assert isinstance(mock_dispatch_table, dict)
-
-        mock_dispatch_table_setitem: MagicMock = getattr(mock_dispatch_table, "__setitem__")
-
-        patch.setup()
-
-        # Act
-        patch.run()
-
-        # Assert
-        assert mock_dispatch_table_setitem.mock_calls == [
-            mocker.call(BuiltinEventType.MUSICEND, "MusicEnd"),
-            mocker.call(BuiltinEventType.SCREENSHOT, "Screenshot"),
-        ]
