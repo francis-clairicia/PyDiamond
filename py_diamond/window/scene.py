@@ -42,6 +42,7 @@ from typing import (
     Sequence,
     TypeAlias,
     TypeVar,
+    cast,
     overload,
     runtime_checkable,
 )
@@ -62,6 +63,8 @@ from .time import Time
 
 if TYPE_CHECKING:
     from pygame._common import _ColorValue  # pyright: reportMissingModuleSource=false
+
+    from .display import _WindowRenderer
 
 _P = ParamSpec("_P")
 
@@ -663,7 +666,7 @@ class SceneWindow(Window):
         if not blend_alpha:
             color = color.with_alpha(255)
             if color == self.__last_clear_color:
-                self.renderer.repaint_color(color)
+                cast("_WindowRenderer", self.renderer).repaint_color(color)
                 return
         self.__last_clear_color = color
         return super().clear(color, blend_alpha=blend_alpha)
