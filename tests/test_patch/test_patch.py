@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 @pytest.mark.functional
 class TestPatchCommon:
     ALL_PATCHES = [
-        "fix_enum.IntEnumMonkeyPatch",
         "fix_typing.OverrideFinalFunctionsPatch",
         "environment.ArrangePygameEnvironmentBeforeImport",
         "environment.VerifyBooleanEnvironmentVariables",
@@ -22,7 +21,6 @@ class TestPatchCommon:
         "pygame_patch.PyDiamondEventPatch",
     ]
     EXPECTED_CONTEXT = {
-        "fix_enum.IntEnumMonkeyPatch": "BEFORE_ALL",
         "fix_typing.OverrideFinalFunctionsPatch": "BEFORE_ALL",
         "environment.ArrangePygameEnvironmentBeforeImport": "BEFORE_IMPORTING_PYGAME",
         "environment.VerifyBooleanEnvironmentVariables": "AFTER_IMPORTING_SUBMODULES",
