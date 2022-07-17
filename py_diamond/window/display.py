@@ -883,38 +883,50 @@ class _WindowRendererMeta(ObjectMeta):
         namespace: dict[str, Any],
         **kwargs: Any,
     ) -> _WindowRendererMeta:
-        draw_function_names = {
-            "fill",
-            "draw_surface",
-            "draw_rect",
-            "draw_polygon",
-            "draw_circle",
-            "draw_ellipse",
-            "draw_arc",
-            "draw_line",
-            "draw_lines",
-            "draw_aaline",
-            "draw_aalines",
-        }
-        for draw_function_name in draw_function_names:
-            draw_function: Callable[..., Rect] = getattr(SurfaceRenderer, draw_function_name)
+        if os.environ.get("PYDIAMOND_RENDER_UPDATE", "0") == "1":
+            draw_function_names = {
+                "fill",
+                "draw_surface",
+                "draw_rect",
+                "draw_polygon",
+                "draw_circle",
+                "draw_ellipse",
+                "draw_arc",
+                "draw_line",
+                "draw_lines",
+                "draw_aaline",
+                "draw_aalines",
+            }
+            for draw_function_name in draw_function_names:
+                draw_function: Callable[..., Rect] = getattr(SurfaceRenderer, draw_function_name)
 
-            @wraps(draw_function)  # type: ignore[arg-type]
-            def draw_wrapper(self: _WindowRenderer, /, *args: Any, __name: str = str(draw_function_name), **kwargs: Any) -> Rect:
-                rect: Rect = getattr(super(_WindowRenderer, self), __name)(*args, **kwargs)
-                self._dirty.append(rect)
-                return rect
+                @wraps(draw_function)  # type: ignore[arg-type]
+                def draw_wrapper(
+                    self: _WindowRenderer,
+                    /,
+                    *args: Any,
+                    __name: str = str(draw_function_name),
+                    **kwargs: Any,
+                ) -> Rect:
+                    rect: Rect = getattr(super(_WindowRenderer, self), __name)(*args, **kwargs)
+                    self._dirty.append(rect)
+                    return rect
 
-            namespace[draw_function_name] = draw_wrapper
+                namespace[draw_function_name] = draw_wrapper
 
-        @wraps(SurfaceRenderer.draw_many_surfaces)
-        def draw_many_surfaces(self: _WindowRenderer, /, sequence: Iterable[Any], doreturn: bool = True) -> list[Rect] | None:
-            rects = super(_WindowRenderer, self).draw_many_surfaces(sequence, doreturn=True)
-            if rects:
-                self._dirty.extend(rects)
-            return rects if doreturn else None
+            @wraps(SurfaceRenderer.draw_many_surfaces)
+            def draw_many_surfaces(
+                self: _WindowRenderer,
+                /,
+                sequence: Iterable[Any],
+                doreturn: bool = True,
+            ) -> list[Rect] | None:
+                rects = super(_WindowRenderer, self).draw_many_surfaces(sequence, doreturn=True)
+                if rects:
+                    self._dirty.extend(rects)
+                return rects if doreturn else None
 
-        namespace["draw_many_surfaces"] = draw_many_surfaces
+            namespace["draw_many_surfaces"] = draw_many_surfaces
 
         return super().__new__(mcs, name, bases, namespace, **kwargs)
 
@@ -936,29 +948,40 @@ class _WindowRenderer(SurfaceRenderer, metaclass=_WindowRendererMeta):
     def repaint_color(self, color: _ColorValue) -> None:
         self.surface.fill(color)
 
-    def present(self) -> None:
-        screen = self.screen
-        if self.surface is not screen:
-            screen.fill((0, 0, 0))
-            screen.blit(self.surface, (0, 0))
+    if os.environ.get("PYDIAMOND_RENDER_UPDATE", "0") == "1":
+
+        def present(self) -> None:
+            screen = self.screen
+            if self.surface is not screen:
+                screen.fill((0, 0, 0))
+                screen.blit(self.surface, (0, 0))
+                _pg_display.flip()
+                self.__drawn_rects = deque([screen.get_rect()])
+            else:
+                already_drawn_rects = self.__drawn_rects
+                dirty_rects: deque[Rect] = deque(sorted(self._dirty, key=lambda r: r.w * r.h))
+                self.__drawn_rects = dirty_rects
+                self._dirty = deque()
+                for rect in dirty_rects:
+                    insort_left(already_drawn_rects, rect, key=lambda r: r.w * r.h)
+                dirty_rects = self._merge_sorted_rect_list(already_drawn_rects)
+                if dirty_rects:
+                    if self.__render_debug:
+                        draw_rect = super().draw_rect
+                        for rect in dirty_rects:
+                            draw_rect((127, 127, 127), rect, width=2)
+                        dirty_rects = deque([screen.get_rect()])
+                    _pg_display.update(dirty_rects)  # type: ignore[arg-type]
+                del dirty_rects
+
+    else:
+
+        def present(self) -> None:
+            screen = self.screen
+            if self.surface is not screen:
+                screen.fill((0, 0, 0))
+                screen.blit(self.surface, (0, 0))
             _pg_display.flip()
-            self.__drawn_rects = deque([screen.get_rect()])
-        else:
-            already_drawn_rects = self.__drawn_rects
-            dirty_rects: deque[Rect] = deque(sorted(self._dirty, key=lambda r: r.w * r.h))
-            self.__drawn_rects = dirty_rects
-            self._dirty = deque()
-            for rect in dirty_rects:
-                insort_left(already_drawn_rects, rect, key=lambda r: r.w * r.h)
-            dirty_rects = self._merge_sorted_rect_list(already_drawn_rects)
-            if dirty_rects:
-                if self.__render_debug:
-                    draw_rect = super().draw_rect
-                    for rect in dirty_rects:
-                        draw_rect((127, 127, 127), rect, width=2)
-                    dirty_rects = deque([screen.get_rect()])
-                _pg_display.update(dirty_rects)  # type: ignore[arg-type]
-            del dirty_rects
 
     @contextmanager
     def capture(self, draw_on_default_at_end: bool = True) -> Iterator[Surface]:
