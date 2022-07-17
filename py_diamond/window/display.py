@@ -11,11 +11,12 @@ __all__ = ["Window", "WindowCallback", "WindowError", "WindowExit"]
 import gc
 import os
 import os.path
+from bisect import insort_left
 from collections import deque
 from contextlib import ExitStack, contextmanager, suppress
 from datetime import datetime
 from inspect import isgeneratorfunction
-from itertools import count as itertools_count, filterfalse
+from itertools import count as itertools_count, filterfalse, islice
 from threading import RLock
 from typing import (
     TYPE_CHECKING,
@@ -901,7 +902,7 @@ class _WindowRendererMeta(ObjectMeta):
             @wraps(draw_function)  # type: ignore[arg-type]
             def draw_wrapper(self: _WindowRenderer, /, *args: Any, __name: str = str(draw_function_name), **kwargs: Any) -> Rect:
                 rect: Rect = getattr(super(_WindowRenderer, self), __name)(*args, **kwargs)
-                self._append_dirty(self._dirty, rect)
+                self._dirty.append(rect)
                 return rect
 
             namespace[draw_function_name] = draw_wrapper
@@ -910,10 +911,7 @@ class _WindowRendererMeta(ObjectMeta):
         def draw_many_surfaces(self: _WindowRenderer, /, sequence: Iterable[Any], doreturn: bool = True) -> list[Rect] | None:
             rects = super(_WindowRenderer, self).draw_many_surfaces(sequence, doreturn=True)
             if rects:
-                append = self._append_dirty
-                dirty_rects = self._dirty
-                for rect in rects:
-                    append(dirty_rects, rect)
+                self._dirty.extend(rects)
             return rects if doreturn else None
 
         namespace["draw_many_surfaces"] = draw_many_surfaces
@@ -946,18 +944,21 @@ class _WindowRenderer(SurfaceRenderer, metaclass=_WindowRendererMeta):
             _pg_display.flip()
             self.__drawn_rects = deque([screen.get_rect()])
         else:
-            drawn_rects: Sequence[Rect]
-            drawn_rects = list(set(map(ImmutableRect.convert, self.__drawn_rects)).union(map(ImmutableRect.convert, self._dirty)))
-            if drawn_rects:
+            already_drawn_rects = self.__drawn_rects
+            dirty_rects: deque[Rect] = deque(sorted(self._dirty, key=lambda r: r.w * r.h))
+            self.__drawn_rects = dirty_rects
+            self._dirty = deque()
+            for rect in dirty_rects:
+                insort_left(already_drawn_rects, rect, key=lambda r: r.w * r.h)
+            dirty_rects = self._merge_sorted_rect_list(already_drawn_rects)
+            if dirty_rects:
                 if self.__render_debug:
                     draw_rect = super().draw_rect
-                    for rect in drawn_rects:
+                    for rect in dirty_rects:
                         draw_rect((127, 127, 127), rect, width=2)
-                    drawn_rects = [screen.get_rect()]
-                _pg_display.update(drawn_rects)  # type: ignore[arg-type]
-            del drawn_rects
-            self.__drawn_rects = self._dirty
-        self._dirty = deque()
+                    dirty_rects = deque([screen.get_rect()])
+                _pg_display.update(dirty_rects)  # type: ignore[arg-type]
+            del dirty_rects
 
     @contextmanager
     def capture(self, draw_on_default_at_end: bool = True) -> Iterator[Surface]:
@@ -974,22 +975,45 @@ class _WindowRenderer(SurfaceRenderer, metaclass=_WindowRendererMeta):
                 default_surface.blit(captured_surface, (0, 0))
 
     @classmethod
-    def _append_dirty(cls, dirty_rects: deque[Rect], rect: Rect) -> None:
-        nb_rects = len(dirty_rects)
-        for nb_rotate in range(nb_rects):
-            actual_rect = dirty_rects[0]
-            if actual_rect.colliderect(rect):
-                if not actual_rect.contains(rect):
-                    actual_rect.union_ip(rect)
-                    del rect
-                    if nb_rects > 1:
-                        dirty_rects.popleft()
-                        cls._append_dirty(dirty_rects, actual_rect)
-                dirty_rects.rotate(-nb_rotate)
-                break
-            dirty_rects.rotate(1)
-        else:
-            dirty_rects.append(rect)
+    def _merge_sorted_rect_list(cls, rects: deque[Rect]) -> deque[Rect]:
+        if len(rects) < 2:
+            return deque(rects)
+        merged_rects_queue = deque([rects[0]])
+        inner_merge = cls._merge_sorted_rect_list
+        for r in islice(rects, 1, None):
+            for actual_rect_index, actual_rect in zip(range(len(merged_rects_queue) - 1, -1, -1), reversed(merged_rects_queue)):
+                if actual_rect.contains(r):
+                    break
+                if actual_rect.colliderect(r):
+                    actual_rect = actual_rect.union(r)
+                    if len(merged_rects_queue) > 1:
+                        del merged_rects_queue[actual_rect_index]
+                        insort_left(merged_rects_queue, actual_rect, key=lambda r: r.w * r.h)
+                        merged_rects_queue = inner_merge(merged_rects_queue)
+                    else:
+                        merged_rects_queue[actual_rect_index] = actual_rect
+                    break
+            else:
+                insort_left(merged_rects_queue, r, key=lambda r: r.w * r.h)
+        return merged_rects_queue
+
+    # @classmethod
+    # def _append_dirty(cls, dirty_rects: deque[Rect], rect: Rect) -> None:
+    #     nb_rects = len(dirty_rects)
+    #     for nb_rotate in range(nb_rects):
+    #         actual_rect = dirty_rects[0]
+    #         if actual_rect.colliderect(rect):
+    #             if not actual_rect.contains(rect):
+    #                 actual_rect.union_ip(rect)
+    #                 del rect
+    #                 if nb_rects > 1:
+    #                     dirty_rects.popleft()
+    #                     cls._append_dirty(dirty_rects, actual_rect)
+    #             dirty_rects.rotate(-nb_rotate)
+    #             break
+    #         dirty_rects.rotate(1)
+    #     else:
+    #         dirty_rects.append(rect)
 
     @property
     def screen(self) -> Surface:
