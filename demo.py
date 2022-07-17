@@ -1101,7 +1101,13 @@ class AudioScene(MainScene):
         self.background_color = BLUE_DARK
         self.text = Text("Audio Scene")
         self.first = Button(
-            self, "First", shadow_x=0, shadow_y=0, hover_sound=SoundManager.select, click_sound=SoundManager.validate
+            self,
+            "First",
+            shadow_x=0,
+            shadow_y=0,
+            hover_sound=SoundManager.select,
+            click_sound=SoundManager.validate,
+            callback=self.on_start_loop,
         )
         self.scale = VolumeScaleBar(self, 500, 75)
         self.scale.show_label("Music volume", side="top")

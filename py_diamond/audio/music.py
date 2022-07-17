@@ -56,7 +56,9 @@ class Music(NonCopyable):
         if not os.path.isfile(filepath):
             if os.path.isdir(filepath):
                 raise IsADirectoryError(filepath)
-            raise FileNotFoundError(filepath)
+            if not os.path.exists(filepath):
+                raise FileNotFoundError(filepath)
+            raise PermissionError(filepath, "not a regular file")
         try:
             self = cls.__cache[filepath]
         except KeyError:
@@ -228,6 +230,8 @@ class MusicStream(ClassNamespace, frozen=True):
         Note, that this function blocks until the music has faded out. Calls to fadeout() and set_volume() will have no effect during this time.
         MUSICEND event will be triggered after the music has faded.
         """
+        queue: deque[_MusicPayload] = MusicStream.__queue
+        queue.clear()
         MusicStream.__playing.fadeout = True
         return _pg_music.fadeout(milliseconds)
 
@@ -265,7 +269,7 @@ class MusicStream(ClassNamespace, frozen=True):
         if repeat < 0:
             raise ValueError("Cannot set infinite loop for queued musics")
         played_music: _MusicPayload | None = MusicStream.__playing.payload
-        if played_music is None:
+        if played_music is None or MusicStream.__playing.fadeout:
             MusicStream.play(music, repeat=repeat)
             return
         if played_music.repeat < 0:
@@ -289,7 +293,10 @@ class MusicStream(ClassNamespace, frozen=True):
             return False
         next_music: Music | None
         if MusicStream.__playing.fadeout:
-            MusicStream.stop(unload=False)
+            MusicStream.__playing.fadeout = False
+            played_music.repeat = 0
+            MusicStream.__playing.stopped = played_music.music
+            MusicStream.__playing.payload = None
             next_music = None
         else:
             if played_music.repeat < 0:
