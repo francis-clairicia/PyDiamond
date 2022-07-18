@@ -544,7 +544,7 @@ class DraggableSprite(Sprite, Draggable):
         pass
 
     def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
-        return self.rect.collidepoint(mouse_pos)
+        return self.get_rect().collidepoint(mouse_pos)
 
 
 class SpriteCollisionScene(MainScene):

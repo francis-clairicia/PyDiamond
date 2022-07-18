@@ -518,8 +518,8 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
         return None
 
     def _apply_both_rotation_and_scale(self) -> None:
-        self.__shape.scale = self.__text.scale = self.scale
-        self.__shape.angle = self.__text.angle = self.angle
+        self.__shape.set_rotation_and_scale(self.angle, self.scale)
+        self.__text.set_rotation_and_scale(self.angle, self.scale)
         self.__update_shape_size()
 
     def _apply_only_scale(self) -> None:
@@ -537,7 +537,7 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
         pivot: Vector2 = Vector2(rect.center)
         mouse: Vector2 = Vector2(mouse_pos)
         mouse = pivot + (mouse - pivot).rotate(self.angle)
-        return bool(rect.collidepoint(mouse.x, mouse.y))
+        return rect.collidepoint(mouse.x, mouse.y)
 
     def _on_hover(self) -> None:
         self.__set_state("hover")
@@ -1053,7 +1053,7 @@ class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
         self.__update_shape_size()
 
     def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
-        return bool(self.rect.collidepoint(mouse_pos))
+        return self.get_rect().collidepoint(mouse_pos)
 
     def _on_hover(self) -> None:
         self.__set_state("hover")

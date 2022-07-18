@@ -204,7 +204,7 @@ class ScrollBar(TDrawable, Clickable, metaclass=ScrollBarMeta):
         pass
 
     def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
-        return self.rect.collidepoint(mouse_pos)
+        return self.get_rect().collidepoint(mouse_pos)
 
     def _on_click_down(self, event: MouseButtonDownEvent) -> None:
         cursor_rect: Rect = self.__get_cursor_shape_rect()
@@ -224,8 +224,9 @@ class ScrollBar(TDrawable, Clickable, metaclass=ScrollBarMeta):
         return super()._on_click_up(event)
 
     def _on_mouse_motion(self, event: MouseMotionEvent) -> None:
+        rect: Rect = self.get_rect()
+
         def in_bounds() -> bool:
-            rect: Rect = self.rect
             if self.orient == ScrollBar.Orient.HORIZONTAL:
                 return rect.left <= event.pos[0] <= rect.right
             return rect.top <= event.pos[1] <= rect.bottom
@@ -461,7 +462,7 @@ class ScrollArea(BaseLayeredDrawableGroup[ScrollAreaElement], MDrawable):
             view_rect.height = int(whole_area_rect.height * (end - start))
 
     def __handle_wheel_event(self, event: MouseWheelEvent) -> bool:
-        if not self.rect.collidepoint(Mouse.get_pos()):
+        if not self.get_rect().collidepoint(Mouse.get_pos()):
             return False
         view_rect: Rect = self.__view_rect
         whole_area: SurfaceRenderer = self.__whole_area

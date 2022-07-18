@@ -157,8 +157,8 @@ class Sprite(TDrawable):
 
     @final
     def is_mask_colliding(self, other: Sprite, *, relative: bool = False) -> tuple[int, int] | None:
-        this_rect: Rect = self.rect
-        other_rect: Rect = other.rect
+        this_rect: Rect = self.get_rect()
+        other_rect: Rect = other.get_rect()
         xoffset: int = other_rect.x - this_rect.x
         yoffset: int = other_rect.y - this_rect.y
         intersection: tuple[int, int] | None = self.__mask.overlap(other.__mask, (xoffset, yoffset))

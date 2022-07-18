@@ -12,8 +12,6 @@ __all__ = ["Transformable", "TransformableMeta", "TransformableProxy", "Transfor
 from abc import abstractmethod
 from typing import Any, Callable, Mapping, overload
 
-from pygame import error as _pg_error
-
 from ..math import Vector2
 from ..system.object import final
 from ..system.utils.abc import concreteclass
@@ -70,13 +68,12 @@ class Transformable(Movable, metaclass=TransformableMeta):
         self.set_rotation(self.__angle + angle_offset, pivot=pivot)
 
     def set_rotation(self, angle: float, pivot: tuple[float, float] | Vector2 | str | None = None) -> None:
-        angle = float(angle)
-        angle %= 360
+        angle = float(angle) % 360
         former_angle: float = self.__angle
         if former_angle == angle:
             return
-        self.__angle = angle
         center: Vector2 = Vector2(self.center)
+        self.__angle = angle
         try:
             try:
                 self._apply_both_rotation_and_scale()
@@ -85,8 +82,6 @@ class Transformable(Movable, metaclass=TransformableMeta):
         except NotImplementedError:
             self.__angle = 0
             raise NotImplementedError from None
-        except _pg_error:
-            pass
         if pivot is not None and pivot != "center" and pivot != (center.x, center.y):
             if isinstance(pivot, str):
                 pivot = self.get_pivot_from_attribute(pivot)
@@ -151,11 +146,11 @@ class Transformable(Movable, metaclass=TransformableMeta):
             scale_y = max(float(scale_y), 0)
         if (scale_x is None or self.__scale_x == scale_x) and (scale_y is None or self.__scale_y == scale_y):
             return
+        center: tuple[float, float] = self.center
         if scale_x is not None:
             self.__scale_x = scale_x
         if scale_y is not None:
             self.__scale_y = scale_y
-        center: tuple[float, float] = self.center
         try:
             try:
                 self._apply_both_rotation_and_scale()
@@ -164,8 +159,25 @@ class Transformable(Movable, metaclass=TransformableMeta):
         except NotImplementedError:
             self.__scale_x = self.__scale_y = 1
             raise NotImplementedError from None
-        except _pg_error:
-            pass
+        self.center = center
+
+    def set_rotation_and_scale(self, angle: float, scale: tuple[float, float]) -> None:
+        angle = float(angle) % 360
+        scale_x, scale_y = scale
+        scale_x = max(float(scale_x), 0)
+        scale_y = max(float(scale_y), 0)
+        if self.__angle == angle and self.__scale_x == scale_x and self.__scale_y == scale_y:
+            return
+        center: tuple[float, float] = self.center
+        self.__angle = angle
+        self.__scale_x = scale_x
+        self.__scale_y = scale_y
+        try:
+            self._apply_both_rotation_and_scale()
+        except NotImplementedError:
+            self.__angle = 0
+            self.__scale_x = self.__scale_y = 1
+            raise NotImplementedError from None
         self.center = center
 
     def scale_to_width(self, width: float) -> None:
@@ -226,7 +238,7 @@ class Transformable(Movable, metaclass=TransformableMeta):
                 except NotImplementedError as exc:
                     only_rotation_exc = exc
                 if only_scale_exc is not None and only_rotation_exc is not None:
-                    raise NotImplementedError
+                    raise
                 if only_scale_exc is None and only_rotation_exc is None:
                     raise TypeError(
                         "_apply_only_scale and _apply_only_rotation are implemented, but not _apply_both_rotation_and_scale"

@@ -16,7 +16,7 @@ from ..math import Vector2
 from ..system.object import Object, ObjectMeta, final
 from ..system.utils.abc import concreteclass
 from ..system.utils.functools import wraps
-from .rect import ImmutableRect, Rect
+from .rect import Rect
 
 _ALL_VALID_POSITIONS: tuple[str, ...] = (
     "x",
@@ -155,10 +155,6 @@ class Movable(Object, metaclass=MovableMeta):
 
     def _on_move(self) -> None:
         pass
-
-    @property
-    def rect(self) -> ImmutableRect:
-        return ImmutableRect(self.topleft, self.get_size())
 
     @property
     def x(self) -> float:

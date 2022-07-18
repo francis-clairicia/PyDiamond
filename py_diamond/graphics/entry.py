@@ -283,7 +283,7 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
         self.__update_shape_outline()
 
     def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
-        return self.__shape.rect.collidepoint(mouse_pos)
+        return self.__shape.get_rect().collidepoint(mouse_pos)
 
     def _apply_both_rotation_and_scale(self) -> None:
         raise NotImplementedError

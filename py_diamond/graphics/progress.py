@@ -178,7 +178,7 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
                 text=text,
                 type="value" | "percent" as text_type,
                 round_n=int(round_n),
-                side=ProgressBar.Side(side),
+                side=ProgressBar.Side() as side,
             ) if text.is_shown():
                 if round_n > 0:
                     message_fmt = "{:." + str(round_n) + "f}"
@@ -198,7 +198,7 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
                 text.draw_onto(target)
 
         match self.__text_label:
-            case _ProgressTextLabel(text=text, side=ProgressBar.Side(side)) if text.is_shown():
+            case _ProgressTextLabel(text=text, side=ProgressBar.Side() as side) if text.is_shown():
                 self.__place_text(text, side, offset=offset)
                 text.draw_onto(target)
 
@@ -221,7 +221,7 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
         from_ = float(from_)
         to = float(to)
         if to <= from_:
-            raise ValueError("end value 'to' must be greather than 'from'")
+            raise ValueError("end value 'to' must be strictly greather than 'from'")
         self.__start = from_
         self.__end = to
         self.value = from_

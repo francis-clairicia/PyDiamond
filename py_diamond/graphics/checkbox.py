@@ -8,7 +8,7 @@ from __future__ import annotations
 
 __all__ = ["BooleanCheckBox", "CheckBox", "CheckBoxMeta"]
 
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Sequence, TypeVar
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.theme import ThemedObjectMeta, ThemeType
@@ -193,18 +193,15 @@ class CheckBox(TDrawable, AbstractWidget, Generic[_OnValue, _OffValue], metaclas
             callback(value)
 
     def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
-        return bool(self.__shape.rect.collidepoint(mouse_pos))
+        return self.__shape.get_rect().collidepoint(mouse_pos)
 
     def _apply_both_rotation_and_scale(self) -> None:
         angle: float = self.angle
         scale: tuple[float, float] = self.scale
-        self.__shape.set_rotation(angle)
-        self.__shape.set_scale(scale)
+        self.__shape.set_rotation_and_scale(angle, scale)
         if self.__active_img is not None:
-            self.__active_img.set_rotation(angle)
-            self.__active_img.set_scale(scale)
-        self.__cross.set_rotation(angle)
-        self.__cross.set_scale(scale)
+            self.__active_img.set_rotation_and_scale(angle, scale)
+        self.__cross.set_rotation_and_scale(angle, scale)
 
     def _apply_only_rotation(self) -> None:
         angle: float = self.angle
@@ -294,6 +291,11 @@ class CheckBox(TDrawable, AbstractWidget, Generic[_OnValue, _OffValue], metaclas
 
 
 class BooleanCheckBox(CheckBox[bool, bool]):
+    __theme_ignore__: Sequence[str] = (
+        "on_value",
+        "off_value",
+    )
+
     def __init__(
         self,
         master: AbstractWidget | Clickable | Scene | Window,

@@ -161,7 +161,7 @@ class Clickable(Object):
             self.hover = False
             return False
 
-        hover = self._mouse_in_hitbox(event.pos)
+        hover = bool(self._mouse_in_hitbox(event.pos))
         event_handled = False
 
         self.hover = hover

@@ -57,9 +57,8 @@ class Draggable(Clickable):
 
 
 class SupportsDragging(Protocol):
-    @property
     @abstractmethod
-    def rect(self) -> Rect:
+    def get_rect(self) -> Rect:
         raise NotImplementedError
 
     @abstractmethod
@@ -110,7 +109,7 @@ class DraggingContainer(Draggable, Generic[_D]):
         return self.target.translate(__vector)
 
     def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
-        return self.target.rect.collidepoint(mouse_pos)
+        return self.target.get_rect().collidepoint(mouse_pos)
 
     @property
     def target(self) -> _D:
