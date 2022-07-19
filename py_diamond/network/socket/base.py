@@ -69,9 +69,9 @@ def new_socket_address(addr: tuple[Any, ...], family: int) -> SocketAddress:
 def new_socket_address(addr: tuple[Any, ...], family: int) -> SocketAddress:
     match AddressFamily(family):
         case AddressFamily.AF_INET:
-            return IPv4SocketAddress(*addr)
+            return IPv4SocketAddress._make(addr)
         case AddressFamily.AF_INET6:
-            return IPv6SocketAddress(*addr)
+            return IPv6SocketAddress._make(addr)
         case _:
             return IPv4SocketAddress(addr[0], addr[1])
 

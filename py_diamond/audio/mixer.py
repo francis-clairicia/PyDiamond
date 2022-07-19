@@ -174,7 +174,7 @@ class Mixer(ClassNamespace, frozen=True):
         init_params: tuple[int, int, int] | None = _pg_mixer.get_init()
         if init_params is None:
             return None
-        return MixerParams(*init_params)
+        return MixerParams._make(init_params)
 
     @staticmethod
     def is_busy() -> bool:

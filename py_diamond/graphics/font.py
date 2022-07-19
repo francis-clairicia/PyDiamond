@@ -241,7 +241,7 @@ class Font(Object):
         return self.__ft.get_rect(text or "", style=style, rotation=rotation, size=size)
 
     def get_metrics(self, text: str, size: float = 0) -> list[GlyphMetrics]:
-        return [GlyphMetrics(*metrics) for metrics in self.__ft.get_metrics(text or "", size=size)]
+        return [GlyphMetrics._make(metrics) for metrics in self.__ft.get_metrics(text or "", size=size)]
 
     def get_sized_ascender(self, size: float = 0) -> int:
         return self.__ft.get_sized_ascender(size)
@@ -256,7 +256,7 @@ class Font(Object):
         return self.__ft.get_sized_glyph_height(size)
 
     def get_sizes(self) -> list[FontSizeInfo]:
-        return [FontSizeInfo(*info) for info in self.__ft.get_sizes()]
+        return [FontSizeInfo._make(info) for info in self.__ft.get_sizes()]
 
     def render(
         self,
