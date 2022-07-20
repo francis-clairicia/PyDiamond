@@ -309,6 +309,9 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
         end: float = self.__end
         self.__value = start + (percent * (end - start)) if end > start else 0
 
+    config.remove_parent_ownership("outline")
+    config.remove_parent_ownership("outline_color")
+
     @config.getter_key("outline")
     @config.getter_key("outline_color")
     def __outline_getter(self, option: str) -> Any:

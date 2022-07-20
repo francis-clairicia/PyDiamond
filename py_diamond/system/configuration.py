@@ -123,7 +123,7 @@ class ConfigurationTemplate(Object):
         "__no_parent_ownership",
         "__bound_class",
         "__attr_name",
-        "__lock",
+        "__descr_get_lock",
         "__info",
     )
 
@@ -147,10 +147,9 @@ class ConfigurationTemplate(Object):
             parent = [parent]
 
         self.__template: _ConfigInfoTemplate = _ConfigInfoTemplate(known_options, list(p.__template for p in parent))
-        self.__no_parent_ownership: set[str] = set()
         self.__bound_class: type | None = None
         self.__attr_name: str | None = None
-        self.__lock = RLock()
+        self.__descr_get_lock = RLock()
         self.__info: ConfigurationInfo | None = None
 
     def __repr__(self) -> str:
@@ -178,6 +177,22 @@ class ConfigurationTemplate(Object):
         if list(template.parents) != [config.__template for config in map(retrieve_configuration, owner.__bases__) if config]:
             raise TypeError("Inconsistent configuration template hierarchy")
 
+        self.__bound_class = owner
+        self.__attr_name = name
+        for option in template.options:
+            descriptor: _Descriptor | None = template.value_descriptors.get(option)
+            if descriptor not in template.parent_descriptors and hasattr(descriptor, "__set_name__"):
+                getattr(descriptor, "__set_name__")(owner, option)
+        former_config: ConfigurationTemplate | None = _register_configuration(owner, self)
+        for obj in _all_members(owner).values():
+            if isinstance(obj, OptionAttribute):
+                with suppress(AttributeError):
+                    self.check_option_validity(obj.name, use_alias=True)
+            elif isinstance(obj, ConfigurationTemplate) and obj is not self:
+                _register_configuration(owner, former_config)
+                raise TypeError(f"A class can't have several {ConfigurationTemplate.__name__!r} objects")
+        self.__info = template.build(owner)
+
         default_init_subclass = owner.__init_subclass__
 
         @wraps(default_init_subclass)
@@ -190,28 +205,6 @@ class ConfigurationTemplate(Object):
             return default_init_subclass(**kwargs)
 
         owner.__init_subclass__ = classmethod(__init_subclass__)  # type: ignore[assignment]
-
-        self.__bound_class = owner
-        self.__attr_name = name
-        attribute_class_owner: dict[str, type] = template.attribute_class_owner
-        no_parent_ownership: set[str] = self.__no_parent_ownership
-        for option in template.options:
-            if option in no_parent_ownership:
-                attribute_class_owner[option] = owner
-            else:
-                attribute_class_owner.setdefault(option, owner)
-            descriptor: _Descriptor | None = template.value_descriptors.get(option)
-            if descriptor not in template.parent_descriptors and hasattr(descriptor, "__set_name__"):
-                getattr(descriptor, "__set_name__")(attribute_class_owner[option], option)
-        former_config: ConfigurationTemplate | None = _register_configuration(owner, self)
-        for obj in _all_members(owner).values():
-            if isinstance(obj, OptionAttribute):
-                with suppress(AttributeError):
-                    self.check_option_validity(obj.name, use_alias=True)
-            elif isinstance(obj, ConfigurationTemplate) and obj is not self:
-                _register_configuration(owner, former_config)
-                raise TypeError(f"A class can't have several {ConfigurationTemplate.__name__!r} objects")
-        self.__info = template.build(owner)
 
     @overload
     def __get__(self, obj: None, objtype: type, /) -> ConfigurationTemplate:
@@ -239,7 +232,7 @@ class ConfigurationTemplate(Object):
         info = self.__info
         assert info is not None, "Cannot use ConfigurationTemplate instance without calling __set_name__ on it."
 
-        with self.__lock:
+        with self.__descr_get_lock:
             try:
                 return self.__cache[obj]
             except KeyError:  # Not added by another thread
@@ -278,7 +271,22 @@ class ConfigurationTemplate(Object):
     def remove_parent_ownership(self, option: str) -> None:
         self.__check_locked()
         self.check_option_validity(option)
-        self.__no_parent_ownership.add(option)
+        template = self.__template
+        try:
+            actual_descriptor = template.value_descriptors[option]
+        except KeyError as exc:
+            raise OptionError(option, "There is no parent ownership") from exc
+        if not isinstance(actual_descriptor, _PrivateAttributeOptionProperty):
+            if isinstance(actual_descriptor, _ReadOnlyOptionBuildPayload):
+                underlying_descriptor = actual_descriptor.get_descriptor()
+                if underlying_descriptor is None:
+                    raise OptionError(option, "There is no parent ownership")
+                if isinstance(actual_descriptor, _PrivateAttributeOptionProperty):
+                    actual_descriptor.set_new_descriptor(None)
+                    return
+                actual_descriptor = underlying_descriptor
+            raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
+        del template.value_descriptors[option]
 
     @overload
     def getter(self, option: str, /, *, use_override: bool = True, readonly: bool = False) -> Callable[[_GetterVar], _GetterVar]:
@@ -1421,7 +1429,6 @@ class ConfigurationInfo(Object):
     value_converter_on_set: Mapping[str, Sequence[Callable[[object, Any], Any]]] = field(default_factory=_default_mapping)
     value_validator: Mapping[str, Sequence[Callable[[object, Any], None]]] = field(default_factory=_default_mapping)
     value_descriptors: Mapping[str, _Descriptor] = field(default_factory=_default_mapping)
-    attribute_class_owner: Mapping[str, type] = field(default_factory=_default_mapping)
     aliases: Mapping[str, str] = field(default_factory=_default_mapping)
     readonly_options: Set[str] = field(default_factory=frozenset)
 
@@ -1454,8 +1461,8 @@ class ConfigurationInfo(Object):
     def get_value_descriptor(self, option: str, objtype: type) -> _Descriptor:
         descriptor: _Descriptor | None = self.value_descriptors.get(option, None)
         if descriptor is None:
-            descriptor = _PrivateAttributeOptionPropertyFallback()
-            descriptor.__set_name__(self.attribute_class_owner.get(option, objtype), option)
+            descriptor = _PrivateAttributeOptionProperty()
+            descriptor.__set_name__(objtype, option)
         if option in self.readonly_options:
             descriptor = self.__ReadOnlyOptionWrapper(descriptor)
         return descriptor
@@ -1499,21 +1506,6 @@ class Configuration(Generic[_T], Object):
     def __repr__(self) -> str:
         option_dict = self.as_dict(sorted_keys=True)
         return f"{type(self).__name__}({', '.join(f'{k}={v!r}' for k, v in option_dict.items())})"
-
-    def __contains__(self, option: str) -> bool:
-        obj: _T = self.__self__
-        info: ConfigurationInfo = self.__info
-        try:
-            option = info.check_option_validity(option, use_alias=True)
-        except UnknownOptionError:
-            return False
-        descriptor = info.get_value_descriptor(option, type(obj))
-        try:
-            with self.__lazy_lock(obj):
-                descriptor.__get__(obj, type(obj))
-        except AttributeError:
-            return False
-        return True
 
     @overload
     def get(self, option: str) -> Any:
@@ -2144,7 +2136,6 @@ class _ConfigInfoTemplate:
         self.value_converter_on_get: dict[str, list[Callable[[object, Any], Any]]] = dict()
         self.value_converter_on_set: dict[str, list[Callable[[object, Any], Any]]] = dict()
         self.value_validator: dict[str, list[Callable[[object, Any], None]]] = dict()
-        self.attribute_class_owner: dict[str, type] = dict()
         self.aliases: dict[str, str] = dict()
 
         merge_dict = self.__merge_dict
@@ -2176,7 +2167,6 @@ class _ConfigInfoTemplate:
                 setting="value_validator",
                 copy=list.copy,
             )
-            merge_dict(self.attribute_class_owner, p.attribute_class_owner, on_conflict="skip", setting="class_owner")
             merge_dict(self.aliases, p.aliases, on_conflict="raise", setting="aliases")
 
         self.parent_descriptors: frozenset[_Descriptor] = frozenset(self.value_descriptors.values())
@@ -2216,6 +2206,7 @@ class _ConfigInfoTemplate:
 
     def build(self, owner: type) -> ConfigurationInfo:
         self.__intern_build_all_wrappers(owner)
+        self.__set_default_value_descriptors(owner)
 
         return ConfigurationInfo(
             options=frozenset(self.options),
@@ -2225,8 +2216,7 @@ class _ConfigInfoTemplate:
             value_converter_on_get=self.__build_value_converter_dict(on="get"),
             value_converter_on_set=self.__build_value_converter_dict(on="set"),
             value_validator=self.__build_value_validator_dict(),
-            value_descriptors=self.__build_value_descriptor_dict(),
-            attribute_class_owner=MappingProxyType(self.attribute_class_owner.copy()),
+            value_descriptors=self.__build_value_descriptor_dict(owner),
             aliases=MappingProxyType(self.aliases.copy()),
             readonly_options=self.__build_readonly_options_set(),
         )
@@ -2267,6 +2257,11 @@ class _ConfigInfoTemplate:
         for option, descriptor in tuple(self.value_descriptors.items()):
             self.value_descriptors[option] = build_wrapper_within_descriptor(descriptor)
 
+    def __set_default_value_descriptors(self, owner: type) -> None:
+        for option in list(filter(lambda option: option not in self.value_descriptors, self.options)):
+            self.value_descriptors[option] = descriptor = _PrivateAttributeOptionProperty()
+            descriptor.__set_name__(owner, option)
+
     def __build_option_value_updater_dict(self) -> MappingProxyType[str, frozenset[Callable[[object, Any], None]]]:
         return MappingProxyType(
             {
@@ -2298,15 +2293,17 @@ class _ConfigInfoTemplate:
             {option: tuple(validator_list) for option, validator_list in self.value_validator.items() if len(validator_list) > 0}
         )
 
-    def __build_value_descriptor_dict(self) -> MappingProxyType[str, _Descriptor]:
+    def __build_value_descriptor_dict(self, owner: type) -> MappingProxyType[str, _Descriptor]:
         value_descriptors: dict[str, _Descriptor] = {}
 
         for option, descriptor in self.value_descriptors.items():
             if isinstance(descriptor, _ReadOnlyOptionBuildPayload):
                 underlying_descriptor = descriptor.get_descriptor()
-                if underlying_descriptor is None:
-                    continue
-                descriptor = underlying_descriptor
+                if underlying_descriptor is not None:
+                    descriptor = underlying_descriptor
+                else:
+                    descriptor = _PrivateAttributeOptionProperty()
+                    descriptor.__set_name__(owner, option)
             value_descriptors[option] = descriptor
 
         return MappingProxyType(value_descriptors)
@@ -2365,7 +2362,7 @@ class _ConfigProperty(property):
     pass
 
 
-class _PrivateAttributeOptionPropertyFallback:
+class _PrivateAttributeOptionProperty:
     def __set_name__(self, owner: type, name: str, /) -> None:
         self.__attribute: str = _private_attribute(owner, name)
 
