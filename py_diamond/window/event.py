@@ -71,7 +71,7 @@ import pygame.constants as _pg_constants
 import pygame.event as _pg_event
 from pygame.mixer import music as _pg_music
 
-from ..system.collections import ChainMapProxy, OrderedSet
+from ..system.collections import ChainMapProxy, OrderedSet, OrderedWeakSet
 from ..system.namespace import ClassNamespaceMeta
 from ..system.object import Object, ObjectMeta, final
 from ..system.utils.abc import isabstractclass
@@ -651,9 +651,9 @@ class EventManager:
         self.__mouse_button_pressed_handler_dict: dict[Mouse.Button, Callable[[MouseButtonDownEvent], Any]] = dict()
         self.__mouse_button_released_handler_dict: dict[Mouse.Button, Callable[[MouseButtonUpEvent], Any]] = dict()
         self.__mouse_pos_handler_list: OrderedSet[_MousePositionCallback] = OrderedSet()
-        self.__other_manager_list: OrderedSet[EventManager] = OrderedSet()
+        self.__other_manager_list: OrderedWeakSet[EventManager] = OrderedWeakSet()
         self.__priority_callback: dict[type[Event], _EventCallback] = dict()
-        self.__priority_manager: dict[type[Event], EventManager] = dict()
+        self.__priority_manager: weakref.WeakValueDictionary[type[Event], EventManager] = weakref.WeakValueDictionary()
 
     def __del__(self) -> None:
         self.unbind_all()
@@ -791,12 +791,10 @@ class EventManager:
     def bind_event_manager(self, manager: EventManager) -> None:
         if manager is self:
             raise ValueError("Trying to add yourself")
-        other_manager_list: OrderedSet[EventManager] = self.__other_manager_list
-        other_manager_list.add(manager)
+        self.__other_manager_list.add(manager)
 
     def unbind_event_manager(self, manager: EventManager) -> None:
-        other_manager_list: OrderedSet[EventManager] = self.__other_manager_list
-        other_manager_list.remove(manager)
+        self.__other_manager_list.remove(manager)
         for event_type in tuple(
             event_type for event_type, priority_manager in self.__priority_manager.items() if priority_manager is manager
         ):
