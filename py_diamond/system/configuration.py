@@ -151,7 +151,7 @@ class ConfigurationTemplate(Object):
         self.__bound_class: type | None = None
         self.__attr_name: str | None = None
         self.__descr_get_lock = RLock()
-        self.__info: ConfigurationInfo | None = None
+        self.__info: ConfigurationInfo[Any] | None = None
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({{{', '.join(map(repr, sorted(self.known_options())))}}})"
@@ -1420,15 +1420,15 @@ def _default_mapping() -> MappingProxyType[Any, Any]:
 
 @final
 @dataclass(frozen=True, eq=False, slots=True)
-class ConfigurationInfo(Object):
+class ConfigurationInfo(Object, Generic[_T]):
     options: Set[str]
     _: KW_ONLY
-    option_value_updater: Mapping[str, Set[Callable[[object, Any], None]]] = field(default_factory=_default_mapping)
-    option_updater: Mapping[str, Set[Callable[[object], None]]] = field(default_factory=_default_mapping)
-    main_updater: Set[Callable[[object], None]] = field(default_factory=frozenset)
-    value_converter_on_get: Mapping[str, Sequence[Callable[[object, Any], Any]]] = field(default_factory=_default_mapping)
-    value_converter_on_set: Mapping[str, Sequence[Callable[[object, Any], Any]]] = field(default_factory=_default_mapping)
-    value_validator: Mapping[str, Sequence[Callable[[object, Any], None]]] = field(default_factory=_default_mapping)
+    option_value_updater: Mapping[str, Set[Callable[[_T, Any], None]]] = field(default_factory=_default_mapping)
+    option_updater: Mapping[str, Set[Callable[[_T], None]]] = field(default_factory=_default_mapping)
+    main_updater: Set[Callable[[_T], None]] = field(default_factory=frozenset)
+    value_converter_on_get: Mapping[str, Sequence[Callable[[_T, Any], Any]]] = field(default_factory=_default_mapping)
+    value_converter_on_set: Mapping[str, Sequence[Callable[[_T, Any], Any]]] = field(default_factory=_default_mapping)
+    value_validator: Mapping[str, Sequence[Callable[[_T, Any], None]]] = field(default_factory=_default_mapping)
     value_descriptors: Mapping[str, _Descriptor] = field(default_factory=_default_mapping)
     aliases: Mapping[str, str] = field(default_factory=_default_mapping)
     readonly_options: Set[str] = field(default_factory=frozenset)
@@ -1468,7 +1468,7 @@ class ConfigurationInfo(Object):
             descriptor = self.__ReadOnlyOptionWrapper(descriptor)
         return descriptor
 
-    def get_options_updaters(self, *options: str, exclude_main_updaters: bool) -> Set[Callable[[object], None]]:
+    def get_options_updaters(self, *options: str, exclude_main_updaters: bool) -> Set[Callable[[_T], None]]:
         get_option_updater = self.option_updater.get
         updaters = set(chain.from_iterable(get_option_updater(option, ()) for option in set(options)))
         if exclude_main_updaters and (main_updater := self.main_updater):
@@ -1482,7 +1482,7 @@ _InitializationRegister: TypeAlias = list[tuple[str, Any]]
 _UpdateRegister: TypeAlias = set[str]
 
 
-class Configuration(Generic[_T], Object):
+class Configuration(Object, Generic[_T]):
     __update_stack: ClassVar[dict[object, set[str]]] = dict()
     __init_context: ClassVar[dict[object, _InitializationRegister]] = dict()
     __update_context: ClassVar[dict[object, _UpdateRegister]] = dict()
@@ -1496,11 +1496,14 @@ class Configuration(Generic[_T], Object):
         init_context: _InitializationRegister | None
         updated: _UpdateRegister
 
-    def __init__(self, obj: _T | WeakReferenceType[_T], info: ConfigurationInfo) -> None:
-        if not isinstance(obj, WeakReferenceType):
+    def __init__(self, obj: _T | WeakReferenceType[_T], info: ConfigurationInfo[_T]) -> None:
+        self.__obj: Callable[[], _T | None]
+        if isinstance(obj, WeakReferenceType):
+            self.__obj = obj
+        else:
             weakref(obj)  # Even if we store a strong reference, the object MUST be weak-referenceable
-        self.__obj: Callable[[], _T | None] = obj if isinstance(obj, WeakReferenceType) else lambda obj=obj: obj  # type: ignore[misc]
-        self.__info: ConfigurationInfo = info
+            self.__obj = lambda obj=obj: obj  # type: ignore[misc]
+        self.__info: ConfigurationInfo[_T] = info
 
     def __repr__(self) -> str:
         option_dict = self.as_dict(sorted_keys=True)
@@ -1516,7 +1519,7 @@ class Configuration(Generic[_T], Object):
 
     def get(self, option: str, default: Any = _NO_DEFAULT) -> Any:
         obj: _T = self.__self__
-        info: ConfigurationInfo = self.__info
+        info: ConfigurationInfo[_T] = self.__info
         option = info.check_option_validity(option, use_alias=True)
         descriptor = info.get_value_descriptor(option, type(obj))
         try:
@@ -1538,7 +1541,7 @@ class Configuration(Generic[_T], Object):
 
     def as_dict(self, *, sorted_keys: bool = False) -> dict[str, Any]:
         obj: _T = self.__self__
-        info: ConfigurationInfo = self.__info
+        info: ConfigurationInfo[_T] = self.__info
         with self.__lazy_lock(obj):
             get = self.get
             null = object()
@@ -1550,7 +1553,7 @@ class Configuration(Generic[_T], Object):
 
     def set(self, option: str, value: Any) -> None:
         obj: _T = self.__self__
-        info: ConfigurationInfo = self.__info
+        info: ConfigurationInfo[_T] = self.__info
         option = info.check_option_validity(option, use_alias=True)
         descriptor = info.get_value_descriptor(option, type(obj))
 
@@ -1591,7 +1594,7 @@ class Configuration(Generic[_T], Object):
 
     def delete(self, option: str) -> None:
         obj: _T = self.__self__
-        info: ConfigurationInfo = self.__info
+        info: ConfigurationInfo[_T] = self.__info
         option = info.check_option_validity(option, use_alias=True)
         descriptor = info.get_value_descriptor(option, type(obj))
 
@@ -1662,7 +1665,7 @@ class Configuration(Generic[_T], Object):
                 yield
                 update_register: _InitializationRegister = []
                 Configuration.__init_context[obj] = update_register
-                info: ConfigurationInfo = self.__info
+                info: ConfigurationInfo[_T] = self.__info
                 for option, value in initialization_register:
                     for value_updater in info.option_value_updater.get(option, ()):
                         value_updater(obj, value)
@@ -1683,19 +1686,19 @@ class Configuration(Generic[_T], Object):
 
     def update_option(self, option: str) -> None:
         obj: _T = self.__self__
-        info: ConfigurationInfo = self.__info
+        info: ConfigurationInfo[_T] = self.__info
         option = info.check_option_validity(option, use_alias=True)
         return self.__update_single_option(obj, option, info)
 
     def update_options(self, *options: str) -> None:
         obj: _T = self.__self__
-        info: ConfigurationInfo = self.__info
+        info: ConfigurationInfo[_T] = self.__info
         valid_option = info.check_option_validity
         return self.__update_options(obj, *set(valid_option(option, use_alias=True) for option in options), info=info)
 
     def update_object(self) -> None:
         obj: _T = self.__self__
-        info: ConfigurationInfo = self.__info
+        info: ConfigurationInfo[_T] = self.__info
         return self.__update_options(obj, *info.options, info=info)
 
     def __reduce_ex__(self, __protocol: SupportsIndex) -> str | tuple[Any, ...]:
@@ -1706,7 +1709,7 @@ class Configuration(Generic[_T], Object):
 
     @property
     @final
-    def info(self) -> ConfigurationInfo:
+    def info(self) -> ConfigurationInfo[_T]:
         return self.__info
 
     @property
@@ -1718,7 +1721,7 @@ class Configuration(Generic[_T], Object):
         return obj
 
     @classmethod
-    def __update_options(cls, obj: object, *options: str, info: ConfigurationInfo) -> None:
+    def __update_options(cls, obj: object, *options: str, info: ConfigurationInfo[Any]) -> None:
         nb_options = len(options)
         if nb_options < 1:
             return
@@ -1741,7 +1744,7 @@ class Configuration(Generic[_T], Object):
                 context.updated.add(option)
 
     @classmethod
-    def __update_single_option(cls, obj: object, option: str, info: ConfigurationInfo) -> None:
+    def __update_single_option(cls, obj: object, option: str, info: ConfigurationInfo[Any]) -> None:
         descriptor = info.get_value_descriptor(option, type(obj))
 
         with cls.__updating_option(obj, option, info) as update_context:
@@ -1759,7 +1762,7 @@ class Configuration(Generic[_T], Object):
 
     @classmethod
     @contextmanager
-    def __updating_option(cls, obj: object, option: str, info: ConfigurationInfo) -> Iterator[__OptionUpdateContext]:
+    def __updating_option(cls, obj: object, option: str, info: ConfigurationInfo[Any]) -> Iterator[__OptionUpdateContext]:
         UpdateContext = cls.__OptionUpdateContext
 
         with cls.__lazy_lock(obj):
@@ -1799,7 +1802,7 @@ class Configuration(Generic[_T], Object):
         cls,
         obj: object,
         *options: str,
-        info: ConfigurationInfo,
+        info: ConfigurationInfo[Any],
     ) -> Iterator[dict[str, __OptionUpdateContext]]:
         if len(options) < 1:  # No need to take the lock and init something
             yield {}
@@ -2202,7 +2205,7 @@ class _ConfigInfoTemplate:
             s1 = d1.setdefault(key, set())
             s1.update(s2)
 
-    def build(self, owner: type) -> ConfigurationInfo:
+    def build(self, owner: type) -> ConfigurationInfo[Any]:
         self.__intern_build_all_wrappers(owner)
         self.__set_default_value_descriptors(owner)
 
