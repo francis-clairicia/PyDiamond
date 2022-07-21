@@ -57,11 +57,12 @@ from py_diamond.window.dialog import PopupDialog
 from py_diamond.window.display import Window, WindowCallback
 from py_diamond.window.draggable import Draggable
 from py_diamond.window.event import (
-    BuiltinEventType,
     Event,
     KeyDownEvent,
     KeyUpEvent,
+    MouseButtonDownEvent,
     MouseButtonEvent,
+    MouseButtonUpEvent,
     MusicEndEvent,
     ScreenshotEvent,
 )
@@ -654,10 +655,11 @@ class EventScene(MainScene):
         self.window.draw(self.cross, self.circle)
 
     def __switch_color(self, event: MouseButtonEvent) -> None:
-        if event.type == BuiltinEventType.MOUSEBUTTONDOWN:
-            self.cross.color = YELLOW
-        elif event.type == BuiltinEventType.MOUSEBUTTONUP:
-            self.cross.color = RED
+        match event:
+            case MouseButtonDownEvent():
+                self.cross.color = YELLOW
+            case MouseButtonUpEvent():
+                self.cross.color = RED
         self.window.post_event(MyCustomEvent(f"mouse_pos=({event.pos})"))
 
     def __update_window_title(self, event: MyCustomEvent) -> None:
