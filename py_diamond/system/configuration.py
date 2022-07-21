@@ -42,6 +42,7 @@ from typing import (
     Mapping,
     MutableMapping,
     NamedTuple,
+    NoReturn,
     Protocol,
     Sequence,
     SupportsIndex,
@@ -1477,7 +1478,7 @@ class ConfigurationInfo(Object):
 
 del _default_mapping
 
-_InitializationRegister: TypeAlias = dict[str, Any]
+_InitializationRegister: TypeAlias = list[tuple[str, Any]]
 _UpdateRegister: TypeAlias = set[str]
 
 
@@ -1494,8 +1495,6 @@ class Configuration(Generic[_T], Object):
         first_call: bool
         init_context: _InitializationRegister | None
         updated: _UpdateRegister
-
-    __DELETED: Any = object()
 
     def __init__(self, obj: _T | WeakReferenceType[_T], info: ConfigurationInfo) -> None:
         if not isinstance(obj, WeakReferenceType):
@@ -1576,7 +1575,7 @@ class Configuration(Generic[_T], Object):
 
             register = update_context.init_context
             if register is not None:
-                register[option] = value
+                register.append((option, value))
                 return
 
             for value_updater in info.option_value_updater.get(option, ()):
@@ -1604,7 +1603,6 @@ class Configuration(Generic[_T], Object):
 
             register = update_context.init_context
             if register is not None:
-                register[option] = self.__DELETED
                 return
 
             update_context.updated.add(option)
@@ -1653,31 +1651,31 @@ class Configuration(Generic[_T], Object):
             def cleanup(obj: _T) -> None:
                 Configuration.__init_context.pop(obj, None)
 
+            def register_modified_error(register: _InitializationRegister, context: str) -> NoReturn:
+                options = ", ".join(map(lambda t: t[0], register))
+                raise OptionError(options, f"Options were modified after {context} in initialization context")
+
             with ExitStack() as stack:
-                initialization_register: _InitializationRegister = {}
+                initialization_register: _InitializationRegister = []
                 Configuration.__init_context[obj] = initialization_register
                 stack.callback(cleanup, obj)
                 yield
-                update_register: _InitializationRegister = {}
+                update_register: _InitializationRegister = []
                 Configuration.__init_context[obj] = update_register
                 info: ConfigurationInfo = self.__info
-                for option, value in initialization_register.items():
-                    if value is self.__DELETED:
-                        continue
+                for option, value in initialization_register:
                     for value_updater in info.option_value_updater.get(option, ()):
                         value_updater(obj, value)
                         if update_register:
-                            raise OptionError(option, "was modified after value update in initialization context")
-                for option_updater in info.get_options_updaters(*initialization_register, exclude_main_updaters=True):
+                            register_modified_error(update_register, "value update")
+                for option_updater in info.get_options_updaters(*info.options, exclude_main_updaters=True):
                     option_updater(obj)
                     if update_register:
-                        options = ", ".join(update_register)
-                        raise OptionError(options, "Options were modified after update in initialization context")
+                        register_modified_error(update_register, "update")
                 for main_updater in info.main_updater:
                     main_updater(obj)
                     if update_register:
-                        options = ", ".join(update_register)
-                        raise OptionError(options, "Options were modified after main update in initialization context")
+                        register_modified_error(update_register, "main update")
 
     @final
     def has_initialization_context(self) -> bool:
