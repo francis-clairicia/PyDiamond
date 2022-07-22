@@ -331,8 +331,8 @@ class Text(TDrawable, metaclass=TextMeta):
             self.apply_rotation_scale()
             self.center = center
 
-    config.getter("shadow", lambda self: (self.shadow_x, self.shadow_y))
-    config.setter("shadow", lambda self, pos: self.config(shadow_x=pos[0], shadow_y=pos[1]))
+    config.getter("shadow", lambda self: (self.shadow_x, self.shadow_y), use_override=False)
+    config.setter("shadow", lambda self, pos: self.config(shadow_x=pos[0], shadow_y=pos[1]), use_override=False)
 
 
 class TextImage(Text):

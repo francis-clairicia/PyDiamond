@@ -294,8 +294,8 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
     config.add_value_validator_static("cursor_color", Color)
     config.add_value_converter_on_set_static("cursor_thickness", valid_integer(min_value=0))
 
-    config.getter("scale_color", lambda self: self.__scale_rect.config.get("color"))
-    config.setter("scale_color", lambda self, color: self.__scale_rect.config.set("color", color))
+    config.getter("scale_color", lambda self: self.__scale_rect.config.get("color"), use_override=False)
+    config.setter("scale_color", lambda self, color: self.__scale_rect.config.set("color", color), use_override=False)
 
     @config.on_update_value("value")
     def __update_percent(self, value: float) -> None:

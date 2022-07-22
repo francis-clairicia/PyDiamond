@@ -28,7 +28,7 @@ from enum import Enum
 from functools import cache, update_wrapper, wraps
 from itertools import chain
 from threading import RLock
-from types import BuiltinFunctionType, BuiltinMethodType, MappingProxyType
+from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
     AbstractSet as Set,
@@ -1025,25 +1025,19 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def add_value_validator_static(
-        self, option: str, /, *, use_override: bool = True
-    ) -> Callable[[_StaticValueValidatorVar], _StaticValueValidatorVar]:
+    def add_value_validator_static(self, option: str, /) -> Callable[[_StaticValueValidatorVar], _StaticValueValidatorVar]:
         ...
 
     @overload
-    def add_value_validator_static(
-        self, option: str, objtype: type, /, *, accept_none: bool = False, use_override: bool = True
-    ) -> None:
+    def add_value_validator_static(self, option: str, objtype: type, /, *, accept_none: bool = False) -> None:
         ...
 
     @overload
-    def add_value_validator_static(
-        self, option: str, objtypes: Sequence[type], /, *, accept_none: bool = False, use_override: bool = True
-    ) -> None:
+    def add_value_validator_static(self, option: str, objtypes: Sequence[type], /, *, accept_none: bool = False) -> None:
         ...
 
     @overload
-    def add_value_validator_static(self, option: str, func: _StaticValueValidatorVar, /, *, use_override: bool = True) -> None:
+    def add_value_validator_static(self, option: str, func: _StaticValueValidatorVar, /) -> None:
         ...
 
     def add_value_validator_static(
@@ -1053,17 +1047,14 @@ class ConfigurationTemplate(Object):
         /,
         *,
         accept_none: bool = False,
-        use_override: bool = True,
     ) -> Callable[[_StaticValueValidatorVar], _StaticValueValidatorVar] | None:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
 
-        def decorator(
-            func: _StaticValueValidatorVar, /, *, check_override: bool = bool(use_override)
-        ) -> _StaticValueValidatorVar:
+        def decorator(func: _StaticValueValidatorVar, /) -> _StaticValueValidatorVar:
             value_validator_list = template.value_validator.setdefault(option, [])
-            wrapper = _make_function_wrapper(func, check_override=check_override, no_object=True)
+            wrapper = _make_function_wrapper(func, check_override=False, no_object=True)
             if wrapper in value_validator_list:
                 raise OptionError(option, "Function already registered")
             value_validator_list.append(wrapper)
@@ -1080,7 +1071,7 @@ class ConfigurationTemplate(Object):
 
             type_checker: Any = _make_type_checker(_type, accept_none)
 
-            decorator(type_checker, check_override=False)
+            decorator(type_checker)
             return None
 
         if func is None:
@@ -1113,7 +1104,7 @@ class ConfigurationTemplate(Object):
         if isinstance(func, type):
             raise TypeError("Use add_value_converter_on_set_static() to convert value using type")
 
-        def decorator(func: _ValueConverterVar) -> _ValueConverterVar:
+        def decorator(func: _ValueConverterVar, /) -> _ValueConverterVar:
             value_converter_list = template.value_converter_on_get.setdefault(option, [])
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             if wrapper in value_converter_list:
@@ -1127,21 +1118,15 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def add_value_converter_on_get_static(
-        self, option: str, /, *, use_override: bool = True
-    ) -> Callable[[_StaticValueConverterVar], _StaticValueConverterVar]:
+    def add_value_converter_on_get_static(self, option: str, /) -> Callable[[_StaticValueConverterVar], _StaticValueConverterVar]:
         ...
 
     @overload
-    def add_value_converter_on_get_static(
-        self, option: str, convert_to_type: type[Any], /, *, accept_none: bool = False, use_override: bool = True
-    ) -> None:
+    def add_value_converter_on_get_static(self, option: str, convert_to_type: type[Any], /, *, accept_none: bool = False) -> None:
         ...
 
     @overload
-    def add_value_converter_on_get_static(
-        self, option: str, func: _StaticValueConverterVar, /, *, use_override: bool = True
-    ) -> None:
+    def add_value_converter_on_get_static(self, option: str, func: _StaticValueConverterVar, /) -> None:
         ...
 
     def add_value_converter_on_get_static(
@@ -1151,17 +1136,14 @@ class ConfigurationTemplate(Object):
         /,
         *,
         accept_none: bool = False,
-        use_override: bool = True,
     ) -> Callable[[_StaticValueConverterVar], _StaticValueConverterVar] | None:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
 
-        def decorator(
-            func: _StaticValueConverterVar, /, *, check_override: bool = bool(use_override)
-        ) -> _StaticValueConverterVar:
+        def decorator(func: _StaticValueConverterVar, /) -> _StaticValueConverterVar:
             value_converter_list = template.value_converter_on_get.setdefault(option, [])
-            wrapper = _make_function_wrapper(func, check_override=check_override, no_object=True)
+            wrapper = _make_function_wrapper(func, check_override=False, no_object=True)
             if wrapper in value_converter_list:
                 raise OptionError(option, "Function already registered")
             value_converter_list.append(wrapper)
@@ -1174,7 +1156,7 @@ class ConfigurationTemplate(Object):
 
             value_converter: Any = _make_value_converter(func, accept_none)
 
-            decorator(value_converter, check_override=False)
+            decorator(value_converter)
             return None
 
         if func is None:
@@ -1207,7 +1189,7 @@ class ConfigurationTemplate(Object):
         if isinstance(func, type):
             raise TypeError("Use add_value_converter_on_set_static() to convert value using type")
 
-        def decorator(func: _ValueConverterVar) -> _ValueConverterVar:
+        def decorator(func: _ValueConverterVar, /) -> _ValueConverterVar:
             value_converter_list = template.value_converter_on_set.setdefault(option, [])
             wrapper = _make_function_wrapper(func, check_override=bool(use_override))
             if wrapper in value_converter_list:
@@ -1221,21 +1203,15 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def add_value_converter_on_set_static(
-        self, option: str, /, *, use_override: bool = True
-    ) -> Callable[[_StaticValueConverterVar], _StaticValueConverterVar]:
+    def add_value_converter_on_set_static(self, option: str, /) -> Callable[[_StaticValueConverterVar], _StaticValueConverterVar]:
         ...
 
     @overload
-    def add_value_converter_on_set_static(
-        self, option: str, convert_to_type: type[Any], /, *, accept_none: bool = False, use_override: bool = True
-    ) -> None:
+    def add_value_converter_on_set_static(self, option: str, convert_to_type: type[Any], /, *, accept_none: bool = False) -> None:
         ...
 
     @overload
-    def add_value_converter_on_set_static(
-        self, option: str, func: _StaticValueConverterVar, /, *, use_override: bool = True
-    ) -> None:
+    def add_value_converter_on_set_static(self, option: str, func: _StaticValueConverterVar, /) -> None:
         ...
 
     def add_value_converter_on_set_static(
@@ -1245,17 +1221,14 @@ class ConfigurationTemplate(Object):
         /,
         *,
         accept_none: bool = False,
-        use_override: bool = True,
     ) -> Callable[[_StaticValueConverterVar], _StaticValueConverterVar] | None:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
 
-        def decorator(
-            func: _StaticValueConverterVar, /, *, check_override: bool = bool(use_override)
-        ) -> _StaticValueConverterVar:
+        def decorator(func: _StaticValueConverterVar, /) -> _StaticValueConverterVar:
             value_converter_list = template.value_converter_on_set.setdefault(option, [])
-            wrapper = _make_function_wrapper(func, check_override=check_override, no_object=True)
+            wrapper = _make_function_wrapper(func, check_override=False, no_object=True)
             if wrapper in value_converter_list:
                 raise OptionError(option, "Function already registered")
             value_converter_list.append(wrapper)
@@ -1268,7 +1241,7 @@ class ConfigurationTemplate(Object):
 
             value_converter: Any = _make_value_converter(func, accept_none)
 
-            decorator(value_converter, check_override=False)
+            decorator(value_converter)
             return None
 
         if func is None:
@@ -1294,12 +1267,10 @@ class ConfigurationTemplate(Object):
         self.add_value_converter_on_get_static(
             option,
             _make_enum_converter(enum, return_value_on_get, accept_none),
-            use_override=False,
         )
         self.add_value_converter_on_set_static(
             option,
             _make_enum_converter(enum, store_value, accept_none),
-            use_override=False,
         )
 
     def set_alias(self, option: str, alias: str, /, *aliases: str) -> None:
@@ -1836,12 +1807,23 @@ def _make_function_wrapper(func: Any, *, check_override: bool = True, no_object:
     cached_func = wrapper.get_wrapper()
     if cached_func is not None:
         return cached_func
+
+    if wrapper.traceback is None:
+        frame = inspect.currentframe()
+        try:
+            if frame is not None:
+                while (tb := inspect.getframeinfo(frame, context=0)).filename == __file__ and (frame := frame.f_back) is not None:
+                    continue
+                wrapper.traceback = tb
+        finally:
+            del frame
+
     return wrapper
 
 
 @final
 class _FunctionWrapperBuilder:
-    __slots__ = ("info", "cache")
+    __slots__ = ("info", "cache", "traceback")
 
     class Info(NamedTuple):
         func: Any
@@ -1850,6 +1832,7 @@ class _FunctionWrapperBuilder:
 
     info: Info
     cache: dict[Any, Callable[..., Any]]
+    traceback: inspect.Traceback | None
 
     __instance_cache: dict[Info, _FunctionWrapperBuilder] = dict()
 
@@ -1865,6 +1848,7 @@ class _FunctionWrapperBuilder:
             self = object.__new__(cls)
             self.info = info
             self.cache = {}
+            self.traceback = None
             cls.__instance_cache[info] = self
         return self
 
@@ -1899,30 +1883,29 @@ class _FunctionWrapperBuilder:
         func_name: str = ""
         if check_override:
             func_name = next((attr_name for attr_name, attr_obj in _all_members(cls).items() if attr_obj is func), func_name)
-            check_override = bool(func_name)
+            if not func_name:
+                msg = f"Couldn't find {func!r} in {cls.__qualname__} members"
+                if self.traceback:
+                    msg = f"{self.traceback.filename}:{self.traceback.lineno}: {msg}"
+                raise AttributeError(msg)
 
-        if isinstance(func, (BuiltinFunctionType, BuiltinMethodType)) or not hasattr(func, "__get__"):
-            no_object = True
-
-        if info != self.Info(func, check_override=check_override, no_object=no_object):
-            # Ask the right builder to compute the wrapper
-            builder = self.__class__(func, check_override=check_override, no_object=no_object)
-            computed_wrapper = builder.build_wrapper(cls)
-            self.cache[func] = computed_wrapper  # Save in our cache for further calls
-            return computed_wrapper
-
-        if no_object:
+        if no_object or not hasattr(func, "__get__"):
 
             if func_name:
 
                 def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-                    _func: Callable[..., Any] = getattr(self, func_name, func)
+                    _func: Callable[..., Any] = getattr(type(self), func_name, func)
                     return _func(*args, **kwargs)
+
+            elif no_object:
+
+                def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
+                    return func(*args, **kwargs)
 
             else:
 
                 def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-                    return func(*args, **kwargs)
+                    return func(self, *args, **kwargs)
 
         else:
             func_get_descriptor: Callable[[Any, type], Callable[..., Any]] = getattr(func, "__get__")
@@ -2010,6 +1993,14 @@ class _WrappedFunctionWrapper:
         _FunctionWrapperBuilder.mark_wrapper(wrapper)
         wrapper_cache[func] = wrapper
         return wrapper
+
+    @property
+    def traceback(self) -> inspect.Traceback | None:
+        return self.wrapper.traceback
+
+    @traceback.setter
+    def traceback(self, tb: inspect.Traceback | None) -> None:
+        self.wrapper.traceback = tb
 
 
 @_no_type_check_cache
