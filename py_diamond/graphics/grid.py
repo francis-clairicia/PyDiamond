@@ -681,9 +681,7 @@ class _GridCell(MDrawable):
 class _GridGroup(BaseDrawableGroup[GridElement]):
     def __init__(self, grid: Grid) -> None:
         self.__grid: weakref[Grid] = weakref(grid)
-        setattr(self, "add", lambda *args: None)  # Monkeypatch for super().__init__() call
         super().__init__()
-        delattr(self, "add")
 
     def add(self, *objects: GridElement) -> None:
         raise ValueError("Explicitly call outside grid is forbidden")

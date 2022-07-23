@@ -207,7 +207,8 @@ class BaseDrawableGroup(Sequence[_D]):
     def __init__(self, *objects: _D, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.__list: MutableSequence[_D] = deque()
-        self.add(*objects)
+        if objects:
+            self.add(*objects)
 
     def __iter__(self) -> Iterator[_D]:
         return self.__list.__iter__()

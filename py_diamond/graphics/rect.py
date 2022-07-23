@@ -51,3 +51,6 @@ class ImmutableRect(Rect):
 
     def __reduce_ex__(self, __protocol: SupportsIndex) -> str | tuple[Any, ...]:
         return type(self), (self.x, self.y, self.w, self.h)
+
+    def __reduce__(self) -> str | tuple[Any, ...]:
+        return type(self), (self.x, self.y, self.w, self.h)

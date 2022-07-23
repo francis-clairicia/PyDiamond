@@ -320,6 +320,9 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
     def __reduce_ex__(self, protocol: SupportsIndex, /) -> tuple[Any, ...]:
         return type(self)._from_iterable, (list(self),), None
 
+    def __reduce__(self) -> str | tuple[Any, ...]:  # Backward compatibility
+        return type(self)._from_iterable, (list(self),), None
+
     def __eq__(self, other: Any) -> bool:
         """
         Returns true if the containers have the same items. If `other` is a

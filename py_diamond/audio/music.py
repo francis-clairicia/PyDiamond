@@ -89,7 +89,12 @@ class Music(NonCopyable):
         self.__f: str
         return self.__f
 
+    @final
     def __reduce_ex__(self, __protocol: Any) -> str | tuple[Any, ...]:
+        raise TypeError(f"cannot pickle {type(self).__qualname__!r} object")
+
+    @final
+    def __reduce__(self) -> str | tuple[Any, ...]:
         raise TypeError(f"cannot pickle {type(self).__qualname__!r} object")
 
 
