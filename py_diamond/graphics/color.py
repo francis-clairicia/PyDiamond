@@ -33,8 +33,7 @@ __all__ = [
 ]
 
 from dataclasses import dataclass
-from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Final, Mapping, SupportsIndex
+from typing import TYPE_CHECKING, Any, Final, SupportsIndex
 
 import pygame.color
 import pygame.colordict
@@ -108,27 +107,34 @@ class ImmutableColor(Color):
             super().__init__(*args, **kwargs)
 
 
-COLOR_DICT: Final[Mapping[str, ImmutableColor]] = MappingProxyType({c: ImmutableColor(c) for c in pygame.colordict.THECOLORS})
+COLOR_DICT: Final[dict[str, tuple[int, int, int, int]]] = pygame.colordict.THECOLORS
 
-WHITE: Final[ImmutableColor] = COLOR_DICT.get("white", ImmutableColor(255, 255, 255, 255))
-BLACK: Final[ImmutableColor] = COLOR_DICT.get("black", ImmutableColor(0, 0, 0, 255))
-GRAY: Final[ImmutableColor] = COLOR_DICT.get("gray50", ImmutableColor(127, 127, 127, 255))
-GRAY_DARK: Final[ImmutableColor] = COLOR_DICT.get("gray37", ImmutableColor(95, 95, 95, 255))
-GRAY_LIGHT: Final[ImmutableColor] = COLOR_DICT.get("gray69", ImmutableColor(175, 175, 175, 255))
-RED: Final[ImmutableColor] = COLOR_DICT.get("red", ImmutableColor(255, 0, 0, 255))
-RED_DARK: Final[ImmutableColor] = COLOR_DICT.get("darkred", ImmutableColor(140, 0, 0, 255))
-RED_LIGHT: Final[ImmutableColor] = ImmutableColor(255, 128, 128)
-ORANGE: Final[ImmutableColor] = COLOR_DICT.get("orange", ImmutableColor(255, 165, 0, 255))
-YELLOW: Final[ImmutableColor] = COLOR_DICT.get("yellow", ImmutableColor(255, 255, 0, 255))
-GREEN: Final[ImmutableColor] = COLOR_DICT.get("green", ImmutableColor(0, 255, 0, 255))
-GREEN_DARK: Final[ImmutableColor] = COLOR_DICT.get("darkgreen", ImmutableColor(0, 128, 0, 255))
-GREEN_LIGHT: Final[ImmutableColor] = COLOR_DICT.get("lightgreen", ImmutableColor(128, 255, 128, 255))
-CYAN: Final[ImmutableColor] = COLOR_DICT.get("cyan", ImmutableColor(0, 255, 255, 255))
-BLUE: Final[ImmutableColor] = COLOR_DICT.get("blue", ImmutableColor(0, 0, 255, 255))
-BLUE_DARK: Final[ImmutableColor] = COLOR_DICT.get("darkblue", ImmutableColor(0, 0, 128, 255))
-BLUE_LIGHT: Final[ImmutableColor] = COLOR_DICT.get("deepskyblue", ImmutableColor(0, 128, 255, 255))
-MAGENTA: Final[ImmutableColor] = COLOR_DICT.get("magenta", ImmutableColor(255, 0, 255, 255))
-PURPLE: Final[ImmutableColor] = COLOR_DICT.get("purple", ImmutableColor(165, 0, 255, 255))
-TRANSPARENT: Final[ImmutableColor] = ImmutableColor(0, 0, 0, 0)
+COLOR_DICT.update(
+    {
+        "lightred": (255, 128, 128, 255),
+        "transparent": (0, 0, 0, 0),
+    }
+)
+
+WHITE: Final[ImmutableColor] = ImmutableColor("white")
+BLACK: Final[ImmutableColor] = ImmutableColor("black")
+GRAY: Final[ImmutableColor] = ImmutableColor("gray50")
+GRAY_DARK: Final[ImmutableColor] = ImmutableColor("gray37")
+GRAY_LIGHT: Final[ImmutableColor] = ImmutableColor("gray69")
+RED: Final[ImmutableColor] = ImmutableColor("red")
+RED_DARK: Final[ImmutableColor] = ImmutableColor("darkred")
+RED_LIGHT: Final[ImmutableColor] = ImmutableColor("lightred")
+ORANGE: Final[ImmutableColor] = ImmutableColor("orange")
+YELLOW: Final[ImmutableColor] = ImmutableColor("yellow")
+GREEN: Final[ImmutableColor] = ImmutableColor("green")
+GREEN_DARK: Final[ImmutableColor] = ImmutableColor("darkgreen")
+GREEN_LIGHT: Final[ImmutableColor] = ImmutableColor("lightgreen")
+CYAN: Final[ImmutableColor] = ImmutableColor("cyan")
+BLUE: Final[ImmutableColor] = ImmutableColor("blue")
+BLUE_DARK: Final[ImmutableColor] = ImmutableColor("darkblue")
+BLUE_LIGHT: Final[ImmutableColor] = ImmutableColor("deepskyblue")
+MAGENTA: Final[ImmutableColor] = ImmutableColor("magenta")
+PURPLE: Final[ImmutableColor] = ImmutableColor("purple")
+TRANSPARENT: Final[ImmutableColor] = ImmutableColor("transparent")
 
 del pygame
