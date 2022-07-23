@@ -2256,11 +2256,10 @@ class _WrappedFunctionWrapper:
         raise NotImplementedError("Dummy function")
 
     def get_wrapper(self) -> Callable[..., Any] | None:
-        wrapper_cache = self.cache
         func: Any = self.wrapper.info.func
-        if func in wrapper_cache:
-            return wrapper_cache[func]
-        return self.wrapper.get_wrapper()
+        if _FunctionWrapperBuilder.is_wrapper(func):
+            return cast(Callable[..., Any], func)
+        return self.cache.get(func)
 
     def build_wrapper(self, cls: type) -> Callable[..., Any]:
         func: Any = self.wrapper.info.func
@@ -2307,9 +2306,9 @@ def _make_type_checker(_type: type | tuple[type, ...], accept_none: bool, /) -> 
             expected = f"a {_type.__qualname__} object type"
         else:
             expected = f"one of those object types: ({', '.join(t.__qualname__ for t in _type)})"
-        cls: type = type(val)
-        got: str = repr(cls.__qualname__ if cls.__module__ != object.__module__ else val)
-        raise TypeError(f"Invalid value type. expected {expected}, got {got}")
+        val_type: type = type(val)
+        gotten: str = repr(f"{val_type.__module__}.{val_type.__qualname__}" if val_type.__module__ != object.__module__ else val)
+        raise TypeError(f"Invalid value type. expected {expected}, got {gotten}")
 
     return type_checker
 
