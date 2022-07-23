@@ -1449,7 +1449,7 @@ class ConfigurationInfo(Object, Generic[_T]):
 
 del _default_mapping
 
-_InitializationRegister: TypeAlias = list[tuple[str, Any]]
+_InitializationRegister: TypeAlias = dict[str, Any]
 _UpdateRegister: TypeAlias = set[str]
 
 
@@ -1549,11 +1549,10 @@ class Configuration(Object, Generic[_T]):
 
             register = update_context.init_context
             if register is not None:
-                register.append((option, value))
-                return
-
-            for value_updater in info.option_value_updater.get(option, ()):
-                value_updater(obj, value)
+                register[option] = value
+            else:
+                for value_updater in info.option_value_updater.get(option, ()):
+                    value_updater(obj, value)
 
             update_context.updated.add(option)
 
@@ -1577,7 +1576,7 @@ class Configuration(Object, Generic[_T]):
 
             register = update_context.init_context
             if register is not None:
-                return
+                register.pop(option, None)
 
             update_context.updated.add(option)
 
@@ -1624,32 +1623,36 @@ class Configuration(Object, Generic[_T]):
 
             def cleanup(obj: _T) -> None:
                 Configuration.__init_context.pop(obj, None)
+                Configuration.__update_context.pop(obj, None)
 
             def register_modified_error(register: _InitializationRegister, context: str) -> NoReturn:
                 options = ", ".join(map(lambda t: t[0], register))
                 raise OptionError(options, f"Options were modified after {context} in initialization context")
 
             with ExitStack() as stack:
-                initialization_register: _InitializationRegister = []
-                Configuration.__init_context[obj] = initialization_register
                 stack.callback(cleanup, obj)
+                initialization_register: _InitializationRegister = {}
+                Configuration.__init_context[obj] = initialization_register
+                update_register: _UpdateRegister = set()
+                Configuration.__update_context[obj] = update_register
                 yield
-                update_register: _InitializationRegister = []
-                Configuration.__init_context[obj] = update_register
+                Configuration.__update_context.pop(obj, None)
+                after_init_register: _InitializationRegister = {}
+                Configuration.__init_context[obj] = after_init_register
                 info: ConfigurationInfo[_T] = self.__info
-                for option, value in initialization_register:
+                for option, value in initialization_register.items():
                     for value_updater in info.option_value_updater.get(option, ()):
                         value_updater(obj, value)
-                        if update_register:
-                            register_modified_error(update_register, "value update")
-                for option_updater in info.get_options_updaters(*info.options, exclude_main_updaters=True):
+                        if after_init_register:
+                            register_modified_error(after_init_register, "value update")
+                for option_updater in info.get_options_updaters(*update_register, exclude_main_updaters=True):
                     option_updater(obj)
-                    if update_register:
-                        register_modified_error(update_register, "update")
+                    if after_init_register:
+                        register_modified_error(after_init_register, "update")
                 for main_updater in info.main_updater:
                     main_updater(obj)
-                    if update_register:
-                        register_modified_error(update_register, "main update")
+                    if after_init_register:
+                        register_modified_error(after_init_register, "main update")
 
     @final
     def has_initialization_context(self) -> bool:
@@ -1739,10 +1742,11 @@ class Configuration(Object, Generic[_T]):
         with cls.__lazy_lock(obj):
             register = cls.__init_context.get(obj, None)
             if register is not None:
-                yield UpdateContext(first_call=False, init_context=register, updated=set())
+                update_register = cls.__update_context.get(obj, set())
+                yield UpdateContext(first_call=False, init_context=register, updated=update_register)
                 return
 
-            update_register: _UpdateRegister = cls.__update_context.setdefault(obj, set())
+            update_register = cls.__update_context.setdefault(obj, set())
             update_stack: set[str] = cls.__update_stack.setdefault(obj, set())
             if option in update_stack:
                 yield UpdateContext(first_call=False, init_context=None, updated=update_register)
