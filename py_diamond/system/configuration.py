@@ -316,7 +316,7 @@ class ConfigurationTemplate(Object):
                 raise OptionError(option, "Trying to flag option as read-only with custom setter/deleter")
 
             def decorator(func: _GetterVar, /) -> _GetterVar:
-                wrapper = _make_function_wrapper(func, check_override=bool(use_override))
+                wrapper = _make_function_wrapper(func, use_override=bool(use_override))
                 new_config_property: property
                 if actual_property is None:
                     new_config_property = _ConfigProperty(wrapper)
@@ -336,7 +336,7 @@ class ConfigurationTemplate(Object):
             config_property: _ConfigProperty = actual_descriptor
 
             def decorator(func: _GetterVar, /) -> _GetterVar:
-                wrapper = _make_function_wrapper(func, check_override=bool(use_override))
+                wrapper = _make_function_wrapper(func, use_override=bool(use_override))
                 readonly_descriptor.set_new_descriptor(config_property.getter(wrapper))
                 return func
 
@@ -389,7 +389,7 @@ class ConfigurationTemplate(Object):
             return lambda self: func(self, use_key)
 
         def decorator(func: _KeyGetterVar, /) -> _KeyGetterVar:
-            wrapper = _WrappedFunctionWrapper(func, key, wrapper_decorator, check_override=bool(use_override), no_object=False)
+            wrapper = _WrappedFunctionWrapper(func, key, wrapper_decorator, use_override=bool(use_override), no_object=False)
             self.getter(option, wrapper, readonly=readonly)
             return func
 
@@ -468,7 +468,7 @@ class ConfigurationTemplate(Object):
         actual_property: _ConfigProperty = actual_descriptor
 
         def decorator(func: _SetterVar, /) -> _SetterVar:
-            wrapper = _make_function_wrapper(func, check_override=bool(use_override))
+            wrapper = _make_function_wrapper(func, use_override=bool(use_override))
             template.value_descriptors[option] = actual_property.setter(wrapper)
             return func
 
@@ -516,7 +516,7 @@ class ConfigurationTemplate(Object):
             return lambda self, value: func(self, use_key, value)
 
         def decorator(func: _KeySetterVar, /) -> _KeySetterVar:
-            wrapper = _WrappedFunctionWrapper(func, key, wrapper_decorator, check_override=bool(use_override), no_object=False)
+            wrapper = _WrappedFunctionWrapper(func, key, wrapper_decorator, use_override=bool(use_override), no_object=False)
             self.setter(option, wrapper)
             return func
 
@@ -592,7 +592,7 @@ class ConfigurationTemplate(Object):
         actual_property: _ConfigProperty = actual_descriptor
 
         def decorator(func: _DeleterVar, /) -> _DeleterVar:
-            wrapper = _make_function_wrapper(func, check_override=bool(use_override))
+            wrapper = _make_function_wrapper(func, use_override=bool(use_override))
             template.value_descriptors[option] = actual_property.deleter(wrapper)
             return func
 
@@ -640,7 +640,7 @@ class ConfigurationTemplate(Object):
             return lambda self: func(self, use_key)
 
         def decorator(func: _KeyDeleterVar, /) -> _KeyDeleterVar:
-            wrapper = _WrappedFunctionWrapper(func, key, wrapper_decorator, check_override=bool(use_override), no_object=False)
+            wrapper = _WrappedFunctionWrapper(func, key, wrapper_decorator, use_override=bool(use_override), no_object=False)
             self.deleter(option, wrapper)
             return func
 
@@ -734,10 +734,10 @@ class ConfigurationTemplate(Object):
         template: _ConfigInfoTemplate = self.__template
 
         def decorator(func: _UpdaterVar, /) -> _UpdaterVar:
-            wrapper = _make_function_wrapper(func, check_override=bool(use_override))
-            if wrapper in template.main_updater:
+            wrapper = _make_function_wrapper(func, use_override=bool(use_override))
+            if wrapper in template.main_update_hooks:
                 raise ConfigurationError("Function already registered")
-            template.main_updater.add(wrapper)
+            template.main_update_hooks.add(wrapper)
             return func
 
         if func is None:
@@ -760,8 +760,8 @@ class ConfigurationTemplate(Object):
         self.check_option_validity(option)
 
         def decorator(func: _UpdaterVar, /) -> _UpdaterVar:
-            updater_list = template.option_updater.setdefault(option, set())
-            wrapper = _make_function_wrapper(func, check_override=bool(use_override))
+            updater_list = template.option_update_hooks.setdefault(option, set())
+            wrapper = _make_function_wrapper(func, use_override=bool(use_override))
             if wrapper in updater_list:
                 raise OptionError(option, "Function already registered")
             updater_list.add(wrapper)
@@ -811,7 +811,7 @@ class ConfigurationTemplate(Object):
             return lambda self: func(self, use_key)
 
         def decorator(func: _KeyUpdaterVar, /) -> _KeyUpdaterVar:
-            wrapper = _WrappedFunctionWrapper(func, key, wrapper_decorator, check_override=bool(use_override), no_object=False)
+            wrapper = _WrappedFunctionWrapper(func, key, wrapper_decorator, use_override=bool(use_override), no_object=False)
             self.on_update(option, wrapper)
             return func
 
@@ -879,8 +879,8 @@ class ConfigurationTemplate(Object):
         self.check_option_validity(option)
 
         def decorator(func: _ValueUpdaterVar, /) -> _ValueUpdaterVar:
-            updater_list = template.option_value_updater.setdefault(option, set())
-            wrapper = _make_function_wrapper(func, check_override=bool(use_override))
+            updater_list = template.option_value_update_hooks.setdefault(option, set())
+            wrapper = _make_function_wrapper(func, use_override=bool(use_override))
             if wrapper in updater_list:
                 raise OptionError(option, "Function already registered")
             updater_list.add(wrapper)
@@ -934,7 +934,7 @@ class ConfigurationTemplate(Object):
             return lambda self, value: func(self, use_key, value)
 
         def decorator(func: _KeyValueUpdaterVar, /) -> _KeyValueUpdaterVar:
-            wrapper = _WrappedFunctionWrapper(func, key, wrapper_decorator, check_override=bool(use_override), no_object=False)
+            wrapper = _WrappedFunctionWrapper(func, key, wrapper_decorator, use_override=bool(use_override), no_object=False)
             self.on_update_value(option, wrapper)
             return func
 
@@ -1013,7 +1013,7 @@ class ConfigurationTemplate(Object):
 
         def decorator(func: _ValueValidatorVar, /) -> _ValueValidatorVar:
             value_validator_list = template.value_validator.setdefault(option, [])
-            wrapper = _make_function_wrapper(func, check_override=bool(use_override))
+            wrapper = _make_function_wrapper(func, use_override=bool(use_override))
             if wrapper in value_validator_list:
                 raise OptionError(option, "Function already registered")
             value_validator_list.append(wrapper)
@@ -1054,7 +1054,7 @@ class ConfigurationTemplate(Object):
 
         def decorator(func: _StaticValueValidatorVar, /) -> _StaticValueValidatorVar:
             value_validator_list = template.value_validator.setdefault(option, [])
-            wrapper = _make_function_wrapper(func, check_override=False, no_object=True)
+            wrapper = _make_function_wrapper(func, use_override=False, no_object=True)
             if wrapper in value_validator_list:
                 raise OptionError(option, "Function already registered")
             value_validator_list.append(wrapper)
@@ -1106,7 +1106,7 @@ class ConfigurationTemplate(Object):
 
         def decorator(func: _ValueConverterVar, /) -> _ValueConverterVar:
             value_converter_list = template.value_converter_on_get.setdefault(option, [])
-            wrapper = _make_function_wrapper(func, check_override=bool(use_override))
+            wrapper = _make_function_wrapper(func, use_override=bool(use_override))
             if wrapper in value_converter_list:
                 raise OptionError(option, "Function already registered")
             value_converter_list.append(wrapper)
@@ -1143,7 +1143,7 @@ class ConfigurationTemplate(Object):
 
         def decorator(func: _StaticValueConverterVar, /) -> _StaticValueConverterVar:
             value_converter_list = template.value_converter_on_get.setdefault(option, [])
-            wrapper = _make_function_wrapper(func, check_override=False, no_object=True)
+            wrapper = _make_function_wrapper(func, use_override=False, no_object=True)
             if wrapper in value_converter_list:
                 raise OptionError(option, "Function already registered")
             value_converter_list.append(wrapper)
@@ -1191,7 +1191,7 @@ class ConfigurationTemplate(Object):
 
         def decorator(func: _ValueConverterVar, /) -> _ValueConverterVar:
             value_converter_list = template.value_converter_on_set.setdefault(option, [])
-            wrapper = _make_function_wrapper(func, check_override=bool(use_override))
+            wrapper = _make_function_wrapper(func, use_override=bool(use_override))
             if wrapper in value_converter_list:
                 raise OptionError(option, "Function already registered")
             value_converter_list.append(wrapper)
@@ -1228,7 +1228,7 @@ class ConfigurationTemplate(Object):
 
         def decorator(func: _StaticValueConverterVar, /) -> _StaticValueConverterVar:
             value_converter_list = template.value_converter_on_set.setdefault(option, [])
-            wrapper = _make_function_wrapper(func, check_override=False, no_object=True)
+            wrapper = _make_function_wrapper(func, use_override=False, no_object=True)
             if wrapper in value_converter_list:
                 raise OptionError(option, "Function already registered")
             value_converter_list.append(wrapper)
@@ -1394,9 +1394,9 @@ def _default_mapping() -> MappingProxyType[Any, Any]:
 class ConfigurationInfo(Object, Generic[_T]):
     options: Set[str]
     _: KW_ONLY
-    option_value_updater: Mapping[str, Set[Callable[[_T, Any], None]]] = field(default_factory=_default_mapping)
-    option_updater: Mapping[str, Set[Callable[[_T], None]]] = field(default_factory=_default_mapping)
-    main_updater: Set[Callable[[_T], None]] = field(default_factory=frozenset)
+    option_value_update_hooks: Mapping[str, Set[Callable[[_T, Any], None]]] = field(default_factory=_default_mapping)
+    option_update_hooks: Mapping[str, Set[Callable[[_T], None]]] = field(default_factory=_default_mapping)
+    main_object_update_hooks: Set[Callable[[_T], None]] = field(default_factory=frozenset)
     value_converter_on_get: Mapping[str, Sequence[Callable[[_T, Any], Any]]] = field(default_factory=_default_mapping)
     value_converter_on_set: Mapping[str, Sequence[Callable[[_T, Any], Any]]] = field(default_factory=_default_mapping)
     value_validator: Mapping[str, Sequence[Callable[[_T, Any], None]]] = field(default_factory=_default_mapping)
@@ -1439,10 +1439,10 @@ class ConfigurationInfo(Object, Generic[_T]):
             descriptor = self.__ReadOnlyOptionWrapper(descriptor)
         return descriptor
 
-    def get_options_updaters(self, *options: str, exclude_main_updaters: bool) -> Set[Callable[[_T], None]]:
-        get_option_updater = self.option_updater.get
-        updaters = set(chain.from_iterable(get_option_updater(option, ()) for option in set(options)))
-        if exclude_main_updaters and (main_updater := self.main_updater):
+    def get_options_update_hooks(self, *options: str, exclude_main_updaters: bool) -> Set[Callable[[_T], None]]:
+        get_option_update_hooks = self.option_update_hooks.get
+        updaters = set(chain.from_iterable(get_option_update_hooks(option, ()) for option in set(options)))
+        if exclude_main_updaters and (main_updater := self.main_object_update_hooks):
             updaters.difference_update(main_updater)
         return updaters
 
@@ -1551,7 +1551,7 @@ class Configuration(Object, Generic[_T]):
             if register is not None:
                 register[option] = value
             else:
-                for value_updater in info.option_value_updater.get(option, ()):
+                for value_updater in info.option_value_update_hooks.get(option, ()):
                     value_updater(obj, value)
 
             update_context.updated.add(option)
@@ -1641,15 +1641,15 @@ class Configuration(Object, Generic[_T]):
                 Configuration.__init_context[obj] = after_init_register
                 info: ConfigurationInfo[_T] = self.__info
                 for option, value in initialization_register.items():
-                    for value_updater in info.option_value_updater.get(option, ()):
+                    for value_updater in info.option_value_update_hooks.get(option, ()):
                         value_updater(obj, value)
                         if after_init_register:
                             register_modified_error(after_init_register, "value update")
-                for option_updater in info.get_options_updaters(*update_register, exclude_main_updaters=True):
+                for option_updater in info.get_options_update_hooks(*update_register, exclude_main_updaters=True):
                     option_updater(obj)
                     if after_init_register:
                         register_modified_error(after_init_register, "update")
-                for main_updater in info.main_updater:
+                for main_updater in info.main_object_update_hooks:
                     main_updater(obj)
                     if after_init_register:
                         register_modified_error(after_init_register, "main update")
@@ -1713,7 +1713,7 @@ class Configuration(Object, Generic[_T]):
                 except AttributeError:
                     pass
                 else:
-                    for value_updater in info.option_value_updater.get(option, ()):
+                    for value_updater in info.option_value_update_hooks.get(option, ()):
                         value_updater(obj, value)
                 context.updated.add(option)
 
@@ -1729,7 +1729,7 @@ class Configuration(Object, Generic[_T]):
             except AttributeError:
                 pass
             else:
-                for value_updater in info.option_value_updater.get(option, ()):
+                for value_updater in info.option_value_update_hooks.get(option, ()):
                     value_updater(obj, value)
 
             update_context.updated.add(option)
@@ -1766,9 +1766,9 @@ class Configuration(Object, Generic[_T]):
             update_register = cls.__update_context.pop(obj, update_register)
             if not update_register:
                 return
-            for option_updater in info.get_options_updaters(*update_register, exclude_main_updaters=True):
+            for option_updater in info.get_options_update_hooks(*update_register, exclude_main_updaters=True):
                 option_updater(obj)
-            for main_updater in info.main_updater:
+            for main_updater in info.main_object_update_hooks:
                 main_updater(obj)
 
     @classmethod
@@ -1802,12 +1802,12 @@ def _no_type_check_cache(func: _FuncVar) -> _FuncVar:
     return cache(func)  # type: ignore[return-value]
 
 
-def _make_function_wrapper(func: Any, *, check_override: bool = True, no_object: bool = False) -> Callable[..., Any]:
+def _make_function_wrapper(func: Any, *, use_override: bool = True, no_object: bool = False) -> Callable[..., Any]:
     wrapper: _FunctionWrapperBuilder | _WrappedFunctionWrapper
     if isinstance(func, _WrappedFunctionWrapper):
         wrapper = func
     else:
-        wrapper = _FunctionWrapperBuilder(func, check_override=check_override, no_object=no_object)
+        wrapper = _FunctionWrapperBuilder(func, use_override=use_override, no_object=no_object)
     cached_func = wrapper.get_wrapper()
     if cached_func is not None:
         return cached_func
@@ -1831,7 +1831,7 @@ class _FunctionWrapperBuilder:
 
     class Info(NamedTuple):
         func: Any
-        check_override: bool
+        use_override: bool
         no_object: bool
 
     info: Info
@@ -1840,12 +1840,12 @@ class _FunctionWrapperBuilder:
 
     __instance_cache: dict[Info, _FunctionWrapperBuilder] = dict()
 
-    def __new__(cls, func: Any, check_override: bool, no_object: bool) -> _FunctionWrapperBuilder:
+    def __new__(cls, func: Any, use_override: bool, no_object: bool) -> _FunctionWrapperBuilder:
         if isinstance(func, cls):
-            if func.info.check_override == check_override and func.info.no_object == no_object:
+            if func.info.use_override == use_override and func.info.no_object == no_object:
                 return func
             func = func.info.func
-        info = cls.Info(func=func, check_override=check_override, no_object=no_object)
+        info = cls.Info(func=func, use_override=use_override, no_object=no_object)
         try:
             self = cls.__instance_cache[info]
         except KeyError:
@@ -1882,10 +1882,10 @@ class _FunctionWrapperBuilder:
             return self.cache[func]
 
         no_object = info.no_object
-        check_override = info.check_override
+        use_override = info.use_override
 
         func_name: str = ""
-        if check_override:
+        if use_override:
             func_name = next((attr_name for attr_name, attr_obj in _all_members(cls).items() if attr_obj is func), func_name)
             if not func_name:
                 msg = f"Couldn't find {func!r} in {cls.__qualname__} members"
@@ -1957,12 +1957,12 @@ class _WrappedFunctionWrapper:
         func: Any,
         unique_key: Hashable,
         wrapper_decorator: Callable[[Callable[..., Any]], Callable[..., Any]],
-        check_override: bool,
+        use_override: bool,
         no_object: bool,
     ) -> _WrappedFunctionWrapper:
         self = object.__new__(cls)
 
-        self.wrapper = _FunctionWrapperBuilder(func, check_override, no_object)
+        self.wrapper = _FunctionWrapperBuilder(func, use_override, no_object)
         self.decorator = wrapper_decorator
         self.cache = self.__wrapper_cache.setdefault(unique_key, {})
 
@@ -2125,9 +2125,9 @@ class _ConfigInfoTemplate:
     def __init__(self, known_options: Sequence[str], parents: Sequence[_ConfigInfoTemplate]) -> None:
         self.parents: tuple[_ConfigInfoTemplate, ...] = tuple(parents)
         self.options: frozenset[str] = frozenset(known_options)
-        self.main_updater: set[Callable[[object], None]] = set()
-        self.option_updater: dict[str, set[Callable[[object], None]]] = dict()
-        self.option_value_updater: dict[str, set[Callable[[object, Any], None]]] = dict()
+        self.main_update_hooks: set[Callable[[object], None]] = set()
+        self.option_update_hooks: dict[str, set[Callable[[object], None]]] = dict()
+        self.option_value_update_hooks: dict[str, set[Callable[[object, Any], None]]] = dict()
         self.value_descriptors: dict[str, _Descriptor] = dict()
         self.value_converter_on_get: dict[str, list[Callable[[object, Any], Any]]] = dict()
         self.value_converter_on_set: dict[str, list[Callable[[object, Any], Any]]] = dict()
@@ -2138,9 +2138,9 @@ class _ConfigInfoTemplate:
         merge_updater_dict = self.__merge_updater_dict
         for p in parents:
             self.options |= p.options
-            self.main_updater |= p.main_updater
-            merge_updater_dict(self.option_updater, p.option_updater)
-            merge_updater_dict(self.option_value_updater, p.option_value_updater)
+            self.main_update_hooks |= p.main_update_hooks
+            merge_updater_dict(self.option_update_hooks, p.option_update_hooks)
+            merge_updater_dict(self.option_value_update_hooks, p.option_value_update_hooks)
             merge_dict(self.value_descriptors, p.value_descriptors, on_conflict="raise", setting="descriptor")
             merge_dict(
                 self.value_converter_on_get,
@@ -2206,9 +2206,9 @@ class _ConfigInfoTemplate:
 
         return ConfigurationInfo(
             options=frozenset(self.options),
-            option_value_updater=self.__build_option_value_updater_dict(),
-            option_updater=self.__build_option_updater_dict(),
-            main_updater=frozenset(self.main_updater),
+            option_value_update_hooks=self.__build_option_value_update_hooks_dict(),
+            option_update_hooks=self.__build_option_update_hooks_dict(),
+            main_object_update_hooks=frozenset(self.main_update_hooks),
             value_converter_on_get=self.__build_value_converter_dict(on="get"),
             value_converter_on_set=self.__build_value_converter_dict(on="set"),
             value_validator=self.__build_value_validator_dict(),
@@ -2236,13 +2236,14 @@ class _ConfigInfoTemplate:
                     descriptor.set_new_descriptor(build_wrapper_within_descriptor(underlying_descriptor))
             return descriptor
 
-        self.main_updater = set(build_wrapper_if_needed(func) for func in self.main_updater)
-        self.option_updater = {
-            option: set(build_wrapper_if_needed(func) for func in func_set) for option, func_set in self.option_updater.items()
-        }
-        self.option_value_updater = {
+        self.main_update_hooks = set(build_wrapper_if_needed(func) for func in self.main_update_hooks)
+        self.option_update_hooks = {
             option: set(build_wrapper_if_needed(func) for func in func_set)
-            for option, func_set in self.option_value_updater.items()
+            for option, func_set in self.option_update_hooks.items()
+        }
+        self.option_value_update_hooks = {
+            option: set(build_wrapper_if_needed(func) for func in func_set)
+            for option, func_set in self.option_value_update_hooks.items()
         }
         for callback_list in chain(
             self.value_converter_on_get.values(),
@@ -2258,21 +2259,17 @@ class _ConfigInfoTemplate:
             self.value_descriptors[option] = descriptor = _PrivateAttributeOptionProperty()
             descriptor.__set_name__(owner, option)
 
-    def __build_option_value_updater_dict(self) -> MappingProxyType[str, frozenset[Callable[[object, Any], None]]]:
+    def __build_option_value_update_hooks_dict(self) -> MappingProxyType[str, frozenset[Callable[[object, Any], None]]]:
         return MappingProxyType(
-            {
-                option: frozenset(updater_list)
-                for option, updater_list in self.option_value_updater.items()
-                if len(updater_list) > 0
-            }
+            {option: frozenset(hooks) for option, hooks in self.option_value_update_hooks.items() if len(hooks) > 0}
         )
 
-    def __build_option_updater_dict(self) -> MappingProxyType[str, frozenset[Callable[[object], None]]]:
+    def __build_option_update_hooks_dict(self) -> MappingProxyType[str, frozenset[Callable[[object], None]]]:
         return MappingProxyType(
             {
-                option: frozenset(filtered_updater_list)
-                for option, updater_list in self.option_updater.items()
-                if len((filtered_updater_list := updater_list.difference(self.main_updater))) > 0
+                option: frozenset(filtered_hooks)
+                for option, hooks in self.option_update_hooks.items()
+                if len((filtered_hooks := hooks.difference(self.main_update_hooks))) > 0
             }
         )
 
