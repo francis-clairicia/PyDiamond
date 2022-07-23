@@ -760,6 +760,8 @@ class ConfigurationTemplate(Object):
         self.check_option_validity(option)
 
         def decorator(func: _UpdaterVar, /) -> _UpdaterVar:
+            if isinstance(template.value_descriptors.get(option), _ReadOnlyOptionBuildPayload):
+                raise OptionError(option, "Cannot add update hook on read-only option")
             updater_list = template.option_update_hooks.setdefault(option, set())
             wrapper = _make_function_wrapper(func, use_override=bool(use_override))
             if wrapper in updater_list:
@@ -879,6 +881,8 @@ class ConfigurationTemplate(Object):
         self.check_option_validity(option)
 
         def decorator(func: _ValueUpdaterVar, /) -> _ValueUpdaterVar:
+            if isinstance(template.value_descriptors.get(option), _ReadOnlyOptionBuildPayload):
+                raise OptionError(option, "Cannot add update hook on read-only option")
             updater_list = template.option_value_update_hooks.setdefault(option, set())
             wrapper = _make_function_wrapper(func, use_override=bool(use_override))
             if wrapper in updater_list:
@@ -1301,6 +1305,8 @@ class ConfigurationTemplate(Object):
             if isinstance(descriptor, (_MutableDescriptor, _RemovableDescriptor)):
                 if not isinstance(descriptor, property) or descriptor.fset is not None or descriptor.fdel is not None:
                     raise OptionError(option, "Trying to flag option as read-only with custom setter/deleter")
+            if template.option_update_hooks.get(option) or template.option_value_update_hooks.get(option):
+                raise OptionError(option, "Trying to flag option as read-only with registered update hooks")
             template.value_descriptors[option] = _ReadOnlyOptionBuildPayload(descriptor)
 
     def __check_locked(self) -> None:

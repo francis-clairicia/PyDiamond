@@ -393,9 +393,9 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
         return self.__text.config.set(option, value)
 
     @config.getter_key("bg", use_key="color")
-    @config.getter_key("local_width")
-    @config.getter_key("local_height")
-    @config.getter_key("local_size")
+    @config.getter_key("local_width", readonly=True)
+    @config.getter_key("local_height", readonly=True)
+    @config.getter_key("local_size", readonly=True)
     @config.getter_key("border_radius")
     @config.getter_key("border_top_left_radius")
     @config.getter_key("border_top_right_radius")
@@ -414,8 +414,6 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
         self.__shape.config.set(option, value)
         if option != "color":
             self.__outline_shape.config.set(option, value)
-
-    config.readonly("local_width", "local_height", "local_size")
 
     @config.on_update("font")
     @config.on_update("fixed_width")
