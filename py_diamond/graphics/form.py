@@ -150,23 +150,23 @@ class Form(MDrawable, metaclass=FormMeta):
         self.__grid.topleft = self.topleft
         return super()._on_move()
 
-    @config.getter_key("bg_color")
-    @config.getter_key("outline")
-    @config.getter_key("outline_color")
+    @config.getter_with_key("bg_color")
+    @config.getter_with_key("outline")
+    @config.getter_with_key("outline_color")
     def __get_grid_option(self, option: str) -> Any:
         return self.__grid.config.get(option)
 
-    @config.setter_key("bg_color")
-    @config.setter_key("outline")
-    @config.setter_key("outline_color")
+    @config.setter_with_key("bg_color")
+    @config.setter_with_key("outline")
+    @config.setter_with_key("outline_color")
     def __set_grid_option(self, option: str, value: Any) -> None:
         return self.__grid.config.set(option, value)
 
     config.add_enum_converter("label_justify", Justify)
     config.add_enum_converter("entry_justify", Justify)
 
-    @config.on_update_key_value("label_justify")
-    @config.on_update_key_value("entry_justify")
+    @config.on_update_value_with_key("label_justify")
+    @config.on_update_value_with_key("entry_justify")
     def __update_grid_justify(self, option: str, justify: Justify) -> None:
         grid: Grid = self.__grid
         column: int = {"label_justify": 0, "entry_justify": 1}[option]
@@ -176,8 +176,8 @@ class Form(MDrawable, metaclass=FormMeta):
     config.add_value_converter_on_set_static("padx", valid_integer(min_value=0))
     config.add_value_converter_on_set_static("pady", valid_integer(min_value=0))
 
-    @config.on_update_key_value("padx")
-    @config.on_update_key_value("pady")
+    @config.on_update_value_with_key("padx")
+    @config.on_update_value_with_key("pady")
     def __upgrade_grid_padding(self, option: str, value: int) -> None:
         grid: Grid = self.__grid
         padding: dict[str, Any] = {option: value}

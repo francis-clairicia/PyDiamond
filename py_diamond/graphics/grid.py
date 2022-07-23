@@ -403,21 +403,21 @@ class Grid(MDrawable, Container[GridElement]):
             if column not in all_columns:
                 all_grid_columns.pop(column, None)
 
-    @config.getter_key("bg_color", use_key="color")
+    @config.getter_with_key("bg_color", use_key="color")
     def __get_bg_option(self, option: str) -> Any:
         return self.__bg.config.get(option)
 
-    @config.setter_key("bg_color", use_key="color")
+    @config.setter_with_key("bg_color", use_key="color")
     def __set_bg_option(self, option: str, value: Any) -> None:
         return self.__bg.config.set(option, value)
 
-    @config.getter_key("outline")
-    @config.getter_key("outline_color")
+    @config.getter_with_key("outline")
+    @config.getter_with_key("outline_color")
     def __get_outline_option(self, option: str) -> Any:
         return self.__outline.config.get(option)
 
-    @config.setter_key("outline")
-    @config.setter_key("outline_color")
+    @config.setter_with_key("outline")
+    @config.setter_with_key("outline_color")
     def __set_outline_option(self, option: str, value: Any) -> None:
         return self.__outline.config.set(option, value)
 

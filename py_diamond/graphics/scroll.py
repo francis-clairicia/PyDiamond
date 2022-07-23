@@ -291,53 +291,53 @@ class ScrollBar(TDrawable, Clickable, metaclass=ScrollBarMeta):
 
     config.add_enum_converter("orient", Orient, return_value_on_get=True)
 
-    @config.getter_key("cursor_color", use_key="color")
+    @config.getter_with_key("cursor_color", use_key="color")
     def __get_cursor_shape_options(self, option: str) -> Any:
         return self.__cursor_shape.config.get(option)
 
-    @config.setter_key("cursor_color", use_key="color")
+    @config.setter_with_key("cursor_color", use_key="color")
     def __set_cursor_shape_options(self, option: str, value: Any) -> Any:
         return self.__cursor_shape.config.set(option, value)
 
-    @config.getter_key("outline")
-    @config.getter_key("outline_color")
+    @config.getter_with_key("outline")
+    @config.getter_with_key("outline_color")
     def __get_outline_options(self, option: str) -> Any:
         return self.__outline_shape.config.get(option)
 
-    @config.setter_key("outline")
-    @config.setter_key("outline_color")
+    @config.setter_with_key("outline")
+    @config.setter_with_key("outline_color")
     def __set_outline_options(self, option: str, value: Any) -> None:
         self.__outline_shape.config.set(option, value)
 
-    @config.getter_key("local_width")
-    @config.getter_key("local_height")
-    @config.getter_key("local_size")
-    @config.getter_key("color")
-    @config.getter_key("border_radius")
-    @config.getter_key("border_top_left_radius")
-    @config.getter_key("border_top_right_radius")
-    @config.getter_key("border_bottom_left_radius")
-    @config.getter_key("border_bottom_right_radius")
+    @config.getter_with_key("local_width")
+    @config.getter_with_key("local_height")
+    @config.getter_with_key("local_size")
+    @config.getter_with_key("color")
+    @config.getter_with_key("border_radius")
+    @config.getter_with_key("border_top_left_radius")
+    @config.getter_with_key("border_top_right_radius")
+    @config.getter_with_key("border_bottom_left_radius")
+    @config.getter_with_key("border_bottom_right_radius")
     def __get_shape_option(self, option: str) -> Any:
         return self.__bg_shape.config.get(option)
 
-    @config.setter_key("local_width")
-    @config.setter_key("local_height")
-    @config.setter_key("local_size")
-    @config.setter_key("color")
-    @config.setter_key("border_radius")
-    @config.setter_key("border_top_left_radius")
-    @config.setter_key("border_top_right_radius")
-    @config.setter_key("border_bottom_left_radius")
-    @config.setter_key("border_bottom_right_radius")
+    @config.setter_with_key("local_width")
+    @config.setter_with_key("local_height")
+    @config.setter_with_key("local_size")
+    @config.setter_with_key("color")
+    @config.setter_with_key("border_radius")
+    @config.setter_with_key("border_top_left_radius")
+    @config.setter_with_key("border_top_right_radius")
+    @config.setter_with_key("border_bottom_left_radius")
+    @config.setter_with_key("border_bottom_right_radius")
     def __set_shape_option(self, option: str, value: Any) -> Any:
         return self.__bg_shape.config.set(option, value)
 
-    @config.on_update_key_value("border_radius")
-    @config.on_update_key_value("border_top_left_radius")
-    @config.on_update_key_value("border_top_right_radius")
-    @config.on_update_key_value("border_bottom_left_radius")
-    @config.on_update_key_value("border_bottom_right_radius")
+    @config.on_update_value_with_key("border_radius")
+    @config.on_update_value_with_key("border_top_left_radius")
+    @config.on_update_value_with_key("border_top_right_radius")
+    @config.on_update_value_with_key("border_bottom_left_radius")
+    @config.on_update_value_with_key("border_bottom_right_radius")
     def __update_cursor_shape_option(self, option: str, value: Any) -> None:
         self.__cursor_shape.config.set(option, value)
         self.__outline_shape.config.set(option, value)

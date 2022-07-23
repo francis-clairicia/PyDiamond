@@ -346,28 +346,28 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def getter_key(
+    def getter_with_key(
         self, option: str, /, *, use_override: bool = True, readonly: bool = False
     ) -> Callable[[_KeyGetterVar], _KeyGetterVar]:
         ...
 
     @overload
-    def getter_key(
+    def getter_with_key(
         self, option: str, /, *, use_key: Hashable, use_override: bool = True, readonly: bool = False
     ) -> Callable[[_KeyGetterVar], _KeyGetterVar]:
         ...
 
     @overload
-    def getter_key(self, option: str, func: _KeyGetterVar, /, *, use_override: bool = True, readonly: bool = False) -> None:
+    def getter_with_key(self, option: str, func: _KeyGetterVar, /, *, use_override: bool = True, readonly: bool = False) -> None:
         ...
 
     @overload
-    def getter_key(
+    def getter_with_key(
         self, option: str, func: _KeyGetterVar, /, *, use_key: Hashable, use_override: bool = True, readonly: bool = False
     ) -> None:
         ...
 
-    def getter_key(
+    def getter_with_key(
         self,
         option: str,
         func: _KeyGetterVar | None = None,
@@ -399,7 +399,7 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def getter_key_from_map(
+    def getter_with_key_from_map(
         self,
         option: str,
         key_map: Mapping[str, Hashable],
@@ -412,7 +412,7 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def getter_key_from_map(
+    def getter_with_key_from_map(
         self,
         option: str,
         key_map: Mapping[str, Hashable],
@@ -425,7 +425,7 @@ class ConfigurationTemplate(Object):
     ) -> None:
         ...
 
-    def getter_key_from_map(
+    def getter_with_key_from_map(
         self,
         option: str,
         key_map: Mapping[str, Hashable],
@@ -442,7 +442,7 @@ class ConfigurationTemplate(Object):
             if not ignore_key_error:
                 raise
             use_key = option
-        return self.getter_key(option, func, use_key=use_key, use_override=use_override, readonly=readonly)
+        return self.getter_with_key(option, func, use_key=use_key, use_override=use_override, readonly=readonly)
 
     @overload
     def setter(self, option: str, /, *, use_override: bool = True) -> Callable[[_SetterVar], _SetterVar]:
@@ -478,24 +478,24 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def setter_key(self, option: str, /, *, use_override: bool = True) -> Callable[[_KeySetterVar], _KeySetterVar]:
+    def setter_with_key(self, option: str, /, *, use_override: bool = True) -> Callable[[_KeySetterVar], _KeySetterVar]:
         ...
 
     @overload
-    def setter_key(
+    def setter_with_key(
         self, option: str, /, *, use_key: Hashable, use_override: bool = True
     ) -> Callable[[_KeySetterVar], _KeySetterVar]:
         ...
 
     @overload
-    def setter_key(self, option: str, func: _KeySetterVar, /, *, use_override: bool = True) -> None:
+    def setter_with_key(self, option: str, func: _KeySetterVar, /, *, use_override: bool = True) -> None:
         ...
 
     @overload
-    def setter_key(self, option: str, func: _KeySetterVar, /, *, use_key: Hashable, use_override: bool = True) -> None:
+    def setter_with_key(self, option: str, func: _KeySetterVar, /, *, use_key: Hashable, use_override: bool = True) -> None:
         ...
 
-    def setter_key(
+    def setter_with_key(
         self,
         option: str,
         func: _KeySetterVar | None = None,
@@ -526,7 +526,7 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def setter_key_from_map(
+    def setter_with_key_from_map(
         self,
         option: str,
         key_map: Mapping[str, Hashable],
@@ -538,7 +538,7 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def setter_key_from_map(
+    def setter_with_key_from_map(
         self,
         option: str,
         key_map: Mapping[str, Hashable],
@@ -550,7 +550,7 @@ class ConfigurationTemplate(Object):
     ) -> None:
         ...
 
-    def setter_key_from_map(
+    def setter_with_key_from_map(
         self,
         option: str,
         key_map: Mapping[str, Hashable],
@@ -566,7 +566,7 @@ class ConfigurationTemplate(Object):
             if not ignore_key_error:
                 raise
             use_key = option
-        return self.setter_key(option, func, use_key=use_key, use_override=use_override)
+        return self.setter_with_key(option, func, use_key=use_key, use_override=use_override)
 
     @overload
     def deleter(self, option: str, /, *, use_override: bool = True) -> Callable[[_DeleterVar], _DeleterVar]:
@@ -602,24 +602,24 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def deleter_key(self, option: str, /, *, use_override: bool = True) -> Callable[[_KeyDeleterVar], _KeyDeleterVar]:
+    def deleter_with_key(self, option: str, /, *, use_override: bool = True) -> Callable[[_KeyDeleterVar], _KeyDeleterVar]:
         ...
 
     @overload
-    def deleter_key(
+    def deleter_with_key(
         self, option: str, /, *, use_key: Hashable, use_override: bool = True
     ) -> Callable[[_KeyDeleterVar], _KeyDeleterVar]:
         ...
 
     @overload
-    def deleter_key(self, option: str, func: _KeyDeleterVar, /, *, use_override: bool = True) -> None:
+    def deleter_with_key(self, option: str, func: _KeyDeleterVar, /, *, use_override: bool = True) -> None:
         ...
 
     @overload
-    def deleter_key(self, option: str, func: _KeyDeleterVar, /, *, use_key: Hashable, use_override: bool = True) -> None:
+    def deleter_with_key(self, option: str, func: _KeyDeleterVar, /, *, use_key: Hashable, use_override: bool = True) -> None:
         ...
 
-    def deleter_key(
+    def deleter_with_key(
         self,
         option: str,
         func: _KeyDeleterVar | None = None,
@@ -650,7 +650,7 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def deleter_key_from_map(
+    def deleter_with_key_from_map(
         self,
         option: str,
         key_map: Mapping[str, Hashable],
@@ -662,7 +662,7 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def deleter_key_from_map(
+    def deleter_with_key_from_map(
         self,
         option: str,
         key_map: Mapping[str, Hashable],
@@ -674,7 +674,7 @@ class ConfigurationTemplate(Object):
     ) -> None:
         ...
 
-    def deleter_key_from_map(
+    def deleter_with_key_from_map(
         self,
         option: str,
         key_map: Mapping[str, Hashable],
@@ -690,7 +690,7 @@ class ConfigurationTemplate(Object):
             if not ignore_key_error:
                 raise
             use_key = option
-        return self.deleter_key(option, func, use_key=use_key, use_override=use_override)
+        return self.deleter_with_key(option, func, use_key=use_key, use_override=use_override)
 
     def use_descriptor(self, option: str, descriptor: _Descriptor) -> None:
         self.__check_locked()
@@ -775,24 +775,24 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def on_update_key(self, option: str, /, *, use_override: bool = True) -> Callable[[_KeyUpdaterVar], _KeyUpdaterVar]:
+    def on_update_with_key(self, option: str, /, *, use_override: bool = True) -> Callable[[_KeyUpdaterVar], _KeyUpdaterVar]:
         ...
 
     @overload
-    def on_update_key(
+    def on_update_with_key(
         self, option: str, /, *, use_key: Hashable, use_override: bool = True
     ) -> Callable[[_KeyUpdaterVar], _KeyUpdaterVar]:
         ...
 
     @overload
-    def on_update_key(self, option: str, func: _KeyUpdaterVar, /, *, use_override: bool = True) -> None:
+    def on_update_with_key(self, option: str, func: _KeyUpdaterVar, /, *, use_override: bool = True) -> None:
         ...
 
     @overload
-    def on_update_key(self, option: str, func: _KeyUpdaterVar, /, *, use_key: Hashable, use_override: bool = True) -> None:
+    def on_update_with_key(self, option: str, func: _KeyUpdaterVar, /, *, use_key: Hashable, use_override: bool = True) -> None:
         ...
 
-    def on_update_key(
+    def on_update_with_key(
         self,
         option: str,
         func: _KeyUpdaterVar | None = None,
@@ -823,7 +823,7 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def on_update_key_from_map(
+    def on_update_with_key_from_map(
         self,
         option: str,
         key_map: Mapping[str, Hashable],
@@ -835,7 +835,7 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def on_update_key_from_map(
+    def on_update_with_key_from_map(
         self,
         option: str,
         key_map: Mapping[str, Hashable],
@@ -847,7 +847,7 @@ class ConfigurationTemplate(Object):
     ) -> None:
         ...
 
-    def on_update_key_from_map(
+    def on_update_with_key_from_map(
         self,
         option: str,
         key_map: Mapping[str, Hashable],
@@ -863,7 +863,7 @@ class ConfigurationTemplate(Object):
             if not ignore_key_error:
                 raise
             use_key = option
-        return self.on_update_key(option, func, use_key=use_key, use_override=use_override)
+        return self.on_update_with_key(option, func, use_key=use_key, use_override=use_override)
 
     @overload
     def on_update_value(self, option: str, /, *, use_override: bool = True) -> Callable[[_ValueUpdaterVar], _ValueUpdaterVar]:
@@ -896,28 +896,28 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def on_update_key_value(
+    def on_update_value_with_key(
         self, option: str, /, *, use_override: bool = True
     ) -> Callable[[_KeyValueUpdaterVar], _KeyValueUpdaterVar]:
         ...
 
     @overload
-    def on_update_key_value(
+    def on_update_value_with_key(
         self, option: str, /, *, use_key: Hashable, use_override: bool = True
     ) -> Callable[[_KeyValueUpdaterVar], _KeyValueUpdaterVar]:
         ...
 
     @overload
-    def on_update_key_value(self, option: str, func: _KeyValueUpdaterVar, /, *, use_override: bool = True) -> None:
+    def on_update_value_with_key(self, option: str, func: _KeyValueUpdaterVar, /, *, use_override: bool = True) -> None:
         ...
 
     @overload
-    def on_update_key_value(
+    def on_update_value_with_key(
         self, option: str, func: _KeyValueUpdaterVar, /, *, use_key: Hashable, use_override: bool = True
     ) -> None:
         ...
 
-    def on_update_key_value(
+    def on_update_value_with_key(
         self,
         option: str,
         func: _KeyValueUpdaterVar | None = None,
@@ -948,7 +948,7 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
-    def on_update_key_from_map_value(
+    def on_update_value_with_key_from_map(
         self,
         option: str,
         key_map: Mapping[str, Hashable],
@@ -960,7 +960,7 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def on_update_key_from_map_value(
+    def on_update_value_with_key_from_map(
         self,
         option: str,
         key_map: Mapping[str, Hashable],
@@ -972,7 +972,7 @@ class ConfigurationTemplate(Object):
     ) -> None:
         ...
 
-    def on_update_key_from_map_value(
+    def on_update_value_with_key_from_map(
         self,
         option: str,
         key_map: Mapping[str, Hashable],
@@ -988,7 +988,7 @@ class ConfigurationTemplate(Object):
             if not ignore_key_error:
                 raise
             use_key = option
-        return self.on_update_key_value(option, func, use_key=use_key, use_override=use_override)
+        return self.on_update_value_with_key(option, func, use_key=use_key, use_override=use_override)
 
     @overload
     def add_value_validator(

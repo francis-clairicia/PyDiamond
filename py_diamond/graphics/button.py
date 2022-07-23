@@ -626,29 +626,29 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
         "distance_text_img": "distance",
     }
 
-    @config.getter_key_from_map("text", __TEXT_PARAM)
-    @config.getter_key_from_map("text_font", __TEXT_PARAM)
-    @config.getter_key_from_map("text_justify", __TEXT_PARAM)
-    @config.getter_key_from_map("text_wrap", __TEXT_PARAM)
-    @config.getter_key_from_map("text_shadow", __TEXT_PARAM)
-    @config.getter_key_from_map("text_shadow_x", __TEXT_PARAM)
-    @config.getter_key_from_map("text_shadow_y", __TEXT_PARAM)
-    @config.getter_key_from_map("text_shadow_color", __TEXT_PARAM)
-    @config.getter_key_from_map("compound", __TEXT_PARAM)
-    @config.getter_key_from_map("distance_text_img", __TEXT_PARAM)
+    @config.getter_with_key_from_map("text", __TEXT_PARAM)
+    @config.getter_with_key_from_map("text_font", __TEXT_PARAM)
+    @config.getter_with_key_from_map("text_justify", __TEXT_PARAM)
+    @config.getter_with_key_from_map("text_wrap", __TEXT_PARAM)
+    @config.getter_with_key_from_map("text_shadow", __TEXT_PARAM)
+    @config.getter_with_key_from_map("text_shadow_x", __TEXT_PARAM)
+    @config.getter_with_key_from_map("text_shadow_y", __TEXT_PARAM)
+    @config.getter_with_key_from_map("text_shadow_color", __TEXT_PARAM)
+    @config.getter_with_key_from_map("compound", __TEXT_PARAM)
+    @config.getter_with_key_from_map("distance_text_img", __TEXT_PARAM)
     def __get_text_option(self, option: str) -> Any:
         return self.__text.config.get(option)
 
-    @config.setter_key_from_map("text", __TEXT_PARAM)
-    @config.setter_key_from_map("text_font", __TEXT_PARAM)
-    @config.setter_key_from_map("text_justify", __TEXT_PARAM)
-    @config.setter_key_from_map("text_wrap", __TEXT_PARAM)
-    @config.setter_key_from_map("text_shadow", __TEXT_PARAM)
-    @config.setter_key_from_map("text_shadow_x", __TEXT_PARAM)
-    @config.setter_key_from_map("text_shadow_y", __TEXT_PARAM)
-    @config.setter_key_from_map("text_shadow_color", __TEXT_PARAM)
-    @config.setter_key_from_map("compound", __TEXT_PARAM)
-    @config.setter_key_from_map("distance_text_img", __TEXT_PARAM)
+    @config.setter_with_key_from_map("text", __TEXT_PARAM)
+    @config.setter_with_key_from_map("text_font", __TEXT_PARAM)
+    @config.setter_with_key_from_map("text_justify", __TEXT_PARAM)
+    @config.setter_with_key_from_map("text_wrap", __TEXT_PARAM)
+    @config.setter_with_key_from_map("text_shadow", __TEXT_PARAM)
+    @config.setter_with_key_from_map("text_shadow_x", __TEXT_PARAM)
+    @config.setter_with_key_from_map("text_shadow_y", __TEXT_PARAM)
+    @config.setter_with_key_from_map("text_shadow_color", __TEXT_PARAM)
+    @config.setter_with_key_from_map("compound", __TEXT_PARAM)
+    @config.setter_with_key_from_map("distance_text_img", __TEXT_PARAM)
     def __set_text_option(self, option: str, value: Any) -> None:
         return self.__text.config.set(option, value)
 
@@ -696,22 +696,22 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
         "disabled_active_img": (Clickable.State.DISABLED, "active"),
     }
 
-    @config.getter_key_from_map("background", __STATE)
-    @config.getter_key_from_map("hover_background", __STATE)
-    @config.getter_key_from_map("active_background", __STATE)
-    @config.getter_key_from_map("disabled_background", __STATE)
-    @config.getter_key_from_map("disabled_hover_background", __STATE)
-    @config.getter_key_from_map("disabled_active_background", __STATE)
+    @config.getter_with_key_from_map("background", __STATE)
+    @config.getter_with_key_from_map("hover_background", __STATE)
+    @config.getter_with_key_from_map("active_background", __STATE)
+    @config.getter_with_key_from_map("disabled_background", __STATE)
+    @config.getter_with_key_from_map("disabled_hover_background", __STATE)
+    @config.getter_with_key_from_map("disabled_active_background", __STATE)
     def __get_background(self, key: __TupleState) -> Color | None:
         clickable_state, button_state = key
         return self.__bg_dict[clickable_state][button_state]
 
-    @config.setter_key_from_map("background", __STATE)
-    @config.setter_key_from_map("hover_background", __STATE)
-    @config.setter_key_from_map("active_background", __STATE)
-    @config.setter_key_from_map("disabled_background", __STATE)
-    @config.setter_key_from_map("disabled_hover_background", __STATE)
-    @config.setter_key_from_map("disabled_active_background", __STATE)
+    @config.setter_with_key_from_map("background", __STATE)
+    @config.setter_with_key_from_map("hover_background", __STATE)
+    @config.setter_with_key_from_map("active_background", __STATE)
+    @config.setter_with_key_from_map("disabled_background", __STATE)
+    @config.setter_with_key_from_map("disabled_hover_background", __STATE)
+    @config.setter_with_key_from_map("disabled_active_background", __STATE)
     def __set_background(self, key: __TupleState, color: Color | None) -> None:
         clickable_state, button_state = key
         self.__bg_dict[clickable_state][button_state] = color
@@ -730,22 +730,22 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config.on_update("disabled_hover_background", __update_state)
     config.on_update("disabled_active_background", __update_state)
 
-    @config.getter_key_from_map("foreground", __STATE)
-    @config.getter_key_from_map("hover_foreground", __STATE)
-    @config.getter_key_from_map("active_foreground", __STATE)
-    @config.getter_key_from_map("disabled_foreground", __STATE)
-    @config.getter_key_from_map("disabled_hover_foreground", __STATE)
-    @config.getter_key_from_map("disabled_active_foreground", __STATE)
+    @config.getter_with_key_from_map("foreground", __STATE)
+    @config.getter_with_key_from_map("hover_foreground", __STATE)
+    @config.getter_with_key_from_map("active_foreground", __STATE)
+    @config.getter_with_key_from_map("disabled_foreground", __STATE)
+    @config.getter_with_key_from_map("disabled_hover_foreground", __STATE)
+    @config.getter_with_key_from_map("disabled_active_foreground", __STATE)
     def __get_foreground(self, key: __TupleState) -> Color | None:
         clickable_state, button_state = key
         return self.__fg_dict[clickable_state][button_state]
 
-    @config.setter_key_from_map("foreground", __STATE)
-    @config.setter_key_from_map("hover_foreground", __STATE)
-    @config.setter_key_from_map("active_foreground", __STATE)
-    @config.setter_key_from_map("disabled_foreground", __STATE)
-    @config.setter_key_from_map("disabled_hover_foreground", __STATE)
-    @config.setter_key_from_map("disabled_active_foreground", __STATE)
+    @config.setter_with_key_from_map("foreground", __STATE)
+    @config.setter_with_key_from_map("hover_foreground", __STATE)
+    @config.setter_with_key_from_map("active_foreground", __STATE)
+    @config.setter_with_key_from_map("disabled_foreground", __STATE)
+    @config.setter_with_key_from_map("disabled_hover_foreground", __STATE)
+    @config.setter_with_key_from_map("disabled_active_foreground", __STATE)
     def __set_foreground(self, key: __TupleState, color: Color | None) -> None:
         clickable_state, button_state = key
         self.__fg_dict[clickable_state][button_state] = color
@@ -764,22 +764,22 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config.on_update("disabled_hover_foreground", __update_state)
     config.on_update("disabled_active_foreground", __update_state)
 
-    @config.getter_key_from_map("img", __STATE)
-    @config.getter_key_from_map("hover_img", __STATE)
-    @config.getter_key_from_map("active_img", __STATE)
-    @config.getter_key_from_map("disabled_img", __STATE)
-    @config.getter_key_from_map("disabled_hover_img", __STATE)
-    @config.getter_key_from_map("disabled_active_img", __STATE)
+    @config.getter_with_key_from_map("img", __STATE)
+    @config.getter_with_key_from_map("hover_img", __STATE)
+    @config.getter_with_key_from_map("active_img", __STATE)
+    @config.getter_with_key_from_map("disabled_img", __STATE)
+    @config.getter_with_key_from_map("disabled_hover_img", __STATE)
+    @config.getter_with_key_from_map("disabled_active_img", __STATE)
     def __get_img(self, key: __TupleState) -> Surface | None:
         clickable_state, button_state = key
         return self.__img_dict[clickable_state][button_state]
 
-    @config.setter_key_from_map("img", __STATE)
-    @config.setter_key_from_map("hover_img", __STATE)
-    @config.setter_key_from_map("active_img", __STATE)
-    @config.setter_key_from_map("disabled_img", __STATE)
-    @config.setter_key_from_map("disabled_hover_img", __STATE)
-    @config.setter_key_from_map("disabled_active_img", __STATE)
+    @config.setter_with_key_from_map("img", __STATE)
+    @config.setter_with_key_from_map("hover_img", __STATE)
+    @config.setter_with_key_from_map("active_img", __STATE)
+    @config.setter_with_key_from_map("disabled_img", __STATE)
+    @config.setter_with_key_from_map("disabled_hover_img", __STATE)
+    @config.setter_with_key_from_map("disabled_active_img", __STATE)
     def __set_img(self, key: __TupleState, img: Surface | None) -> None:
         clickable_state, button_state = key
         self.__img_dict[clickable_state][button_state] = img
@@ -808,19 +808,19 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     def __text_offset_validator(offset: tuple[float, float]) -> tuple[float, float]:
         return (float(offset[0]), float(offset[1]))
 
-    @config.getter_key("border_radius")
-    @config.getter_key("border_top_left_radius")
-    @config.getter_key("border_top_right_radius")
-    @config.getter_key("border_bottom_left_radius")
-    @config.getter_key("border_bottom_right_radius")
+    @config.getter_with_key("border_radius")
+    @config.getter_with_key("border_top_left_radius")
+    @config.getter_with_key("border_top_right_radius")
+    @config.getter_with_key("border_bottom_left_radius")
+    @config.getter_with_key("border_bottom_right_radius")
     def __get_shape_option(self, option: str) -> Any:
         return self.__shape.config.get(option)
 
-    @config.setter_key("border_radius")
-    @config.setter_key("border_top_left_radius")
-    @config.setter_key("border_top_right_radius")
-    @config.setter_key("border_bottom_left_radius")
-    @config.setter_key("border_bottom_right_radius")
+    @config.setter_with_key("border_radius")
+    @config.setter_with_key("border_top_left_radius")
+    @config.setter_with_key("border_top_right_radius")
+    @config.setter_with_key("border_bottom_left_radius")
+    @config.setter_with_key("border_bottom_right_radius")
     def __set_shape_option(self, option: str, value: Any) -> None:
         return self.__shape.config.set(option, value)
 
@@ -1143,22 +1143,22 @@ class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
         "disabled_active_img": (Clickable.State.DISABLED, "active"),
     }
 
-    @config.getter_key_from_map("background", __STATE)
-    @config.getter_key_from_map("hover_background", __STATE)
-    @config.getter_key_from_map("active_background", __STATE)
-    @config.getter_key_from_map("disabled_background", __STATE)
-    @config.getter_key_from_map("disabled_hover_background", __STATE)
-    @config.getter_key_from_map("disabled_active_background", __STATE)
+    @config.getter_with_key_from_map("background", __STATE)
+    @config.getter_with_key_from_map("hover_background", __STATE)
+    @config.getter_with_key_from_map("active_background", __STATE)
+    @config.getter_with_key_from_map("disabled_background", __STATE)
+    @config.getter_with_key_from_map("disabled_hover_background", __STATE)
+    @config.getter_with_key_from_map("disabled_active_background", __STATE)
     def __get_background(self, key: __TupleState) -> Color | None:
         clickable_state, button_state = key
         return self.__bg_dict[clickable_state][button_state]
 
-    @config.setter_key_from_map("background", __STATE)
-    @config.setter_key_from_map("hover_background", __STATE)
-    @config.setter_key_from_map("active_background", __STATE)
-    @config.setter_key_from_map("disabled_background", __STATE)
-    @config.setter_key_from_map("disabled_hover_background", __STATE)
-    @config.setter_key_from_map("disabled_active_background", __STATE)
+    @config.setter_with_key_from_map("background", __STATE)
+    @config.setter_with_key_from_map("hover_background", __STATE)
+    @config.setter_with_key_from_map("active_background", __STATE)
+    @config.setter_with_key_from_map("disabled_background", __STATE)
+    @config.setter_with_key_from_map("disabled_hover_background", __STATE)
+    @config.setter_with_key_from_map("disabled_active_background", __STATE)
     def __set_background(self, key: __TupleState, color: Color | None) -> None:
         clickable_state, button_state = key
         self.__bg_dict[clickable_state][button_state] = color
@@ -1177,22 +1177,22 @@ class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config.on_update("disabled_hover_background", __update_state)
     config.on_update("disabled_active_background", __update_state)
 
-    @config.getter_key_from_map("img", __STATE)
-    @config.getter_key_from_map("hover_img", __STATE)
-    @config.getter_key_from_map("active_img", __STATE)
-    @config.getter_key_from_map("disabled_img", __STATE)
-    @config.getter_key_from_map("disabled_hover_img", __STATE)
-    @config.getter_key_from_map("disabled_active_img", __STATE)
+    @config.getter_with_key_from_map("img", __STATE)
+    @config.getter_with_key_from_map("hover_img", __STATE)
+    @config.getter_with_key_from_map("active_img", __STATE)
+    @config.getter_with_key_from_map("disabled_img", __STATE)
+    @config.getter_with_key_from_map("disabled_hover_img", __STATE)
+    @config.getter_with_key_from_map("disabled_active_img", __STATE)
     def __get_img(self, key: __TupleState) -> Surface | None:
         clickable_state, button_state = key
         return self.__img_dict[clickable_state][button_state]
 
-    @config.setter_key_from_map("img", __STATE)
-    @config.setter_key_from_map("hover_img", __STATE)
-    @config.setter_key_from_map("active_img", __STATE)
-    @config.setter_key_from_map("disabled_img", __STATE)
-    @config.setter_key_from_map("disabled_hover_img", __STATE)
-    @config.setter_key_from_map("disabled_active_img", __STATE)
+    @config.setter_with_key_from_map("img", __STATE)
+    @config.setter_with_key_from_map("hover_img", __STATE)
+    @config.setter_with_key_from_map("active_img", __STATE)
+    @config.setter_with_key_from_map("disabled_img", __STATE)
+    @config.setter_with_key_from_map("disabled_hover_img", __STATE)
+    @config.setter_with_key_from_map("disabled_active_img", __STATE)
     def __set_img(self, key: __TupleState, img: Surface | None) -> None:
         clickable_state, button_state = key
         self.__img_dict[clickable_state][button_state] = img
@@ -1211,19 +1211,19 @@ class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config.on_update("disabled_hover_img", __update_state)
     config.on_update("disabled_active_img", __update_state)
 
-    @config.getter_key("border_radius")
-    @config.getter_key("border_top_left_radius")
-    @config.getter_key("border_top_right_radius")
-    @config.getter_key("border_bottom_left_radius")
-    @config.getter_key("border_bottom_right_radius")
+    @config.getter_with_key("border_radius")
+    @config.getter_with_key("border_top_left_radius")
+    @config.getter_with_key("border_top_right_radius")
+    @config.getter_with_key("border_bottom_left_radius")
+    @config.getter_with_key("border_bottom_right_radius")
     def __get_shape_option(self, option: str) -> Any:
         return self.__shape.config.get(option)
 
-    @config.setter_key("border_radius")
-    @config.setter_key("border_top_left_radius")
-    @config.setter_key("border_top_right_radius")
-    @config.setter_key("border_bottom_left_radius")
-    @config.setter_key("border_bottom_right_radius")
+    @config.setter_with_key("border_radius")
+    @config.setter_with_key("border_top_left_radius")
+    @config.setter_with_key("border_top_right_radius")
+    @config.setter_with_key("border_bottom_left_radius")
+    @config.setter_with_key("border_bottom_right_radius")
     def __set_shape_option(self, option: str, value: Any) -> None:
         return self.__shape.config.set(option, value)
 

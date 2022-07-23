@@ -39,13 +39,13 @@ class Configurable:
         self.c = 98
         print("END")
 
-    @config.on_update_key_value("a")
-    @config.on_update_key_value("b")
-    @config.on_update_key_value("c")
+    @config.on_update_value_with_key("a")
+    @config.on_update_value_with_key("b")
+    @config.on_update_value_with_key("c")
     def _on_update_field(self, name: str, val: int) -> None:
         print(f"{self}: {name} set to {val}")
 
-    config.on_update_key_value("d", lambda self, name, val: print((self, name, val)))
+    config.on_update_value_with_key("d", lambda self, name, val: print((self, name, val)))
 
     @config.add_value_converter_on_set_static("a")
     @config.add_value_converter_on_set_static("b")
@@ -102,7 +102,7 @@ class SubConfigurable(Configurable):
 
     config.on_update("b", _custom_b_updater)
 
-    @config.on_update_key_value("a")
+    @config.on_update_value_with_key("a")
     def __special_case_a(self, name: str, val: int) -> None:
         print(f"----------Special case for {name}--------")
         # self._on_update_field(name, val)
@@ -166,15 +166,15 @@ class Klass:
     def update(self) -> None:
         print("UPDATE")
 
-    @config.on_update_key("a")
-    @config.on_update_key("b")
-    @config.on_update_key("c")
+    @config.on_update_with_key("a")
+    @config.on_update_with_key("b")
+    @config.on_update_with_key("c")
     def __update_field(self, option: str) -> None:
         print(f"{option!r} modified")
 
-    @config.on_update_key_value("a")
-    @config.on_update_key_value("b")
-    @config.on_update_key_value("c")
+    @config.on_update_value_with_key("a")
+    @config.on_update_value_with_key("b")
+    @config.on_update_value_with_key("c")
     def __update_field_v(self, option: str, value: Any) -> None:
         print(f"{option!r} set to {value}")
 

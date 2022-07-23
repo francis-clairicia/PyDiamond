@@ -415,22 +415,22 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape):
     config.add_value_converter_on_set_static("border_bottom_left_radius", valid_integer(min_value=-1))
     config.add_value_converter_on_set_static("border_bottom_right_radius", valid_integer(min_value=-1))
 
-    @config.getter_key("border_radius")
-    @config.getter_key("border_top_left_radius")
-    @config.getter_key("border_top_right_radius")
-    @config.getter_key("border_bottom_left_radius")
-    @config.getter_key("border_bottom_right_radius")
+    @config.getter_with_key("border_radius")
+    @config.getter_with_key("border_top_left_radius")
+    @config.getter_with_key("border_top_right_radius")
+    @config.getter_with_key("border_bottom_left_radius")
+    @config.getter_with_key("border_bottom_right_radius")
     def __get_border_radius(self, border: str) -> int:
         try:
             return self.__draw_params[border]
         except KeyError as exc:
             raise UnregisteredOptionError(border) from exc
 
-    @config.setter_key("border_radius")
-    @config.setter_key("border_top_left_radius")
-    @config.setter_key("border_top_right_radius")
-    @config.setter_key("border_bottom_left_radius")
-    @config.setter_key("border_bottom_right_radius")
+    @config.setter_with_key("border_radius")
+    @config.setter_with_key("border_top_left_radius")
+    @config.setter_with_key("border_top_right_radius")
+    @config.setter_with_key("border_bottom_left_radius")
+    @config.setter_with_key("border_bottom_right_radius")
     def __set_border_radius(self, border: str, radius: int) -> None:
         self.__draw_params[border] = radius
 
@@ -530,20 +530,20 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape):
     config.add_value_converter_on_set_static("draw_bottom_left", bool)
     config.add_value_converter_on_set_static("draw_bottom_right", bool)
 
-    @config.getter_key("draw_top_left")
-    @config.getter_key("draw_top_right")
-    @config.getter_key("draw_bottom_left")
-    @config.getter_key("draw_bottom_right")
+    @config.getter_with_key("draw_top_left")
+    @config.getter_with_key("draw_top_right")
+    @config.getter_with_key("draw_bottom_left")
+    @config.getter_with_key("draw_bottom_right")
     def __get_draw_arc(self, side: str) -> bool:
         try:
             return self.__draw_params[side]
         except KeyError as exc:
             raise UnregisteredOptionError(side) from exc
 
-    @config.setter_key("draw_top_left")
-    @config.setter_key("draw_top_right")
-    @config.setter_key("draw_bottom_left")
-    @config.setter_key("draw_bottom_right")
+    @config.setter_with_key("draw_top_left")
+    @config.setter_with_key("draw_top_right")
+    @config.setter_with_key("draw_bottom_left")
+    @config.setter_with_key("draw_bottom_right")
     def __set_draw_arc(self, side: str, status: bool) -> None:
         self.__draw_params[side] = status
 

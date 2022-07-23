@@ -312,21 +312,21 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
     config.remove_parent_ownership("outline")
     config.remove_parent_ownership("outline_color")
 
-    @config.getter_key("outline")
-    @config.getter_key("outline_color")
+    @config.getter_with_key("outline")
+    @config.getter_with_key("outline_color")
     def __outline_getter(self, option: str) -> Any:
         return self.__outline_rect.config.get(option)
 
-    @config.setter_key("outline")
-    @config.setter_key("outline_color")
+    @config.setter_with_key("outline")
+    @config.setter_with_key("outline_color")
     def __outline_setter(self, option: str, value: Any) -> None:
         self.__outline_rect.config.set(option, value)
 
-    @config.on_update_key_value("border_radius")
-    @config.on_update_key_value("border_top_left_radius")
-    @config.on_update_key_value("border_top_right_radius")
-    @config.on_update_key_value("border_bottom_left_radius")
-    @config.on_update_key_value("border_bottom_right_radius")
+    @config.on_update_value_with_key("border_radius")
+    @config.on_update_value_with_key("border_top_left_radius")
+    @config.on_update_value_with_key("border_top_right_radius")
+    @config.on_update_value_with_key("border_bottom_left_radius")
+    @config.on_update_value_with_key("border_bottom_right_radius")
     def __update_all_shapes(self, option: str, value: Any) -> None:
         self.__scale_rect.config.set(option, value)
         self.__outline_rect.config.set(option, value)
