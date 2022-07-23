@@ -317,6 +317,12 @@ class ConfigurationTemplate(Object):
                 and (actual_property.fset is not None or actual_property.fdel is not None)
             ):
                 raise OptionError(option, "Trying to flag option as read-only with custom setter/deleter")
+            if readonly and (
+                template.option_update_hooks.get(option)
+                or template.option_value_update_hooks.get(option)
+                or template.option_delete_hooks.get(option)
+            ):
+                raise OptionError(option, "Trying to flag option as read-only with registered update/delete hooks")
 
             def decorator(func: _GetterVar, /) -> _GetterVar:
                 wrapper = _make_function_wrapper(func, use_override=bool(use_override))
@@ -1004,6 +1010,127 @@ class ConfigurationTemplate(Object):
         return self.on_update_value_with_key(option, func, use_key=use_key, use_override=use_override)
 
     @overload
+    def on_delete(self, option: str, /, *, use_override: bool = True) -> Callable[[_UpdaterVar], _UpdaterVar]:
+        ...
+
+    @overload
+    def on_delete(self, option: str, func: _UpdaterVar, /, *, use_override: bool = True) -> None:
+        ...
+
+    def on_delete(
+        self, option: str, func: _UpdaterVar | None = None, /, *, use_override: bool = True
+    ) -> Callable[[_UpdaterVar], _UpdaterVar] | None:
+        self.__check_locked()
+        template: _ConfigInfoTemplate = self.__template
+        self.check_option_validity(option)
+
+        def decorator(func: _UpdaterVar, /) -> _UpdaterVar:
+            if isinstance(template.value_descriptor.get(option), _ReadOnlyOptionBuildPayload):
+                raise OptionError(option, "Cannot add delete hook on read-only option")
+            updater_list = template.option_delete_hooks.setdefault(option, set())
+            wrapper = _make_function_wrapper(func, use_override=bool(use_override))
+            if wrapper in updater_list:
+                raise OptionError(option, "Function already registered")
+            updater_list.add(wrapper)
+            return func
+
+        if func is None:
+            return decorator
+        decorator(func)
+        return None
+
+    @overload
+    def on_delete_with_key(self, option: str, /, *, use_override: bool = True) -> Callable[[_KeyUpdaterVar], _KeyUpdaterVar]:
+        ...
+
+    @overload
+    def on_delete_with_key(
+        self, option: str, /, *, use_key: Hashable, use_override: bool = True
+    ) -> Callable[[_KeyUpdaterVar], _KeyUpdaterVar]:
+        ...
+
+    @overload
+    def on_delete_with_key(self, option: str, func: _KeyUpdaterVar, /, *, use_override: bool = True) -> None:
+        ...
+
+    @overload
+    def on_delete_with_key(self, option: str, func: _KeyUpdaterVar, /, *, use_key: Hashable, use_override: bool = True) -> None:
+        ...
+
+    def on_delete_with_key(
+        self,
+        option: str,
+        func: _KeyUpdaterVar | None = None,
+        /,
+        *,
+        use_key: Any = _NO_DEFAULT,
+        use_override: bool = True,
+    ) -> Callable[[_KeyUpdaterVar], _KeyUpdaterVar] | None:
+        self.__check_locked()
+        self.check_option_validity(option)
+        if use_key is _NO_DEFAULT:
+            use_key = option
+        else:
+            hash(use_key)
+        key: Hashable = (option, use_key)
+
+        def wrapper_decorator(func: Callable[..., Any], *, use_key: Hashable = use_key) -> Callable[..., Any]:
+            return lambda self: func(self, use_key)
+
+        def decorator(func: _KeyUpdaterVar, /) -> _KeyUpdaterVar:
+            wrapper = _WrappedFunctionWrapper(func, key, wrapper_decorator, use_override=bool(use_override), no_object=False)
+            self.on_delete(option, wrapper)
+            return func
+
+        if func is None:
+            return decorator
+        decorator(func)
+        return None
+
+    @overload
+    def on_delete_with_key_from_map(
+        self,
+        option: str,
+        key_map: Mapping[str, Hashable],
+        /,
+        *,
+        use_override: bool = True,
+        ignore_key_error: bool = False,
+    ) -> Callable[[_KeyUpdaterVar], _KeyUpdaterVar]:
+        ...
+
+    @overload
+    def on_delete_with_key_from_map(
+        self,
+        option: str,
+        key_map: Mapping[str, Hashable],
+        func: _KeyUpdaterVar,
+        /,
+        *,
+        use_override: bool = True,
+        ignore_key_error: bool = False,
+    ) -> None:
+        ...
+
+    def on_delete_with_key_from_map(
+        self,
+        option: str,
+        key_map: Mapping[str, Hashable],
+        func: Any = None,
+        /,
+        *,
+        use_override: bool = True,
+        ignore_key_error: bool = False,
+    ) -> Any:
+        try:
+            use_key: Hashable = key_map[option]
+        except KeyError:
+            if not ignore_key_error:
+                raise
+            use_key = option
+        return self.on_delete_with_key(option, func, use_key=use_key, use_override=use_override)
+
+    @overload
     def add_value_validator(
         self, option: str, /, *, use_override: bool = True
     ) -> Callable[[_ValueValidatorVar], _ValueValidatorVar]:
@@ -1318,8 +1445,12 @@ class ConfigurationTemplate(Object):
             if isinstance(descriptor, (_MutableDescriptor, _RemovableDescriptor)):
                 if not isinstance(descriptor, property) or descriptor.fset is not None or descriptor.fdel is not None:
                     raise OptionError(option, "Trying to flag option as read-only with custom setter/deleter")
-            if template.option_update_hooks.get(option) or template.option_value_update_hooks.get(option):
-                raise OptionError(option, "Trying to flag option as read-only with registered update hooks")
+            if (
+                template.option_update_hooks.get(option)
+                or template.option_value_update_hooks.get(option)
+                or template.option_delete_hooks.get(option)
+            ):
+                raise OptionError(option, "Trying to flag option as read-only with registered update/delete hooks")
             template.value_descriptor[option] = _ReadOnlyOptionBuildPayload(descriptor)
 
     def __check_locked(self) -> None:
@@ -1428,6 +1559,7 @@ class ConfigurationInfo(Object, Generic[_T]):
     options: Set[str]
     _: KW_ONLY
     option_value_update_hooks: Mapping[str, Set[Callable[[_T, Any], None]]] = field(default_factory=_default_mapping)
+    option_delete_hooks: Mapping[str, Set[Callable[[_T], None]]] = field(default_factory=_default_mapping)
     option_update_hooks: Mapping[str, Set[Callable[[_T], None]]] = field(default_factory=_default_mapping)
     main_object_update_hooks: Set[Callable[[_T], None]] = field(default_factory=frozenset)
     value_converter_on_get: Mapping[str, Sequence[Callable[[_T, Any], Any]]] = field(default_factory=_default_mapping)
@@ -1454,6 +1586,7 @@ class ConfigurationInfo(Object, Generic[_T]):
             self,
             option_value_update_hooks=MappingProxyType({}),
             option_update_hooks=MappingProxyType({}),
+            option_delete_hooks=MappingProxyType({}),
             main_object_update_hooks=frozenset(),
         )
 
@@ -1493,8 +1626,15 @@ class ConfigurationInfo(Object, Generic[_T]):
         return descriptor
 
     def get_options_update_hooks(self, *options: str, exclude_main_updaters: bool) -> Set[Callable[[_T], None]]:
-        get_option_update_hooks = self.option_update_hooks.get
-        updaters = set(chain.from_iterable(get_option_update_hooks(option, ()) for option in set(options)))
+        get_hooks = self.option_update_hooks.get
+        updaters = set(chain.from_iterable(get_hooks(option, ()) for option in set(options)))
+        if exclude_main_updaters and (main_updater := self.main_object_update_hooks):
+            updaters.difference_update(main_updater)
+        return updaters
+
+    def get_options_delete_hooks(self, *options: str, exclude_main_updaters: bool) -> Set[Callable[[_T], None]]:
+        get_hooks = self.option_delete_hooks.get
+        updaters = set(chain.from_iterable(get_hooks(option, ()) for option in set(options)))
         if exclude_main_updaters and (main_updater := self.main_object_update_hooks):
             updaters.difference_update(main_updater)
         return updaters
@@ -1503,7 +1643,24 @@ class ConfigurationInfo(Object, Generic[_T]):
 del _default_mapping
 
 _InitializationRegister: TypeAlias = dict[str, Any]
-_UpdateRegister: TypeAlias = set[str]
+
+
+@final
+@dataclass(kw_only=True, frozen=True, eq=False, slots=True)
+class _UpdateRegister(Object):
+    modified: set[str] = field(default_factory=set)
+    deleted: set[str] = field(default_factory=set)
+
+    def has_new_value(self, option: str) -> None:
+        self.modified.add(option)
+        self.deleted.discard(option)
+
+    def has_been_deleted(self, option: str) -> None:
+        self.modified.discard(option)
+        self.deleted.add(option)
+
+    def __bool__(self) -> bool:
+        return bool(self.modified) or bool(self.deleted)
 
 
 class Configuration(Object, Generic[_T]):
@@ -1518,7 +1675,7 @@ class Configuration(Object, Generic[_T]):
     class __OptionUpdateContext(NamedTuple):
         first_call: bool
         init_context: _InitializationRegister | None
-        updated: _UpdateRegister
+        register: _UpdateRegister
 
     def __init__(self, obj: _T | WeakReferenceType[_T], info: ConfigurationInfo[_T]) -> None:
         self.__obj: Callable[[], _T | None]
@@ -1587,24 +1744,24 @@ class Configuration(Object, Generic[_T]):
             value = value_converter(obj, value)
 
         with self.__updating_option(obj, option, info) as update_context:
-            register = update_context.init_context
+            init_context = update_context.init_context
             try:
                 actual_value = descriptor.__get__(obj, type(obj))
             except AttributeError:
                 pass
             else:
-                if register is None and (actual_value is value or actual_value == value):
+                if init_context is None and (actual_value is value or actual_value == value):
                     return
 
             descriptor.__set__(obj, value)
 
-            if register is not None:
-                register[option] = value
+            if init_context is not None:
+                init_context[option] = value
             else:
                 for value_updater in info.option_value_update_hooks.get(option, ()):
                     value_updater(obj, value)
 
-            update_context.updated.add(option)
+            update_context.register.has_new_value(option)
 
     def only_set(self, option: str, value: Any) -> None:
         obj: _T = self.__self__
@@ -1634,11 +1791,11 @@ class Configuration(Object, Generic[_T]):
         with self.__updating_option(obj, option, info) as update_context:
             descriptor.__delete__(obj)
 
-            register = update_context.init_context
-            if register is not None:
-                register.pop(option, None)
+            init_context = update_context.init_context
+            if init_context is not None:
+                init_context.pop(option, None)
 
-            update_context.updated.add(option)
+            update_context.register.has_been_deleted(option)
 
     def only_delete(self, option: str) -> None:
         obj: _T = self.__self__
@@ -1703,7 +1860,7 @@ class Configuration(Object, Generic[_T]):
                 for value_updater in info.option_value_update_hooks.get(option, ()):
                     value_updater(obj, value)
 
-            update_context.updated.add(option)
+            update_context.register.has_new_value(option)
 
     def only_reset(self, option: str) -> None:
         obj: _T = self.__self__
@@ -1742,16 +1899,15 @@ class Configuration(Object, Generic[_T]):
                 Configuration.__update_context.pop(obj, None)
 
             def register_modified_error(register: _InitializationRegister, context: str) -> NoReturn:
-                options = ", ".join(register)
-                raise OptionError(
-                    options, f"{'were' if len(register) > 1 else 'was'} modified after {context} in initialization context"
+                raise InitializationError(
+                    f"{', '.join(register)} {'were' if len(register) > 1 else 'was'} modified after {context} in initialization context"
                 )
 
             with ExitStack() as stack:
                 stack.callback(cleanup, obj)
                 initialization_register: _InitializationRegister = {}
                 Configuration.__init_context[obj] = initialization_register
-                update_register: _UpdateRegister = set()
+                update_register = _UpdateRegister()
                 Configuration.__update_context[obj] = update_register
                 yield
                 Configuration.__update_context.pop(obj, None)
@@ -1762,8 +1918,12 @@ class Configuration(Object, Generic[_T]):
                     for value_updater in info.option_value_update_hooks.get(option, ()):
                         value_updater(obj, value)
                         if after_init_register:
-                            register_modified_error(after_init_register, "value update")
-                for option_updater in info.get_options_update_hooks(*update_register, exclude_main_updaters=True):
+                            register_modified_error(after_init_register, f"value update of {option}")
+                for option_deleted in info.get_options_delete_hooks(*update_register.deleted, exclude_main_updaters=True):
+                    option_deleted(obj)
+                    if after_init_register:
+                        register_modified_error(after_init_register, "option delete hook")
+                for option_updater in info.get_options_update_hooks(*update_register.modified, exclude_main_updaters=True):
                     option_updater(obj)
                     if after_init_register:
                         register_modified_error(after_init_register, "update")
@@ -1829,11 +1989,11 @@ class Configuration(Object, Generic[_T]):
                 try:
                     value: Any = descriptor.__get__(obj, type(obj))
                 except AttributeError:
-                    pass
+                    context.register.has_been_deleted(option)
                 else:
                     for value_updater in info.option_value_update_hooks.get(option, ()):
                         value_updater(obj, value)
-                context.updated.add(option)
+                    context.register.has_new_value(option)
 
     @classmethod
     def __update_single_option(cls, obj: object, option: str, info: ConfigurationInfo[Any]) -> None:
@@ -1845,12 +2005,11 @@ class Configuration(Object, Generic[_T]):
             try:
                 value: Any = descriptor.__get__(obj, type(obj))
             except AttributeError:
-                pass
+                update_context.register.has_been_deleted(option)
             else:
                 for value_updater in info.option_value_update_hooks.get(option, ()):
                     value_updater(obj, value)
-
-            update_context.updated.add(option)
+                update_context.register.has_new_value(option)
 
     @classmethod
     @contextmanager
@@ -1860,19 +2019,19 @@ class Configuration(Object, Generic[_T]):
         with cls.__lazy_lock(obj):
             if not info.main_object_update_hooks and not info.option_update_hooks:
                 # first_call=False to avoid useless actions
-                yield UpdateContext(first_call=False, init_context=None, updated=set())
+                yield UpdateContext(first_call=False, init_context=None, register=_UpdateRegister())
                 return
 
             register = cls.__init_context.get(obj, None)
             if register is not None:
-                update_register = cls.__update_context.get(obj, set())
-                yield UpdateContext(first_call=False, init_context=register, updated=update_register)
+                update_register = cls.__update_context.get(obj, _UpdateRegister())
+                yield UpdateContext(first_call=False, init_context=register, register=update_register)
                 return
 
-            update_register = cls.__update_context.setdefault(obj, set())
+            update_register = cls.__update_context.setdefault(obj, _UpdateRegister())
             update_stack: set[str] = cls.__update_stack.setdefault(obj, set())
             if option in update_stack:
-                yield UpdateContext(first_call=False, init_context=None, updated=update_register)
+                yield UpdateContext(first_call=False, init_context=None, register=update_register)
                 return
 
             def cleanup(obj: object) -> None:
@@ -1883,13 +2042,15 @@ class Configuration(Object, Generic[_T]):
             update_stack.add(option)
             with ExitStack() as stack:
                 stack.callback(cleanup, obj)
-                yield UpdateContext(first_call=True, init_context=None, updated=update_register)
+                yield UpdateContext(first_call=True, init_context=None, register=update_register)
             if update_stack:
                 return
             update_register = cls.__update_context.pop(obj, update_register)
             if not update_register:
                 return
-            for option_updater in info.get_options_update_hooks(*update_register, exclude_main_updaters=True):
+            for option_deleted in info.get_options_delete_hooks(*update_register.deleted, exclude_main_updaters=True):
+                option_deleted(obj)
+            for option_updater in info.get_options_update_hooks(*update_register.modified, exclude_main_updaters=True):
                 option_updater(obj)
             for main_updater in info.main_object_update_hooks:
                 main_updater(obj)
@@ -2250,6 +2411,7 @@ class _ConfigInfoTemplate:
         self.options: frozenset[str] = frozenset(known_options)
         self.main_update_hooks: set[Callable[[object], None]] = set()
         self.option_update_hooks: dict[str, set[Callable[[object], None]]] = dict()
+        self.option_delete_hooks: dict[str, set[Callable[[object], None]]] = dict()
         self.option_value_update_hooks: dict[str, set[Callable[[object, Any], None]]] = dict()
         self.value_descriptor: dict[str, _Descriptor] = dict()
         self.value_converter_on_get: dict[str, list[Callable[[object, Any], Any]]] = dict()
@@ -2263,6 +2425,7 @@ class _ConfigInfoTemplate:
             self.options |= p.options
             self.main_update_hooks |= p.main_update_hooks
             merge_updater_dict(self.option_update_hooks, p.option_update_hooks)
+            merge_updater_dict(self.option_delete_hooks, p.option_delete_hooks)
             merge_updater_dict(self.option_value_update_hooks, p.option_value_update_hooks)
             merge_dict(self.value_descriptor, p.value_descriptor, on_conflict="raise", setting="descriptor")
             merge_dict(
@@ -2330,6 +2493,7 @@ class _ConfigInfoTemplate:
         return ConfigurationInfo(
             options=frozenset(self.options),
             option_value_update_hooks=self.__build_option_value_update_hooks_dict(),
+            option_delete_hooks=self.__build_option_delete_hooks_dict(),
             option_update_hooks=self.__build_option_update_hooks_dict(),
             main_object_update_hooks=frozenset(self.main_update_hooks),
             value_converter_on_get=self.__build_value_converter_dict(on="get"),
@@ -2364,6 +2528,10 @@ class _ConfigInfoTemplate:
             option: set(build_wrapper_if_needed(func) for func in func_set)
             for option, func_set in self.option_update_hooks.items()
         }
+        self.option_delete_hooks = {
+            option: set(build_wrapper_if_needed(func) for func in func_set)
+            for option, func_set in self.option_delete_hooks.items()
+        }
         self.option_value_update_hooks = {
             option: set(build_wrapper_if_needed(func) for func in func_set)
             for option, func_set in self.option_value_update_hooks.items()
@@ -2392,6 +2560,15 @@ class _ConfigInfoTemplate:
             {
                 option: frozenset(filtered_hooks)
                 for option, hooks in self.option_update_hooks.items()
+                if len((filtered_hooks := hooks.difference(self.main_update_hooks))) > 0
+            }
+        )
+
+    def __build_option_delete_hooks_dict(self) -> MappingProxyType[str, frozenset[Callable[[object], None]]]:
+        return MappingProxyType(
+            {
+                option: frozenset(filtered_hooks)
+                for option, hooks in self.option_delete_hooks.items()
                 if len((filtered_hooks := hooks.difference(self.main_update_hooks))) > 0
             }
         )
