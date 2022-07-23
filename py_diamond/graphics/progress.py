@@ -122,8 +122,6 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
         to = float(to)
         if to <= from_:
             raise ValueError("end value 'to' must be greather than 'from'")
-        self.__value: float = 0
-        self.__percent: float = 0
         self.__start: float = from_
         self.__end: float = to
 
@@ -186,10 +184,10 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
                     message_fmt = "{:d}"
                 match text_type:
                     case "value":
-                        value = self.__value
+                        value = self.value
                         text.message = message_fmt.format(value if round_n > 0 else round(value))
                     case "percent":
-                        value = self.__percent * 100
+                        value = self.percent * 100
                         text.message = f"{message_fmt.format(value if round_n > 0 else round(value))}%"
                     case _:
                         assert_never(text_type)
@@ -224,7 +222,7 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
             raise ValueError("end value 'to' must be strictly greather than 'from'")
         self.__start = from_
         self.__end = to
-        self.value = from_
+        self.config.reset("value")
 
     def show_value(self, side: str, round_n: int = 0, **kwargs: Any) -> None:
         self.__text_value.text.config(**kwargs)
@@ -301,13 +299,15 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
     def __update_percent(self, value: float) -> None:
         start: float = self.__start
         end: float = self.__end
-        self.__percent = (value - start) / (end - start) if end > start else 0
+        percent = (value - start) / (end - start) if end > start else 0
+        self.config.only_set("percent", percent)
 
     @config.on_update_value("percent")
     def __update_value(self, percent: float) -> None:
         start: float = self.__start
         end: float = self.__end
-        self.__value = start + (percent * (end - start)) if end > start else 0
+        value = start + (percent * (end - start)) if end > start else 0
+        self.config.only_set("value", value)
 
     config.remove_parent_ownership("outline")
     config.remove_parent_ownership("outline_color")
@@ -340,7 +340,7 @@ class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
         width, height = self.local_size
         scale_rect: RectangleShape = self.__scale_rect
         outline_rect: RectangleShape = self.__outline_rect
-        percent: float = self.__percent
+        percent: float = self.percent
         if self.orient == ProgressBar.Orient.HORIZONTAL:
             scale_rect.config(local_width=width * percent, local_height=height)
         else:

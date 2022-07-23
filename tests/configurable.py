@@ -45,7 +45,7 @@ class Configurable:
     def _on_update_field(self, name: str, val: int) -> None:
         print(f"{self}: {name} set to {val}")
 
-    config.on_update_value_with_key("d", lambda self, name, val: print((self, name, val)))
+    config.on_update_value_with_key("d", lambda self, name, val: print((self, name, val)), use_override=False)
 
     @config.add_value_converter_on_set_static("a")
     @config.add_value_converter_on_set_static("b")
@@ -123,6 +123,34 @@ class C:
         print(self)
 
 
+# class C:
+#     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate("a")
+
+#     a: OptionAttribute[int] = OptionAttribute()
+
+#     def __init__(self) -> None:
+#         self.__a: int = 5
+
+# class D(C):
+#     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(parent=C.config)
+
+#     config.remove_parent_ownership("a")
+
+#     def __init__(self) -> None:
+#         super().__init__()
+#         self.__a = 12
+
+
+# class E(D):
+#     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(parent=D.config)
+
+#     config.remove_parent_ownership("a")
+
+#     def __init__(self) -> None:
+#         super().__init__()
+#         self.__a = 25
+
+
 class A:
     __config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate("a")
 
@@ -180,6 +208,16 @@ class Klass:
 
 
 def main() -> None:
+    # e = E()
+
+    # print(e.config.get("a"))
+    # print(super(E, e).config.get("a"))
+    # print(super(D, e).config.get("a"))
+    # print("====")
+    # print(e.a)
+    # print(super(E, e).a)
+    # print(super(D, e).a)
+
     rect = SubRect()
     print(rect.config.get("size"))
     # c = Klass()

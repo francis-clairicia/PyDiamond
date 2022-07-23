@@ -13,7 +13,6 @@ import sys
 from typing import TYPE_CHECKING, Callable, ClassVar, Sequence
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
-from ..system.utils._mangling import getattr_pv
 from ..system.validation import valid_integer
 from ..window.event import Event, KeyDownEvent, KeyEvent, KeyUpEvent, MouseButtonDownEvent, MouseMotionEvent
 from ..window.widget import AbstractWidget
@@ -27,7 +26,6 @@ if TYPE_CHECKING:
     from ..window.cursor import AbstractCursor
     from ..window.display import Window
     from ..window.scene import Scene
-    from .shape import AbstractRectangleShape
 
 
 class ScaleBar(ProgressBar, AbstractWidget):
@@ -184,8 +182,8 @@ class ScaleBar(ProgressBar, AbstractWidget):
         else:
             outline_color = self.outline_color
             outline = self.outline
-        outline_rect: AbstractRectangleShape = getattr_pv(self, "outline_rect", owner=ProgressBar)
-        outline_rect.config(outline=outline, outline_color=outline_color)
+        super().config.only_set("outline", outline)
+        super().config.only_set("outline_color", outline_color)
 
     def __compute_scale_percent_by_mouse_pos(self, mouse_pos: tuple[float, float]) -> None:
         if self.orient == ScaleBar.Orient.HORIZONTAL:
@@ -204,7 +202,7 @@ class ScaleBar(ProgressBar, AbstractWidget):
 
     @config.on_update("resolution")
     def __on_update_resolution(self) -> None:
-        self.config.set("value", self.config.get("value"))
+        self.config.only_reset("value")
 
     @config.add_value_converter_on_set("value")
     def __apply_resolution_on_value(self, value: float) -> float:
@@ -214,8 +212,10 @@ class ScaleBar(ProgressBar, AbstractWidget):
     def __apply_resolution_on_percent(self, percent: float) -> float:
         start: float = self.from_value
         end: float = self.to_value
-        value: float = round(start + (percent * (end - start)) if end > start else 0, self.resolution)
-        percent = (value - start) / (end - start) if end > start else 0
+        if end <= start:
+            return 0
+        value: float = round(start + (percent * (end - start)), self.resolution)
+        percent = (value - start) / (end - start)
         return percent
 
     config.reset_getter_setter_deleter("outline")
