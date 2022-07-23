@@ -29,9 +29,7 @@ This code will open a small window.
 Coming soon. :)
 
 ## Dependencies
-
-
-PyDiamond is developed based on pygame and Python (obviously). In addition, some features of Pygame are available with a specific version of the SDL.
+PyDiamond is developed based on pygame and Python (obviously). In addition, some features of pygame are available with a specific version of the SDL.
 
 Dependency version:
 - CPython >= 3.10
