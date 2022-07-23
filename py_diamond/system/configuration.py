@@ -89,7 +89,12 @@ class OptionError(ConfigurationError):
 
 
 class UnknownOptionError(OptionError):
-    def __init__(self, name: str, message: str = "Unknown config option") -> None:
+    def __init__(self, name: str, message: str = "") -> None:
+        if not message:
+            if name:
+                message = "Unknown config option"
+            else:
+                message = "Empty string given"
         super().__init__(name, message)
 
 
