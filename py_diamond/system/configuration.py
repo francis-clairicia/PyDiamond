@@ -2180,6 +2180,16 @@ class _FunctionWrapperBuilder:
         no_object = info.no_object
         use_override = info.use_override
 
+        if no_object:
+            use_override = False
+
+        if info != self.Info(func, use_override=use_override, no_object=no_object):
+            # Ask the right builder to compute the wrapper
+            builder = self.__class__(func, use_override=use_override, no_object=no_object)
+            computed_wrapper = builder.build_wrapper(cls)
+            self.cache[func] = computed_wrapper  # Save in our cache for further calls
+            return computed_wrapper
+
         func_name: str = ""
         if use_override:
             func_name = next((attr_name for attr_name, attr_obj in _all_members(cls).items() if attr_obj is func), func_name)
@@ -2189,18 +2199,21 @@ class _FunctionWrapperBuilder:
                     msg = f"{self.traceback.filename}:{self.traceback.lineno}: {msg}"
                 raise AttributeError(msg)
 
-        if no_object or not hasattr(func, "__get__"):
+        if no_object:
+            assert callable(func)
+
+            def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
+                return func(*args, **kwargs)
+
+        elif not hasattr(func, "__get__"):
+
+            assert callable(func)
 
             if func_name:
 
                 def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-                    _func: Callable[..., Any] = getattr(type(self), func_name, func)
-                    return _func(*args, **kwargs)
-
-            elif no_object:
-
-                def wrapper(self: object, /, *args: Any, **kwargs: Any) -> Any:
-                    return func(*args, **kwargs)
+                    _func: Callable[..., Any] = getattr(self, func_name, func)
+                    return _func(self, *args, **kwargs)
 
             else:
 
