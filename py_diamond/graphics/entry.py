@@ -445,6 +445,10 @@ def _get_entry_size(font: Font, nb_chars: int) -> tuple[int, int]:
 
 
 class _TextEntry(Text):
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate("max_width", parent=Text.config)
+
+    max_width: OptionAttribute[int | None] = OptionAttribute()
+
     @initializer
     def __init__(
         self,
@@ -481,8 +485,4 @@ class _TextEntry(Text):
         #     return text.subsurface(0, 0, max_width, text.get_height()).copy()
         return text
 
-    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate("max_width", parent=Text.config)
-
     config.add_value_converter_on_set_static("max_width", valid_optional_integer(min_value=0))
-
-    max_width: OptionAttribute[int | None] = OptionAttribute()

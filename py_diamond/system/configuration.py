@@ -26,7 +26,7 @@ from contextlib import ExitStack, contextmanager, suppress
 from dataclasses import KW_ONLY, dataclass, field, replace as dataclass_replace
 from enum import Enum
 from functools import cache, update_wrapper, wraps
-from itertools import chain
+from itertools import chain, combinations
 from threading import RLock
 from types import MappingProxyType
 from typing import (
@@ -124,7 +124,7 @@ class ConfigurationTemplate(Object):
         "__no_parent_ownership",
         "__bound_class",
         "__attr_name",
-        "__descr_get_lock",
+        "__cache_lock",
         "__info",
     )
 
@@ -147,10 +147,13 @@ class ConfigurationTemplate(Object):
         elif isinstance(parent, ConfigurationTemplate):
             parent = [parent]
 
+        if not all(p1.name == p2.name for p1, p2 in combinations(parent, r=2)):
+            raise AttributeError("Parents' ConfigurationTemplate name mismatch")
+
         self.__template: _ConfigInfoTemplate = _ConfigInfoTemplate(known_options, list(p.__template for p in parent))
         self.__bound_class: type | None = None
-        self.__attr_name: str | None = None
-        self.__descr_get_lock = RLock()
+        self.__attr_name: str | None = parent[0].name if parent else None
+        self.__cache_lock = RLock()
         self.__info: ConfigurationInfo[Any] | None = None
 
     def __repr__(self) -> str:
@@ -159,6 +162,9 @@ class ConfigurationTemplate(Object):
     def __set_name__(self, owner: type, name: str, /) -> None:
         if self.__bound_class is not None:
             raise TypeError(f"This configuration object is bound to a class: {self.__bound_class.__name__!r}")
+
+        if self.__attr_name is not None and name != self.__attr_name:
+            raise AttributeError("Configuration name mismatch")
 
         if not hasattr(owner, "__weakref__") and not inspect.isabstract(owner):
             raise TypeError(f"{owner.__qualname__} objects are not weak-referenceable. Consider adding '__weakref__' to slots.")
@@ -169,13 +175,13 @@ class ConfigurationTemplate(Object):
         if name in template.options:
             raise OptionError(name, "ConfigurationTemplate attribute name is an option")
 
-        def retrieve_configuration(cls: type) -> ConfigurationTemplate | None:
+        def retrieve_config_or_none(cls: type) -> ConfigurationTemplate | None:
             try:
-                return _retrieve_configuration(cls, invalid_type_exception=AssertionError)
+                return _retrieve_configuration(cls)
             except TypeError:
                 return None
 
-        if list(template.parents) != [config.__template for config in map(retrieve_configuration, owner.__bases__) if config]:
+        if list(template.parents) != [config.__template for config in map(retrieve_config_or_none, owner.__bases__) if config]:
             raise TypeError("Inconsistent configuration template hierarchy")
 
         self.__bound_class = owner
@@ -184,18 +190,19 @@ class ConfigurationTemplate(Object):
             descriptor: _Descriptor | None = template.value_descriptor.get(option)
             if descriptor not in template.parent_descriptors and hasattr(descriptor, "__set_name__"):
                 getattr(descriptor, "__set_name__")(owner, option)
-        former_config: ConfigurationTemplate | None = _register_configuration(owner, self)
         for obj in _all_members(owner).values():
             if isinstance(obj, OptionAttribute):
-                with suppress(AttributeError):
-                    self.check_option_validity(obj.name, use_alias=True)
-                    if obj.owner is not owner:
-                        new_option_attribute: OptionAttribute[Any] = OptionAttribute()
-                        new_option_attribute.__doc__ = obj.__doc__
-                        setattr(owner, obj.name, new_option_attribute)
-                        new_option_attribute.__set_name__(owner, obj.name)
+                try:
+                    obj.owner
+                    obj.name
+                except AttributeError:
+                    continue
+                if obj.owner is not owner:
+                    new_option_attribute: OptionAttribute[Any] = OptionAttribute()
+                    new_option_attribute.__doc__ = obj.__doc__
+                    setattr(owner, obj.name, new_option_attribute)
+                    new_option_attribute.__set_name__(owner, obj.name)
             elif isinstance(obj, ConfigurationTemplate) and obj is not self:
-                _register_configuration(owner, former_config)
                 raise TypeError(f"A class can't have several {ConfigurationTemplate.__name__!r} objects")
         self.__info = template.build(owner)
 
@@ -205,7 +212,7 @@ class ConfigurationTemplate(Object):
         def __init_subclass__(cls: type, **kwargs: Any) -> None:
             config: ConfigurationTemplate = getattr(cls, name)
             if config.__bound_class is not cls:
-                subclass_config = ConfigurationTemplate(parent=list(filter(None, map(retrieve_configuration, cls.__bases__))))
+                subclass_config = ConfigurationTemplate(parent=list(filter(None, map(retrieve_config_or_none, cls.__bases__))))
                 setattr(cls, name, subclass_config)
                 subclass_config.__set_name__(cls, name)
             return default_init_subclass(**kwargs)
@@ -236,7 +243,7 @@ class ConfigurationTemplate(Object):
 
         info = self.info
 
-        with self.__descr_get_lock:
+        with self.__cache_lock:
             try:
                 return self.__cache[obj]
             except KeyError:  # Not added by another thread
@@ -2359,25 +2366,12 @@ def _all_members(cls: type) -> MutableMapping[str, Any]:
     return ChainMap(*map(vars, inspect.getmro(cls)))
 
 
-def _register_configuration(cls: type, config: ConfigurationTemplate | None) -> ConfigurationTemplate | None:
-    former_config: ConfigurationTemplate | None = None
-    with suppress(TypeError):
-        former_config = _retrieve_configuration(cls, invalid_type_exception=AssertionError)
-    if isinstance(config, ConfigurationTemplate):
-        setattr(cls, "_configuration_template_", config)
-    else:
-        with suppress(AttributeError):
-            delattr(cls, "_configuration_template_")
-    return former_config
-
-
-def _retrieve_configuration(cls: type, *, invalid_type_exception: type[BaseException] = TypeError) -> ConfigurationTemplate:
-    try:
-        config: ConfigurationTemplate = getattr(cls, "_configuration_template_")
-    except AttributeError:
-        raise TypeError(f"{cls.__name__} does not have a {ConfigurationTemplate.__name__} object") from None
-    if not isinstance(config, ConfigurationTemplate):
-        raise invalid_type_exception(f"{cls.__name__} does not have a {ConfigurationTemplate.__name__} object")
+def _retrieve_configuration(cls: type) -> ConfigurationTemplate:
+    config: ConfigurationTemplate | None = next(
+        (obj for obj in _all_members(cls).values() if isinstance(obj, ConfigurationTemplate)), None
+    )
+    if config is None:
+        raise TypeError(f"{cls.__name__} does not have a {ConfigurationTemplate.__name__} object")
     return config
 
 
@@ -2608,12 +2602,19 @@ class _ConfigInfoTemplate:
 
 class _ConfigInitializer:
 
-    __slots__ = ("__func__", "__dict__")
+    __slots__ = ("__func__", "__config_name", "__dict__")
 
     def __init__(self, func: Callable[..., Any]) -> None:
         if not hasattr(func, "__get__"):
             raise TypeError("Built-in functions cannot be used")
         self.__func__: Callable[..., Any] = func
+        self.__config_name: str = ""
+
+    def __set_name__(self, owner: type, name: str, /) -> None:
+        config: ConfigurationTemplate = _retrieve_configuration(owner)
+        if config.name is None:
+            raise TypeError("@initializer must be declared after the ConfigurationTemplate object")
+        self.__config_name = config.name
 
     @property
     def __call__(self) -> Callable[..., Any]:
@@ -2631,13 +2632,10 @@ class _ConfigInitializer:
     def __make_initializer(self) -> Callable[..., Any]:
         init_func: Callable[..., Any] = self.__func__
         func_get: Callable[[object, type | None], Callable[..., Any]] = getattr(init_func, "__get__")
+        config_name: str = self.__config_name
 
         @wraps(init_func)
         def config_initializer(self: object, /, *args: Any, **kwargs: Any) -> Any:
-            config_template: ConfigurationTemplate = _retrieve_configuration(type(self))
-            config_name = config_template.name
-            if config_name is None:
-                raise TypeError("ConfigurationTemplate object was not initialized using __set_name__")
             config: Configuration[object] = getattr(self, config_name)
             method: Callable[..., Any] = func_get(self, type(self))
             with config.initialization():
