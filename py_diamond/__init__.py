@@ -4,7 +4,7 @@
 #
 """pygame-based game engine
 
-PyDiamond engine is a game engine intended to game developers in Python language.
+PyDiamond engine is a game engine for Python game developers.
 The framework uses the popular pygame library (https://github.com/pygame/pygame/).
 
 This program is free software: you can redistribute it and/or modify it under
