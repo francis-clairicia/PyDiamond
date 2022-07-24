@@ -139,6 +139,8 @@ class Window(Object):
 
         self.__callback_after: _WindowCallbackList = _WindowCallbackList()
         self.__process_callbacks: bool = True
+        self.__handle_mouse_position: bool = True
+        self.__handle_keyboard: bool = True
 
         self.__stack = ExitStack()
 
@@ -175,7 +177,7 @@ class Window(Object):
 
     @contextmanager
     def open(self) -> Iterator[None]:
-        if self.is_open():
+        if _pg_display.get_surface() is not None:
             raise WindowError("Trying to open already open window")
 
         with ExitStack() as stack, suppress(WindowExit):
@@ -265,8 +267,10 @@ class Window(Object):
 
         add_event = event_queue.append
 
-        Keyboard._update()
-        Mouse._update()
+        if self.__handle_keyboard:
+            Keyboard._update()
+        if self.__handle_mouse_position:
+            Mouse._update()
 
         if screenshot_threads := self.__screenshot_threads:
             screenshot_threads[:] = [t for t in screenshot_threads if t.is_alive()]
@@ -391,19 +395,59 @@ class Window(Object):
     def handle_events(self) -> None:
         consume(self.process_events())
 
+    @final
     @contextmanager
     def no_window_callback_processing(self) -> Iterator[None]:
+        if not self.__process_callbacks:
+            yield
+            return
         self.__process_callbacks = False
         try:
             yield
         finally:
             self.__process_callbacks = True
 
+    @final
+    @contextmanager
+    def no_mouse_update(self) -> Iterator[None]:
+        if not self.__handle_mouse_position:
+            yield
+            return
+        self.__handle_mouse_position = False
+        try:
+            yield
+        finally:
+            self.__handle_mouse_position = True
+
+    @final
+    @contextmanager
+    def no_keyboard_update(self) -> Iterator[None]:
+        if not self.__handle_keyboard:
+            yield
+            return
+        self.__handle_keyboard = False
+        try:
+            yield
+        finally:
+            self.__handle_keyboard = True
+
+    @final
+    @contextmanager
+    def stuck(self) -> Iterator[None]:
+        with (
+            self.block_all_events_context(),
+            self.no_window_callback_processing(),
+            self.no_keyboard_update(),
+            self.no_mouse_update(),
+        ):
+            yield
+
     def _process_callbacks(self) -> None:
         self.__callback_after.process()
 
     def process_events(self) -> Generator[Event, None, None]:
-        self._handle_mouse_position(Mouse.get_pos())
+        if self.__handle_mouse_position:
+            self._handle_mouse_position(Mouse.get_pos())
         poll_event = self.__event_queue.popleft
         process_event = self._process_event
         make_event = EventFactory.from_pygame_event

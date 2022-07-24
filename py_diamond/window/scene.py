@@ -640,7 +640,7 @@ class SceneWindow(Window):
                     self.__scenes._render(previous_scene)
                 with self.capture(draw_on_default_at_end=False) as actual_scene_surface:
                     self.__scenes._render(actual_scene)
-                with self.capture() as window_surface, self.block_all_events_context(), self.no_window_callback_processing():
+                with self.capture() as window_surface, self.stuck():
                     transition: SceneTransitionCoroutine
                     transition = transition_factory(SurfaceRenderer(window_surface), previous_scene_surface, actual_scene_surface)
                     animating = True
@@ -1024,7 +1024,7 @@ class _SceneManager:
 
             window = self.window
             dialog.on_start_loop_before_transition()
-            with window.block_all_events_context(), window.no_window_callback_processing():
+            with window.stuck():
                 dialog.run_start_transition()
             dialog.on_start_loop()
 
@@ -1036,7 +1036,7 @@ class _SceneManager:
                     window.refresh()
             except _SceneManager.DialogStop:
                 dialog.on_quit_before_transition()
-                with window.block_all_events_context(), window.no_window_callback_processing():
+                with window.stuck():
                     dialog.run_quit_transition()
 
     @property

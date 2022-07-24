@@ -213,7 +213,7 @@ class BaseAnimation(Object):
         window: SceneWindow = scene.window
         self.__on_stop = None
         self.start()
-        with window.block_all_events_context(), window.no_window_callback_processing():
+        with window.stuck():
             while window.loop() and self.has_animation_started():
                 window._fixed_updates_call(self.fixed_update)
                 window._interpolation_updates_call(self.update)
