@@ -13,7 +13,7 @@ authors = [
 license = {file = "LICENSE"}
 dependencies = [
   "pygame ==2.1.2",
-  "cryptography ==37.0.2",
+  "cryptography ==37.0.4",
   "typing_extensions ==4.3.0"
 ]
 classifiers = [
@@ -35,7 +35,7 @@ Homepage = "https://github.com/francis-clairicia/PyDiamond"
 
 [project.optional-dependencies]
 dev = [
-  "mypy ==0.961",
+  "mypy ==0.971",
   "isort >=5.10.1",
   "black >=22.6.0"
 ]
