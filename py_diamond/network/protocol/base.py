@@ -50,9 +50,9 @@ class NetworkProtocol(NetworkPacketSerializer[_T_contra], NetworkPacketDeseriali
 
 
 _AnyP = TypeVar("_AnyP")
-_SP = TypeVar("_SP", bound=NetworkPacketSerializer[object])
-_DP = TypeVar("_DP", bound=NetworkPacketDeserializer[object])
-_P = TypeVar("_P", bound=NetworkProtocol[object, object])
+_SP = TypeVar("_SP", bound=NetworkPacketSerializer[Any])
+_DP = TypeVar("_DP", bound=NetworkPacketDeserializer[Any])
+_P = TypeVar("_P", bound=NetworkProtocol[Any, Any])
 
 
 class _BaseGenericWrapper(Generic[_AnyP], metaclass=ProtocolObjectMeta):

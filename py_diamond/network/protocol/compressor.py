@@ -38,9 +38,9 @@ from .stream import AutoParsedPacketDeserializer, AutoParsedPacketSerializer, St
 
 _T_co = TypeVar("_T_co", covariant=True)
 _T_contra = TypeVar("_T_contra", contravariant=True)
-_SP = TypeVar("_SP", bound=NetworkPacketSerializer[object])
-_DP = TypeVar("_DP", bound=NetworkPacketDeserializer[object])
-_P = TypeVar("_P", bound=NetworkProtocol[object, object])
+_SP = TypeVar("_SP", bound=NetworkPacketSerializer[Any])
+_DP = TypeVar("_DP", bound=NetworkPacketDeserializer[Any])
+_P = TypeVar("_P", bound=NetworkProtocol[Any, Any])
 
 # TODO: Incremental compression/decompression
 # TODO: Do not use AutoParsedStreamNetworkProtocol
@@ -94,7 +94,8 @@ class BZ2CompressorPacketDeserializer(
             data = bz2.decompress(data)
         except Exception as exc:  # TODO: Find the appropriate exceptions
             raise ValidationError("Unrelated exception occurred") from exc
-        return self.protocol.deserialize(data)  # type: ignore[return-value]
+        packet: _T_co = self.protocol.deserialize(data)
+        return packet
 
 
 @concreteclass
@@ -141,7 +142,8 @@ class GzipCompressorPacketDeserializer(
             data = gzip.decompress(data)
         except Exception as exc:  # TODO: Find the appropriate exceptions
             raise ValidationError("Unrelated exception occurred") from exc
-        return self.protocol.deserialize(data)  # type: ignore[return-value]
+        packet: _T_co = self.protocol.deserialize(data)
+        return packet
 
 
 @concreteclass
@@ -188,7 +190,8 @@ class ZlibCompressorPacketDeserializer(
             data = zlib.decompress(data)
         except zlib.error as exc:
             raise ValidationError("zlib.error occurred") from exc
-        return self.protocol.deserialize(data)  # type: ignore[return-value]
+        packet: _T_co = self.protocol.deserialize(data)
+        return packet
 
 
 @concreteclass

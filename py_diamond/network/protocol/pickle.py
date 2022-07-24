@@ -37,6 +37,9 @@ _T_contra = TypeVar("_T_contra", contravariant=True)
 
 @concreteclass
 class PicklePacketSerializer(NetworkPacketIncrementalSerializer[_T_contra], Object, metaclass=ProtocolObjectMeta):
+    def __init__(self) -> None:
+        super().__init__()
+
     @final
     def serialize(self, packet: _T_contra) -> bytes:
         buffer = BytesIO()
@@ -51,7 +54,11 @@ class PicklePacketSerializer(NetworkPacketIncrementalSerializer[_T_contra], Obje
     def incremental_serialize_to(self, file: IO[bytes], packet: _T_contra) -> None:
         assert file.writable()
         pickler = self.get_pickler(file)
-        pickler.dump(packet)
+        try:
+            pickler.dump(packet)
+        except:
+            file.write(STOP_OPCODE)  # Ensure there is a stop opcode, so the receiver can quickly ignore it
+            raise
 
     def get_pickler(self, buffer: IO[bytes]) -> Pickler:
         return Pickler(buffer, protocol=DEFAULT_PROTOCOL, fix_imports=False, buffer_callback=None)
@@ -59,6 +66,9 @@ class PicklePacketSerializer(NetworkPacketIncrementalSerializer[_T_contra], Obje
 
 @concreteclass
 class PicklePacketDeserializer(NetworkPacketIncrementalDeserializer[_T_co], Object, metaclass=ProtocolObjectMeta):
+    def __init__(self) -> None:
+        super().__init__()
+
     @final
     def deserialize(self, data: bytes) -> _T_co:
         if STOP_OPCODE not in data:
