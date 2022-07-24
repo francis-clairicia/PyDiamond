@@ -23,7 +23,7 @@ import inspect
 import re
 from collections import ChainMap
 from contextlib import ExitStack, contextmanager, suppress
-from dataclasses import KW_ONLY, dataclass, field, replace as dataclass_replace
+from dataclasses import KW_ONLY, dataclass, field
 from enum import Enum
 from functools import cache, update_wrapper, wraps
 from itertools import chain, combinations
@@ -239,7 +239,7 @@ class ConfigurationTemplate(Object):
             return self
 
         if self.__bound_class is not (objtype if objtype is not None else type(obj)):  # called by super()
-            return Configuration(weakref(obj), self.info.without_update_hooks())
+            return Configuration(weakref(obj), self.info)
 
         try:
             return self.__cache[obj]
@@ -1263,8 +1263,6 @@ class ConfigurationTemplate(Object):
         def decorator(func: _ValueConverterVar, /) -> _ValueConverterVar:
             value_converter_list = template.value_converter_on_get.setdefault(option, [])
             wrapper = _make_function_wrapper(func, use_override=bool(use_override))
-            if wrapper in value_converter_list:
-                raise OptionError(option, "Function already registered")
             value_converter_list.append(wrapper)
             return func
 
@@ -1300,8 +1298,6 @@ class ConfigurationTemplate(Object):
         def decorator(func: _StaticValueConverterVar, /) -> _StaticValueConverterVar:
             value_converter_list = template.value_converter_on_get.setdefault(option, [])
             wrapper = _make_function_wrapper(func, use_override=False, no_object=True)
-            if wrapper in value_converter_list:
-                raise OptionError(option, "Function already registered")
             value_converter_list.append(wrapper)
             return func
 
@@ -1348,8 +1344,6 @@ class ConfigurationTemplate(Object):
         def decorator(func: _ValueConverterVar, /) -> _ValueConverterVar:
             value_converter_list = template.value_converter_on_set.setdefault(option, [])
             wrapper = _make_function_wrapper(func, use_override=bool(use_override))
-            if wrapper in value_converter_list:
-                raise OptionError(option, "Function already registered")
             value_converter_list.append(wrapper)
             return func
 
@@ -1385,8 +1379,6 @@ class ConfigurationTemplate(Object):
         def decorator(func: _StaticValueConverterVar, /) -> _StaticValueConverterVar:
             value_converter_list = template.value_converter_on_set.setdefault(option, [])
             wrapper = _make_function_wrapper(func, use_override=False, no_object=True)
-            if wrapper in value_converter_list:
-                raise OptionError(option, "Function already registered")
             value_converter_list.append(wrapper)
             return func
 
@@ -1592,15 +1584,6 @@ class ConfigurationInfo(Object, Generic[_T]):
 
         def __get__(self, obj: object, objtype: type | None = None, /) -> Any:
             return self.__descriptor_get(obj, objtype)
-
-    def without_update_hooks(self) -> ConfigurationInfo[_T]:
-        return dataclass_replace(
-            self,
-            option_value_update_hooks=MappingProxyType({}),
-            option_update_hooks=MappingProxyType({}),
-            option_delete_hooks=MappingProxyType({}),
-            main_object_update_hooks=frozenset(),
-        )
 
     def check_option_validity(self, option: str, *, use_alias: bool = False) -> str:
         if use_alias:
