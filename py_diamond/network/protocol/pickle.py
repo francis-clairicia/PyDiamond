@@ -29,7 +29,12 @@ from ...system.utils.abc import concreteclass
 from ...system.utils.weakref import weakref_unwrap
 from .base import ValidationError
 from .encryptor import EncryptorNetworkProtocol, EncryptorPacketDeserializer, EncryptorPacketSerializer
-from .stream import NetworkPacketIncrementalDeserializer, NetworkPacketIncrementalSerializer, StreamNetworkProtocol
+from .stream import (
+    IncrementalDeserializeError,
+    NetworkPacketIncrementalDeserializer,
+    NetworkPacketIncrementalSerializer,
+    StreamNetworkProtocol,
+)
 
 _T_co = TypeVar("_T_co", covariant=True)
 _T_contra = TypeVar("_T_contra", contravariant=True)
@@ -79,7 +84,7 @@ class PicklePacketDeserializer(NetworkPacketIncrementalDeserializer[_T_co], Obje
             packet: _T_co = unpickler.load()
         except UnpicklingError as exc:
             raise ValidationError("Unpickling error") from exc
-        if buffer.read():  # There is still data after pickling
+        if data := buffer.read():  # There is still data after pickling
             raise ValidationError("Extra data caught")
         return packet
 
@@ -94,11 +99,10 @@ class PicklePacketDeserializer(NetworkPacketIncrementalDeserializer[_T_co], Obje
             unpickler = self.get_unpickler(data)
             try:
                 packet: _T_co = unpickler.load()
-            except UnpicklingError:
-                # We flush unused data as it may be corrupted
-                data = BytesIO(data.getvalue().partition(STOP_OPCODE)[2])
-            else:
-                return (packet, data.read())
+            except UnpicklingError as exc:
+                remainder = data.getvalue().partition(STOP_OPCODE)[2]
+                raise IncrementalDeserializeError(f"Unpickling error: {exc}", remaining_data=remainder) from exc
+            return (packet, data.read())
 
     def get_unpickler(self, buffer: IO[bytes]) -> Unpickler:
         return Unpickler(buffer, fix_imports=False, encoding="utf-8", errors="strict", buffers=None)
@@ -141,7 +145,7 @@ def _monkeypatch_protocol(self: _BaseGenericWrapper[Any], method_name: str) -> N
     del self  # Explicitly breaks the reference
 
 
-class SafePicklePacketSerializer(EncryptorPacketSerializer[_T_contra, PicklePacketSerializer[object]], Generic[_T_contra]):
+class SafePicklePacketSerializer(EncryptorPacketSerializer[_T_contra, PicklePacketSerializer[Any]], Generic[_T_contra]):
     def __init__(self, key: str | bytes | Fernet | MultiFernet) -> None:
         super().__init__(PicklePacketSerializer(), key)
         _monkeypatch_protocol(self, "get_pickler")
@@ -151,18 +155,18 @@ class SafePicklePacketSerializer(EncryptorPacketSerializer[_T_contra, PicklePack
         return protocol.__class__.get_pickler(protocol, buffer)
 
 
-class SafePicklePacketDeserializer(EncryptorPacketDeserializer[_T_co, PicklePacketDeserializer[object]], Generic[_T_co]):
+class SafePicklePacketDeserializer(EncryptorPacketDeserializer[_T_co, PicklePacketDeserializer[Any]], Generic[_T_co]):
     def __init__(self, key: str | bytes | Fernet | MultiFernet) -> None:
         super().__init__(PicklePacketDeserializer(), key)
         _monkeypatch_protocol(self, "get_unpickler")
 
     def get_unpickler(self, buffer: IO[bytes]) -> Unpickler:
         protocol = self.protocol
-        return protocol.__class__.get_unpickler(protocol, buffer)  # type: ignore[arg-type]
+        return protocol.__class__.get_unpickler(protocol, buffer)
 
 
 class SafePickleNetworkProtocol(
-    EncryptorNetworkProtocol[_T_contra, _T_co, PickleNetworkProtocol[object, object]],
+    EncryptorNetworkProtocol[_T_contra, _T_co, PickleNetworkProtocol[Any, Any]],
     Generic[_T_contra, _T_co],
 ):
     def __init__(self, key: str | bytes | Fernet | MultiFernet) -> None:
@@ -176,4 +180,4 @@ class SafePickleNetworkProtocol(
 
     def get_unpickler(self, buffer: IO[bytes]) -> Unpickler:
         protocol = self.protocol
-        return protocol.__class__.get_unpickler(protocol, buffer)  # type: ignore[arg-type]
+        return protocol.__class__.get_unpickler(protocol, buffer)

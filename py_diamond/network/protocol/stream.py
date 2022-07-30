@@ -27,11 +27,19 @@ from struct import Struct, error as StructError
 from typing import IO, Any, Final, Generator, Generic, Protocol, TypeVar, runtime_checkable
 
 from ...system.object import Object, ProtocolObjectMeta, final
-from ...system.utils.itertools import consumer_start
+from ...system.utils.itertools import consumer_start, send_return
 from .base import NetworkPacketDeserializer, NetworkPacketSerializer, NetworkProtocol, ValidationError
 
 _T_co = TypeVar("_T_co", covariant=True)
 _T_contra = TypeVar("_T_contra", contravariant=True)
+
+
+class IncrementalDeserializeError(ValidationError):
+    def __init__(self, message: str, *, remaining_data: bytes, data_with_error: bytes = b"") -> None:
+        if data_with_error:
+            message = f"Error when parsing {data_with_error!r}: {message}"
+        super().__init__(message)
+        self.remaining_data = remaining_data
 
 
 @runtime_checkable
@@ -60,12 +68,10 @@ class NetworkPacketIncrementalDeserializer(NetworkPacketDeserializer[_T_co], Pro
         packet: _T_co
         remaining: bytes
         try:
-            consumer.send(data)
-        except StopIteration as exc:
-            packet, remaining = exc.value
-        else:
+            packet, remaining = send_return(consumer, data)
+        except StopIteration:
             consumer.close()
-            raise ValidationError("Missing data to create packet")
+            raise ValidationError("Missing data to create packet") from None
         if remaining:
             raise ValidationError("Extra data caught")
         return packet

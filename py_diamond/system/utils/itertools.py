@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["consume", "consumer_start", "flatten"]
+__all__ = ["consume", "consumer_start", "flatten", "next_return", "send_return"]
 
 import inspect
 from collections import deque
@@ -15,9 +15,12 @@ from typing import Any, Generator, Iterable, Iterator, Literal as L, TypeVar, ov
 
 _T = TypeVar("_T")
 _T_co = TypeVar("_T_co", covariant=True)
+_T_contra = TypeVar("_T_contra", contravariant=True)
+_V_co = TypeVar("_V_co", covariant=True)
+_NO_DEFAULT: Any = object()
 
 
-def consumer_start(gen: Generator[_T_co, Any, Any]) -> _T_co:
+def consumer_start(gen: Generator[_T_co, Any, Any], /) -> _T_co:
     if inspect.getgeneratorstate(gen) != "GEN_CREATED":
         raise RuntimeError("generator already started")
     try:
@@ -26,8 +29,40 @@ def consumer_start(gen: Generator[_T_co, Any, Any]) -> _T_co:
         raise RuntimeError("generator didn't yield") from exc
 
 
-def consume(it: Iterator[Any]) -> None:
+def consume(it: Iterator[Any], /) -> None:
     deque(it, maxlen=0)  # Consume iterator at C level
+
+
+@overload
+def next_return(gen: Generator[Any, None, _V_co], /) -> _V_co:
+    ...
+
+
+@overload
+def next_return(gen: Generator[Any, None, _V_co], default: _T, /) -> _V_co | _T:
+    ...
+
+
+def next_return(gen: Generator[Any, None, Any], default: Any = _NO_DEFAULT) -> Any:
+    if inspect.getgeneratorstate(gen) == "GEN_CLOSED":
+        raise RuntimeError("generator closed")
+    try:
+        value = next(gen)
+    except StopIteration as exc:
+        return exc.value
+    if default is not _NO_DEFAULT:
+        return default
+    raise StopIteration(value)
+
+
+def send_return(gen: Generator[Any, _T_contra, _V_co], value: _T_contra, /) -> _V_co:
+    if inspect.getgeneratorstate(gen) == "GEN_CLOSED":
+        raise RuntimeError("generator closed")
+    try:
+        send_value = gen.send(value)
+    except StopIteration as exc:
+        return exc.value  # type: ignore[no-any-return]
+    raise StopIteration(send_value)
 
 
 @overload

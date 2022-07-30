@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import math
 from io import BytesIO
 from typing import Any
 
 from py_diamond.network.protocol.json import JSONPacketDeserializer, JSONPacketSerializer
 
 import pytest
+
+from .base import BaseTestStreamPacketIncrementalDeserializer, DeserializerConsumer
 
 SERIALIZE_PARAMS: list[tuple[Any, bytes]] = [
     (5, b"5"),
@@ -23,6 +24,7 @@ SERIALIZE_PARAMS: list[tuple[Any, bytes]] = [
     (None, b"null"),
     ("", b'""'),
     ("non-empty", b'"non-empty"'),
+    ('non-empty with "', b'"non-empty with \\""'),
     ("non-empty with é", b'"non-empty with \xc3\xa9"'),  # Must handle unicode by default
     ([], b"[]"),
     ([1, 2, 3], b"[1,2,3]"),  # No whitespaces by default
@@ -30,7 +32,26 @@ SERIALIZE_PARAMS: list[tuple[Any, bytes]] = [
     ({"k": "v", "k2": "v2"}, b'{"k":"v","k2":"v2"}'),  # No whitespaces by default
 ]
 
-DESERIALIZE_PARAMS: list[tuple[bytes, Any]] = [(output, data) for data, output in SERIALIZE_PARAMS]
+DESERIALIZE_PARAMS: list[tuple[bytes, Any]] = [
+    (output, data) for data, output in SERIALIZE_PARAMS if isinstance(data, (str, list, dict))
+] + [
+    (
+        b'[{"value": "a"}, {"value": 3.14}, {"value": true}, {"value": {"other": [Infinity]}}]',
+        [{"value": "a"}, {"value": 3.14}, {"value": True}, {"value": {"other": [float("+inf")]}}],
+    ),
+    (
+        b'"[{\\"value\\": \\"a\\"}, {\\"value\\": 3.14}, {\\"value\\": True}, {\\"value\\": {\\"other\\": [float(\\"nan\\")]}}]"',
+        '[{"value": "a"}, {"value": 3.14}, {"value": True}, {"value": {"other": [float("nan")]}}]',
+    ),
+    (
+        b'{"key": [{"key": "value", "key2": [4, 5, -Infinity]}], "other": null}',
+        {"key": [{"key": "value", "key2": [4, 5, float("-inf")]}], "other": None},
+    ),
+    (
+        b'{"{\\"key\\": [{\\"key\\": \\"value\\", \\"key2\\": [4, 5, -Infinity]}], \\"other\\": null}": 42}',
+        {'{"key": [{"key": "value", "key2": [4, 5, -Infinity]}], "other": null}': 42},
+    ),
+]
 
 
 @pytest.mark.unit
@@ -40,7 +61,7 @@ class TestJSONPacketSerializer:
     def protocol() -> JSONPacketSerializer[Any]:
         return JSONPacketSerializer()
 
-    @pytest.mark.parametrize(["data", "expected_output"], SERIALIZE_PARAMS, ids=repr)
+    @pytest.mark.parametrize(["data", "expected_output"], SERIALIZE_PARAMS)
     def test__serialize(self, protocol: JSONPacketSerializer[Any], data: Any, expected_output: bytes) -> None:
         # Arrange
 
@@ -51,7 +72,7 @@ class TestJSONPacketSerializer:
         assert isinstance(output, bytes)
         assert output == expected_output
 
-    @pytest.mark.parametrize(["data", "expected_output"], SERIALIZE_PARAMS, ids=repr)
+    @pytest.mark.parametrize(["data", "expected_output"], SERIALIZE_PARAMS)
     def test__incremental_serialize(self, protocol: JSONPacketSerializer[Any], data: Any, expected_output: bytes) -> None:
         # Arrange
 
@@ -62,7 +83,7 @@ class TestJSONPacketSerializer:
         assert isinstance(output, bytes)
         assert output == expected_output
 
-    @pytest.mark.parametrize(["data", "expected_output"], SERIALIZE_PARAMS, ids=repr)
+    @pytest.mark.parametrize(["data", "expected_output"], SERIALIZE_PARAMS)
     def test__incremental_serialize_to(self, protocol: JSONPacketSerializer[Any], data: Any, expected_output: bytes) -> None:
         # Arrange
         file = BytesIO()
@@ -75,13 +96,20 @@ class TestJSONPacketSerializer:
 
 
 @pytest.mark.unit
-class TestJSONPacketDeserializer:
+class TestJSONPacketDeserializer(BaseTestStreamPacketIncrementalDeserializer):
     @pytest.fixture
     @staticmethod
     def protocol() -> JSONPacketDeserializer[Any]:
         return JSONPacketDeserializer()
 
-    @pytest.mark.parametrize(["data", "expected_output"], DESERIALIZE_PARAMS, ids=repr)
+    @pytest.fixture
+    @staticmethod
+    def consumer(protocol: JSONPacketDeserializer[Any]) -> DeserializerConsumer[Any]:
+        consumer = protocol.incremental_deserialize()
+        next(consumer)
+        return consumer
+
+    @pytest.mark.parametrize(["data", "expected_output"], DESERIALIZE_PARAMS)
     def test__deserialize(self, protocol: JSONPacketDeserializer[Any], data: bytes, expected_output: Any) -> None:
         # Arrange
 
@@ -90,96 +118,87 @@ class TestJSONPacketDeserializer:
 
         # Assert
         assert type(output) is type(expected_output)
-        match data:
-            case b"NaN":
-                assert math.isnan(output)
-            case b"Infinity" | b"-Infinity":
-                assert math.isinf(output)
-                assert output == expected_output
-            case _:
-                assert output == expected_output
+        assert output == expected_output
 
-    @pytest.mark.parametrize(["data", "expected_output"], DESERIALIZE_PARAMS, ids=repr)
-    def test__incremental_deserialize(self, protocol: JSONPacketDeserializer[Any], data: bytes, expected_output: Any) -> None:
-        # Arrange
-        consumer = protocol.incremental_deserialize()
-        next(consumer)
-
-        # Act
-        with pytest.raises(StopIteration) as exc:
-            consumer.send(data)
-
-        output: Any
-        remainder: bytes
-        output, remainder = exc.value.value
-
-        # Assert
-        assert not remainder
-        assert type(output) is type(expected_output)
-        match data:
-            case b"NaN":
-                assert math.isnan(output)
-            case b"Infinity" | b"-Infinity":
-                assert math.isinf(output)
-                assert output == expected_output
-            case _:
-                assert output == expected_output
-
-    @pytest.mark.parametrize(
-        ["document", "expected_output"],
-        [
-            # Test with basic values to avoid regression
-            pytest.param("55", (55, 2)),
-            pytest.param("55.3", (55.3, 4)),
-            pytest.param('""', ("", 2)),
-            pytest.param("{}", ({}, 2)),
-            pytest.param("[]", ([], 2)),
-            pytest.param('"string"', ("string", 8)),
-            # Whitespace handling
-            pytest.param('    "string"', ("string", 12)),
-            pytest.param('"string"    ', ("string", 12)),
-            # Ignore successive strings
-            pytest.param('"a""b"', ("a", 3)),
-            # Ignore successive arrays
-            pytest.param("[1,2,3][4,5,6]", ([1, 2, 3], 7)),
-            # Ignore successive objects
-            pytest.param('{"a":1}{"b":2}', ({"a": 1}, 7)),
-        ],
-        ids=repr,
-    )
-    def test__raw_decode__cases_which_must_work(
+    @pytest.mark.parametrize(["data", "expected_output"], DESERIALIZE_PARAMS)
+    def test__incremental_deserialize__oneshot_valid_packet(
         self,
-        protocol: JSONPacketDeserializer[Any],
-        document: str,
-        expected_output: tuple[Any, int],
+        consumer: DeserializerConsumer[Any],
+        data: bytes,
+        expected_output: Any,
     ) -> None:
         # Arrange
 
         # Act
-        output = protocol.raw_decode(document)
+        output, remainder = self.deserialize(consumer, data)
 
         # Assert
+        assert not remainder
+        assert type(output) is type(expected_output)
         assert output == expected_output
 
     @pytest.mark.parametrize(
-        "document",
+        ["data", "expected_output", "expected_remainder"],
         [
-            "{",
-            "[",
-            '"',
-            '"\\"',  # Escaped quote, so this would fail too
-            "[{}",
-            '"[]',
-            '{"a":{"b":[5,3]}',
-            '{"a":{"}":[5,3]}',
-            '["", ',
-            '["", "]"',
+            pytest.param(b'    "leading-whitespaces"', "leading-whitespaces", b""),
+            pytest.param(b'"trailing-whitespaces"    ', "trailing-whitespaces", b"    "),  # Trailing whitespace will be ignored
         ],
         ids=repr,
     )
-    def test__raw_decode__handle_partial_document(self, protocol: JSONPacketDeserializer[Any], document: str) -> None:
+    def test__incremental_deserialize__whitespace_handling(
+        self,
+        consumer: DeserializerConsumer[Any],
+        data: bytes,
+        expected_output: Any,
+        expected_remainder: bytes,
+    ) -> None:
         # Arrange
 
-        # Act & Assert
-        with pytest.raises(EOFError):
-            protocol.raw_decode(document)
+        # Act
+        output, remainder = self.deserialize(consumer, data)
+
+        # Assert
+        assert output == expected_output
+        assert remainder == expected_remainder
+
+    @pytest.mark.parametrize(["data", "expected_output"], DESERIALIZE_PARAMS)
+    @pytest.mark.parametrize("expected_remainder", list(map(lambda v: v[0], DESERIALIZE_PARAMS)))
+    def test__incremental_deserialize__chunk_with_remainder(
+        self,
+        consumer: DeserializerConsumer[Any],
+        data: bytes,
+        expected_output: Any,
+        expected_remainder: bytes,
+    ) -> None:
+        # Arrange
+        data += expected_remainder
+
+        # Act
+        output, remainder = self.deserialize(consumer, data)
+
+        # Assert
+        assert output == expected_output
+        assert remainder == expected_remainder
+
+    @pytest.mark.parametrize(["data", "expected_output"], DESERIALIZE_PARAMS)
+    def test__incremental_deserialize__handle_partial_document(
+        self,
+        consumer: DeserializerConsumer[Any],
+        data: bytes,
+        expected_output: Any,
+    ) -> None:
+        # Arrange
+        import struct
+
+        bytes_sequence: tuple[bytes, ...] = struct.unpack(f"{len(data)}c", data)
+
+        # Act
+        for chunk in bytes_sequence[:-1]:
+            with pytest.raises(EOFError):
+                _ = self.deserialize(consumer, chunk)
+        output, remainder = self.deserialize(consumer, bytes_sequence[-1])
+
+        # Assert
+        assert not remainder
+        assert type(output) is type(expected_output)
+        assert output == expected_output

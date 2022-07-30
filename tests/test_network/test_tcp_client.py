@@ -185,10 +185,10 @@ def test_several_successive_send_using_json_protocol() -> None:
         with TCPNetworkClient[Any, Any]((host, port), protocol=JSONNetworkProtocol()) as client:
             client.send_packet({"data": [5, 2]})
             client.send_packet("Hello")
-            client.send_packet(132)
+            client.send_packet([132])
             assert client.recv_packet() == {"data": [5, 2]}
             assert client.recv_packet() == "Hello"
-            assert client.recv_packet() == 132
+            assert client.recv_packet() == [132]
     finally:
         shutdow_requested.set()
         server_thread.join()
