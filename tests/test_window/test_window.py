@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING, Any, Iterator
 
 from py_diamond.window.display import Window, WindowError
 
@@ -32,8 +32,12 @@ class TestWindowUnit:
     @pytest.fixture(autouse=True)
     @staticmethod
     def set_mode_return_value(init_pygame_display_module: Surface, mock_pygame_display_module: MockDisplayModule) -> None:
-        mock_pygame_display_module.set_mode.return_value = init_pygame_display_module
-        mock_pygame_display_module.get_surface.return_value = init_pygame_display_module
+        def set_mode(*args: Any, **kwargs: Any) -> Surface:
+            mock_pygame_display_module.get_surface.return_value = init_pygame_display_module
+            return init_pygame_display_module
+
+        mock_pygame_display_module.set_mode.side_effect = set_mode
+        mock_pygame_display_module.get_surface.return_value = None
 
     def test__init__default_arguments(self, monkeypatch: MonkeyPatch, mock_pygame_display_module: MockDisplayModule) -> None:
         # Arrange
