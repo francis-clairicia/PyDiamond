@@ -1698,15 +1698,17 @@ class Configuration(Object, Generic[_T]):
         info: ConfigurationInfo[_T] = self.__info
         option = info.check_option_validity(option, use_alias=True)
         descriptor = info.get_value_descriptor(option, type(obj))
-        try:
-            with self.__lazy_lock(obj):
+        with self.__lazy_lock(obj):
+            try:
                 value: Any = descriptor.__get__(obj, type(obj))
-        except AttributeError:
-            if default is _NO_DEFAULT:
-                raise
-            return default
-        for value_converter in info.value_converter_on_get.get(option, ()):
-            value = value_converter(obj, value)
+            except AttributeError as exc:
+                if default is _NO_DEFAULT:
+                    if isinstance(exc, UnregisteredOptionError):
+                        raise
+                    raise UnregisteredOptionError(option) from exc
+                return default
+            for value_converter in info.value_converter_on_get.get(option, ()):
+                value = value_converter(obj, value)
         return value
 
     def __getitem__(self, option: str, /) -> Any:
@@ -1733,12 +1735,12 @@ class Configuration(Object, Generic[_T]):
         option = info.check_option_validity(option, use_alias=True)
         descriptor = info.get_value_setter(option, type(obj))
 
-        for value_validator in info.value_validator.get(option, ()):
-            value_validator(obj, value)
-        for value_converter in info.value_converter_on_set.get(option, ()):
-            value = value_converter(obj, value)
-
         with self.__updating_option(obj, option, info) as update_context:
+            for value_validator in info.value_validator.get(option, ()):
+                value_validator(obj, value)
+            for value_converter in info.value_converter_on_set.get(option, ()):
+                value = value_converter(obj, value)
+
             init_context = update_context.init_context
             try:
                 actual_value = descriptor.__get__(obj, type(obj))
@@ -1764,12 +1766,13 @@ class Configuration(Object, Generic[_T]):
         option = info.check_option_validity(option, use_alias=True)
         descriptor = info.get_value_setter(option, type(obj))
 
-        for value_validator in info.value_validator.get(option, ()):
-            value_validator(obj, value)
-        for value_converter in info.value_converter_on_set.get(option, ()):
-            value = value_converter(obj, value)
+        with self.__lazy_lock(obj):
+            for value_validator in info.value_validator.get(option, ()):
+                value_validator(obj, value)
+            for value_converter in info.value_converter_on_set.get(option, ()):
+                value = value_converter(obj, value)
 
-        descriptor.__set__(obj, value)
+            descriptor.__set__(obj, value)
 
     def __setitem__(self, option: str, value: Any, /) -> None:
         try:
@@ -1797,7 +1800,8 @@ class Configuration(Object, Generic[_T]):
         info: ConfigurationInfo[_T] = self.__info
         option = info.check_option_validity(option, use_alias=True)
         descriptor = info.get_value_deleter(option, type(obj))
-        descriptor.__delete__(obj)
+        with self.__lazy_lock(obj):
+            descriptor.__delete__(obj)
 
     def __delitem__(self, option: str, /) -> None:
         try:
@@ -1835,7 +1839,12 @@ class Configuration(Object, Generic[_T]):
         descriptor = info.get_value_setter(option, type(obj))
 
         with self.__updating_option(obj, option, info) as update_context:
-            value: Any = descriptor.__get__(obj, type(obj))
+            try:
+                value: Any = descriptor.__get__(obj, type(obj))
+            except UnregisteredOptionError:
+                raise
+            except AttributeError as exc:
+                raise UnregisteredOptionError(option) from exc
 
             for value_converter in info.value_converter_on_get.get(option, ()):
                 value = value_converter(obj, value)
@@ -1864,7 +1873,12 @@ class Configuration(Object, Generic[_T]):
         descriptor = info.get_value_setter(option, type(obj))
 
         with self.__lazy_lock(obj):
-            value: Any = descriptor.__get__(obj, type(obj))
+            try:
+                value: Any = descriptor.__get__(obj, type(obj))
+            except UnregisteredOptionError:
+                raise
+            except AttributeError as exc:
+                raise UnregisteredOptionError(option) from exc
 
             for value_converter in info.value_converter_on_get.get(option, ()):
                 value = value_converter(obj, value)
