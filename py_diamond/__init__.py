@@ -29,15 +29,8 @@ __license__ = "GNU GPL v3.0"
 __maintainer__ = "FrankySnow9"
 __email__ = "clairicia.rcj.francis@gmail.com"
 
-from .version import version_info
-
-__version__ = str(version_info)
-
-match version_info.releaselevel:
-    case "final" if not version_info.suffix:
-        __status__ = "Production"
-    case _:
-        __status__ = "Development"
+__version__ = "1.0.0a0.dev2"
+__status__ = "Development"
 
 import os
 import sys
@@ -99,6 +92,7 @@ from . import (
     warnings as warnings,
     window as window,
 )
+from .version import version_info as version_info
 
 collector.run_patches(PatchContext.AFTER_IMPORTING_SUBMODULES)
 

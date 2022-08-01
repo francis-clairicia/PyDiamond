@@ -12,6 +12,8 @@ import typing
 
 from typing_extensions import assert_never
 
+from . import __version__
+
 
 class VersionInfo(typing.NamedTuple):
     major: int
@@ -36,5 +38,35 @@ class VersionInfo(typing.NamedTuple):
             releaselevel = f"{releaselevel}{self.serial}"
         return f"{self.major}.{self.minor}.{self.patch}{releaselevel}{self.suffix}"
 
+    @staticmethod
+    def from_string(version: str) -> VersionInfo:
+        import re
 
-version_info: typing.Final[VersionInfo] = VersionInfo(1, 0, 0, "alpha", 0, ".dev2")
+        pattern = r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?:(?P<releaselevel>a|b|rc)(?P<serial>\d+))?(?P<suffix>.+)?$"
+
+        match = re.match(pattern, version)
+        if match is None:
+            raise ValueError("Invalid version")
+
+        major, minor, patch = map(int, match.group("major", "minor", "patch"))
+
+        releaselevel: typing.Literal["alpha", "beta", "candidate", "final"]
+        match match["releaselevel"]:
+            case "a":
+                releaselevel = "alpha"
+            case "b":
+                releaselevel = "beta"
+            case "rc":
+                releaselevel = "candidate"
+            case None:
+                releaselevel = "final"
+            case _:  # Should not happen
+                raise SystemError("Invalid match/case statement")
+
+        serial: int = int(match["serial"]) if match["serial"] else 0
+        suffix: str = match["suffix"] or ""
+
+        return VersionInfo(major, minor, patch, releaselevel, serial, suffix)
+
+
+version_info: typing.Final[VersionInfo] = VersionInfo.from_string(__version__)

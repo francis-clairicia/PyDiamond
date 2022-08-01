@@ -17,7 +17,6 @@ PYTEST_CACHE				=	./.pytest_cache
 
 all:	build
 
-build:	export PYDIAMOND_IMPORT_WARNINGS = 0
 build:	BLACK_ARGS += --check --diff --quiet
 build:	ISORT_ARGS += --check --diff --quiet
 build:	PYTEST_ARGS += --quiet --exitfirst

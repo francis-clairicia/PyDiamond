@@ -44,3 +44,33 @@ class TestVersionInfo:
 
         # Assert
         assert version_str == expected_version
+
+    @pytest.mark.parametrize(
+        ["version", "expected_version_tuple"],
+        [
+            pytest.param("1.0.0", (1, 0, 0, "final", 0, "")),
+            pytest.param("1.0.0a0", (1, 0, 0, "alpha", 0, "")),
+            pytest.param("1.0.0a5", (1, 0, 0, "alpha", 5, "")),
+            pytest.param("1.0.0b0", (1, 0, 0, "beta", 0, "")),
+            pytest.param("1.0.0b5", (1, 0, 0, "beta", 5, "")),
+            pytest.param("1.0.0rc0", (1, 0, 0, "candidate", 0, "")),
+            pytest.param("1.0.0rc5", (1, 0, 0, "candidate", 5, "")),
+            pytest.param("1.0.0.dev1", (1, 0, 0, "final", 0, ".dev1")),
+            pytest.param("1.0.0+abcdef", (1, 0, 0, "final", 0, "+abcdef")),
+            pytest.param("1.0.0a5.dev1", (1, 0, 0, "alpha", 5, ".dev1")),
+            pytest.param("1.0.0a5+abcdef", (1, 0, 0, "alpha", 5, "+abcdef")),
+            pytest.param("1.0.0b5.dev1", (1, 0, 0, "beta", 5, ".dev1")),
+            pytest.param("1.0.0b5+abcdef", (1, 0, 0, "beta", 5, "+abcdef")),
+            pytest.param("1.0.0rc5.dev1", (1, 0, 0, "candidate", 5, ".dev1")),
+            pytest.param("1.0.0rc5+abcdef", (1, 0, 0, "candidate", 5, "+abcdef")),
+        ],
+        ids=str,
+    )
+    def test__from_string__returns_the_right_version_info(self, version: str, expected_version_tuple: tuple[Any, ...]) -> None:
+        # Arrange
+
+        # Act
+        version_info = VersionInfo.from_string(version)
+
+        # Assert
+        assert version_info == expected_version_tuple
