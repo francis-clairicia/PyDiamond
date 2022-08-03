@@ -19,13 +19,14 @@ class VersionInfo(typing.NamedTuple):
     major: int
     minor: int
     patch: int
-    releaselevel: typing.Literal["alpha", "beta", "candidate", "final"] = "final"
+    releaselevel: typing.Literal["", "alpha", "beta", "candidate", "final"] = "final"  # Empty string means 'in development'
     serial: int = 0
-    suffix: str = ""
 
     def __str__(self) -> str:
         releaselevel: str
         match self.releaselevel:
+            case "":
+                releaselevel = ".dev"
             case "alpha" | "beta":
                 releaselevel = self.releaselevel[0]
             case "candidate":
@@ -36,13 +37,13 @@ class VersionInfo(typing.NamedTuple):
                 assert_never(self.releaselevel)
         if releaselevel:
             releaselevel = f"{releaselevel}{self.serial}"
-        return f"{self.major}.{self.minor}.{self.patch}{releaselevel}{self.suffix}"
+        return f"{self.major}.{self.minor}.{self.patch}{releaselevel}"
 
     @staticmethod
     def from_string(version: str) -> VersionInfo:
         import re
 
-        pattern = r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?:(?P<releaselevel>a|b|rc)(?P<serial>\d+))?(?P<suffix>.+)?$"
+        pattern = r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?:(?P<releaselevel>a|b|rc|.dev)(?P<serial>\d+))?$"
 
         match = re.match(pattern, version)
         if match is None:
@@ -50,8 +51,10 @@ class VersionInfo(typing.NamedTuple):
 
         major, minor, patch = map(int, match.group("major", "minor", "patch"))
 
-        releaselevel: typing.Literal["alpha", "beta", "candidate", "final"]
+        releaselevel: typing.Literal["", "alpha", "beta", "candidate", "final"]
         match match["releaselevel"]:
+            case ".dev":
+                releaselevel = ""
             case "a":
                 releaselevel = "alpha"
             case "b":
@@ -64,9 +67,8 @@ class VersionInfo(typing.NamedTuple):
                 raise SystemError("Invalid match/case statement")
 
         serial: int = int(match["serial"]) if match["serial"] else 0
-        suffix: str = match["suffix"] or ""
 
-        return VersionInfo(major, minor, patch, releaselevel, serial, suffix)
+        return VersionInfo(major, minor, patch, releaselevel, serial)
 
 
 version_info: typing.Final[VersionInfo] = VersionInfo.from_string(__version__)

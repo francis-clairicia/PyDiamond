@@ -24,14 +24,8 @@ class TestVersionInfo:
             pytest.param((1, 0, 0, "beta", 5), "1.0.0b5"),
             pytest.param((1, 0, 0, "candidate"), "1.0.0rc0"),
             pytest.param((1, 0, 0, "candidate", 5), "1.0.0rc5"),
-            pytest.param((1, 0, 0, "final", 0, ".dev1"), "1.0.0.dev1"),
-            pytest.param((1, 0, 0, "final", 0, "+abcdef"), "1.0.0+abcdef"),
-            pytest.param((1, 0, 0, "alpha", 5, ".dev1"), "1.0.0a5.dev1"),
-            pytest.param((1, 0, 0, "alpha", 5, "+abcdef"), "1.0.0a5+abcdef"),
-            pytest.param((1, 0, 0, "beta", 5, ".dev1"), "1.0.0b5.dev1"),
-            pytest.param((1, 0, 0, "beta", 5, "+abcdef"), "1.0.0b5+abcdef"),
-            pytest.param((1, 0, 0, "candidate", 5, ".dev1"), "1.0.0rc5.dev1"),
-            pytest.param((1, 0, 0, "candidate", 5, "+abcdef"), "1.0.0rc5+abcdef"),
+            pytest.param((1, 0, 0, ""), "1.0.0.dev0"),
+            pytest.param((1, 0, 0, "", 5), "1.0.0.dev5"),
         ],
         ids=str,
     )
@@ -48,21 +42,15 @@ class TestVersionInfo:
     @pytest.mark.parametrize(
         ["version", "expected_version_tuple"],
         [
-            pytest.param("1.0.0", (1, 0, 0, "final", 0, "")),
-            pytest.param("1.0.0a0", (1, 0, 0, "alpha", 0, "")),
-            pytest.param("1.0.0a5", (1, 0, 0, "alpha", 5, "")),
-            pytest.param("1.0.0b0", (1, 0, 0, "beta", 0, "")),
-            pytest.param("1.0.0b5", (1, 0, 0, "beta", 5, "")),
-            pytest.param("1.0.0rc0", (1, 0, 0, "candidate", 0, "")),
-            pytest.param("1.0.0rc5", (1, 0, 0, "candidate", 5, "")),
-            pytest.param("1.0.0.dev1", (1, 0, 0, "final", 0, ".dev1")),
-            pytest.param("1.0.0+abcdef", (1, 0, 0, "final", 0, "+abcdef")),
-            pytest.param("1.0.0a5.dev1", (1, 0, 0, "alpha", 5, ".dev1")),
-            pytest.param("1.0.0a5+abcdef", (1, 0, 0, "alpha", 5, "+abcdef")),
-            pytest.param("1.0.0b5.dev1", (1, 0, 0, "beta", 5, ".dev1")),
-            pytest.param("1.0.0b5+abcdef", (1, 0, 0, "beta", 5, "+abcdef")),
-            pytest.param("1.0.0rc5.dev1", (1, 0, 0, "candidate", 5, ".dev1")),
-            pytest.param("1.0.0rc5+abcdef", (1, 0, 0, "candidate", 5, "+abcdef")),
+            pytest.param("1.0.0", (1, 0, 0, "final", 0)),
+            pytest.param("1.0.0a0", (1, 0, 0, "alpha", 0)),
+            pytest.param("1.0.0a5", (1, 0, 0, "alpha", 5)),
+            pytest.param("1.0.0b0", (1, 0, 0, "beta", 0)),
+            pytest.param("1.0.0b5", (1, 0, 0, "beta", 5)),
+            pytest.param("1.0.0rc0", (1, 0, 0, "candidate", 0)),
+            pytest.param("1.0.0rc5", (1, 0, 0, "candidate", 5)),
+            pytest.param("1.0.0.dev0", (1, 0, 0, "", 0)),
+            pytest.param("1.0.0.dev5", (1, 0, 0, "", 5)),
         ],
         ids=str,
     )
@@ -74,3 +62,54 @@ class TestVersionInfo:
 
         # Assert
         assert version_info == expected_version_tuple
+
+    def test__version_info__rich_comparison(self) -> None:
+        # Arrange
+        from random import Random
+
+        random = Random(42)
+
+        expected_release_order = [
+            "1.0.0.dev0",
+            "1.0.0.dev1",
+            "1.0.0.dev2",
+            "1.0.0.dev10",
+            "1.0.0.dev100",
+            "1.0.0a0",
+            "1.0.0a1",
+            "1.0.0a2",
+            "1.0.0a10",
+            "1.0.0a100",
+            "1.0.0b0",
+            "1.0.0b1",
+            "1.0.0b2",
+            "1.0.0b10",
+            "1.0.0b100",
+            "1.0.0rc0",
+            "1.0.0rc1",
+            "1.0.0rc2",
+            "1.0.0rc10",
+            "1.0.0rc100",
+            "1.0.0",  # Final release
+            "1.0.1.dev0",
+            "1.0.1",
+            "1.0.2",
+            "1.0.10",
+            "1.1.0.dev0",
+            "1.1.0",
+            "1.2.0",
+            "1.10.0",
+            "2.0.0a2",
+            "2.0.0rc5",
+            "2.0.0",
+            "10.0.0",
+        ]
+        release_order = list(expected_release_order)
+        random.shuffle(release_order)
+        assert release_order != expected_release_order
+
+        # Act
+        release_order.sort(key=VersionInfo.from_string)
+
+        # Assert
+        assert release_order == expected_release_order

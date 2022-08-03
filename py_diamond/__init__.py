@@ -29,7 +29,7 @@ __license__ = "GNU GPL v3.0"
 __maintainer__ = "FrankySnow9"
 __email__ = "clairicia.rcj.francis@gmail.com"
 
-__version__ = "1.0.0a0"
+__version__ = "1.0.0.dev1"
 __status__ = "Development"
 
 import os
