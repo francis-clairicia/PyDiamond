@@ -63,6 +63,33 @@ class TestVersionInfo:
         # Assert
         assert version_info == expected_version_tuple
 
+    @pytest.mark.parametrize(
+        "version",
+        [
+            "1.0",
+            "1.0.",
+            "a.b.c",
+            "1.0.0.a0",
+            "1.0.0.b0",
+            "1.0.0.rc0",
+            "1.0.0-a0",
+            "1.0.0-b0",
+            "1.0.0-rc0",
+            "1.0.0.a",
+            "1.0.0.b",
+            "1.0.0.rc",
+            "1.0.0.dev",
+            "1.0.0-dev1",
+        ],
+        ids=str,
+    )
+    def test__from_string__invalid(self, version: str) -> None:
+        # Arrange
+
+        # Act & Assert
+        with pytest.raises(ValueError, match=r"Invalid version"):
+            _ = VersionInfo.from_string(version)
+
     def test__version_info__rich_comparison(self) -> None:
         # Arrange
         from random import Random

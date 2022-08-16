@@ -43,7 +43,7 @@ class VersionInfo(typing.NamedTuple):
     def from_string(version: str) -> VersionInfo:
         import re
 
-        pattern = r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?:(?P<releaselevel>a|b|rc|.dev)(?P<serial>\d+))?$"
+        pattern = r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?:(?P<releaselevel>a|b|rc|\.dev)(?P<serial>\d+))?$"
 
         match = re.match(pattern, version)
         if match is None:
@@ -64,7 +64,7 @@ class VersionInfo(typing.NamedTuple):
             case None:
                 releaselevel = "final"
             case _:  # Should not happen
-                raise SystemError("Invalid match/case statement")
+                raise SystemError("Invalid regex pattern")
 
         serial: int = int(match["serial"]) if match["serial"] else 0
 
