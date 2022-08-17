@@ -101,7 +101,7 @@ class TestPygamePatch:
         mock_pygame_event_custom_type.assert_called_once()
         mock_pygame_mixer_music_set_endevent.assert_called_once_with(sentinel_event_type)
 
-        with pytest.raises(TypeError, match=r"Call to function pygame.mixer.music.set_endevent is forbidden"):
+        with pytest.raises(TypeError, match=r"Call to function pygame\.mixer\.music\.set_endevent is forbidden"):
             pygame.mixer.music.set_endevent(sentinel_event_type)
 
     def test__run__make_pygame_event_event_name_customizable(

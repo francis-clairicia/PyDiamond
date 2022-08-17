@@ -107,7 +107,7 @@ class TestGlobalImport:
         import pygame
 
         expected_message = (
-            r"'pygame' module already imported, this can cause unwanted behavior. Consider importing py_diamond first."
+            r"'pygame' module already imported, this can cause unwanted behavior\. Consider importing py_diamond first\."
         )
         with pytest.warns(UserWarning, match=expected_message):
             import py_diamond
