@@ -22,7 +22,7 @@ from ..system.object import Object
 from .cursor import AbstractCursor, SystemCursor
 from .display import Window
 from .event import BoundEventManager, Event, MouseButtonDownEvent, MouseButtonEvent, MouseButtonUpEvent, MouseMotionEvent
-from .mouse import Mouse
+from .mouse import MouseButton
 from .scene import Scene
 
 
@@ -187,7 +187,7 @@ class Clickable(Object):
         return False
 
     def _valid_mouse_button(self, button: int) -> bool:
-        return button == Mouse.Button.LEFT
+        return button == MouseButton.LEFT
 
     @abstractmethod
     def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:

@@ -76,8 +76,8 @@ from ..system.namespace import ClassNamespaceMeta
 from ..system.object import Object, ObjectMeta, final
 from ..system.utils.abc import isabstractclass
 from ..system.utils.weakref import weakref_unwrap
-from .keyboard import Keyboard
-from .mouse import Mouse
+from .keyboard import Key
+from .mouse import MouseButton
 
 if TYPE_CHECKING:
     from _typeshed import Self
@@ -646,10 +646,10 @@ class EventManager:
 
     def __init__(self) -> None:
         self.__event_handler_dict: dict[type[Event], OrderedSet[_EventCallback]] = dict()
-        self.__key_pressed_handler_dict: dict[Keyboard.Key, Callable[[KeyDownEvent], Any]] = dict()
-        self.__key_released_handler_dict: dict[Keyboard.Key, Callable[[KeyUpEvent], Any]] = dict()
-        self.__mouse_button_pressed_handler_dict: dict[Mouse.Button, Callable[[MouseButtonDownEvent], Any]] = dict()
-        self.__mouse_button_released_handler_dict: dict[Mouse.Button, Callable[[MouseButtonUpEvent], Any]] = dict()
+        self.__key_pressed_handler_dict: dict[Key, Callable[[KeyDownEvent], Any]] = dict()
+        self.__key_released_handler_dict: dict[Key, Callable[[KeyUpEvent], Any]] = dict()
+        self.__mouse_button_pressed_handler_dict: dict[MouseButton, Callable[[MouseButtonDownEvent], Any]] = dict()
+        self.__mouse_button_released_handler_dict: dict[MouseButton, Callable[[MouseButtonUpEvent], Any]] = dict()
         self.__mouse_pos_handler_list: OrderedSet[_MousePositionCallback] = OrderedSet()
         self.__other_manager_list: OrderedWeakSet[EventManager] = OrderedWeakSet()
         self.__priority_callback: dict[type[Event], _EventCallback] = dict()
@@ -740,45 +740,45 @@ class EventManager:
         self.__priority_callback.clear()
         self.__priority_manager.clear()
 
-    def bind_key(self, key: Keyboard.Key, callback: Callable[[KeyEvent], Any]) -> None:
+    def bind_key(self, key: Key, callback: Callable[[KeyEvent], Any]) -> None:
         self.bind_key_press(key, callback)
         self.bind_key_release(key, callback)
 
-    def bind_key_press(self, key: Keyboard.Key, callback: Callable[[KeyDownEvent], Any]) -> None:
-        EventManager.__bind_single(self.__key_pressed_handler_dict, Keyboard.Key(key), callback)
+    def bind_key_press(self, key: Key, callback: Callable[[KeyDownEvent], Any]) -> None:
+        EventManager.__bind_single(self.__key_pressed_handler_dict, Key(key), callback)
 
-    def bind_key_release(self, key: Keyboard.Key, callback: Callable[[KeyUpEvent], Any]) -> None:
-        EventManager.__bind_single(self.__key_released_handler_dict, Keyboard.Key(key), callback)
+    def bind_key_release(self, key: Key, callback: Callable[[KeyUpEvent], Any]) -> None:
+        EventManager.__bind_single(self.__key_released_handler_dict, Key(key), callback)
 
-    def unbind_key(self, key: Keyboard.Key) -> None:
+    def unbind_key(self, key: Key) -> None:
         self.unbind_key_press(key)
         self.unbind_key_release(key)
 
-    def unbind_key_press(self, key: Keyboard.Key) -> None:
-        EventManager.__unbind_single(self.__key_pressed_handler_dict, Keyboard.Key(key))
+    def unbind_key_press(self, key: Key) -> None:
+        EventManager.__unbind_single(self.__key_pressed_handler_dict, Key(key))
 
-    def unbind_key_release(self, key: Keyboard.Key) -> None:
-        EventManager.__unbind_single(self.__key_released_handler_dict, Keyboard.Key(key))
+    def unbind_key_release(self, key: Key) -> None:
+        EventManager.__unbind_single(self.__key_released_handler_dict, Key(key))
 
-    def bind_mouse_button(self, button: Mouse.Button, callback: Callable[[MouseButtonEvent], Any]) -> None:
+    def bind_mouse_button(self, button: MouseButton, callback: Callable[[MouseButtonEvent], Any]) -> None:
         self.bind_mouse_button_press(button, callback)
         self.bind_mouse_button_release(button, callback)
 
-    def bind_mouse_button_press(self, button: Mouse.Button, callback: Callable[[MouseButtonDownEvent], Any]) -> None:
-        EventManager.__bind_single(self.__mouse_button_pressed_handler_dict, Mouse.Button(button), callback)
+    def bind_mouse_button_press(self, button: MouseButton, callback: Callable[[MouseButtonDownEvent], Any]) -> None:
+        EventManager.__bind_single(self.__mouse_button_pressed_handler_dict, MouseButton(button), callback)
 
-    def bind_mouse_button_release(self, button: Mouse.Button, callback: Callable[[MouseButtonUpEvent], Any]) -> None:
-        EventManager.__bind_single(self.__mouse_button_released_handler_dict, Mouse.Button(button), callback)
+    def bind_mouse_button_release(self, button: MouseButton, callback: Callable[[MouseButtonUpEvent], Any]) -> None:
+        EventManager.__bind_single(self.__mouse_button_released_handler_dict, MouseButton(button), callback)
 
-    def unbind_mouse_button(self, button: Mouse.Button) -> None:
+    def unbind_mouse_button(self, button: MouseButton) -> None:
         self.unbind_mouse_button_press(button)
         self.unbind_mouse_button_release(button)
 
-    def unbind_mouse_button_press(self, button: Mouse.Button) -> None:
-        EventManager.__unbind_single(self.__mouse_button_pressed_handler_dict, Mouse.Button(button))
+    def unbind_mouse_button_press(self, button: MouseButton) -> None:
+        EventManager.__unbind_single(self.__mouse_button_pressed_handler_dict, MouseButton(button))
 
-    def unbind_mouse_button_release(self, button: Mouse.Button) -> None:
-        EventManager.__unbind_single(self.__mouse_button_released_handler_dict, Mouse.Button(button))
+    def unbind_mouse_button_release(self, button: MouseButton) -> None:
+        EventManager.__unbind_single(self.__mouse_button_released_handler_dict, MouseButton(button))
 
     def bind_mouse_position(self, callback: _MousePositionCallback) -> None:
         mouse_pos_handler_list: OrderedSet[_MousePositionCallback] = self.__mouse_pos_handler_list
@@ -843,7 +843,7 @@ class EventManager:
 
     def __handle_key_event(self, event: KeyEvent) -> bool:
         try:
-            key = Keyboard.Key(event.key)
+            key = Key(event.key)
         except ValueError:
             return False
         match event:
@@ -857,7 +857,7 @@ class EventManager:
 
     def __handle_mouse_event(self, event: MouseButtonEvent) -> bool:
         try:
-            mouse_button = Mouse.Button(event.button)
+            mouse_button = MouseButton(event.button)
         except ValueError:
             return False
         match event:
@@ -898,10 +898,10 @@ class BoundEventManager(Generic[_T]):
         self.__ref: weakref.ReferenceType[_T] = weakref.ref(obj, unbind_all)
         self.__manager: EventManager = EventManager()
         self.__any_callbacks: defaultdict[Any, _CallbackRegistry] = defaultdict(weakref.WeakKeyDictionary)
-        self.__key_press_callbacks: defaultdict[Keyboard.Key, _CallbackRegistry] = defaultdict(weakref.WeakKeyDictionary)
-        self.__key_release_callbacks: defaultdict[Keyboard.Key, _CallbackRegistry] = defaultdict(weakref.WeakKeyDictionary)
-        self.__mouse_press_callbacks: defaultdict[Mouse.Button, _CallbackRegistry] = defaultdict(weakref.WeakKeyDictionary)
-        self.__mouse_release_callbacks: defaultdict[Mouse.Button, _CallbackRegistry] = defaultdict(weakref.WeakKeyDictionary)
+        self.__key_press_callbacks: defaultdict[Key, _CallbackRegistry] = defaultdict(weakref.WeakKeyDictionary)
+        self.__key_release_callbacks: defaultdict[Key, _CallbackRegistry] = defaultdict(weakref.WeakKeyDictionary)
+        self.__mouse_press_callbacks: defaultdict[MouseButton, _CallbackRegistry] = defaultdict(weakref.WeakKeyDictionary)
+        self.__mouse_release_callbacks: defaultdict[MouseButton, _CallbackRegistry] = defaultdict(weakref.WeakKeyDictionary)
         self.__mouse_position_callbacks: _CallbackRegistry = weakref.WeakKeyDictionary()
 
     def __del__(self) -> None:
@@ -985,28 +985,28 @@ class BoundEventManager(Generic[_T]):
         self.__mouse_position_callbacks.clear()
 
     @overload
-    def bind_key(self, key: Keyboard.Key, callback: weakref.WeakMethod[Callable[[KeyEvent], Any]]) -> None:
+    def bind_key(self, key: Key, callback: weakref.WeakMethod[Callable[[KeyEvent], Any]]) -> None:
         ...
 
     @overload
-    def bind_key(self, key: Keyboard.Key, callback: Callable[[_T, KeyEvent], Any]) -> None:
+    def bind_key(self, key: Key, callback: Callable[[_T, KeyEvent], Any]) -> None:
         ...
 
-    def bind_key(self, key: Keyboard.Key, callback: Callable[..., Any]) -> None:
+    def bind_key(self, key: Key, callback: Callable[..., Any]) -> None:
         self.bind_key_press(key, callback)
         self.bind_key_release(key, callback)
 
     @overload
-    def bind_key_press(self, key: Keyboard.Key, callback: weakref.WeakMethod[Callable[[KeyDownEvent], Any]]) -> None:
+    def bind_key_press(self, key: Key, callback: weakref.WeakMethod[Callable[[KeyDownEvent], Any]]) -> None:
         ...
 
     @overload
-    def bind_key_press(self, key: Keyboard.Key, callback: Callable[[_T, KeyDownEvent], Any]) -> None:
+    def bind_key_press(self, key: Key, callback: Callable[[_T, KeyDownEvent], Any]) -> None:
         ...
 
     def bind_key_press(
         self,
-        key: Keyboard.Key,
+        key: Key,
         callback: weakref.WeakMethod[Callable[[KeyDownEvent], Any]] | Callable[[_T, KeyDownEvent], Any],
     ) -> None:
         return self.__bind(
@@ -1017,16 +1017,16 @@ class BoundEventManager(Generic[_T]):
         )
 
     @overload
-    def bind_key_release(self, key: Keyboard.Key, callback: weakref.WeakMethod[Callable[[KeyUpEvent], Any]]) -> None:
+    def bind_key_release(self, key: Key, callback: weakref.WeakMethod[Callable[[KeyUpEvent], Any]]) -> None:
         ...
 
     @overload
-    def bind_key_release(self, key: Keyboard.Key, callback: Callable[[_T, KeyUpEvent], Any]) -> None:
+    def bind_key_release(self, key: Key, callback: Callable[[_T, KeyUpEvent], Any]) -> None:
         ...
 
     def bind_key_release(
         self,
-        key: Keyboard.Key,
+        key: Key,
         callback: weakref.WeakMethod[Callable[[KeyUpEvent], Any]] | Callable[[_T, KeyUpEvent], Any],
     ) -> None:
         return self.__bind(
@@ -1036,43 +1036,43 @@ class BoundEventManager(Generic[_T]):
             callback_register=self.__key_release_callbacks,
         )
 
-    def unbind_key(self, key: Keyboard.Key) -> None:
+    def unbind_key(self, key: Key) -> None:
         self.unbind_key_press(key)
         self.unbind_key_release(key)
 
-    def unbind_key_press(self, key: Keyboard.Key) -> None:
+    def unbind_key_press(self, key: Key) -> None:
         self.__manager.unbind_key_press(key)
         self.__key_press_callbacks[key].clear()
 
-    def unbind_key_release(self, key: Keyboard.Key) -> None:
+    def unbind_key_release(self, key: Key) -> None:
         self.__manager.unbind_key_release(key)
         self.__key_release_callbacks[key].clear()
 
     @overload
-    def bind_mouse_button(self, button: Mouse.Button, callback: weakref.WeakMethod[Callable[[MouseButtonEvent], Any]]) -> None:
+    def bind_mouse_button(self, button: MouseButton, callback: weakref.WeakMethod[Callable[[MouseButtonEvent], Any]]) -> None:
         ...
 
     @overload
-    def bind_mouse_button(self, button: Mouse.Button, callback: Callable[[_T, MouseButtonEvent], Any]) -> None:
+    def bind_mouse_button(self, button: MouseButton, callback: Callable[[_T, MouseButtonEvent], Any]) -> None:
         ...
 
-    def bind_mouse_button(self, button: Mouse.Button, callback: Callable[..., Any]) -> None:
+    def bind_mouse_button(self, button: MouseButton, callback: Callable[..., Any]) -> None:
         self.bind_mouse_button_press(button, callback)
         self.bind_mouse_button_release(button, callback)
 
     @overload
     def bind_mouse_button_press(
-        self, button: Mouse.Button, callback: weakref.WeakMethod[Callable[[MouseButtonDownEvent], Any]]
+        self, button: MouseButton, callback: weakref.WeakMethod[Callable[[MouseButtonDownEvent], Any]]
     ) -> None:
         ...
 
     @overload
-    def bind_mouse_button_press(self, button: Mouse.Button, callback: Callable[[_T, MouseButtonDownEvent], Any]) -> None:
+    def bind_mouse_button_press(self, button: MouseButton, callback: Callable[[_T, MouseButtonDownEvent], Any]) -> None:
         ...
 
     def bind_mouse_button_press(
         self,
-        button: Mouse.Button,
+        button: MouseButton,
         callback: weakref.WeakMethod[Callable[[MouseButtonDownEvent], Any]] | Callable[[_T, MouseButtonDownEvent], Any],
     ) -> None:
         return self.__bind(
@@ -1084,17 +1084,17 @@ class BoundEventManager(Generic[_T]):
 
     @overload
     def bind_mouse_button_release(
-        self, button: Mouse.Button, callback: weakref.WeakMethod[Callable[[MouseButtonUpEvent], Any]]
+        self, button: MouseButton, callback: weakref.WeakMethod[Callable[[MouseButtonUpEvent], Any]]
     ) -> None:
         ...
 
     @overload
-    def bind_mouse_button_release(self, button: Mouse.Button, callback: Callable[[_T, MouseButtonUpEvent], Any]) -> None:
+    def bind_mouse_button_release(self, button: MouseButton, callback: Callable[[_T, MouseButtonUpEvent], Any]) -> None:
         ...
 
     def bind_mouse_button_release(
         self,
-        button: Mouse.Button,
+        button: MouseButton,
         callback: weakref.WeakMethod[Callable[[MouseButtonUpEvent], Any]] | Callable[[_T, MouseButtonUpEvent], Any],
     ) -> None:
         return self.__bind(
@@ -1104,15 +1104,15 @@ class BoundEventManager(Generic[_T]):
             callback_register=self.__mouse_release_callbacks,
         )
 
-    def unbind_mouse_button(self, button: Mouse.Button) -> None:
+    def unbind_mouse_button(self, button: MouseButton) -> None:
         self.unbind_mouse_button_press(button)
         self.unbind_mouse_button_release(button)
 
-    def unbind_mouse_button_press(self, button: Mouse.Button) -> None:
+    def unbind_mouse_button_press(self, button: MouseButton) -> None:
         self.__manager.unbind_mouse_button_press(button)
         self.__mouse_press_callbacks[button].clear()
 
-    def unbind_mouse_button_release(self, button: Mouse.Button) -> None:
+    def unbind_mouse_button_release(self, button: MouseButton) -> None:
         self.__manager.unbind_mouse_button_release(button)
         self.__mouse_release_callbacks[button].clear()
 

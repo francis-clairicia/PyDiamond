@@ -30,7 +30,7 @@ from ..window.event import (
     MouseMotionEvent,
     MouseWheelEvent,
 )
-from ..window.keyboard import Keyboard
+from ..window.keyboard import Key, KeyModifiers
 from ..window.scene import Scene
 
 
@@ -170,13 +170,13 @@ class GUIScene(Scene):
     @no_theme_decorator
     def __handle_key_event(self, event: KeyDownEvent) -> bool:
         match event.key:
-            case Keyboard.Key.K_TAB if event.mod & Keyboard.Modifiers.KMOD_SHIFT:
+            case Key.K_TAB if event.mod & KeyModifiers.KMOD_SHIFT:
                 self.focus_prev()
                 return True
-            case Keyboard.Key.K_TAB:
+            case Key.K_TAB:
                 self.focus_next()
                 return True
-            case Keyboard.Key.K_ESCAPE:
+            case Key.K_ESCAPE:
                 self.focus_set(None)
                 return True
         side_with_key_event = self.get_side_with_key_event()
@@ -209,10 +209,10 @@ from .focus import BoundFocus, BoundFocusMode, BoundFocusSide, SupportsFocus  # 
 
 _SIDE_WITH_KEY_EVENT: Final[MappingProxyType[int, BoundFocusSide]] = MappingProxyType(
     {
-        Keyboard.Key.K_LEFT: BoundFocusSide.ON_LEFT,
-        Keyboard.Key.K_RIGHT: BoundFocusSide.ON_RIGHT,
-        Keyboard.Key.K_UP: BoundFocusSide.ON_TOP,
-        Keyboard.Key.K_DOWN: BoundFocusSide.ON_BOTTOM,
+        Key.K_LEFT: BoundFocusSide.ON_LEFT,
+        Key.K_RIGHT: BoundFocusSide.ON_RIGHT,
+        Key.K_UP: BoundFocusSide.ON_TOP,
+        Key.K_DOWN: BoundFocusSide.ON_BOTTOM,
     }
 )
 

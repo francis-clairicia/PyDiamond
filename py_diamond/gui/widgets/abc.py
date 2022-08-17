@@ -17,7 +17,7 @@ from ...window.clickable import Clickable
 from ...window.cursor import AbstractCursor
 from ...window.display import Window
 from ...window.event import Event, KeyDownEvent, KeyEvent, KeyUpEvent, MouseButtonUpEvent
-from ...window.keyboard import Keyboard
+from ...window.keyboard import Key
 from ...window.scene import Scene
 from ..focus import BoundFocus, BoundFocusMode
 from ..scene import GUIScene
@@ -86,20 +86,20 @@ class AbstractWidget(Clickable):
             return False
 
         if event.key in (
-            Keyboard.Key.K_NUMLOCK,
-            Keyboard.Key.K_CAPSLOCK,
-            Keyboard.Key.K_SCROLLOCK,
-            Keyboard.Key.K_RSHIFT,
-            Keyboard.Key.K_LSHIFT,
-            Keyboard.Key.K_RCTRL,
-            Keyboard.Key.K_LCTRL,
-            Keyboard.Key.K_RALT,
-            Keyboard.Key.K_LALT,
-            Keyboard.Key.K_RMETA,
-            Keyboard.Key.K_LMETA,
-            Keyboard.Key.K_LSUPER,
-            Keyboard.Key.K_RSUPER,
-            Keyboard.Key.K_MODE,
+            Key.K_NUMLOCK,
+            Key.K_CAPSLOCK,
+            Key.K_SCROLLOCK,
+            Key.K_RSHIFT,
+            Key.K_LSHIFT,
+            Key.K_RCTRL,
+            Key.K_LCTRL,
+            Key.K_RALT,
+            Key.K_LALT,
+            Key.K_RMETA,
+            Key.K_LMETA,
+            Key.K_LSUPER,
+            Key.K_RSUPER,
+            Key.K_MODE,
         ):
             return False
 
@@ -141,7 +141,7 @@ class AbstractWidget(Clickable):
         return False
 
     def _valid_key(self, key: int) -> bool:
-        return key in (Keyboard.Key.K_RETURN, Keyboard.Key.K_KP_ENTER)
+        return key in (Key.K_RETURN, Key.K_KP_ENTER)
 
     def _should_ignore_mouse_position(self, mouse_pos: tuple[float, float]) -> bool:
         return super()._should_ignore_mouse_position(mouse_pos) or self.focus.get_mode() == BoundFocusMode.KEY

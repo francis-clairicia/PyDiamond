@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Mouse"]
+__all__ = ["Mouse", "MouseButton"]
 
 
 from enum import IntEnum
@@ -35,8 +35,8 @@ class Mouse(ClassNamespace, frozen=True):
         type.__setattr__(Mouse, "_Mouse__MOUSE_BUTTON_STATE", button_states)
 
     @staticmethod
-    def is_pressed(button: Button) -> bool:
-        button = Mouse.Button(button)
+    def is_pressed(button: MouseButton) -> bool:
+        button = MouseButton(button)
         return Mouse.__MOUSE_BUTTON_STATE[button.value]
 
     @staticmethod
@@ -59,10 +59,11 @@ class Mouse(ClassNamespace, frozen=True):
     def is_visible() -> bool:
         return _pg_mouse.get_visible()
 
-    class Button(IntEnum):
-        LEFT = _pg_constants.BUTTON_LEFT
-        RIGHT = _pg_constants.BUTTON_RIGHT
-        MIDDLE = _pg_constants.BUTTON_MIDDLE
+
+class MouseButton(IntEnum):
+    LEFT = _pg_constants.BUTTON_LEFT
+    RIGHT = _pg_constants.BUTTON_RIGHT
+    MIDDLE = _pg_constants.BUTTON_MIDDLE
 
 
 del _pg_constants
