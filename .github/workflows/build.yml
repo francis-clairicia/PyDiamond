@@ -34,10 +34,11 @@ concurrency:
 jobs:
   test:
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Bump version:')
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-20.04, windows-2022, macos-12]
         python_version: ['3.10']
 
     steps:
