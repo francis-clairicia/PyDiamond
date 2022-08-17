@@ -1,0 +1,74 @@
+name: Reusable build workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      SOURCE_DATE_EPOCH:
+        description: 'SOURCE_DATE_EPOCH value for reproducible builds'
+        required: false
+        type: string
+      artifact-name:
+        description: 'Artifact name'
+        required: false
+        default: 'dist'
+        type: string
+  workflow_call:
+    inputs:
+      SOURCE_DATE_EPOCH:
+        description: 'SOURCE_DATE_EPOCH value for reproducible builds'
+        required: false
+        type: string
+      artifact-name:
+        description: 'Artifact name'
+        required: false
+        default: 'dist'
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      SOURCE_DATE_EPOCH: ${{ inputs.SOURCE_DATE_EPOCH }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - run: python -m pip install --upgrade pip
+      - name: Install dependencies
+        run: |
+          pip install flit
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Compute SOURCE_DATE_EPOCH from commit date
+        if: env.SOURCE_DATE_EPOCH == ''
+        run: |
+          date=`git show ${{ github.sha }} --pretty="%ct" --no-patch`
+          echo "Using SOURCE_DATE_EPOCH=${date}"
+          echo "SOURCE_DATE_EPOCH=${date}" >> $GITHUB_ENV
+      - name: Build packages
+        run: flit build
+      - name: Upload packages as artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: dist
+
+  check:
+    needs: build
+    runs-on: ubuntu-latest
+    
+    name: Post-build checks
+    steps:
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: |
+          pip install twine
+      - name: Retrieve packages
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: dist
+      - name: twine check
+        run: twine check --strict dist/*

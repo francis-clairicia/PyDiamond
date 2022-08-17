@@ -50,8 +50,9 @@ name = "py_diamond"
 
 [tool.flit.sdist]
 exclude = [
+  ".github/",
+  "demo_resources/",
   "demo.py",
-  "demo_resources"
 ]
 
 ############################ Development tools configuration ############################

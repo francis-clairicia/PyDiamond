@@ -1,0 +1,105 @@
+name: Release a version
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  build:
+    name: Build sdist/wheel
+    uses: ./.github/workflows/build-workflow-call.yml
+    with:
+      artifact-name: pydiamond-dist
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    name: Distribute packages
+    steps:
+      - name: Retrieve packages
+        uses: actions/download-artifact@v3
+        with:
+          name: pydiamond-dist
+          path: dist
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@v1.5.1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Upload to Github Release
+        uses: softprops/action-gh-release@v0.1.14
+        with:
+          files: |
+            dist/*
+
+  build-failure:
+    needs: build
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Delete release
+        run: gh release delete ${{ github.ref_name }} --yes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Delete tag
+        run: git push --delete origin ${{ github.ref_name }}
+
+  version-check:
+    runs-on: ubuntu-latest
+    outputs:
+      minor_major_release: ${{ steps.check.outputs.minor_major_release }}
+
+    steps:
+      - name: Verify minor/major release
+        id: check
+        run: |
+          import re
+          version = "${{ github.ref_name }}"
+          if re.match(r"^v\d+\.\d+\.0$", version):
+              print("This is a minor/major release")
+              print("::set-output name=minor_major_release::true")
+          else:
+              print("This is not a minor/major release")
+        shell: python
+
+  make-release-branch:
+    needs: [version-check, build]
+    if: ${{ needs.version-check.outputs.minor_major_release == 'true' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Setup 'github-actions' user  # c.f.: https://github.com/orgs/community/discussions/26560#discussioncomment-3252339
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+      - name: Get release branch name
+        run: echo "RELEASE_BRANCH_NAME=release/${GITHUB_REF_NAME%.0}" >> $GITHUB_ENV
+      - name: Delete unmaintained release branches
+        run: git push --delete origin `git branch --remote --list 'origin/release/*' | sed -E 's,origin/,,'` || true
+      - name: Create release branch
+        run: git branch $RELEASE_BRANCH_NAME ${{ github.ref_name }}
+      - run: git switch $RELEASE_BRANCH_NAME
+      - name: Rewrite .bumpversion.cfg
+        continue-on-error: true
+        run: python ./.github/scripts/rewrite_bumpversion_cfg.py ./.bumpversion.cfg
+      - name: Save .bumpversion.cfg
+        if: success()
+        continue-on-error: true
+        run: |
+          git add .bumpversion.cfg
+          git commit -m "Updated .bumpversion.cfg"
+      - name: Push created branch
+        run: git push origin $RELEASE_BRANCH_NAME
