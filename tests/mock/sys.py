@@ -26,7 +26,7 @@ class MockVersionInfo(NamedTuple):
         return f"sys.version_info({', '.join(f'{k}={v!r}' for k, v in self._asdict().items())})"
 
     def __str__(self) -> str:
-        return f"{self.major}.{self.minor}.{self.micro}{'.' + self.releaselevel[0] + str(self.serial) if self.releaselevel != 'final' else ''}"  # noqa: E501
+        return f"{self.major}.{self.minor}.{self.micro}{'.' + self.releaselevel[0] + str(self.serial) if self.releaselevel != 'final' else ''}"
 
 
 def unload_module(module_name: str, include_submodules: bool, monkeypatch: MonkeyPatch) -> None:

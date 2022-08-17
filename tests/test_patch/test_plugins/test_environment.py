@@ -286,4 +286,4 @@ class TestCheckBooleanEnvironmentVariables:
 
         # Act & Assert
         with pytest.raises(TypeError, match=r"Invalid parameters"):
-            check_booleans(environ, only=BOOLEAN_PYGAME_ENVIRONMENT_VARIABLES, exclude=BOOLEAN_PYGAME_ENVIRONMENT_VARIABLES)  # type: ignore[call-overload]  # noqa: E501
+            check_booleans(environ, only=BOOLEAN_PYGAME_ENVIRONMENT_VARIABLES, exclude=BOOLEAN_PYGAME_ENVIRONMENT_VARIABLES)  # type: ignore[call-overload]

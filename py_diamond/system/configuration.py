@@ -1909,7 +1909,7 @@ class Configuration(NonCopyable, Generic[_T]):
 
             def register_modified_error(register: _InitializationRegister, context: str) -> NoReturn:
                 raise InitializationError(
-                    f"{', '.join(register)} {'were' if len(register) > 1 else 'was'} modified after {context} in initialization context"  # noqa: E501
+                    f"{', '.join(register)} {'were' if len(register) > 1 else 'was'} modified after {context} in initialization context"
                 )
 
             with ExitStack() as stack:

@@ -820,7 +820,7 @@ class _SceneManager:
             closing_scenes: list[Scene],
         ) -> None:
             super().__init__(
-                f"New scene open, from {type(previous_scene).__name__ if previous_scene else None} to {type(actual_scene).__name__}"  # noqa: E501
+                f"New scene open, from {type(previous_scene).__name__ if previous_scene else None} to {type(actual_scene).__name__}"
             )
             self.previous_scene: Scene | None = previous_scene
             self.actual_scene: Scene = actual_scene

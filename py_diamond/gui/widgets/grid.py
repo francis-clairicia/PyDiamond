@@ -164,7 +164,7 @@ class Grid(MDrawable, Container[GridElement]):
             if cell.row == row and cell.column == column:
                 return obj
             cell.set_object(None)
-        elif self.master is not None and isinstance(obj, SupportsFocus) and not obj.focus.is_bound_to(self.master):  # type: ignore[unreachable]  # noqa: E501
+        elif self.master is not None and isinstance(obj, SupportsFocus) and not obj.focus.is_bound_to(self.master):  # type: ignore[unreachable]
             raise ValueError("'obj' do not have the same GUIScene master that self")
 
         grid_row: _GridRow
