@@ -36,4 +36,23 @@ jobs:
       - name: Install dependencies
         run: pip install tox
       - name: Launch tests
-        run: tox -e flake8,mypy,black,isort
+        run: tox -e flake8,black,isort
+
+  mypy:
+    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Bump version:')
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-20.04, windows-2022, macos-12]
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.x
+      - run: python -m pip install --upgrade pip
+      - name: Install dependencies
+        run: pip install tox
+      - name: Launch mypy
+        run: tox -e mypy
