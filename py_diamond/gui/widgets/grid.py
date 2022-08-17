@@ -17,17 +17,18 @@ from weakref import ref as weakref
 
 from typing_extensions import assert_never
 
-from ..system.collections import SortedDict
-from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
-from ..system.enum import AutoLowerNameEnum
-from ..system.utils.itertools import flatten
-from ..system.utils.weakref import weakref_unwrap
-from ..system.validation import valid_integer
-from ..window.gui import GUIScene, SupportsFocus
-from .color import BLACK, TRANSPARENT, Color
-from .drawable import BaseDrawableGroup, MDrawable, SupportsDrawableGroups
-from .renderer import AbstractRenderer
-from .shape import RectangleShape
+from ...graphics.color import BLACK, TRANSPARENT, Color
+from ...graphics.drawable import BaseDrawableGroup, MDrawable, SupportsDrawableGroups
+from ...graphics.renderer import AbstractRenderer
+from ...graphics.shape import RectangleShape
+from ...system.collections import SortedDict
+from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
+from ...system.enum import AutoLowerNameEnum
+from ...system.utils.itertools import flatten
+from ...system.utils.weakref import weakref_unwrap
+from ...system.validation import valid_integer
+from ..focus import SupportsFocus
+from ..scene import GUIScene
 
 _T = TypeVar("_T")
 _MISSING: Any = object()

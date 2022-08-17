@@ -13,28 +13,28 @@ from string import printable as ASCII_PRINTABLE
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Sequence, TypeAlias
 from weakref import WeakMethod
 
-from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
-from ..system.theme import NoTheme, ThemedObjectMeta, ThemeType
-from ..system.validation import valid_integer, valid_optional_float, valid_optional_integer
-from ..window.clock import Clock
-from ..window.cursor import SystemCursor
-from ..window.event import KeyDownEvent, TextInputEvent
-from ..window.gui import BoundFocus
-from ..window.keyboard import Keyboard
-from ..window.widget import AbstractWidget
-from .color import BLACK, BLUE, TRANSPARENT, WHITE, Color
-from .drawable import TDrawable, TDrawableMeta
-from .shape import RectangleShape
-from .surface import Surface
-from .text import Text
+from ...graphics.color import BLACK, BLUE, TRANSPARENT, WHITE, Color
+from ...graphics.drawable import TDrawable, TDrawableMeta
+from ...graphics.shape import RectangleShape
+from ...graphics.surface import Surface
+from ...graphics.text import Text
+from ...system.clock import Clock
+from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
+from ...system.theme import NoTheme, ThemedObjectMeta, ThemeType
+from ...system.validation import valid_integer, valid_optional_float, valid_optional_integer
+from ...window.cursor import SystemCursor
+from ...window.event import KeyDownEvent, TextInputEvent
+from ...window.keyboard import Keyboard
+from ..focus import BoundFocusMode
+from .abc import AbstractWidget
 
 if TYPE_CHECKING:
-    from ..audio.sound import Sound
-    from ..window.clickable import Clickable
-    from ..window.display import Window
-    from ..window.scene import Scene
-    from .font import Font
-    from .renderer import AbstractRenderer
+    from ...audio.sound import Sound
+    from ...graphics.font import Font
+    from ...graphics.renderer import AbstractRenderer
+    from ...window.clickable import Clickable
+    from ...window.display import Window
+    from ...window.scene import Scene
 
     _TupleFont: TypeAlias = tuple[str | None, int]
     _TextFont: TypeAlias = Font | _TupleFont
@@ -271,7 +271,7 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
         self.__insert_mode = False
 
     def invoke(self) -> None:
-        if self.focus.get_mode() == BoundFocus.Mode.MOUSE:
+        if self.focus.get_mode() == BoundFocusMode.MOUSE:
             self.start_edit()
 
     def _on_focus_set(self) -> None:
@@ -300,7 +300,7 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
     def __edit(self) -> bool:
         if not self.__start_edit:
             return False
-        if self.focus.get_mode() == BoundFocus.Mode.KEY:
+        if self.focus.get_mode() == BoundFocusMode.KEY:
             if self.focus.has():
                 Keyboard.IME.start_text_input()
             else:

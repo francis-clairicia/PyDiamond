@@ -13,8 +13,8 @@ from typing import ClassVar, Final
 
 import pygame.time as _pg_time
 
-from ..system.namespace import ClassNamespace
 from .clock import Clock
+from .namespace import ClassNamespace
 
 
 class Time(ClassNamespace):

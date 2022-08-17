@@ -51,18 +51,18 @@ from ..environ.executable import get_executable_path
 from ..graphics.color import BLACK, Color
 from ..graphics.rect import ImmutableRect, Rect
 from ..graphics.surface import Surface, SurfaceRenderer, create_surface, save_image
+from ..system.clock import Clock
 from ..system.object import Object, ObjectMeta, final
 from ..system.path import ConstantFileNotFoundError, set_constant_file
 from ..system.threading import Thread, thread_factory
+from ..system.time import Time
 from ..system.utils._mangling import setattr_pv
 from ..system.utils.functools import wraps
 from ..system.utils.itertools import consume
-from .clock import Clock
 from .cursor import AbstractCursor
 from .event import Event, EventFactory, EventManager, ScreenshotEvent, UnknownEventTypeError
 from .keyboard import Keyboard
 from .mouse import Mouse
-from .time import Time
 
 if TYPE_CHECKING:
     from pygame._common import _ColorValue  # pyright: reportMissingModuleSource=false

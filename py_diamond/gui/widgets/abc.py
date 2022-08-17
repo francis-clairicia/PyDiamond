@@ -12,14 +12,15 @@ __all__ = ["AbstractWidget"]
 from functools import cached_property
 from typing import TYPE_CHECKING, ClassVar
 
-from ..audio.sound import Sound
-from .clickable import Clickable
-from .cursor import AbstractCursor
-from .display import Window
-from .event import Event, KeyDownEvent, KeyEvent, KeyUpEvent, MouseButtonUpEvent
-from .gui import BoundFocus, GUIScene
-from .keyboard import Keyboard
-from .scene import Scene
+from ...audio.sound import Sound
+from ...window.clickable import Clickable
+from ...window.cursor import AbstractCursor
+from ...window.display import Window
+from ...window.event import Event, KeyDownEvent, KeyEvent, KeyUpEvent, MouseButtonUpEvent
+from ...window.keyboard import Keyboard
+from ...window.scene import Scene
+from ..focus import BoundFocus, BoundFocusMode
+from ..scene import GUIScene
 
 
 class AbstractWidget(Clickable):
@@ -143,7 +144,7 @@ class AbstractWidget(Clickable):
         return key in (Keyboard.Key.RETURN, Keyboard.Key.KP_ENTER)
 
     def _should_ignore_mouse_position(self, mouse_pos: tuple[float, float]) -> bool:
-        return super()._should_ignore_mouse_position(mouse_pos) or self.focus.get_mode() == self.focus.Mode.KEY
+        return super()._should_ignore_mouse_position(mouse_pos) or self.focus.get_mode() == BoundFocusMode.KEY
 
     def _focus_handle_event(self, event: Event) -> bool:
         if isinstance(event, (KeyUpEvent, KeyDownEvent)) and self.__handle_key_press_event(event, focus_handle_event=True):
@@ -152,9 +153,9 @@ class AbstractWidget(Clickable):
 
     def _focus_update(self) -> None:
         match self.focus.get_mode():
-            case self.focus.Mode.KEY:
+            case BoundFocusMode.KEY:
                 self.hover = self.focus.has()
-            case self.focus.Mode.MOUSE if self.__focus_on_hover and self.hover and not self.focus.has():
+            case BoundFocusMode.MOUSE if self.__focus_on_hover and self.hover and not self.focus.has():
                 self.focus.set()
 
     def _on_valid_click(self, event: KeyUpEvent | MouseButtonUpEvent) -> None:

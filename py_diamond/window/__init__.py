@@ -7,91 +7,10 @@
 from __future__ import annotations
 
 __all__ = [
-    "AbstractAutoLayeredDrawableScene",
-    "AbstractCursor",
-    "AbstractLayeredScene",
-    "AbstractWidget",
-    "BoundFocus",
-    "BuiltinEvent",
-    "BuiltinEventType",
-    "BuiltinUserEventCode",
-    "Clickable",
-    "Clock",
-    "Cursor",
-    "Dialog",
-    "Draggable",
-    "DraggingContainer",
-    "DropBeginEvent",
-    "DropCompleteEvent",
-    "DropFileEvent",
-    "DropTextEvent",
-    "Event",
-    "EventFactory",
-    "EventFactoryError",
-    "EventManager",
-    "EventMeta",
-    "FocusableContainer",
-    "GUIScene",
-    "JoyAxisMotionEvent",
-    "JoyBallMotionEvent",
-    "JoyButtonDownEvent",
-    "JoyButtonEvent",
-    "JoyButtonUpEvent",
-    "JoyDeviceAddedEvent",
-    "JoyDeviceRemovedEvent",
-    "JoyHatMotionEvent",
-    "KeyDownEvent",
-    "KeyEvent",
-    "KeyUpEvent",
-    "Keyboard",
-    "MainScene",
-    "MainSceneMeta",
-    "Mouse",
-    "MouseButtonDownEvent",
-    "MouseButtonEvent",
-    "MouseButtonUpEvent",
-    "MouseEvent",
-    "MouseMotionEvent",
-    "MouseWheelEvent",
-    "MusicEndEvent",
-    "NoFocusSupportError",
-    "PopupDialog",
-    "RenderedLayeredScene",
-    "ReturningSceneTransition",
-    "ReturningSceneTransitionProtocol",
-    "Scene",
-    "SceneMeta",
-    "SceneTransition",
-    "SceneTransitionCoroutine",
-    "SceneTransitionProtocol",
-    "SceneWindow",
-    "ScreenshotEvent",
-    "SupportsFocus",
-    "SystemCursor",
-    "TextEditingEvent",
-    "TextEvent",
-    "TextInputEvent",
-    "Time",
-    "UnknownEventTypeError",
-    "UserEvent",
     "Window",
     "WindowCallback",
-    "WindowEnterEvent",
     "WindowError",
     "WindowExit",
-    "WindowExposedEvent",
-    "WindowFocusGainedEvent",
-    "WindowFocusLostEvent",
-    "WindowHiddenEvent",
-    "WindowLeaveEvent",
-    "WindowMaximizedEvent",
-    "WindowMinimizedEvent",
-    "WindowMovedEvent",
-    "WindowResizedEvent",
-    "WindowRestoredEvent",
-    "WindowShownEvent",
-    "WindowSizeChangedEvent",
-    "WindowTakeFocusEvent",
 ]
 
 import os
@@ -112,16 +31,4 @@ os.environ.setdefault("SDL_VIDEO_CENTERED", "1")
 del os, pygame
 
 ############ Package initialization ############
-from .clickable import *
-from .clock import *
-from .cursor import *
-from .dialog import *
 from .display import *
-from .draggable import *
-from .event import *
-from .gui import *
-from .keyboard import *
-from .mouse import *
-from .scene import *
-from .time import *
-from .widget import *

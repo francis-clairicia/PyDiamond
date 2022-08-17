@@ -22,7 +22,7 @@ class TestPatchCommon:
     EXPECTED_CONTEXT = {
         "fix_typing.OverrideFinalFunctionsPatch": "BEFORE_ALL",
         "environment.ArrangePygameEnvironmentBeforeImport": "BEFORE_IMPORTING_PYGAME",
-        "environment.VerifyBooleanEnvironmentVariables": "AFTER_IMPORTING_SUBMODULES",
+        "environment.VerifyBooleanEnvironmentVariables": "BEFORE_IMPORTING_SUBMODULES",
         "pygame_patch.PygamePatch": "AFTER_IMPORTING_PYGAME",
     }
 

@@ -17,8 +17,8 @@ from typing import TYPE_CHECKING, Any, Final, Iterable, Iterator, Mapping, TypeV
 from pygame.mask import Mask, from_surface as _pg_mask_from_surface
 from pygame.transform import rotozoom as _surface_rotozoom
 
+from ..system.clock import Clock
 from ..system.object import Object, final
-from ..window.clock import Clock
 from ._transform import rotozoom2 as _surface_rotozoom2, scale_by as _surface_scale_by
 from .animation import TransformAnimation
 from .drawable import BaseDrawableGroup, BaseLayeredDrawableGroup, Drawable, TDrawable

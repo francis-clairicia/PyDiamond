@@ -18,5 +18,5 @@ __all__ = [
 
 
 ############ Package initialization ############
-from .loader import AbstractResourceLoader, FontLoader, ImageLoader, MusicLoader, SoundLoader
-from .manager import ResourceManager, ResourceManagerMeta
+from .loader import *
+from .manager import *

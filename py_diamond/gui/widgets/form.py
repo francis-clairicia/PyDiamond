@@ -13,17 +13,17 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Mapping, Sequence, TypeAlias, TypeVar, overload
 from weakref import WeakValueDictionary
 
-from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
-from ..system.theme import ThemedObjectMeta, ThemeType
-from ..system.validation import valid_integer
-from .color import BLACK, TRANSPARENT, Color
-from .drawable import MDrawable, MDrawableMeta
+from ...graphics.color import BLACK, TRANSPARENT, Color
+from ...graphics.drawable import MDrawable, MDrawableMeta
+from ...graphics.renderer import AbstractRenderer
+from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
+from ...system.theme import ThemedObjectMeta, ThemeType
+from ...system.validation import valid_integer
 from .entry import Entry
 from .grid import Grid, GridElement
-from .renderer import AbstractRenderer
 
 if TYPE_CHECKING:
-    from ..window.gui import GUIScene
+    from ..scene import GUIScene
 
 
 _Label = TypeVar("_Label", bound=GridElement)

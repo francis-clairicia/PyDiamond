@@ -12,8 +12,6 @@ from py_diamond.audio.mixer import Mixer
 from py_diamond.audio.music import Music, MusicStream
 from py_diamond.audio.sound import Sound
 from py_diamond.graphics.animation import AnimationInterpolatorPool, MoveAnimation, TransformAnimation
-from py_diamond.graphics.button import Button, ImageButton
-from py_diamond.graphics.checkbox import CheckBox
 from py_diamond.graphics.color import (
     BLACK,
     BLUE,
@@ -30,8 +28,6 @@ from py_diamond.graphics.color import (
     YELLOW,
     Color,
 )
-from py_diamond.graphics.entry import Entry
-from py_diamond.graphics.form import Form
 from py_diamond.graphics.gradients import (
     HorizontalGradientShape,
     HorizontalMultiColorShape,
@@ -41,19 +37,25 @@ from py_diamond.graphics.gradients import (
     VerticalGradientShape,
     VerticalMultiColorShape,
 )
-from py_diamond.graphics.grid import Grid
 from py_diamond.graphics.image import Image
 from py_diamond.graphics.progress import ProgressBar
-from py_diamond.graphics.scale import ScaleBar
-from py_diamond.graphics.scroll import ScrollArea, ScrollBar
 from py_diamond.graphics.shape import CircleShape, DiagonalCrossShape, PlusCrossShape, PolygonShape, RectangleShape
 from py_diamond.graphics.sprite import AnimatedSprite, Sprite, SpriteGroup
 from py_diamond.graphics.surface import Surface, SurfaceRenderer
 from py_diamond.graphics.text import Text, TextImage
+from py_diamond.gui.scene import GUIScene
+from py_diamond.gui.widgets.abc import AbstractWidget
+from py_diamond.gui.widgets.button import Button, ImageButton
+from py_diamond.gui.widgets.checkbox import CheckBox
+from py_diamond.gui.widgets.entry import Entry
+from py_diamond.gui.widgets.form import Form
+from py_diamond.gui.widgets.grid import Grid
+from py_diamond.gui.widgets.scale import ScaleBar
+from py_diamond.gui.widgets.scroll import ScrollArea, ScrollBar
 from py_diamond.resource.loader import FontLoader, ImageLoader, MusicLoader, SoundLoader
 from py_diamond.resource.manager import ResourceManager
-from py_diamond.window.clock import Clock
-from py_diamond.window.dialog import PopupDialog
+from py_diamond.system.clock import Clock
+from py_diamond.system.time import Time
 from py_diamond.window.display import Window, WindowCallback
 from py_diamond.window.draggable import Draggable
 from py_diamond.window.event import (
@@ -66,7 +68,6 @@ from py_diamond.window.event import (
     MusicEndEvent,
     ScreenshotEvent,
 )
-from py_diamond.window.gui import GUIScene
 from py_diamond.window.keyboard import Keyboard
 from py_diamond.window.mouse import Mouse
 from py_diamond.window.scene import (
@@ -77,8 +78,7 @@ from py_diamond.window.scene import (
     SceneTransition,
     SceneWindow,
 )
-from py_diamond.window.time import Time
-from py_diamond.window.widget import AbstractWidget
+from py_diamond.window.scene.dialog import PopupDialog
 
 if TYPE_CHECKING:
     from _typeshed import Self

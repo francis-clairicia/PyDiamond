@@ -12,20 +12,20 @@ __all__ = ["ScaleBar"]
 import sys
 from typing import TYPE_CHECKING, Callable, ClassVar, Sequence
 
-from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
-from ..system.validation import valid_integer
-from ..window.event import Event, KeyDownEvent, KeyEvent, KeyUpEvent, MouseButtonDownEvent, MouseMotionEvent
-from ..window.widget import AbstractWidget
-from .color import BLACK, BLUE, GRAY, WHITE, Color
-from .progress import ProgressBar
+from ...graphics.color import BLACK, BLUE, GRAY, WHITE, Color
+from ...graphics.progress import ProgressBar
+from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
+from ...system.validation import valid_integer
+from ...window.event import Event, KeyDownEvent, KeyEvent, KeyUpEvent, MouseButtonDownEvent, MouseMotionEvent
+from .abc import AbstractWidget
 
 if TYPE_CHECKING:
-    from ..audio.sound import Sound
-    from ..system.theme import ThemeType
-    from ..window.clickable import Clickable
-    from ..window.cursor import AbstractCursor
-    from ..window.display import Window
-    from ..window.scene import Scene
+    from ...audio.sound import Sound
+    from ...system.theme import ThemeType
+    from ...window.clickable import Clickable
+    from ...window.cursor import AbstractCursor
+    from ...window.display import Window
+    from ...window.scene import Scene
 
 
 class ScaleBar(ProgressBar, AbstractWidget):

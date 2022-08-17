@@ -14,15 +14,15 @@ __all__ = [
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any
 
-from ..graphics.color import BLACK, TRANSPARENT, WHITE, Color
-from ..graphics.movable import MovableProxy
-from ..graphics.shape import RectangleShape
-from ..system.object import final
-from ..system.validation import valid_optional_float
-from .scene import Scene, SceneWindow
+from ...graphics.color import BLACK, TRANSPARENT, WHITE, Color
+from ...graphics.movable import MovableProxy
+from ...graphics.shape import RectangleShape
+from ...system.object import final
+from ...system.validation import valid_optional_float
+from . import Scene, SceneWindow
 
 if TYPE_CHECKING:
-    from .draggable import Draggable
+    from ..draggable import Draggable
 
 
 class Dialog(Scene):
@@ -111,7 +111,7 @@ class PopupDialog(Dialog):
 
         self.draggable_popup: Draggable | None = None
         if draggable:
-            from .draggable import DraggingContainer  # lazy import to avoid circular import
+            from ..draggable import DraggingContainer  # lazy import to avoid circular import
 
             self.draggable_popup = DraggingContainer(self, target=self.__bg)
 

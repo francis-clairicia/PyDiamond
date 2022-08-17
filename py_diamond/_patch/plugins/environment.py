@@ -67,7 +67,7 @@ class ArrangePygameEnvironmentBeforeImport(AbstractEnvironmentPatch):
 class VerifyBooleanEnvironmentVariables(AbstractEnvironmentPatch):
     @classmethod
     def get_required_context(cls) -> PatchContext:
-        return PatchContext.AFTER_IMPORTING_SUBMODULES
+        return PatchContext.BEFORE_IMPORTING_SUBMODULES
 
     def run(self) -> None:
         return check_booleans(self.environ, exclude=list(ArrangePygameEnvironmentBeforeImport.OVERRIDEN_VARIABLES))

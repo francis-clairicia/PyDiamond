@@ -14,18 +14,6 @@ __maintainer__: Final[str]
 __email__: Final[str]
 __status__: Final[str]
 
-from . import (
-    audio as audio,
-    environ as environ,
-    graphics as graphics,
-    math as math,
-    network as network,
-    resource as resource,
-    system as system,
-    version as version,
-    warnings as warnings,
-    window as window,
-)
 from .version import version_info as version_info
 
 __patches__: Final[frozenset[str]]

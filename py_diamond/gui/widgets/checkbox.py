@@ -10,23 +10,23 @@ __all__ = ["BooleanCheckBox", "CheckBox", "CheckBoxMeta"]
 
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Sequence, TypeVar
 
-from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
-from ..system.theme import ThemedObjectMeta, ThemeType
-from ..system.validation import valid_integer
-from ..window.widget import AbstractWidget
-from .color import BLACK, BLUE, Color
-from .drawable import TDrawable, TDrawableMeta
-from .image import Image
-from .shape import DiagonalCrossShape, RectangleShape
-from .surface import Surface
+from ...graphics.color import BLACK, BLUE, Color
+from ...graphics.drawable import TDrawable, TDrawableMeta
+from ...graphics.image import Image
+from ...graphics.shape import DiagonalCrossShape, RectangleShape
+from ...graphics.surface import Surface
+from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
+from ...system.theme import ThemedObjectMeta, ThemeType
+from ...system.validation import valid_integer
+from .abc import AbstractWidget
 
 if TYPE_CHECKING:
-    from ..audio.sound import Sound
-    from ..window.clickable import Clickable
-    from ..window.cursor import AbstractCursor
-    from ..window.display import Window
-    from ..window.scene import Scene
-    from .renderer import AbstractRenderer
+    from ...audio.sound import Sound
+    from ...graphics.renderer import AbstractRenderer
+    from ...window.clickable import Clickable
+    from ...window.cursor import AbstractCursor
+    from ...window.display import Window
+    from ...window.scene import Scene
 
 _OnValue = TypeVar("_OnValue")
 _OffValue = TypeVar("_OffValue")

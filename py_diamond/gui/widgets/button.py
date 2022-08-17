@@ -11,28 +11,28 @@ __all__ = ["Button", "ButtonMeta", "ImageButton"]
 from enum import auto, unique
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal as L, Sequence, TypeAlias, TypedDict, overload
 
-from ..math import Vector2
-from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
-from ..system.enum import AutoLowerNameEnum
-from ..system.theme import NoTheme, ThemedObjectMeta, ThemeType
-from ..system.validation import valid_float, valid_integer, valid_optional_float
-from ..window.clickable import Clickable
-from ..window.widget import AbstractWidget
-from .color import BLACK, BLUE, GRAY, GRAY_DARK, GRAY_LIGHT, TRANSPARENT, WHITE, Color
-from .drawable import TDrawable, TDrawableMeta
-from .image import Image
-from .rect import Rect
-from .shape import RectangleShape
-from .surface import Surface
-from .text import TextImage
+from ...graphics.color import BLACK, BLUE, GRAY, GRAY_DARK, GRAY_LIGHT, TRANSPARENT, WHITE, Color
+from ...graphics.drawable import TDrawable, TDrawableMeta
+from ...graphics.image import Image
+from ...graphics.rect import Rect
+from ...graphics.shape import RectangleShape
+from ...graphics.surface import Surface
+from ...graphics.text import TextImage
+from ...math import Vector2
+from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
+from ...system.enum import AutoLowerNameEnum
+from ...system.theme import NoTheme, ThemedObjectMeta, ThemeType
+from ...system.validation import valid_float, valid_integer, valid_optional_float
+from ...window.clickable import Clickable
+from .abc import AbstractWidget
 
 if TYPE_CHECKING:
-    from ..audio.sound import Sound
-    from ..window.cursor import AbstractCursor
-    from ..window.display import Window
-    from ..window.scene import Scene
-    from .font import Font
-    from .renderer import AbstractRenderer
+    from ...audio.sound import Sound
+    from ...graphics.font import Font
+    from ...graphics.renderer import AbstractRenderer
+    from ...window.cursor import AbstractCursor
+    from ...window.display import Window
+    from ...window.scene import Scene
 
     _TupleFont: TypeAlias = tuple[str | None, int]
     _TextFont: TypeAlias = Font | _TupleFont

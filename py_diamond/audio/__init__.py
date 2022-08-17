@@ -14,16 +14,7 @@ See more in pygame documentation: https://www.pygame.org/docs/ref/mixer.html
 
 from __future__ import annotations
 
-__all__ = [
-    "AllowedAudioChanges",
-    "AudioFormat",
-    "Channel",
-    "Mixer",
-    "MixerParams",
-    "Music",
-    "MusicStream",
-    "Sound",
-]
+__all__ = []  # type: list[str]
 
 import os
 
@@ -47,9 +38,3 @@ if SDL_MIXER_VERSION < (2, 0, 0):
 
 ############ Cleanup ############
 del os, pygame
-
-
-############ Package initialization ############
-from .mixer import *
-from .music import *
-from .sound import *

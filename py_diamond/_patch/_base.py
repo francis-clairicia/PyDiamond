@@ -29,7 +29,7 @@ class PatchContext(IntEnum):
     BEFORE_IMPORTING_PYGAME = auto()
     AFTER_IMPORTING_PYGAME = auto()
     BEFORE_IMPORTING_SUBMODULES = auto()
-    AFTER_IMPORTING_SUBMODULES = auto()
+    PATCH_SUBMODULES = auto()
     AFTER_ALL = auto()
 
     def __str__(self) -> str:

@@ -38,7 +38,7 @@ class _PatchCollectorType:
     __initialized: bool = False
     __forbidden_imports_until_context: Mapping[str, PatchContext] = {
         "pygame": PatchContext.AFTER_IMPORTING_PYGAME,
-        __main_package__: PatchContext.AFTER_IMPORTING_SUBMODULES,
+        __main_package__: PatchContext.PATCH_SUBMODULES,
     }
 
     def __new__(cls: type[Self]) -> Self:
