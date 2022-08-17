@@ -28,6 +28,8 @@ class NonCopyableMeta(ObjectMeta):
     ) -> __Self:
         if any(attr in namespace for attr in ("__copy__", "__deepcopy__")):
             raise TypeError("'__copy__' and '__deepcopy__' cannot be overriden from a non-copyable object")
+        if any(attr in namespace for attr in ("__reduce__", "__reduce_ex__")):
+            raise TypeError("'__reduce__' and '__reduce_ex__' cannot be overriden from a non-copyable object")
 
         bases_final_methods_set: set[str] = {
             method_name for base in bases for method_name in getattr(base, "__finalmethods__", ())
@@ -47,6 +49,20 @@ class NonCopyableMeta(ObjectMeta):
 
             namespace["__deepcopy__"] = final(__deepcopy__)
 
+        if "__reduce_ex__" not in bases_final_methods_set:
+
+            def __reduce_ex__(self: Any, __protocol: Any) -> str | tuple[Any, ...]:
+                raise TypeError(f"cannot pickle {type(self).__qualname__!r} object")
+
+            namespace["__reduce_ex__"] = final(__reduce_ex__)
+
+        if "__reduce__" not in bases_final_methods_set:
+
+            def __reduce__(self: Any) -> str | tuple[Any, ...]:
+                raise TypeError(f"cannot pickle {type(self).__qualname__!r} object")
+
+            namespace["__reduce__"] = final(__reduce__)
+
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
         if "__dict__" in vars(cls):
             raise TypeError("Non copyable objects must not have __dict__ slot")
@@ -64,4 +80,12 @@ class NonCopyable(Object, metaclass=NonCopyableMeta):
 
         @final
         def __deepcopy__(self, memo: dict[str, Any]) -> NoReturn:
+            ...
+
+        @final
+        def __reduce_ex__(self, __protocol: Any) -> str | tuple[Any, ...]:
+            ...
+
+        @final
+        def __reduce__(self) -> str | tuple[Any, ...]:
             ...

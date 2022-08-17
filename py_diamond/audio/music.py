@@ -22,7 +22,7 @@ import os.path
 from collections import deque
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Final
 from weakref import WeakValueDictionary
 
 import pygame.mixer as _pg_mixer
@@ -88,14 +88,6 @@ class Music(NonCopyable):
         """Absolute path to the music file"""
         self.__f: str
         return self.__f
-
-    @final
-    def __reduce_ex__(self, __protocol: Any) -> str | tuple[Any, ...]:
-        raise TypeError(f"cannot pickle {type(self).__qualname__!r} object")
-
-    @final
-    def __reduce__(self) -> str | tuple[Any, ...]:
-        raise TypeError(f"cannot pickle {type(self).__qualname__!r} object")
 
 
 @final

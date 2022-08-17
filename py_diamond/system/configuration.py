@@ -45,7 +45,6 @@ from typing import (
     NoReturn,
     Protocol,
     Sequence,
-    SupportsIndex,
     TypeAlias,
     TypeVar,
     cast,
@@ -54,6 +53,7 @@ from typing import (
 )
 from weakref import ReferenceType as WeakReferenceType, WeakKeyDictionary, ref as weakref
 
+from .non_copyable import NonCopyable
 from .object import Object, final
 from .utils._mangling import mangle_private_attribute as _private_attribute
 
@@ -1658,7 +1658,7 @@ class _UpdateRegister(Object):
         return bool(self.modified) or bool(self.deleted)
 
 
-class Configuration(Object, Generic[_T]):
+class Configuration(NonCopyable, Generic[_T]):
     __update_stack: ClassVar[dict[object, set[str]]] = dict()
     __init_context: ClassVar[dict[object, _InitializationRegister]] = dict()
     __update_context: ClassVar[dict[object, _UpdateRegister]] = dict()
@@ -1961,12 +1961,6 @@ class Configuration(Object, Generic[_T]):
         obj: _T = self.__self__
         info: ConfigurationInfo[_T] = self.__info
         return self.__update_options(obj, *info.options, info=info)
-
-    def __reduce_ex__(self, __protocol: SupportsIndex) -> str | tuple[Any, ...]:
-        raise TypeError(f"cannot pickle {self.__class__.__qualname__!r} object")
-
-    def __reduce__(self) -> str | tuple[Any, ...]:
-        raise TypeError(f"cannot pickle {self.__class__.__qualname__!r} object")
 
     @property
     @final
