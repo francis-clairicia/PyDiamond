@@ -716,7 +716,7 @@ class SceneWindow(Window):
         if not self.__running:
             raise WindowError("Consider using run() to start a first scene")
         if issubclass(__scene, Dialog):
-            raise TypeError(f"start_scene() does not accept Dialogs")
+            raise TypeError("start_scene() does not accept Dialogs")
         self.__scenes.go_to(__scene, transition=transition, remove_actual=remove_actual, awake_kwargs=awake_kwargs)
 
     def _process_callbacks(self) -> None:
@@ -820,7 +820,7 @@ class _SceneManager:
             closing_scenes: list[Scene],
         ) -> None:
             super().__init__(
-                f"New scene open, from {type(previous_scene).__name__ if previous_scene else None} to {type(actual_scene).__name__}"
+                f"New scene open, from {type(previous_scene).__name__ if previous_scene else None} to {type(actual_scene).__name__}"  # noqa: E501
             )
             self.previous_scene: Scene | None = previous_scene
             self.actual_scene: Scene = actual_scene
@@ -922,7 +922,7 @@ class _SceneManager:
         if not isconcreteclass(scene_cls):
             raise TypeError(f"{scene_cls.__name__} is an abstract class")
         if issubclass(scene_cls, Dialog):
-            raise TypeError(f"Trying to draw a Dialog scene")
+            raise TypeError("Trying to draw a Dialog scene")
         try:
             scene = self.__all_scenes[scene_cls]
             if not self.started(scene):

@@ -3,7 +3,7 @@
 #
 #
 """PyDiamond's patch plugins module
-  
+
 All the submodules will be automatically imported by the PatchCollector singleton
 """
 

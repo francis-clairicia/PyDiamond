@@ -150,7 +150,7 @@ class CheckBox(TDrawable, AbstractWidget, Generic[_OnValue, _OffValue], metaclas
         if value in (on_value, off_value):
             self.__value = value
         elif value is not NoDefaultValue:
-            raise ValueError(f"'value' parameter doesn't fit with on/off values")
+            raise ValueError("'value' parameter doesn't fit with on/off values")
         if callback_at_init and callable(callback):
             callback(self.__value)
 

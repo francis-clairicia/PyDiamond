@@ -49,7 +49,7 @@ class OrderedWeakSet(WeakSet, Sequence):  # type: ignore[type-arg]
             self._commit_removals()
         if isinstance(index, slice):
             with _IterationGuard(self):
-                return self.__class__((item for itemref in self.data[index] if (item := itemref()) is not None))  # type: ignore[operator, union-attr]
+                return self.__class__((item for itemref in self.data[index] if (item := itemref()) is not None))  # type: ignore[operator, union-attr]  # noqa: E501
         try:
             if isinstance(index, str):  # type: ignore[unreachable]
                 raise TypeError

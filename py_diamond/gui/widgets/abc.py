@@ -86,20 +86,20 @@ class AbstractWidget(Clickable):
             return False
 
         if event.key in (
-            Keyboard.Key.NUMLOCK,
-            Keyboard.Key.CAPSLOCK,
-            Keyboard.Key.SCROLLOCK,
-            Keyboard.Key.RSHIFT,
-            Keyboard.Key.LSHIFT,
-            Keyboard.Key.RCTRL,
-            Keyboard.Key.LCTRL,
-            Keyboard.Key.RALT,
-            Keyboard.Key.LALT,
-            Keyboard.Key.RMETA,
-            Keyboard.Key.LMETA,
-            Keyboard.Key.LSUPER,
-            Keyboard.Key.RSUPER,
-            Keyboard.Key.MODE,
+            Keyboard.Key.K_NUMLOCK,
+            Keyboard.Key.K_CAPSLOCK,
+            Keyboard.Key.K_SCROLLOCK,
+            Keyboard.Key.K_RSHIFT,
+            Keyboard.Key.K_LSHIFT,
+            Keyboard.Key.K_RCTRL,
+            Keyboard.Key.K_LCTRL,
+            Keyboard.Key.K_RALT,
+            Keyboard.Key.K_LALT,
+            Keyboard.Key.K_RMETA,
+            Keyboard.Key.K_LMETA,
+            Keyboard.Key.K_LSUPER,
+            Keyboard.Key.K_RSUPER,
+            Keyboard.Key.K_MODE,
         ):
             return False
 
@@ -141,7 +141,7 @@ class AbstractWidget(Clickable):
         return False
 
     def _valid_key(self, key: int) -> bool:
-        return key in (Keyboard.Key.RETURN, Keyboard.Key.KP_ENTER)
+        return key in (Keyboard.Key.K_RETURN, Keyboard.Key.K_KP_ENTER)
 
     def _should_ignore_mouse_position(self, mouse_pos: tuple[float, float]) -> bool:
         return super()._should_ignore_mouse_position(mouse_pos) or self.focus.get_mode() == BoundFocusMode.KEY

@@ -38,7 +38,7 @@ from typing import (
     Generic,
     Hashable,
     Iterator,
-    Literal as L,
+    Literal,
     Mapping,
     MutableMapping,
     NamedTuple,
@@ -1459,7 +1459,7 @@ class ConfigurationTemplate(Object):
 
     def __check_locked(self) -> None:
         if self.__info is not None:
-            raise TypeError(f"Attempt to modify template after the class creation")
+            raise TypeError("Attempt to modify template after the class creation")
 
     @property
     @final
@@ -1909,7 +1909,7 @@ class Configuration(NonCopyable, Generic[_T]):
 
             def register_modified_error(register: _InitializationRegister, context: str) -> NoReturn:
                 raise InitializationError(
-                    f"{', '.join(register)} {'were' if len(register) > 1 else 'was'} modified after {context} in initialization context"
+                    f"{', '.join(register)} {'were' if len(register) > 1 else 'was'} modified after {context} in initialization context"  # noqa: E501
                 )
 
             with ExitStack() as stack:
@@ -2461,7 +2461,7 @@ class _ConfigInfoTemplate:
         d2: dict[_KT, _VT],
         /,
         *,
-        on_conflict: L["override", "raise", "skip"] | Callable[[_KT, _VT, _VT], _VT],
+        on_conflict: Literal["override", "raise", "skip"] | Callable[[_KT, _VT, _VT], _VT],
         setting: str,
         copy: Callable[[_VT], _VT] | None = None,
     ) -> None:
@@ -2576,7 +2576,7 @@ class _ConfigInfoTemplate:
         )
 
     def __build_value_converter_dict(
-        self, *, on: L["get", "set"]
+        self, *, on: Literal["get", "set"]
     ) -> MappingProxyType[str, tuple[Callable[[object, Any], Any], ...]]:
         value_converter: dict[str, list[Callable[[object, Any], Any]]] = getattr(self, f"value_converter_on_{on}")
         return MappingProxyType(

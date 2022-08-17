@@ -80,7 +80,7 @@ class SortedDict(dict):  # type: ignore[type-arg]
         if __k not in self.__list:
             try:
                 insort(self.__list, __k)
-            except:
+            except BaseException:
                 super().__delitem__(__k)
                 raise
 
@@ -114,7 +114,7 @@ class SortedDict(dict):  # type: ignore[type-arg]
         if __key not in self.__list:
             try:
                 insort(self.__list, __key)
-            except:
+            except BaseException:
                 super().__delitem__(__key)
                 raise
         return value

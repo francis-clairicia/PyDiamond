@@ -291,7 +291,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
                         return
             except DisconnectedClientError:
                 shutdown_client(client)
-            except:
+            except BaseException:
                 shutdown_client(client)
                 raise
 

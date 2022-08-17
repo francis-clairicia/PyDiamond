@@ -114,7 +114,7 @@ class JSONPacketDeserializer(NetworkPacketIncrementalDeserializer[_T_co]):
                         case _ if not enclosure_counter:  # No enclosure, only value
                             # Directly refused because we can't known when data is valid
                             raise IncrementalDeserializeError(
-                                f"Do not received beginning of a string/array/object",
+                                "Do not received beginning of a string/array/object",
                                 data_with_error=chunk,
                                 remaining_data=partial_document,
                             )

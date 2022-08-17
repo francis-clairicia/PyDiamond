@@ -96,7 +96,7 @@ class Cursor(AbstractCursor):
             case _Cursor() as cursor:
                 self.__cursor = cursor
             case _:
-                raise TypeError(f"Invalid arguments")
+                raise TypeError("Invalid arguments")
 
     @staticmethod
     def compile(hotspot: tuple[int, int], strings: Sequence[str], black: str = "X", white: str = ".", xor: str = "o") -> Cursor:

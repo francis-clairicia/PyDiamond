@@ -429,7 +429,6 @@ class TestMusicStreamFunctional:
         mixer_music_endevent: pygame.event.Event,
     ) -> None:
         music_wav = music_factory("music.wav")
-        Event = pygame.event.Event
 
         MusicStream.play(music_wav)
         # fadeout() will trigger mixer_music_endevent
@@ -447,7 +446,6 @@ class TestMusicStreamFunctional:
         mixer_music_endevent: pygame.event.Event,
     ) -> None:
         """Senario: Playlist and events"""
-        Event = pygame.event.Event
 
         music1_wav = music_factory("music1.wav")
         music2_wav = music_factory("music2.wav")

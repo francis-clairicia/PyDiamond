@@ -11,7 +11,7 @@ __all__ = ["ProgressBar", "ProgressBarMeta"]
 
 from dataclasses import dataclass
 from enum import auto, unique
-from typing import TYPE_CHECKING, Any, ClassVar, Literal as L, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Mapping, Sequence
 
 from typing_extensions import assert_never
 
@@ -367,4 +367,4 @@ class _ProgressTextValue:
     text: Text
     side: ProgressBar.Side | None
     round_n: int
-    type: L["value", "percent"] | None
+    type: Literal["value", "percent"] | None

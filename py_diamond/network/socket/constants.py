@@ -18,7 +18,7 @@ __all__ = [
 
 import socket
 from enum import IntEnum, unique
-from typing import Final, Literal as L
+from typing import Final, Literal
 
 
 @unique
@@ -44,11 +44,11 @@ class ShutdownFlag(IntEnum):
     __str__ = __repr__
 
 
-AF_INET: Final[L[AddressFamily.AF_INET]] = AddressFamily.AF_INET
-AF_INET6: Final[L[AddressFamily.AF_INET6]] = AddressFamily.AF_INET6
-SHUT_RD: Final[L[ShutdownFlag.SHUT_RD]] = ShutdownFlag.SHUT_RD
-SHUT_RDWR: Final[L[ShutdownFlag.SHUT_RDWR]] = ShutdownFlag.SHUT_RDWR
-SHUT_WR: Final[L[ShutdownFlag.SHUT_WR]] = ShutdownFlag.SHUT_WR
+AF_INET: Final[Literal[AddressFamily.AF_INET]] = AddressFamily.AF_INET
+AF_INET6: Final[Literal[AddressFamily.AF_INET6]] = AddressFamily.AF_INET6
+SHUT_RD: Final[Literal[ShutdownFlag.SHUT_RD]] = ShutdownFlag.SHUT_RD
+SHUT_RDWR: Final[Literal[ShutdownFlag.SHUT_RDWR]] = ShutdownFlag.SHUT_RDWR
+SHUT_WR: Final[Literal[ShutdownFlag.SHUT_WR]] = ShutdownFlag.SHUT_WR
 
 
 del socket

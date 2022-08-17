@@ -1,12 +1,13 @@
 #!/usr/bin/env -S python3 -W default
 # -*- coding: Utf-8 -*-
+# flake8: noqa
 
 from __future__ import annotations
 
 import gc
 import weakref
 from argparse import ArgumentParser
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterator, Literal as L, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterator, Literal, Mapping, Sequence
 
 from py_diamond.audio.mixer import Mixer
 from py_diamond.audio.music import Music, MusicStream
@@ -195,7 +196,7 @@ class AnimationScene(MainScene, busy_loop=True):
         super().awake(**kwargs)
         self.rectangle = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
         self.animation = TransformAnimation(self.rectangle)
-        self.event.bind_key_release(Keyboard.Key.RETURN, lambda _: self.__handle_return_event())
+        self.event.bind_key_release(Keyboard.Key.K_RETURN, lambda _: self.__handle_return_event())
 
     def on_start_loop_before_transition(self) -> None:
         window: Window = self.window
@@ -239,9 +240,9 @@ class AnimationStateFullScene(MainScene, busy_loop=True):
         self.rectangle = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
         self.text = Text(font=(FontResources.cooperblack, 25), italic=True, color=WHITE, justify="center")
         self.use_interpolation = False
-        self.event.bind_key_press(Keyboard.Key.UP, self.__increase_fixed_framerate)
-        self.event.bind_key_press(Keyboard.Key.DOWN, self.__increase_fixed_framerate)
-        self.event.bind_key_press(Keyboard.Key.RETURN, lambda _: self.__toggle_interpolation_use())
+        self.event.bind_key_press(Keyboard.Key.K_UP, self.__increase_fixed_framerate)
+        self.event.bind_key_press(Keyboard.Key.K_DOWN, self.__increase_fixed_framerate)
+        self.event.bind_key_press(Keyboard.Key.K_RETURN, lambda _: self.__toggle_interpolation_use())
         self.fixed_framerate = 30
 
     def on_start_loop_before_transition(self) -> None:
@@ -290,9 +291,9 @@ class AnimationStateFullScene(MainScene, busy_loop=True):
 
     def __increase_fixed_framerate(self, event: KeyDownEvent) -> None:
         match event.key:
-            case Keyboard.Key.UP if self.fixed_framerate < self.window.used_framerate():
+            case Keyboard.Key.K_UP if self.fixed_framerate < self.window.used_framerate():
                 self.fixed_framerate += 1
-            case Keyboard.Key.DOWN if self.fixed_framerate > 1:
+            case Keyboard.Key.K_DOWN if self.fixed_framerate > 1:
                 self.fixed_framerate -= 1
 
     def __toggle_interpolation_use(self) -> None:
@@ -379,11 +380,11 @@ class RainbowScene(MainScene):
         self.rainbow: int = 0
 
         def key_handler(event: KeyUpEvent) -> None:
-            self.rainbow += {Keyboard.Key.UP: -1, Keyboard.Key.DOWN: 1}[Keyboard.Key(event.key)]
+            self.rainbow += {Keyboard.Key.K_UP: -1, Keyboard.Key.K_DOWN: 1}[Keyboard.Key(event.key)]
             self.rainbow %= len(self.all_rainbows)
 
-        self.event.bind_key_release(Keyboard.Key.UP, key_handler)
-        self.event.bind_key_release(Keyboard.Key.DOWN, key_handler)
+        self.event.bind_key_release(Keyboard.Key.K_UP, key_handler)
+        self.event.bind_key_release(Keyboard.Key.K_DOWN, key_handler)
 
     def on_start_loop_before_transition(self) -> None:
         self.window.text_framerate.color = BLACK
@@ -1091,7 +1092,7 @@ class AudioScene(MainScene):
     def __init__(self) -> None:
         super().__init__()
         self.event.bind(MusicEndEvent, print)
-        self.event.bind_key_press(Keyboard.Key.F2, lambda _: MusicStream.fadeout(1000))
+        self.event.bind_key_press(Keyboard.Key.K_F2, lambda _: MusicStream.fadeout(1000))
 
     @classmethod
     def __theme_init__(cls) -> None:
@@ -1219,7 +1220,7 @@ class MyDialog(PopupDialog, GUIScene):
         print(kwargs)
         super().awake(border_radius=30, draggable=True, **kwargs)
         self.background_color = BLACK.with_alpha(200)
-        self.event.bind_key_press(Keyboard.Key.ESCAPE, lambda _: self.stop())
+        self.event.bind_key_press(Keyboard.Key.K_ESCAPE, lambda _: self.stop())
         self.cancel = ImageButton(
             self if self.draggable_popup is None else self.draggable_popup,
             img=ImagesResources.cross["normal"],
@@ -1268,9 +1269,9 @@ class TestDialogScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawabl
 class SceneTransitionTranslation(SceneTransition):
     __slots__ = "__side"
 
-    def __init__(self, side: L["left", "right"]) -> None:
+    def __init__(self, side: Literal["left", "right"]) -> None:
         super().__init__()
-        self.__side: L["left", "right"] = side
+        self.__side: Literal["left", "right"] = side
 
     def init(self, previous_scene_image: Surface, actual_scene_image: Surface) -> None:
         self.previous_scene = Image(previous_scene_image, copy=False)
@@ -1372,8 +1373,8 @@ class MainWindow(SceneWindow):
         self.prev_button.topleft = self.left + 10, self.top + 10
         self.next_button.topright = self.right - 10, self.top + 10
 
-        self.event.bind_key_press(Keyboard.Key.F5, lambda _: gc.collect())
-        self.event.bind_key_release(Keyboard.Key.F11, lambda _: self.screenshot())
+        self.event.bind_key_press(Keyboard.Key.K_F5, lambda _: gc.collect())
+        self.event.bind_key_release(Keyboard.Key.K_F11, lambda _: self.screenshot())
         self.event.bind(ScreenshotEvent, self.__show_screenshot)
         self.screenshot_image: Image | None = None
         self.screenshot_callback: WindowCallback | None = None

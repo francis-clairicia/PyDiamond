@@ -9,7 +9,7 @@ from __future__ import annotations
 __all__ = ["Button", "ButtonMeta", "ImageButton"]
 
 from enum import auto, unique
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal as L, Sequence, TypeAlias, TypedDict, overload
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, Sequence, TypeAlias, TypedDict, overload
 
 from ...graphics.color import BLACK, BLUE, GRAY, GRAY_DARK, GRAY_LIGHT, TRANSPARENT, WHITE, Color
 from ...graphics.drawable import TDrawable, TDrawableMeta
@@ -570,7 +570,7 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
         self.__update_shape_outline()
         return super()._on_focus_leave()
 
-    def __set_state(self, button_state: L["normal", "hover", "active"]) -> None:
+    def __set_state(self, button_state: Literal["normal", "hover", "active"]) -> None:
         clickable_state: Clickable.State = Clickable.State(self.state)
         bg_color: Color | None = self.__bg_dict[clickable_state][button_state]
         if bg_color is None:
@@ -674,7 +674,7 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config.on_update("x_add_size", __update_shape_size)
     config.on_update("y_add_size", __update_shape_size)
 
-    __TupleState: TypeAlias = tuple[Clickable.State, L["normal", "hover", "active"]]
+    __TupleState: TypeAlias = tuple[Clickable.State, Literal["normal", "hover", "active"]]
     __STATE: Final[dict[str, __TupleState]] = {
         "background": (Clickable.State.NORMAL, "normal"),
         "hover_background": (Clickable.State.NORMAL, "hover"),
@@ -1083,7 +1083,7 @@ class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
             outline = self.outline
         self.__shape.config(outline=outline, outline_color=outline_color)
 
-    def __set_state(self, button_state: L["normal", "hover", "active"]) -> None:
+    def __set_state(self, button_state: Literal["normal", "hover", "active"]) -> None:
         clickable_state: Clickable.State = Clickable.State(self.state)
         bg_color: Color | None = self.__bg_dict[clickable_state][button_state]
         if bg_color is None:
@@ -1127,7 +1127,7 @@ class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
     config.on_update("x_add_size", __update_shape_size)
     config.on_update("y_add_size", __update_shape_size)
 
-    __TupleState: TypeAlias = tuple[Clickable.State, L["normal", "hover", "active"]]
+    __TupleState: TypeAlias = tuple[Clickable.State, Literal["normal", "hover", "active"]]
     __STATE: Final[dict[str, __TupleState]] = {
         "background": (Clickable.State.NORMAL, "normal"),
         "hover_background": (Clickable.State.NORMAL, "hover"),

@@ -12,7 +12,7 @@ __all__ = ["Grid", "GridElement"]
 from abc import abstractmethod
 from dataclasses import dataclass
 from enum import auto, unique
-from typing import Any, ClassVar, Container, Iterator, Literal as L, Protocol, Sequence, TypeVar, overload, runtime_checkable
+from typing import Any, ClassVar, Container, Iterator, Literal, Protocol, Sequence, TypeVar, overload, runtime_checkable
 from weakref import ref as weakref
 
 from typing_extensions import assert_never
@@ -164,8 +164,8 @@ class Grid(MDrawable, Container[GridElement]):
             if cell.row == row and cell.column == column:
                 return obj
             cell.set_object(None)
-        elif self.master is not None and isinstance(obj, SupportsFocus) and not obj.focus.is_bound_to(self.master):  # type: ignore[unreachable]
-            raise ValueError(f"'obj' do not have the same GUIScene master that self")
+        elif self.master is not None and isinstance(obj, SupportsFocus) and not obj.focus.is_bound_to(self.master):  # type: ignore[unreachable]  # noqa: E501
+            raise ValueError("'obj' do not have the same GUIScene master that self")
 
         grid_row: _GridRow
         try:
@@ -308,7 +308,7 @@ class Grid(MDrawable, Container[GridElement]):
     def __find_cell(self, obj: GridElement) -> _GridCell:
         cell = next((cell for row in self.__rows.values() for cell in row.iter_cells() if cell.get_object() is obj), None)
         if cell is None:
-            raise ValueError(f"'obj' not in grid")
+            raise ValueError("'obj' not in grid")
         return cell
 
     def __set_obj_on_side_internal(self) -> None:
@@ -355,7 +355,9 @@ class Grid(MDrawable, Container[GridElement]):
                     obj.focus.set_obj_on_side(on_bottom=bottom_obj)
 
     @staticmethod
-    def __find_closest(cells: Sequence[_GridCell], attr: L["row", "column"], cell_to_link: _GridCell) -> SupportsFocus | None:
+    def __find_closest(
+        cells: Sequence[_GridCell], attr: Literal["row", "column"], cell_to_link: _GridCell
+    ) -> SupportsFocus | None:
         closest: _GridCell | None = None
         closest_obj: SupportsFocus | None = None
         value: int = getattr(cell_to_link, attr)

@@ -18,7 +18,7 @@ from ..system.path import set_constant_directory
 from .loader import AbstractResourceLoader
 
 _ResourcePath: TypeAlias = str | Sequence["_ResourcePath"] | Mapping[Any, "_ResourcePath"]  # type: ignore[misc]
-_ResourceLoader: TypeAlias = AbstractResourceLoader[Any] | tuple["_ResourceLoader", ...] | dict[Any, "_ResourceLoader"]  # type: ignore[misc]
+_ResourceLoader: TypeAlias = AbstractResourceLoader[Any] | tuple["_ResourceLoader", ...] | dict[Any, "_ResourceLoader"]  # type: ignore[misc]  # noqa: E501
 
 
 class _ResourceDescriptor:

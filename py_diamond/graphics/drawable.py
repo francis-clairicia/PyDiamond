@@ -126,7 +126,7 @@ class Drawable(Object, metaclass=DrawableMeta):
             if self not in g:
                 try:
                     g.add(self)
-                except:
+                except BaseException:
                     actual_groups.remove(g)
                     raise
 
@@ -241,7 +241,7 @@ class BaseDrawableGroup(Sequence[_D]):
             if self not in d.groups:
                 try:
                     d.add_to_group(self)
-                except:
+                except BaseException:
                     drawable_list.remove(d)
                     raise
 
@@ -306,7 +306,7 @@ class BaseLayeredDrawableGroup(BaseDrawableGroup[_D]):
             if self not in d.groups:
                 try:
                     d.add_to_group(self)
-                except:
+                except BaseException:
                     drawable_list.remove(d)
                     raise
 

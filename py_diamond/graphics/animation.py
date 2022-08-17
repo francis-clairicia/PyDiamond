@@ -17,7 +17,7 @@ from typing import (
     Callable,
     Final,
     Iterator,
-    Literal as L,
+    Literal,
     NamedTuple,
     Protocol,
     TypeAlias,
@@ -89,7 +89,7 @@ class AnimationInterpolator(Object):
 
     def update(self, interpolation: float) -> None:
         if self.__state_update:
-            raise RuntimeError(f"update() during state update")
+            raise RuntimeError("update() during state update")
         previous: _ObjectStateProtocol | None = self.__previous_state
         actual: _ObjectStateProtocol | None = self.__actual_state
         if not previous or not actual:
@@ -299,7 +299,7 @@ class MoveAnimation(BaseAnimation):
             animation.default()
 
 
-_AnimationType: TypeAlias = L["move", "rotate", "rotate_point", "scale"]
+_AnimationType: TypeAlias = Literal["move", "rotate", "rotate_point", "scale"]
 
 
 @final
@@ -853,11 +853,11 @@ class _AbstractAnimationScale(_AbstractTransformableAnimationClass):
 
     __slots__ = ("__field",)
 
-    def __init__(self, transformable: Transformable, speed: float, field: L["width", "height"]) -> None:
+    def __init__(self, transformable: Transformable, speed: float, field: Literal["width", "height"]) -> None:
         super().__init__(transformable, speed)
         if field not in ("width", "height"):
             raise ValueError("Invalid arguments")
-        self.__field: L["width", "height"] = field
+        self.__field: Literal["width", "height"] = field
 
     def get_transformable_size(self) -> float:
         area: tuple[float, float] = self.object.get_area_size(apply_rotation=False)
@@ -873,7 +873,7 @@ class _AnimationSetSize(_AbstractAnimationScale):
 
     __slots__ = ("__value",)
 
-    def __init__(self, transformable: Transformable, value: float, speed: float, field: L["width", "height"]) -> None:
+    def __init__(self, transformable: Transformable, value: float, speed: float, field: Literal["width", "height"]) -> None:
         super().__init__(transformable, speed, field)
         self.__value: float = value
 
@@ -901,7 +901,7 @@ class _AnimationSizeGrowth(_AbstractAnimationScale):
 
     __slots__ = ("__value", "__orientation", "__actual_value")
 
-    def __init__(self, transformable: Transformable, offset: float, speed: float, field: L["width", "height"]) -> None:
+    def __init__(self, transformable: Transformable, offset: float, speed: float, field: Literal["width", "height"]) -> None:
         super().__init__(transformable, speed, field)
         self.__value: float = abs(offset)
         self.__orientation: int = int(offset // abs(offset)) if offset != 0 and speed > 0 else 0

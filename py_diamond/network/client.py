@@ -507,7 +507,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
                 except ValidationError:
                     continue
                 yield (packet, sender)
-            except:
+            except BaseException:
                 chunk_generator.close()
                 raise
 

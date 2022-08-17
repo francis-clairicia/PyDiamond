@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from functools import partial
 from importlib import import_module
-from typing import TYPE_CHECKING, Literal as L, NamedTuple
+from typing import TYPE_CHECKING, Literal, NamedTuple
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -19,14 +19,14 @@ class MockVersionInfo(NamedTuple):
     major: int
     minor: int
     micro: int
-    releaselevel: L["alpha", "beta", "candidate", "final"]
+    releaselevel: Literal["alpha", "beta", "candidate", "final"]
     serial: int
 
     def __repr__(self) -> str:
         return f"sys.version_info({', '.join(f'{k}={v!r}' for k, v in self._asdict().items())})"
 
     def __str__(self) -> str:
-        return f"{self.major}.{self.minor}.{self.micro}{'.' + self.releaselevel[0] + str(self.serial) if self.releaselevel != 'final' else ''}"
+        return f"{self.major}.{self.minor}.{self.micro}{'.' + self.releaselevel[0] + str(self.serial) if self.releaselevel != 'final' else ''}"  # noqa: E501
 
 
 def unload_module(module_name: str, include_submodules: bool, monkeypatch: MonkeyPatch) -> None:

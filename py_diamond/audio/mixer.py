@@ -15,7 +15,7 @@ __all__ = ["AllowedAudioChanges", "AudioFormat", "Mixer", "MixerParams"]
 
 from contextlib import ExitStack, contextmanager
 from enum import IntEnum, IntFlag
-from typing import TYPE_CHECKING, Any, Iterator, Literal as L, NamedTuple, overload
+from typing import TYPE_CHECKING, Any, Iterator, Literal, NamedTuple, overload
 
 import pygame.constants as _pg_constants
 import pygame.mixer as _pg_mixer
@@ -96,7 +96,7 @@ class Mixer(ClassNamespace, frozen=True):
         size: int = ...,
         channels: int = ...,
         buffersize: int = ...,
-        allowedchanges: AllowedAudioChanges | L[-1, 0] = ...,
+        allowedchanges: AllowedAudioChanges | Literal[-1, 0] = ...,
         **kwargs: Any,
     ) -> None:
         ...
@@ -128,7 +128,7 @@ class Mixer(ClassNamespace, frozen=True):
         size: int = ...,
         channels: int = ...,
         buffersize: int = ...,
-        allowedchanges: AllowedAudioChanges | L[-1, 0] = ...,
+        allowedchanges: AllowedAudioChanges | Literal[-1, 0] = ...,
         **kwargs: Any,
     ) -> _GeneratorContextManager[MixerParams]:
         ...
@@ -269,7 +269,7 @@ class Mixer(ClassNamespace, frozen=True):
 
     @overload
     @staticmethod
-    def find_channel(force: L[True]) -> Channel:
+    def find_channel(force: Literal[True]) -> Channel:
         ...
 
     @overload

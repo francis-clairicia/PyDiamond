@@ -13,7 +13,7 @@ __all__ = [
 
 import weakref
 from types import MappingProxyType
-from typing import Any, Callable, Final, Iterator, Literal as L, Mapping, Sequence, overload
+from typing import Any, Callable, Final, Iterator, Literal, Mapping, Sequence, overload
 
 from ..system.collections import OrderedWeakSet
 from ..system.object import final
@@ -83,7 +83,7 @@ class GUIScene(Scene):
         return self.__internal_focus_next(offset=-1)
 
     @no_theme_decorator
-    def __internal_focus_next(self, offset: L[1, -1]) -> SupportsFocus | None:
+    def __internal_focus_next(self, offset: Literal[1, -1]) -> SupportsFocus | None:
         if not self.looping():
             return None
         focusable_list: Sequence[SupportsFocus] = self.__container
@@ -170,13 +170,13 @@ class GUIScene(Scene):
     @no_theme_decorator
     def __handle_key_event(self, event: KeyDownEvent) -> bool:
         match event.key:
-            case Keyboard.Key.TAB if event.mod & Keyboard.Modifiers.SHIFT:
+            case Keyboard.Key.K_TAB if event.mod & Keyboard.Modifiers.KMOD_SHIFT:
                 self.focus_prev()
                 return True
-            case Keyboard.Key.TAB:
+            case Keyboard.Key.K_TAB:
                 self.focus_next()
                 return True
-            case Keyboard.Key.ESCAPE:
+            case Keyboard.Key.K_ESCAPE:
                 self.focus_set(None)
                 return True
         side_with_key_event = self.get_side_with_key_event()
@@ -209,10 +209,10 @@ from .focus import BoundFocus, BoundFocusMode, BoundFocusSide, SupportsFocus  # 
 
 _SIDE_WITH_KEY_EVENT: Final[MappingProxyType[int, BoundFocusSide]] = MappingProxyType(
     {
-        Keyboard.Key.LEFT: BoundFocusSide.ON_LEFT,
-        Keyboard.Key.RIGHT: BoundFocusSide.ON_RIGHT,
-        Keyboard.Key.UP: BoundFocusSide.ON_TOP,
-        Keyboard.Key.DOWN: BoundFocusSide.ON_BOTTOM,
+        Keyboard.Key.K_LEFT: BoundFocusSide.ON_LEFT,
+        Keyboard.Key.K_RIGHT: BoundFocusSide.ON_RIGHT,
+        Keyboard.Key.K_UP: BoundFocusSide.ON_TOP,
+        Keyboard.Key.K_DOWN: BoundFocusSide.ON_BOTTOM,
     }
 )
 

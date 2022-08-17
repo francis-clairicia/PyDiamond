@@ -314,33 +314,33 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
         self.__cursor_animation_clock.restart()
         text: Text = self.__text
         match event:
-            case KeyDownEvent(key=Keyboard.Key.RETURN | Keyboard.Key.KP_ENTER) if text.message:
+            case KeyDownEvent(key=Keyboard.Key.K_RETURN | Keyboard.Key.K_KP_ENTER) if text.message:
                 self.__on_validate()
                 return True
-            case KeyDownEvent(key=Keyboard.Key.INSERT):
+            case KeyDownEvent(key=Keyboard.Key.K_INSERT):
                 self.__insert_mode = not self.__insert_mode
                 return True
-            case KeyDownEvent(key=Keyboard.Key.ESCAPE):
+            case KeyDownEvent(key=Keyboard.Key.K_ESCAPE):
                 self.stop_edit()
                 return True
-            case KeyDownEvent(key=Keyboard.Key.BACKSPACE):
+            case KeyDownEvent(key=Keyboard.Key.K_BACKSPACE):
                 if self.cursor > 0:
                     text.message = text.message[: self.cursor - 1] + text.message[self.cursor :]
                     self.cursor -= 1
                 return True
-            case KeyDownEvent(key=Keyboard.Key.DELETE):
+            case KeyDownEvent(key=Keyboard.Key.K_DELETE):
                 text.message = text.message[: self.cursor] + text.message[self.cursor + 1 :]
                 return True
-            case KeyDownEvent(key=Keyboard.Key.LEFT):
+            case KeyDownEvent(key=Keyboard.Key.K_LEFT):
                 self.cursor -= 1
                 return True
-            case KeyDownEvent(key=Keyboard.Key.RIGHT):
+            case KeyDownEvent(key=Keyboard.Key.K_RIGHT):
                 self.cursor += 1
                 return True
-            case KeyDownEvent(key=Keyboard.Key.HOME):
+            case KeyDownEvent(key=Keyboard.Key.K_HOME):
                 self.cursor = 0
                 return True
-            case KeyDownEvent(key=Keyboard.Key.END):
+            case KeyDownEvent(key=Keyboard.Key.K_END):
                 self.cursor = len(text.message)
                 return True
             case TextInputEvent(text=entered_text):

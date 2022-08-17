@@ -213,7 +213,7 @@ class PythonTCPServerSocket(_AbstractPythonTCPSocket, AbstractTCPServerSocket):
                 PythonTCPClientSocket.from_builtin_socket(client, register_peername=False),
                 new_socket_address(addr, client.family),
             )
-        except:
+        except BaseException:
             client.close()
             raise
 
@@ -248,7 +248,7 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
             try:
                 sock.settimeout(timeout)
                 sock.connect(address)
-            except:
+            except BaseException:
                 sock.close()
                 raise
         sock.settimeout(None)
@@ -427,7 +427,7 @@ class PythonUDPServerSocket(_AbstractPythonUDPSocket, AbstractUDPServerSocket):
                     del IPPROTO_IPV6, IPV6_V6ONLY
 
             sock.bind(address)
-        except:
+        except BaseException:
             sock.close()
             raise
 

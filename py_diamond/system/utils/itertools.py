@@ -11,7 +11,7 @@ __all__ = ["consume", "consumer_start", "flatten", "next_return", "send_return"]
 import inspect
 from collections import deque
 from itertools import chain
-from typing import Any, Generator, Iterable, Iterator, Literal as L, TypeVar, overload
+from typing import Any, Generator, Iterable, Iterator, Literal, TypeVar, overload
 
 _T = TypeVar("_T")
 _T_co = TypeVar("_T_co", covariant=True)
@@ -71,22 +71,22 @@ def flatten(iterable: Iterable[Iterable[_T]]) -> Iterator[_T]:
 
 
 @overload
-def flatten(iterable: Iterable[Iterable[_T]], *, level: L[1]) -> Iterator[_T]:
+def flatten(iterable: Iterable[Iterable[_T]], *, level: Literal[1]) -> Iterator[_T]:
     ...
 
 
 @overload
-def flatten(iterable: Iterable[Iterable[Iterable[_T]]], *, level: L[2]) -> Iterator[_T]:
+def flatten(iterable: Iterable[Iterable[Iterable[_T]]], *, level: Literal[2]) -> Iterator[_T]:
     ...
 
 
 @overload
-def flatten(iterable: Iterable[Iterable[Iterable[Iterable[_T]]]], *, level: L[3]) -> Iterator[_T]:
+def flatten(iterable: Iterable[Iterable[Iterable[Iterable[_T]]]], *, level: Literal[3]) -> Iterator[_T]:
     ...
 
 
 @overload
-def flatten(iterable: Iterable[Iterable[Iterable[Iterable[Iterable[_T]]]]], *, level: L[4]) -> Iterator[_T]:
+def flatten(iterable: Iterable[Iterable[Iterable[Iterable[Iterable[_T]]]]], *, level: Literal[4]) -> Iterator[_T]:
     ...
 
 

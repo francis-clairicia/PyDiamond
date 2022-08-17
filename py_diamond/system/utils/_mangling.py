@@ -27,9 +27,9 @@ _NO_DEFAULT: Any = object()
 @cache
 def mangle_private_attribute(cls: type, name: str, /) -> str:
     if not name:
-        raise ValueError(f"Empty attribute string")
+        raise ValueError("Empty attribute string")
     if all(c == "_" for c in name):
-        raise ValueError(f"attribute filled with underscores")
+        raise ValueError("attribute filled with underscores")
     if name.endswith("__"):
         raise ValueError(f"{name!r}: Two or more trailing underscores")
     return f"_{cls.__name__.strip('_')}__{name}"

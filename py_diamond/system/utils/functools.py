@@ -141,7 +141,7 @@ else:
     class classmethodonly(classmethod):
         def __get__(self, __obj: _T, __type: type[_T] | None = ...) -> Callable[..., _R_co]:
             if __obj is not None:
-                raise TypeError(f"This method should not be called from instance")
+                raise TypeError("This method should not be called from instance")
             return super().__get__(__obj, __type)
 
 

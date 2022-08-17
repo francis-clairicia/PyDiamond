@@ -66,7 +66,7 @@ def SysFont(name: str | bytes | Iterable[str | bytes], size: int, bold: bool = F
         font.oblique = italic
         return font
 
-    font: Font = pygame.sysfont.SysFont(name, size, bold=bold, italic=italic, constructor=font_constructor)  # type: ignore[no-untyped-call]
+    font: Font = pygame.sysfont.SysFont(name, size, bold=bold, italic=italic, constructor=font_constructor)  # type: ignore[no-untyped-call]  # noqa: E501
     return font
 
 

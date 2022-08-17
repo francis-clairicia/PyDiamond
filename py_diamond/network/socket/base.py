@@ -25,7 +25,7 @@ __all__ = [
 
 from abc import abstractmethod
 from io import RawIOBase
-from typing import TYPE_CHECKING, Any, Literal as L, NamedTuple, TypeAlias, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypeAlias, TypeVar, overload
 
 from ...system.non_copyable import NonCopyableMeta
 from ...system.object import Object, ObjectMeta
@@ -52,12 +52,14 @@ SocketAddress: TypeAlias = IPv4SocketAddress | IPv6SocketAddress
 
 
 @overload
-def new_socket_address(addr: tuple[str, int], family: L[AddressFamily.AF_INET]) -> IPv4SocketAddress:
+def new_socket_address(addr: tuple[str, int], family: Literal[AddressFamily.AF_INET]) -> IPv4SocketAddress:
     ...
 
 
 @overload
-def new_socket_address(addr: tuple[str, int] | tuple[str, int, int, int], family: L[AddressFamily.AF_INET6]) -> IPv6SocketAddress:
+def new_socket_address(
+    addr: tuple[str, int] | tuple[str, int, int, int], family: Literal[AddressFamily.AF_INET6]
+) -> IPv6SocketAddress:
     ...
 
 

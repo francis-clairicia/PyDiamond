@@ -42,7 +42,7 @@ def noexcept(func: Callable[_P, _R], /) -> Callable[_P, _R]:
                 return (yield from func(*args, **kwargs))  # type: ignore[misc]
             except exit_exceptions:
                 raise
-            except:
+            except BaseException:
                 abort()
 
     elif inspect.isasyncgenfunction(func):
@@ -61,7 +61,7 @@ def noexcept(func: Callable[_P, _R], /) -> Callable[_P, _R]:
                     except GeneratorExit:
                         await async_gen.aclose()
                         raise
-                    except:
+                    except BaseException:
                         _y = await async_gen.athrow(*sys.exc_info())
                     else:
                         _y = await async_gen.asend(_s)
@@ -69,7 +69,7 @@ def noexcept(func: Callable[_P, _R], /) -> Callable[_P, _R]:
                 return
             except exit_exceptions:
                 raise
-            except:
+            except BaseException:
                 abort()
 
     elif inspect.iscoroutinefunction(func):
@@ -80,7 +80,7 @@ def noexcept(func: Callable[_P, _R], /) -> Callable[_P, _R]:
                 return await func(*args, **kwargs)  # type: ignore[misc]
             except exit_exceptions:
                 raise
-            except:
+            except BaseException:
                 abort()
 
     else:
@@ -91,7 +91,7 @@ def noexcept(func: Callable[_P, _R], /) -> Callable[_P, _R]:
                 return func(*args, **kwargs)
             except exit_exceptions:
                 raise
-            except:
+            except BaseException:
                 abort()
 
     return wrapper

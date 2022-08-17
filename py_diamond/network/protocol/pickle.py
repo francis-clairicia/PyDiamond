@@ -61,7 +61,7 @@ class PicklePacketSerializer(NetworkPacketIncrementalSerializer[_T_contra], Obje
         pickler = self.get_pickler(file)
         try:
             pickler.dump(packet)
-        except:
+        except BaseException:
             file.write(STOP_OPCODE)  # Ensure there is a stop opcode, so the receiver can quickly ignore it
             raise
 

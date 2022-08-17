@@ -168,7 +168,7 @@ class AutoSeparatedStreamNetworkProtocol(
 
 class _BaseAutoParsedPacket(metaclass=ProtocolObjectMeta):
     MAGIC: Final[bytes] = b"\x7f\x1b\xea\xff"
-    header: Final[Struct] = Struct(f"!4sI")
+    header: Final[Struct] = Struct("!4sI")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)

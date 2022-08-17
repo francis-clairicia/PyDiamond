@@ -1,6 +1,7 @@
 # type: ignore
 # fmt: off
 # isort:skip_file
+# flake8: noqa
 
 #Copyright 2006 DR0ID <dr0id@bluewin.ch> http://mypage.bluewin.ch/DR0ID
 #

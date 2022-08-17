@@ -172,7 +172,7 @@ class _BuiltinEventMeta(EventMeta):
         *,
         event_type: BuiltinEventType | None = None,
         **kwargs: Any,
-    ) -> _BuiltinEventMeta:
+    ) -> _BuiltinEventMeta:  # noqa: F821
         try:
             BuiltinEvent
         except NameError:
@@ -552,7 +552,7 @@ class ScreenshotEvent(BuiltinEvent, event_type=BuiltinEventType.SCREENSHOT):
 
 
 def _check_event_types_association() -> None:
-    if unbound_types := set(filter(lambda e: e not in _BUILTIN_PYGAME_EVENT_TYPE, BuiltinEventType)):
+    if unbound_types := set(filter(lambda e: e not in _BUILTIN_PYGAME_EVENT_TYPE, BuiltinEventType)):  # noqa: F821
         raise SystemError(
             f"The following events do not have an associated BuiltinEvent class: {', '.join(e.name for e in unbound_types)}"
         )

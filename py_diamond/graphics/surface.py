@@ -14,7 +14,7 @@ __all__ = [
     "save_image",
 ]
 
-from typing import TYPE_CHECKING, Iterable, Literal as L, Sequence, overload
+from typing import TYPE_CHECKING, Iterable, Literal, Sequence, overload
 
 import pygame.image
 from pygame import encode_file_path
@@ -119,7 +119,7 @@ class SurfaceRenderer(AbstractRenderer):
             | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
             | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
         ],
-        doreturn: L[True] = ...,
+        doreturn: Literal[True] = ...,
     ) -> list[Rect]:
         ...
 
@@ -131,7 +131,7 @@ class SurfaceRenderer(AbstractRenderer):
             | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
             | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
         ],
-        doreturn: L[False],
+        doreturn: Literal[False],
     ) -> None:
         ...
 

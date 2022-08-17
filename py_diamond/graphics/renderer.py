@@ -12,7 +12,7 @@ __all__ = ["AbstractRenderer"]
 from abc import abstractmethod
 from collections import deque
 from enum import IntEnum, unique
-from typing import TYPE_CHECKING, Iterable, Literal as L, Sequence, no_type_check, overload
+from typing import TYPE_CHECKING, Iterable, Literal, Sequence, no_type_check, overload
 
 import pygame.constants as _pg_constants
 
@@ -86,7 +86,7 @@ class AbstractRenderer(Object):
             | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
             | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
         ],
-        doreturn: L[True] = ...,
+        doreturn: Literal[True] = ...,
     ) -> list[Rect]:
         ...
 
@@ -98,7 +98,7 @@ class AbstractRenderer(Object):
             | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
             | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
         ],
-        doreturn: L[False],
+        doreturn: Literal[False],
     ) -> None:
         ...
 

@@ -11,7 +11,8 @@ and never actually loaded all at once. The mixer system only supports a single m
 
 (See more in pygame documentation: https://www.pygame.org/docs/ref/music.html)
 
-This module provides a high-level interface, which handles several queued musics (playlists) and keeps tracking running and queued sounds.
+This module provides a high-level interface, which handles several queued musics (playlists) and
+keeps tracking running and queued sounds.
 """
 
 from __future__ import annotations
@@ -95,7 +96,8 @@ class MusicStream(ClassNamespace, frozen=True):
     """
     API for the pygame.mixer.music controller
 
-    This class provides a high-level interface, which handles several queued musics (playlists) and keeps tracking running and queued sounds.
+    This class provides a high-level interface, which handles several queued musics (playlists) and
+    keeps tracking running and queued sounds.
     """
 
     @dataclass
@@ -116,8 +118,9 @@ class MusicStream(ClassNamespace, frozen=True):
         repeat is an optional integer argument, which is 0 by default, which indicates how many times to repeat the music.
         The music repeats indefinitely if this argument is set to -1.
 
-        fade_ms is an optional integer argument, which is 0 by default, which denotes the period of time (in milliseconds) over which
-        the music will fade up from volume level 0.0 to full volume (or the volume level previously set by MusicStream.set_volume()).
+        fade_ms is an optional integer argument, which is 0 by default, which denotes the period of time (in milliseconds)
+        over which the music will fade up from volume level 0.0 to full volume (or the volume level previously set by
+        MusicStream.set_volume()).
         The sample may end before the fade-in is complete. If the music is already streaming fade_ms is ignored.
         """
         played_music: _MusicPayload | None = MusicStream.__playing.payload
@@ -224,7 +227,8 @@ class MusicStream(ClassNamespace, frozen=True):
 
         The time argument denotes the integer milliseconds for which the fading effect is generated.
 
-        Note, that this function blocks until the music has faded out. Calls to fadeout() and set_volume() will have no effect during this time.
+        Note, that this function blocks until the music has faded out. Calls to fadeout() and set_volume() will have
+        no effect during this time.
         MUSICEND event will be triggered after the music has faded.
         """
         queue: deque[_MusicPayload] = MusicStream.__queue
@@ -260,7 +264,8 @@ class MusicStream(ClassNamespace, frozen=True):
         """Queue a music file to follow the current
 
         This will load a music file and queue it. A queued music file will begin as soon as the current music naturally ends.
-        Several music can be queued at a time. Also, if the current music is ever stopped or changed, all the queued music will be lost.
+        Several music can be queued at a time. Also, if the current music is ever stopped or changed,
+        all the queued music will be lost.
         """
         repeat = int(repeat)
         if repeat < 0:
@@ -270,7 +275,7 @@ class MusicStream(ClassNamespace, frozen=True):
             MusicStream.play(music, repeat=repeat)
             return
         if played_music.repeat < 0:
-            raise ValueError(f"The playing music loops infinitely, queued musics will not be set")
+            raise ValueError("The playing music loops infinitely, queued musics will not be set")
         queue: deque[_MusicPayload] = MusicStream.__queue
         if not queue:
             _pg_music.queue(encode_file_path(music.filepath), loops=repeat)
