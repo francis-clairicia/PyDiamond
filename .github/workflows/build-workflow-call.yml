@@ -9,7 +9,7 @@ on:
         type: string
       artifact-name:
         description: 'Artifact name'
-        required: false
+        required: true
         default: 'dist'
         type: string
   workflow_call:
@@ -20,7 +20,7 @@ on:
         type: string
       artifact-name:
         description: 'Artifact name'
-        required: false
+        required: true
         default: 'dist'
         type: string
 
