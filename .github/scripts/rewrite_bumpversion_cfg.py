@@ -32,7 +32,7 @@ def rewrite_bumpversion_cfg(filepath: str, *, dry_run: bool = False) -> None:
     for section in filter(BUMPVERSION_PART_SECTION_PATTERN.match, config.sections()):
         config.remove_section(section)
 
-    with (open(filepath, "wt") if not dry_run else nullcontext(sys.stdout)) as output:  # type: ignore
+    with (open(filepath, "wt") if not dry_run else nullcontext(sys.stdout)) as output:  # type: ignore[attr-defined]
         config.write(output)
 
 
