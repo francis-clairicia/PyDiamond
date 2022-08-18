@@ -25,11 +25,11 @@ class OverrideFinalFunctionsPatch(BasePatch):
     def setup(self) -> None:
         super().setup()
 
-        if sys.version_info >= (3, 11):
-            from typing import final as _default_final
+        if sys.version_info < (3, 11):
+            from typing_extensions import final as _default_final
 
         else:
-            from typing_extensions import final as _default_final
+            from typing import final as _default_final
 
         self.__default_final = _default_final
 

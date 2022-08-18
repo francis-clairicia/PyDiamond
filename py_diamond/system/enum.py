@@ -13,11 +13,7 @@ import sys
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-if sys.version_info >= (3, 11):
-    from enum import StrEnum
-
-else:
-
+if sys.version_info < (3, 11):
     if TYPE_CHECKING:
         from _typeshed import Self
 
@@ -28,6 +24,10 @@ else:
 
             def __new__(cls: type[Self], value: str | Self) -> Self:
                 ...
+
+else:
+
+    from enum import StrEnum
 
 
 class AutoLowerNameEnum(StrEnum):
