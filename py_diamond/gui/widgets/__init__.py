@@ -8,13 +8,9 @@ from __future__ import annotations
 __all__ = [
     "BooleanCheckBox",
     "Button",
-    "ButtonMeta",
     "CheckBox",
-    "CheckBoxMeta",
     "Entry",
-    "EntryMeta",
     "Form",
-    "FormMeta",
     "Grid",
     "GridElement",
     "ImageButton",
@@ -22,7 +18,6 @@ __all__ = [
     "ScrollArea",
     "ScrollAreaElement",
     "ScrollBar",
-    "ScrollBarMeta",
 ]
 
 ############ Package initialization ############

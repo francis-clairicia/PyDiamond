@@ -16,15 +16,16 @@ from typing_extensions import assert_never
 
 from ._transform import rotozoom2 as _surface_rotozoom2, scale_by as _surface_scale_by
 from .color import Color
-from .drawable import TDrawable
+from .drawable import Drawable
 from .rect import Rect
 from .surface import Surface, create_surface, load_image, save_image
+from .transformable import Transformable
 
 if TYPE_CHECKING:
     from .renderer import AbstractRenderer
 
 
-class Image(TDrawable):
+class Image(Drawable, Transformable):
 
     __slots__ = (
         "__default_image",
@@ -52,7 +53,8 @@ class Image(TDrawable):
         width: float | None = None,
         height: float | None = None,
     ) -> None:
-        super().__init__()
+        Drawable.__init__(self)
+        Transformable.__init__(self)
 
         self.__default_image: Surface
         self.__image: Surface

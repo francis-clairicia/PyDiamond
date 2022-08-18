@@ -18,7 +18,8 @@ from weakref import ref as weakref
 from typing_extensions import assert_never
 
 from ...graphics.color import BLACK, TRANSPARENT, Color
-from ...graphics.drawable import BaseDrawableGroup, MDrawable, SupportsDrawableGroups
+from ...graphics.drawable import BaseDrawableGroup, Drawable, SupportsDrawableGroups
+from ...graphics.movable import Movable
 from ...graphics.renderer import AbstractRenderer
 from ...graphics.shape import RectangleShape
 from ...system.collections import SortedDict
@@ -56,7 +57,7 @@ class GridElement(SupportsDrawableGroups, Protocol):
 _E = TypeVar("_E", bound=GridElement)
 
 
-class Grid(MDrawable, Container[GridElement]):
+class Grid(Drawable, Movable, Container[GridElement]):
     @unique
     class Justify(AutoLowerNameEnum):
         LEFT = auto()
@@ -91,7 +92,8 @@ class Grid(MDrawable, Container[GridElement]):
     ) -> None:
         if master is not None and not isinstance(master, GUIScene):
             raise TypeError("Only GUIScenes are accepted")
-        super().__init__()
+        Drawable.__init__(self)
+        Movable.__init__(self)
         self.__rows: SortedDict[int, _GridRow] = SortedDict()
         self.__columns: SortedDict[int, _GridColumnPlaceholder] = SortedDict()
         self.__master: GUIScene | None = master
@@ -529,7 +531,7 @@ class _GridColumnPlaceholder:
         return self.__column
 
 
-class _GridCell(MDrawable):
+class _GridCell(Drawable, Movable):
 
     __slots__ = (
         "__master",
@@ -543,7 +545,8 @@ class _GridCell(MDrawable):
     )
 
     def __init__(self, master: _GridRow, column: _GridColumnPlaceholder, grid_group: _GridGroup) -> None:
-        super().__init__()
+        Drawable.__init__(self)
+        Movable.__init__(self)
         self.__master: weakref[_GridRow] = weakref(master)
         self.__grid_group: _GridGroup = grid_group
         self.__column: weakref[_GridColumnPlaceholder] = weakref(column)

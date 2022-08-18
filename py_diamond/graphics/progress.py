@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["ProgressBar", "ProgressBarMeta"]
+__all__ = ["ProgressBar"]
 
 
 from dataclasses import dataclass
@@ -20,18 +20,14 @@ from ..system.enum import AutoLowerNameEnum
 from ..system.theme import ThemedObjectMeta, ThemeType
 from ..system.validation import valid_float, valid_integer
 from .color import BLACK, GRAY, TRANSPARENT, WHITE, Color
-from .shape import RectangleShape, ShapeMeta
+from .shape import RectangleShape
 from .text import Text
 
 if TYPE_CHECKING:
     from .renderer import AbstractRenderer
 
 
-class ProgressBarMeta(ShapeMeta, ThemedObjectMeta):
-    pass
-
-
-class ProgressBar(RectangleShape, metaclass=ProgressBarMeta):
+class ProgressBar(RectangleShape, metaclass=ThemedObjectMeta):
     __theme_ignore__: ClassVar[Sequence[str]] = (
         "from_",
         "to",

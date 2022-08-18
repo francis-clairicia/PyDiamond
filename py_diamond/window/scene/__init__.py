@@ -10,7 +10,6 @@ __all__ = [
     "AbstractAutoLayeredDrawableScene",
     "AbstractLayeredScene",
     "MainScene",
-    "MainSceneMeta",
     "RenderedLayeredScene",
     "ReturningSceneTransition",
     "ReturningSceneTransitionProtocol",
@@ -454,24 +453,11 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
         self.__bg_color = Color(color)
 
 
-class MainSceneMeta(SceneMeta):
-    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> SceneMeta:
-        if "MainScene" not in globals():
-            return super().__new__(mcs, name, bases, namespace, **kwargs)
-
-        if not any(issubclass(cls, MainScene) for cls in bases):
-            raise TypeError(
-                f"{name!r} must inherit from a {MainScene.__name__} class in order to use {MainSceneMeta.__name__} metaclass"
-            )
-
-        cls = super().__new__(mcs, name, bases, namespace, **kwargs)
+class MainScene(Scene):
+    def __init_subclass__(cls) -> None:
+        super().__init_subclass__()
         if isconcreteclass(cls):
             closed_namespace(cls)
-        return cls
-
-
-class MainScene(Scene, metaclass=MainSceneMeta):
-    pass
 
 
 class AbstractLayeredScene(Scene):

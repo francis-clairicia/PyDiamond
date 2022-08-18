@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Transformable", "TransformableMeta", "TransformableProxy", "TransformableProxyMeta"]
+__all__ = ["Transformable", "TransformableProxy", "TransformableProxyMeta"]
 
 
 from abc import abstractmethod
@@ -16,7 +16,7 @@ from ..math import Vector2
 from ..system.object import final
 from ..system.utils.abc import concreteclass
 from ..system.utils.functools import wraps
-from .movable import Movable, MovableMeta, MovableProxy, MovableProxyMeta
+from .movable import Movable, MovableProxy, MovableProxyMeta
 from .rect import Rect
 
 _ALL_VALID_ROTATION_PIVOTS: tuple[str, ...] = (
@@ -32,32 +32,15 @@ _ALL_VALID_ROTATION_PIVOTS: tuple[str, ...] = (
 )
 
 
-class TransformableMeta(MovableMeta):
-    def __new__(
-        mcs,
-        name: str,
-        bases: tuple[type, ...],
-        namespace: dict[str, Any],
-        **kwargs: Any,
-    ) -> Any:
-        try:
-            Transformable
-        except NameError:
-            pass
-        else:
-            if not any(issubclass(cls, Transformable) for cls in bases):
-                raise TypeError(
-                    f"{name!r} must inherit from a {Transformable.__name__} class in order to use {TransformableMeta.__name__} metaclass"
-                )
-            frozen_state_methods = ["_set_frozen_state", "_freeze_state"]
-            if sum(1 for method in frozen_state_methods if method in namespace) not in (0, len(frozen_state_methods)):
-                raise TypeError(
-                    f"If you provide one of these methods, you must implements all of the following list: {', '.join(frozen_state_methods)}"
-                )
-        return super().__new__(mcs, name, bases, namespace, **kwargs)
+class Transformable(Movable):
+    def __init_subclass__(cls) -> None:
+        super().__init_subclass__()
+        frozen_state_methods = ["_set_frozen_state", "_freeze_state"]
+        if sum(1 for method in frozen_state_methods if method in vars(cls)) not in (0, len(frozen_state_methods)):
+            raise TypeError(
+                f"If you provide one of these methods, you must implements all of the following list: {', '.join(frozen_state_methods)}"
+            )
 
-
-class Transformable(Movable, metaclass=TransformableMeta):
     def __init__(self) -> None:
         Movable.__init__(self)
         self.__angle: float = 0
@@ -381,7 +364,7 @@ class Transformable(Movable, metaclass=TransformableMeta):
         self.scale_to_height(height)
 
 
-class TransformableProxyMeta(TransformableMeta, MovableProxyMeta):
+class TransformableProxyMeta(MovableProxyMeta):
     def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> Any:
         if "TransformableProxy" not in globals() and name == "TransformableProxy":
             from ..system.utils._mangling import mangle_private_attribute

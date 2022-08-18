@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Form", "FormMeta"]
+__all__ = ["Form"]
 
 
 from types import MappingProxyType
@@ -14,7 +14,8 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Mapping, Sequence, Ty
 from weakref import WeakValueDictionary
 
 from ...graphics.color import BLACK, TRANSPARENT, Color
-from ...graphics.drawable import MDrawable, MDrawableMeta
+from ...graphics.drawable import Drawable
+from ...graphics.movable import Movable
 from ...graphics.renderer import AbstractRenderer
 from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ...system.theme import ThemedObjectMeta, ThemeType
@@ -29,11 +30,7 @@ if TYPE_CHECKING:
 _Label = TypeVar("_Label", bound=GridElement)
 
 
-class FormMeta(MDrawableMeta, ThemedObjectMeta):
-    pass
-
-
-class Form(MDrawable, metaclass=FormMeta):
+class Form(Drawable, Movable, metaclass=ThemedObjectMeta):
     __theme_ignore__: ClassVar[Sequence[str]] = ("on_submit",)
 
     Justify: TypeAlias = Grid.Justify
@@ -72,7 +69,8 @@ class Form(MDrawable, metaclass=FormMeta):
         pady: int = 10,
         theme: ThemeType | None = None,
     ) -> None:
-        super().__init__()
+        Drawable.__init__(self)
+        Movable.__init__(self)
         self.__on_submit: Callable[[Mapping[str, str]], None] = on_submit
         self.__grid: Grid = Grid(master=master, bg_color=bg_color, outline=outline, outline_color=outline_color)
         self.label_justify = label_justify

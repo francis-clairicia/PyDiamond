@@ -6,15 +6,16 @@
 
 from __future__ import annotations
 
-__all__ = ["BooleanCheckBox", "CheckBox", "CheckBoxMeta"]
+__all__ = ["BooleanCheckBox", "CheckBox"]
 
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Sequence, TypeVar
 
 from ...graphics.color import BLACK, BLUE, Color
-from ...graphics.drawable import TDrawable, TDrawableMeta
+from ...graphics.drawable import Drawable
 from ...graphics.image import Image
 from ...graphics.shape import DiagonalCrossShape, RectangleShape
 from ...graphics.surface import Surface
+from ...graphics.transformable import Transformable
 from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ...system.theme import ThemedObjectMeta, ThemeType
 from ...system.validation import valid_integer
@@ -34,11 +35,7 @@ _OffValue = TypeVar("_OffValue")
 NoDefaultValue: Any = object()
 
 
-class CheckBoxMeta(TDrawableMeta, ThemedObjectMeta):
-    pass
-
-
-class CheckBox(TDrawable, AbstractWidget, Generic[_OnValue, _OffValue], metaclass=CheckBoxMeta):
+class CheckBox(Drawable, Transformable, AbstractWidget, Generic[_OnValue, _OffValue], metaclass=ThemedObjectMeta):
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "value",
         "local_width",
@@ -106,7 +103,8 @@ class CheckBox(TDrawable, AbstractWidget, Generic[_OnValue, _OffValue], metaclas
     ) -> None:
         if on_value == off_value:
             raise ValueError("'On' value and 'Off' value are identical")
-        TDrawable.__init__(self)
+        Drawable.__init__(self)
+        Transformable.__init__(self)
         AbstractWidget.__init__(
             self,
             master=master,
@@ -157,7 +155,7 @@ class CheckBox(TDrawable, AbstractWidget, Generic[_OnValue, _OffValue], metaclas
     def draw_onto(self, target: AbstractRenderer) -> None:
         shape: RectangleShape = self.__shape
         active_img: Image | None = self.__active_img
-        active: TDrawable
+        active: Image | DiagonalCrossShape
         active_cross: DiagonalCrossShape = self.__cross
 
         shape.center = center = self.center

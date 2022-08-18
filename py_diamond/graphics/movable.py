@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Movable", "MovableMeta", "MovableProxy", "MovableProxyMeta"]
+__all__ = ["Movable", "MovableProxy", "MovableProxyMeta"]
 
 
 from abc import abstractmethod
@@ -49,41 +49,23 @@ def _position_decorator(fset: Callable[[Movable, Any], None], fget: Callable[[Mo
     return wrapper
 
 
-class MovableMeta(ObjectMeta):
-    def __new__(
-        mcs,
-        name: str,
-        bases: tuple[type, ...],
-        namespace: dict[str, Any],
-        **kwargs: Any,
-    ) -> MovableMeta:
-        try:
-            Movable
-        except NameError:
-            pass
-        else:
-            if not any(issubclass(cls, Movable) for cls in bases):
-                raise TypeError(
-                    f"{name!r} must inherit from a {Movable.__name__} class in order to use {MovableMeta.__name__} metaclass"
-                )
-
+class Movable(Object):
+    @classmethod
+    def __post_init_class__(cls) -> None:
         for position in _ALL_VALID_POSITIONS:
-            if position not in namespace:
+            if position not in vars(cls):
                 continue
-            if any(hasattr(cls, position) for cls in bases):
+            if any(hasattr(b, position) for b in cls.__bases__):
                 raise TypeError("Override of position attributes is not allowed")
-            prop: property = namespace[position]
+            prop: property = vars(cls)[position]
             assert prop.fget
             assert prop.fset
             prop = prop.setter(_position_decorator(prop.fset, prop.fget))
             for func in filter(callable, (prop.fget, prop.fset, prop.fdel)):
                 final(func)
-            namespace[position] = prop
+            type.__setattr__(cls, position, prop)
+        return super().__post_init_class__()
 
-        return super().__new__(mcs, name, bases, namespace, **kwargs)
-
-
-class Movable(Object, metaclass=MovableMeta):
     def __init__(self) -> None:
         self.__x: float = 0
         self.__y: float = 0
@@ -313,8 +295,8 @@ class Movable(Object, metaclass=MovableMeta):
         self.__y = midright[1] - (h / 2)
 
 
-class MovableProxyMeta(MovableMeta):
-    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> MovableMeta:
+class MovableProxyMeta(ObjectMeta):
+    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> MovableProxyMeta:
         if "MovableProxy" not in globals() and name == "MovableProxy":
             from ..system.utils._mangling import mangle_private_attribute
 

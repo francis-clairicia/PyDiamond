@@ -6,18 +6,19 @@
 
 from __future__ import annotations
 
-__all__ = ["Button", "ButtonMeta", "ImageButton"]
+__all__ = ["Button", "ImageButton"]
 
 from enum import auto, unique
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, Sequence, TypeAlias, TypedDict, overload
 
 from ...graphics.color import BLACK, BLUE, GRAY, GRAY_DARK, GRAY_LIGHT, TRANSPARENT, WHITE, Color
-from ...graphics.drawable import TDrawable, TDrawableMeta
+from ...graphics.drawable import Drawable
 from ...graphics.image import Image
 from ...graphics.rect import Rect
 from ...graphics.shape import RectangleShape
 from ...graphics.surface import Surface
 from ...graphics.text import TextImage
+from ...graphics.transformable import Transformable
 from ...math import Vector2
 from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ...system.enum import AutoLowerNameEnum
@@ -38,12 +39,8 @@ if TYPE_CHECKING:
     _TextFont: TypeAlias = Font | _TupleFont
 
 
-class ButtonMeta(TDrawableMeta, ThemedObjectMeta):
-    pass
-
-
 @TextImage.register_themed_subclass
-class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
+class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta):
     Justify: TypeAlias = TextImage.Justify
     Compound: TypeAlias = TextImage.Compound
 
@@ -268,7 +265,8 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
         border_bottom_right_radius: int = -1,
         theme: ThemeType | None = None,
     ) -> None:
-        TDrawable.__init__(self)
+        Drawable.__init__(self)
+        Transformable.__init__(self)
         self.__text: TextImage = TextImage(
             message=text,
             img=img,
@@ -848,7 +846,7 @@ class Button(TDrawable, AbstractWidget, metaclass=ButtonMeta):
 
 
 @Button.register_themed_subclass
-class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
+class ImageButton(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta):
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "img",
         "x_add_size",
@@ -955,7 +953,8 @@ class ImageButton(TDrawable, AbstractWidget, metaclass=ButtonMeta):
         border_bottom_right_radius: int = -1,
         theme: ThemeType | None = None,
     ) -> None:
-        TDrawable.__init__(self)
+        Drawable.__init__(self)
+        Transformable.__init__(self)
         AbstractWidget.__init__(
             self,
             master=master,

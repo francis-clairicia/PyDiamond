@@ -11,14 +11,9 @@ __all__ = [
     "BaseLayeredDrawableGroup",
     "Drawable",
     "DrawableGroup",
-    "DrawableMeta",
     "LayeredDrawableGroup",
-    "MDrawable",
-    "MDrawableMeta",
     "SupportsDrawableGroups",
     "SupportsDrawing",
-    "TDrawable",
-    "TDrawableMeta",
 ]
 
 from abc import abstractmethod
@@ -40,12 +35,10 @@ from typing import (
 )
 from weakref import WeakKeyDictionary, WeakSet
 
-from ..system.object import Object, ObjectMeta, final
+from ..system.object import Object, final
 from ..system.utils._mangling import getattr_pv
 from ..system.utils.abc import isabstractmethod
 from ..system.utils.functools import wraps
-from .movable import Movable, MovableMeta
-from .transformable import Transformable, TransformableMeta
 
 if TYPE_CHECKING:
     from .renderer import AbstractRenderer
@@ -65,30 +58,6 @@ def _draw_decorator(func: Callable[[Drawable, AbstractRenderer], None], /) -> Ca
     return wrapper
 
 
-class DrawableMeta(ObjectMeta):
-    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> DrawableMeta:
-        try:
-            Drawable
-        except NameError:
-            pass
-        else:
-            if not any(issubclass(cls, Drawable) for cls in bases):
-                raise TypeError(
-                    f"{name!r} must inherit from a {Drawable.__name__} class in order to use {DrawableMeta.__name__} metaclass"
-                )
-
-        cls = super().__new__(mcs, name, bases, namespace, **kwargs)
-
-        draw_method: Callable[[Drawable, AbstractRenderer], None] = getattr(cls, "draw_onto")
-        if not getattr(draw_method, "__draw_onto_decorator__", False) and not isabstractmethod(draw_method):
-            type.__setattr__(cls, "draw_onto", _draw_decorator(draw_method))
-
-        if not hasattr(cls, "__weakref__"):
-            raise TypeError("A Drawable object must be weak-referencable")
-
-        return cls
-
-
 @runtime_checkable
 class SupportsDrawing(Protocol):
     @abstractmethod
@@ -96,8 +65,17 @@ class SupportsDrawing(Protocol):
         raise NotImplementedError
 
 
-class Drawable(Object, metaclass=DrawableMeta):
+class Drawable(Object):
     __slots__ = ("__weakref__", "__dict__")
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        draw_method: Callable[[Drawable, AbstractRenderer], None] = getattr(cls, "draw_onto")
+        if not getattr(draw_method, "__draw_onto_decorator__", False) and not isabstractmethod(draw_method):
+            type.__setattr__(cls, "draw_onto", _draw_decorator(draw_method))
+
+        if not hasattr(cls, "__weakref__"):
+            raise TypeError("A Drawable object must be weak-referencable")
 
     def __init__(self) -> None:
         self.__shown: bool = True
@@ -159,26 +137,6 @@ class Drawable(Object, metaclass=DrawableMeta):
     @final
     def groups(self) -> frozenset[BaseDrawableGroup[Any]]:
         return frozenset(self.__groups)
-
-
-class TDrawableMeta(DrawableMeta, TransformableMeta):
-    pass
-
-
-class TDrawable(Drawable, Transformable, metaclass=TDrawableMeta):
-    def __init__(self) -> None:
-        Drawable.__init__(self)
-        Transformable.__init__(self)
-
-
-class MDrawableMeta(DrawableMeta, MovableMeta):
-    pass
-
-
-class MDrawable(Drawable, Movable, metaclass=MDrawableMeta):
-    def __init__(self) -> None:
-        Drawable.__init__(self)
-        Movable.__init__(self)
 
 
 @runtime_checkable

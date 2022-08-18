@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["ScrollArea", "ScrollAreaElement", "ScrollBar", "ScrollBarMeta"]
+__all__ = ["ScrollArea", "ScrollAreaElement", "ScrollBar"]
 
 
 from abc import abstractmethod
@@ -15,11 +15,13 @@ from enum import auto, unique
 from typing import TYPE_CHECKING, Any, ClassVar, Protocol, Sequence, final, runtime_checkable
 
 from ...graphics.color import BLACK, GRAY, TRANSPARENT, WHITE, Color
-from ...graphics.drawable import BaseLayeredDrawableGroup, MDrawable, SupportsDrawableGroups, TDrawable, TDrawableMeta
+from ...graphics.drawable import BaseLayeredDrawableGroup, Drawable, SupportsDrawableGroups
+from ...graphics.movable import Movable
 from ...graphics.rect import Rect
 from ...graphics.renderer import AbstractRenderer
 from ...graphics.shape import RectangleShape
 from ...graphics.surface import SurfaceRenderer
+from ...graphics.transformable import Transformable
 from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ...system.enum import AutoLowerNameEnum
 from ...system.theme import ThemedObjectMeta, ThemeType
@@ -35,11 +37,7 @@ if TYPE_CHECKING:
     from ...window.scene import Scene
 
 
-class ScrollBarMeta(TDrawableMeta, ThemedObjectMeta):
-    pass
-
-
-class ScrollBar(TDrawable, Clickable, metaclass=ScrollBarMeta):
+class ScrollBar(Drawable, Transformable, Clickable, metaclass=ThemedObjectMeta):
     __theme_ignore__: ClassVar[Sequence[str]] = ("orient",)
 
     @unique
@@ -105,7 +103,8 @@ class ScrollBar(TDrawable, Clickable, metaclass=ScrollBarMeta):
         if not isinstance(master, ScrollArea):
             raise TypeError("ScrollBar objects must be created for a ScrollArea object")
         self.__master: ScrollArea = master
-        TDrawable.__init__(self)
+        Drawable.__init__(self)
+        Transformable.__init__(self)
         self.__bg_shape: RectangleShape = RectangleShape(
             width=width,
             height=height,
@@ -379,7 +378,7 @@ class ScrollAreaElement(SupportsDrawableGroups, Protocol):
         raise NotImplementedError
 
 
-class ScrollArea(BaseLayeredDrawableGroup[ScrollAreaElement], MDrawable):
+class ScrollArea(BaseLayeredDrawableGroup[ScrollAreaElement], Drawable, Movable):
     __h_flip: ClassVar[bool] = False
     __v_flip: ClassVar[bool] = False
 
@@ -393,7 +392,8 @@ class ScrollArea(BaseLayeredDrawableGroup[ScrollAreaElement], MDrawable):
         bg_color: Color = TRANSPARENT,
     ) -> None:
         BaseLayeredDrawableGroup.__init__(self, *objects, default_layer=default_layer)
-        MDrawable.__init__(self)
+        Drawable.__init__(self)
+        Movable.__init__(self)
         self.__master: Scene | Window = master
         self.__view_rect: Rect = Rect(0, 0, width, height)
         self.__whole_area: SurfaceRenderer = SurfaceRenderer((width, height))

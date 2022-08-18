@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Entry", "EntryMeta"]
+__all__ = ["Entry"]
 
 
 from string import printable as ASCII_PRINTABLE
@@ -14,10 +14,11 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Sequence, TypeAlias
 from weakref import WeakMethod
 
 from ...graphics.color import BLACK, BLUE, TRANSPARENT, WHITE, Color
-from ...graphics.drawable import TDrawable, TDrawableMeta
+from ...graphics.drawable import Drawable
 from ...graphics.shape import RectangleShape
 from ...graphics.surface import Surface
 from ...graphics.text import Text
+from ...graphics.transformable import Transformable
 from ...system.clock import Clock
 from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ...system.theme import NoTheme, ThemedObjectMeta, ThemeType
@@ -40,12 +41,8 @@ if TYPE_CHECKING:
     _TextFont: TypeAlias = Font | _TupleFont
 
 
-class EntryMeta(TDrawableMeta, ThemedObjectMeta):
-    pass
-
-
 @Text.register_themed_subclass
-class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
+class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta):
     __theme_ignore__: ClassVar[Sequence[str]] = ("on_validate",)
     __theme_associations__: ClassVar[dict[type, dict[str, str]]] = {
         Text: {
@@ -140,7 +137,8 @@ class Entry(TDrawable, AbstractWidget, metaclass=EntryMeta):
         border_bottom_right_radius: int = -1,
         theme: ThemeType | None = None,
     ):
-        TDrawable.__init__(self)
+        Drawable.__init__(self)
+        Transformable.__init__(self)
         self.__text: _TextEntry = _TextEntry(
             font=font,
             bold=bold,

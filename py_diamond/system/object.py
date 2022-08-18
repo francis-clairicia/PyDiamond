@@ -40,6 +40,9 @@ class ObjectMeta(ABCMeta):
         if no_slots and "__slots__" in namespace:
             raise TypeError("__slots__ override is forbidden")
 
+        if "__post_init_class__" in namespace and not isinstance(namespace["__post_init_class__"], classmethod):
+            raise TypeError("'__post_init_class__' method must be a classmethod")
+
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
 
         setattr(cls, no_slots_attr, no_slots)
@@ -112,6 +115,19 @@ class ObjectMeta(ABCMeta):
 
         return cls
 
+    def __init__(
+        cls,
+        name: str,
+        bases: tuple[type, ...],
+        namespace: dict[str, Any],
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(name, bases, namespace, **kwargs)
+        cls.__post_init_class__()
+
+    def __post_init_class__(cls) -> None:
+        pass
+
     def __setattr__(cls, name: str, value: Any, /) -> None:
         if name in getattr(cls, "__finalmethods__", ()):
             raise TypeError(f"Cannot override {name!r} method")
@@ -148,6 +164,10 @@ class ObjectMeta(ABCMeta):
 
 class Object(metaclass=ObjectMeta):
     __slots__ = ()
+
+    @classmethod
+    def __post_init_class__(cls) -> None:
+        pass
 
 
 from typing import _ProtocolMeta

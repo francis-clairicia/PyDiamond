@@ -17,7 +17,6 @@ __all__ = [
     "PlusCrossShape",
     "PolygonShape",
     "RectangleShape",
-    "ShapeMeta",
     "SingleColorShape",
 ]
 
@@ -33,22 +32,20 @@ from ..system.configuration import ConfigurationTemplate, OptionAttribute, Unreg
 from ..system.utils.abc import concreteclass
 from ..system.validation import valid_float, valid_integer
 from .color import BLACK, Color
-from .drawable import TDrawable, TDrawableMeta
+from .drawable import Drawable
 from .rect import Rect
 from .renderer import AbstractRenderer
 from .surface import Surface, SurfaceRenderer, create_surface
+from .transformable import Transformable
 
 
-class ShapeMeta(TDrawableMeta):
-    pass
-
-
-class AbstractShape(TDrawable, metaclass=ShapeMeta):
+class AbstractShape(Drawable, Transformable):
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate()
 
     @initializer
     def __init__(self) -> None:
-        TDrawable.__init__(self)
+        Drawable.__init__(self)
+        Transformable.__init__(self)
         self.__image: Surface
         self.__local_size: tuple[float, float] = (0, 0)
 

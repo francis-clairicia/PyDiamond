@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Text", "TextImage", "TextMeta"]
+__all__ = ["Text", "TextImage"]
 
 
 import os.path
@@ -27,22 +27,19 @@ from ..system.theme import ThemedObjectMeta, ThemeType
 from ..system.validation import valid_float, valid_integer
 from ._transform import rotozoom2 as _surface_rotozoom2, scale_by as _surface_scale_by
 from .color import BLACK, Color
-from .drawable import TDrawable, TDrawableMeta
+from .drawable import Drawable
 from .font import Font, SysFont, get_default_font
 from .image import Image
 from .rect import Rect
 from .renderer import AbstractRenderer
 from .surface import Surface, SurfaceRenderer, create_surface
+from .transformable import Transformable
 
 _TupleFont: TypeAlias = tuple[str | None, int]
 _TextFont: TypeAlias = Font | _TupleFont
 
 
-class TextMeta(TDrawableMeta, ThemedObjectMeta):
-    pass
-
-
-class Text(TDrawable, metaclass=TextMeta):
+class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
     @unique
     class Justify(AutoLowerNameEnum):
         LEFT = auto()
@@ -91,7 +88,8 @@ class Text(TDrawable, metaclass=TextMeta):
         shadow_color: Color = BLACK,
         theme: ThemeType | None = None,
     ) -> None:
-        super().__init__()
+        Drawable.__init__(self)
+        Transformable.__init__(self)
         self.__custom_font: dict[int, Font] = dict()
         self.__default_image: Surface = create_surface((0, 0))
         self.__image: Surface = self.__default_image.copy()

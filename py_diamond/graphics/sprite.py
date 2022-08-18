@@ -21,10 +21,11 @@ from ..system.clock import Clock
 from ..system.object import Object, final
 from ._transform import rotozoom2 as _surface_rotozoom2, scale_by as _surface_scale_by
 from .animation import TransformAnimation
-from .drawable import BaseDrawableGroup, BaseLayeredDrawableGroup, Drawable, TDrawable
+from .drawable import BaseDrawableGroup, BaseLayeredDrawableGroup, Drawable
 from .rect import Rect
 from .renderer import AbstractRenderer, BlendMode
 from .surface import Surface, create_surface
+from .transformable import Transformable
 
 
 @final
@@ -51,7 +52,7 @@ class _SpriteTransformAnimation(cached_property[TransformAnimation], Object):
             ...
 
 
-class Sprite(TDrawable):
+class Sprite(Drawable, Transformable):
     DEFAULT_MASK_THRESHOLD: Final[int] = 127
 
     __slots__ = (
@@ -73,7 +74,8 @@ class Sprite(TDrawable):
         width: float | None = None,
         height: float | None = None,
     ) -> None:
-        TDrawable.__init__(self)
+        Drawable.__init__(self)
+        Transformable.__init__(self)
         self.__default_image: Surface = image.convert_alpha() if image is not None else create_surface((0, 0))
         self.__image: Surface = self.__default_image.copy()
         self.__mask_threshold: int
