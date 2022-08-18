@@ -23,6 +23,7 @@ os.environ["SDL_VIDEODRIVER"] = "dummy"
 os.environ["SDL_AUDIODRIVER"] = "disk"
 
 # This is the default but we enforce the values for the tests
+os.environ["PYDIAMOND_TEST_STRICT_FINAL"] = "0"
 os.environ["PYDIAMOND_IMPORT_WARNINGS"] = "1"
 os.environ.pop("PYDIAMOND_PATCH_DISABLE", None)
 

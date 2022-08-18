@@ -66,6 +66,11 @@ def _catch_star_imports_within_packages() -> dict[str, list[str]]:
 class TestGlobalImport:
     @pytest.fixture(autouse=True)
     @staticmethod
+    def arrange_environment(monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PYDIAMOND_TEST_STRICT_FINAL", "1")
+
+    @pytest.fixture(autouse=True)
+    @staticmethod
     def unload_pygame(monkeypatch: MonkeyPatch) -> None:
         return unload_module("pygame", include_submodules=True, monkeypatch=monkeypatch)
 

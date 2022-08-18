@@ -667,8 +667,8 @@ class AbstractCrossShape(OutlinedShape, SingleColorShape):
 
 @concreteclass
 class DiagonalCrossShape(AbstractCrossShape):
-    @final
     @staticmethod
+    @final
     def get_cross_points(local_size: tuple[float, float], line_width: float) -> tuple[Vector2, ...]:
         rect: Rect = Rect((0, 0), local_size)
 
@@ -720,8 +720,8 @@ class DiagonalCrossShape(AbstractCrossShape):
 
 @concreteclass
 class PlusCrossShape(AbstractCrossShape):
-    @final
     @staticmethod
+    @final
     def get_cross_points(local_size: tuple[float, float], line_width: float) -> tuple[Vector2, ...]:
         rect: Rect = Rect((0, 0), local_size)
 

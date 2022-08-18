@@ -75,7 +75,10 @@ class MovableMeta(ObjectMeta):
             prop: property = namespace[position]
             assert prop.fget
             assert prop.fset
-            namespace[position] = final(prop.setter(_position_decorator(prop.fset, prop.fget)))  # type: ignore[type-var]
+            prop = prop.setter(_position_decorator(prop.fset, prop.fget))
+            for func in filter(callable, (prop.fget, prop.fset, prop.fdel)):
+                final(func)
+            namespace[position] = prop
 
         return super().__new__(mcs, name, bases, namespace, **kwargs)
 

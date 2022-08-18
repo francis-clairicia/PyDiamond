@@ -8,6 +8,7 @@ from __future__ import annotations
 
 __all__ = []  # type: list[str]
 
+import os
 import sys
 from functools import cached_property, partialmethod, update_wrapper
 from typing import TYPE_CHECKING, Any, Callable, TypeVar
@@ -56,7 +57,11 @@ class OverrideFinalFunctionsPatch(BasePatch):
 
     @staticmethod
     def _compute_patch_function(default_final: Callable[[Any], Any]) -> Callable[[Any], Any]:
-        def patch_final(f: _T, /) -> _T:
+        def patch_final(f: Any, /) -> Any:
+            if os.environ.get("PYDIAMOND_TEST_STRICT_FINAL", "0") != "0":
+                if type(f) in (property, classmethod, staticmethod, cached_property, partialmethod):
+                    # yes this specially for these classes, do not include subclasses !
+                    raise TypeError(f"final() call forbidden for {type(f).__name__!r} objects")
             match f:
                 case property(fget=fget, fset=fset, fdel=fdel):
                     for method in filter(callable, (fget, fset, fdel)):
@@ -68,7 +73,7 @@ class OverrideFinalFunctionsPatch(BasePatch):
                     | partialmethod(func=func)
                 ):
                     patch_final(func)
-            return default_final(f)  # type: ignore[no-any-return]
+            return default_final(f)
 
         setattr(patch_final, "__fix_typing__", True)
         setattr(patch_final, "__default_final__", default_final)

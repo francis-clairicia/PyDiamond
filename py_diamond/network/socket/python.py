@@ -181,8 +181,8 @@ class PythonTCPServerSocket(_AbstractPythonTCPSocket, AbstractTCPServerSocket):
 
     DEFAULT_BACKLOG: Final[int] = max(SOMAXCONN, 128)
 
-    @final
     @classmethod
+    @final
     def bind(
         cls,
         address: tuple[str, int] | tuple[str, int, int, int],
@@ -232,8 +232,8 @@ class PythonTCPServerSocket(_AbstractPythonTCPSocket, AbstractTCPServerSocket):
 class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
     __slots__ = ("__peer",)
 
-    @final
     @classmethod
+    @final
     def connect(
         cls, address: tuple[str, int], *, timeout: float | None = None, family: int | None = None
     ) -> PythonTCPClientSocket:
@@ -395,8 +395,8 @@ class _AbstractPythonUDPSocket(_AbstractPythonSocket, AbstractUDPSocket):
 class PythonUDPServerSocket(_AbstractPythonUDPSocket, AbstractUDPServerSocket):
     __slots__ = ()
 
-    @final
     @classmethod
+    @final
     def bind(
         cls,
         address: tuple[str, int] | tuple[str, int, int, int],
@@ -440,8 +440,8 @@ class PythonUDPServerSocket(_AbstractPythonUDPSocket, AbstractUDPServerSocket):
 class PythonUDPClientSocket(_AbstractPythonUDPSocket, AbstractUDPClientSocket):
     __slots__ = ()
 
-    @final
     @classmethod
+    @final
     def create(cls, family: int = AF_INET, *, host: str = "") -> PythonUDPClientSocket:
         family = AddressFamily(family)
         self: PythonUDPClientSocket = cls(family)

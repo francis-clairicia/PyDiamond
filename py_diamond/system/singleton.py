@@ -58,8 +58,8 @@ class SingletonMeta(ObjectMeta):
             raise TypeError("Cannot modify singleton constructors")
         return super().__delattr__(name)
 
-    @final
     @property
+    @final
     def instance(cls: type[_T]) -> _T:
         try:
             instance: _T = getattr(cls, "_singleton_instance_")

@@ -24,6 +24,11 @@ _T = TypeVar("_T")
 
 @pytest.mark.functional
 class TestFixTypingFinal:
+    @pytest.fixture(autouse=True)
+    @staticmethod
+    def arrange_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PYDIAMOND_TEST_STRICT_FINAL", "0")
+
     @pytest.fixture(scope="class", params=[MockVersionInfo(3, 10, 4, "final", 0), MockVersionInfo(3, 11, 0, "beta", 5)], ids=str)
     @staticmethod
     def python_version(request: pytest.FixtureRequest, class_mocker: MockerFixture) -> MockVersionInfo:

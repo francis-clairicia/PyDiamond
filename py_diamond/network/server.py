@@ -53,8 +53,8 @@ class ConnectedClient(Generic[_ResponseT], Object):
     def send_packet(self, packet: _ResponseT, *, flags: int = 0) -> None:
         raise NotImplementedError
 
-    @final
     @property
+    @final
     def address(self) -> SocketAddress:
         return self.__addr
 
@@ -372,8 +372,8 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
     def _verify_new_client(self, client: TCPNetworkClient[_ResponseT, _RequestT], address: SocketAddress) -> bool:
         return True
 
-    @final
     @property
+    @final
     def server_address(self) -> SocketAddress:
         with self.__lock:
             socket: AbstractSocket = self.__socket
@@ -385,13 +385,14 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
             socket: AbstractTCPServerSocket = self.__socket
             return socket.listen(backlog)
 
-    @final
     @property
+    @final
     def clients(self) -> Sequence[ConnectedClient[_ResponseT]]:
         with self.__lock:
             return tuple(self.__clients.values())
 
-    @property
+    @property  # type: ignore[misc]
+    @final
     def recv_flags(self) -> int:
         with self.__lock:
             return self.__recv_flags
@@ -469,8 +470,8 @@ class StateLessTCPNetworkServer(AbstractTCPNetworkServer[_RequestT, _ResponseT])
     def _verify_new_client(self, client: TCPNetworkClient[_ResponseT, _RequestT], address: SocketAddress) -> bool:
         return self.__request_handler_cls.welcome(client, address)
 
-    @final
     @property
+    @final
     def request_handler_cls(self) -> type[AbstractTCPRequestHandler[_RequestT, _ResponseT]]:
         return self.__request_handler_cls
 
@@ -613,14 +614,15 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
             self.__loop = False
         self.__is_shutdown.wait()
 
-    @final
     @property
+    @final
     def server_address(self) -> SocketAddress:
         with self.__lock:
             socket: AbstractSocket = self.__socket
             return socket.getsockname()
 
-    @property
+    @property  # type: ignore[misc]
+    @final
     def recv_flags(self) -> int:
         with self.__lock:
             return self.__recv_flags
@@ -687,7 +689,7 @@ class StateLessUDPNetworkServer(AbstractUDPNetworkServer[_RequestT, _ResponseT])
     def _process_request(self, request: _RequestT, client: ConnectedClient[_ResponseT]) -> None:
         self.__request_handler_cls(request, client, self)
 
-    @final
     @property
+    @final
     def request_handler_cls(self) -> type[AbstractUDPRequestHandler[_RequestT, _ResponseT]]:
         return self.__request_handler_cls
