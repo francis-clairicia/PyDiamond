@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     name: Build sdist/wheel
-    uses: ./.github/workflows/build-workflow-call.yml
+    uses: ./.github/workflows/build.yml
     with:
       artifact-name: pydiamond-dist
 
