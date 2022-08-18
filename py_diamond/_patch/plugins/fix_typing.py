@@ -11,14 +11,12 @@ __all__ = []  # type: list[str]
 import os
 import sys
 from functools import cached_property, partialmethod, update_wrapper
-from typing import TYPE_CHECKING, Any, Callable, TypeVar
+from typing import TYPE_CHECKING, Any, Callable
 
 from .._base import BasePatch
 
 if TYPE_CHECKING:
     from types import ModuleType
-
-_T = TypeVar("_T")
 
 
 class OverrideFinalFunctionsPatch(BasePatch):
