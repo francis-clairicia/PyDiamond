@@ -6,6 +6,7 @@ on:
       - opened
       - synchronize
     paths-ignore:
+      - '**.pyi'
       - '**/.gitignore'
       - '**/LICENSE'
       - '.bumpversion.cfg'
@@ -17,6 +18,7 @@ on:
     tags-ignore:
       - '*'
     paths-ignore:
+      - '**.pyi'
       - '**/.gitignore'
       - '**/LICENSE'
       - '.bumpversion.cfg'
