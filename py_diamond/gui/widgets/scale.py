@@ -10,7 +10,7 @@ __all__ = ["ScaleBar"]
 
 
 import sys
-from typing import TYPE_CHECKING, Callable, ClassVar, Sequence
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Sequence
 
 from ...graphics.color import BLACK, BLUE, GRAY, WHITE, Color
 from ...graphics.progress import ProgressBar
@@ -84,13 +84,14 @@ class ScaleBar(ProgressBar, AbstractWidget):
         highlight_color: Color = BLUE,
         highlight_thickness: int = 2,
         theme: ThemeType | None = None,
+        **kwargs: Any,
     ):
         self.resolution = resolution
         self.highlight_color = highlight_color
         self.highlight_thickness = highlight_thickness
 
-        ProgressBar.__init__(
-            self,
+        super().__init__(
+            # ProgressBar
             width=width,
             height=height,
             from_=from_,
@@ -109,16 +110,16 @@ class ScaleBar(ProgressBar, AbstractWidget):
             border_bottom_left_radius=border_bottom_left_radius,
             border_bottom_right_radius=border_bottom_right_radius,
             theme=theme,
-        )
-        AbstractWidget.__init__(
-            self,
-            master,
+            # AbstractWidget
+            master=master,
             state=state,
             hover_sound=hover_sound,
             click_sound=click_sound,
             disabled_sound=disabled_sound,
             hover_cursor=hover_cursor,
             disabled_cursor=disabled_cursor,
+            # Other
+            **kwargs,
         )
         self.__value_callback: Callable[[float], None] | None = value_callback
         self.__percent_callback: Callable[[float], None] | None = percent_callback

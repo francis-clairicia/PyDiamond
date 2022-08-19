@@ -89,11 +89,11 @@ class Grid(Drawable, Movable, Container[GridElement]):
         padx: int = 0,
         pady: int = 0,
         justify: Justify = Justify.CENTER,
+        **kwargs: Any,
     ) -> None:
         if master is not None and not isinstance(master, GUIScene):
             raise TypeError("Only GUIScenes are accepted")
-        Drawable.__init__(self)
-        Movable.__init__(self)
+        super().__init__(**kwargs)
         self.__rows: SortedDict[int, _GridRow] = SortedDict()
         self.__columns: SortedDict[int, _GridColumnPlaceholder] = SortedDict()
         self.__master: GUIScene | None = master
@@ -545,8 +545,7 @@ class _GridCell(Drawable, Movable):
     )
 
     def __init__(self, master: _GridRow, column: _GridColumnPlaceholder, grid_group: _GridGroup) -> None:
-        Drawable.__init__(self)
-        Movable.__init__(self)
+        super().__init__()
         self.__master: weakref[_GridRow] = weakref(master)
         self.__grid_group: _GridGroup = grid_group
         self.__column: weakref[_GridColumnPlaceholder] = weakref(column)

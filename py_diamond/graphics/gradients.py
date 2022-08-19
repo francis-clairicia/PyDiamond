@@ -80,8 +80,9 @@ class HorizontalGradientShape(AbstractRectangleShape, GradientShape):
         gfunc: Callable[[float], float] | None = None,
         bfunc: Callable[[float], float] | None = None,
         afunc: Callable[[float], float] | None = None,
+        **kwargs: Any,
     ) -> None:
-        super().__init__(width=width, height=height, first_color=first_color, second_color=second_color)
+        super().__init__(width=width, height=height, first_color=first_color, second_color=second_color, **kwargs)
         self.rfunc: Callable[[float], float] = rfunc or (lambda x: x)
         self.gfunc: Callable[[float], float] = gfunc or (lambda x: x)
         self.bfunc: Callable[[float], float] = bfunc or (lambda x: x)
@@ -141,8 +142,9 @@ class VerticalGradientShape(AbstractRectangleShape, GradientShape):
         gfunc: Callable[[float], float] | None = None,
         bfunc: Callable[[float], float] | None = None,
         afunc: Callable[[float], float] | None = None,
+        **kwargs: Any,
     ) -> None:
-        super().__init__(width=width, height=height, first_color=first_color, second_color=second_color)
+        super().__init__(width=width, height=height, first_color=first_color, second_color=second_color, **kwargs)
         self.rfunc: Callable[[float], float] = rfunc or (lambda x: x)
         self.gfunc: Callable[[float], float] = gfunc or (lambda x: x)
         self.bfunc: Callable[[float], float] = bfunc or (lambda x: x)
@@ -204,8 +206,9 @@ class SquaredGradientShape(AbstractSquareShape, GradientShape):
         bfunc: Callable[[float], float] | None = None,
         afunc: Callable[[float], float] | None = None,
         center_offset: tuple[float, float] = (0, 0),
+        **kwargs: Any,
     ) -> None:
-        super().__init__(size=size, first_color=first_color, second_color=second_color)
+        super().__init__(size=size, first_color=first_color, second_color=second_color, **kwargs)
         self.rfunc: Callable[[float], float] = rfunc or (lambda x: x)
         self.gfunc: Callable[[float], float] = gfunc or (lambda x: x)
         self.bfunc: Callable[[float], float] = bfunc or (lambda x: x)
@@ -262,8 +265,9 @@ class RadialGradientShape(AbstractCircleShape, GradientShape):
         gfunc: Callable[[float], float] | None = None,
         bfunc: Callable[[float], float] | None = None,
         afunc: Callable[[float], float] | None = None,
+        **kwargs: Any,
     ) -> None:
-        super().__init__(radius=radius, first_color=first_color, second_color=second_color)
+        super().__init__(radius=radius, first_color=first_color, second_color=second_color, **kwargs)
         self.rfunc: Callable[[float], float] = rfunc or (lambda x: x)
         self.gfunc: Callable[[float], float] = gfunc or (lambda x: x)
         self.bfunc: Callable[[float], float] = bfunc or (lambda x: x)
@@ -322,8 +326,8 @@ class HorizontalMultiColorShape(AbstractRectangleShape, MultiColorShape):
     )
 
     @initializer
-    def __init__(self, width: float, height: float, colors: tuple[Color, ...]) -> None:
-        super().__init__(width=width, height=height, colors=colors)
+    def __init__(self, width: float, height: float, colors: tuple[Color, ...], **kwargs: Any) -> None:
+        super().__init__(width=width, height=height, colors=colors, **kwargs)
         self.__shapes: Sequence[HorizontalGradientShape]
 
     def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
@@ -363,8 +367,8 @@ class VerticalMultiColorShape(AbstractRectangleShape, MultiColorShape):
     )
 
     @initializer
-    def __init__(self, width: float, height: float, colors: tuple[Color, ...]) -> None:
-        super().__init__(width=width, height=height, colors=colors)
+    def __init__(self, width: float, height: float, colors: tuple[Color, ...], **kwargs: Any) -> None:
+        super().__init__(width=width, height=height, colors=colors, **kwargs)
         self.__shapes: Sequence[VerticalGradientShape]
 
     def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:

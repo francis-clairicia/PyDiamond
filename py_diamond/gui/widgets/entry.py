@@ -136,9 +136,19 @@ class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta)
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
         theme: ThemeType | None = None,
+        **kwargs: Any,
     ):
-        Drawable.__init__(self)
-        Transformable.__init__(self)
+        super().__init__(
+            master=master,
+            state=state,
+            hover_sound=hover_sound,
+            click_sound=click_sound,
+            disabled_sound=disabled_sound,
+            hover_cursor=SystemCursor.IBEAM,
+            take_focus=take_focus,
+            focus_on_hover=focus_on_hover,
+            **kwargs,
+        )
         self.__text: _TextEntry = _TextEntry(
             font=font,
             bold=bold,
@@ -189,17 +199,6 @@ class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta)
         self.outline_color = outline_color
         self.highlight_color = highlight_color
         self.highlight_thickness = highlight_thickness
-        AbstractWidget.__init__(
-            self,
-            master,
-            state=state,
-            hover_sound=hover_sound,
-            click_sound=click_sound,
-            disabled_sound=disabled_sound,
-            hover_cursor=SystemCursor.IBEAM,
-            take_focus=take_focus,
-            focus_on_hover=focus_on_hover,
-        )
         self.interval = interval
 
         self.__cursor: int = 0

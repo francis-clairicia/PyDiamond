@@ -9,7 +9,7 @@ from __future__ import annotations
 __all__ = ["Draggable", "DraggingContainer"]
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Generic, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar
 
 from ..system.utils.abc import concreteclass
 from .clickable import Clickable
@@ -34,15 +34,17 @@ class Draggable(Clickable):
         disabled_sound: Sound | None = None,
         hover_cursor: AbstractCursor | None = None,
         disabled_cursor: AbstractCursor | None = None,
+        **kwargs: Any,
     ) -> None:
         super().__init__(
-            master,
+            master=master,
             state=state,
             hover_sound=hover_sound,
             click_sound=click_sound,
             disabled_sound=disabled_sound,
             hover_cursor=hover_cursor,
             disabled_cursor=disabled_cursor,
+            **kwargs,
         )
         self.set_active_only_on_hover(False)
 

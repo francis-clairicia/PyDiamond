@@ -21,6 +21,7 @@ __all__ = [
     "set_default_theme_namespace",
 ]
 
+from abc import abstractmethod
 from collections import OrderedDict, defaultdict, deque
 from contextlib import nullcontext, suppress
 from functools import cached_property
@@ -171,6 +172,9 @@ class ThemeNamespace(ContextManager["ThemeNamespace"], Object):
             self.__actual: _ClassThemeDict = actual
             self.__extension: _ClassThemeDict = extension
 
+        def __repr__(self) -> str:
+            return f"{self.__class__.__name__.strip('_')}(actual={self.__actual!r}, extension={self.__extension!r})"
+
         def __key_list(self) -> frozenset[type]:
             return frozenset(chain(self.__actual, self.__extension))
 
@@ -219,6 +223,9 @@ class ThemeNamespace(ContextManager["ThemeNamespace"], Object):
                 self.__theme_dict: _ClassThemeDict = theme_dict
                 self.__actual: _ClassTheme | None = theme
                 self.__extension: _ClassTheme | None = extension
+
+            def __repr__(self) -> str:
+                return f"{self.__class__.__name__.strip('_')}(actual={self.__actual!r}, extension={self.__extension!r})"
 
             def __key_list(self) -> frozenset[str]:
                 return frozenset(chain(self.__actual or {}, self.__extension or {}))
@@ -279,6 +286,9 @@ class ThemeNamespace(ContextManager["ThemeNamespace"], Object):
             self.__actual: _ClassDefaultThemeDict = actual
             self.__extension: _ClassDefaultThemeDict = extension
 
+        def __repr__(self) -> str:
+            return f"{self.__class__.__name__.strip('_')}(actual={self.__actual!r}, extension={self.__extension!r})"
+
         def __key_list(self) -> frozenset[type]:
             return frozenset(chain(self.__actual, self.__extension))
 
@@ -337,43 +347,36 @@ NoTheme: Final[_NoThemeType] = _NoThemeType()
 ThemeType: TypeAlias = str | Iterable[str] | _NoThemeType
 
 
-@final
-class _ThemedObjectMROResolver(Object):
-    __marker: Any = object()
+class _AbstractThemedObjectResolver(Object):
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="_AbstractThemedObjectResolver")
 
     def __init__(self, max_size: int = 128) -> None:
         self.__lru_cache: defaultdict[ThemedObjectMeta, OrderedDict[tuple[type, ...], tuple[ThemedObjectMeta, ...]]]
         self.__lru_cache = defaultdict(OrderedDict)
         self.__max_size: int = max_size
         self.__lock: defaultdict[ThemedObjectMeta, RLock] = defaultdict(RLock)
-        self.__name: str | None = None
-
-    def __set_name__(self, owner: type, name: str, /) -> None:
-        self.__name = name
 
     @overload
-    def __get__(self, obj: None, objtype: type, /) -> _ThemedObjectMROResolver:
+    def __get__(self: __Self, obj: None, objtype: type, /) -> __Self:
         ...
 
     @overload
     def __get__(self, obj: ThemedObjectMeta, objtype: type | None = None, /) -> tuple[ThemedObjectMeta, ...]:
         ...
 
-    def __get__(
-        self, obj: ThemedObjectMeta | None, objtype: type | None = None, /
-    ) -> _ThemedObjectMROResolver | tuple[ThemedObjectMeta, ...]:
+    def __get__(self: __Self, obj: ThemedObjectMeta | None, objtype: type | None = None) -> __Self | tuple[ThemedObjectMeta, ...]:
         if obj is None:
             if objtype is None:
                 raise TypeError("__get__(None, None) is forbidden")
             return self
 
         cache_key = tuple(sorted(obj.__virtual_themed_class_bases__, key=lambda cls: cls.__qualname__))
-        null = self.__marker
 
         with self.__lock[obj]:
             lru_cache: OrderedDict[tuple[type, ...], tuple[ThemedObjectMeta, ...]] = self.__lru_cache[obj]
-            mro: tuple[ThemedObjectMeta, ...] = lru_cache.get(cache_key, null)
-            if mro is not null:
+            mro: tuple[ThemedObjectMeta, ...] | None = lru_cache.get(cache_key, None)
+            if mro is not None:
                 lru_cache.move_to_end(cache_key)
             else:
                 lru_cache[cache_key] = mro = self.resolve(obj)
@@ -381,20 +384,40 @@ class _ThemedObjectMROResolver(Object):
                     lru_cache.popitem(last=False)
             return mro
 
+    @abstractmethod
+    def resolve(self, cls: ThemedObjectMeta) -> tuple[ThemedObjectMeta, ...]:
+        raise NotImplementedError
+
+
+@final
+class _ThemedObjectMROResolver(_AbstractThemedObjectResolver):
+    def __init__(self, max_size: int = 128) -> None:
+        super().__init__(max_size=max_size)
+        self.__name: str | None = None
+
+    def __set_name__(self, owner: type, name: str, /) -> None:
+        self.__name = name
+
     def resolve(self, cls: ThemedObjectMeta) -> tuple[ThemedObjectMeta, ...]:
         name: str | None = self.__name
         if name is None:
             raise TypeError("__set_name__() was not called")
-        real_themed_class_bases: tuple[ThemedObjectMeta, ...] = tuple(c for c in cls.__bases__ if isinstance(c, ThemedObjectMeta))
-        return (cls,) + mro(*real_themed_class_bases, *cls.__virtual_themed_class_bases__, attr=name)
+        return (cls,) + mro(*cls.__themed_class_bases__, attr=name)
+
+
+@final
+class _ThemedObjectBasesResolver(_AbstractThemedObjectResolver):
+    def resolve(self, cls: ThemedObjectMeta) -> tuple[ThemedObjectMeta, ...]:
+        return tuple(c for c in cls.__bases__ if isinstance(c, ThemedObjectMeta)) + cls.__virtual_themed_class_bases__
 
 
 class ThemedObjectMeta(ObjectMeta):
     __virtual_themed_class_bases__: tuple[ThemedObjectMeta, ...]
     __theme_ignore__: Sequence[str]
-    __theme_associations__: dict[type, dict[str, str]]
+    __theme_associations__: Mapping[ThemedObjectMeta, dict[str, str]]
     __theme_override__: Sequence[str]
 
+    __themed_class_bases__: Final[_ThemedObjectBasesResolver] = _ThemedObjectBasesResolver()
     __themed_class_mro__: Final[_ThemedObjectMROResolver] = _ThemedObjectMROResolver()
 
     __CLASSES_NOT_USING_PARENT_THEMES: Final[set[type]] = set()
@@ -420,10 +443,9 @@ class ThemedObjectMeta(ObjectMeta):
         def check_parameters(func: Callable[..., Any]) -> None:
             sig: Signature = Signature.from_callable(func, follow_wrapped=True)
             parameters: Mapping[str, Parameter] = sig.parameters
-            has_kwargs: bool = any(param.kind == Parameter.VAR_KEYWORD for param in parameters.values())
 
             if "theme" not in parameters:
-                if not no_theme and not has_kwargs:
+                if not no_theme:
                     raise TypeError(f"{func.__qualname__}: Can't support 'theme' parameter")
             else:
                 param: Parameter = parameters["theme"]
@@ -433,10 +455,7 @@ class ThemedObjectMeta(ObjectMeta):
                     raise TypeError(f"{func.__qualname__}: 'theme' parameter must have None as default value")
 
         if all(not isabstractmethod(attr) for attr in namespace.values()):
-            new_method: Callable[..., Any] | None = namespace.get("__new__")
             init_method: Callable[..., None] | None = namespace.get("__init__")
-            if new_method is not None:
-                check_parameters(new_method)
             if init_method is not None:
                 check_parameters(init_method)
 
@@ -445,25 +464,22 @@ class ThemedObjectMeta(ObjectMeta):
             if isinstance(sequence, str):
                 sequence = (sequence,)
             else:
-                sequence = tuple(sequence)
+                sequence = tuple(set(sequence))
             namespace[attr_name] = sequence
 
-        namespace.setdefault("__theme_associations__", {})
+        namespace["__theme_associations__"] = MappingProxyType(dict(namespace.get("__theme_associations__", {})))
         namespace["_no_use_of_themes_"] = bool(no_theme)
 
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
+        setattr(cls, "_is_abstract_theme_class_", False)
         if not use_parent_theme:
             mcs.__CLASSES_NOT_USING_PARENT_THEMES.add(cls)
-            setattr(cls, "_no_parent_theme_", True)
             use_parent_default_theme = False
+        setattr(cls, "_no_parent_theme_", bool(use_parent_theme))
         if not use_parent_default_theme:
             mcs.__CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.add(cls)
-            setattr(cls, "_no_parent_default_theme_", True)
-        setattr(cls, "_is_abstract_theme_class_", False)
+        setattr(cls, "_no_parent_default_theme_", bool(use_parent_default_theme))
         super().__setattr__(cls, "__virtual_themed_class_bases__", ())
-        if all(not isinstance(b, ThemedObjectMeta) or b.is_abstract_theme_class() for b in bases):
-            mcs.__CLASSES_NOT_USING_PARENT_THEMES.add(cls)
-            mcs.__CLASSES_NOT_USING_PARENT_DEFAULT_THEMES.add(cls)
         return cls
 
     def __call__(cls, *args: Any, **kwargs: Any) -> Any:
@@ -515,14 +531,14 @@ class ThemedObjectMeta(ObjectMeta):
         return super().__delattr__(name)
 
     @overload
-    def set_theme(cls, name: str, options: dict[str, Any], *, update: bool = False, ignore_unusable: bool = True) -> None:
+    def set_theme(cls, name: str, options: dict[str, Any], *, update: bool = False, ignore_unusable: bool = False) -> None:
         ...
 
     @overload
     def set_theme(cls, name: str, options: None) -> None:
         ...
 
-    def set_theme(cls, name: str, options: dict[str, Any] | None, *, update: bool = False, ignore_unusable: bool = True) -> None:
+    def set_theme(cls, name: str, options: dict[str, Any] | None, *, update: bool = False, ignore_unusable: bool = False) -> None:
         if cls.is_abstract_theme_class():
             raise TypeError("Abstract theme classes cannot set themes.")
         if getattr(cls, "_no_use_of_themes_", False):
@@ -545,39 +561,29 @@ class ThemedObjectMeta(ObjectMeta):
             if opt in ignored_parameters:
                 raise ValueError(f"{opt!r} is an ignored theme parameter")
 
-        def check_options(func: Callable[..., Any], options: dict[str, Any]) -> None:
-            sig: Signature = Signature.from_callable(func, follow_wrapped=True)
-            parameters: Mapping[str, Parameter] = sig.parameters
-            has_kwargs: bool = any(param.kind == Parameter.VAR_KEYWORD for param in parameters.values())
-
-            for option in list(options):
-                if option not in parameters:
-                    if not has_kwargs:
-                        if not ignore_unusable:
-                            raise TypeError(f"{func.__qualname__}: Unknown parameter {option!r}")
-                        options.pop(option)
-                    continue
-                param: Parameter = parameters[option]
-                if param.kind is not Parameter.KEYWORD_ONLY:
-                    if not ignore_unusable:
-                        raise TypeError(f"{func.__qualname__}: {option!r} is a {param.kind.description} parameter")
-                    options.pop(option)
-                elif param.default is Parameter.empty:
-                    if not ignore_unusable:
-                        raise TypeError(f"{func.__qualname__}: {option!r} is a required parameter")
-                    options.pop(option)
-
-        default_new_method: Callable[[type[object]], Any] = object.__new__
         default_init_method: Callable[[object], None] = object.__init__
-        new_method: Callable[..., Any] = getattr(cls, "__new__", default_new_method)
         init_method: Callable[..., None] = getattr(cls, "__init__", default_init_method)
 
-        if new_method is default_new_method and init_method is default_init_method:
+        if init_method is default_init_method:
             raise TypeError(f"{cls.__name__} does not override default object constructors")
-        if new_method is not default_new_method:
-            check_options(new_method, options)
-        if init_method is not default_init_method:
-            check_options(init_method, options)
+        sig: Signature = Signature.from_callable(init_method, follow_wrapped=True)
+        parameters: Mapping[str, Parameter] = sig.parameters
+
+        for option in list(options):
+            if option not in parameters:
+                if not ignore_unusable:
+                    raise TypeError(f"{init_method.__qualname__}: Unknown parameter {option!r}")
+                options.pop(option)
+                continue
+            param: Parameter = parameters[option]
+            if param.kind is not Parameter.KEYWORD_ONLY:
+                if not ignore_unusable:
+                    raise TypeError(f"{init_method.__qualname__}: {option!r} is a {param.kind.description} parameter")
+                options.pop(option)
+            elif param.default is Parameter.empty:
+                if not ignore_unusable:
+                    raise TypeError(f"{init_method.__qualname__}: {option!r} is a required parameter")
+                options.pop(option)
 
         theme_dict: _ClassTheme
 
@@ -652,47 +658,38 @@ class ThemedObjectMeta(ObjectMeta):
         for t in dict.fromkeys(themes):
             for parent in all_parents_classes:
                 parent_theme_kwargs = parent.get_theme_options(
-                    t, parent_themes=True, use_default_themes=False, ignore_unusable=False
+                    t, parent_themes=False, use_default_themes=False, ignore_unusable=False
                 )
                 for parent_param, cls_param in theme_key_associations.get(parent, {}).items():
-                    if parent_param not in parent_theme_kwargs:
-                        continue
-                    parent_theme_kwargs[cls_param] = parent_theme_kwargs.pop(parent_param)
-                for param in theme_key_override:
-                    parent_theme_kwargs.pop(param, None)
+                    if parent_param in theme_kwargs:
+                        theme_kwargs[cls_param] = theme_kwargs.pop(parent_param)
+                    if parent_param in parent_theme_kwargs:
+                        parent_theme_kwargs[cls_param] = parent_theme_kwargs.pop(parent_param)
+                for opt in theme_key_override:
+                    parent_theme_kwargs.pop(opt, None)
                 theme_kwargs |= parent_theme_kwargs
             with suppress(KeyError):
                 theme_kwargs |= _THEMES[cls][t]
 
-        if not all_parents_classes or not theme_kwargs or not ignore_unusable:
+        if not theme_kwargs or not ignore_unusable:
             return theme_kwargs
 
-        def check_options(func: Callable[..., Any]) -> None:
-            sig: Signature = Signature.from_callable(func, follow_wrapped=True)
+        default_init_method: Callable[[object], None] = object.__init__
+        init_method: Callable[..., None] = getattr(cls, "__init__", default_init_method)
+
+        if init_method is default_init_method:
+            theme_kwargs.clear()
+        else:
+            sig: Signature = Signature.from_callable(init_method, follow_wrapped=True)
             parameters: Mapping[str, Parameter] = sig.parameters
-            has_kwargs: bool = any(param.kind == Parameter.VAR_KEYWORD for param in parameters.values())
 
             for option in tuple(theme_kwargs):
                 if option not in parameters:
-                    if not has_kwargs:
-                        theme_kwargs.pop(option)
+                    theme_kwargs.pop(option)
                     continue
                 param: Parameter = parameters[option]
                 if param.kind is not Parameter.KEYWORD_ONLY or param.default is Parameter.empty:
                     theme_kwargs.pop(option)
-
-        default_new_method: Callable[[type[object]], Any] = object.__new__
-        default_init_method: Callable[[object], None] = object.__init__
-        new_method: Callable[..., Any] = getattr(cls, "__new__", default_new_method)
-        init_method: Callable[..., None] = getattr(cls, "__init__", default_init_method)
-
-        if new_method is default_new_method and init_method is default_init_method:
-            theme_kwargs.clear()
-        else:
-            if new_method is not default_new_method:
-                check_options(new_method)
-            if init_method is not default_init_method:
-                check_options(init_method)
 
         return theme_kwargs
 
@@ -715,7 +712,7 @@ class ThemedObjectMeta(ObjectMeta):
         return tuple(default_theme)
 
     def is_abstract_theme_class(cls) -> bool:
-        return bool(getattr(cls, "_is_abstract_theme_class_", False))
+        return bool(vars(cls).get("_is_abstract_theme_class_", False))
 
     def register(cls, subclass: type[_T]) -> type[_T]:
         def register_themed_subclass(subclass: ThemedObjectMeta) -> None:
@@ -753,9 +750,7 @@ class ThemedObjectMeta(ObjectMeta):
 
     @staticmethod
     def __travel_parent_classes(cls: ThemedObjectMeta, *, do_not_search_for: set[type]) -> Iterator[ThemedObjectMeta]:
-        for base in chain(cls.__bases__, cls.__virtual_themed_class_bases__):
-            if not isinstance(base, ThemedObjectMeta) or base.is_abstract_theme_class():
-                continue
+        for base in filter(lambda b: not b.is_abstract_theme_class(), cls.__themed_class_bases__):
             yield base
             if base not in do_not_search_for:
                 yield from ThemedObjectMeta.__travel_parent_classes(base, do_not_search_for=do_not_search_for)

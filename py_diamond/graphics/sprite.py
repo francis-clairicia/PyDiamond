@@ -73,9 +73,9 @@ class Sprite(Drawable, Transformable):
         mask_threshold: int = DEFAULT_MASK_THRESHOLD,
         width: float | None = None,
         height: float | None = None,
+        **kwargs: Any,
     ) -> None:
-        Drawable.__init__(self)
-        Transformable.__init__(self)
+        super().__init__(**kwargs)
         self.__default_image: Surface = image.convert_alpha() if image is not None else create_surface((0, 0))
         self.__image: Surface = self.__default_image.copy()
         self.__mask_threshold: int
@@ -218,8 +218,9 @@ class AnimatedSprite(Sprite):
         mask_threshold: int = Sprite.DEFAULT_MASK_THRESHOLD,
         width: float | None = None,
         height: float | None = None,
+        **kwargs: Any,
     ) -> None:
-        super().__init__(image=image, mask_threshold=mask_threshold, width=width, height=height)
+        super().__init__(image=image, mask_threshold=mask_threshold, width=width, height=height, **kwargs)
         self.__list: list[Surface] = [self.default_image, *(i.convert_alpha() for i in images)]
         self.__sprite_idx: int = 0
         self.__clock: Clock = Clock()

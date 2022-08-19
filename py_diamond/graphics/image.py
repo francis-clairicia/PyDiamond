@@ -34,27 +34,40 @@ class Image(Drawable, Transformable):
     )
 
     @overload
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        image: Surface,
+        *,
+        copy: bool = ...,
+        width: float | None = ...,
+        height: float | None = ...,
+        **kwargs: Any,
+    ) -> None:
         ...
 
     @overload
-    def __init__(self, image: Surface, *, copy: bool = True, width: float | None = None, height: float | None = None) -> None:
-        ...
-
-    @overload
-    def __init__(self, image: str, *, width: float | None = None, height: float | None = None) -> None:
+    def __init__(
+        self,
+        image: str | None = ...,
+        *,
+        width: float | None = ...,
+        height: float | None = ...,
+        **kwargs: Any,
+    ) -> None:
         ...
 
     def __init__(
         self,
         image: Surface | str | None = None,
         *,
-        copy: bool = True,
         width: float | None = None,
         height: float | None = None,
+        **kwargs: Any,
     ) -> None:
-        Drawable.__init__(self)
-        Transformable.__init__(self)
+        copy: bool = True
+        if isinstance(image, Surface):
+            copy = kwargs.pop("copy", copy)
+        super().__init__(**kwargs)
 
         self.__default_image: Surface
         self.__image: Surface

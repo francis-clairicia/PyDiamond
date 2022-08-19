@@ -43,9 +43,8 @@ class AbstractShape(Drawable, Transformable):
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate()
 
     @initializer
-    def __init__(self) -> None:
-        Drawable.__init__(self)
-        Transformable.__init__(self)
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
         self.__image: Surface
         self.__local_size: tuple[float, float] = (0, 0)
 
@@ -214,8 +213,9 @@ class PolygonShape(OutlinedShape, SingleColorShape):
         outline: int = 0,
         outline_color: Color = BLACK,
         points: PointList = (),
+        **kwargs: Any,
     ) -> None:
-        super().__init__(color=color, outline=outline, outline_color=outline_color)
+        super().__init__(color=color, outline=outline, outline_color=outline_color, **kwargs)
         self.set_points(points)
 
     def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
@@ -368,6 +368,7 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape):
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
+        **kwargs: Any,
     ) -> None:
         super().__init__(
             width=width,
@@ -375,6 +376,7 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape):
             color=color,
             outline=outline,
             outline_color=outline_color,
+            **kwargs,
         )
         self.__draw_params: dict[str, int] = dict()
         self.border_radius = border_radius
@@ -487,8 +489,9 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape):
         draw_top_right: bool = True,
         draw_bottom_left: bool = True,
         draw_bottom_right: bool = True,
+        **kwargs: Any,
     ) -> None:
-        super().__init__(radius=radius, color=color, outline=outline, outline_color=outline_color)
+        super().__init__(radius=radius, color=color, outline=outline, outline_color=outline_color, **kwargs)
         self.__draw_params: dict[str, bool] = dict()
         self.__points: tuple[Vector2, ...] = ()
         self.radius = radius
@@ -604,8 +607,9 @@ class AbstractCrossShape(OutlinedShape, SingleColorShape):
         line_width_percent: float = 0.3,
         outline_color: Color = BLACK,
         outline: int = 0,
+        **kwargs: Any,
     ) -> None:
-        super().__init__(color=color, outline=outline, outline_color=outline_color)
+        super().__init__(color=color, outline=outline, outline_color=outline_color, **kwargs)
         self.__points: tuple[Vector2, ...] = ()
         self.local_size = width, height
         self.line_width_percent = line_width_percent

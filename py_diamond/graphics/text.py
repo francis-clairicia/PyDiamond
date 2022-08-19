@@ -87,9 +87,9 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
         shadow_y: float = 0,
         shadow_color: Color = BLACK,
         theme: ThemeType | None = None,
+        **kwargs: Any,
     ) -> None:
-        Drawable.__init__(self)
-        Transformable.__init__(self)
+        super().__init__(**kwargs)
         self.__custom_font: dict[int, Font] = dict()
         self.__default_image: Surface = create_surface((0, 0))
         self.__image: Surface = self.__default_image.copy()

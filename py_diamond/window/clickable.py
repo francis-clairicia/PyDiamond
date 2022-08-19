@@ -45,7 +45,9 @@ class Clickable(Object):
         disabled_sound: Sound | None = None,
         hover_cursor: AbstractCursor | None = None,
         disabled_cursor: AbstractCursor | None = None,
+        **kwargs: Any,
     ) -> None:
+        super().__init__(**kwargs)
         if master is self:
             raise RecursionError("master is self")
         self.__master: Clickable | Scene | Window = master
@@ -59,7 +61,7 @@ class Clickable(Object):
                 self.__scene = None
             case _:
                 assert_never(master)
-        self.__state: Clickable.State = Clickable.State.NORMAL
+        self.__state: Clickable.State = Clickable.State(state)
         self.__hover: bool = False
         self.__active: bool = False
         self.__active_only_on_hover: bool = True
@@ -75,7 +77,6 @@ class Clickable(Object):
         if isinstance(disabled_cursor, AbstractCursor):
             self.__hover_cursor[Clickable.State.DISABLED] = disabled_cursor
 
-        self.state = state
         self.hover_sound = hover_sound
         self.click_sound = click_sound
         self.disabled_sound = disabled_sound
@@ -86,6 +87,16 @@ class Clickable(Object):
         event.bind(MouseButtonUpEvent, WeakMethod(self.__handle_click_event))
         event.bind(MouseMotionEvent, WeakMethod(self.__handle_mouse_motion))
         event.bind_mouse_position(WeakMethod(self.__handle_mouse_position))
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.hover:
+            self._on_hover()
+            if self.active:
+                self._on_active_set()
+        else:
+            self._on_leave()
+        self._on_change_state()
 
     @abstractmethod
     def invoke(self) -> None:

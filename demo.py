@@ -539,8 +539,7 @@ class DraggableSprite(Sprite, Draggable):
         width: float | None = None,
         height: float | None = None,
     ) -> None:
-        Sprite.__init__(self, image, width=width, height=height)
-        Draggable.__init__(self, master=master)
+        super().__init__(image, width=width, height=height, master=master)
 
     def invoke(self) -> None:
         pass

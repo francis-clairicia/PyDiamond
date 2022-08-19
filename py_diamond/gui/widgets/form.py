@@ -68,9 +68,9 @@ class Form(Drawable, Movable, metaclass=ThemedObjectMeta):
         padx: int = 10,
         pady: int = 10,
         theme: ThemeType | None = None,
+        **kwargs: Any,
     ) -> None:
-        Drawable.__init__(self)
-        Movable.__init__(self)
+        super().__init__(**kwargs)
         self.__on_submit: Callable[[Mapping[str, str]], None] = on_submit
         self.__grid: Grid = Grid(master=master, bg_color=bg_color, outline=outline, outline_color=outline_color)
         self.label_justify = label_justify

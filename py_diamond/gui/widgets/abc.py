@@ -10,7 +10,7 @@ __all__ = ["AbstractWidget"]
 
 
 from functools import cached_property
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from ...audio.sound import Sound
 from ...window.clickable import Clickable
@@ -38,19 +38,20 @@ class AbstractWidget(Clickable):
         disabled_cursor: AbstractCursor | None = None,
         take_focus: bool = True,
         focus_on_hover: bool | None = None,
+        **kwargs: Any,
     ) -> None:
         if focus_on_hover is None:
             focus_on_hover = self.__default_focus_on_hover
         self.__focus_on_hover: bool = bool(focus_on_hover)
-        Clickable.__init__(
-            self,
-            master,
+        super().__init__(
+            master=master,
             state=state,
             hover_sound=hover_sound,
             click_sound=click_sound,
             disabled_sound=disabled_sound,
             hover_cursor=hover_cursor,
             disabled_cursor=disabled_cursor,
+            **kwargs,
         )
         self.focus.take(take_focus)
         self.event.bind(KeyDownEvent, lambda self, event: self.__handle_key_press_event(event, focus_handle_event=False))

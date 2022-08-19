@@ -99,12 +99,21 @@ class ScrollBar(Drawable, Transformable, Clickable, metaclass=ThemedObjectMeta):
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
         theme: ThemeType | None = None,
+        **kwargs: Any,
     ) -> None:
         if not isinstance(master, ScrollArea):
             raise TypeError("ScrollBar objects must be created for a ScrollArea object")
         self.__master: ScrollArea = master
-        Drawable.__init__(self)
-        Transformable.__init__(self)
+        super().__init__(
+            master=master.master,
+            state=state,
+            hover_sound=hover_sound,
+            click_sound=click_sound,
+            disabled_sound=disabled_sound,
+            hover_cursor=hover_cursor,
+            disabled_cursor=disabled_cursor,
+            **kwargs,
+        )
         self.__bg_shape: RectangleShape = RectangleShape(
             width=width,
             height=height,
@@ -141,16 +150,6 @@ class ScrollBar(Drawable, Transformable, Clickable, metaclass=ThemedObjectMeta):
             border_top_right_radius=border_top_right_radius,
             border_bottom_left_radius=border_bottom_left_radius,
             border_bottom_right_radius=border_bottom_right_radius,
-        )
-        Clickable.__init__(
-            self,
-            master=master.master,
-            state=state,
-            hover_sound=hover_sound,
-            click_sound=click_sound,
-            disabled_sound=disabled_sound,
-            hover_cursor=hover_cursor,
-            disabled_cursor=disabled_cursor,
         )
         self.orient = orient
         self.set_active_only_on_hover(False)
@@ -390,10 +389,9 @@ class ScrollArea(BaseLayeredDrawableGroup[ScrollAreaElement], Drawable, Movable)
         height: float,
         default_layer: int = 0,
         bg_color: Color = TRANSPARENT,
+        **kwargs: Any,
     ) -> None:
-        BaseLayeredDrawableGroup.__init__(self, *objects, default_layer=default_layer)
-        Drawable.__init__(self)
-        Movable.__init__(self)
+        super().__init__(*objects, default_layer=default_layer, **kwargs)
         self.__master: Scene | Window = master
         self.__view_rect: Rect = Rect(0, 0, width, height)
         self.__whole_area: SurfaceRenderer = SurfaceRenderer((width, height))

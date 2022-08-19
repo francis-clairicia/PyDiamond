@@ -77,7 +77,8 @@ class Drawable(Object):
         if not hasattr(cls, "__weakref__"):
             raise TypeError("A Drawable object must be weak-referencable")
 
-    def __init__(self) -> None:
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
         self.__shown: bool = True
         self.__groups: WeakSet[BaseDrawableGroup[Any]] = WeakSet()
 

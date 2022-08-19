@@ -264,9 +264,20 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
         theme: ThemeType | None = None,
+        **kwargs: Any,
     ) -> None:
-        Drawable.__init__(self)
-        Transformable.__init__(self)
+        super().__init__(
+            master=master,
+            state=state,
+            hover_sound=hover_sound,
+            click_sound=click_sound,
+            disabled_sound=disabled_sound,
+            hover_cursor=hover_cursor,
+            disabled_cursor=disabled_cursor,
+            take_focus=take_focus,
+            focus_on_hover=focus_on_hover,
+            **kwargs,
+        )
         self.__text: TextImage = TextImage(
             message=text,
             img=img,
@@ -349,18 +360,6 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
         self.text_offset = text_offset
         self.text_hover_offset = text_hover_offset
         self.text_active_offset = text_active_offset
-        AbstractWidget.__init__(
-            self,
-            master=master,
-            state=state,
-            hover_sound=hover_sound,
-            click_sound=click_sound,
-            disabled_sound=disabled_sound,
-            hover_cursor=hover_cursor,
-            disabled_cursor=disabled_cursor,
-            take_focus=take_focus,
-            focus_on_hover=focus_on_hover,
-        )
 
     def draw_onto(self, target: AbstractRenderer) -> None:
         angle: float = self.angle
@@ -952,11 +951,9 @@ class ImageButton(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjec
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
         theme: ThemeType | None = None,
+        **kwargs: Any,
     ) -> None:
-        Drawable.__init__(self)
-        Transformable.__init__(self)
-        AbstractWidget.__init__(
-            self,
+        super().__init__(
             master=master,
             state=state,
             hover_sound=hover_sound,
@@ -964,6 +961,7 @@ class ImageButton(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjec
             disabled_sound=disabled_sound,
             hover_cursor=hover_cursor,
             disabled_cursor=disabled_cursor,
+            **kwargs,
         )
         self.__image: Image = Image(img)
         self.callback = callback

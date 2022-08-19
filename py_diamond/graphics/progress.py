@@ -88,6 +88,7 @@ class ProgressBar(RectangleShape, metaclass=ThemedObjectMeta):
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
         theme: ThemeType | None = None,
+        **kwargs: Any,
     ) -> None:
         self.__scale_rect: RectangleShape = RectangleShape(
             0,
@@ -110,6 +111,7 @@ class ProgressBar(RectangleShape, metaclass=ThemedObjectMeta):
             border_top_right_radius=border_top_right_radius,
             border_bottom_left_radius=border_bottom_left_radius,
             border_bottom_right_radius=border_bottom_right_radius,
+            **kwargs,
         )
         self.cursor_color = cursor_color
         self.cursor_thickness = cursor_thickness

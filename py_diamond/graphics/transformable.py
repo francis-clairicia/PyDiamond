@@ -41,8 +41,8 @@ class Transformable(Movable):
                 f"If you provide one of these methods, you must implements all of the following list: {', '.join(frozen_state_methods)}"
             )
 
-    def __init__(self) -> None:
-        Movable.__init__(self)
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
         self.__angle: float = 0
         self.__scale_x: float = 1
         self.__scale_y: float = 1

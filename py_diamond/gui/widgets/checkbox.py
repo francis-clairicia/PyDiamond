@@ -100,13 +100,11 @@ class CheckBox(Drawable, Transformable, AbstractWidget, Generic[_OnValue, _OffVa
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
         theme: ThemeType | None = None,
+        **kwargs: Any,
     ) -> None:
         if on_value == off_value:
             raise ValueError("'On' value and 'Off' value are identical")
-        Drawable.__init__(self)
-        Transformable.__init__(self)
-        AbstractWidget.__init__(
-            self,
+        super().__init__(
             master=master,
             state=state,
             hover_sound=hover_sound,
@@ -116,6 +114,7 @@ class CheckBox(Drawable, Transformable, AbstractWidget, Generic[_OnValue, _OffVa
             disabled_cursor=disabled_cursor,
             take_focus=take_focus,
             focus_on_hover=focus_on_hover,
+            **kwargs,
         )
         self.__shape: RectangleShape = RectangleShape(
             width=width,

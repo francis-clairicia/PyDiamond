@@ -63,7 +63,8 @@ def __prepare_namespace(mcs: Any, name: str, bases: tuple[type, ...], namespace:
 
 
 class Movable(Object, prepare_namespace=__prepare_namespace):
-    def __init__(self) -> None:
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
         self.__x: float = 0
         self.__y: float = 0
 
