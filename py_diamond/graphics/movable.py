@@ -49,23 +49,20 @@ def _position_decorator(fset: Callable[[Movable, Any], None], fget: Callable[[Mo
     return wrapper
 
 
-class Movable(Object):
-    @classmethod
-    def __post_init_class__(cls) -> None:
-        for position in _ALL_VALID_POSITIONS:
-            if position not in vars(cls):
-                continue
-            if any(hasattr(b, position) for b in cls.__bases__):
-                raise TypeError("Override of position attributes is not allowed")
-            prop: property = vars(cls)[position]
-            assert prop.fget
-            assert prop.fset
-            prop = prop.setter(_position_decorator(prop.fset, prop.fget))
-            for func in filter(callable, (prop.fget, prop.fset, prop.fdel)):
-                final(func)
-            type.__setattr__(cls, position, prop)
-        return super().__post_init_class__()
+def __prepare_namespace(mcs: Any, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> None:
+    for position in _ALL_VALID_POSITIONS:
+        if position not in namespace:
+            continue
+        prop: property = namespace[position]
+        assert prop.fget
+        assert prop.fset
+        prop = prop.setter(_position_decorator(prop.fset, prop.fget))
+        for func in filter(callable, (prop.fget, prop.fset, prop.fdel)):
+            final(func)
+        namespace[position] = prop
 
+
+class Movable(Object, prepare_namespace=__prepare_namespace):
     def __init__(self) -> None:
         self.__x: float = 0
         self.__y: float = 0

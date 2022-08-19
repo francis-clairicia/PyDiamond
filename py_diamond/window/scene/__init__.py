@@ -454,8 +454,8 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
 
 
 class MainScene(Scene):
-    def __init_subclass__(cls) -> None:
-        super().__init_subclass__()
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
         if isconcreteclass(cls):
             closed_namespace(cls)
 

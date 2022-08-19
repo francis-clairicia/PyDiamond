@@ -32,8 +32,12 @@ class ObjectMeta(ABCMeta):
         namespace: dict[str, Any],
         *,
         no_slots: bool = False,
+        prepare_namespace: Callable[..., None] | None = None,
         **kwargs: Any,
     ) -> __Self:
+        if callable(prepare_namespace):
+            prepare_namespace(mcs, name, bases, namespace, **kwargs)
+
         no_slots_attr = "_ObjectMeta__no_slots"
         no_slots = bool(no_slots or any(getattr(b, no_slots_attr, False) for b in bases if isinstance(b, ObjectMeta)))
 
