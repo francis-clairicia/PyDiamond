@@ -14,9 +14,8 @@ __all__ = [
 from enum import IntFlag, unique
 from typing import TYPE_CHECKING, Any, ClassVar, Final, Iterable, NamedTuple
 
-import pygame.font
-import pygame.freetype
-import pygame.sysfont
+import pygame.freetype as _pg_freetype
+import pygame.sysfont as _pg_sysfont
 
 from ..math.vector2 import Vector2
 from ..system.configuration import ConfigurationTemplate, OptionAttribute
@@ -29,15 +28,15 @@ if TYPE_CHECKING:
 
 
 def get_fonts() -> list[str]:
-    return pygame.font.get_fonts()
+    return _pg_sysfont.get_fonts()  # type: ignore[no-any-return,no-untyped-call]
 
 
 def get_default_font() -> str:
-    return pygame.freetype.get_default_font()
+    return _pg_freetype.get_default_font()
 
 
 def match_font(name: str | bytes | Iterable[str | bytes], bold: bool = False, italic: bool = False) -> str | None:
-    return pygame.sysfont.match_font(name, bold=bold, italic=italic)  # type: ignore[no-any-return,no-untyped-call]
+    return _pg_sysfont.match_font(name, bold=bold, italic=italic)  # type: ignore[no-any-return,no-untyped-call]
 
 
 def SysFont(name: str | bytes | Iterable[str | bytes], size: int, bold: bool = False, italic: bool = False) -> Font:
@@ -66,7 +65,7 @@ def SysFont(name: str | bytes | Iterable[str | bytes], size: int, bold: bool = F
         font.oblique = italic
         return font
 
-    font: Font = pygame.sysfont.SysFont(name, size, bold=bold, italic=italic, constructor=font_constructor)  # type: ignore[no-untyped-call]
+    font: Font = _pg_sysfont.SysFont(name, size, bold=bold, italic=italic, constructor=font_constructor)  # type: ignore[no-untyped-call]
     return font
 
 
@@ -81,14 +80,14 @@ class GlyphMetrics(NamedTuple):
 
 @unique
 class FontStyle(IntFlag):
-    NORMAL = pygame.freetype.STYLE_NORMAL
-    OBLIQUE = pygame.freetype.STYLE_OBLIQUE
-    STRONG = pygame.freetype.STYLE_STRONG
-    UNDERLINE = pygame.freetype.STYLE_UNDERLINE
-    WIDE = pygame.freetype.STYLE_WIDE
+    NORMAL = _pg_freetype.STYLE_NORMAL
+    OBLIQUE = _pg_freetype.STYLE_OBLIQUE
+    STRONG = _pg_freetype.STYLE_STRONG
+    UNDERLINE = _pg_freetype.STYLE_UNDERLINE
+    WIDE = _pg_freetype.STYLE_WIDE
 
 
-STYLE_DEFAULT: Final[int] = pygame.freetype.STYLE_DEFAULT
+STYLE_DEFAULT: Final[int] = _pg_freetype.STYLE_DEFAULT
 
 
 class FontSizeInfo(NamedTuple):
@@ -103,9 +102,9 @@ class FontSizeInfo(NamedTuple):
 class Font(Object):
     from pygame import encode_file_path as __encode_file_path  # type: ignore[misc]
 
-    __factory = staticmethod(pygame.freetype.Font)
+    __factory = staticmethod(_pg_freetype.Font)
     __encode_file_path = staticmethod(__encode_file_path)
-    __get_default_resolution = staticmethod(pygame.freetype.get_default_resolution)
+    __get_default_resolution = staticmethod(_pg_freetype.get_default_resolution)
     __default_font = __encode_file_path(get_default_font())
 
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
@@ -158,7 +157,7 @@ class Font(Object):
                 resolution = 1
         else:
             resolution = 0
-        self.__ft: pygame.freetype.Font = self.__factory(file, size=size, resolution=resolution)
+        self.__ft: _pg_freetype.Font = self.__factory(file, size=size, resolution=resolution)
         self.__ft.strength = 1.0 / 12.0
         self.__ft.kerning = False
         self.__ft.origin = False

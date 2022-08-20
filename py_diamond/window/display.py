@@ -184,15 +184,12 @@ class Window(Object):
             _pg_display.init()
             stack.callback(_pg_display.quit)
 
-            import pygame.font as _pg_font
             import pygame.freetype as _pg_freetype
 
-            _pg_font.init()
-            stack.callback(_pg_font.quit)
             if not _pg_freetype.get_init():
                 _pg_freetype.init()
                 stack.callback(_pg_freetype.quit)
-            del _pg_font, _pg_freetype
+            del _pg_freetype
 
             size: tuple[int, int] = self.__size
             flags: int = self.__flags
