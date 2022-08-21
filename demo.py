@@ -99,7 +99,7 @@ class ShapeScene(MainScene, busy_loop=True):
             outline=3,
             outline_color=WHITE,
         )
-        self.__p.set_points(
+        self.__p.set_edges(
             [
                 (20, 0),
                 (40, 0),
@@ -175,7 +175,7 @@ class ShapeScene(MainScene, busy_loop=True):
     def update(self) -> None:
         self.__x_center.center = self.__x.center
         self.__c_center.center = self.__c.center
-        self.__shape_copy.set_points(self.__c.get_edges())
+        self.__shape_copy.set_local_edges(self.__c.get_edges())
 
     def render(self) -> None:
         self.window.draw(
