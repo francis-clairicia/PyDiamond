@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from ...audio.sound import Sound
     from ...graphics.font import Font
     from ...graphics.renderer import AbstractRenderer
-    from ...window.cursor import AbstractCursor
+    from ...window.cursor import Cursor
     from ...window.display import Window
     from ...window.scene import Scene
 
@@ -251,8 +251,8 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
         highlight_thickness: int = 2,
         take_focus: bool = True,
         focus_on_hover: bool | None = None,
-        hover_cursor: AbstractCursor | None = None,
-        disabled_cursor: AbstractCursor | None = None,
+        hover_cursor: Cursor | None = None,
+        disabled_cursor: Cursor | None = None,
         text_align_x: str = "center",
         text_align_y: str = "center",
         text_offset: tuple[float, float] = (0, 0),
@@ -941,8 +941,8 @@ class ImageButton(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjec
         disabled_sound: Sound | None = None,
         highlight_color: Color = BLUE,
         highlight_thickness: int = 2,
-        hover_cursor: AbstractCursor | None = None,
-        disabled_cursor: AbstractCursor | None = None,
+        hover_cursor: Cursor | None = None,
+        disabled_cursor: Cursor | None = None,
         hover_offset: tuple[float, float] = (0, 0),
         active_offset: tuple[float, float] = (0, 3),
         border_radius: int = 0,

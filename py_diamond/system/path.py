@@ -10,7 +10,7 @@ __all__ = ["ConstantFileNotFoundError", "set_constant_directory", "set_constant_
 
 
 import os.path as os_path
-from typing import Any, Callable, overload
+from typing import Any, overload
 
 from ..environ.executable import get_executable_path
 
@@ -27,7 +27,6 @@ class ConstantFileNotFoundError(FileNotFoundError):
 
 
 def __set_path(
-    path_exists: Callable[[str], bool],
     *paths: str,
     raise_error: bool = True,
     error_msg: str | None = None,
@@ -37,7 +36,7 @@ def __set_path(
     if not relative_to_cwd and not os_path.isabs(all_path):
         all_path = os_path.join(os_path.abspath(os_path.dirname(get_executable_path())), all_path)
     all_path = os_path.realpath(all_path)
-    if raise_error and not path_exists(all_path):
+    if raise_error and not os_path.exists(all_path):
         raise ConstantFileNotFoundError(all_path, message=error_msg)
     return all_path
 
@@ -57,8 +56,11 @@ def set_constant_directory(path: str, *paths: str, error_msg: str, relative_to_c
     ...
 
 
-def set_constant_directory(path: str, *paths: str, error_msg: str | None = None, **kwargs: Any) -> str:
-    return __set_path(os_path.isdir, path, *paths, error_msg=error_msg or "Not a directory", **kwargs)
+def set_constant_directory(path: str, *paths: str, raise_error: bool = True, **kwargs: Any) -> str:
+    path = __set_path(path, *paths, raise_error=raise_error, **kwargs)
+    if raise_error and not os_path.isdir(path):
+        raise NotADirectoryError(path)
+    return path
 
 
 @overload
@@ -76,5 +78,10 @@ def set_constant_file(path: str, *paths: str, error_msg: str, relative_to_cwd: b
     ...
 
 
-def set_constant_file(path: str, *paths: str, **kwargs: Any) -> str:
-    return __set_path(os_path.isfile, path, *paths, **kwargs)
+def set_constant_file(path: str, *paths: str, raise_error: bool = True, **kwargs: Any) -> str:
+    path = __set_path(path, *paths, raise_error=raise_error, **kwargs)
+    if raise_error and not os_path.isfile(path):
+        if os_path.isdir(path):
+            raise IsADirectoryError(path)
+        raise PermissionError(path)
+    return path

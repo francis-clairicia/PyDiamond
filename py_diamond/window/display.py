@@ -14,10 +14,10 @@ import os.path
 from bisect import insort_left
 from collections import deque
 from contextlib import ExitStack, contextmanager, suppress
+from dataclasses import dataclass
 from datetime import datetime
 from inspect import isgeneratorfunction
 from itertools import count as itertools_count, filterfalse, islice
-from threading import RLock
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -38,6 +38,8 @@ from typing import (
 
 import pygame.display as _pg_display
 import pygame.event as _pg_event
+import pygame.key as _pg_key
+import pygame.mouse as _pg_mouse
 from pygame import error as _pg_error
 from pygame.constants import (
     FULLSCREEN as _PG_FULLSCREEN,
@@ -54,12 +56,13 @@ from ..graphics.surface import Surface, SurfaceRenderer, create_surface, save_im
 from ..system.clock import Clock
 from ..system.object import Object, ObjectMeta, final
 from ..system.path import ConstantFileNotFoundError, set_constant_file
-from ..system.threading import Thread, thread_factory
+from ..system.threading import Thread, thread_factory_method
 from ..system.time import Time
 from ..system.utils._mangling import setattr_pv
+from ..system.utils.contextlib import ExitStackView
 from ..system.utils.functools import wraps
 from ..system.utils.itertools import consume
-from .cursor import AbstractCursor
+from .cursor import Cursor, SystemCursor
 from .event import Event, EventFactory, EventManager, ScreenshotEvent, UnknownEventTypeError
 from .keyboard import Keyboard
 from .mouse import Mouse
@@ -87,7 +90,6 @@ class Window(Object):
     DEFAULT_SIZE: Final[tuple[int, int]] = (800, 600)
 
     __main_window: ClassVar[bool] = True
-    __screenshot_lock = RLock()
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Any:
         if not Window.__main_window:
@@ -145,6 +147,7 @@ class Window(Object):
         self.__stack = ExitStack()
 
         self.__screenshot_threads: list[Thread] = []
+        self.__context_cursor: _TemporaryCursor | None = None
 
     def __window_init__(self) -> None:
         pass
@@ -163,15 +166,14 @@ class Window(Object):
         cm.__enter__()
         cm_exit = cm.__exit__
         setattr(self, "__exit__", cm_exit)
-        setattr(self, "__open_exit__", cm_exit)
         return self
 
     def __exit__(self, *args: Any) -> bool | None:
         # When using the 'with' statement, the __exit__ method will be retrieved through the class, not the object
         # The __exit__ mock made in __enter__ will, therefore, not be used
         try:
-            open_exit: Callable[..., bool | None] = self.__open_exit__  # type: ignore[attr-defined]
-        except AttributeError:
+            open_exit: Callable[..., bool | None] = self.__dict__["__exit__"]
+        except KeyError:
             return False
         return open_exit(*args)
 
@@ -220,11 +222,11 @@ class Window(Object):
             @stack.callback
             def _() -> None:  # Ensure patches added by __enter__ are deleted
                 with suppress(AttributeError):
-                    delattr(self, "__open_exit__")
-                with suppress(AttributeError):
                     delattr(self, "__exit__")
 
             del _
+
+            self.set_cursor(SystemCursor.ARROW)
 
             self.clear_all_events()
             self.__main_clock.tick()
@@ -232,6 +234,7 @@ class Window(Object):
 
         gc.collect()  # Run a full collection at the window close
 
+    @final
     def set_title(self, title: str | None) -> None:
         _pg_display.set_caption(title or self.DEFAULT_TITLE)
 
@@ -239,6 +242,7 @@ class Window(Object):
     def get_title(self) -> str:
         return _pg_display.get_caption()[0]
 
+    @final
     def iconify(self) -> bool:
         return bool(_pg_display.iconify())
 
@@ -265,12 +269,22 @@ class Window(Object):
         add_event = event_queue.append
 
         if self.__handle_keyboard:
-            Keyboard._update()
+            type.__setattr__(Keyboard, "_KEY_STATES", _pg_key.get_pressed())
         if self.__handle_mouse_position:
-            Mouse._update()
+            button_states = _pg_mouse.get_pressed(3)
+            button_states = (bool(button_states[0]), bool(button_states[1]), bool(button_states[2]))
+            type.__setattr__(Mouse, "_MOUSE_BUTTON_STATE", button_states)
 
         if screenshot_threads := self.__screenshot_threads:
             screenshot_threads[:] = [t for t in screenshot_threads if t.is_alive()]
+
+        if context_cursor := self.__context_cursor:
+            if context_cursor.nb_frames > 0:
+                _pg_mouse.set_cursor(context_cursor.cursor)
+                context_cursor.nb_frames -= 1
+            else:
+                _pg_mouse.set_cursor(context_cursor.replaced_cursor)
+                self.__context_cursor = None
 
         if self.__process_callbacks:
             self._process_callbacks()
@@ -301,9 +315,11 @@ class Window(Object):
         else:
             screen.fill(color)
 
+    @final
     def get_default_framerate(self) -> int:
         return self.__default_framerate
 
+    @final
     def set_default_framerate(self, value: int) -> None:
         self.__default_framerate = max(int(value), 0)
 
@@ -321,7 +337,6 @@ class Window(Object):
         if screen is None:
             return 0
         self._system_display()
-        AbstractCursor._update()
         screen.present()
 
         framerate: int = self.used_framerate()
@@ -359,29 +374,28 @@ class Window(Object):
         screen: Surface = self.get_screen_copy()
         self.__screenshot_threads.append(self.__screenshot_thread(screen))
 
-    @thread_factory(daemon=True)
+    @thread_factory_method(daemon=True, shared_lock=True)
     def __screenshot_thread(self, screen: Surface) -> None:
-        with self.__screenshot_lock:
-            filename_fmt: str = self.get_screenshot_filename_format()
-            extension: str = ".png"
+        filename_fmt: str = self.get_screenshot_filename_format()
+        extension: str = ".png"
 
-            if any(c in filename_fmt for c in {"/", "\\", os.path.sep}):
-                raise ValueError("filename format contains invalid characters")
+        if any(c in filename_fmt for c in {"/", "\\", os.path.sep}):
+            raise ValueError("filename format contains invalid characters")
 
-            screeshot_dir: str = os.path.abspath(os.path.realpath(self.get_screenshot_directory()))
-            os.makedirs(screeshot_dir, exist_ok=True)
+        screeshot_dir: str = os.path.abspath(os.path.realpath(self.get_screenshot_directory()))
+        os.makedirs(screeshot_dir, exist_ok=True)
 
-            filename_fmt = os.path.join(screeshot_dir, filename_fmt)
-            date = datetime.now()
-            file: str = ""
-            try:
-                set_constant_file(date.strftime(f"{filename_fmt}{extension}"), raise_error=True)
-                for i in itertools_count(start=1):
-                    set_constant_file(date.strftime(f"{filename_fmt}_{i}{extension}"), raise_error=True)
-            except ConstantFileNotFoundError as exc:
-                file = str(exc.filename)
-            save_image(screen, file)
-            self.post_event(ScreenshotEvent(filepath=file, screen=screen))
+        filename_fmt = os.path.join(screeshot_dir, filename_fmt)
+        date = datetime.now()
+        file: str = ""
+        try:
+            set_constant_file(date.strftime(f"{filename_fmt}{extension}"), raise_error=True)
+            for i in itertools_count(start=1):
+                set_constant_file(date.strftime(f"{filename_fmt}_{i}{extension}"), raise_error=True)
+        except ConstantFileNotFoundError as exc:
+            file = str(exc.filename)
+        save_image(screen, file)
+        self.post_event(ScreenshotEvent(filepath=file, screen=screen))
 
     def get_screenshot_filename_format(self) -> str:
         return "Screenshot_%Y-%m-%d_%H-%M-%S"
@@ -454,7 +468,9 @@ class Window(Object):
             except IndexError:
                 break
             if pg_event.type == _PG_VIDEORESIZE:
-                self.__rect = ImmutableRect.convert(self.renderer.get_rect())
+                renderer = self.__display_renderer
+                assert renderer is not None, "No active renderer"
+                self.__rect = ImmutableRect.convert(renderer.screen.get_rect())
                 continue
             try:
                 event = make_event(pg_event, handle_user_events=True)
@@ -470,11 +486,36 @@ class Window(Object):
     def _handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
         return self.event.handle_mouse_position(mouse_pos)
 
+    @final
     def post_event(self, event: Event) -> bool:
         return _pg_event.post(EventFactory.make_pygame_event(event))
 
     def _handle_close_event(self) -> None:
         self.close()
+
+    @final
+    def get_cursor(self) -> Cursor:
+        pygame_cursor = _pg_mouse.get_cursor()
+        cursor: Cursor
+        if pygame_cursor.type == "system":
+            cursor = SystemCursor(*pygame_cursor.data)
+        else:
+            cursor = Cursor(pygame_cursor)
+        return cursor
+
+    @final
+    def set_cursor(self, cursor: Cursor, *, nb_frames: int = 0) -> None:
+        if nb_frames <= 0:
+            self.__context_cursor = None
+            _pg_mouse.set_cursor(cursor)
+            return
+        context_cursor = self.__context_cursor
+        if not context_cursor:
+            self.__context_cursor = _TemporaryCursor(cursor, self.get_cursor(), nb_frames)
+            _pg_mouse.set_cursor(cursor)
+        else:
+            context_cursor.cursor = cursor
+            context_cursor.nb_frames = nb_frames
 
     @final
     def set_size(self, size: tuple[int, int]) -> None:
@@ -708,8 +749,8 @@ class Window(Object):
 
     @property
     @final
-    def exit_stack(self) -> ExitStack:
-        return self.__stack
+    def exit_stack(self) -> ExitStackView:
+        return ExitStackView(self.__stack)
 
     @property
     @final
@@ -1090,3 +1131,10 @@ class _WindowRenderer(SurfaceRenderer, metaclass=_WindowRendererMeta):
         @SurfaceRenderer.surface.setter
         def surface(self, new_target: Surface) -> None:
             raise AttributeError("Read-only property")
+
+
+@dataclass
+class _TemporaryCursor:
+    cursor: Cursor
+    replaced_cursor: Cursor
+    nb_frames: int

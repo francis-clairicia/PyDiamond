@@ -64,6 +64,7 @@ pytest_plugins = [
     f"{__package__}.mock.pygame.display",
     f"{__package__}.mock.pygame.event",
     f"{__package__}.mock.pygame.mixer",
+    f"{__package__}.mock.pygame.mouse",
     # other plugins
     f"{__package__}.mock.sys",
     f"{__package__}.fixtures.monkeypatch",

@@ -11,7 +11,8 @@ __all__ = ["Clickable"]
 
 from abc import abstractmethod
 from enum import auto, unique
-from typing import TYPE_CHECKING, Any, TypeVar
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, Final, TypeVar
 from weakref import WeakMethod
 
 from typing_extensions import assert_never
@@ -19,7 +20,7 @@ from typing_extensions import assert_never
 from ..audio.sound import Sound
 from ..system.enum import AutoLowerNameEnum
 from ..system.object import Object
-from .cursor import AbstractCursor, SystemCursor
+from .cursor import Cursor, SystemCursor
 from .display import Window
 from .event import BoundEventManager, Event, MouseButtonDownEvent, MouseButtonEvent, MouseButtonUpEvent, MouseMotionEvent
 from .mouse import MouseButton
@@ -35,6 +36,13 @@ class Clickable(Object):
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="Clickable")
 
+    __default_hover_cursor: Final[MappingProxyType[Clickable.State, Cursor]] = MappingProxyType(
+        {
+            State.NORMAL: SystemCursor.HAND,
+            State.DISABLED: SystemCursor.NO,
+        }
+    )
+
     def __init__(
         self,
         master: Clickable | Scene | Window,
@@ -43,8 +51,8 @@ class Clickable(Object):
         hover_sound: Sound | None = None,
         click_sound: Sound | None = None,
         disabled_sound: Sound | None = None,
-        hover_cursor: AbstractCursor | None = None,
-        disabled_cursor: AbstractCursor | None = None,
+        hover_cursor: Cursor | None = None,
+        disabled_cursor: Cursor | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -67,14 +75,10 @@ class Clickable(Object):
         self.__active_only_on_hover: bool = True
         self.__hover_sound: Sound | None = None
         self.__click_sound: dict[Clickable.State, Sound | None] = dict.fromkeys(Clickable.State)
-        self.__default_hover_cursor: dict[Clickable.State, AbstractCursor] = {
-            Clickable.State.NORMAL: SystemCursor.HAND,
-            Clickable.State.DISABLED: SystemCursor.NO,
-        }
-        self.__hover_cursor: dict[Clickable.State, AbstractCursor] = self.__default_hover_cursor.copy()
-        if isinstance(hover_cursor, AbstractCursor):
+        self.__hover_cursor: dict[Clickable.State, Cursor] = self.__default_hover_cursor.copy()
+        if isinstance(hover_cursor, Cursor):
             self.__hover_cursor[Clickable.State.NORMAL] = hover_cursor
-        if isinstance(disabled_cursor, AbstractCursor):
+        if isinstance(disabled_cursor, Cursor):
             self.__hover_cursor[Clickable.State.DISABLED] = disabled_cursor
 
         self.hover_sound = hover_sound
@@ -114,10 +118,10 @@ class Clickable(Object):
         if (click_sound := self.__click_sound[self.__state]) is not None:
             click_sound.play()
 
-    def get_default_cursor(self) -> AbstractCursor:
+    def get_default_cursor(self) -> Cursor:
         return self.__default_hover_cursor[Clickable.State.NORMAL]
 
-    def get_default_disabled_cursor(self) -> AbstractCursor:
+    def get_default_disabled_cursor(self) -> Cursor:
         return self.__default_hover_cursor[Clickable.State.DISABLED]
 
     def set_cursor_to_default(self) -> None:
@@ -189,7 +193,7 @@ class Clickable(Object):
             return
 
         if self.hover or (not self.__active_only_on_hover and self.active):
-            self.__hover_cursor[self.__state].set()
+            self.window.set_cursor(self.__hover_cursor[self.__state], nb_frames=1)
 
     def _should_ignore_event(self, event: Event) -> bool:
         return False
@@ -330,17 +334,17 @@ class Clickable(Object):
         self.__click_sound[Clickable.State.DISABLED] = sound
 
     @property
-    def hover_cursor(self) -> AbstractCursor:
+    def hover_cursor(self) -> Cursor:
         return self.__hover_cursor[Clickable.State.NORMAL]
 
     @hover_cursor.setter
-    def hover_cursor(self, cursor: AbstractCursor) -> None:
+    def hover_cursor(self, cursor: Cursor) -> None:
         self.__hover_cursor[Clickable.State.NORMAL] = cursor
 
     @property
-    def disabled_cursor(self) -> AbstractCursor:
+    def disabled_cursor(self) -> Cursor:
         return self.__hover_cursor[Clickable.State.DISABLED]
 
     @disabled_cursor.setter
-    def disabled_cursor(self, cursor: AbstractCursor) -> None:
+    def disabled_cursor(self, cursor: Cursor) -> None:
         self.__hover_cursor[Clickable.State.DISABLED] = cursor

@@ -56,6 +56,7 @@ from ...system.theme import ClassWithThemeNamespaceMeta, closed_namespace, no_th
 from ...system.time import Time
 from ...system.utils._mangling import getattr_pv, mangle_private_attribute, setattr_pv
 from ...system.utils.abc import concreteclassmethod, isconcreteclass
+from ...system.utils.contextlib import ExitStackView
 from ...system.utils.functools import wraps
 from ..display import Window, WindowCallback, WindowError, _WindowCallbackList
 from ..event import Event, EventManager
@@ -211,12 +212,13 @@ class ReturningSceneTransition(SceneTransition):
                 self.update()
                 self.render()
             except GeneratorExit:
+                self.destroy()
                 return
 
 
 class Scene(Object, metaclass=SceneMeta, no_slots=True):
     if TYPE_CHECKING:
-        __slots__: Final[Sequence[str]] = ("__dict__",)
+        __slots__: Final[Sequence[str]] = ("__dict__", "__weakref__")
 
         __Self = TypeVar("__Self", bound="Scene")
 
@@ -437,12 +439,12 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
         return self.__event
 
     @property
-    def on_quit_exit_stack(self) -> ExitStack:
-        return self.__stack_quit
+    def on_quit_exit_stack(self) -> ExitStackView:
+        return ExitStackView(self.__stack_quit)
 
     @property
-    def destroy_exit_stack(self) -> ExitStack:
-        return self.__stack_destroy
+    def destroy_exit_stack(self) -> ExitStackView:
+        return ExitStackView(self.__stack_destroy)
 
     @property
     def background_color(self) -> Color:
@@ -735,9 +737,11 @@ class SceneWindow(Window):
                 break
         return framerate
 
+    @final
     def get_default_fixed_framerate(self) -> int:
         return self.__default_fixed_framerate
 
+    @final
     def set_default_fixed_framerate(self, value: int) -> None:
         self.__default_fixed_framerate = max(int(value), 0)
 
@@ -845,8 +849,10 @@ class _SceneManager:
 
     def _delete_scene(self, scene: Scene) -> None:
         try:
-            scene.on_quit_exit_stack.close()
-            with scene.destroy_exit_stack.pop_all():
+            stack_quit: ExitStack = getattr_pv(scene, "stack_quit", owner=Scene)
+            stack_quit.close()
+            stack_destroy: ExitStack = getattr_pv(scene, "stack_destroy", owner=Scene)
+            with stack_destroy.pop_all():
                 scene.__del_scene__()
         finally:
             self.__awaken.discard(scene)
@@ -862,7 +868,8 @@ class _SceneManager:
             scene.on_restart(**awake_kwargs)
 
     def _exit_scene(self, scene: Scene) -> None:
-        with scene.on_quit_exit_stack.pop_all():
+        stack_quit: ExitStack = getattr_pv(scene, "stack_quit", owner=Scene)
+        with stack_quit.pop_all():
             scene.on_quit()
 
     @contextmanager

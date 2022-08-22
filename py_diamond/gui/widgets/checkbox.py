@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from ...audio.sound import Sound
     from ...graphics.renderer import AbstractRenderer
     from ...window.clickable import Clickable
-    from ...window.cursor import AbstractCursor
+    from ...window.cursor import Cursor
     from ...window.display import Window
     from ...window.scene import Scene
 
@@ -89,8 +89,8 @@ class CheckBox(Drawable, Transformable, AbstractWidget, Generic[_OnValue, _OffVa
         state: str = "normal",
         take_focus: bool = True,
         focus_on_hover: bool | None = None,
-        hover_cursor: AbstractCursor | None = None,
-        disabled_cursor: AbstractCursor | None = None,
+        hover_cursor: Cursor | None = None,
+        disabled_cursor: Cursor | None = None,
         hover_sound: Sound | None = None,
         click_sound: Sound | None = None,
         disabled_sound: Sound | None = None,
@@ -310,8 +310,8 @@ class BooleanCheckBox(CheckBox[bool, bool]):
         highlight_color: Color = BLUE,
         highlight_thickness: int = 2,
         state: str = "normal",
-        hover_cursor: AbstractCursor | None = None,
-        disabled_cursor: AbstractCursor | None = None,
+        hover_cursor: Cursor | None = None,
+        disabled_cursor: Cursor | None = None,
         hover_sound: Sound | None = None,
         click_sound: Sound | None = None,
         disabled_sound: Sound | None = None,

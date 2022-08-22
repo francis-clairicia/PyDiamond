@@ -10,22 +10,20 @@ __all__ = ["Key", "KeyModifiers", "Keyboard"]
 
 
 from enum import IntEnum, IntFlag, unique
-from typing import ClassVar, Sequence, overload
+from typing import ClassVar, Sequence, final, overload
 
 import pygame.constants as _pg_constants
 import pygame.key as _pg_key
+from typing_extensions import assert_never
 
 from ..system.namespace import ClassNamespace
 
 _KEY_REPEAT: tuple[int, int] = (0, 0)
 
 
+@final
 class Keyboard(ClassNamespace, frozen=True):
-    __KEY_STATES: Sequence[bool] = []
-
-    @staticmethod
-    def _update() -> None:
-        type.__setattr__(Keyboard, "_Keyboard__KEY_STATES", _pg_key.get_pressed())
+    _KEY_STATES: Sequence[bool] = []
 
     @overload
     @staticmethod
@@ -39,19 +37,27 @@ class Keyboard(ClassNamespace, frozen=True):
 
     @staticmethod
     def get(key: str | Key) -> str | Key:
-        if isinstance(key, str):
-            return Key(_pg_key.key_code(key))
-        if isinstance(key, int):
-            return _pg_key.name(Key(key).value)
-        raise TypeError("Bad argument type")
+        match key:
+            case str():
+                return Key(_pg_key.key_code(key))
+            case Key():
+                return _pg_key.name(key.value)
+            case _:
+                assert_never(key)
 
     @staticmethod
     def is_pressed(key: Key | str) -> bool:
-        if isinstance(key, str):
-            key = Key(_pg_key.key_code(key))
-        else:
-            key = Key(key)
-        return bool(Keyboard.__KEY_STATES[key.value])
+        match key:
+            case str():
+                key = Key(_pg_key.key_code(key))
+            case Key():
+                pass
+            case _:
+                assert_never(key)
+        try:
+            return bool(Keyboard._KEY_STATES[key.value])
+        except IndexError:
+            return False
 
     @staticmethod
     def get_repeat() -> tuple[int, int]:

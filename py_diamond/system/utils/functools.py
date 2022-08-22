@@ -39,7 +39,10 @@ if TYPE_CHECKING:
     @type_check_only
     class _lru_cache_wrapper(Generic[_P, _R]):
         __wrapped__: Callable[_P, _R]
-        __call__: Callable[_P, _R]
+
+        @staticmethod
+        def __call__(*args: _P.args, **kwds: _P.kwargs) -> _R:
+            ...
 
         def cache_info(self) -> _CacheInfo:
             ...

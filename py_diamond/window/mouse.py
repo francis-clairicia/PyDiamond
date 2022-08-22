@@ -10,6 +10,7 @@ __all__ = ["Mouse", "MouseButton"]
 
 
 from enum import IntEnum
+from typing import final
 
 import pygame.constants as _pg_constants
 import pygame.mouse as _pg_mouse
@@ -17,8 +18,9 @@ import pygame.mouse as _pg_mouse
 from ..system.namespace import ClassNamespace
 
 
+@final
 class Mouse(ClassNamespace, frozen=True):
-    __MOUSE_BUTTON_STATE: tuple[bool, bool, bool] = (False, False, False)
+    _MOUSE_BUTTON_STATE: tuple[bool, bool, bool] = (False, False, False)
 
     @staticmethod
     def get_pos() -> tuple[int, int]:
@@ -29,15 +31,9 @@ class Mouse(ClassNamespace, frozen=True):
         _pg_mouse.set_pos(x, y)
 
     @staticmethod
-    def _update() -> None:
-        button_states = _pg_mouse.get_pressed(3)
-        button_states = (bool(button_states[0]), bool(button_states[1]), bool(button_states[2]))
-        type.__setattr__(Mouse, "_Mouse__MOUSE_BUTTON_STATE", button_states)
-
-    @staticmethod
     def is_pressed(button: MouseButton) -> bool:
         button = MouseButton(button)
-        return Mouse.__MOUSE_BUTTON_STATE[button.value]
+        return Mouse._MOUSE_BUTTON_STATE[button.value]
 
     @staticmethod
     def show_cursor() -> None:

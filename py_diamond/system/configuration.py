@@ -2076,11 +2076,11 @@ class Configuration(NonCopyable, Generic[_T]):
     @classmethod
     def __lazy_lock(cls, obj: object) -> RLock:
         lock_cache = cls.__lock_cache
-        lock: RLock = lock_cache.get(obj, _MISSING)
-        if lock is _MISSING:
+        lock: RLock | None = lock_cache.get(obj)
+        if lock is None:
             with cls.__default_lock:
-                lock = lock_cache.get(obj, _MISSING)
-                if lock is _MISSING:
+                lock = lock_cache.get(obj)
+                if lock is None:
                     lock_cache[obj] = lock = RLock()
         return lock
 

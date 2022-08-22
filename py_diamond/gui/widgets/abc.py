@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from ...audio.sound import Sound
 from ...window.clickable import Clickable
-from ...window.cursor import AbstractCursor
+from ...window.cursor import Cursor
 from ...window.display import Window
 from ...window.event import Event, KeyDownEvent, KeyEvent, KeyUpEvent, MouseButtonUpEvent
 from ...window.keyboard import Key
@@ -34,8 +34,8 @@ class AbstractWidget(Clickable):
         hover_sound: Sound | None = None,
         click_sound: Sound | None = None,
         disabled_sound: Sound | None = None,
-        hover_cursor: AbstractCursor | None = None,
-        disabled_cursor: AbstractCursor | None = None,
+        hover_cursor: Cursor | None = None,
+        disabled_cursor: Cursor | None = None,
         take_focus: bool = True,
         focus_on_hover: bool | None = None,
         **kwargs: Any,

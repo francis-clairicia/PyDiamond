@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.unit
-@pytest.mark.usefixtures("mock_pygame_event_module")
+@pytest.mark.usefixtures("mock_pygame_event_module", "mock_pygame_mouse_module")
 class TestWindowUnit:
     @pytest.fixture(scope="class", autouse=True)
     @staticmethod

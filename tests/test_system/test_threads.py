@@ -6,7 +6,7 @@ import time
 from threading import current_thread
 from typing import Any
 
-from py_diamond.system.threading import Thread, thread_factory
+from py_diamond.system.threading import Thread, thread_factory, thread_factory_method
 
 from ..conftest import silently_ignore_systemexit_in_thread
 
@@ -107,3 +107,22 @@ def test_join_timeout_call_terminate() -> None:
     t = infinite_loop()
     t.join(timeout=0.5, terminate_on_timeout=True)
     assert not t.is_alive()
+
+
+def test_thread_factory_method() -> None:
+    class C:
+        def __init__(self) -> None:
+            self.list: list[int] = []
+
+        @thread_factory_method
+        def add(self, number: int) -> None:
+            self.list.append(number)
+
+    c = C()
+
+    threads = list(map(c.add, range(10)))
+
+    assert all(isinstance(t, Thread) for t in threads)
+    for t in threads:
+        t.join()
+    assert sorted(c.list) == list(range(10))

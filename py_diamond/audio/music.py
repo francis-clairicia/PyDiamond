@@ -19,7 +19,6 @@ from __future__ import annotations
 
 __all__ = ["Music", "MusicStream"]
 
-import os.path
 from collections import deque
 from dataclasses import dataclass, field
 from itertools import chain
@@ -39,6 +38,7 @@ else:
 from ..system.namespace import ClassNamespace
 from ..system.non_copyable import NonCopyable
 from ..system.object import final
+from ..system.path import set_constant_file
 
 
 @final
@@ -53,13 +53,7 @@ class Music(NonCopyable):
     __cache: Final[WeakValueDictionary[str, Music]] = WeakValueDictionary()
 
     def __new__(cls, filepath: str) -> Music:
-        filepath = os.path.abspath(os.path.realpath(filepath))  # Ensure absolute path for unique key
-        if not os.path.isfile(filepath):
-            if os.path.isdir(filepath):
-                raise IsADirectoryError(filepath)
-            if not os.path.exists(filepath):
-                raise FileNotFoundError(filepath)
-            raise PermissionError(filepath, "not a regular file")
+        filepath = set_constant_file(filepath, relative_to_cwd=True)
         try:
             self = cls.__cache[filepath]
         except KeyError:

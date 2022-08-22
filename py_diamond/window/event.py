@@ -110,6 +110,7 @@ class EventMeta(ObjectMeta):
         model: bool = False,
         **kwargs: Any,
     ) -> __Self:
+        model = bool(model)
         try:
             Event
         except NameError:
@@ -121,7 +122,7 @@ class EventMeta(ObjectMeta):
                 concrete_events_qualnames = ", ".join(b.__qualname__ for b in concrete_events)
                 raise TypeError(f"{name!r}: Events which are not model classes caught: {concrete_events_qualnames}")
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
-        setattr(cls, "_model_", bool(model))
+        setattr(cls, "_model_", model or isabstractclass(cls))
         if not cls.is_model() and not issubclass(cls, BuiltinEvent):
             cls = final(cls)
             event_type: int = int(_pg_event.custom_type())
@@ -605,7 +606,9 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
             event_cls: type[Event] = EventFactory.pygame_type[pygame_event.type]
         except KeyError as exc:
             if not handle_user_events or not (BuiltinEventType.USEREVENT < pygame_event.type < EventFactory.NUMEVENTS):
-                raise UnknownEventTypeError(f"Unknown event with type {_pg_event.event_name(pygame_event.type)!r}") from exc
+                raise UnknownEventTypeError(
+                    f"Unknown event with type {pygame_event.type} ({_pg_event.event_name(pygame_event.type)!r})"
+                ) from exc
             return UserEvent.from_dict(pygame_event.__dict__ | {"code": pygame_event.type})
         match event_cls.from_dict(pygame_event.__dict__):
             case UserEvent(code=BuiltinUserEventCode.DROPFILE, filename=filename):

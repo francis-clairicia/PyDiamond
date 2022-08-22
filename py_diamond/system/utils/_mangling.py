@@ -60,11 +60,11 @@ def getattr_pv(obj: object, name: str, default: Any = _NO_DEFAULT, *, owner: typ
             owner = obj
         else:
             owner = type(obj)
-    name = mangle_private_attribute(owner, name)
+    private_name = mangle_private_attribute(owner, name)
     if default is not _NO_DEFAULT:
-        return getattr(obj, name, default)
+        return getattr(obj, private_name, default)
     try:
-        return getattr(obj, name)
+        return getattr(obj, private_name)
     except AttributeError:
         raise AttributeError(f"Missing private attribute {name!r}") from None
 
@@ -75,9 +75,9 @@ def setattr_pv(obj: object, name: str, value: Any, *, owner: type | None = None)
             owner = obj
         else:
             owner = type(obj)
-    name = mangle_private_attribute(owner, name)
+    private_name = mangle_private_attribute(owner, name)
     try:
-        return setattr(obj, name, value)
+        return setattr(obj, private_name, value)
     except AttributeError as exc:
         raise AttributeError(f"Error when setting private attribute {name!r}: {exc}") from None
 
@@ -88,9 +88,9 @@ def delattr_pv(obj: object, name: str, *, owner: type | None = None) -> None:
             owner = obj
         else:
             owner = type(obj)
-    name = mangle_private_attribute(owner, name)
+    private_name = mangle_private_attribute(owner, name)
     try:
-        return delattr(obj, name)
+        return delattr(obj, private_name)
     except AttributeError:
         raise AttributeError(f"Missing private attribute {name!r}") from None
 
@@ -101,12 +101,12 @@ def setdefaultattr_pv(obj: object, name: str, value: _T, *, owner: type | None =
             owner = obj
         else:
             owner = type(obj)
-    name = mangle_private_attribute(owner, name)
+    private_name = mangle_private_attribute(owner, name)
     try:
-        return getattr(obj, name)
+        return getattr(obj, private_name)
     except AttributeError:
         try:
-            setattr(obj, name, value)
+            setattr(obj, private_name, value)
         except AttributeError as exc:
             raise AttributeError(f"Error when setting private attribute {name!r}: {exc}") from None
     return value
