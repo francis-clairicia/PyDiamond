@@ -53,7 +53,7 @@ from typing import (
 
 from .object import Object, ObjectMeta, mro
 from .utils._mangling import getattr_pv
-from .utils.abc import concreteclassmethod, isabstractmethod
+from .utils.abc import concreteclassmethod, isabstractclass, isabstractmethod
 from .utils.functools import cache, wraps
 
 _ClassTheme: TypeAlias = MutableMapping[str, MappingProxyType[str, Any]]
@@ -471,7 +471,7 @@ class ThemedObjectMeta(ObjectMeta):
         namespace["_no_use_of_themes_"] = bool(no_theme)
 
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
-        setattr(cls, "_is_abstract_theme_class_", False)
+        setattr(cls, "_is_abstract_theme_class_", isabstractclass(cls))
         if not use_parent_theme:
             mcs.__CLASSES_NOT_USING_PARENT_THEMES.add(cls)
             use_parent_default_theme = False
@@ -712,7 +712,7 @@ class ThemedObjectMeta(ObjectMeta):
         return tuple(default_theme)
 
     def is_abstract_theme_class(cls) -> bool:
-        return bool(vars(cls).get("_is_abstract_theme_class_", False))
+        return bool(vars(cls).get("_is_abstract_theme_class_", False) or isabstractclass(cls))
 
     def register(cls, subclass: type[_T]) -> type[_T]:
         def register_themed_subclass(subclass: ThemedObjectMeta) -> None:
