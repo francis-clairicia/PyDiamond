@@ -135,7 +135,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
         with self._lock:
             try:
                 real_index = self._map[value]
-            except (KeyError, TypeError):
+            except KeyError:
                 raise ValueError(f"{value!r} not in set") from None
 
             if start is not None or stop is not None:
@@ -206,7 +206,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
         with self._lock:
             try:
                 self.remove(value)
-            except (LookupError, TypeError):
+            except LookupError:
                 pass
 
     def remove(self, value: object) -> None:

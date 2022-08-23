@@ -93,10 +93,8 @@ class AbstractShape(Drawable, Transformable):
             point = edges[0] if edges else (0, 0)
             return point[0], point[1], 0, 0
 
-        left: float = edges[0][0]
-        top: float = edges[0][1]
-        right: float = edges[0][0]
-        bottom: float = edges[0][1]
+        left = right = edges[0][0]
+        top = bottom = edges[0][1]
 
         for point in edges:
             left = point[0] if point[0] < left else left
