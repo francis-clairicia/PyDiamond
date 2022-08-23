@@ -52,7 +52,7 @@ from ...graphics.renderer import AbstractRenderer
 from ...graphics.surface import Surface, SurfaceRenderer
 from ...system.enum import AutoLowerNameEnum
 from ...system.object import Object, final
-from ...system.theme import ClassWithThemeNamespaceMeta, closed_namespace, no_theme_decorator
+from ...system.theme import ClassWithThemeNamespaceMeta, no_theme_decorator
 from ...system.time import Time
 from ...system.utils._mangling import getattr_pv, mangle_private_attribute, setattr_pv
 from ...system.utils.abc import concreteclassmethod, isconcreteclass
@@ -270,7 +270,6 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
     def on_start_loop(self) -> None:
         pass
 
-    @no_theme_decorator
     def fixed_update(self) -> None:
         pass
 
@@ -308,9 +307,11 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
     def looping(self) -> bool:
         return self.__manager.top() is self
 
+    @no_theme_decorator
     def use_framerate(self) -> int:
         return self.__class__.get_required_framerate()
 
+    @no_theme_decorator
     def use_fixed_framerate(self) -> int:
         return self.__class__.get_required_fixed_framerate()
 
@@ -459,7 +460,7 @@ class MainScene(Scene):
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         if isconcreteclass(cls):
-            closed_namespace(cls)
+            cls.set_closed_theme_namespace()
 
 
 class AbstractLayeredScene(Scene):

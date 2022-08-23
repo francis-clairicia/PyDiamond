@@ -40,13 +40,14 @@ def concreteclass(cls: _TT) -> _TT:
 
 
 def concreteclasscheck(cls: Any) -> None:
+    if not isinstance(cls, type):
+        raise TypeError("'cls' must be a type")
     if not isconcreteclass(cls):
-        raise TypeError(f"{cls.__name__} is an abstract class (abstract methods: {', '.join(cls.__abstractmethods__)})")
+        abstractmethods: Any = getattr(cls, "__abstractmethods__")
+        raise TypeError(f"{cls.__name__} is an abstract class (abstract methods: {', '.join(abstractmethods)})")
 
 
 def isconcreteclass(cls: type) -> bool:
-    if not isinstance(cls, type):
-        raise TypeError("'cls' must be a type")
     return not isabstractclass(cls)
 
 

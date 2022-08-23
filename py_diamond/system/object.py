@@ -11,7 +11,7 @@ __all__ = ["Object", "ObjectMeta", "ProtocolObjectMeta", "final", "mro", "overri
 
 from abc import ABCMeta
 from dataclasses import is_dataclass
-from functools import cached_property
+from functools import cached_property, partialmethod
 from itertools import chain, takewhile
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, overload
 
@@ -161,6 +161,12 @@ class ObjectMeta(ABCMeta):
 
     @staticmethod
     def __is_final_override(obj: Any) -> bool:
+        if isinstance(obj, type):
+            from enum import Enum
+
+            if issubclass(obj, Enum):
+                return True
+
         return bool(ObjectMeta.__check_attr(obj, "__final__"))
 
     @staticmethod
@@ -173,7 +179,7 @@ class ObjectMeta(ABCMeta):
         match obj:
             case property(fget=fget, fset=fset, fdel=fdel):
                 return any(getattr(func, attr, False) for func in filter(callable, (fget, fset, fdel)))
-            case classmethod(__func__=func) | staticmethod(__func__=func) | cached_property(func=func):
+            case classmethod(__func__=func) | staticmethod(__func__=func) | cached_property(func=func) | partialmethod(func=func):
                 return True if getattr(func, attr, False) else False
             case _:
                 return False
