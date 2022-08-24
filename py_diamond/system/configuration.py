@@ -46,6 +46,7 @@ from typing import (
     Protocol,
     Sequence,
     TypeAlias,
+    TypeGuard,
     TypeVar,
     cast,
     overload,
@@ -118,7 +119,6 @@ def initializer(func: _FuncVar) -> _FuncVar:
 
 
 _ALLOWED_OPTIONS_PATTERN = re.compile(r"(?!__)(?:[a-zA-Z]\w*|_\w+)(?<!__)")
-_MISSING: Any = object()
 _NO_DEFAULT: Any = object()
 
 
@@ -462,7 +462,7 @@ class ConfigurationTemplate(Object):
         except KeyError:
             if not ignore_key_error:
                 raise
-            use_key = option
+            use_key = _NO_DEFAULT
         return self.getter_with_key(option, func, use_key=use_key, use_override=use_override, readonly=readonly)
 
     @overload
@@ -586,7 +586,7 @@ class ConfigurationTemplate(Object):
         except KeyError:
             if not ignore_key_error:
                 raise
-            use_key = option
+            use_key = _NO_DEFAULT
         return self.setter_with_key(option, func, use_key=use_key, use_override=use_override)
 
     @overload
@@ -710,7 +710,7 @@ class ConfigurationTemplate(Object):
         except KeyError:
             if not ignore_key_error:
                 raise
-            use_key = option
+            use_key = _NO_DEFAULT
         return self.deleter_with_key(option, func, use_key=use_key, use_override=use_override)
 
     def use_descriptor(self, option: str, descriptor: _Descriptor) -> None:
@@ -751,11 +751,11 @@ class ConfigurationTemplate(Object):
         del template.value_descriptor[option]
 
     @overload
-    def add_main_update(self, func: _UpdaterVar, /, *, use_override: bool = True) -> _UpdaterVar:
+    def add_main_update(self, /, *, use_override: bool = True) -> Callable[[_UpdaterVar], _UpdaterVar]:
         ...
 
     @overload
-    def add_main_update(self, /, *, use_override: bool = True) -> Callable[[_UpdaterVar], _UpdaterVar]:
+    def add_main_update(self, func: _UpdaterVar, /, *, use_override: bool = True) -> _UpdaterVar:
         ...
 
     def add_main_update(
@@ -1196,6 +1196,18 @@ class ConfigurationTemplate(Object):
     def add_value_validator_static(self, option: str, func: _StaticValueValidatorVar, /) -> None:
         ...
 
+    @overload
+    def add_value_validator_static(
+        self,
+        option: str,
+        /,
+        *,
+        predicate: Callable[[Any], bool | TypeGuard[Any]],
+        exception: type[BaseException] = ValueError,
+        message: str | None = None,
+    ) -> None:
+        ...
+
     def add_value_validator_static(
         self,
         option: str,
@@ -1203,10 +1215,16 @@ class ConfigurationTemplate(Object):
         /,
         *,
         accept_none: bool = False,
+        predicate: Callable[[Any], bool | TypeGuard[Any]] | None = None,
+        exception: type[BaseException] = ValueError,
+        message: str | None = None,
     ) -> Callable[[_StaticValueValidatorVar], _StaticValueValidatorVar] | None:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
         self.check_option_validity(option)
+
+        if func is not None and predicate is not None:
+            raise TypeError("Bad parameters")
 
         def decorator(func: _StaticValueValidatorVar, /) -> _StaticValueValidatorVar:
             value_validator_list = template.value_validator.setdefault(option, [])
@@ -1215,6 +1233,12 @@ class ConfigurationTemplate(Object):
                 raise OptionError(option, "Function already registered")
             value_validator_list.append(wrapper)
             return func
+
+        if predicate is not None:
+            predicate_validator: Any = _make_predicate_validator(predicate, exception, message)
+
+            decorator(predicate_validator)
+            return None
 
         if isinstance(func, (type, Sequence)):
             _type: type | tuple[type, ...] = func if isinstance(func, type) else tuple(func)
@@ -2369,6 +2393,23 @@ def _make_enum_converter(enum: type[Enum], return_value: bool, accept_none: bool
             return enum(val).value
 
     return value_converter
+
+
+@_no_type_check_cache
+def _make_predicate_validator(
+    predicate: Callable[[Any], bool | TypeGuard[Any]],
+    exception: type[BaseException],
+    message: str | None,
+    /,
+) -> Callable[[Any], None]:
+    if not message:
+        message = "Invalid value"
+
+    def predicate_validator(val: Any) -> None:
+        if not predicate(val):
+            raise exception(message)
+
+    return predicate_validator
 
 
 def _all_members(cls: type) -> MutableMapping[str, Any]:

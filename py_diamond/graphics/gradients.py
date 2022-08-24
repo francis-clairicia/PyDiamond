@@ -110,10 +110,10 @@ class HorizontalGradientShape(AbstractRectangleShape, GradientShape):
             surface = _surface_rotate(surface, self.angle)
         return surface
 
-    config.add_value_validator_static("rfunc", callable)
-    config.add_value_validator_static("gfunc", callable)
-    config.add_value_validator_static("bfunc", callable)
-    config.add_value_validator_static("afunc", callable)
+    config.add_value_validator_static("rfunc", predicate=callable, exception=TypeError, message="Must be a callable")
+    config.add_value_validator_static("gfunc", predicate=callable, exception=TypeError, message="Must be a callable")
+    config.add_value_validator_static("bfunc", predicate=callable, exception=TypeError, message="Must be a callable")
+    config.add_value_validator_static("afunc", predicate=callable, exception=TypeError, message="Must be a callable")
 
 
 class VerticalGradientShape(AbstractRectangleShape, GradientShape):
@@ -172,10 +172,10 @@ class VerticalGradientShape(AbstractRectangleShape, GradientShape):
             surface = _surface_rotate(surface, self.angle)
         return surface
 
-    config.add_value_validator_static("rfunc", callable)
-    config.add_value_validator_static("gfunc", callable)
-    config.add_value_validator_static("bfunc", callable)
-    config.add_value_validator_static("afunc", callable)
+    config.add_value_validator_static("rfunc", predicate=callable, exception=TypeError, message="Must be a callable")
+    config.add_value_validator_static("gfunc", predicate=callable, exception=TypeError, message="Must be a callable")
+    config.add_value_validator_static("bfunc", predicate=callable, exception=TypeError, message="Must be a callable")
+    config.add_value_validator_static("afunc", predicate=callable, exception=TypeError, message="Must be a callable")
 
 
 class SquaredGradientShape(AbstractSquareShape, GradientShape):
@@ -233,10 +233,10 @@ class SquaredGradientShape(AbstractSquareShape, GradientShape):
             surface = _surface_rotate(surface, self.angle)
         return surface
 
-    config.add_value_validator_static("rfunc", callable)
-    config.add_value_validator_static("gfunc", callable)
-    config.add_value_validator_static("bfunc", callable)
-    config.add_value_validator_static("afunc", callable)
+    config.add_value_validator_static("rfunc", predicate=callable, exception=TypeError, message="Must be a callable")
+    config.add_value_validator_static("gfunc", predicate=callable, exception=TypeError, message="Must be a callable")
+    config.add_value_validator_static("bfunc", predicate=callable, exception=TypeError, message="Must be a callable")
+    config.add_value_validator_static("afunc", predicate=callable, exception=TypeError, message="Must be a callable")
     config.add_value_converter_on_set_static("center_offset", tuple)
 
 
@@ -290,10 +290,10 @@ class RadialGradientShape(AbstractCircleShape, GradientShape):
             surface = _surface_rotate(surface, self.angle)
         return surface
 
-    config.add_value_validator_static("rfunc", callable)
-    config.add_value_validator_static("gfunc", callable)
-    config.add_value_validator_static("bfunc", callable)
-    config.add_value_validator_static("afunc", callable)
+    config.add_value_validator_static("rfunc", predicate=callable, exception=TypeError, message="Must be a callable")
+    config.add_value_validator_static("gfunc", predicate=callable, exception=TypeError, message="Must be a callable")
+    config.add_value_validator_static("bfunc", predicate=callable, exception=TypeError, message="Must be a callable")
+    config.add_value_validator_static("afunc", predicate=callable, exception=TypeError, message="Must be a callable")
 
 
 class MultiColorShape(AbstractShape):
