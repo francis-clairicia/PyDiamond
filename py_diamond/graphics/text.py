@@ -330,7 +330,7 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
             self.center = center
 
     config.getter("shadow", lambda self: (self.shadow_x, self.shadow_y), use_override=False)
-    config.setter("shadow", lambda self, pos: self.config(shadow_x=pos[0], shadow_y=pos[1]), use_override=False)
+    config.setter("shadow", lambda self, pos: self.config(shadow_x=pos[0], shadow_y=pos[1]), use_override=False)  # type: ignore[no-any-return]
 
 
 class TextImage(Text):

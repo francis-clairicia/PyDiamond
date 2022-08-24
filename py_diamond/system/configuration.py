@@ -58,21 +58,38 @@ from .non_copyable import NonCopyable
 from .object import Object, final
 from .utils._mangling import mangle_private_attribute as _private_attribute
 
-_FuncVar = TypeVar("_FuncVar", bound=Callable[..., Any])
-_UpdaterVar = TypeVar("_UpdaterVar", bound=Callable[[Any], None])
-_KeyUpdaterVar = TypeVar("_KeyUpdaterVar", bound=Callable[[Any, Any], None])
-_ValueUpdaterVar = TypeVar("_ValueUpdaterVar", bound=Callable[[Any, Any], None])
-_KeyValueUpdaterVar = TypeVar("_KeyValueUpdaterVar", bound=Callable[[Any, Any, Any], None])
-_GetterVar = TypeVar("_GetterVar", bound=Callable[[Any], Any])
-_SetterVar = TypeVar("_SetterVar", bound=Callable[[Any, Any], None])
-_DeleterVar = TypeVar("_DeleterVar", bound=Callable[[Any], None])
-_KeyGetterVar = TypeVar("_KeyGetterVar", bound=Callable[[Any, Any], Any])
-_KeySetterVar = TypeVar("_KeySetterVar", bound=Callable[[Any, Any, Any], None])
-_KeyDeleterVar = TypeVar("_KeyDeleterVar", bound=Callable[[Any, Any], None])
-_ValueValidatorVar = TypeVar("_ValueValidatorVar", bound=Callable[[Any, Any], Any])
-_StaticValueValidatorVar = TypeVar("_StaticValueValidatorVar", bound=Callable[[Any], Any])
-_ValueConverterVar = TypeVar("_ValueConverterVar", bound=Callable[[Any, Any], Any])
-_StaticValueConverterVar = TypeVar("_StaticValueConverterVar", bound=Callable[[Any], Any])
+_Func: TypeAlias = Callable[..., Any]
+_Updater: TypeAlias = Callable[[Any], None]
+_KeyUpdater: TypeAlias = Callable[[Any, Any], None]
+_ValueUpdater: TypeAlias = Callable[[Any, Any], None]
+_KeyValueUpdater: TypeAlias = Callable[[Any, Any, Any], None]
+_Getter: TypeAlias = Callable[[Any], Any]
+_Setter: TypeAlias = Callable[[Any, Any], None]
+_Deleter: TypeAlias = Callable[[Any], None]
+_KeyGetter: TypeAlias = Callable[[Any, Any], Any]
+_KeySetter: TypeAlias = Callable[[Any, Any, Any], None]
+_KeyDeleter: TypeAlias = Callable[[Any, Any], None]
+_ValueValidator: TypeAlias = Callable[[Any, Any], None]
+_StaticValueValidator: TypeAlias = Callable[[Any], None]
+_ValueConverter: TypeAlias = Callable[[Any, Any], Any]
+_StaticValueConverter: TypeAlias = Callable[[Any], Any]
+
+_FuncVar = TypeVar("_FuncVar", bound=_Func)
+_UpdaterVar = TypeVar("_UpdaterVar", bound=_Updater)
+_KeyUpdaterVar = TypeVar("_KeyUpdaterVar", bound=_KeyUpdater)
+_ValueUpdaterVar = TypeVar("_ValueUpdaterVar", bound=_ValueUpdater)
+_KeyValueUpdaterVar = TypeVar("_KeyValueUpdaterVar", bound=_KeyValueUpdater)
+_GetterVar = TypeVar("_GetterVar", bound=_Getter)
+_SetterVar = TypeVar("_SetterVar", bound=_Setter)
+_DeleterVar = TypeVar("_DeleterVar", bound=_Deleter)
+_KeyGetterVar = TypeVar("_KeyGetterVar", bound=_KeyGetter)
+_KeySetterVar = TypeVar("_KeySetterVar", bound=_KeySetter)
+_KeyDeleterVar = TypeVar("_KeyDeleterVar", bound=_KeyDeleter)
+_ValueValidatorVar = TypeVar("_ValueValidatorVar", bound=_ValueValidator)
+_StaticValueValidatorVar = TypeVar("_StaticValueValidatorVar", bound=_StaticValueValidator)
+_ValueConverterVar = TypeVar("_ValueConverterVar", bound=_ValueConverter)
+_StaticValueConverterVar = TypeVar("_StaticValueConverterVar", bound=_StaticValueConverter)
+
 _T = TypeVar("_T")
 _DT = TypeVar("_DT")
 
@@ -118,7 +135,7 @@ def initializer(func: _FuncVar) -> _FuncVar:
     return _ConfigInitializer(func)  # type: ignore[return-value]
 
 
-_ALLOWED_OPTIONS_PATTERN = re.compile(r"(?!__)(?:[a-zA-Z]\w*|_\w+)(?<!__)")
+_ALLOWED_OPTIONS_PATTERN = re.compile(r"^(?!__)(?:[a-zA-Z]\w*|_\w+)(?<!__)$")
 _NO_DEFAULT: Any = object()
 
 
@@ -309,11 +326,11 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def getter(self, option: str, func: _GetterVar, /, *, use_override: bool = True, readonly: bool = False) -> None:
+    def getter(self, option: str, func: _Getter, /, *, use_override: bool = True, readonly: bool = False) -> None:
         ...
 
     def getter(
-        self, option: str, func: _GetterVar | None = None, /, *, use_override: bool = True, readonly: bool = False
+        self, option: str, func: _Getter | None = None, /, *, use_override: bool = True, readonly: bool = False
     ) -> Callable[[_GetterVar], _GetterVar] | None:
         self.__check_locked()
         self.check_option_validity(option)
@@ -379,19 +396,19 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def getter_with_key(self, option: str, func: _KeyGetterVar, /, *, use_override: bool = True, readonly: bool = False) -> None:
+    def getter_with_key(self, option: str, func: _KeyGetter, /, *, use_override: bool = True, readonly: bool = False) -> None:
         ...
 
     @overload
     def getter_with_key(
-        self, option: str, func: _KeyGetterVar, /, *, use_key: Hashable, use_override: bool = True, readonly: bool = False
+        self, option: str, func: _KeyGetter, /, *, use_key: Hashable, use_override: bool = True, readonly: bool = False
     ) -> None:
         ...
 
     def getter_with_key(
         self,
         option: str,
-        func: _KeyGetterVar | None = None,
+        func: _KeyGetter | None = None,
         /,
         *,
         use_key: Any = _NO_DEFAULT,
@@ -437,7 +454,7 @@ class ConfigurationTemplate(Object):
         self,
         option: str,
         key_map: Mapping[str, Hashable],
-        func: _KeyGetterVar,
+        func: _KeyGetter,
         /,
         *,
         use_override: bool = True,
@@ -470,11 +487,11 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def setter(self, option: str, func: _SetterVar, /, *, use_override: bool = True) -> None:
+    def setter(self, option: str, func: _Setter, /, *, use_override: bool = True) -> None:
         ...
 
     def setter(
-        self, option: str, func: _SetterVar | None = None, /, *, use_override: bool = True
+        self, option: str, func: _Setter | None = None, /, *, use_override: bool = True
     ) -> Callable[[_SetterVar], _SetterVar] | None:
         self.__check_locked()
         self.check_option_validity(option)
@@ -509,17 +526,17 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def setter_with_key(self, option: str, func: _KeySetterVar, /, *, use_override: bool = True) -> None:
+    def setter_with_key(self, option: str, func: _KeySetter, /, *, use_override: bool = True) -> None:
         ...
 
     @overload
-    def setter_with_key(self, option: str, func: _KeySetterVar, /, *, use_key: Hashable, use_override: bool = True) -> None:
+    def setter_with_key(self, option: str, func: _KeySetter, /, *, use_key: Hashable, use_override: bool = True) -> None:
         ...
 
     def setter_with_key(
         self,
         option: str,
-        func: _KeySetterVar | None = None,
+        func: _KeySetter | None = None,
         /,
         *,
         use_key: Any = _NO_DEFAULT,
@@ -563,7 +580,7 @@ class ConfigurationTemplate(Object):
         self,
         option: str,
         key_map: Mapping[str, Hashable],
-        func: _KeySetterVar,
+        func: _KeySetter,
         /,
         *,
         use_override: bool = True,
@@ -594,11 +611,11 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def deleter(self, option: str, func: _DeleterVar, /, *, use_override: bool = True) -> None:
+    def deleter(self, option: str, func: _Deleter, /, *, use_override: bool = True) -> None:
         ...
 
     def deleter(
-        self, option: str, func: _DeleterVar | None = None, /, *, use_override: bool = True
+        self, option: str, func: _Deleter | None = None, /, *, use_override: bool = True
     ) -> Callable[[_DeleterVar], _DeleterVar] | None:
         self.__check_locked()
         self.check_option_validity(option)
@@ -633,17 +650,17 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def deleter_with_key(self, option: str, func: _KeyDeleterVar, /, *, use_override: bool = True) -> None:
+    def deleter_with_key(self, option: str, func: _KeyDeleter, /, *, use_override: bool = True) -> None:
         ...
 
     @overload
-    def deleter_with_key(self, option: str, func: _KeyDeleterVar, /, *, use_key: Hashable, use_override: bool = True) -> None:
+    def deleter_with_key(self, option: str, func: _KeyDeleter, /, *, use_key: Hashable, use_override: bool = True) -> None:
         ...
 
     def deleter_with_key(
         self,
         option: str,
-        func: _KeyDeleterVar | None = None,
+        func: _KeyDeleter | None = None,
         /,
         *,
         use_key: Any = _NO_DEFAULT,
@@ -687,7 +704,7 @@ class ConfigurationTemplate(Object):
         self,
         option: str,
         key_map: Mapping[str, Hashable],
-        func: _KeyDeleterVar,
+        func: _KeyDeleter,
         /,
         *,
         use_override: bool = True,
@@ -780,11 +797,11 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def on_update(self, option: str, func: _UpdaterVar, /, *, use_override: bool = True) -> None:
+    def on_update(self, option: str, func: _Updater, /, *, use_override: bool = True) -> None:
         ...
 
     def on_update(
-        self, option: str, func: _UpdaterVar | None = None, /, *, use_override: bool = True
+        self, option: str, func: _Updater | None = None, /, *, use_override: bool = True
     ) -> Callable[[_UpdaterVar], _UpdaterVar] | None:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
@@ -816,17 +833,17 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def on_update_with_key(self, option: str, func: _KeyUpdaterVar, /, *, use_override: bool = True) -> None:
+    def on_update_with_key(self, option: str, func: _KeyUpdater, /, *, use_override: bool = True) -> None:
         ...
 
     @overload
-    def on_update_with_key(self, option: str, func: _KeyUpdaterVar, /, *, use_key: Hashable, use_override: bool = True) -> None:
+    def on_update_with_key(self, option: str, func: _KeyUpdater, /, *, use_key: Hashable, use_override: bool = True) -> None:
         ...
 
     def on_update_with_key(
         self,
         option: str,
-        func: _KeyUpdaterVar | None = None,
+        func: _KeyUpdater | None = None,
         /,
         *,
         use_key: Any = _NO_DEFAULT,
@@ -870,7 +887,7 @@ class ConfigurationTemplate(Object):
         self,
         option: str,
         key_map: Mapping[str, Hashable],
-        func: _KeyUpdaterVar,
+        func: _KeyUpdater,
         /,
         *,
         use_override: bool = True,
@@ -901,11 +918,11 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def on_update_value(self, option: str, func: _ValueUpdaterVar, /, *, use_override: bool = True) -> None:
+    def on_update_value(self, option: str, func: _ValueUpdater, /, *, use_override: bool = True) -> None:
         ...
 
     def on_update_value(
-        self, option: str, func: _ValueUpdaterVar | None = None, /, *, use_override: bool = True
+        self, option: str, func: _ValueUpdater | None = None, /, *, use_override: bool = True
     ) -> Callable[[_ValueUpdaterVar], _ValueUpdaterVar] | None:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
@@ -939,19 +956,19 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def on_update_value_with_key(self, option: str, func: _KeyValueUpdaterVar, /, *, use_override: bool = True) -> None:
+    def on_update_value_with_key(self, option: str, func: _KeyValueUpdater, /, *, use_override: bool = True) -> None:
         ...
 
     @overload
     def on_update_value_with_key(
-        self, option: str, func: _KeyValueUpdaterVar, /, *, use_key: Hashable, use_override: bool = True
+        self, option: str, func: _KeyValueUpdater, /, *, use_key: Hashable, use_override: bool = True
     ) -> None:
         ...
 
     def on_update_value_with_key(
         self,
         option: str,
-        func: _KeyValueUpdaterVar | None = None,
+        func: _KeyValueUpdater | None = None,
         /,
         *,
         use_key: Any = _NO_DEFAULT,
@@ -995,7 +1012,7 @@ class ConfigurationTemplate(Object):
         self,
         option: str,
         key_map: Mapping[str, Hashable],
-        func: _KeyValueUpdaterVar,
+        func: _KeyValueUpdater,
         /,
         *,
         use_override: bool = True,
@@ -1026,11 +1043,11 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def on_delete(self, option: str, func: _UpdaterVar, /, *, use_override: bool = True) -> None:
+    def on_delete(self, option: str, func: _Updater, /, *, use_override: bool = True) -> None:
         ...
 
     def on_delete(
-        self, option: str, func: _UpdaterVar | None = None, /, *, use_override: bool = True
+        self, option: str, func: _Updater | None = None, /, *, use_override: bool = True
     ) -> Callable[[_UpdaterVar], _UpdaterVar] | None:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
@@ -1062,17 +1079,17 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def on_delete_with_key(self, option: str, func: _KeyUpdaterVar, /, *, use_override: bool = True) -> None:
+    def on_delete_with_key(self, option: str, func: _KeyUpdater, /, *, use_override: bool = True) -> None:
         ...
 
     @overload
-    def on_delete_with_key(self, option: str, func: _KeyUpdaterVar, /, *, use_key: Hashable, use_override: bool = True) -> None:
+    def on_delete_with_key(self, option: str, func: _KeyUpdater, /, *, use_key: Hashable, use_override: bool = True) -> None:
         ...
 
     def on_delete_with_key(
         self,
         option: str,
-        func: _KeyUpdaterVar | None = None,
+        func: _KeyUpdater | None = None,
         /,
         *,
         use_key: Any = _NO_DEFAULT,
@@ -1116,7 +1133,7 @@ class ConfigurationTemplate(Object):
         self,
         option: str,
         key_map: Mapping[str, Hashable],
-        func: _KeyUpdaterVar,
+        func: _KeyUpdater,
         /,
         *,
         use_override: bool = True,
@@ -1149,13 +1166,13 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def add_value_validator(self, option: str, func: _ValueValidatorVar, /, *, use_override: bool = True) -> None:
+    def add_value_validator(self, option: str, func: _ValueValidator, /, *, use_override: bool = True) -> None:
         ...
 
     def add_value_validator(
         self,
         option: str,
-        func: _ValueValidatorVar | None = None,
+        func: _ValueValidator | None = None,
         /,
         *,
         use_override: bool = True,
@@ -1193,7 +1210,7 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def add_value_validator_static(self, option: str, func: _StaticValueValidatorVar, /) -> None:
+    def add_value_validator_static(self, option: str, func: _StaticValueValidator, /) -> None:
         ...
 
     @overload
@@ -1211,7 +1228,7 @@ class ConfigurationTemplate(Object):
     def add_value_validator_static(
         self,
         option: str,
-        func: _StaticValueValidatorVar | type | Sequence[type] | None = None,
+        func: _StaticValueValidator | type | Sequence[type] | None = None,
         /,
         *,
         accept_none: bool = False,
@@ -1235,9 +1252,7 @@ class ConfigurationTemplate(Object):
             return func
 
         if predicate is not None:
-            predicate_validator: Any = _make_predicate_validator(predicate, exception, message)
-
-            decorator(predicate_validator)
+            decorator(_make_predicate_validator(predicate, exception, message))
             return None
 
         if isinstance(func, (type, Sequence)):
@@ -1249,9 +1264,7 @@ class ConfigurationTemplate(Object):
                 if len(_type) == 1:
                     _type = _type[0]
 
-            type_checker: Any = _make_type_checker(_type, accept_none)
-
-            decorator(type_checker)
+            decorator(_make_type_checker(_type, accept_none))
             return None
 
         if func is None:
@@ -1266,13 +1279,13 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def add_value_converter_on_get(self, option: str, func: _ValueConverterVar, /, *, use_override: bool = True) -> None:
+    def add_value_converter_on_get(self, option: str, func: _ValueConverter, /, *, use_override: bool = True) -> None:
         ...
 
     def add_value_converter_on_get(
         self,
         option: str,
-        func: _ValueConverterVar | None = None,
+        func: _ValueConverter | None = None,
         /,
         *,
         use_override: bool = True,
@@ -1304,13 +1317,13 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def add_value_converter_on_get_static(self, option: str, func: _StaticValueConverterVar, /) -> None:
+    def add_value_converter_on_get_static(self, option: str, func: _StaticValueConverter, /) -> None:
         ...
 
     def add_value_converter_on_get_static(
         self,
         option: str,
-        func: _StaticValueConverterVar | type | None = None,
+        func: _StaticValueConverter | type | None = None,
         /,
         *,
         accept_none: bool = False,
@@ -1330,9 +1343,7 @@ class ConfigurationTemplate(Object):
             if issubclass(func, Enum):
                 raise TypeError("Use add_enum_converter() instead for enum conversions")
 
-            value_converter: Any = _make_value_converter(func, accept_none)
-
-            decorator(value_converter)
+            decorator(_make_value_converter(func, accept_none))
             return None
 
         if func is None:
@@ -1347,13 +1358,13 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def add_value_converter_on_set(self, option: str, func: _ValueConverterVar, /, *, use_override: bool = True) -> None:
+    def add_value_converter_on_set(self, option: str, func: _ValueConverter, /, *, use_override: bool = True) -> None:
         ...
 
     def add_value_converter_on_set(
         self,
         option: str,
-        func: _ValueConverterVar | None = None,
+        func: _ValueConverter | None = None,
         /,
         *,
         use_override: bool = True,
@@ -1385,13 +1396,13 @@ class ConfigurationTemplate(Object):
         ...
 
     @overload
-    def add_value_converter_on_set_static(self, option: str, func: _StaticValueConverterVar, /) -> None:
+    def add_value_converter_on_set_static(self, option: str, func: _StaticValueConverter, /) -> None:
         ...
 
     def add_value_converter_on_set_static(
         self,
         option: str,
-        func: _StaticValueConverterVar | type | None = None,
+        func: _StaticValueConverter | type | None = None,
         /,
         *,
         accept_none: bool = False,
@@ -1411,9 +1422,7 @@ class ConfigurationTemplate(Object):
             if issubclass(func, Enum):
                 raise TypeError("Use add_enum_converter() instead for enum conversions")
 
-            value_converter: Any = _make_value_converter(func, accept_none)
-
-            decorator(value_converter)
+            decorator(_make_value_converter(func, accept_none))
             return None
 
         if func is None:
