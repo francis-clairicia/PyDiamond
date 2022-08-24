@@ -6,14 +6,14 @@
 
 from __future__ import annotations
 
-__all__ = ["Movable", "MovableProxy", "MovableProxyMeta"]
+__all__ = ["Movable", "MovableProxy"]
 
 
 from abc import abstractmethod
 from typing import Any, Callable, overload
 
 from ..math import Vector2
-from ..system.object import Object, ObjectMeta, final
+from ..system.object import Object, final
 from ..system.utils.abc import concreteclass
 from ..system.utils.functools import wraps
 from .rect import Rect
@@ -49,7 +49,7 @@ def _position_decorator(fset: Callable[[Movable, Any], None], fget: Callable[[Mo
     return wrapper
 
 
-def __prepare_namespace(mcs: Any, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> None:
+def __prepare_movable_namespace(mcs: Any, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> None:
     for position in _ALL_VALID_POSITIONS:
         if position not in namespace:
             continue
@@ -62,7 +62,7 @@ def __prepare_namespace(mcs: Any, name: str, bases: tuple[type, ...], namespace:
         namespace[position] = prop
 
 
-class Movable(Object, prepare_namespace=__prepare_namespace):
+class Movable(Object, prepare_namespace=__prepare_movable_namespace):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.__x: float = 0
@@ -293,47 +293,43 @@ class Movable(Object, prepare_namespace=__prepare_namespace):
         self.__y = midright[1] - (h / 2)
 
 
-class MovableProxyMeta(ObjectMeta):
-    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> MovableProxyMeta:
-        if "MovableProxy" not in globals() and name == "MovableProxy":
-            from ..system.utils._mangling import mangle_private_attribute
+def __prepare_proxy_namespace(mcs: Any, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> None:
+    from ..system.utils._mangling import mangle_private_attribute
 
-            for attr in ("x", "y"):
-                attr = mangle_private_attribute(Movable, attr)
+    for attr in ("x", "y"):
+        attr = mangle_private_attribute(Movable, attr)
 
-                def getter(self: MovableProxy, /, *, attr: str = str(attr)) -> Any:
-                    movable: Movable = object.__getattribute__(self, "_object")
-                    return getattr(movable, attr)
+        def getter(self: MovableProxy, /, *, attr: str = str(attr)) -> Any:
+            movable: Movable = object.__getattribute__(self, "_object")
+            return getattr(movable, attr)
 
-                def setter(self: MovableProxy, value: Any, /, *, attr: str = str(attr)) -> Any:
-                    movable: Movable = object.__getattribute__(self, "_object")
-                    return setattr(movable, attr, value)
+        def setter(self: MovableProxy, value: Any, /, *, attr: str = str(attr)) -> Any:
+            movable: Movable = object.__getattribute__(self, "_object")
+            return setattr(movable, attr, value)
 
-                namespace[attr] = property(fget=getter, fset=setter)
+        namespace[attr] = property(fget=getter, fset=setter)
 
-            for method_name in (
-                "set_position",
-                "move",
-                "translate",
-                "get_rect",
-            ):
+    for method_name in (
+        "set_position",
+        "move",
+        "translate",
+        "get_rect",
+    ):
 
-                @wraps(getattr(Movable, method_name))  # type: ignore[arg-type]
-                def wrapper(self: MovableProxy, *args: Any, __method_name: str = str(method_name), **kwargs: Any) -> Any:
-                    method_name = __method_name
-                    movable: Movable = object.__getattribute__(self, "_object")
-                    method: Callable[..., Any] = getattr(movable, method_name)
-                    return method(*args, **kwargs)
+        @wraps(getattr(Movable, method_name))  # type: ignore[arg-type]
+        def wrapper(self: MovableProxy, *args: Any, __method_name: str = str(method_name), **kwargs: Any) -> Any:
+            method_name = __method_name
+            movable: Movable = object.__getattribute__(self, "_object")
+            method: Callable[..., Any] = getattr(movable, method_name)
+            return method(*args, **kwargs)
 
-                wrapper.__qualname__ = f"{name}.{wrapper.__name__}"
+        wrapper.__qualname__ = f"{name}.{wrapper.__name__}"
 
-                namespace[method_name] = wrapper
-
-        return super().__new__(mcs, name, bases, namespace, **kwargs)
+        namespace[method_name] = wrapper
 
 
 @concreteclass
-class MovableProxy(Movable, metaclass=MovableProxyMeta):
+class MovableProxy(Movable, prepare_namespace=__prepare_proxy_namespace):
     def __init__(self, movable: Movable) -> None:
         object.__setattr__(self, "_object", movable)
 

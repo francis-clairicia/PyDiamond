@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Transformable", "TransformableProxy", "TransformableProxyMeta"]
+__all__ = ["Transformable", "TransformableProxy"]
 
 
 from abc import abstractmethod
@@ -16,7 +16,7 @@ from ..math import Vector2
 from ..system.object import final
 from ..system.utils.abc import concreteclass
 from ..system.utils.functools import wraps
-from .movable import Movable, MovableProxy, MovableProxyMeta
+from .movable import Movable, MovableProxy
 from .rect import Rect
 
 _ALL_VALID_ROTATION_PIVOTS: tuple[str, ...] = (
@@ -285,16 +285,16 @@ class Transformable(Movable):
 
         center: Vector2 = Vector2(w / 2, h / 2)
         all_points: list[Vector2] = [
-            Vector2(0, 0),
-            Vector2(w, 0),
-            Vector2(w, h),
-            Vector2(0, h),
+            center + (Vector2(point) - center).rotate(-angle) for point in ((0, 0), (w, 0), (w, h), (0, h))
         ]
-        all_points = [center + (point - center).rotate(-angle) for point in all_points]
-        left: float = min((point.x for point in all_points), default=0)
-        right: float = max((point.x for point in all_points), default=0)
-        top: float = min((point.y for point in all_points), default=0)
-        bottom: float = max((point.y for point in all_points), default=0)
+        left = right = all_points[0].x
+        top = bottom = all_points[0].y
+
+        for point in all_points:
+            left = point.x if point.x < left else left
+            right = point.x if point.x > right else right
+            top = point.y if point.y < top else top
+            bottom = point.y if point.y > bottom else bottom
         return (right - left + 1, bottom - top + 2)
 
     @final
@@ -364,60 +364,56 @@ class Transformable(Movable):
         self.scale_to_height(height)
 
 
-class TransformableProxyMeta(MovableProxyMeta):
-    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> Any:
-        if "TransformableProxy" not in globals() and name == "TransformableProxy":
-            from ..system.utils._mangling import mangle_private_attribute
+def __prepare_proxy_namespace(mcs: Any, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> None:
+    from ..system.utils._mangling import mangle_private_attribute
 
-            for attr in ("angle", "scale", "scale_x", "scale_y"):
-                attr = mangle_private_attribute(Transformable, attr)
+    for attr in ("angle", "scale", "scale_x", "scale_y"):
+        attr = mangle_private_attribute(Transformable, attr)
 
-                def getter(self: TransformableProxy, /, *, attr: str = str(attr)) -> Any:
-                    transformable: Transformable = object.__getattribute__(self, "_object")
-                    return getattr(transformable, attr)
+        def getter(self: TransformableProxy, /, *, attr: str = str(attr)) -> Any:
+            transformable: Transformable = object.__getattribute__(self, "_object")
+            return getattr(transformable, attr)
 
-                def setter(self: TransformableProxy, value: Any, /, *, attr: str = str(attr)) -> Any:
-                    transformable: Transformable = object.__getattribute__(self, "_object")
-                    return setattr(transformable, attr, value)
+        def setter(self: TransformableProxy, value: Any, /, *, attr: str = str(attr)) -> Any:
+            transformable: Transformable = object.__getattribute__(self, "_object")
+            return setattr(transformable, attr, value)
 
-                namespace[attr] = property(fget=getter, fset=setter)
+        namespace[attr] = property(fget=getter, fset=setter)
 
-            for method_name in (
-                "rotate",
-                "set_rotation",
-                "rotate_around_point",
-                "get_pivot_from_attribute",
-                "set_scale",
-                "scale_to_width",
-                "scale_to_height",
-                "scale_to_size",
-                "set_min_width",
-                "set_max_width",
-                "set_min_height",
-                "set_max_height",
-                "set_min_size",
-                "set_max_size",
-                "_freeze_state",
-                "_set_frozen_state",
-                "get_local_rect",
-            ):
+    for method_name in (
+        "rotate",
+        "set_rotation",
+        "rotate_around_point",
+        "get_pivot_from_attribute",
+        "set_scale",
+        "scale_to_width",
+        "scale_to_height",
+        "scale_to_size",
+        "set_min_width",
+        "set_max_width",
+        "set_min_height",
+        "set_max_height",
+        "set_min_size",
+        "set_max_size",
+        "_freeze_state",
+        "_set_frozen_state",
+        "get_local_rect",
+    ):
 
-                @wraps(getattr(Transformable, method_name))  # type: ignore[arg-type]
-                def wrapper(self: TransformableProxy, *args: Any, __method_name: str = str(method_name), **kwargs: Any) -> Any:
-                    method_name = __method_name
-                    transformable: Transformable = object.__getattribute__(self, "_object")
-                    method: Callable[..., Any] = getattr(transformable, method_name)
-                    return method(*args, **kwargs)
+        @wraps(getattr(Transformable, method_name))  # type: ignore[arg-type]
+        def wrapper(self: TransformableProxy, *args: Any, __method_name: str = str(method_name), **kwargs: Any) -> Any:
+            method_name = __method_name
+            transformable: Transformable = object.__getattribute__(self, "_object")
+            method: Callable[..., Any] = getattr(transformable, method_name)
+            return method(*args, **kwargs)
 
-                wrapper.__qualname__ = f"{name}.{wrapper.__name__}"
+        wrapper.__qualname__ = f"{name}.{wrapper.__name__}"
 
-                namespace[method_name] = wrapper
-
-        return super().__new__(mcs, name, bases, namespace, **kwargs)
+        namespace[method_name] = wrapper
 
 
 @concreteclass
-class TransformableProxy(Transformable, MovableProxy, metaclass=TransformableProxyMeta):
+class TransformableProxy(Transformable, MovableProxy, prepare_namespace=__prepare_proxy_namespace):
     def __init__(self, transformable: Transformable) -> None:
         MovableProxy.__init__(self, transformable)
 
