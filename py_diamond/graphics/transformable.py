@@ -10,9 +10,11 @@ __all__ = ["Transformable", "TransformableProxy"]
 
 
 from abc import abstractmethod
-from typing import Any, Callable, Mapping, overload
+from typing import Any, Callable, Literal, Mapping, TypeAlias, overload
 
-from ..math import Vector2
+from typing_extensions import assert_never
+
+from ..math import Vector2, compute_size_from_edges
 from ..system.object import final
 from ..system.utils.abc import concreteclass
 from ..system.utils.functools import wraps
@@ -30,6 +32,9 @@ _ALL_VALID_ROTATION_PIVOTS: tuple[str, ...] = (
     "midtop",
     "midbottom",
 )
+
+
+_ScaleSizeStrategy: TypeAlias = Literal["both", "min", "max"]
 
 
 class Transformable(Movable):
@@ -105,24 +110,31 @@ class Transformable(Movable):
         ...
 
     @overload
+    def set_scale(self, __scale: float, /) -> None:
+        ...
+
+    @overload
     def set_scale(self, __scale: tuple[float, float], /) -> None:
         ...
 
     def set_scale(  # type: ignore[misc]  # mypy will not understand
         self,
-        scale: tuple[float, float] | None = None,
+        __scale: tuple[float, float] | float | None = None,
         /,
         *,
         scale_x: float | None = None,
         scale_y: float | None = None,
     ) -> None:
-        if scale is not None:
+        if __scale is not None:
             if scale_x is not None or scale_y is not None:
                 raise TypeError("Invalid parameters")
-            scale_x, scale_y = scale
+            try:
+                scale_x, scale_y = __scale  # type: ignore[misc]
+            except TypeError:  # Number
+                scale_x = scale_y = __scale  # type: ignore[assignment]
         elif scale_x is None and scale_y is None:
             raise TypeError("Invalid parameters")
-        del scale
+        del __scale
         if scale_x is not None:
             scale_x = max(float(scale_x), 0)
         if scale_y is not None:
@@ -163,46 +175,92 @@ class Transformable(Movable):
             raise NotImplementedError from None
         self.center = center
 
-    def scale_to_width(self, width: float) -> None:
+    def scale_to_width(self, width: float, *, uniform: bool = True) -> None:
         w: float = self.get_local_size()[0]
         scale = width / w if w > 0 else 0
-        self.set_scale((scale, scale))
+        if not uniform:
+            return self.set_scale(scale_x=scale)
+        self.set_scale(scale)
 
-    def scale_to_height(self, height: float) -> None:
+    def scale_to_height(self, height: float, *, uniform: bool = True) -> None:
         h: float = self.get_local_size()[1]
         scale = height / h if h > 0 else 0
-        self.set_scale((scale, scale))
+        if not uniform:
+            return self.set_scale(scale_y=scale)
+        self.set_scale(scale)
 
-    def scale_to_size(self, size: tuple[float, float]) -> None:
+    def scale_to_size(self, size: tuple[float, float], *, strategy: _ScaleSizeStrategy = "both") -> None:
         w, h = self.get_local_size()
         scale_width: float = size[0] / w if w > 0 else 0
         scale_height: float = size[1] / h if h > 0 else 0
-        scale = min(scale_width, scale_height)
-        self.set_scale((scale, scale))
+        match strategy:
+            case "min" | "max":
+                reduce_func = min if strategy == "min" else max
+                self.set_scale(reduce_func(scale_width, scale_height))
+            case "both":
+                self.set_scale((scale_width, scale_height))
+            case _:
+                assert_never(strategy)
 
-    def set_min_width(self, width: float) -> None:
+    def set_min_width(self, width: float, *, uniform: bool = True) -> None:
         if self.width < width:
-            self.width = width
+            self.scale_to_width(width, uniform=uniform)
 
-    def set_max_width(self, width: float) -> None:
+    def set_max_width(self, width: float, *, uniform: bool = True) -> None:
         if self.width > width:
-            self.width = width
+            self.scale_to_width(width, uniform=uniform)
 
-    def set_min_height(self, height: float) -> None:
+    def set_min_height(self, height: float, *, uniform: bool = True) -> None:
         if self.height < height:
-            self.height = height
+            self.scale_to_height(height, uniform=uniform)
 
-    def set_max_height(self, height: float) -> None:
+    def set_max_height(self, height: float, *, uniform: bool = True) -> None:
         if self.height > height:
-            self.height = height
+            self.scale_to_height(height, uniform=uniform)
 
-    def set_min_size(self, size: tuple[float, float]) -> None:
-        if self.width < size[0] or self.height < size[1]:
-            self.size = size
+    def set_min_size(self, size: tuple[float, float], *, uniform: bool = True) -> None:
+        actual_width, actual_height = self.get_size()
+        if not (actual_width < size[0] or actual_height < size[1]):
+            return
+        if not uniform:
+            if actual_width > size[0]:
+                size = (actual_width, size[1])
+            if actual_height > size[1]:
+                size = (size[0], actual_height)
+            self.scale_to_size(size, strategy="both")
+        else:
+            local_size = self.get_local_size()
+            higher_pair = (size[0], local_size[0])
+            lower_pair = (size[1], local_size[1])
+            del local_size
+            if actual_width < actual_height:
+                lower_pair, higher_pair = higher_pair, lower_pair
+            scale: float = lower_pair[0] / lower_pair[1] if lower_pair[1] > 0 else 0
+            if higher_pair[1] * scale < higher_pair[0]:
+                scale = max(scale, higher_pair[0] / higher_pair[1] if higher_pair[1] > 0 else 0)
+            self.set_scale(scale)
 
-    def set_max_size(self, size: tuple[float, float]) -> None:
-        if self.width > size[0] or self.height > size[1]:
-            self.size = size
+    def set_max_size(self, size: tuple[float, float], *, uniform: bool = True) -> None:
+        actual_width, actual_height = self.get_size()
+        if not (actual_width > size[0] or actual_height > size[1]):
+            return
+        if not uniform:
+            if actual_width < size[0]:
+                size = (actual_width, size[1])
+            if actual_height < size[1]:
+                size = (size[0], actual_height)
+            self.scale_to_size(size, strategy="both")
+        else:
+            local_size = self.get_local_size()
+            higher_pair = (size[0], local_size[0])
+            lower_pair = (size[1], local_size[1])
+            del local_size
+            if actual_width < actual_height:
+                lower_pair, higher_pair = higher_pair, lower_pair
+            scale: float = higher_pair[0] / higher_pair[1] if higher_pair[1] > 0 else 0
+            if lower_pair[1] * scale > lower_pair[0]:
+                scale = min(scale, lower_pair[0] / lower_pair[1] if lower_pair[1] > 0 else 0)
+            self.set_scale(scale)
 
     @final
     def apply_rotation_scale(self) -> None:
@@ -287,15 +345,7 @@ class Transformable(Movable):
         all_points: list[Vector2] = [
             center + (Vector2(point) - center).rotate(-angle) for point in ((0, 0), (w, 0), (w, h), (0, h))
         ]
-        left = right = all_points[0].x
-        top = bottom = all_points[0].y
-
-        for point in all_points:
-            left = point.x if point.x < left else left
-            right = point.x if point.x > right else right
-            top = point.y if point.y < top else top
-            bottom = point.y if point.y > bottom else bottom
-        return (right - left + 1, bottom - top + 2)
+        return compute_size_from_edges(all_points)
 
     @final
     def get_area(self, *, apply_scale: bool = True, apply_rotation: bool = True) -> Rect:
@@ -321,7 +371,8 @@ class Transformable(Movable):
 
     @scale.setter
     def scale(self, scale: tuple[float, float]) -> None:
-        self.set_scale(scale)
+        scale_x, scale_y = scale
+        self.set_scale(scale_x=scale_x, scale_y=scale_y)
 
     @property
     def scale_x(self) -> float:
@@ -345,7 +396,7 @@ class Transformable(Movable):
 
     @size.setter
     def size(self, size: tuple[float, float]) -> None:
-        self.scale_to_size(size)
+        self.scale_to_size(size, strategy="both")
 
     @property
     def width(self) -> float:
@@ -353,7 +404,7 @@ class Transformable(Movable):
 
     @width.setter
     def width(self, width: float) -> None:
-        self.scale_to_width(width)
+        self.scale_to_width(width, uniform=False)
 
     @property
     def height(self) -> float:
@@ -361,7 +412,7 @@ class Transformable(Movable):
 
     @height.setter
     def height(self, height: float) -> None:
-        self.scale_to_height(height)
+        self.scale_to_height(height, uniform=False)
 
 
 def __prepare_proxy_namespace(mcs: Any, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> None:

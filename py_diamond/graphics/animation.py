@@ -299,7 +299,7 @@ class MoveAnimation(BaseAnimation):
             animation.default()
 
 
-_AnimationType: TypeAlias = Literal["move", "rotate", "rotate_point", "scale"]
+_AnimationType: TypeAlias = Literal["move", "rotate", "rotate_point", "scale_x", "scale_y"]
 
 
 @final
@@ -307,7 +307,7 @@ class TransformAnimation(BaseAnimation):
 
     __slots__ = ("__animations",)
 
-    __animations_order: Final[tuple[_AnimationType, ...]] = ("scale", "rotate", "rotate_point", "move")
+    __animations_order: Final[tuple[_AnimationType, ...]] = ("scale_x", "scale_y", "rotate", "rotate_point", "move")
 
     def __init__(self, transformable: Transformable) -> None:
         assert isinstance(transformable, Transformable), "Expected a Transformable object"
@@ -427,24 +427,32 @@ class TransformAnimation(BaseAnimation):
         )
         return self
 
-    def smooth_scale_to_width(self: __Self, width: float, speed: float = 100) -> __Self:
+    def smooth_scale_to_width(self: __Self, width: float, speed: float = 100, *, uniform: bool = True) -> __Self:
         transformable: Transformable = self.object
-        self.__animations["scale"] = _AnimationSetSize(transformable, width, speed, "width")
+        if uniform:
+            self.__animations.pop("scale_y", None)
+        self.__animations["scale_x"] = _AnimationSetSize(transformable, width, speed, "width", uniform)
         return self
 
-    def smooth_scale_to_height(self: __Self, height: float, speed: float = 100) -> __Self:
+    def smooth_scale_to_height(self: __Self, height: float, speed: float = 100, *, uniform: bool = True) -> __Self:
         transformable: Transformable = self.object
-        self.__animations["scale"] = _AnimationSetSize(transformable, height, speed, "height")
+        if uniform:
+            self.__animations.pop("scale_x", None)
+        self.__animations["scale_y"] = _AnimationSetSize(transformable, height, speed, "height", uniform)
         return self
 
-    def smooth_width_growth(self: __Self, width_offset: float, speed: float = 100) -> __Self:
+    def smooth_width_growth(self: __Self, width_offset: float, speed: float = 100, *, uniform: bool = True) -> __Self:
         transformable: Transformable = self.object
-        self.__animations["scale"] = _AnimationSizeGrowth(transformable, width_offset, speed, "width")
+        if uniform:
+            self.__animations.pop("scale_y", None)
+        self.__animations["scale_x"] = _AnimationSizeGrowth(transformable, width_offset, speed, "width", uniform)
         return self
 
-    def smooth_height_growth(self: __Self, height_offset: float, speed: float = 100) -> __Self:
+    def smooth_height_growth(self: __Self, height_offset: float, speed: float = 100, *, uniform: bool = True) -> __Self:
         transformable: Transformable = self.object
-        self.__animations["scale"] = _AnimationSizeGrowth(transformable, height_offset, speed, "height")
+        if uniform:
+            self.__animations.pop("scale_x", None)
+        self.__animations["scale_y"] = _AnimationSizeGrowth(transformable, height_offset, speed, "height", uniform)
         return self
 
     def has_animation_started(self) -> bool:
@@ -516,8 +524,7 @@ class _TransformState(NamedTuple):
             linear_interpolation(self.scale[1], other.scale[1], alpha),
         )
         center = self.center.lerp(other.center, alpha)
-        if not t._set_frozen_state(angle, scale, None):
-            t.apply_rotation_scale()
+        t.set_rotation_and_scale(angle, scale)
         t.center = (center.x, center.y)
 
     def apply_on(self, t: Transformable) -> None:
@@ -568,6 +575,9 @@ class _AbstractAnimationClass(metaclass=ABCMeta):
 
 
 class _AbstractTransformableAnimationClass(_AbstractAnimationClass):
+
+    __slots__ = ()
+
     if TYPE_CHECKING:
 
         def __init__(self, obj: Transformable, speed: float) -> None:
@@ -851,13 +861,14 @@ class _AnimationInfiniteRotateAroundPoint(_AbstractTransformableAnimationClass):
 
 class _AbstractAnimationScale(_AbstractTransformableAnimationClass):
 
-    __slots__ = ("__field",)
+    __slots__ = ("__field", "__uniform")
 
-    def __init__(self, transformable: Transformable, speed: float, field: Literal["width", "height"]) -> None:
+    def __init__(self, transformable: Transformable, speed: float, field: Literal["width", "height"], uniform: bool) -> None:
         super().__init__(transformable, speed)
         if field not in ("width", "height"):
             raise ValueError("Invalid arguments")
         self.__field: Literal["width", "height"] = field
+        self.__uniform: bool = bool(uniform)
 
     def get_transformable_size(self) -> float:
         area: tuple[float, float] = self.object.get_area_size(apply_rotation=False)
@@ -866,15 +877,22 @@ class _AbstractAnimationScale(_AbstractTransformableAnimationClass):
         return area[1]
 
     def set_transformable_size(self, value: float) -> None:
-        getattr(self.object, f"scale_to_{self.__field}")(value)
+        getattr(self.object, f"scale_to_{self.__field}")(value, uniform=self.__uniform)
 
 
 class _AnimationSetSize(_AbstractAnimationScale):
 
     __slots__ = ("__value",)
 
-    def __init__(self, transformable: Transformable, value: float, speed: float, field: Literal["width", "height"]) -> None:
-        super().__init__(transformable, speed, field)
+    def __init__(
+        self,
+        transformable: Transformable,
+        value: float,
+        speed: float,
+        field: Literal["width", "height"],
+        uniform: bool,
+    ) -> None:
+        super().__init__(transformable, speed, field, uniform)
         self.__value: float = value
 
     def fixed_update(self) -> None:
@@ -901,8 +919,15 @@ class _AnimationSizeGrowth(_AbstractAnimationScale):
 
     __slots__ = ("__value", "__orientation", "__actual_value")
 
-    def __init__(self, transformable: Transformable, offset: float, speed: float, field: Literal["width", "height"]) -> None:
-        super().__init__(transformable, speed, field)
+    def __init__(
+        self,
+        transformable: Transformable,
+        offset: float,
+        speed: float,
+        field: Literal["width", "height"],
+        uniform: bool,
+    ) -> None:
+        super().__init__(transformable, speed, field, uniform)
         self.__value: float = abs(offset)
         self.__orientation: int = int(offset // abs(offset)) if offset != 0 and speed > 0 else 0
         self.__actual_value: float = 0

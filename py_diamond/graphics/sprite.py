@@ -155,11 +155,13 @@ class Sprite(Drawable, Transformable):
         self.update_mask()
 
     def is_colliding(self, other: Sprite) -> bool:
-        return self.is_mask_colliding(other, relative=True) is not None
+        return self is other or self.is_mask_colliding(other, relative=True) is not None
 
     @final
     def is_mask_colliding(self, other: Sprite, *, relative: bool = False) -> tuple[int, int] | None:
         this_rect: Rect = self.get_rect()
+        if other is self:  # Why would you do that ? Idk
+            return (0, 0) if relative else this_rect.topleft
         other_rect: Rect = other.get_rect()
         xoffset: int = other_rect.x - this_rect.x
         yoffset: int = other_rect.y - this_rect.y

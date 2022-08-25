@@ -27,7 +27,7 @@ from typing import Any, ClassVar, Mapping, Sequence, TypeAlias, final
 
 from pygame.transform import rotozoom as _surface_rotozoom, smoothscale as _surface_scale
 
-from ..math import Vector2
+from ..math import Vector2, compute_rect_from_edges, compute_size_from_edges
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, UnregisteredOptionError, initializer
 from ..system.utils.abc import concreteclass
 from ..system.validation import valid_float, valid_integer
@@ -85,34 +85,8 @@ class AbstractShape(Drawable, Transformable):
         self.__image = state["image"]
         return True
 
-    @staticmethod
-    @final
-    def compute_rect_from_edges(edges: Sequence[_FPoint] | Sequence[Vector2]) -> tuple[float, float, float, float]:
-        # TODO: FRect
-        if len(edges) < 2:
-            point = edges[0] if edges else (0, 0)
-            return point[0], point[1], 0, 0
-
-        left = right = edges[0][0]
-        top = bottom = edges[0][1]
-
-        for point in edges:
-            left = point[0] if point[0] < left else left
-            right = point[0] if point[0] > right else right
-            top = point[1] if point[1] < top else top
-            bottom = point[1] if point[1] > bottom else bottom
-
-        return left, top, right - left + 1, bottom - top + 1
-
-    @staticmethod
-    @final
-    def compute_size_from_edges(edges: Sequence[_FPoint] | Sequence[Vector2]) -> tuple[float, float]:
-        _, _, w, h = AbstractShape.compute_rect_from_edges(edges)
-
-        return w, h
-
     def __compute_shape_size(self) -> None:
-        self.__local_size = AbstractShape.compute_size_from_edges(self.get_local_edges())
+        self.__local_size = compute_size_from_edges(self.get_local_edges())
 
     @abstractmethod
     def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
@@ -136,7 +110,7 @@ class AbstractShape(Drawable, Transformable):
             return [Vector2(point) for point in all_points]
         edges: list[Vector2] = []
 
-        left, top, w, h = self.compute_rect_from_edges(all_points)
+        left, top, w, h = compute_rect_from_edges(all_points)
 
         local_center: Vector2 = Vector2(left + w / 2, top + h / 2)
 
@@ -241,7 +215,7 @@ class PolygonShape(OutlinedShape, SingleColorShape):
 
         PolygonShape.normalize_points(all_points)
 
-        w, h = PolygonShape.compute_size_from_edges(all_points)
+        w, h = compute_size_from_edges(all_points)
         if nb_points == 2 and outline < 1:
             return create_surface((w, h))
         image: SurfaceRenderer = SurfaceRenderer((w + outline * 2, h + outline * 2))
@@ -272,7 +246,7 @@ class PolygonShape(OutlinedShape, SingleColorShape):
 
     @final
     def set_edges(self, edges: PointList) -> None:
-        left, top, _, _ = self.compute_rect_from_edges(edges)
+        left, top, _, _ = compute_rect_from_edges(edges)
         self.config.set("local_edges", edges)
         self.topleft = (left, top)
 
@@ -290,7 +264,7 @@ class PolygonShape(OutlinedShape, SingleColorShape):
     def normalize_points(points: Sequence[Vector2]) -> None:
         if not points:
             return
-        left, top, _, _ = AbstractShape.compute_rect_from_edges(points)
+        left, top, _, _ = compute_rect_from_edges(points)
         for p in points:
             p.x -= left
             p.y -= top
@@ -644,7 +618,7 @@ class AbstractCrossShape(OutlinedShape, SingleColorShape):
 
         PolygonShape.normalize_points(all_points)
 
-        w, h = PolygonShape.compute_size_from_edges(all_points)
+        w, h = compute_size_from_edges(all_points)
         image: SurfaceRenderer = SurfaceRenderer((w + outline * 2, h + outline * 2))
 
         for p in all_points:

@@ -23,6 +23,7 @@ from ...math import Vector2
 from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ...system.enum import AutoLowerNameEnum
 from ...system.theme import NoTheme, ThemedObjectMeta, ThemeType
+from ...system.typing import reflect_method_signature
 from ...system.validation import valid_float, valid_integer, valid_optional_float
 from ...window.clickable import Clickable
 from .abc import AbstractWidget
@@ -402,30 +403,29 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
         if callable(callback):
             callback()
 
-    def text_set_font(
-        self,
-        font: _TextFont | None,
-        bold: bool | None = None,
-        italic: bool | None = None,
-        underline: bool | None = None,
-    ) -> None:
-        self.__text.set_font(font, bold, italic, underline)
+    @reflect_method_signature(TextImage.set_font)
+    def text_set_font(self, *args: Any, **kwargs: Any) -> None:
+        self.__text.set_font(*args, **kwargs)
         self.__update_shape_size()
 
-    def text_set_custom_line_font(self, index: int, font: Font) -> None:
-        self.__text.set_custom_line_font(index, font)
+    @reflect_method_signature(TextImage.set_custom_line_font)
+    def text_set_custom_line_font(self, *args: Any, **kwargs: Any) -> None:
+        self.__text.set_custom_line_font(*args, **kwargs)
         self.__update_shape_size()
 
-    def text_remove_custom_line_font(self, index: int) -> None:
-        self.__text.remove_custom_line_font(index)
+    @reflect_method_signature(TextImage.remove_custom_line_font)
+    def text_remove_custom_line_font(self, *args: Any, **kwargs: Any) -> None:
+        self.__text.remove_custom_line_font(*args, **kwargs)
         self.__update_shape_size()
 
-    def img_rotate(self, angle_offset: float) -> None:
-        self.__text.img_rotate(angle_offset)
+    @reflect_method_signature(TextImage.img_rotate)
+    def img_rotate(self, *args: Any, **kwargs: Any) -> None:
+        self.__text.img_rotate(*args, **kwargs)
         self.__update_shape_size()
 
-    def img_set_rotation(self, angle: float) -> None:
-        self.__text.img_set_rotation(angle)
+    @reflect_method_signature(TextImage.img_set_rotation)
+    def img_set_rotation(self, *args: Any, **kwargs: Any) -> None:
+        self.__text.img_set_rotation(*args, **kwargs)
         self.__update_shape_size()
 
     @overload
@@ -441,63 +441,61 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
         ...
 
     @overload
+    def img_set_scale(self, __scale: float, /) -> None:
+        ...
+
+    @overload
     def img_set_scale(self, __scale: tuple[float, float], /) -> None:
         ...
 
-    def img_set_scale(  # type: ignore[misc]  # mypy will not understand
-        self,
-        scale: tuple[float, float] | None = None,
-        /,
-        *,
-        scale_x: float | None = None,
-        scale_y: float | None = None,
-    ) -> None:
-        if scale is not None:
-            self.__text.set_scale(scale)
-        elif scale_x is not None and scale_y is not None:
-            self.__text.set_scale(scale_x=scale_x, scale_y=scale_y)
-        elif scale_x is not None:
-            self.__text.set_scale(scale_x=scale_x)
-        elif scale_y is not None:
-            self.__text.set_scale(scale_y=scale_y)
-        else:
-            raise TypeError("Invalid parameters")
+    # @reflect_method_signature() doesn't work with overloads
+    def img_set_scale(self, *args: Any, **kwargs: Any) -> None:
+        self.__text.img_set_scale(*args, **kwargs)
         self.__update_shape_size()
 
-    def img_scale_to_width(self, width: float) -> None:
-        self.__text.img_scale_to_width(width)
+    @reflect_method_signature(TextImage.img_scale_to_width)
+    def img_scale_to_width(self, *args: Any, **kwargs: Any) -> None:
+        self.__text.img_scale_to_width(*args, **kwargs)
         self.__update_shape_size()
 
-    def img_scale_to_height(self, height: float) -> None:
-        self.__text.img_scale_to_height(height)
+    @reflect_method_signature(TextImage.img_scale_to_height)
+    def img_scale_to_height(self, *args: Any, **kwargs: Any) -> None:
+        self.__text.img_scale_to_height(*args, **kwargs)
         self.__update_shape_size()
 
-    def img_scale_to_size(self, size: tuple[float, float]) -> None:
-        self.__text.img_scale_to_size(size)
+    @reflect_method_signature(TextImage.img_scale_to_size)
+    def img_scale_to_size(self, *args: Any, **kwargs: Any) -> None:
+        self.__text.img_scale_to_size(*args, **kwargs)
         self.__update_shape_size()
 
-    def img_set_min_width(self, width: float) -> None:
-        self.__text.img_set_min_width(width)
+    @reflect_method_signature(TextImage.img_set_min_width)
+    def img_set_min_width(self, *args: Any, **kwargs: Any) -> None:
+        self.__text.img_set_min_width(*args, **kwargs)
         self.__update_shape_size()
 
-    def img_set_max_width(self, width: float) -> None:
-        self.__text.set_max_width(width)
+    @reflect_method_signature(TextImage.img_set_max_width)
+    def img_set_max_width(self, *args: Any, **kwargs: Any) -> None:
+        self.__text.img_set_max_width(*args, **kwargs)
         self.__update_shape_size()
 
-    def img_set_min_height(self, height: float) -> None:
-        self.__text.set_min_height(height)
+    @reflect_method_signature(TextImage.img_set_min_height)
+    def img_set_min_height(self, *args: Any, **kwargs: Any) -> None:
+        self.__text.img_set_min_height(*args, **kwargs)
         self.__update_shape_size()
 
-    def img_set_max_height(self, height: float) -> None:
-        self.__text.img_set_max_height(height)
+    @reflect_method_signature(TextImage.img_set_max_height)
+    def img_set_max_height(self, *args: Any, **kwargs: Any) -> None:
+        self.__text.img_set_max_height(*args, **kwargs)
         self.__update_shape_size()
 
-    def img_set_min_size(self, size: tuple[float, float]) -> None:
-        self.__text.img_set_min_size(size)
+    @reflect_method_signature(TextImage.img_set_min_size)
+    def img_set_min_size(self, *args: Any, **kwargs: Any) -> None:
+        self.__text.img_set_min_size(*args, **kwargs)
         self.__update_shape_size()
 
-    def img_set_max_size(self, size: tuple[float, float]) -> None:
-        self.__text.img_set_max_size(size)
+    @reflect_method_signature(TextImage.img_set_max_size)
+    def img_set_max_size(self, *args: Any, **kwargs: Any) -> None:
+        self.__text.img_set_max_size(*args, **kwargs)
         self.__update_shape_size()
 
     @overload

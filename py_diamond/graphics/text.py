@@ -24,6 +24,7 @@ from typing_extensions import assert_never
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
 from ..system.theme import ThemedObjectMeta, ThemeType
+from ..system.typing import reflect_method_signature
 from ..system.validation import valid_float, valid_integer
 from ._transform import rotozoom2 as _surface_rotozoom2, scale_by as _surface_scale_by
 from .color import BLACK, Color
@@ -246,7 +247,6 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
         fgcolor: Color = self.__color
         shadow_x: int = int(self.__shadow_x)
         shadow_y: int = int(self.__shadow_y)
-        shadow_color: Color = self.__shadow_color
         shadow_width_offset: int = abs(shadow_x)
         shadow_height_offset: int = abs(shadow_y)
         text_x: float = 0
@@ -279,8 +279,8 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
         # 2 - Compute the target surface
         if not render_queue:  # No message to render
             return create_surface((0, 0))
-        # Optimization: Single line without shadow
         if len(render_queue) == 1 and not shadow_width_offset and not shadow_height_offset:
+            # Optimization: Single line without shadow
             line, font, _ = render_queue[0]
             return font.render(line, fgcolor)[0]
         render_rect = Rect(0, 0, render_width, render_height)
@@ -294,6 +294,7 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
 
         # 4-a Render shadow if set
         if shadow_width_offset or shadow_height_offset:
+            shadow_color: Color = self.__shadow_color
             for line, font, line_rect in render_queue:
                 line_rect.move_ip(shadow_x, shadow_y)
                 font.render_to(final_render_surface, line_rect, line, shadow_color)
@@ -398,14 +399,16 @@ class TextImage(Text):
     def get_img_scale(self) -> tuple[float, float]:
         return self.__img_scale
 
-    def img_rotate(self, angle_offset: float) -> None:
+    @reflect_method_signature(Image.rotate)
+    def img_rotate(self, *args: Any, **kwargs: Any) -> None:
         if self.__img is not None:
-            self.__img.rotate(angle_offset)
+            self.__img.rotate(*args, **kwargs)
             self.__img_angle = self.__img.angle
 
-    def img_set_rotation(self, angle: float) -> None:
+    @reflect_method_signature(Image.set_rotation)
+    def img_set_rotation(self, *args: Any, **kwargs: Any) -> None:
         if self.__img is not None:
-            self.__img.set_rotation(angle)
+            self.__img.set_rotation(*args, **kwargs)
             self.__img_angle = self.__img.angle
 
     @overload
@@ -421,73 +424,71 @@ class TextImage(Text):
         ...
 
     @overload
+    def img_set_scale(self, __scale: float, /) -> None:
+        ...
+
+    @overload
     def img_set_scale(self, __scale: tuple[float, float], /) -> None:
         ...
 
-    def img_set_scale(  # type: ignore[misc]  # mypy will not understand
-        self,
-        scale: tuple[float, float] | None = None,
-        /,
-        *,
-        scale_x: float | None = None,
-        scale_y: float | None = None,
-    ) -> None:
+    # @reflect_method_signature() doesn't work with overloads
+    def img_set_scale(self, *args: Any, **kwargs: Any) -> None:
         if self.__img is not None:
-            if scale is not None:
-                self.__img.set_scale(scale)
-            elif scale_x is not None and scale_y is not None:
-                self.__img.set_scale(scale_x=scale_x, scale_y=scale_y)
-            elif scale_x is not None:
-                self.__img.set_scale(scale_x=scale_x)
-            elif scale_y is not None:
-                self.__img.set_scale(scale_y=scale_y)
-            else:
-                raise TypeError("Invalid parameters")
+            self.__img.set_scale(*args, **kwargs)
             self.__img_scale = self.__img.scale
 
-    def img_scale_to_width(self, width: float) -> None:
+    @reflect_method_signature(Image.scale_to_width)
+    def img_scale_to_width(self, *args: Any, **kwargs: Any) -> None:
         if self.__img is not None:
-            self.__img.scale_to_width(width)
+            self.__img.scale_to_width(*args, **kwargs)
             self.__img_scale = self.__img.scale
 
-    def img_scale_to_height(self, height: float) -> None:
+    @reflect_method_signature(Image.scale_to_height)
+    def img_scale_to_height(self, *args: Any, **kwargs: Any) -> None:
         if self.__img is not None:
-            self.__img.scale_to_height(height)
+            self.__img.scale_to_height(*args, **kwargs)
             self.__img_scale = self.__img.scale
 
-    def img_scale_to_size(self, size: tuple[float, float]) -> None:
+    @reflect_method_signature(Image.scale_to_size)
+    def img_scale_to_size(self, *args: Any, **kwargs: Any) -> None:
         if self.__img is not None:
-            self.__img.scale_to_size(size)
+            self.__img.scale_to_size(*args, **kwargs)
             self.__img_scale = self.__img.scale
 
-    def img_set_min_width(self, width: float) -> None:
+    @reflect_method_signature(Image.set_min_width)
+    def img_set_min_width(self, *args: Any, **kwargs: Any) -> None:
         if self.__img is not None:
-            self.__img.set_min_width(width)
+            self.__img.set_min_width(*args, **kwargs)
             self.__img_scale = self.__img.scale
 
-    def img_set_max_width(self, width: float) -> None:
+    @reflect_method_signature(Image.set_max_width)
+    def img_set_max_width(self, *args: Any, **kwargs: Any) -> None:
         if self.__img is not None:
-            self.__img.set_max_width(width)
+            self.__img.set_max_width(*args, **kwargs)
             self.__img_scale = self.__img.scale
 
-    def img_set_min_height(self, height: float) -> None:
+    @reflect_method_signature(Image.set_min_height)
+    def img_set_min_height(self, *args: Any, **kwargs: Any) -> None:
         if self.__img is not None:
-            self.__img.set_min_height(height)
+            self.__img.set_min_height(*args, **kwargs)
             self.__img_scale = self.__img.scale
 
-    def img_set_max_height(self, height: float) -> None:
+    @reflect_method_signature(Image.set_max_height)
+    def img_set_max_height(self, *args: Any, **kwargs: Any) -> None:
         if self.__img is not None:
-            self.__img.set_max_height(height)
+            self.__img.set_max_height(*args, **kwargs)
             self.__img_scale = self.__img.scale
 
-    def img_set_min_size(self, size: tuple[float, float]) -> None:
+    @reflect_method_signature(Image.set_min_size)
+    def img_set_min_size(self, *args: Any, **kwargs: Any) -> None:
         if self.__img is not None:
-            self.__img.set_min_size(size)
+            self.__img.set_min_size(*args, **kwargs)
             self.__img_scale = self.__img.scale
 
-    def img_set_max_size(self, size: tuple[float, float]) -> None:
+    @reflect_method_signature(Image.set_max_size)
+    def img_set_max_size(self, *args: Any, **kwargs: Any) -> None:
         if self.__img is not None:
-            self.__img.set_max_size(size)
+            self.__img.set_max_size(*args, **kwargs)
             self.__img_scale = self.__img.scale
 
     def _render(self) -> Surface:
@@ -552,14 +553,14 @@ class TextImage(Text):
     config.add_value_converter_on_set_static("distance", valid_float(min_value=0))
 
     @config.getter("img")
-    def __get_img_surface(self) -> Surface | None:
+    def get_img_surface(self, *, apply_rotation_scale: bool = False) -> Surface | None:
         img: Image | None = self.__img
         if img is None:
             return None
-        return img.get()
+        return img.get(apply_rotation_scale=apply_rotation_scale)
 
     @config.setter("img")
-    def __update_img(self, surface: Surface | None) -> None:
+    def set_img_surface(self, surface: Surface | None) -> None:
         if surface is None:
             self.__img = None
             return

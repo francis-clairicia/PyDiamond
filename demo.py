@@ -673,7 +673,7 @@ class TextImageScene(MainScene):
         self.text: TextImage = TextImage(
             "I'm a text", img=ImagesResources.cactus, font=(None, 50), color=WHITE, shadow_x=-5, shadow_y=-5, wrap=5
         )
-        self.text.img_scale_to_size((100, 100))
+        self.text.img_set_max_size((100, 100), uniform=True)
         self.text.center = self.window.center
 
     def on_start_loop_before_transition(self) -> None:
@@ -709,7 +709,7 @@ class ButtonScene(MainScene):
             text_offset=(2, 2),
             text_hover_offset=(0, -3),
         )
-        self.button.img_scale_to_size((100, 100))
+        self.button.img_set_max_size((100, 100), uniform=True)
         self.button.center = self.window.center
 
         def restart() -> None:
