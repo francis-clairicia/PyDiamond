@@ -45,7 +45,8 @@ python3 -m pip install -r requirements.txt
 ```
 
 ## Credits
-- Gradient module by DR0ID
+### Vendored-in packages
+- [Gradient](https://www.pygame.org/project-gradients-307-.html) module by DR0ID
 - [OrderedSet](https://github.com/rspeer/ordered-set) collection by rspeer
 
 ## License
