@@ -692,7 +692,7 @@ class _AnimationSetRotation(_AbstractTransformableAnimationClass):
         self.__angle: float = angle
         self.__pivot: Vector2 | None
         if isinstance(pivot, str):
-            pivot = transformable.get_pivot_from_attribute(pivot)
+            pivot = transformable._get_pivot_from_attribute(pivot)
         self.__pivot = Vector2(pivot) if pivot is not None else None
         self.__counter_clockwise: bool = counter_clockwise
 
@@ -776,6 +776,7 @@ class _AnimationInfiniteRotate(_AbstractTransformableAnimationClass):
         pass
 
 
+# TODO: Make it available for Movable (non Transformable) objects
 class _AnimationRotationAroundPoint(_AbstractTransformableAnimationClass):
 
     __slots__ = (
@@ -800,7 +801,7 @@ class _AnimationRotationAroundPoint(_AbstractTransformableAnimationClass):
         self.__actual_angle: float = 0
         self.__pivot: Vector2
         if isinstance(pivot, str):
-            pivot = transformable.get_pivot_from_attribute(pivot)
+            pivot = transformable._get_pivot_from_attribute(pivot)
         self.__pivot = Vector2(pivot)
         self.__rotate_object: bool = rotate_object
 
@@ -827,6 +828,7 @@ class _AnimationRotationAroundPoint(_AbstractTransformableAnimationClass):
             self.__angle = 0
 
 
+# TODO: Make it available for Movable (non Transformable) objects
 class _AnimationInfiniteRotateAroundPoint(_AbstractTransformableAnimationClass):
 
     __slots__ = ("__pivot", "__orientation", "__rotate_object")
@@ -842,7 +844,7 @@ class _AnimationInfiniteRotateAroundPoint(_AbstractTransformableAnimationClass):
         super().__init__(transformable, speed)
         self.__pivot: Vector2
         if isinstance(pivot, str):
-            pivot = transformable.get_pivot_from_attribute(pivot)
+            pivot = transformable._get_pivot_from_attribute(pivot)
         self.__pivot = Vector2(pivot)
         self.__orientation: int = 1 if counter_clockwise else -1
         self.__rotate_object: bool = rotate_object

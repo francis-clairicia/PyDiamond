@@ -9,9 +9,9 @@ from __future__ import annotations
 __all__ = [
     "Vector2",
     "angle_interpolation",
-    "linear_interpolation",
     "compute_rect_from_edges",
     "compute_size_from_edges",
+    "linear_interpolation",
 ]
 
 

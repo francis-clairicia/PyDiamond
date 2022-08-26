@@ -21,25 +21,12 @@ from ..system.utils.functools import wraps
 from .movable import Movable, MovableProxy
 from .rect import Rect
 
-_ALL_VALID_ROTATION_PIVOTS: tuple[str, ...] = (
-    "center",
-    "topleft",
-    "topright",
-    "bottomleft",
-    "bottomright",
-    "midleft",
-    "midright",
-    "midtop",
-    "midbottom",
-)
-
-
 _ScaleSizeStrategy: TypeAlias = Literal["both", "min", "max"]
 
 
 class Transformable(Movable):
-    def __init_subclass__(cls) -> None:
-        super().__init_subclass__()
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
         frozen_state_methods = ["_set_frozen_state", "_freeze_state"]
         if sum(1 for method in frozen_state_methods if method in vars(cls)) not in (0, len(frozen_state_methods)):
             raise TypeError(
@@ -72,30 +59,11 @@ class Transformable(Movable):
             raise NotImplementedError from None
         if pivot is not None and pivot != "center" and pivot != (center.x, center.y):
             if isinstance(pivot, str):
-                pivot = self.get_pivot_from_attribute(pivot)
+                pivot = self._get_pivot_from_attribute(pivot)
             else:
                 pivot = Vector2(pivot)
             center = pivot + (center - pivot).rotate(-self.__angle + former_angle)
         self.center = center.x, center.y
-
-    def rotate_around_point(self, angle_offset: float, pivot: tuple[float, float] | Vector2 | str) -> None:
-        if angle_offset == 0:
-            return
-        if isinstance(pivot, str):
-            if pivot == "center":
-                return
-            pivot = self.get_pivot_from_attribute(pivot)
-        else:
-            pivot = Vector2(pivot)
-        center: Vector2 = Vector2(self.center)
-        if pivot == center:
-            return
-        center = pivot + (center - pivot).rotate(-angle_offset)
-        self.center = center.x, center.y
-
-    def get_pivot_from_attribute(self, pivot: str) -> Vector2:
-        assert pivot in _ALL_VALID_ROTATION_PIVOTS, f"Bad pivot attribute: {pivot!r}"
-        return Vector2(getattr(self, pivot))
 
     @overload
     def set_scale(self, *, scale_x: float) -> None:
@@ -161,6 +129,7 @@ class Transformable(Movable):
         scale_x, scale_y = scale
         scale_x = max(float(scale_x), 0)
         scale_y = max(float(scale_y), 0)
+        del scale
         if self.__angle == angle and self.__scale_x == scale_x and self.__scale_y == scale_y:
             return
         center: tuple[float, float] = self.center
@@ -170,9 +139,40 @@ class Transformable(Movable):
         try:
             self._apply_both_rotation_and_scale()
         except NotImplementedError:
-            self.__angle = 0
-            self.__scale_x = self.__scale_y = 1
-            raise NotImplementedError from None
+            only_scale_exc: NotImplementedError | Literal[True] | None = None
+            only_rotation_exc: NotImplementedError | Literal[True] | None = None
+            try:
+                if (scale_x, scale_y) != (1, 1):
+                    try:
+                        self._apply_only_scale()
+                    except NotImplementedError as exc:
+                        self.__scale_x = self.__scale_y = 1
+                        only_scale_exc = exc
+                    else:
+                        only_scale_exc = True
+                if angle != 0:
+                    try:
+                        self._apply_only_rotation()
+                    except NotImplementedError as exc:
+                        self.__angle = 0
+                        only_rotation_exc = exc
+                    else:
+                        only_rotation_exc = True
+                if only_scale_exc is None and only_rotation_exc is None:
+                    return
+                if only_scale_exc is True and only_rotation_exc is True:
+                    raise TypeError(
+                        "_apply_only_scale and _apply_only_rotation are implemented, but not _apply_both_rotation_and_scale"
+                    )
+                # isinstance() is a performance eater X)
+                if only_scale_exc not in (None, True):
+                    if only_rotation_exc not in (None, True):
+                        raise NotImplementedError("Transformation not supported") from None
+                    raise NotImplementedError("Scaling not supported") from None
+                elif only_rotation_exc not in (None, True):
+                    raise NotImplementedError("Rotation not supported") from None
+            finally:
+                del only_scale_exc, only_rotation_exc
         self.center = center
 
     def scale_to_width(self, width: float, *, uniform: bool = True) -> None:
@@ -418,7 +418,7 @@ class Transformable(Movable):
 def __prepare_proxy_namespace(mcs: Any, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> None:
     from ..system.utils._mangling import mangle_private_attribute
 
-    for attr in ("angle", "scale", "scale_x", "scale_y"):
+    for attr in ("angle", "scale_x", "scale_y"):
         attr = mangle_private_attribute(Transformable, attr)
 
         def getter(self: TransformableProxy, /, *, attr: str = str(attr)) -> Any:
@@ -434,8 +434,6 @@ def __prepare_proxy_namespace(mcs: Any, name: str, bases: tuple[type, ...], name
     for method_name in (
         "rotate",
         "set_rotation",
-        "rotate_around_point",
-        "get_pivot_from_attribute",
         "set_scale",
         "scale_to_width",
         "scale_to_height",
@@ -483,3 +481,6 @@ class TransformableProxy(Transformable, MovableProxy, prepare_namespace=__prepar
     def _apply_only_scale(self) -> None:
         transformable: Transformable = object.__getattribute__(self, "_object")
         return transformable._apply_only_scale()
+
+
+del __prepare_proxy_namespace
