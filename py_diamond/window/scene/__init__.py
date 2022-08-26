@@ -663,9 +663,11 @@ class SceneWindow(Window):
         self.__last_clear_color = color
         return super().clear(color, blend_alpha=blend_alpha)
 
-    def refresh(self) -> float:
-        real_delta_time: float = super().refresh()
+    def _handle_framerate(self) -> float:
+        real_delta_time: float = super()._handle_framerate()
         fixed_framerate: int = self.used_fixed_framerate()
+        if fixed_framerate < 1:
+            fixed_framerate = self.used_framerate()
         setattr_pv(Time, "fixed_delta", 1 / fixed_framerate if fixed_framerate > 0 else Time.delta())
         if real_delta_time > 0:
             self.__compute_interpolation_data(real_delta_time / 1000)

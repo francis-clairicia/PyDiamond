@@ -1392,9 +1392,6 @@ class MainWindow(SceneWindow):
     def render_scene(self) -> None:
         super().render_scene()
         self.draw(self.prev_button, self.next_button)
-
-    def _system_display(self) -> None:
-        super()._system_display()
         text_framerate: TextFramerate = self.text_framerate
         if text_framerate.is_shown():
             if not text_framerate.message or self.__framerate_update_clock.elapsed_time(text_framerate.refresh_rate):

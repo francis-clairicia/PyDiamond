@@ -136,6 +136,8 @@ class Window(Object):
         self.__event: EventManager = EventManager()
         self.__event_queue: deque[_pg_event.Event] = deque()
 
+        self._last_tick_time: float = -1
+
         self.__default_framerate: int = self.DEFAULT_FRAMERATE
         self.__busy_loop: bool = False
 
@@ -203,16 +205,24 @@ class Window(Object):
 
             @stack.callback
             def _() -> None:
-                for callback in list(self.__callback_after):
-                    callback.kill()
                 self.__display_renderer = None
                 self.__rect = ImmutableRect(0, 0, 0, 0)
+                self._last_tick_time = -1
                 self.__event.unbind_all()
                 self.__event_queue.clear()
 
             stack.enter_context(self.__stack)
             self.__window_init__()
             stack.callback(self.__window_quit__)
+
+            @stack.callback
+            def _() -> None:
+                try:
+                    for callback in list(self.__callback_after):
+                        with suppress(Exception):
+                            callback.kill()
+                finally:
+                    self.__callback_after.clear()
 
             @stack.callback
             def _() -> None:
@@ -231,6 +241,7 @@ class Window(Object):
 
             self.clear_all_events()
             self.__main_clock.tick()
+            self._last_tick_time = -1
             yield
 
         gc.collect()  # Run a full collection at the window close
@@ -261,6 +272,8 @@ class Window(Object):
 
     @final
     def loop(self) -> Literal[True]:
+        self._last_tick_time = self._handle_framerate()
+
         if _pg_display.get_surface() is None or (renderer := self.__display_renderer) is None:
             self.close()
 
@@ -269,14 +282,16 @@ class Window(Object):
 
         add_event = event_queue.append
 
-        if self.__handle_keyboard:
-            type.__setattr__(Keyboard, "_KEY_STATES", _pg_key.get_pressed())
-        else:
-            type.__setattr__(Keyboard, "_KEY_STATES", [])
-        if self.__handle_mouse_button:
-            type.__setattr__(Mouse, "_MOUSE_BUTTON_STATE", _pg_mouse.get_pressed(3))
-        else:
-            type.__setattr__(Mouse, "_MOUSE_BUTTON_STATE", ())
+        if self.__handle_keyboard is not None:
+            if self.__handle_keyboard:
+                type.__setattr__(Keyboard, "_KEY_STATES", _pg_key.get_pressed())
+            else:
+                type.__setattr__(Keyboard, "_KEY_STATES", [])
+        if self.__handle_mouse_button is not None:
+            if self.__handle_mouse_button:
+                type.__setattr__(Mouse, "_MOUSE_BUTTON_STATE", _pg_mouse.get_pressed(3))
+            else:
+                type.__setattr__(Mouse, "_MOUSE_BUTTON_STATE", ())
 
         if screenshot_threads := self.__screenshot_threads:
             screenshot_threads[:] = [t for t in screenshot_threads if t.is_alive()]
@@ -338,13 +353,7 @@ class Window(Object):
     def set_busy_loop(self, status: bool) -> None:
         self.__busy_loop = bool(status)
 
-    def refresh(self) -> float:
-        screen = self.__display_renderer
-        if screen is None:
-            return 0
-        self._system_display()
-        screen.present()
-
+    def _handle_framerate(self) -> float:
         framerate: int = self.used_framerate()
         real_time: float
         if framerate <= 0:
@@ -355,8 +364,11 @@ class Window(Object):
             real_time = self.__main_clock.tick(framerate)
         return real_time
 
-    def _system_display(self) -> None:
-        pass
+    def refresh(self) -> None:
+        screen = self.__display_renderer
+        if screen is None:
+            return
+        screen.present()
 
     def draw(self, *targets: SupportsDrawing) -> None:
         renderer = self.__display_renderer
