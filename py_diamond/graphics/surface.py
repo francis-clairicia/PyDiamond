@@ -104,10 +104,8 @@ class SurfaceRenderer(AbstractRenderer):
         self,
         surface: Surface,
         dest: _Coordinate | _CanBeRect,
-        /,
-        *,
         area: _CanBeRect | None = None,
-        special_flags: BlendMode = BlendMode.NONE,
+        special_flags: int = BlendMode.NONE,
     ) -> Rect:
         return self.__target.blit(surface, dest, area, special_flags)
 

@@ -10,9 +10,9 @@ __all__ = ["AbstractRenderer"]
 
 
 from abc import abstractmethod
-from collections import deque
 from enum import IntEnum, unique
-from typing import TYPE_CHECKING, Iterable, Literal, Sequence, no_type_check, overload
+from itertools import starmap
+from typing import TYPE_CHECKING, Iterable, Literal, Sequence, overload
 
 import pygame.constants as _pg_constants
 
@@ -71,10 +71,8 @@ class AbstractRenderer(Object):
         self,
         surface: Surface,
         dest: _Coordinate | _CanBeRect,
-        /,
-        *,
         area: _CanBeRect | None = None,
-        special_flags: BlendMode = BlendMode.NONE,
+        special_flags: int = BlendMode.NONE,
     ) -> Rect:
         raise NotImplementedError
 
@@ -114,7 +112,6 @@ class AbstractRenderer(Object):
     ) -> list[Rect] | None:
         ...
 
-    @no_type_check  # TODO: mypy crash on match statement (I know, this is not a todo)
     def draw_many_surfaces(
         self,
         sequence: Iterable[
@@ -126,29 +123,9 @@ class AbstractRenderer(Object):
     ) -> list[Rect] | None:
         draw = self.draw_surface
         if doreturn:
-            rects: deque[Rect] = deque()
-            append_rect = rects.append
-            for args in sequence:
-                match args:
-                    case (surface, dest):
-                        append_rect(draw(surface, dest))
-                    case (surface, dest, area):
-                        append_rect(draw(surface, dest, area=area))
-                    case (surface, dest, area, flags):
-                        append_rect(draw(surface, dest, area=area, special_flags=flags))
-                    case _:
-                        raise TypeError("Invalid argument")
-            return list(rects)
+            return list(starmap(draw, sequence))
         for args in sequence:
-            match args:
-                case (surface, dest):
-                    draw(surface, dest)
-                case (surface, dest, area):
-                    draw(surface, dest, area=area)
-                case (surface, dest, area, flags):
-                    draw(surface, dest, area=area, special_flags=flags)
-                case _:
-                    raise TypeError("Invalid argument")
+            draw(*args)
         return None
 
     @abstractmethod
