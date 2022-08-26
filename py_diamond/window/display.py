@@ -62,7 +62,7 @@ from ..system.utils._mangling import setattr_pv
 from ..system.utils.contextlib import ExitStackView
 from ..system.utils.functools import wraps
 from ..system.utils.itertools import consume
-from .cursor import Cursor, SystemCursor
+from .cursor import Cursor, SystemCursor, make_cursor_from_pygame_cursor
 from .event import Event, EventFactory, EventManager, ScreenshotEvent, UnknownEventTypeError
 from .keyboard import Keyboard
 from .mouse import Mouse
@@ -142,7 +142,8 @@ class Window(Object):
         self.__callback_after: _WindowCallbackList = _WindowCallbackList()
         self.__process_callbacks: bool = True
         self.__handle_mouse_position: bool = True
-        self.__handle_keyboard: bool = True
+        self.__handle_mouse_button: bool | None = False
+        self.__handle_keyboard: bool | None = False
 
         self.__stack = ExitStack()
 
@@ -260,7 +261,7 @@ class Window(Object):
 
     @final
     def loop(self) -> Literal[True]:
-        if _pg_display.get_surface() is None or self.__display_renderer is None:
+        if _pg_display.get_surface() is None or (renderer := self.__display_renderer) is None:
             self.close()
 
         event_queue = self.__event_queue
@@ -270,10 +271,12 @@ class Window(Object):
 
         if self.__handle_keyboard:
             type.__setattr__(Keyboard, "_KEY_STATES", _pg_key.get_pressed())
-        if self.__handle_mouse_position:
-            button_states = _pg_mouse.get_pressed(3)
-            button_states = (bool(button_states[0]), bool(button_states[1]), bool(button_states[2]))
-            type.__setattr__(Mouse, "_MOUSE_BUTTON_STATE", button_states)
+        else:
+            type.__setattr__(Keyboard, "_KEY_STATES", [])
+        if self.__handle_mouse_button:
+            type.__setattr__(Mouse, "_MOUSE_BUTTON_STATE", _pg_mouse.get_pressed(3))
+        else:
+            type.__setattr__(Mouse, "_MOUSE_BUTTON_STATE", ())
 
         if screenshot_threads := self.__screenshot_threads:
             screenshot_threads[:] = [t for t in screenshot_threads if t.is_alive()]
@@ -297,6 +300,9 @@ class Window(Object):
                 except WindowExit:
                     self.__display_renderer = None
                     raise
+                continue
+            if event.type == _PG_VIDEORESIZE:
+                self.__rect = ImmutableRect.convert(renderer.screen.get_rect())
                 continue
             if not handle_music_event(event):  # If it's a music event which is not expected
                 continue
@@ -421,18 +427,41 @@ class Window(Object):
     @final
     @contextmanager
     def no_mouse_update(self) -> Iterator[None]:
-        if not self.__handle_mouse_position:
-            yield
-            return
+        handle_mouse_position: bool = self.__handle_mouse_position
+        handle_mouse_button: bool | None = self.__handle_mouse_button
         self.__handle_mouse_position = False
+        self.__handle_mouse_button = None
         try:
             yield
         finally:
-            self.__handle_mouse_position = True
+            self.__handle_mouse_position = handle_mouse_position
+            self.__handle_mouse_button = handle_mouse_button
 
     @final
     @contextmanager
     def no_keyboard_update(self) -> Iterator[None]:
+        handle_keyboard: bool | None = self.__handle_keyboard
+        self.__handle_keyboard = None
+        try:
+            yield
+        finally:
+            self.__handle_keyboard = handle_keyboard
+
+    @final
+    @contextmanager
+    def disable_mouse_button_state_update(self) -> Iterator[None]:
+        if not self.__handle_mouse_button:
+            yield
+            return
+        self.__handle_mouse_button = False
+        try:
+            yield
+        finally:
+            self.__handle_mouse_button = True
+
+    @final
+    @contextmanager
+    def disable_keyboard_state_update(self) -> Iterator[None]:
         if not self.__handle_keyboard:
             yield
             return
@@ -441,6 +470,34 @@ class Window(Object):
             yield
         finally:
             self.__handle_keyboard = True
+
+    @final
+    @contextmanager
+    def enable_mouse_button_state_update(self) -> Iterator[None]:
+        if self.__handle_mouse_button is None:
+            raise WindowError("Window.no_mouse_update() context is active, cannot enable mouse button state update")
+        if self.__handle_mouse_button:
+            yield
+            return
+        self.__handle_mouse_button = True
+        try:
+            yield
+        finally:
+            self.__handle_mouse_button = False
+
+    @final
+    @contextmanager
+    def enable_keyboard_state_update(self) -> Iterator[None]:
+        if self.__handle_keyboard is None:
+            raise WindowError("Window.no_keyboard_update() context is active, cannot enable keyboard state update")
+        if self.__handle_keyboard:
+            yield
+            return
+        self.__handle_keyboard = True
+        try:
+            yield
+        finally:
+            self.__handle_keyboard = False
 
     @final
     @contextmanager
@@ -467,11 +524,6 @@ class Window(Object):
                 pg_event = poll_event()
             except IndexError:
                 break
-            if pg_event.type == _PG_VIDEORESIZE:
-                renderer = self.__display_renderer
-                assert renderer is not None, "No active renderer"
-                self.__rect = ImmutableRect.convert(renderer.screen.get_rect())
-                continue
             try:
                 event = make_event(pg_event, handle_user_events=True)
             except UnknownEventTypeError:
@@ -495,13 +547,7 @@ class Window(Object):
 
     @final
     def get_cursor(self) -> Cursor:
-        pygame_cursor = _pg_mouse.get_cursor()
-        cursor: Cursor
-        if pygame_cursor.type == "system":
-            cursor = SystemCursor(*pygame_cursor.data)
-        else:
-            cursor = Cursor(pygame_cursor)
-        return cursor
+        return make_cursor_from_pygame_cursor(_pg_mouse.get_cursor())
 
     @final
     def set_cursor(self, cursor: Cursor, *, nb_frames: int = 0) -> None:
@@ -512,7 +558,6 @@ class Window(Object):
         context_cursor = self.__context_cursor
         if not context_cursor:
             self.__context_cursor = _TemporaryCursor(cursor, self.get_cursor(), nb_frames)
-            _pg_mouse.set_cursor(cursor)
         else:
             context_cursor.cursor = cursor
             context_cursor.nb_frames = nb_frames
@@ -536,7 +581,8 @@ class Window(Object):
             return
         flags: int = self.__flags
         vsync = int(bool(self.__vsync))
-        _pg_display.set_mode(size, flags=flags, vsync=vsync)
+        screen = _pg_display.set_mode(size, flags=flags, vsync=vsync)
+        self.__rect = ImmutableRect.convert(screen.get_rect())
 
     @final
     def set_width(self, width: int) -> None:
@@ -865,6 +911,7 @@ class Window(Object):
 
 class _FramerateManager:
     def __init__(self) -> None:
+        self.Time = Time
         self.get_ticks = Time.get_ticks
         self.delay = Time.delay
         self.wait = Time.wait
@@ -886,7 +933,7 @@ class _FramerateManager:
                     else:
                         actual_tick += self.wait(delay)
                     elapsed = actual_tick - self.__last_tick
-        setattr_pv(Time, "delta", elapsed / 1000)
+        setattr_pv(self.Time, "delta", elapsed / 1000)
         self.__last_tick = actual_tick
 
         self.__fps_count += 1

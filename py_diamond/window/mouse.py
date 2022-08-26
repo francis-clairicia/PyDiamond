@@ -20,7 +20,7 @@ from ..system.namespace import ClassNamespace
 
 @final
 class Mouse(ClassNamespace, frozen=True):
-    _MOUSE_BUTTON_STATE: tuple[bool, bool, bool] = (False, False, False)
+    _MOUSE_BUTTON_STATE: tuple[bool, bool, bool] | tuple[()] = ()
 
     @staticmethod
     def get_pos() -> tuple[int, int]:
@@ -33,7 +33,10 @@ class Mouse(ClassNamespace, frozen=True):
     @staticmethod
     def is_pressed(button: MouseButton) -> bool:
         button = MouseButton(button)
-        return Mouse._MOUSE_BUTTON_STATE[button.value]
+        try:
+            return bool(Mouse._MOUSE_BUTTON_STATE[button.value - 1])
+        except IndexError:
+            return False
 
     @staticmethod
     def show_cursor() -> None:

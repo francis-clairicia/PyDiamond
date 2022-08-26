@@ -14,7 +14,6 @@ from typing import ClassVar, Sequence, final, overload
 
 import pygame.constants as _pg_constants
 import pygame.key as _pg_key
-from typing_extensions import assert_never
 
 from ..system.namespace import ClassNamespace
 
@@ -25,35 +24,9 @@ _KEY_REPEAT: tuple[int, int] = (0, 0)
 class Keyboard(ClassNamespace, frozen=True):
     _KEY_STATES: Sequence[bool] = []
 
-    @overload
     @staticmethod
-    def get(key: Key) -> str:
-        ...
-
-    @overload
-    @staticmethod
-    def get(key: str) -> Key:
-        ...
-
-    @staticmethod
-    def get(key: str | Key) -> str | Key:
-        match key:
-            case str():
-                return Key(_pg_key.key_code(key))
-            case Key():
-                return _pg_key.name(key.value)
-            case _:
-                assert_never(key)
-
-    @staticmethod
-    def is_pressed(key: Key | str) -> bool:
-        match key:
-            case str():
-                key = Key(_pg_key.key_code(key))
-            case Key():
-                pass
-            case _:
-                assert_never(key)
+    def is_pressed(key: Key) -> bool:
+        key = Key(key)
         try:
             return bool(Keyboard._KEY_STATES[key.value])
         except IndexError:
@@ -251,6 +224,14 @@ class Key(IntEnum):
     K_MENU = _pg_constants.K_MENU
     K_POWER = _pg_constants.K_POWER
     K_EURO = _pg_constants.K_EURO
+
+    @classmethod
+    def from_name(cls, name: str) -> Key:
+        return cls(_pg_key.key_code(name))
+
+    @property
+    def real_name(self) -> str:
+        return _pg_key.name(self.value)
 
 
 @unique
