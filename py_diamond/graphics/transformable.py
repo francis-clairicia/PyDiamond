@@ -10,7 +10,7 @@ __all__ = ["Transformable", "TransformableProxy"]
 
 
 from abc import abstractmethod
-from typing import Any, Callable, Literal, Mapping, TypeAlias, overload
+from typing import Any, Callable, Literal, Mapping, overload
 
 from typing_extensions import assert_never
 
@@ -21,18 +21,8 @@ from ..system.utils.functools import wraps
 from .movable import Movable, MovableProxy
 from .rect import Rect
 
-_ScaleSizeStrategy: TypeAlias = Literal["both", "min", "max"]
-
 
 class Transformable(Movable):
-    def __init_subclass__(cls, **kwargs: Any) -> None:
-        super().__init_subclass__(**kwargs)
-        frozen_state_methods = ["_set_frozen_state", "_freeze_state"]
-        if sum(1 for method in frozen_state_methods if method in vars(cls)) not in (0, len(frozen_state_methods)):
-            raise TypeError(
-                f"If you provide one of these methods, you must implements all of the following list: {', '.join(frozen_state_methods)}"
-            )
-
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.__angle: float = 0
@@ -189,7 +179,7 @@ class Transformable(Movable):
             return self.set_scale(scale_y=scale)
         self.set_scale(scale)
 
-    def scale_to_size(self, size: tuple[float, float], *, strategy: _ScaleSizeStrategy = "both") -> None:
+    def scale_to_size(self, size: tuple[float, float], *, strategy: Literal["both", "min", "max"] = "both") -> None:
         w, h = self.get_local_size()
         scale_width: float = size[0] / w if w > 0 else 0
         scale_height: float = size[1] / h if h > 0 else 0
@@ -263,7 +253,7 @@ class Transformable(Movable):
             self.set_scale(scale)
 
     @final
-    def apply_rotation_scale(self) -> None:
+    def update_transform(self) -> None:
         try:
             self._apply_both_rotation_and_scale()
         except NotImplementedError:
@@ -348,13 +338,20 @@ class Transformable(Movable):
         return compute_size_from_edges(all_points)
 
     @final
-    def get_area(self, *, apply_scale: bool = True, apply_rotation: bool = True) -> Rect:
-        return Rect((0, 0), self.get_area_size(apply_scale=apply_scale, apply_rotation=apply_rotation))
+    def get_area(self, *, apply_scale: bool = True, apply_rotation: bool = True, **kwargs: Any) -> Rect:
+        r: Rect = Rect((0, 0), self.get_area_size(apply_scale=apply_scale, apply_rotation=apply_rotation))
+        if kwargs:
+            r_setattr = r.__setattr__
+            for name, value in kwargs.items():
+                r_setattr(name, value)
+        return r
 
     def get_local_rect(self, **kwargs: float | tuple[float, float]) -> Rect:
         r: Rect = Rect((0, 0), self.get_local_size())
-        for name, value in kwargs.items():
-            setattr(r, name, value)
+        if kwargs:
+            r_setattr = r.__setattr__
+            for name, value in kwargs.items():
+                r_setattr(name, value)
         return r
 
     @property

@@ -178,7 +178,7 @@ class Sprite(Drawable, Transformable):
     def default_image(self, new_image: Surface) -> None:
         center: tuple[float, float] = self.center
         self.__default_image = new_image.copy()
-        self.apply_rotation_scale()
+        self.update_transform()
         self.center = center
 
     @property

@@ -64,7 +64,7 @@ class VersionInfo(typing.NamedTuple):
             case None:
                 releaselevel = "final"
             case _:  # Should not happen
-                raise SystemError("Invalid regex pattern")
+                raise AssertionError("Invalid regex pattern")
 
         serial: int = int(match["serial"]) if match["serial"] else 0
 

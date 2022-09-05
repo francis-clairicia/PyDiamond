@@ -15,9 +15,11 @@ _FPoint: TypeAlias = tuple[float, float]
 
 def compute_rect_from_edges(edges: Sequence[_FPoint] | Sequence[Vector2]) -> tuple[float, float, float, float]:
     # TODO: FRect
+    if not edges:
+        return 0, 0, 0, 0
     if len(edges) < 2:
-        point = edges[0] if edges else (0, 0)
-        return point[0], point[1], 0, 0
+        point = edges[0]
+        return point[0], point[1], 1, 1
 
     left = right = edges[0][0]
     top = bottom = edges[0][1]

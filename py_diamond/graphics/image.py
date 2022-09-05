@@ -122,19 +122,19 @@ class Image(Drawable, Transformable):
             self.__default_image = create_surface((0, 0))
         else:
             self.__default_image = image.copy() if copy else image
-        self.apply_rotation_scale()
+        self.update_transform()
         self.center = center
 
     def fill(self, color: Color, rect: Rect | None = None) -> None:
         mask = create_surface(self.__default_image.get_size() if rect is None else rect.size)
         mask.fill(color)
         self.__default_image.blit(mask, rect or (0, 0))
-        self.apply_rotation_scale()
+        self.update_transform()
 
     def load(self, file: str) -> None:
         center: tuple[float, float] = self.center
         self.__default_image = load_image(file)
-        self.apply_rotation_scale()
+        self.update_transform()
         self.center = center
 
     def save(self, file: str) -> None:

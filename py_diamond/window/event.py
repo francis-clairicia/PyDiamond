@@ -128,7 +128,7 @@ class EventMeta(ObjectMeta):
             event_type: int = int(_pg_event.custom_type())
             if event_type in EventFactory.pygame_type:  # Should not happen
                 event_cls = EventFactory.pygame_type[event_type]
-                raise SystemError(
+                raise AssertionError(
                     f"Event with type {_pg_event.event_name(event_type)!r} ({event_type}) already exists: {event_cls}"
                 )
             event_cls = cast(type[Event], cls)
@@ -177,20 +177,19 @@ class _BuiltinEventMeta(EventMeta):
         try:
             BuiltinEvent
         except NameError:
-            pass
-        else:
-            if all(event_type in mcs.__type for event_type in BuiltinEventType):
-                raise TypeError("Trying to create custom event from BuiltinEvent class")
-            assert len(bases) == 1 and issubclass(bases[0], BuiltinEvent)
-            cls = super().__new__(mcs, name, bases, namespace, **kwargs)
-            assert not cls.is_model()
-            assert isinstance(event_type, BuiltinEventType), f"Got {event_type!r}"
-            assert event_type not in mcs.__type, f"{event_type!r} event already taken"
-            event_cls = cast(type[BuiltinEvent], cls)
-            mcs.__associations[event_cls] = event_type
-            mcs.__type[event_type] = event_cls
-            return cls
-        return super().__new__(mcs, name, bases, namespace, **kwargs)
+            return super().__new__(mcs, name, bases, namespace, **kwargs)
+
+        if all(event_type in mcs.__type for event_type in BuiltinEventType):
+            raise TypeError("Trying to create custom event from BuiltinEvent class")
+        assert len(bases) == 1 and issubclass(bases[0], BuiltinEvent)
+        cls = super().__new__(mcs, name, bases, namespace, **kwargs)
+        assert not cls.is_model()
+        assert isinstance(event_type, BuiltinEventType), f"Got {event_type!r}"
+        assert event_type not in mcs.__type, f"{event_type!r} event already taken"
+        event_cls = cast(type[BuiltinEvent], cls)
+        mcs.__associations[event_cls] = event_type
+        mcs.__type[event_type] = event_cls
+        return cls
 
 
 class Event(Object, metaclass=EventMeta):
@@ -249,10 +248,10 @@ class BuiltinEventType(IntEnum):
     SCREENSHOT = _pg_event.custom_type()
 
     def __repr__(self) -> str:
-        return f"<{self.name} ({self.real_name}): {self.value}>"
+        return f"<{self.name} ({self.pygame_name}): {self.value}>"
 
     @property
-    def real_name(self) -> str:
+    def pygame_name(self) -> str:
         return _pg_event.event_name(self)
 
 
@@ -268,7 +267,7 @@ class BuiltinUserEventCode(IntEnum):
 
 
 # TODO (3.11) dataclass_transform (PEP-681)
-@dataclass(kw_only=True)
+@dataclass
 class BuiltinEvent(Event, metaclass=_BuiltinEventMeta, model=True):
     @classmethod
     def from_dict(cls: type[Self], event_dict: Mapping[str, Any]) -> Self:
@@ -406,7 +405,6 @@ TextEvent: TypeAlias = TextEditingEvent | TextInputEvent
 
 
 @final
-@dataclass(init=False)
 class UserEvent(BuiltinEvent, event_type=BuiltinEventType.USEREVENT):
     code: int = 0
 
@@ -554,7 +552,7 @@ class ScreenshotEvent(BuiltinEvent, event_type=BuiltinEventType.SCREENSHOT):
 
 def _check_event_types_association() -> None:
     if unbound_types := set(filter(lambda e: e not in _BUILTIN_PYGAME_EVENT_TYPE, BuiltinEventType)):  # noqa: F821
-        raise SystemError(
+        raise AssertionError(
             f"The following events do not have an associated BuiltinEvent class: {', '.join(e.name for e in unbound_types)}"
         )
 
@@ -611,9 +609,9 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
                 ) from exc
             return UserEvent.from_dict(pygame_event.__dict__ | {"code": pygame_event.type})
         match event_cls.from_dict(pygame_event.__dict__):
-            case UserEvent(code=BuiltinUserEventCode.DROPFILE, filename=filename):
+            case UserEvent(code=BuiltinUserEventCode.DROPFILE) as event:
                 # c.f.: https://www.pygame.org/docs/ref/event.html#:~:text=%3Dpygame.-,USEREVENT_DROPFILE,-%2C%20filename
-                return DropFileEvent(file=filename)
+                return DropFileEvent(file=event.filename)
             case event:
                 return event
 

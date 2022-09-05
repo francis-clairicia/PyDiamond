@@ -10,7 +10,7 @@ __all__ = ["Movable", "MovableProxy"]
 
 
 from abc import abstractmethod
-from typing import Any, Callable, Literal, TypeAlias, overload
+from typing import Any, Callable, overload
 
 from ..math import Vector2
 from ..system.object import Object, final
@@ -18,18 +18,7 @@ from ..system.utils.abc import concreteclass
 from ..system.utils.functools import wraps
 from .rect import Rect
 
-_SingleComponentPosition: TypeAlias = Literal[
-    "x",
-    "y",
-    "left",
-    "right",
-    "top",
-    "bottom",
-    "centerx",
-    "centery",
-]
-
-_SINGLE_COMPONENT_POSITIONS: tuple[_SingleComponentPosition, ...] = (
+_SINGLE_COMPONENT_POSITIONS = (
     "x",
     "y",
     "left",
@@ -40,19 +29,7 @@ _SINGLE_COMPONENT_POSITIONS: tuple[_SingleComponentPosition, ...] = (
     "centery",
 )
 
-_PointPosition: TypeAlias = Literal[
-    "center",
-    "topleft",
-    "topright",
-    "bottomleft",
-    "bottomright",
-    "midleft",
-    "midright",
-    "midtop",
-    "midbottom",
-]
-
-_POINT_POSITIONS: tuple[_PointPosition, ...] = (
+_POINT_POSITIONS = (
     "center",
     "topleft",
     "topright",
@@ -135,7 +112,7 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
             attr_name, attr_value = next(iter(kwargs.items()))
             if attr_name not in _ALL_VALID_POSITIONS:
                 raise TypeError("Bad parameters")
-            return setattr(self, attr_name, attr_value)
+            return self.__setattr__(attr_name, attr_value)
 
         if len(kwargs) != 2:
             raise TypeError("Bad parameters")
@@ -217,8 +194,10 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
 
     def get_rect(self, **kwargs: float | tuple[float, float]) -> Rect:
         r: Rect = Rect(self.topleft, self.get_size())
-        for name, value in kwargs.items():
-            setattr(r, name, value)
+        if kwargs:
+            r_setattr = r.__setattr__
+            for name, value in kwargs.items():
+                r_setattr(name, value)
         return r
 
     def _on_move(self) -> None:

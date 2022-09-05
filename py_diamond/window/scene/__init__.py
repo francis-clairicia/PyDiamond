@@ -86,7 +86,9 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
         busy_loop: bool = False,
         **kwargs: Any,
     ) -> __Self:
-        if "Scene" not in globals():
+        try:
+            Scene
+        except NameError:
             return super().__new__(mcs, name, bases, namespace, **kwargs)
 
         if not any(issubclass(cls, Scene) for cls in bases):

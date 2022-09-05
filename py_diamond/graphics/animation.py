@@ -529,7 +529,7 @@ class _TransformState(NamedTuple):
 
     def apply_on(self, t: Transformable) -> None:
         if not t._set_frozen_state(self.angle, self.scale, self.data):
-            t.apply_rotation_scale()
+            t.update_transform()
         center = self.center
         t.center = (center.x, center.y)
 

@@ -139,10 +139,10 @@ class AbstractShape(Drawable, Transformable):
     @config.add_main_update
     def __update_shape(self) -> None:
         if self.config.has_initialization_context():
-            self.apply_rotation_scale()
+            self.update_transform()
         else:
             center: tuple[float, float] = self.center
-            self.apply_rotation_scale()
+            self.update_transform()
             self.center = center
 
 

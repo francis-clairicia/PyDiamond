@@ -83,7 +83,16 @@ class SurfaceRenderer(AbstractRenderer):
         ...
 
     def __init__(self, arg: Surface | tuple[float, float], /, *, convert_alpha: bool = True) -> None:
-        self.__target: Surface = arg if isinstance(arg, Surface) else create_surface(arg, convert_alpha=convert_alpha)
+        self.__target: Surface
+        try:
+            w: float
+            h: float
+            w, h = arg  # type: ignore[misc]
+        except TypeError:
+            self.__target = arg  # type: ignore[assignment]
+        else:
+            self.__target = create_surface((w, h), convert_alpha=convert_alpha)
+        # arg if isinstance(arg, Surface) else create_surface(arg, convert_alpha=convert_alpha)
 
     def get_rect(self, **kwargs: float | Sequence[float]) -> Rect:
         return self.__target.get_rect(**kwargs)
@@ -278,5 +287,4 @@ class SurfaceRenderer(AbstractRenderer):
 
     @surface.setter
     def surface(self, new_target: Surface) -> None:
-        assert isinstance(new_target, Surface)
         self.__target = new_target

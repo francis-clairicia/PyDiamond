@@ -14,6 +14,9 @@ from typing import TYPE_CHECKING, Any, SupportsIndex
 
 from pygame.rect import Rect
 
+if TYPE_CHECKING:
+    from _typeshed import Self
+
 
 @dataclass(init=False, repr=False, eq=False, frozen=True, unsafe_hash=True)
 class ImmutableRect(Rect):
@@ -45,9 +48,9 @@ class ImmutableRect(Rect):
         def __init__(self, *args: Any, **kwargs: Any) -> None:
             super().__init__(*args, **kwargs)
 
-    @staticmethod
-    def convert(pygame_rect: Rect) -> ImmutableRect:
-        return ImmutableRect(pygame_rect.topleft, pygame_rect.size)
+    @classmethod
+    def convert(cls: type[Self], pygame_rect: Rect) -> Self:
+        return cls(pygame_rect.topleft, pygame_rect.size)  # type: ignore[call-arg]
 
     def __reduce_ex__(self, __protocol: SupportsIndex) -> str | tuple[Any, ...]:
         return type(self), (self.x, self.y, self.w, self.h)

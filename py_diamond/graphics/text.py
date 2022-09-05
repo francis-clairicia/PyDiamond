@@ -323,11 +323,11 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
     def __update_surface(self) -> None:
         if self.config.has_initialization_context():
             self.__default_image = self._render()
-            self.apply_rotation_scale()
+            self.update_transform()
         else:
             center: tuple[float, float] = self.center
             self.__default_image = self._render()
-            self.apply_rotation_scale()
+            self.update_transform()
             self.center = center
 
     config.getter("shadow", lambda self: (self.shadow_x, self.shadow_y), use_override=False)

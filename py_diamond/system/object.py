@@ -138,11 +138,11 @@ class ObjectMeta(ABCMeta):
 
         if not is_dataclass(cls):  # __post_init__ already called for dataclasses
             try:
-                __post_init__: Callable[[], None] = getattr(self, "__post_init__")
+                __post_init__: Callable[[Any], None] = getattr(cls, "__post_init__")
             except AttributeError:
                 pass
             else:
-                __post_init__()
+                __post_init__(self)
         return self
 
     def __setattr__(cls, name: str, value: Any, /) -> None:
