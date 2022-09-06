@@ -49,8 +49,6 @@ from .constants import AF_INET, AF_INET6, AddressFamily, ShutdownFlag
 if TYPE_CHECKING:
     from _typeshed import WriteableBuffer
 
-_MISSING: Any = object()
-
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
@@ -79,9 +77,9 @@ class _AbstractPythonSocket(AbstractSocket):
 
     @_thread_safe_python_socket_method
     def __repr__(self) -> str:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
         sock_family = self.family
-        if sock is _MISSING:
+        if sock is None:
             return f"<{type(self).__name__} family={sock_family} closed>"
         laddr: tuple[Any, ...] = sock.getsockname()
         fd: int = sock.fileno()
@@ -95,8 +93,8 @@ class _AbstractPythonSocket(AbstractSocket):
     @final
     @_thread_safe_python_socket_method
     def close(self) -> None:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
+        if sock is None:
             raise RuntimeError("Closed socket")
         try:
             sock.close()
@@ -108,48 +106,48 @@ class _AbstractPythonSocket(AbstractSocket):
     @final
     @_thread_safe_python_socket_method
     def getsockname(self) -> SocketAddress:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
+        if sock is None:
             raise RuntimeError("Closed socket")
         return new_socket_address(sock.getsockname(), sock.family)
 
     @final
     @_thread_safe_python_socket_method
     def getblocking(self) -> bool:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
+        if sock is None:
             raise RuntimeError("Closed socket")
         return sock.getblocking()
 
     @final
     @_thread_safe_python_socket_method
     def setblocking(self, flag: bool) -> None:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
+        if sock is None:
             raise RuntimeError("Closed socket")
         return sock.setblocking(flag)
 
     @final
     @_thread_safe_python_socket_method
     def gettimeout(self) -> float | None:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
+        if sock is None:
             raise RuntimeError("Closed socket")
         return sock.gettimeout()
 
     @final
     @_thread_safe_python_socket_method
     def settimeout(self, value: float | None) -> None:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
+        if sock is None:
             raise RuntimeError("Closed socket")
         return sock.settimeout(value)
 
     @final
     @_thread_safe_python_socket_method
     def fileno(self) -> int:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
+        if sock is None:
             raise RuntimeError("Closed socket")
         return sock.fileno()
 
@@ -168,8 +166,8 @@ class _AbstractPythonTCPSocket(_AbstractPythonSocket, AbstractTCPSocket):
     @_thread_safe_python_socket_method
     def shutdown(self, how: ShutdownFlag) -> None:
         how = ShutdownFlag(how)
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
+        if sock is None:
             raise RuntimeError("Closed socket")
         return sock.shutdown(how)
 
@@ -202,8 +200,8 @@ class PythonTCPServerSocket(_AbstractPythonTCPSocket, AbstractTCPServerSocket):
     @final
     @_thread_safe_python_socket_method
     def accept(self) -> tuple[PythonTCPClientSocket, SocketAddress]:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
+        if sock is None:
             raise RuntimeError("Closed socket")
         client: socket
         addr: tuple[Any, ...]
@@ -220,8 +218,8 @@ class PythonTCPServerSocket(_AbstractPythonTCPSocket, AbstractTCPServerSocket):
     @final
     @_thread_safe_python_socket_method
     def listen(self, backlog: int) -> None:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
+        if sock is None:
             raise RuntimeError("Closed socket")
         sock.listen(backlog)
         setattr_pv(self, "backlog", backlog)
@@ -265,9 +263,9 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
     @final
     @_thread_safe_python_socket_method
     def __repr__(self) -> str:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
         sock_family = AddressFamily(self.family)
-        if sock is _MISSING:
+        if sock is None:
             return f"<{type(self).__name__} family={sock_family} closed>"
         sock_type = sock.type
         laddr: Any = sock.getsockname()
@@ -283,24 +281,24 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
     @final
     @_thread_safe_python_socket_method
     def recv(self, bufsize: int, *, flags: int = 0) -> bytes:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
+        if sock is None:
             raise RuntimeError("Closed socket")
         return sock.recv(bufsize, flags)
 
     @final
     @_thread_safe_python_socket_method
     def recv_into(self, buffer: WriteableBuffer, nbytes: int = 0, *, flags: int = 0) -> int:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
+        if sock is None:
             raise RuntimeError("Closed socket")
         return sock.recv_into(buffer, nbytes, flags)
 
     @final
     @_thread_safe_python_socket_method
     def send(self, data: bytes, *, flags: int = 0) -> int:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
+        if sock is None:
             raise RuntimeError("Closed socket")
         if not data:
             return 0
@@ -309,8 +307,8 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
     @final
     @_thread_safe_python_socket_method
     def getpeername(self) -> SocketAddress | None:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
+        if sock is None:
             raise RuntimeError("Closed socket")
         try:
             addr: tuple[Any, ...] = sock.getpeername()
@@ -321,8 +319,8 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
     @final
     @_thread_safe_python_socket_method
     def is_connected(self) -> bool:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
+        if sock is None:
             return False
         try:
             sock.getpeername()
@@ -333,8 +331,8 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
     @final
     @_thread_safe_python_socket_method
     def reconnect(self, timeout: float | None = None) -> None:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
+        if sock is None:
             raise RuntimeError("Closed socket")
         try:
             sock.getpeername()
@@ -362,8 +360,8 @@ class _AbstractPythonUDPSocket(_AbstractPythonSocket, AbstractUDPSocket):
     @_thread_safe_python_socket_method
     def recvfrom(self, *, flags: int = 0) -> ReceivedDatagram:
         bufsize: int = self.MAX_PACKET_SIZE
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
+        if sock is None:
             raise RuntimeError("Closed socket")
         data, addr = sock.recvfrom(bufsize, flags)
         return ReceivedDatagram(data, new_socket_address(addr, sock.family))
@@ -371,8 +369,8 @@ class _AbstractPythonUDPSocket(_AbstractPythonSocket, AbstractUDPSocket):
     @final
     @_thread_safe_python_socket_method
     def recvfrom_into(self, buffer: WriteableBuffer, nbytes: int = 0, *, flags: int = 0) -> tuple[int, SocketAddress]:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
+        if sock is None:
             raise RuntimeError("Closed socket")
         nbytes, addr = sock.recvfrom_into(buffer, nbytes, flags)
         return (nbytes, new_socket_address(addr, sock.family))
@@ -380,8 +378,8 @@ class _AbstractPythonUDPSocket(_AbstractPythonSocket, AbstractUDPSocket):
     @final
     @_thread_safe_python_socket_method
     def sendto(self, data: bytes, address: SocketAddress, *, flags: int = 0) -> int:
-        sock: socket = getattr_pv(self, "socket", _MISSING, owner=_AbstractPythonSocket)
-        if sock is _MISSING:
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
+        if sock is None:
             raise RuntimeError("Closed socket")
         if (data_length := len(data)) > self.MAX_PACKET_SIZE:
             raise ValueError(f"Datagram too big ({data_length} > {self.MAX_PACKET_SIZE})")

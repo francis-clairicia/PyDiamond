@@ -93,7 +93,6 @@ class Clickable(Object):
         event.bind_mouse_position(WeakMethod(self.__handle_mouse_position))
 
     def __post_init__(self) -> None:
-        super().__post_init__()
         if self.hover:
             self._on_hover()
             if self.active:

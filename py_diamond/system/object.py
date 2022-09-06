@@ -136,13 +136,13 @@ class ObjectMeta(ABCMeta):
     def __call__(cls, *args: Any, **kwds: Any) -> Any:
         self = super().__call__(*args, **kwds)
 
-        if not is_dataclass(cls):  # __post_init__ already called for dataclasses
-            try:
-                __post_init__: Callable[[Any], None] = getattr(cls, "__post_init__")
-            except AttributeError:
-                pass
-            else:
-                __post_init__(self)
+        try:
+            __post_init__: Callable[[], None] = getattr(self, "__post_init__")
+        except AttributeError:
+            pass
+        else:
+            if not is_dataclass(cls):  # __post_init__ already called for dataclasses
+                __post_init__()
         return self
 
     def __setattr__(cls, name: str, value: Any, /) -> None:
@@ -188,12 +188,14 @@ class ObjectMeta(ABCMeta):
 class Object(metaclass=ObjectMeta):
     __slots__ = ()
 
-    @classmethod
-    def __post_init_class__(cls) -> None:
-        pass
+    if TYPE_CHECKING:
 
-    def __post_init__(self) -> None:
-        pass
+        @classmethod
+        def __post_init_class__(cls) -> None:
+            pass
+
+        def __post_init__(self) -> None:
+            pass
 
 
 from typing import _ProtocolMeta
