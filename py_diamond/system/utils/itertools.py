@@ -61,7 +61,7 @@ def send_return(gen: Generator[Any, _T_contra, _V_co], value: _T_contra, /) -> _
     try:
         send_value = gen.send(value)
     except StopIteration as exc:
-        return exc.value  # type: ignore[no-any-return]
+        return exc.value
     raise StopIteration(send_value)
 
 

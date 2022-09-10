@@ -112,17 +112,17 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
     @final
     @concreteclassmethod
     def get_required_framerate(cls) -> int:
-        return cls.__framerate  # type: ignore[no-any-return, attr-defined]
+        return cls.__framerate  # type: ignore[attr-defined]
 
     @final
     @concreteclassmethod
     def get_required_fixed_framerate(cls) -> int:
-        return cls.__fixed_framerate  # type: ignore[no-any-return, attr-defined]
+        return cls.__fixed_framerate  # type: ignore[attr-defined]
 
     @final
     @concreteclassmethod
     def require_busy_loop(cls) -> bool:
-        return cls.__busy_loop  # type: ignore[no-any-return, attr-defined]
+        return cls.__busy_loop  # type: ignore[attr-defined]
 
 
 SceneTransitionCoroutine: TypeAlias = Generator[None, float | None, None]

@@ -20,7 +20,7 @@ from ...graphics.surface import Surface
 from ...graphics.text import Text
 from ...graphics.transformable import Transformable
 from ...system.clock import Clock
-from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
+from ...system.configuration import Configuration, ConfigurationTemplate, OptionAttribute, initializer
 from ...system.theme import NoTheme, ThemedObjectMeta, ThemeType
 from ...system.validation import valid_integer, valid_optional_float, valid_optional_integer
 from ...window.cursor import SystemCursor
@@ -55,7 +55,6 @@ class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta)
         "interval",
         "bg",
         "fg",
-        "font",
         "shadow_x",
         "shadow_y",
         "shadow",
@@ -80,7 +79,10 @@ class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta)
     bg: OptionAttribute[Color] = OptionAttribute()
     fg: OptionAttribute[Color] = OptionAttribute()
 
-    font: OptionAttribute[Font] = OptionAttribute()
+    @config.section_property
+    def font(self) -> Configuration[Font]:
+        raise NotImplementedError  # TODO: Configuration: nested sections
+
     shadow_x: OptionAttribute[float] = OptionAttribute()
     shadow_y: OptionAttribute[float] = OptionAttribute()
     shadow: OptionAttribute[tuple[float, float]] = OptionAttribute()
@@ -168,7 +170,7 @@ class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta)
         self.__cursor_width_offset: float = 15
         self.__cursor_height_offset: float = 10
         height: float
-        entry_size: tuple[int, int] = _get_entry_size(self.__text.font, max_nb_chars or 10)
+        entry_size: tuple[int, int] = _get_entry_size(self.__text.font.__self__, max_nb_chars or 10)
         if width is None:
             width = entry_size[0] + self.__cursor_width_offset
         height = entry_size[1] + self.__cursor_height_offset
@@ -236,14 +238,14 @@ class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta)
         else:
             self.__show_cursor = show_cursor = False
         if show_cursor:
-            width: float = text.font.get_rect(text.message[:cursor]).width + 1
+            width: float = text.font.__self__.get_rect(text.message[:cursor]).width + 1
             height: float = self.height - self.__cursor_height_offset
             if not self.__insert_mode or self.cursor == len(text.message):
                 cursor_start: tuple[float, float] = (text.left + width, text.centery - height // 2)
                 cursor_end: tuple[float, float] = (text.left + width, text.centery + height // 2)
                 target.draw_line(text.color, cursor_start, cursor_end, width=2)
             else:
-                char_rect = text.font.get_rect(text.message[cursor])
+                char_rect = text.font.__self__.get_rect(text.message[cursor])
                 char_rect.left = int(text.left + width)
                 char_rect.centery = int(text.centery)
                 target.draw_rect(text.color, char_rect)
@@ -372,7 +374,6 @@ class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta)
     config.add_value_converter_on_set_static("fixed_width", valid_optional_float(min_value=0))
 
     @config.getter_with_key("fg", use_key="color")
-    @config.getter_with_key("font")
     @config.getter_with_key("shadow_x")
     @config.getter_with_key("shadow_y")
     @config.getter_with_key("shadow")
@@ -381,7 +382,6 @@ class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta)
         return self.__text.config.get(option)
 
     @config.setter_with_key("fg", use_key="color")
-    @config.setter_with_key("font")
     @config.setter_with_key("shadow_x")
     @config.setter_with_key("shadow_y")
     @config.setter_with_key("shadow")
@@ -412,12 +412,12 @@ class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta)
         if option != "color":
             self.__outline_shape.config.set(option, value)
 
-    @config.on_update("font")
+    # @config.on_update("font")
     @config.on_update("fixed_width")
     def __update_shape_using_font(self) -> None:
         max_nb_chars: int = self.__nb_chars
         fixed_width: float | None = self.__fixed_width
-        entry_size: tuple[int, int] = _get_entry_size(self.__text.font, max_nb_chars or 10)
+        entry_size: tuple[int, int] = _get_entry_size(self.__text.font.__self__, max_nb_chars or 10)
         width: float
         if fixed_width is not None:
             width = fixed_width

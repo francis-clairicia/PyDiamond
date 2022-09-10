@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 
 def get_fonts() -> list[str]:
-    return _pg_sysfont.get_fonts()  # type: ignore[no-any-return,no-untyped-call]
+    return _pg_sysfont.get_fonts()  # type: ignore[no-untyped-call]
 
 
 def get_default_font() -> str:
@@ -36,7 +36,7 @@ def get_default_font() -> str:
 
 
 def match_font(name: str | bytes | Iterable[str | bytes], bold: bool = False, italic: bool = False) -> str | None:
-    return _pg_sysfont.match_font(name, bold=bold, italic=italic)  # type: ignore[no-any-return,no-untyped-call]
+    return _pg_sysfont.match_font(name, bold=bold, italic=italic)  # type: ignore[no-untyped-call]
 
 
 def SysFont(name: str | bytes | Iterable[str | bytes], size: int, bold: bool = False, italic: bool = False) -> Font:
@@ -108,6 +108,7 @@ class Font(Object):
     __default_font = __encode_file_path(get_default_font())
 
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
+        "size",
         "style",
         "underline",
         "strong",
@@ -298,6 +299,8 @@ class Font(Object):
             rotation=rotation,
             size=size,
         )
+
+    config.use_descriptor("size", size)
 
     config.add_enum_converter("style", FontStyle, store_value=True)
     config.add_value_converter_on_set_static("underline", bool)

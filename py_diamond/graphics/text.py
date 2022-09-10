@@ -21,10 +21,10 @@ from weakref import proxy as weakproxy
 from pygame.transform import rotozoom as _surface_rotozoom
 from typing_extensions import assert_never
 
-from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
+from ..system.configuration import Configuration, ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
 from ..system.theme import ThemedObjectMeta, ThemeType
-from ..system.typing import reflect_method_signature
+from ..system.utils.typing import reflect_method_signature
 from ..system.validation import valid_float, valid_integer
 from ._transform import rotozoom2 as _surface_rotozoom2, scale_by as _surface_scale_by
 from .color import BLACK, Color
@@ -49,7 +49,6 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
 
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "message",
-        "font",
         "color",
         "wrap",
         "justify",
@@ -61,7 +60,6 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
     )
 
     message: OptionAttribute[str] = OptionAttribute()
-    font: OptionAttribute[Font] = OptionAttribute()
     color: OptionAttribute[Color] = OptionAttribute()
     wrap: OptionAttribute[int] = OptionAttribute()
     justify: OptionAttribute[str] = OptionAttribute()
@@ -70,6 +68,10 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
     shadow: OptionAttribute[tuple[float, float]] = OptionAttribute()
     shadow_color: OptionAttribute[Color] = OptionAttribute()
     line_spacing: OptionAttribute[float] = OptionAttribute()
+
+    @config.section_property
+    def font(self) -> Configuration[Font]:
+        return self.__font.config
 
     @initializer
     def __init__(
@@ -153,7 +155,6 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
                 obj = SysFont(font_family, font_size, bold=bool(bold), italic=bool(italic))
         elif isinstance(font, Font):
             obj = copy(font)
-            obj = font
             if bold is not None:
                 obj.wide = bold
             if italic is not None:
@@ -165,18 +166,21 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
         obj.antialiased = True
         return obj
 
-    @staticmethod
-    def get_default_font() -> str:
-        font: str = getattr(Text, "__default_font__", get_default_font())
+    @classmethod
+    def get_default_font(cls) -> str:
+        try:
+            font: str = getattr(cls, "__default_font__")
+        except AttributeError:
+            font = get_default_font()
         return font
 
-    @staticmethod
-    def set_default_font(font: str | None) -> None:
+    @classmethod
+    def set_default_font(cls, font: str | None) -> None:
         if font is None:
             with suppress(AttributeError):
-                delattr(Text, "__default_font__")
+                delattr(cls, "__default_font__")
         else:
-            setattr(Text, "__default_font__", str(font))
+            setattr(cls, "__default_font__", str(font))
 
     def set_font(
         self,
@@ -185,10 +189,8 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
         italic: bool | None = None,
         underline: bool | None = None,
     ) -> None:
-        self.config.set(
-            "font",
-            Text.create_font(font, bold=bold, italic=italic, underline=underline),
-        )
+        self.__font = self.create_font(font, bold=bold, italic=italic, underline=underline)
+        self.config.update_section("font")
 
     def set_custom_line_font(
         self,
@@ -200,7 +202,7 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
     ) -> None:
         if index < 0:
             raise ValueError(f"Negative index: {index}")
-        self.__custom_font[index] = Text.create_font(font, bold=bold, italic=italic, underline=underline)
+        self.__custom_font[index] = self.create_font(font, bold=bold, italic=italic, underline=underline)
         self.config.update_object()
 
     def remove_custom_line_font(self, index: int) -> None:
@@ -310,7 +312,6 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
     config.add_enum_converter("justify", Justify, return_value_on_get=True)
 
     config.add_value_validator_static("message", str)
-    config.add_value_converter_on_set_static("font", create_font)
     config.add_value_converter_on_set_static("wrap", valid_integer(min_value=0))
     config.add_value_validator_static("color", Color)
     config.add_value_converter_on_set_static("shadow_x", float)
@@ -331,7 +332,7 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
             self.center = center
 
     config.getter("shadow", lambda self: (self.shadow_x, self.shadow_y), use_override=False)
-    config.setter("shadow", lambda self, pos: self.config(shadow_x=pos[0], shadow_y=pos[1]), use_override=False)  # type: ignore[no-any-return]
+    config.setter("shadow", lambda self, pos: self.config(shadow_x=pos[0], shadow_y=pos[1]), use_override=False)
 
 
 class TextImage(Text):

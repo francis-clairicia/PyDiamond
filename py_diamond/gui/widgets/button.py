@@ -20,10 +20,10 @@ from ...graphics.surface import Surface
 from ...graphics.text import TextImage
 from ...graphics.transformable import Transformable
 from ...math import Vector2
-from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
+from ...system.configuration import Configuration, ConfigurationTemplate, OptionAttribute, initializer
 from ...system.enum import AutoLowerNameEnum
 from ...system.theme import NoTheme, ThemedObjectMeta, ThemeType
-from ...system.typing import reflect_method_signature
+from ...system.utils.typing import reflect_method_signature
 from ...system.validation import valid_float, valid_integer, valid_optional_float
 from ...window.clickable import Clickable
 from .abc import AbstractWidget
@@ -82,7 +82,6 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
 
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "text",
-        "text_font",
         "text_justify",
         "text_wrap",
         "text_shadow",
@@ -143,7 +142,6 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
     config.set_alias("disabled_active_foreground", "disabled_active_fg")
 
     text: OptionAttribute[str] = OptionAttribute()
-    text_font: OptionAttribute[Font] = OptionAttribute()
     text_justify: OptionAttribute[str] = OptionAttribute()
     text_wrap: OptionAttribute[int] = OptionAttribute()
     text_shadow: OptionAttribute[tuple[float, float]] = OptionAttribute()
@@ -610,7 +608,6 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
 
     __TEXT_PARAM: Final[dict[str, str]] = {
         "text": "message",
-        "text_font": "font",
         "text_justify": "justify",
         "text_wrap": "wrap",
         "text_shadow": "shadow",
@@ -622,7 +619,6 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
     }
 
     @config.getter_with_key_from_map("text", __TEXT_PARAM)
-    @config.getter_with_key_from_map("text_font", __TEXT_PARAM)
     @config.getter_with_key_from_map("text_justify", __TEXT_PARAM)
     @config.getter_with_key_from_map("text_wrap", __TEXT_PARAM)
     @config.getter_with_key_from_map("text_shadow", __TEXT_PARAM)
@@ -635,7 +631,6 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
         return self.__text.config.get(option)
 
     @config.setter_with_key_from_map("text", __TEXT_PARAM)
-    @config.setter_with_key_from_map("text_font", __TEXT_PARAM)
     @config.setter_with_key_from_map("text_justify", __TEXT_PARAM)
     @config.setter_with_key_from_map("text_wrap", __TEXT_PARAM)
     @config.setter_with_key_from_map("text_shadow", __TEXT_PARAM)
@@ -647,8 +642,11 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
     def __set_text_option(self, option: str, value: Any) -> None:
         return self.__text.config.set(option, value)
 
+    @config.section_property
+    def text_font(self) -> Configuration[Font]:
+        raise NotImplementedError  # TODO: Configuration: nested sections
+
     config.on_update("text", __update_shape_size)
-    config.on_update("text_font", __update_shape_size)
     config.on_update("text_justify", __update_shape_size)
     config.on_update("text_wrap", __update_shape_size)
     config.on_update("text_shadow", __update_shape_size)

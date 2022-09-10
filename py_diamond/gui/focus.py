@@ -79,7 +79,7 @@ class BoundFocus:
     def __init__(self, focusable: SupportsFocus, scene: Scene | None) -> None:
         if not isinstance(focusable, _HasFocusMethods):
             raise NoFocusSupportError(repr(focusable))
-        self.__f: weakref.ReferenceType[SupportsFocus] = weakref.ref(focusable)
+        self.__f: weakref.ref[SupportsFocus] = weakref.ref(focusable)
         if scene is not None and not isinstance(scene, Scene):
             raise TypeError(f"Must be a Scene or None, got {scene.__class__.__name__!r}")
         scene = scene if isinstance(scene, GUIScene) else None

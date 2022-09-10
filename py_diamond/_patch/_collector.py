@@ -43,7 +43,7 @@ class _PatchCollectorType:
 
     def __new__(cls: type[Self]) -> Self:
         try:
-            return getattr(cls, "_PatchCollectorType__instance")  # type: ignore[no-any-return]
+            return getattr(cls, "_PatchCollectorType__instance")
         except AttributeError:
             instance = object.__new__(cls)
             setattr(cls, "_PatchCollectorType__instance", instance)

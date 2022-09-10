@@ -901,7 +901,7 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
 
     @staticmethod
     def __theme_namespace_decorator(func: Callable[..., Any], /, use_cls: bool = False) -> Callable[..., Any]:
-        get_cls: Callable[[Any], type] = (lambda o: o) if use_cls else type  # type: ignore[no-any-return]
+        get_cls: Callable[[Any], type] = (lambda o: o) if use_cls else type
 
         all_theme_namespaces: dict[type, ThemeNamespace] = ClassWithThemeNamespaceMeta.__namespaces
         unique_theme_namespace_cache: dict[str, ThemeNamespace]

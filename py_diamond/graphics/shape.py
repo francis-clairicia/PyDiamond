@@ -301,7 +301,7 @@ class AbstractRectangleShape(AbstractShape):
     config.add_value_converter_on_set_static("local_size", tuple)
 
     config.getter("local_size", lambda self: (self.local_width, self.local_height), use_override=False)
-    config.setter("local_size", lambda self, size: self.config(local_width=size[0], local_height=size[1]), use_override=False)  # type: ignore[no-any-return]
+    config.setter("local_size", lambda self, size: self.config(local_width=size[0], local_height=size[1]), use_override=False)
 
 
 class AbstractSquareShape(AbstractShape):
@@ -648,7 +648,7 @@ class AbstractCrossShape(OutlinedShape, SingleColorShape):
     config.add_value_converter_on_set_static("line_width_percent", valid_float(min_value=0, max_value=1))
 
     config.getter("local_size", lambda self: (self.local_width, self.local_height), use_override=False)
-    config.setter("local_size", lambda self, size: self.config(local_width=size[0], local_height=size[1]), use_override=False)  # type: ignore[no-any-return]
+    config.setter("local_size", lambda self, size: self.config(local_width=size[0], local_height=size[1]), use_override=False)
 
     @config.on_update("local_width")
     @config.on_update("local_height")

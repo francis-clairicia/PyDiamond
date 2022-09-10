@@ -10,7 +10,7 @@ __all__ = ["OrderedWeakSet"]
 
 
 from typing import TYPE_CHECKING, Any, Iterator, Sequence
-from weakref import ReferenceType, WeakSet, ref
+from weakref import WeakSet, ref
 
 if not TYPE_CHECKING:  # Too many type errors :)
     from _weakrefset import _IterationGuard
@@ -35,7 +35,7 @@ class OrderedWeakSet(WeakSet, Sequence):  # type: ignore[type-arg]
     def __init__(self, data: Any = None):
         super().__init__()
         self.data: OrderedSet = OrderedSet()  # Replace underlying set by an OrderedSet instance
-        self._pending_removals: list[ReferenceType[object]]  # Private attribute from WeakSet
+        self._pending_removals: list[ref[object]]  # Private attribute from WeakSet
         if data is not None:
             self.update(data)
 

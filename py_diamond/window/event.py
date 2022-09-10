@@ -891,12 +891,12 @@ class BoundEventManager(Generic[_T]):
     )
 
     def __init__(self, obj: _T) -> None:
-        def unbind_all(_: Any, /, selfref: weakref.ReferenceType[BoundEventManager[_T]] = weakref.ref(self)) -> None:
+        def unbind_all(_: Any, /, selfref: weakref.ref[BoundEventManager[_T]] = weakref.ref(self)) -> None:
             self = selfref()
             if self is not None:
                 self.unbind_all()
 
-        self.__ref: weakref.ReferenceType[_T] = weakref.ref(obj, unbind_all)
+        self.__ref: weakref.ref[_T] = weakref.ref(obj, unbind_all)
         self.__manager: EventManager = EventManager()
         self.__any_callbacks: defaultdict[Any, _CallbackRegistry] = defaultdict(weakref.WeakKeyDictionary)
         self.__key_press_callbacks: defaultdict[Key, _CallbackRegistry] = defaultdict(weakref.WeakKeyDictionary)
@@ -929,7 +929,7 @@ class BoundEventManager(Generic[_T]):
         if method_callback in callback_register[key]:
             return
 
-        def event_callback(event: Event, /, selfref: weakref.ReferenceType[_T] = self.__ref) -> Any:
+        def event_callback(event: Event, /, selfref: weakref.ref[_T] = self.__ref) -> Any:
             self = selfref()
             if self is None:
                 return None
@@ -1136,7 +1136,7 @@ class BoundEventManager(Generic[_T]):
         if method_callback in self.__mouse_position_callbacks:
             return
 
-        def mouse_position_callback(mouse_pos: tuple[float, float], /, selfref: weakref.ReferenceType[_T] = self.__ref) -> Any:
+        def mouse_position_callback(mouse_pos: tuple[float, float], /, selfref: weakref.ref[_T] = self.__ref) -> Any:
             self = selfref()
             if self is None:
                 return None

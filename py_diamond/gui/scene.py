@@ -223,7 +223,7 @@ class FocusableContainer(Sequence[SupportsFocus]):
 
     def __init__(self, master: GUIScene) -> None:
         super().__init__()
-        self.__master: weakref.ReferenceType[GUIScene] = weakref.ref(master)
+        self.__master: weakref.ref[GUIScene] = weakref.ref(master)
         self.__list: OrderedWeakSet[SupportsFocus] = OrderedWeakSet()
 
     def __repr__(self) -> str:

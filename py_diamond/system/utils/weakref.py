@@ -10,12 +10,12 @@ __all__ = ["weakref_unwrap"]
 
 
 from typing import TypeVar
-from weakref import ReferenceType as WeakReferenceType
+from weakref import ReferenceType
 
 _T = TypeVar("_T")
 
 
-def weakref_unwrap(ref: WeakReferenceType[_T]) -> _T:
+def weakref_unwrap(ref: ReferenceType[_T]) -> _T:
     obj = ref()
     if obj is None:
         raise ReferenceError("weakly-referenced object no longer exists")
