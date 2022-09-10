@@ -81,7 +81,7 @@ class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta)
 
     @config.section_property
     def font(self) -> Configuration[Font]:
-        raise NotImplementedError  # TODO: Configuration: nested sections
+        return self.__text.font
 
     shadow_x: OptionAttribute[float] = OptionAttribute()
     shadow_y: OptionAttribute[float] = OptionAttribute()

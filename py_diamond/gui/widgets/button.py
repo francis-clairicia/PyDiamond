@@ -199,6 +199,11 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
     border_bottom_left_radius: OptionAttribute[int] = OptionAttribute()
     border_bottom_right_radius: OptionAttribute[int] = OptionAttribute()
 
+    # TODO: text section
+    @config.section_property
+    def text_font(self) -> Configuration[Font]:
+        return self.__text.font
+
     @initializer
     def __init__(
         self,
@@ -642,10 +647,6 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
     def __set_text_option(self, option: str, value: Any) -> None:
         return self.__text.config.set(option, value)
 
-    @config.section_property
-    def text_font(self) -> Configuration[Font]:
-        raise NotImplementedError  # TODO: Configuration: nested sections
-
     config.on_update("text", __update_shape_size)
     config.on_update("text_justify", __update_shape_size)
     config.on_update("text_wrap", __update_shape_size)
@@ -655,6 +656,7 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
     config.on_update("text_shadow_color", __update_shape_size)
     config.on_update("compound", __update_shape_size)
     config.on_update("distance_text_img", __update_shape_size)
+    config.on_section_update("text_font", __update_shape_size)
 
     config.add_value_converter_on_set_static("fixed_width", valid_optional_float(min_value=0))
     config.add_value_converter_on_set_static("fixed_height", valid_optional_float(min_value=0))

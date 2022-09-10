@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["consume", "consumer_start", "flatten", "next_return", "send_return"]
+__all__ = ["consume", "consumer_start", "flatten", "next_return", "prepend", "send_return"]
 
 import inspect
 from collections import deque
@@ -96,3 +96,7 @@ def flatten(iterable: Any, *, level: int = 1) -> Iterator[Any]:
     if not (2 <= level <= 4):
         raise ValueError("'level' must be in [1;4]")
     return (elem for it in iterable for elem in flatten(it, level=level - 1))  # type: ignore[call-overload]
+
+
+def prepend(obj: _T, iterable: Iterable[_T]) -> Iterator[_T]:
+    return chain((obj,), iterable)
