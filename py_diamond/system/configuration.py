@@ -2627,7 +2627,6 @@ class Configuration(NonCopyable, Generic[_T]):
                 option_deleted(obj)
             for option_updater in info.get_options_update_hooks(*update_register.modified):
                 option_updater(obj)
-            # print("====")
             for section_updater in info.get_sections_update_hooks(*update_register.modified, *update_register.deleted):
                 section_updater(obj)
             for main_updater in info.main_object_update_hooks:
