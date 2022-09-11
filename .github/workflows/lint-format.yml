@@ -45,7 +45,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, windows-2022, macos-12]
+        # os: [ubuntu-20.04, windows-2022, macos-12]
+        os: [ubuntu-20.04, windows-2022]  # TODO: Add macos when mypy will work again X)
 
     steps:
       - uses: actions/checkout@v3
