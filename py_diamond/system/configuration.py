@@ -29,7 +29,7 @@ from contextlib import ExitStack, contextmanager, suppress
 from dataclasses import KW_ONLY, dataclass, field
 from enum import Enum
 from functools import cache, update_wrapper, wraps
-from itertools import chain, combinations, filterfalse
+from itertools import chain, combinations
 from threading import RLock
 from types import MappingProxyType
 from typing import (
@@ -440,7 +440,7 @@ class ConfigurationTemplate(Object):
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
 
-        @self.__option_decorator(option)
+        @self.__option_decorator(option, allow_section_options=False)
         def decorator(option: str, func: _Getter, /) -> None:
             actual_descriptor: _Descriptor | None = template.value_descriptor.get(option)
             if not isinstance(actual_descriptor, _ReadOnlyOptionBuildPayload):
@@ -528,6 +528,7 @@ class ConfigurationTemplate(Object):
             use_key=use_key,
             use_override=bool(use_override),
             no_object=False,
+            allow_section_options=False,
         )
 
         if func is None:
@@ -595,7 +596,7 @@ class ConfigurationTemplate(Object):
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
 
-        @self.__option_decorator(option)
+        @self.__option_decorator(option, allow_section_options=False)
         def decorator(option: str, func: _Setter, /) -> None:
             actual_descriptor: _Descriptor | None = template.value_descriptor.get(option)
             if actual_descriptor is None:
@@ -652,6 +653,7 @@ class ConfigurationTemplate(Object):
             use_key=use_key,
             use_override=bool(use_override),
             no_object=False,
+            allow_section_options=False,
         )
 
         if func is None:
@@ -716,7 +718,7 @@ class ConfigurationTemplate(Object):
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
 
-        @self.__option_decorator(option)
+        @self.__option_decorator(option, allow_section_options=False)
         def decorator(option: str, func: _Deleter, /) -> None:
             actual_descriptor: _Descriptor | None = template.value_descriptor.get(option)
             if actual_descriptor is None:
@@ -773,6 +775,7 @@ class ConfigurationTemplate(Object):
             use_key=use_key,
             use_override=bool(use_override),
             no_object=False,
+            allow_section_options=False,
         )
 
         if func is None:
@@ -900,7 +903,7 @@ class ConfigurationTemplate(Object):
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
 
-        @self.__option_decorator(option)
+        @self.__option_decorator(option, allow_section_options=True)
         def decorator(option: str, func: _Updater, /) -> None:
             if isinstance(template.value_descriptor.get(option), _ReadOnlyOptionBuildPayload):
                 raise OptionError(option, "Cannot add update hook on read-only option")
@@ -954,6 +957,7 @@ class ConfigurationTemplate(Object):
             use_key=use_key,
             use_override=bool(use_override),
             no_object=False,
+            allow_section_options=True,
         )
 
         if func is None:
@@ -1018,7 +1022,7 @@ class ConfigurationTemplate(Object):
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
 
-        @self.__option_decorator(option)
+        @self.__option_decorator(option, allow_section_options=True)
         def decorator(option: str, func: _ValueUpdater, /) -> None:
             if isinstance(template.value_descriptor.get(option), _ReadOnlyOptionBuildPayload):
                 raise OptionError(option, "Cannot add update hook on read-only option")
@@ -1076,6 +1080,7 @@ class ConfigurationTemplate(Object):
             use_key=use_key,
             use_override=bool(use_override),
             no_object=False,
+            allow_section_options=True,
         )
 
         if func is None:
@@ -1167,7 +1172,7 @@ class ConfigurationTemplate(Object):
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
 
-        @self.__option_decorator(option)
+        @self.__option_decorator(option, allow_section_options=True)
         def decorator(option: str, func: _Updater, /) -> None:
             if isinstance(template.value_descriptor.get(option), _ReadOnlyOptionBuildPayload):
                 raise OptionError(option, "Cannot add delete hook on read-only option")
@@ -1221,6 +1226,7 @@ class ConfigurationTemplate(Object):
             use_key=use_key,
             use_override=bool(use_override),
             no_object=False,
+            allow_section_options=True,
         )
 
         if func is None:
@@ -1295,7 +1301,7 @@ class ConfigurationTemplate(Object):
         if isinstance(func, type):
             raise TypeError("Use value_validator_static() to check types")
 
-        @self.__option_decorator(option)
+        @self.__option_decorator(option, allow_section_options=False)
         def decorator(option: str, func: _ValueValidator, /) -> None:
             value_validator_list = template.value_validator.setdefault(option, [])
             wrapper = _make_function_wrapper(func, use_override=bool(use_override))
@@ -1353,7 +1359,7 @@ class ConfigurationTemplate(Object):
         if func is not None and predicate is not None:
             raise TypeError("Bad parameters")
 
-        @self.__option_decorator(option)
+        @self.__option_decorator(option, allow_section_options=False)
         def decorator(option: str, func: _StaticValueValidator, /) -> None:
             value_validator_list = template.value_validator.setdefault(option, [])
             wrapper = _make_function_wrapper(func, use_override=False, no_object=True)
@@ -1406,7 +1412,7 @@ class ConfigurationTemplate(Object):
         if isinstance(func, type):
             raise TypeError("Use add_value_converter_on_set_static() to convert value using type")
 
-        @self.__option_decorator(option)
+        @self.__option_decorator(option, allow_section_options=False)
         def decorator(option: str, func: _ValueConverter, /) -> None:
             value_converter_list = template.value_converter_on_get.setdefault(option, [])
             wrapper = _make_function_wrapper(func, use_override=bool(use_override))
@@ -1442,7 +1448,7 @@ class ConfigurationTemplate(Object):
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
 
-        @self.__option_decorator(option)
+        @self.__option_decorator(option, allow_section_options=False)
         def decorator(option: str, func: _StaticValueConverter, /) -> None:
             value_converter_list = template.value_converter_on_get.setdefault(option, [])
             wrapper = _make_function_wrapper(func, use_override=False, no_object=True)
@@ -1487,7 +1493,7 @@ class ConfigurationTemplate(Object):
         if isinstance(func, type):
             raise TypeError("Use add_value_converter_on_set_static() to convert value using type")
 
-        @self.__option_decorator(option)
+        @self.__option_decorator(option, allow_section_options=False)
         def decorator(option: str, func: _ValueConverter, /) -> None:
             value_converter_list = template.value_converter_on_set.setdefault(option, [])
             wrapper = _make_function_wrapper(func, use_override=bool(use_override))
@@ -1523,7 +1529,7 @@ class ConfigurationTemplate(Object):
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
 
-        @self.__option_decorator(option)
+        @self.__option_decorator(option, allow_section_options=False)
         def decorator(option: str, func: _StaticValueConverter, /) -> None:
             value_converter_list = template.value_converter_on_set.setdefault(option, [])
             wrapper = _make_function_wrapper(func, use_override=False, no_object=True)
@@ -1608,20 +1614,29 @@ class ConfigurationTemplate(Object):
         self,
         option: str,
         decorator_body: Callable[[str, _Func], None],
+        *,
+        allow_section_options: bool,
     ) -> Callable[[_FuncVar], _FuncVar]:
         def decorator(func: _FuncVar, /) -> _FuncVar:
             self.__check_locked()
-            if _OPTIONS_IN_SECTION_PATTERN.match(option):
-                raise ConfigurationError(f"{option!r}: section options forbidden")
-            self.check_option_validity(option, use_alias=False)
+            if m := _OPTIONS_IN_SECTION_PATTERN.match(option):
+                if not allow_section_options:
+                    raise ConfigurationError(f"{option!r}: section options forbidden")
+                self.check_section_validity(m["section"])
+            else:
+                self.check_option_validity(option, use_alias=False)
             decorator_body(option, func)
             return func
 
         return decorator
 
-    def __option_decorator(self, option: str) -> Callable[[Callable[[str, _Func], None]], Callable[[_FuncVar], _FuncVar]]:
+    def __option_decorator(
+        self,
+        option: str,
+        allow_section_options: bool,
+    ) -> Callable[[Callable[[str, _Func], None]], Callable[[_FuncVar], _FuncVar]]:
         def decorator(func: Any) -> Any:
-            return self.__make_option_decorator(option, func)
+            return self.__make_option_decorator(option, func, allow_section_options=allow_section_options)
 
         return decorator
 
@@ -1634,11 +1649,12 @@ class ConfigurationTemplate(Object):
         use_key: Hashable,
         use_override: bool,
         no_object: bool,
+        allow_section_options: bool,
     ) -> Callable[[_FuncVar], _FuncVar]:
-        @self.__option_decorator(option)
+        @self.__option_decorator(option, allow_section_options=allow_section_options)
         def decorator(option: str, func: _Func, /, *, use_key: Hashable = use_key) -> None:
             if use_key is _NO_DEFAULT:
-                use_key = _make_key_from_option(option)
+                use_key = option
             else:
                 hash(use_key)
             unique_key: Hashable = (option, use_key)
@@ -2404,10 +2420,9 @@ class Configuration(NonCopyable, Generic[_T]):
             with ExitStack() as stack:
                 Configuration.__init_context.add(obj)
                 stack.callback(Configuration.__init_context.discard, obj)
-                update_register = Configuration.__update_context.setdefault(obj, _UpdateRegister())
-                stack.callback(Configuration.__update_context.pop, obj, None)  # type: ignore[call-arg]
                 yield
                 Configuration.__update_context.pop(obj, None)
+                update_register = _UpdateRegister()
                 info: ConfigurationInfo[_T] = self.__info
                 for option in info.options:
                     descriptor = info.get_value_descriptor(option, type(obj))
@@ -2502,11 +2517,7 @@ class Configuration(NonCopyable, Generic[_T]):
 
         for section_context in update_context.sections:
             section = section_context.section
-            section_obj, section_info, section_option = self.__get_section_data(section, option)
-
-            for value_updater in section_info.option_value_update_hooks.get(section_option, ()):
-                value_updater(section_obj, value)
-
+            section_option = _OPTIONS_IN_SECTION_FMT.format(section=section.name, option=option)
             section.parent.__apply_value_update_hooks(section_option, value, section_context.option_context)
 
     def __option_deleted(self, option: str, update_context: __OptionUpdateContext) -> None:
@@ -2514,14 +2525,8 @@ class Configuration(NonCopyable, Generic[_T]):
 
         for section_context in update_context.sections:
             section = section_context.section
-            section.parent.__option_deleted(self.__get_section_data(section, option)[2], section_context.option_context)
-
-    @staticmethod
-    def __get_section_data(section: _BoundSection[Any], option: str) -> tuple[Any, ConfigurationInfo[Any], str]:
-        section_obj = section.parent.__self__
-        section_info = section.parent.__info
-        section_option = _OPTIONS_IN_SECTION_FMT.format(section=section.name, option=option)
-        return section_obj, section_info, section_option
+            section_option = _OPTIONS_IN_SECTION_FMT.format(section=section.name, option=option)
+            section.parent.__option_deleted(section_option, section_context.option_context)
 
     def __update_options(self, *options: str) -> None:
         nb_options = len(options)
@@ -2618,14 +2623,11 @@ class Configuration(NonCopyable, Generic[_T]):
             update_register = cls.__update_context.pop(obj, update_register)
             if not update_register:
                 return
-            for option_deleted in info.get_options_delete_hooks(
-                *filterfalse(_OPTIONS_IN_SECTION_PATTERN.match, update_register.deleted)
-            ):
+            for option_deleted in info.get_options_delete_hooks(*update_register.deleted):
                 option_deleted(obj)
-            for option_updater in info.get_options_update_hooks(
-                *filterfalse(_OPTIONS_IN_SECTION_PATTERN.match, update_register.modified)
-            ):
+            for option_updater in info.get_options_update_hooks(*update_register.modified):
                 option_updater(obj)
+            # print("====")
             for section_updater in info.get_sections_update_hooks(*update_register.modified, *update_register.deleted):
                 section_updater(obj)
             for main_updater in info.main_object_update_hooks:
@@ -2913,13 +2915,6 @@ class _WrappedFunctionWrapper:
     @traceback.setter
     def traceback(self, tb: inspect.Traceback | None) -> None:
         self.wrapper.traceback = tb
-
-
-@_no_type_check_cache
-def _make_key_from_option(option: str, /) -> Hashable:
-    if m := _OPTIONS_IN_SECTION_PATTERN.match(option):
-        return m.group("section", "option")
-    return option
 
 
 @_no_type_check_cache
@@ -3366,8 +3361,6 @@ class _ConfigProperty(property):
 
 class _PrivateAttributeOptionProperty:
     def __set_name__(self, owner: type, name: str, /) -> None:
-        if section_match := _OPTIONS_IN_SECTION_PATTERN.match(name):
-            name = "{section}_{option}".format_map(section_match)
         self.__attribute: str = _private_attribute(owner, name)
 
     def __get__(self, obj: object, objtype: type | None = None, /) -> Any:
