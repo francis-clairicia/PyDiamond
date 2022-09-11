@@ -539,6 +539,60 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
+    def getter_with_key_from_callable(
+        self,
+        option: str,
+        key_factory: Callable[[str], Hashable],
+        /,
+        *,
+        use_override: bool = True,
+        readonly: bool = False,
+    ) -> Callable[[_KeyGetterVar], _KeyGetterVar]:
+        ...
+
+    @overload
+    def getter_with_key_from_callable(
+        self,
+        option: str,
+        key_factory: Callable[[str], Hashable],
+        func: _KeyGetter,
+        /,
+        *,
+        use_override: bool = True,
+        readonly: bool = False,
+    ) -> None:
+        ...
+
+    def getter_with_key_from_callable(
+        self,
+        option: str,
+        key_factory: Callable[[str], Hashable],
+        func: Any = None,
+        /,
+        *,
+        use_override: bool = True,
+        readonly: bool = False,
+    ) -> Any:
+        self.__check_locked()
+
+        decorator = self.__make_option_key_from_callable_decorator(
+            option,
+            lambda option, func, use_key: self.getter_with_key(
+                option,
+                func,
+                use_key=use_key,
+                use_override=use_override,
+                readonly=readonly,
+            ),
+            key_factory=key_factory,
+        )
+
+        if func is None:
+            return decorator
+        decorator(func)
+        return None
+
+    @overload
     def getter_with_key_from_map(
         self,
         option: str,
@@ -547,7 +601,6 @@ class ConfigurationTemplate(Object):
         *,
         use_override: bool = True,
         readonly: bool = False,
-        ignore_key_error: bool = False,
     ) -> Callable[[_KeyGetterVar], _KeyGetterVar]:
         ...
 
@@ -561,7 +614,6 @@ class ConfigurationTemplate(Object):
         *,
         use_override: bool = True,
         readonly: bool = False,
-        ignore_key_error: bool = False,
     ) -> None:
         ...
 
@@ -574,15 +626,8 @@ class ConfigurationTemplate(Object):
         *,
         use_override: bool = True,
         readonly: bool = False,
-        ignore_key_error: bool = False,
     ) -> Any:
-        try:
-            use_key: Hashable = key_map[option]
-        except KeyError:
-            if not ignore_key_error:
-                raise
-            use_key = _NO_DEFAULT
-        return self.getter_with_key(option, func, use_key=use_key, use_override=use_override, readonly=readonly)
+        return self.getter_with_key_from_callable(option, key_map.__getitem__, func, use_override=use_override, readonly=readonly)
 
     @overload
     def setter(self, option: str, /, *, use_override: bool = True) -> Callable[[_SetterVar], _SetterVar]:
@@ -664,6 +709,56 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
+    def setter_with_key_from_callable(
+        self,
+        option: str,
+        key_factory: Callable[[str], Hashable],
+        /,
+        *,
+        use_override: bool = True,
+    ) -> Callable[[_KeySetterVar], _KeySetterVar]:
+        ...
+
+    @overload
+    def setter_with_key_from_callable(
+        self,
+        option: str,
+        key_factory: Callable[[str], Hashable],
+        func: _KeySetter,
+        /,
+        *,
+        use_override: bool = True,
+    ) -> None:
+        ...
+
+    def setter_with_key_from_callable(
+        self,
+        option: str,
+        key_factory: Callable[[str], Hashable],
+        func: Any = None,
+        /,
+        *,
+        use_override: bool = True,
+    ) -> Any:
+        self.__check_locked()
+
+        decorator = self.__make_option_key_from_callable_decorator(
+            option,
+            lambda option, func, use_key: self.setter_with_key(
+                option,
+                func,
+                use_key=use_key,
+                use_override=use_override,
+            ),
+            key_factory=key_factory,
+        )
+
+        if func is None:
+            return decorator
+        decorator(func)
+        return None
+
+    @overload
     def setter_with_key_from_map(
         self,
         option: str,
@@ -671,7 +766,6 @@ class ConfigurationTemplate(Object):
         /,
         *,
         use_override: bool = True,
-        ignore_key_error: bool = False,
     ) -> Callable[[_KeySetterVar], _KeySetterVar]:
         ...
 
@@ -684,7 +778,6 @@ class ConfigurationTemplate(Object):
         /,
         *,
         use_override: bool = True,
-        ignore_key_error: bool = False,
     ) -> None:
         ...
 
@@ -696,15 +789,8 @@ class ConfigurationTemplate(Object):
         /,
         *,
         use_override: bool = True,
-        ignore_key_error: bool = False,
     ) -> Any:
-        try:
-            use_key: Hashable = key_map[option]
-        except KeyError:
-            if not ignore_key_error:
-                raise
-            use_key = _NO_DEFAULT
-        return self.setter_with_key(option, func, use_key=use_key, use_override=use_override)
+        return self.setter_with_key_from_callable(option, key_map.__getitem__, func, use_override=use_override)
 
     @overload
     def deleter(self, option: str, /, *, use_override: bool = True) -> Callable[[_DeleterVar], _DeleterVar]:
@@ -786,6 +872,56 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
+    def deleter_with_key_from_callable(
+        self,
+        option: str,
+        key_factory: Callable[[str], Hashable],
+        /,
+        *,
+        use_override: bool = True,
+    ) -> Callable[[_KeyDeleterVar], _KeyDeleterVar]:
+        ...
+
+    @overload
+    def deleter_with_key_from_callable(
+        self,
+        option: str,
+        key_factory: Callable[[str], Hashable],
+        func: _KeyDeleter,
+        /,
+        *,
+        use_override: bool = True,
+    ) -> None:
+        ...
+
+    def deleter_with_key_from_callable(
+        self,
+        option: str,
+        key_factory: Callable[[str], Hashable],
+        func: Any = None,
+        /,
+        *,
+        use_override: bool = True,
+    ) -> Any:
+        self.__check_locked()
+
+        decorator = self.__make_option_key_from_callable_decorator(
+            option,
+            lambda option, func, use_key: self.deleter_with_key(
+                option,
+                func,
+                use_key=use_key,
+                use_override=use_override,
+            ),
+            key_factory=key_factory,
+        )
+
+        if func is None:
+            return decorator
+        decorator(func)
+        return None
+
+    @overload
     def deleter_with_key_from_map(
         self,
         option: str,
@@ -793,7 +929,6 @@ class ConfigurationTemplate(Object):
         /,
         *,
         use_override: bool = True,
-        ignore_key_error: bool = False,
     ) -> Callable[[_KeyDeleterVar], _KeyDeleterVar]:
         ...
 
@@ -806,7 +941,6 @@ class ConfigurationTemplate(Object):
         /,
         *,
         use_override: bool = True,
-        ignore_key_error: bool = False,
     ) -> None:
         ...
 
@@ -818,15 +952,8 @@ class ConfigurationTemplate(Object):
         /,
         *,
         use_override: bool = True,
-        ignore_key_error: bool = False,
     ) -> Any:
-        try:
-            use_key: Hashable = key_map[option]
-        except KeyError:
-            if not ignore_key_error:
-                raise
-            use_key = _NO_DEFAULT
-        return self.deleter_with_key(option, func, use_key=use_key, use_override=use_override)
+        return self.deleter_with_key_from_callable(option, key_map.__getitem__, func, use_override=use_override)
 
     def use_descriptor(self, option: str, descriptor: _Descriptor) -> None:
         self.__check_locked()
@@ -968,6 +1095,56 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
+    def on_update_with_key_from_callable(
+        self,
+        option: str,
+        key_factory: Callable[[str], Hashable],
+        /,
+        *,
+        use_override: bool = True,
+    ) -> Callable[[_KeyUpdaterVar], _KeyUpdaterVar]:
+        ...
+
+    @overload
+    def on_update_with_key_from_callable(
+        self,
+        option: str,
+        key_factory: Callable[[str], Hashable],
+        func: _KeyUpdater,
+        /,
+        *,
+        use_override: bool = True,
+    ) -> None:
+        ...
+
+    def on_update_with_key_from_callable(
+        self,
+        option: str,
+        key_factory: Callable[[str], Hashable],
+        func: Any = None,
+        /,
+        *,
+        use_override: bool = True,
+    ) -> Any:
+        self.__check_locked()
+
+        decorator = self.__make_option_key_from_callable_decorator(
+            option,
+            lambda option, func, use_key: self.on_update_with_key(
+                option,
+                func,
+                use_key=use_key,
+                use_override=use_override,
+            ),
+            key_factory=key_factory,
+        )
+
+        if func is None:
+            return decorator
+        decorator(func)
+        return None
+
+    @overload
     def on_update_with_key_from_map(
         self,
         option: str,
@@ -975,7 +1152,6 @@ class ConfigurationTemplate(Object):
         /,
         *,
         use_override: bool = True,
-        ignore_key_error: bool = False,
     ) -> Callable[[_KeyUpdaterVar], _KeyUpdaterVar]:
         ...
 
@@ -988,7 +1164,6 @@ class ConfigurationTemplate(Object):
         /,
         *,
         use_override: bool = True,
-        ignore_key_error: bool = False,
     ) -> None:
         ...
 
@@ -1000,15 +1175,8 @@ class ConfigurationTemplate(Object):
         /,
         *,
         use_override: bool = True,
-        ignore_key_error: bool = False,
     ) -> Any:
-        try:
-            use_key: Hashable = key_map[option]
-        except KeyError:
-            if not ignore_key_error:
-                raise
-            use_key = _NO_DEFAULT
-        return self.on_update_with_key(option, func, use_key=use_key, use_override=use_override)
+        return self.on_update_with_key_from_callable(option, key_map.__getitem__, func, use_override=use_override)
 
     @overload
     def on_update_value(self, option: str, /, *, use_override: bool = True) -> Callable[[_ValueUpdaterVar], _ValueUpdaterVar]:
@@ -1091,6 +1259,56 @@ class ConfigurationTemplate(Object):
         return None
 
     @overload
+    def on_update_value_with_key_from_callable(
+        self,
+        option: str,
+        key_factory: Callable[[str], Hashable],
+        /,
+        *,
+        use_override: bool = True,
+    ) -> Callable[[_KeyValueUpdaterVar], _KeyValueUpdaterVar]:
+        ...
+
+    @overload
+    def on_update_value_with_key_from_callable(
+        self,
+        option: str,
+        key_factory: Callable[[str], Hashable],
+        func: _KeyValueUpdater,
+        /,
+        *,
+        use_override: bool = True,
+    ) -> None:
+        ...
+
+    def on_update_value_with_key_from_callable(
+        self,
+        option: str,
+        key_factory: Callable[[str], Hashable],
+        func: Any = None,
+        /,
+        *,
+        use_override: bool = True,
+    ) -> Any:
+        self.__check_locked()
+
+        decorator = self.__make_option_key_from_callable_decorator(
+            option,
+            lambda option, func, use_key: self.on_update_value_with_key(
+                option,
+                func,
+                use_key=use_key,
+                use_override=use_override,
+            ),
+            key_factory=key_factory,
+        )
+
+        if func is None:
+            return decorator
+        decorator(func)
+        return None
+
+    @overload
     def on_update_value_with_key_from_map(
         self,
         option: str,
@@ -1098,7 +1316,6 @@ class ConfigurationTemplate(Object):
         /,
         *,
         use_override: bool = True,
-        ignore_key_error: bool = False,
     ) -> Callable[[_KeyValueUpdaterVar], _KeyValueUpdaterVar]:
         ...
 
@@ -1111,7 +1328,6 @@ class ConfigurationTemplate(Object):
         /,
         *,
         use_override: bool = True,
-        ignore_key_error: bool = False,
     ) -> None:
         ...
 
@@ -1123,15 +1339,8 @@ class ConfigurationTemplate(Object):
         /,
         *,
         use_override: bool = True,
-        ignore_key_error: bool = False,
     ) -> Any:
-        try:
-            use_key: Hashable = key_map[option]
-        except KeyError:
-            if not ignore_key_error:
-                raise
-            use_key = _NO_DEFAULT
-        return self.on_update_value_with_key(option, func, use_key=use_key, use_override=use_override)
+        return self.on_update_value_with_key_from_callable(option, key_map.__getitem__, func, use_override=use_override)
 
     @overload
     def on_section_update(self, section: str, /, *, use_override: bool = True) -> Callable[[_UpdaterVar], _UpdaterVar]:
@@ -1669,6 +1878,19 @@ class ConfigurationTemplate(Object):
                 no_object=bool(no_object),
             )
             decorator_body(option, wrapper)
+
+        return decorator
+
+    def __make_option_key_from_callable_decorator(
+        self,
+        option: str,
+        decorator_body: Callable[[str, _Func, Hashable], None],
+        key_factory: Callable[[str], Hashable],
+    ) -> Callable[[_FuncVar], _FuncVar]:
+        def decorator(func: _FuncVar) -> _FuncVar:
+            self.__check_locked()
+            decorator_body(option, func, key_factory(option))
+            return func
 
         return decorator
 
