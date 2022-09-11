@@ -724,7 +724,7 @@ class ButtonScene(MainScene):
 
     def on_start_loop_before_transition(self) -> None:
         self.counter = 0
-        self.button.text = "0"
+        self.button.text.set("message", "0")
         self.button.scale = (1, 1)
         self.button.angle = 0
 
@@ -743,7 +743,7 @@ class ButtonScene(MainScene):
 
     def __increase_counter(self) -> None:
         self.counter += 1
-        self.button.text = str(self.counter)
+        self.button.text.set("message", str(self.counter))
 
     def render(self) -> None:
         self.window.draw(self.button, self.cancel)
@@ -825,7 +825,7 @@ class ScaleBarScene(MainScene):
             75,
             from_=10,
             to=90,
-            value_callback=lambda value: self.text.config(message=f"Value: {value}"),
+            value_callback=lambda value: self.text.config.update(message=f"Value: {value}"),
             cursor_thickness=10,
         )
         self.vscale = vscale = ScaleBar(self, 75, 500, from_=10, to=90, orient="vertical", outline=10)
@@ -909,9 +909,9 @@ class TestGUIScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableSc
         Button.set_default_focus_on_hover(True)
 
         self.text = Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
-        self.first = Button(self, "First", callback=lambda: self.text.config(message="First"))
-        self.second = Button(self, "Second", callback=lambda: self.text.config(message="Second"))
-        self.third = Button(self, "Third", callback=lambda: self.text.config(message="Third"))
+        self.first = Button(self, "First", callback=lambda: self.text.config.update(message="First"))
+        self.second = Button(self, "Second", callback=lambda: self.text.config.update(message="Second"))
+        self.third = Button(self, "Third", callback=lambda: self.text.config.update(message="Third"))
 
         self.first.focus.set_obj_on_side(on_right=self.second)
         self.second.focus.set_obj_on_side(on_left=self.first, on_right=self.third)
@@ -941,7 +941,7 @@ class GridScene(GUIScene, RenderedLayeredScene):
         self.grid.default_padding.y = 20
 
         def create_button(text: str) -> Button:
-            return Button(self, text, callback=lambda: self.text.config(message=text))
+            return Button(self, text, callback=lambda: self.text.config.update(message=text))
 
         self.grid.place(create_button("First"), 0, 0)
         self.grid.place(create_button("Second"), 2, 1)
@@ -1170,7 +1170,7 @@ class GUIAudioScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableS
         self.grid = Grid(self, bg_color=YELLOW, padx=20, pady=20)
 
         def create_button(text: str, state: str = "normal") -> Button:
-            return Button(self, text, callback=lambda: self.text.config(message=text), state=state)
+            return Button(self, text, callback=lambda: self.text.config.update(message=text), state=state)
 
         self.grid.place(create_button("First"), 0, 0)
         self.grid.place(create_button("Second"), 2, 1)

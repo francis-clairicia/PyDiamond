@@ -81,16 +81,6 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
     }
 
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
-        "text",
-        "text_justify",
-        "text_wrap",
-        "text_shadow",
-        "text_shadow_x",
-        "text_shadow_y",
-        "text_shadow_color",
-        "img",
-        "compound",
-        "distance_text_img",
         "fixed_width",
         "fixed_height",
         "x_add_size",
@@ -111,6 +101,7 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
         "disabled_active_foreground",
         "highlight_color",
         "highlight_thickness",
+        "img",
         "hover_img",
         "active_img",
         "disabled_img",
@@ -141,16 +132,6 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
     config.set_alias("disabled_active_background", "disabled_active_bg")
     config.set_alias("disabled_active_foreground", "disabled_active_fg")
 
-    text: OptionAttribute[str] = OptionAttribute()
-    text_justify: OptionAttribute[str] = OptionAttribute()
-    text_wrap: OptionAttribute[int] = OptionAttribute()
-    text_shadow: OptionAttribute[tuple[float, float]] = OptionAttribute()
-    text_shadow_x: OptionAttribute[float] = OptionAttribute()
-    text_shadow_y: OptionAttribute[float] = OptionAttribute()
-    text_shadow_color: OptionAttribute[Color] = OptionAttribute()
-    img: OptionAttribute[Surface | None] = OptionAttribute()
-    compound: OptionAttribute[str] = OptionAttribute()
-    distance_text_img: OptionAttribute[float] = OptionAttribute()
     fixed_width: OptionAttribute[float | None] = OptionAttribute()
     fixed_height: OptionAttribute[float | None] = OptionAttribute()
     x_add_size: OptionAttribute[float] = OptionAttribute()
@@ -181,6 +162,7 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
     disabled_active_foreground: OptionAttribute[Color | None] = OptionAttribute()
     disabled_active_bg: OptionAttribute[Color | None] = OptionAttribute()
     disabled_active_fg: OptionAttribute[Color | None] = OptionAttribute()
+    img: OptionAttribute[Surface | None] = OptionAttribute()
     hover_img: OptionAttribute[Surface | None] = OptionAttribute()
     active_img: OptionAttribute[Surface | None] = OptionAttribute()
     disabled_img: OptionAttribute[Surface | None] = OptionAttribute()
@@ -199,10 +181,9 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
     border_bottom_left_radius: OptionAttribute[int] = OptionAttribute()
     border_bottom_right_radius: OptionAttribute[int] = OptionAttribute()
 
-    # TODO: text section
-    @config.section_property
-    def text_font(self) -> Configuration[Font]:
-        return self.__text.font
+    @config.section_property(exclude_options={"img"})
+    def text(self) -> Configuration[TextImage]:
+        return self.__text.config
 
     @initializer
     def __init__(
@@ -409,17 +390,17 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
     @reflect_method_signature(TextImage.set_font)
     def text_set_font(self, *args: Any, **kwargs: Any) -> None:
         self.__text.set_font(*args, **kwargs)
-        self.__update_shape_size()
+        self.config.update_section("text")
 
     @reflect_method_signature(TextImage.set_custom_line_font)
     def text_set_custom_line_font(self, *args: Any, **kwargs: Any) -> None:
         self.__text.set_custom_line_font(*args, **kwargs)
-        self.__update_shape_size()
+        self.config.update_section("text")
 
     @reflect_method_signature(TextImage.remove_custom_line_font)
     def text_remove_custom_line_font(self, *args: Any, **kwargs: Any) -> None:
         self.__text.remove_custom_line_font(*args, **kwargs)
-        self.__update_shape_size()
+        self.config.update_section("text")
 
     @reflect_method_signature(TextImage.img_rotate)
     def img_rotate(self, *args: Any, **kwargs: Any) -> None:
@@ -558,7 +539,7 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
         else:
             outline_color = self.outline_color
             outline = self.outline
-        self.__shape.config(outline=outline, outline_color=outline_color)
+        self.__shape.config.update(outline=outline, outline_color=outline_color)
 
     def _on_focus_set(self) -> None:
         self.__update_shape_outline()
@@ -579,9 +560,9 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
         img: Surface | None = self.__img_dict[clickable_state][button_state]
         if img is None:
             img = self.__img_dict[clickable_state]["normal"]
-        self.__shape.config(color=bg_color)
-        self.__text.config(color=fg_color, img=img)
-        self.__update_shape_size()
+        self.__shape.config.update(color=bg_color)
+        self.__text.config.update(color=fg_color, img=img)
+        self.config.update_section("text")
 
     def __update_state(self) -> None:
         if self.active:
@@ -611,52 +592,7 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
             self.__shape.local_size = new_size
             self.center = center
 
-    __TEXT_PARAM: Final[dict[str, str]] = {
-        "text": "message",
-        "text_justify": "justify",
-        "text_wrap": "wrap",
-        "text_shadow": "shadow",
-        "text_shadow_x": "shadow_x",
-        "text_shadow_y": "shadow_y",
-        "text_shadow_color": "shadow_color",
-        "compound": "compound",
-        "distance_text_img": "distance",
-    }
-
-    @config.getter_with_key_from_map("text", __TEXT_PARAM)
-    @config.getter_with_key_from_map("text_justify", __TEXT_PARAM)
-    @config.getter_with_key_from_map("text_wrap", __TEXT_PARAM)
-    @config.getter_with_key_from_map("text_shadow", __TEXT_PARAM)
-    @config.getter_with_key_from_map("text_shadow_x", __TEXT_PARAM)
-    @config.getter_with_key_from_map("text_shadow_y", __TEXT_PARAM)
-    @config.getter_with_key_from_map("text_shadow_color", __TEXT_PARAM)
-    @config.getter_with_key_from_map("compound", __TEXT_PARAM)
-    @config.getter_with_key_from_map("distance_text_img", __TEXT_PARAM)
-    def __get_text_option(self, option: str) -> Any:
-        return self.__text.config.get(option)
-
-    @config.setter_with_key_from_map("text", __TEXT_PARAM)
-    @config.setter_with_key_from_map("text_justify", __TEXT_PARAM)
-    @config.setter_with_key_from_map("text_wrap", __TEXT_PARAM)
-    @config.setter_with_key_from_map("text_shadow", __TEXT_PARAM)
-    @config.setter_with_key_from_map("text_shadow_x", __TEXT_PARAM)
-    @config.setter_with_key_from_map("text_shadow_y", __TEXT_PARAM)
-    @config.setter_with_key_from_map("text_shadow_color", __TEXT_PARAM)
-    @config.setter_with_key_from_map("compound", __TEXT_PARAM)
-    @config.setter_with_key_from_map("distance_text_img", __TEXT_PARAM)
-    def __set_text_option(self, option: str, value: Any) -> None:
-        return self.__text.config.set(option, value)
-
-    config.on_update("text", __update_shape_size)
-    config.on_update("text_justify", __update_shape_size)
-    config.on_update("text_wrap", __update_shape_size)
-    config.on_update("text_shadow", __update_shape_size)
-    config.on_update("text_shadow_x", __update_shape_size)
-    config.on_update("text_shadow_y", __update_shape_size)
-    config.on_update("text_shadow_color", __update_shape_size)
-    config.on_update("compound", __update_shape_size)
-    config.on_update("distance_text_img", __update_shape_size)
-    config.on_section_update("text_font", __update_shape_size)
+    config.on_section_update("text", __update_shape_size)
 
     config.add_value_converter_on_set_static("fixed_width", valid_optional_float(min_value=0))
     config.add_value_converter_on_set_static("fixed_height", valid_optional_float(min_value=0))
@@ -1076,7 +1012,7 @@ class ImageButton(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjec
         else:
             outline_color = self.outline_color
             outline = self.outline
-        self.__shape.config(outline=outline, outline_color=outline_color)
+        self.__shape.config.update(outline=outline, outline_color=outline_color)
 
     def __set_state(self, button_state: Literal["normal", "hover", "active"]) -> None:
         clickable_state: Clickable.State = Clickable.State(self.state)

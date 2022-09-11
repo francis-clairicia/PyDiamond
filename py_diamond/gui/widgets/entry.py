@@ -364,7 +364,7 @@ class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta)
         else:
             outline_color = self.outline_color
             outline = self.outline
-        shape.config(outline=outline, outline_color=outline_color)
+        shape.config.update(outline=outline, outline_color=outline_color)
 
     @config.add_value_converter_on_set("cursor")
     def __cursor_validator(self, cursor: Any) -> int:

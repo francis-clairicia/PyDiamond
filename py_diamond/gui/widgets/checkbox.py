@@ -231,7 +231,7 @@ class CheckBox(Drawable, Transformable, AbstractWidget, Generic[_OnValue, _OffVa
         else:
             outline_color = self.outline_color
             outline = self.outline
-        self.__shape.config(outline=outline, outline_color=outline_color)
+        self.__shape.config.update(outline=outline, outline_color=outline_color)
 
     config.getter("value", get_value)
     config.setter("value", set_value)

@@ -11,11 +11,11 @@ __all__ = ["ProgressBar"]
 
 from dataclasses import dataclass
 from enum import auto, unique
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Mapping, Sequence, TypeAlias
 
 from typing_extensions import assert_never
 
-from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
+from ..system.configuration import Configuration, ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
 from ..system.theme import ThemedObjectMeta, ThemeType
 from ..system.validation import valid_float, valid_integer
@@ -24,7 +24,14 @@ from .shape import RectangleShape
 from .text import Text
 
 if TYPE_CHECKING:
+    from .font import Font
     from .renderer import AbstractRenderer
+
+    _TupleFont: TypeAlias = tuple[str | None, int]
+    _TextFont: TypeAlias = Font | _TupleFont
+
+
+_NO_DEFAULT: Any = object()
 
 
 class ProgressBar(RectangleShape, metaclass=ThemedObjectMeta):
@@ -64,6 +71,14 @@ class ProgressBar(RectangleShape, metaclass=ThemedObjectMeta):
     orient: OptionAttribute[str] = OptionAttribute()
     cursor_color: OptionAttribute[Color] = OptionAttribute()
     cursor_thickness: OptionAttribute[int] = OptionAttribute()
+
+    @config.section_property(exclude_options={"message"})
+    def text_value(self) -> Configuration[Text]:
+        return self.__text_value.text.config
+
+    @config.section_property
+    def text_label(self) -> Configuration[Text]:
+        return self.__text_label.text.config
 
     @initializer
     def __init__(
@@ -222,8 +237,8 @@ class ProgressBar(RectangleShape, metaclass=ThemedObjectMeta):
         self.__end = to
         self.config.reset("value")
 
-    def show_value(self, side: str, round_n: int = 0, **kwargs: Any) -> None:
-        self.__text_value.text.config(**kwargs)
+    def show_value(self, side: str, round_n: int = 0, *, font: _TextFont | None = _NO_DEFAULT, **kwargs: Any) -> None:
+        self.config_value_text(font=font, **kwargs)
         self.__text_value.side = ProgressBar.Side(side)
         self.__text_value.round_n = int(round_n)
         self.__text_value.type = "value"
@@ -235,20 +250,20 @@ class ProgressBar(RectangleShape, metaclass=ThemedObjectMeta):
         self.__text_value.round_n = 0
         self.__text_value.type = None
 
-    def show_percent(self, side: str, round_n: int = 0, **kwargs: Any) -> None:
-        self.show_value(side, round_n, **kwargs)
+    def show_percent(self, side: str, round_n: int = 0, *, font: _TextFont | None = _NO_DEFAULT, **kwargs: Any) -> None:
+        self.show_value(side, round_n, font=font, **kwargs)
         self.__text_value.type = "percent"
 
     def hide_percent(self) -> None:
         self.hide_value()
 
-    def config_value_text(self, **kwargs: Any) -> None:
-        if "message" in kwargs:
-            raise TypeError("'message' argument must not be supplied")
-        self.__text_value.text.config(**kwargs)
+    def config_value_text(self, *, font: _TextFont | None = _NO_DEFAULT, **kwargs: Any) -> None:
+        if font is not _NO_DEFAULT:
+            self.__text_value.text.set_font(font)
+        self.text_value.update(**kwargs)
 
-    def show_label(self, label: str, side: str, **kwargs: Any) -> None:
-        self.__text_label.text.config(message=label, **kwargs)
+    def show_label(self, label: str, side: str, *, font: _TextFont | None = _NO_DEFAULT, **kwargs: Any) -> None:
+        self.config_label_text(message=label, font=font, **kwargs)
         self.__text_label.side = ProgressBar.Side(side)
         self.__text_label.text.show()
 
@@ -256,10 +271,12 @@ class ProgressBar(RectangleShape, metaclass=ThemedObjectMeta):
         self.__text_label.text.hide()
         self.__text_label.side = None
 
-    def config_label_text(self, message: str | None = None, **kwargs: Any) -> None:
-        if message is not None:
+    def config_label_text(self, message: str = _NO_DEFAULT, *, font: _TextFont | None = _NO_DEFAULT, **kwargs: Any) -> None:
+        if message is not _NO_DEFAULT:
             kwargs["message"] = message
-        self.__text_label.text.config(**kwargs)
+        if font is not _NO_DEFAULT:
+            self.__text_label.text.set_font(font)
+        self.text_label.update(**kwargs)
 
     def _apply_both_rotation_and_scale(self) -> None:
         raise NotImplementedError
@@ -340,10 +357,10 @@ class ProgressBar(RectangleShape, metaclass=ThemedObjectMeta):
         outline_rect: RectangleShape = self.__outline_rect
         percent: float = self.percent
         if self.orient == ProgressBar.Orient.HORIZONTAL:
-            scale_rect.config(local_width=width * percent, local_height=height)
+            scale_rect.config.update(local_width=width * percent, local_height=height)
         else:
-            scale_rect.config(local_width=width, local_height=height * percent)
-        outline_rect.config(local_width=width, local_height=height)
+            scale_rect.config.update(local_width=width, local_height=height * percent)
+        outline_rect.config.update(local_width=width, local_height=height)
 
     @property
     def from_value(self) -> float:

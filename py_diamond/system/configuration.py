@@ -23,8 +23,9 @@ __all__ = [
 
 import inspect
 import re
+import reprlib
 from collections import ChainMap
-from contextlib import ExitStack, contextmanager, nullcontext, suppress
+from contextlib import ExitStack, contextmanager, suppress
 from dataclasses import KW_ONLY, dataclass, field
 from enum import Enum
 from functools import cache, update_wrapper, wraps
@@ -157,9 +158,8 @@ _ALLOWED_OPTIONS_PATTERN = re.compile(r"^(?!__)(?:[a-zA-Z]\w*|_\w+)(?<!__)$")
 _ALLOWED_ALIASES_PATTERN = _ALLOWED_OPTIONS_PATTERN
 _ALLOWED_SECTIONS_PATTERN = _ALLOWED_OPTIONS_PATTERN
 _OPTIONS_IN_SECTION_FMT = "{section}.{option}"
-_OPTIONS_IN_SECTION_PATTERN = re.compile(r"^(?P<section>\w+)\.(?P<option>\w+)$")
-_OPTIONS_IN_SECTION_AND_SUBSECTIONS_PATTERN = re.compile(r"^(?P<section>\w+)\.(?P<option>(?:\w+\.)*\w+)$")
-_EXCLUDE_SECTION_PATTERN = re.compile(r"^(?P<section>\w+)\.\*$")
+_OPTIONS_IN_SECTION_PATTERN = re.compile(r"^(?P<section>\w+)\.(?P<option>(?:\w+\.)*\w+)$")
+_EXCLUDE_SECTION_PATTERN = re.compile(r"^(?P<section>\w+)\.(?P<subsection>(?:\w+\.)*\*)$")
 _NO_DEFAULT: Any = object()
 
 
@@ -292,7 +292,7 @@ class ConfigurationTemplate(Object):
                 self.__cache[obj] = bound_config = Configuration(weakref(obj), self.info)
                 return bound_config
 
-    def __set__(self, obj: Any, value: Any) -> NoReturn:
+    def __set__(self, obj: _T, value: Configuration[_T]) -> NoReturn:
         raise AttributeError("Read-only attribute")
 
     def __delete__(self, obj: Any) -> NoReturn:
@@ -349,19 +349,29 @@ class ConfigurationTemplate(Object):
             if name.startswith("__") or name.endswith("__"):
                 raise ValueError(f"{name!r}: Only one leading/trailing underscore is accepted")
             raise ValueError(f"{name!r}: Forbidden section format")
+        if name in template.options:
+            raise ConfigurationError("Already have an option with the same name")
         if name in template.sections:
             raise ConfigurationError("Section already exists")
 
-        for option in chain(include_options or (), exclude_options or ()):
+        if include_options is None:
+            include_options = set()
+        if exclude_options is None:
+            exclude_options = set()
+
+        for option in chain(include_options, exclude_options):
             if not option:
                 raise ValueError("Option must not be empty")
-            if not _ALLOWED_OPTIONS_PATTERN.match(option) and not _OPTIONS_IN_SECTION_AND_SUBSECTIONS_PATTERN.match(option):
+            if not any(
+                pattern.match(option)
+                for pattern in (_ALLOWED_OPTIONS_PATTERN, _OPTIONS_IN_SECTION_PATTERN, _EXCLUDE_SECTION_PATTERN)
+            ):
                 raise ValueError(f"{option!r}: Forbidden option format")
 
         template.sections[name] = _SectionBuildPayload(
             func=config_getter,
-            include_options=tuple(include_options) if include_options is not None else None,
-            exclude_options=tuple(exclude_options) if exclude_options is not None else None,
+            include_options=tuple(include_options),
+            exclude_options=tuple(exclude_options),
         )
 
     @overload
@@ -1601,6 +1611,8 @@ class ConfigurationTemplate(Object):
     ) -> Callable[[_FuncVar], _FuncVar]:
         def decorator(func: _FuncVar, /) -> _FuncVar:
             self.__check_locked()
+            if _OPTIONS_IN_SECTION_PATTERN.match(option):
+                raise ConfigurationError(f"{option!r}: section options forbidden")
             self.check_option_validity(option, use_alias=False)
             decorator_body(option, func)
             return func
@@ -1784,7 +1796,7 @@ class SectionProperty(Generic[_T], Object):
         self.__name = name
         config: ConfigurationTemplate = _retrieve_configuration(owner)
         if config.name is None:
-            raise TypeError("SectionAttribute must be declared after the ConfigurationTemplate object")
+            raise TypeError("SectionProperty must be declared after the ConfigurationTemplate object")
         config.check_section_validity(name)
         self.__config_name: str = config.name
 
@@ -1806,7 +1818,7 @@ class SectionProperty(Generic[_T], Object):
 
         return config.section(name)
 
-    def __set__(self, obj: Any, value: Any, /) -> NoReturn:
+    def __set__(self, obj: Any, value: Configuration[_T], /) -> NoReturn:
         raise AttributeError("Read-only attribute")
 
     def __delete__(self, obj: Any, /) -> NoReturn:
@@ -1828,15 +1840,19 @@ def _default_mapping() -> MappingProxyType[Any, Any]:
 
 
 @final
-@dataclass(frozen=True, eq=False, slots=True)
+@dataclass(frozen=True, eq=False)  # TODO (3.11): slots=True, weakref_slot=True
 class Section(Generic[_T, _S], Object):
     name: str
     original_config: Callable[[_T], Configuration[_S]]
-    include_options: Set[str] | None = None
-    exclude_options: Set[str] | None = None
+    include_options: Set[str] = field(default_factory=frozenset)
+    exclude_options: Set[str] = field(default_factory=frozenset)
 
     __cache_lock: RLock = field(init=False, default_factory=RLock)
     __cache: WeakKeyDictionary[Configuration[_T], Configuration[_S]] = field(init=False, default_factory=WeakKeyDictionary)
+
+    def __post_init__(self) -> None:
+        if options_conflict := set(self.include_options).intersection(self.exclude_options):
+            raise ConfigurationError(f"{', '.join(map(repr, options_conflict))} force included and excluded")
 
     def config(self, parent: Configuration[_T]) -> Configuration[_S]:
         cache: WeakKeyDictionary[Configuration[_T], Configuration[_S]] = self.__cache
@@ -1847,8 +1863,22 @@ class Section(Generic[_T, _S], Object):
                 try:
                     section_config = cache[parent]
                 except KeyError:
-                    cache[parent] = section_config = Configuration._from_section(self, parent)
+                    weakref_callback = self._make_section_weakref_callback(parent)
+                    cache[parent] = section_config = Configuration._from_section(self, parent, weakref_callback)
         return section_config
+
+    def _make_section_weakref_callback(self, parent: Configuration[_T]) -> Callable[[Any], None]:
+        selfref = weakref(self)
+        parentref = weakref(parent)
+
+        def callback(_: Any) -> None:
+            self = selfref()
+            parent = parentref()
+            if self is not None and parent is not None:
+                with self.__cache_lock:
+                    self.__cache.pop(parent, None)
+
+        return callback
 
 
 @final
@@ -1901,7 +1931,7 @@ class ConfigurationInfo(Object, Generic[_T]):
         from collections import defaultdict
         from dataclasses import replace
 
-        if include_options is None and exclude_options is None:
+        if not include_options and not exclude_options:
             return replace(self)
 
         new_options: set[str] = set()
@@ -1910,19 +1940,19 @@ class ConfigurationInfo(Object, Generic[_T]):
         exclude_sections: set[str] = set()
 
         if include_options is None:
-            new_options.update(self.options)
             include_options = set()
         if exclude_options is None:
             exclude_options = set()
 
         for section in self.sections:
-            if section.include_options is not None:
-                new_section_include_options[section.name].update(section.include_options)
-            if section.exclude_options is not None:
-                new_section_exclude_options[section.name].update(section.exclude_options)
+            new_section_include_options[section.name].update(section.include_options)
+            new_section_exclude_options[section.name].update(section.exclude_options)
+
+        if not include_options:
+            new_options.update(self.options)
 
         for option in include_options:
-            if m := _OPTIONS_IN_SECTION_AND_SUBSECTIONS_PATTERN.match(option):
+            if m := _OPTIONS_IN_SECTION_PATTERN.match(option):
                 section_name, option = m.group("section", "option")
                 self.check_section_validity(section_name)
                 new_section_include_options[section_name].add(option)
@@ -1931,14 +1961,17 @@ class ConfigurationInfo(Object, Generic[_T]):
                 new_options.add(option)
 
         for option in exclude_options:
-            if m := _OPTIONS_IN_SECTION_AND_SUBSECTIONS_PATTERN.match(option):
+            if m := _OPTIONS_IN_SECTION_PATTERN.match(option):
                 section_name, option = m.group("section", "option")
                 self.check_section_validity(section_name)
                 new_section_exclude_options[section_name].add(option)
             elif m := _EXCLUDE_SECTION_PATTERN.match(option):
                 section_name = m.group("section")
                 self.check_section_validity(section_name)
-                exclude_sections.add(section_name)
+                if m.group("subsection") == "*":
+                    exclude_sections.add(section_name)
+                else:
+                    new_section_exclude_options[section_name].add(m.group("subsection"))
             else:
                 self.check_option_validity(option)
                 new_options.discard(option)
@@ -1949,8 +1982,8 @@ class ConfigurationInfo(Object, Generic[_T]):
             sections=tuple(
                 replace(
                     section,
-                    include_options=new_section_include_options.get(section.name),
-                    exclude_options=new_section_exclude_options.get(section.name),
+                    include_options=new_section_include_options[section.name],
+                    exclude_options=new_section_exclude_options[section.name],
                 )
                 for section in self.sections
                 if section.name not in exclude_sections
@@ -1960,7 +1993,7 @@ class ConfigurationInfo(Object, Generic[_T]):
     def check_option_validity(self, option: str, *, use_alias: bool = False) -> str:
         if use_alias:
             option = self.aliases.get(option, option)
-        if option not in self.options:
+        if option not in self.options or option in self._sections_map:
             raise UnknownOptionError(option)
         return option
 
@@ -1987,7 +2020,7 @@ class ConfigurationInfo(Object, Generic[_T]):
         return frozenset(self.options).union(
             _OPTIONS_IN_SECTION_FMT.format(section=section.name, option=option)
             for section in self.sections
-            for option in section.config(parent).info.options
+            for option in section.config(parent).get_all_options()
         )
 
     def get_value_descriptor(self, option: str, objtype: type) -> _Descriptor:
@@ -2065,10 +2098,10 @@ class Configuration(NonCopyable, Generic[_T]):
     class __OptionUpdateContext(NamedTuple):
         first_call: bool
         register: _UpdateRegister
-        sections: Sequence[Configuration.__SectionUpdateContext]
+        sections: Sequence[Configuration.__SectionUpdateContext]  # type: ignore[misc]
 
     class __SectionUpdateContext(NamedTuple):
-        register: _UpdateRegister
+        option_context: Configuration.__OptionUpdateContext
         section: _BoundSection[Any]
 
     def __init__(self, obj: _T | weakref[_T], info: ConfigurationInfo[_T]) -> None:
@@ -2082,7 +2115,11 @@ class Configuration(NonCopyable, Generic[_T]):
         self.__sections: Sequence[_BoundSection[Any]] = ()
 
     @staticmethod
-    def _from_section(section: Section[_T, _S], parent: Configuration[_T]) -> Configuration[_S]:
+    def _from_section(
+        section: Section[_T, _S],
+        parent: Configuration[_T],
+        weakref_callback: Callable[[weakref[_S]], Any] | None = None,
+    ) -> Configuration[_S]:
 
         parent.info.check_section_validity(section.name)
 
@@ -2092,16 +2129,20 @@ class Configuration(NonCopyable, Generic[_T]):
         section_info = section_config.info
 
         self = Configuration(
-            weakref(section_obj) if section_config.has_weakref() else section_obj,
+            weakref(section_obj, weakref_callback) if section_config.has_weakref() else section_obj,
             section_info.filter(include_options=section.include_options, exclude_options=section.exclude_options),
         )
         self.__sections = tuple(prepend(_BoundSection(name=section.name, parent=parent), section_config.__sections))
 
         return self
 
+    @reprlib.recursive_repr()
     def __repr__(self) -> str:
         option_dict = self.as_dict(sorted_keys=True)
         return f"{type(self).__name__}({self.__self__!r}, {', '.join(f'{k}={v!r}' for k, v in option_dict.items())})"
+
+    def get_all_options(self) -> frozenset[str]:
+        return self.__info.get_all_options(self)
 
     @overload
     def get(self, option: str) -> Any:
@@ -2247,7 +2288,7 @@ class Configuration(NonCopyable, Generic[_T]):
         except OptionError as exc:
             raise KeyError(option) from exc
 
-    def __call__(self, **kwargs: Any) -> None:
+    def update(self, **kwargs: Any) -> None:
         obj: _T = self.__self__
 
         nb_options = len(kwargs)
@@ -2264,10 +2305,23 @@ class Configuration(NonCopyable, Generic[_T]):
         options = list(map(self._parse_option_without_split, kwargs))
         if sorted(options) != sorted(set(options)):
             raise TypeError("Multiple aliases to the same option given")
+
+        from collections import defaultdict
+
+        section_kwargs: defaultdict[str, dict[str, Any]] = defaultdict(dict)
+
         with self.__updating_many_options(obj, *options, info=self.__info, sections=self.__sections):
             set_value = self.set
             for option, value in kwargs.items():
+                section, option = self._parse_option(option)
+                if section:
+                    section_kwargs[section][option] = value
+                    continue
                 set_value(option, value)
+            info: ConfigurationInfo[_T] = self.__info
+            for section in section_kwargs:
+                section_config = info.get_section(section).config(self)
+                section_config.update(**section_kwargs[section])
 
     def reset(self, option: str) -> None:
         obj: _T = self.__self__
@@ -2423,7 +2477,7 @@ class Configuration(NonCopyable, Generic[_T]):
         info: ConfigurationInfo[_T] = self.__info
         section: str | None = None
 
-        if m := _OPTIONS_IN_SECTION_AND_SUBSECTIONS_PATTERN.match(option):
+        if m := _OPTIONS_IN_SECTION_PATTERN.match(option):
             section, option = map(str, m.group("section", "option"))
             section = info.check_section_validity(section)
         else:
@@ -2447,18 +2501,20 @@ class Configuration(NonCopyable, Generic[_T]):
         update_context.register.has_new_value(option)
 
         for section_context in update_context.sections:
-            section_obj, section_info, section_option = self.__get_section_data(section_context.section, option)
+            section = section_context.section
+            section_obj, section_info, section_option = self.__get_section_data(section, option)
 
             for value_updater in section_info.option_value_update_hooks.get(section_option, ()):
                 value_updater(section_obj, value)
 
-            section_context.register.has_new_value(section_option)
+            section.parent.__apply_value_update_hooks(section_option, value, section_context.option_context)
 
     def __option_deleted(self, option: str, update_context: __OptionUpdateContext) -> None:
         update_context.register.has_been_deleted(option)
 
         for section_context in update_context.sections:
-            section_context.register.has_been_deleted(self.__get_section_data(section_context.section, option)[2])
+            section = section_context.section
+            section.parent.__option_deleted(self.__get_section_data(section, option)[2], section_context.option_context)
 
     @staticmethod
     def __get_section_data(section: _BoundSection[Any], option: str) -> tuple[Any, ConfigurationInfo[Any], str]:
@@ -2468,20 +2524,30 @@ class Configuration(NonCopyable, Generic[_T]):
         return section_obj, section_info, section_option
 
     def __update_options(self, *options: str) -> None:
-        obj: _T = self.__self__
-        info: ConfigurationInfo[_T] = self.__info
-
         nb_options = len(options)
         if nb_options < 1:
             return
         if nb_options == 1:
             return self.__update_single_option(options[0])
 
+        obj: _T = self.__self__
+        info: ConfigurationInfo[_T] = self.__info
+
+        from collections import defaultdict
+
         objtype: type = type(obj)
         with self.__updating_many_options(obj, *options, info=info, sections=self.__sections) as update_contexts:
+            section_update: defaultdict[str, set[str]] = defaultdict(set)
+
             for option, context in update_contexts.items():
                 if not context.first_call:
                     continue
+
+                section, option = self._parse_option(option)
+                if section:
+                    section_update[section].add(option)
+                    continue
+
                 descriptor = info.get_value_descriptor(option, objtype)
                 try:
                     value: Any = descriptor.__get__(obj, objtype)
@@ -2490,14 +2556,24 @@ class Configuration(NonCopyable, Generic[_T]):
                 else:
                     self.__apply_value_update_hooks(option, value, context)
 
+            for section, section_options in section_update.items():
+                section_config = info.get_section(section).config(self)
+                section_config.update_options(*section_options)
+
     def __update_single_option(self, option: str) -> None:
         obj: _T = self.__self__
         info: ConfigurationInfo[_T] = self.__info
-        descriptor = info.get_value_descriptor(option, type(obj))
 
         with self.__updating_option(obj, option, info, sections=self.__sections) as update_context:
             if not update_context or not update_context.first_call:
                 return
+
+            section, option = self._parse_option(option)
+            if section:
+                section_config = info.get_section(section).config(self)
+                return section_config.update_option(option)
+
+            descriptor = info.get_value_descriptor(option, type(obj))
             try:
                 value: Any = descriptor.__get__(obj, type(obj))
             except AttributeError:
@@ -2590,7 +2666,7 @@ class Configuration(NonCopyable, Generic[_T]):
 
         with ExitStack() as stack:
             yield tuple(
-                UpdateContext(register=context.register, section=section)
+                UpdateContext(option_context=context, section=section)
                 for section in sections
                 if (
                     context := stack.enter_context(
@@ -2598,10 +2674,8 @@ class Configuration(NonCopyable, Generic[_T]):
                             section.parent.__self__,
                             _OPTIONS_IN_SECTION_FMT.format(section=section.name, option=option),
                             section.parent.__info,
-                            sections=(),
+                            sections=section.parent.__sections,
                         )
-                        if option in section.parent.__info.options
-                        else nullcontext(None)
                     )
                 )
             )
@@ -3148,8 +3222,8 @@ class _ConfigInfoTemplate:
             Section(
                 name,
                 section.func,
-                frozenset(section.include_options) if section.include_options is not None else None,
-                frozenset(section.exclude_options) if section.exclude_options is not None else None,
+                include_options=frozenset(section.include_options),
+                exclude_options=frozenset(section.exclude_options),
             )
             for name, section in self.sections.items()
         )
@@ -3260,6 +3334,9 @@ class _ConfigInitializer:
         func_get: Callable[[object, type | None], Callable[..., Any]] = getattr(init_func, "__get__")
         config_name: str = self.__config_name
 
+        if not config_name:
+            raise TypeError("__set_name__() not called (probably because of decorators above @initializer)")
+
         @wraps(init_func)
         def config_initializer(self: object, /, *args: Any, **kwargs: Any) -> Any:
             config: Configuration[object] = getattr(self, config_name)
@@ -3328,21 +3405,20 @@ class _ReadOnlyOptionBuildPayload:
 @dataclass(eq=True, unsafe_hash=True)
 class _SectionBuildPayload:
     func: Callable[[Any], Configuration[Any]]
-    include_options: tuple[str, ...] | None
-    exclude_options: tuple[str, ...] | None
+    include_options: tuple[str, ...]
+    exclude_options: tuple[str, ...]
 
     def __post_init__(self) -> None:
         for attr in ("include_options", "exclude_options"):
-            if getattr(self, attr) is not None:
-                object.__setattr__(self, attr, tuple(sorted(set(map(str, getattr(self, attr))))))
-        if options_conflict := set(self.include_options or ()).intersection(self.exclude_options or ()):
-            raise ConfigurationError(f"{', '.join(map(repr, options_conflict))} force included in self and excluded in other")
+            object.__setattr__(self, attr, tuple(sorted(set(map(str, getattr(self, attr))))))
+        if options_conflict := set(self.include_options).intersection(self.exclude_options):
+            raise ConfigurationError(f"{', '.join(map(repr, options_conflict))} force included and excluded")
 
     def merge(self, other: _SectionBuildPayload) -> _SectionBuildPayload:
         from dataclasses import replace
 
         for s1, s2 in ((self, other), (other, self)):
-            if options_conflict := set(s1.include_options or ()).intersection(s2.exclude_options or ()):
+            if options_conflict := set(s1.include_options).intersection(s2.exclude_options):
                 raise ConfigurationError(f"{', '.join(map(repr, options_conflict))} force included in self and excluded in other")
 
         changes: dict[str, Any] = {}
@@ -3350,7 +3426,7 @@ class _SectionBuildPayload:
         for name in ["include_options", "exclude_options"]:
             if getattr(self, name) is None and getattr(other, name) is None:
                 continue
-            changes[name] = tuple(chain(getattr(self, name) or (), getattr(other, name) or ()))
+            changes[name] = tuple(chain(getattr(self, name), getattr(other, name)))
 
         for name in ["func"]:
             if getattr(self, name) != getattr(other, name):

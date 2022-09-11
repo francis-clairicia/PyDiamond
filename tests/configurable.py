@@ -31,8 +31,8 @@ class Configurable:
     c: OptionAttribute[int] = OptionAttribute()
     d: OptionAttribute[dict[str, int]] = OptionAttribute()
 
-    @benchmark()
     @initializer
+    @benchmark()
     def __init__(self) -> None:
         self.a = 42
         self.b = 3
@@ -117,7 +117,7 @@ class C:
 
     @initializer
     def __init__(self) -> None:
-        self.config(a=5, b=6, c=7)
+        self.config.update(a=5, b=6, c=7)
 
     def __del__(self) -> None:
         print(self)
@@ -180,7 +180,7 @@ class Rect:
 
     @config.setter("size")
     def set_size(self, size: Any) -> None:
-        self.config(width=size[0], height=size[1])
+        self.config.update(width=size[0], height=size[1])
 
 
 class SubRect(Rect):
@@ -225,15 +225,15 @@ def main() -> None:
     print("--------")
     with benchmark():
         c.config["a"] = 4
-        c.config(a=6, b=5, c=-9)
+        c.config.update(a=6, b=5, c=-9)
         print("After")
-        c.config(a=6, b=5, c=-9)
+        c.config.update(a=6, b=5, c=-9)
         print("Close")
-        c.config(a=6, b=5, c=-5)
+        c.config.update(a=6, b=5, c=-5)
         print(c.config.info.options)
         print(c.config["a"])
         c.config.set("a", 6)
-        c.config(a=6, b=5, c=-12)
+        c.config.update(a=6, b=5, c=-12)
         c.a += 2
         print(c.a)
         c.config.set("e", "4")
