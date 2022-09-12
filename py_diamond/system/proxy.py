@@ -15,8 +15,9 @@ from typing import TYPE_CHECKING, Any, Callable, TypeVar
 _T = TypeVar("_T")
 
 
+# TODO: pickling proxy
 class ProxyType(object):
-    __slots__ = ("_obj", "__weakref__")
+    __slots__ = ("_obj",)
 
     def __init__(self, obj: Any, /) -> None:
         object.__setattr__(self, "_obj", obj)
@@ -41,7 +42,7 @@ class ProxyType(object):
 
     def __repr__(self) -> str:
         obj: object = object.__getattribute__(self, "_obj")
-        return f"<{type(self).__qualname__} at {id(self):#x} to {obj!r}>"
+        return f"<{type(self).__qualname__} at {id(self):#x}; to {obj!r}>"
 
     #
     # factories
@@ -143,9 +144,14 @@ class ProxyType(object):
             namespace["__class__"] = property(lambda _: theclass)
             namespace["__qualname__"] = cls_name
             namespace["__module__"] = __name__
+            namespace["__slots__"] = ()
             for name in cls.__special_names:
                 if hasattr(theclass, name):
                     namespace[name] = make_method(name)
+            if not hasattr(cls, "__weakref__") and hasattr(theclass, "__weakref__"):
+                namespace["__slots__"] += ("__weakref__",)
+            elif not hasattr(theclass, "__weakref__") and hasattr(cls, "__weakref__"):
+                raise TypeError(f"{cls.__qualname__} supports weak references while real object {cls.__qualname__} does not.")
 
         return new_class(cls_name, (cls,), exec_body=exec_body)
 
@@ -167,7 +173,10 @@ class ProxyType(object):
             theclass = cache[obj.__class__]
         except KeyError:
             cache[obj.__class__] = theclass = cls.__create_class_proxy(obj.__class__)
-        return object.__new__(theclass)
+        new_object = super().__new__
+        if new_object is object.__new__:
+            return new_object(theclass)
+        return new_object(theclass, *args, **kwargs)
 
 
 class CallableProxyType(ProxyType):
@@ -175,14 +184,22 @@ class CallableProxyType(ProxyType):
 
     if TYPE_CHECKING:
 
+        def __new__(cls, obj: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+            ...
+
         def __init__(self, obj: Callable[..., Any], /) -> None:
             ...
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        return object.__getattribute__(self, "_obj")(*args, **kwargs)
+    def __call__(__self, /, *args: Any, **kwargs: Any) -> Any:
+        func: Callable[..., Any] = object.__getattribute__(__self, "_obj")
+        return func(*args, **kwargs)
 
 
-def proxy(obj: _T) -> _T:
+def proxy(obj: _T, *, proxy_cls: type[ProxyType] | None = None) -> _T:
+    if proxy_cls is not None:
+        if not issubclass(proxy_cls, ProxyType):
+            raise TypeError("proxy_cls must be a ProxyType subclass")
+        return proxy_cls(obj)  # type: ignore[return-value]
     if callable(obj):
         return CallableProxyType(obj)  # type: ignore[return-value]
     return ProxyType(obj)  # type: ignore[return-value]
