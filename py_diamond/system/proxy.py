@@ -8,7 +8,8 @@ __all__ = [
     "proxy",
 ]
 
-from typing import TYPE_CHECKING, Any, Callable, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, TypeVar
+from weakref import WeakKeyDictionary, WeakValueDictionary
 
 # Inspired from https://code.activestate.com/recipes/496741-object-proxying/
 
@@ -20,6 +21,8 @@ class ProxyType(object):
     __slots__ = ("_obj",)
 
     def __init__(self, obj: Any, /) -> None:
+        if issubclass(type(obj), type(self)):
+            obj = object.__getattribute__(obj, "_obj")
         object.__setattr__(self, "_obj", obj)
 
     #
@@ -127,7 +130,7 @@ class ProxyType(object):
     ]
 
     @classmethod
-    def __create_class_proxy(cls, theclass: type[Any]) -> type[Any]:
+    def __create_class_proxy(cls, theclass: type[Any]) -> type[ProxyType]:
         """creates a proxy for the given class"""
 
         from types import new_class
@@ -155,7 +158,10 @@ class ProxyType(object):
 
         return new_class(cls_name, (cls,), exec_body=exec_body)
 
-    def __new__(cls, obj: Any, *args: Any, **kwargs: Any) -> Any:
+    __class_proxy_cache: ClassVar[WeakKeyDictionary[type[ProxyType], WeakValueDictionary[type[Any], type[ProxyType]]]]
+    __class_proxy_cache = WeakKeyDictionary()
+
+    def __new__(cls, obj: Any, /, *args: Any, **kwargs: Any) -> Any:
         """
         creates an proxy instance referencing `obj`. (obj, *args, **kwargs) are
         passed to this class' __init__, so deriving classes can define an
@@ -163,16 +169,20 @@ class ProxyType(object):
         note: _class_proxy_cache is unique per deriving class (each deriving
         class must hold its own cache)
         """
-        cls._class_proxy_cache: dict[type[Any], type[Any]]
-        cache: dict[type[Any], type[Any]]
+        objtype = type(obj)
+        if issubclass(objtype, cls):
+            cls = objtype
+        del objtype
+        cache: WeakValueDictionary[type[Any], type[ProxyType]]
         try:
-            cache = cls.__dict__["_class_proxy_cache"]
+            cache = ProxyType.__class_proxy_cache[cls]
         except KeyError:
-            cls._class_proxy_cache = cache = {}
+            ProxyType.__class_proxy_cache[cls] = cache = WeakValueDictionary()
         try:
             theclass = cache[obj.__class__]
         except KeyError:
             cache[obj.__class__] = theclass = cls.__create_class_proxy(obj.__class__)
+            ProxyType.__class_proxy_cache[theclass] = WeakValueDictionary({obj.__class__: theclass})
         return object.__new__(theclass)
 
 
@@ -181,7 +191,7 @@ class CallableProxyType(ProxyType):
 
     if TYPE_CHECKING:
 
-        def __new__(cls, obj: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+        def __new__(cls, obj: Callable[..., Any], /, *args: Any, **kwargs: Any) -> Any:
             ...
 
         def __init__(self, obj: Callable[..., Any], /) -> None:
