@@ -19,7 +19,6 @@ __all__ = [
 from abc import abstractmethod
 from bisect import insort_left, insort_right
 from collections import deque
-from contextlib import suppress
 from itertools import dropwhile, filterfalse, takewhile
 from typing import (
     TYPE_CHECKING,
@@ -119,16 +118,17 @@ class Drawable(Object):
         for g in groups:
             actual_groups.remove(g)
             if self in g:
-                with suppress(ValueError):
-                    g.remove(self)
+                g.remove(self)
+
+    def has_group(self, group: BaseDrawableGroup[Any]) -> bool:
+        return group in self.__groups
 
     def kill(self) -> None:
         actual_groups: WeakSet[BaseDrawableGroup[Any]] = self.__groups
         self.__groups = WeakSet()
         for g in actual_groups:
             if self in g:
-                with suppress(ValueError):
-                    g.remove(self)
+                g.remove(self)
         del actual_groups
 
     def is_alive(self) -> bool:
@@ -150,9 +150,8 @@ class SupportsDrawableGroups(SupportsDrawing, Protocol):
     def remove_from_group(self, *groups: BaseDrawableGroup[Any]) -> None:
         raise NotImplementedError
 
-    @property
     @abstractmethod
-    def groups(self) -> frozenset[BaseDrawableGroup[Any]]:
+    def has_group(self, group: BaseDrawableGroup[Any]) -> bool:
         raise NotImplementedError
 
 
@@ -197,7 +196,7 @@ class BaseDrawableGroup(Sequence[_D]):
         drawable_list: MutableSequence[_D] = self.__list
         for d in filterfalse(drawable_list.__contains__, objects):
             drawable_list.append(d)
-            if self not in d.groups:
+            if not d.has_group(self):
                 try:
                     d.add_to_group(self)
                 except BaseException:
@@ -213,27 +212,24 @@ class BaseDrawableGroup(Sequence[_D]):
                 raise ValueError(f"{d!r} not in self")
         for d in objects:
             drawable_list.remove(d)
-            if self in d.groups:
-                with suppress(ValueError):
-                    d.remove_from_group(self)
+            if d.has_group(self):
+                d.remove_from_group(self)
 
     def pop(self, index: int = -1) -> _D:
         assert isinstance(index, int)
         drawable_list: MutableSequence[_D] = self.__list
         d: _D = drawable_list[index]  # deque.pop() does not accept argument
         del drawable_list[index]
-        if self in d.groups:
-            with suppress(ValueError):
-                d.remove_from_group(self)
+        if d.has_group(self):
+            d.remove_from_group(self)
         return d
 
     def clear(self) -> None:
         drawable_list: MutableSequence[_D] = self.__list
         self.__list = deque()
         for d in drawable_list:
-            if self in d.groups:
-                with suppress(ValueError):
-                    d.remove_from_group(self)
+            if d.has_group(self):
+                d.remove_from_group(self)
 
     def find(self, objtype: type[_T]) -> Iterator[_T]:
         return (obj for obj in self if isinstance(obj, objtype))
@@ -262,7 +258,7 @@ class BaseLayeredDrawableGroup(BaseDrawableGroup[_D]):
         for d in filterfalse(drawable_list.__contains__, objects):
             layer_dict.setdefault(d, layer)
             insort_right(drawable_list, d, key=layer_dict.__getitem__)
-            if self not in d.groups:
+            if not d.has_group(self):
                 try:
                     d.add_to_group(self)
                 except BaseException:
