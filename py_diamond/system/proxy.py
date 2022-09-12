@@ -173,10 +173,7 @@ class ProxyType(object):
             theclass = cache[obj.__class__]
         except KeyError:
             cache[obj.__class__] = theclass = cls.__create_class_proxy(obj.__class__)
-        new_object = super().__new__
-        if new_object is object.__new__:
-            return new_object(theclass)
-        return new_object(theclass, *args, **kwargs)
+        return object.__new__(theclass)
 
 
 class CallableProxyType(ProxyType):
