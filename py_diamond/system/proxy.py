@@ -21,7 +21,7 @@ class ProxyType(object):
     __slots__ = ("_obj",)
 
     def __init__(self, obj: Any, /) -> None:
-        if issubclass(type(obj), type(self)):
+        if issubclass(type(self), type(obj)):
             obj = object.__getattribute__(obj, "_obj")
         object.__setattr__(self, "_obj", obj)
 
@@ -169,10 +169,6 @@ class ProxyType(object):
         note: _class_proxy_cache is unique per deriving class (each deriving
         class must hold its own cache)
         """
-        objtype = type(obj)
-        if issubclass(objtype, cls):
-            cls = objtype
-        del objtype
         cache: WeakValueDictionary[type[Any], type[ProxyType]]
         try:
             cache = ProxyType.__class_proxy_cache[cls]
