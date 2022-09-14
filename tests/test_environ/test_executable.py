@@ -23,7 +23,6 @@ def mock_main_module(mocker: MockerFixture) -> MagicMock:
     return mock_module("__main__", mocker=mocker)
 
 
-@pytest.mark.unit
 def test__get_main_script_path__returns_main_module_path_from_spec(mock_main_module: MagicMock) -> None:
     # Arrange
     expected_path = os.path.abspath("path/to/main/script.py")
@@ -36,7 +35,6 @@ def test__get_main_script_path__returns_main_module_path_from_spec(mock_main_mod
     assert returned_path == expected_path
 
 
-@pytest.mark.unit
 def test__get_main_script_path__returns_main_module_path_from_dunder_file_attribute(mock_main_module: MagicMock) -> None:
     # Arrange
     expected_path = os.path.abspath("path/to/main/script.py")
@@ -50,7 +48,6 @@ def test__get_main_script_path__returns_main_module_path_from_dunder_file_attrib
     assert returned_path == expected_path
 
 
-@pytest.mark.unit
 def test__get_main_script_path__returns_main_module_path_from_dunder_file_attribute_2(mock_main_module: MagicMock) -> None:
     # Arrange
     expected_path = os.path.abspath("path/to/main/script.py")
@@ -64,7 +61,6 @@ def test__get_main_script_path__returns_main_module_path_from_dunder_file_attrib
     assert returned_path == expected_path
 
 
-@pytest.mark.unit
 def test__get_main_script_path__fallback_to_argv(mock_main_module: MagicMock, mocker: MockerFixture) -> None:
     # Arrange
     expected_path = os.path.abspath("path/to/main/script.py")
@@ -79,7 +75,6 @@ def test__get_main_script_path__fallback_to_argv(mock_main_module: MagicMock, mo
     assert returned_path == expected_path
 
 
-@pytest.mark.unit
 def test__get_main_script__returns_empty_string_if_undefined(mock_main_module: MagicMock, mocker: MockerFixture) -> None:
     # Arrange
     mock_main_module.__spec__ = None
@@ -93,7 +88,6 @@ def test__get_main_script__returns_empty_string_if_undefined(mock_main_module: M
     assert returned_path == ""
 
 
-@pytest.mark.unit
 def test__get_main_script_path__the_impossible_became_true(monkeypatch: MonkeyPatch) -> None:
     # Arrange
     import sys
@@ -105,7 +99,6 @@ def test__get_main_script_path__the_impossible_became_true(monkeypatch: MonkeyPa
         _ = get_main_script_path()
 
 
-@pytest.mark.unit
 class TestIsFrozenExecutable:
     def test__sys__has_frozen_attribute_to_True(self, mocker: MockerFixture) -> None:
         # Arrange
@@ -140,7 +133,6 @@ class TestIsFrozenExecutable:
         assert frozen is False
 
 
-@pytest.mark.unit
 def test__get_executable_path__returns_sys_executable_if_frozen(mocker: MockerFixture) -> None:
     # Arrange
     mocker.patch("sys.executable", mocker.sentinel.sys_executable)
@@ -156,7 +148,6 @@ def test__get_executable_path__returns_sys_executable_if_frozen(mocker: MockerFi
     mock_get_main_script_path.assert_not_called()
 
 
-@pytest.mark.unit
 def test__get_executable_path__returns_main_script_path_if_not_frozen(mocker: MockerFixture) -> None:
     # Arrange
     mock_get_main_script_path = mocker.patch("py_diamond.environ.executable.get_main_script_path", autospec=True)

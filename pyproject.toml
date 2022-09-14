@@ -94,6 +94,5 @@ minversion = "7.1.2"
 testpaths = ["tests"]
 markers = [
     "slow: marks tests as slow",
-    "unit: marks tests as unit tests",
     "functional: marks tests as functional tests",
 ]

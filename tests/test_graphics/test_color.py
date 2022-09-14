@@ -11,7 +11,6 @@ from py_diamond.graphics.color import Color, ImmutableColor
 import pytest
 
 
-@pytest.mark.unit
 class TestColor:
     @pytest.mark.parametrize(
         ["attr", "hsva_index"],
@@ -41,7 +40,6 @@ class TestColor:
         assert reconstructed_color == color
 
 
-@pytest.mark.unit
 class TestImmutableColor:
     @pytest.mark.parametrize(
         "attr",

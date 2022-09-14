@@ -17,9 +17,8 @@ if TYPE_CHECKING:
     from pytest_mock import MockerFixture
 
 
-@pytest.mark.unit
 @pytest.mark.usefixtures("mock_pygame_event_module", "mock_pygame_mouse_module")
-class TestWindowUnit:
+class TestWindow:
     @pytest.fixture(scope="class", autouse=True)
     @staticmethod
     def init_pygame_display_module() -> Iterator[Surface]:

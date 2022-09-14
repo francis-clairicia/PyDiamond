@@ -54,8 +54,7 @@ def music_factory(music_filepath_factory: Callable[[str], str]) -> Callable[[str
     return factory
 
 
-@pytest.mark.unit
-class TestMusicObjectUnit:
+class TestMusicObject:
     @pytest.fixture
     @staticmethod
     def mock_music_stream(mocker: MockerFixture) -> MagicMock:
@@ -157,9 +156,8 @@ class TestMusicObjectUnit:
             _ = pickle.dumps(music_wav)
 
 
-@pytest.mark.unit
 @pytest.mark.usefixtures("mock_pygame_mixer_music_module")
-class TestMusicStreamUnit:
+class TestMusicStream:
     @pytest.fixture(autouse=True)
     @staticmethod
     def call_musicstream_stop_at_end(mock_pygame_event_module: Any) -> Iterator[None]:

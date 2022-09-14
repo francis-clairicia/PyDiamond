@@ -17,8 +17,7 @@ if TYPE_CHECKING:
     from ..mock.pygame.mixer import MockMixerModule
 
 
-@pytest.mark.unit
-class TestMixerUnit:
+class TestMixer:
     @pytest.fixture(scope="class", autouse=True)
     @staticmethod
     def accept_setattr_on_mixer(class_mocker: MockerFixture) -> None:

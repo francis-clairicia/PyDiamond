@@ -172,7 +172,6 @@ BOOLEAN_PYGAME_ENVIRONMENT_VARIABLES: list[str] = [  # Copied from environment.p
 ]
 
 
-@pytest.mark.unit
 class TestCheckBooleanEnvironmentVariables:
     @pytest.fixture(scope="class", params=BOOLEAN_PYGAME_ENVIRONMENT_VARIABLES)
     @staticmethod

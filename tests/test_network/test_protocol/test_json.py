@@ -54,7 +54,6 @@ DESERIALIZE_PARAMS: list[tuple[bytes, Any]] = [
 ]
 
 
-@pytest.mark.unit
 class TestJSONPacketSerializer:
     @pytest.fixture
     @staticmethod
@@ -95,7 +94,6 @@ class TestJSONPacketSerializer:
         assert file.getvalue() == expected_output
 
 
-@pytest.mark.unit
 class TestJSONPacketDeserializer(BaseTestStreamPacketIncrementalDeserializer):
     @pytest.fixture
     @staticmethod

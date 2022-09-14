@@ -9,7 +9,6 @@ from py_diamond.version import VersionInfo
 import pytest
 
 
-@pytest.mark.unit
 class TestVersionInfo:
     @pytest.mark.parametrize(
         ["version_tuple", "expected_version"],

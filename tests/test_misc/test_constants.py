@@ -34,7 +34,6 @@ def enum_sample(
     return [EnumConstantSample(enum, member, constant_name(member), module) for member in enum.__members__]
 
 
-@pytest.mark.unit
 @pytest.mark.parametrize(
     "sample",
     [
