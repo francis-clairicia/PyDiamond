@@ -49,7 +49,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, windows-2022, macos-12]
+        # os: [ubuntu-20.04, windows-2022, macos-12]
+        # windows and macos images runs on python 3.10.7 and there is a bug with positional-only parameters on latest mypy version
+        # cf. https://github.com/python/mypy/issues/13627
+        os: [ubuntu-20.04]
         python_version: ['3.10']
 
     steps:
