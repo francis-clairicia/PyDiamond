@@ -169,7 +169,6 @@ _NO_DEFAULT: Any = object()
 class ConfigurationTemplate(Object):
     __slots__ = (
         "__template",
-        "__no_parent_ownership",
         "__bound_class",
         "__attr_name",
         "__cache",
@@ -2087,8 +2086,12 @@ class Section(Generic[_T, _S], Object):
     include_options: Set[str] = field(default_factory=frozenset)
     exclude_options: Set[str] = field(default_factory=frozenset)
 
-    __cache_lock: RLock = field(init=False, default_factory=RLock)
-    __cache: WeakKeyDictionary[Configuration[_T], Configuration[_S]] = field(init=False, default_factory=WeakKeyDictionary)
+    __cache_lock: RLock = field(init=False, repr=False, default_factory=RLock)
+    __cache: WeakKeyDictionary[Configuration[_T], Configuration[_S]] = field(
+        init=False,
+        repr=False,
+        default_factory=WeakKeyDictionary,
+    )
 
     def __post_init__(self) -> None:
         if options_conflict := set(self.include_options).intersection(self.exclude_options):
@@ -2139,7 +2142,7 @@ class ConfigurationInfo(Object, Generic[_T]):
     aliases: Mapping[str, str] = field(default_factory=_default_mapping)
     readonly_options: Set[str] = field(default_factory=frozenset)
 
-    _sections_map: MappingProxyType[str, Section[_T, Any]] = field(init=False)
+    _sections_map: MappingProxyType[str, Section[_T, Any]] = field(init=False, repr=False)
 
     __hash__ = None  # type: ignore[assignment]
 
@@ -3377,7 +3380,7 @@ class _ConfigInfoTemplate:
             option_delete_hooks=self.__build_option_delete_hooks_dict(),
             option_update_hooks=self.__build_option_update_hooks_dict(),
             section_update_hooks=self.__build_section_update_hooks_dict(),
-            main_object_update_hooks=self.__build_main_object_update_hooks_dict(),
+            main_object_update_hooks=self.__build_main_object_update_hooks_set(),
             value_converter_on_get=self.__build_value_converter_dict(on="get"),
             value_converter_on_set=self.__build_value_converter_dict(on="set"),
             value_validator=self.__build_value_validator_dict(),
@@ -3478,7 +3481,7 @@ class _ConfigInfoTemplate:
             }
         )
 
-    def __build_main_object_update_hooks_dict(self) -> frozenset[Callable[[object], None]]:
+    def __build_main_object_update_hooks_set(self) -> frozenset[Callable[[object], None]]:
         return frozenset(self.main_update_hooks)
 
     def __build_value_converter_dict(
@@ -3500,11 +3503,11 @@ class _ConfigInfoTemplate:
         for option, descriptor in self.value_descriptor.items():
             if isinstance(descriptor, _ReadOnlyOptionBuildPayload):
                 underlying_descriptor = descriptor.get_descriptor()
-                if underlying_descriptor is not None:
-                    descriptor = underlying_descriptor
-                else:
-                    descriptor = _PrivateAttributeOptionProperty()
-                    descriptor.__set_name__(owner, option)
+                if underlying_descriptor is None:
+                    underlying_descriptor = _PrivateAttributeOptionProperty()
+                    underlying_descriptor.__set_name__(owner, option)
+                    descriptor.set_new_descriptor(underlying_descriptor)
+                descriptor = underlying_descriptor
             value_descriptors[option] = descriptor
 
         return MappingProxyType(value_descriptors)
@@ -3520,7 +3523,7 @@ class _ConfigInfoTemplate:
 
 class _ConfigInitializer:
 
-    __slots__ = ("__func__", "__config_name", "__dict__")
+    __slots__ = ("__func__", "__config_name")
 
     def __init__(self, func: Callable[..., Any]) -> None:
         if not hasattr(func, "__get__"):
