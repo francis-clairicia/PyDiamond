@@ -23,11 +23,7 @@ if TYPE_CHECKING:
 
 
 class Cursor(_pg_cursors.Cursor, Object):
-
-    __slots__ = ()
-
-    if not TYPE_CHECKING:
-        __hash__ = _pg_cursors.Cursor.__hash__
+    __hash__ = _pg_cursors.Cursor.__hash__
 
     type: str
     data: tuple[Any, ...]  # type: ignore[assignment]
@@ -79,8 +75,10 @@ class SystemCursor(Cursor, Enum, metaclass=EnumObjectMeta):
     type: Literal["system"]
     data: tuple[int]
 
+    __hash__ = Cursor.__hash__
+
     def __new__(cls, value: int | SystemCursor) -> SystemCursor:
-        self = object.__new__(cls)
+        self = Cursor.__new__(cls)
         self._value_ = value
         return self
 
