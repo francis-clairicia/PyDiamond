@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable
 
-from py_diamond.audio.mixer import Mixer, MixerParams
+from pydiamond.audio.mixer import Mixer, MixerParams
 
 import pygame
 import pytest
@@ -32,7 +32,7 @@ class TestMixer:
     @pytest.fixture(autouse=True)
     @staticmethod
     def mock_music_stream(mocker: MockerFixture) -> MagicMock:
-        return mocker.patch("py_diamond.audio.music.MusicStream", autospec=True)
+        return mocker.patch("pydiamond.audio.music.MusicStream", autospec=True)
 
     @pytest.mark.usefixtures("mixer_init_default_side_effect")
     def test__init__pygame_mixer_init_and_quit(self, mock_pygame_mixer_module: MockMixerModule) -> None:
@@ -180,7 +180,7 @@ class TestMixer:
         mocker: MockerFixture,
     ) -> None:
         # Arrange
-        mock_channel = mocker.patch("py_diamond.audio.mixer.Channel")
+        mock_channel = mocker.patch("pydiamond.audio.mixer.Channel")
         mock_pygame_mixer_module.get_num_channels.return_value = num_channels
 
         # Act

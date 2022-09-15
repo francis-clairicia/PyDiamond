@@ -5,7 +5,7 @@ from __future__ import annotations
 from io import BytesIO
 from typing import Any
 
-from py_diamond.network.protocol.json import JSONPacketDeserializer, JSONPacketSerializer
+from pydiamond.network.protocol.json import JSONPacketDeserializer, JSONPacketSerializer
 
 import pytest
 

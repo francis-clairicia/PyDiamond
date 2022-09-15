@@ -79,6 +79,6 @@ def __mock_window_object(session_mocker: MockerFixture) -> None:
     """
     Mock the Window's __new__ because it will not accept multiple instances
     """
-    from py_diamond.window.display import Window
+    from pydiamond.window.display import Window
 
     session_mocker.patch.object(Window, "__new__", lambda cls, *args, **kwargs: super(Window, cls).__new__(cls))

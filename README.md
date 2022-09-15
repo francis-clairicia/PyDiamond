@@ -6,7 +6,7 @@ The framework uses the popular [pygame library](https://github.com/pygame/pygame
 ## Usage
 Example with the minimal requirements:
 ```py
-from py_diamond.window.display import Window
+from pydiamond.window.display import Window
 
 def main() -> int:
     w: Window = Window(title="my window", size=(800, 600))

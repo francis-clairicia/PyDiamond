@@ -7,16 +7,16 @@ from selectors import EVENT_READ, DefaultSelector
 from threading import Event
 from typing import Any, Generator
 
-from py_diamond.network.client import TCPNetworkClient
-from py_diamond.network.protocol import (
+from pydiamond.network.client import TCPNetworkClient
+from pydiamond.network.protocol import (
     JSONNetworkProtocol,
     PickleNetworkProtocol,
     SafePickleNetworkProtocol,
     StreamNetworkProtocol,
     ValidationError,
 )
-from py_diamond.network.socket import PythonTCPClientSocket, PythonTCPServerSocket
-from py_diamond.system.threading import Thread, thread_factory
+from pydiamond.network.socket import PythonTCPClientSocket, PythonTCPServerSocket
+from pydiamond.system.threading import Thread, thread_factory
 
 import pytest
 from cryptography.fernet import Fernet

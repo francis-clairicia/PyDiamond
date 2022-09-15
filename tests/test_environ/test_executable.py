@@ -5,7 +5,7 @@ from __future__ import annotations
 import os.path
 from typing import TYPE_CHECKING
 
-from py_diamond.environ.executable import get_executable_path, get_main_script_path, is_frozen_executable
+from pydiamond.environ.executable import get_executable_path, get_main_script_path, is_frozen_executable
 
 import pytest
 
@@ -136,8 +136,8 @@ class TestIsFrozenExecutable:
 def test__get_executable_path__returns_sys_executable_if_frozen(mocker: MockerFixture) -> None:
     # Arrange
     mocker.patch("sys.executable", mocker.sentinel.sys_executable)
-    mock_get_main_script_path = mocker.patch("py_diamond.environ.executable.get_main_script_path", autospec=True)
-    mock_is_frozen_executable = mocker.patch("py_diamond.environ.executable.is_frozen_executable", autospec=True)
+    mock_get_main_script_path = mocker.patch("pydiamond.environ.executable.get_main_script_path", autospec=True)
+    mock_is_frozen_executable = mocker.patch("pydiamond.environ.executable.is_frozen_executable", autospec=True)
     mock_is_frozen_executable.return_value = True
 
     # Act
@@ -150,8 +150,8 @@ def test__get_executable_path__returns_sys_executable_if_frozen(mocker: MockerFi
 
 def test__get_executable_path__returns_main_script_path_if_not_frozen(mocker: MockerFixture) -> None:
     # Arrange
-    mock_get_main_script_path = mocker.patch("py_diamond.environ.executable.get_main_script_path", autospec=True)
-    mock_is_frozen_executable = mocker.patch("py_diamond.environ.executable.is_frozen_executable", autospec=True)
+    mock_get_main_script_path = mocker.patch("pydiamond.environ.executable.get_main_script_path", autospec=True)
+    mock_is_frozen_executable = mocker.patch("pydiamond.environ.executable.is_frozen_executable", autospec=True)
     mock_get_main_script_path.return_value = mocker.sentinel.script_path
     mock_is_frozen_executable.return_value = False
 

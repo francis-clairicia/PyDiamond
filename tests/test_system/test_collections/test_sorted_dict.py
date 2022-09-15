@@ -6,7 +6,7 @@ import pickle
 from copy import copy, deepcopy
 from typing import Any
 
-from py_diamond.system.collections import SortedDict
+from pydiamond.system.collections import SortedDict
 
 import pytest
 

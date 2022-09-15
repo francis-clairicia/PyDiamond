@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from types import ModuleType
     from unittest.mock import MagicMock
 
-    from py_diamond._patch.plugins.fix_typing import OverrideFinalFunctionsPatch
+    from pydiamond._patch.plugins.fix_typing import OverrideFinalFunctionsPatch
 
     from pytest_mock import MockerFixture
 
@@ -67,7 +67,7 @@ class TestFixTypingFinal:
     @pytest.fixture
     @staticmethod
     def patch(mock_default_final: MagicMock) -> Iterator[OverrideFinalFunctionsPatch]:
-        from py_diamond._patch.plugins.fix_typing import OverrideFinalFunctionsPatch
+        from pydiamond._patch.plugins.fix_typing import OverrideFinalFunctionsPatch
 
         patch = OverrideFinalFunctionsPatch()
         patch.setup()

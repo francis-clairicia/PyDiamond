@@ -22,11 +22,11 @@ if TYPE_CHECKING:
 def _catch_all_py_diamond_packages_and_modules() -> list[ModuleInfo]:
     from pkgutil import walk_packages
 
-    py_diamond_spec = import_module("py_diamond").__spec__
+    py_diamond_spec = import_module("pydiamond").__spec__
 
     assert py_diamond_spec is not None
 
-    py_diamond_paths = py_diamond_spec.submodule_search_locations or import_module("py_diamond").__path__
+    py_diamond_paths = py_diamond_spec.submodule_search_locations or import_module("pydiamond").__path__
 
     return list(walk_packages(py_diamond_paths, prefix=f"{py_diamond_spec.name}."))
 
@@ -77,14 +77,14 @@ class TestGlobalImport:
     @pytest.fixture(autouse=True)
     @staticmethod
     def unload_py_diamond(monkeypatch: MonkeyPatch) -> None:
-        return unload_module("py_diamond", include_submodules=True, monkeypatch=monkeypatch)
+        return unload_module("pydiamond", include_submodules=True, monkeypatch=monkeypatch)
 
     @pytest.mark.parametrize("module_name", ALL_PYDIAMOND_MODULES)
     def test__import__successful_import_module_without_circular_import(self, module_name: str) -> None:
         import sys
 
         # Simple check to ensure the unload_* fixtures do their jobs
-        assert not any(n == "py_diamond" or n.startswith(module_name) for n in tuple(sys.modules))
+        assert not any(n == "pydiamond" or n.startswith(module_name) for n in tuple(sys.modules))
 
         import_module(module_name)
 
@@ -104,20 +104,20 @@ class TestGlobalImport:
 
         # Begin test
         with pytest.raises(ModuleNotFoundError, match=r"'pygame' package must be installed in order to use the PyDiamond engine"):
-            import py_diamond
+            import pydiamond
 
-            del py_diamond
+            del pydiamond
 
     def test__import__raise_warning_if_pygame_is_already_imported(self) -> None:
         import pygame
 
         expected_message = (
-            r"'pygame' module already imported, this can cause unwanted behavior\. Consider importing py_diamond first\."
+            r"'pygame' module already imported, this can cause unwanted behavior\. Consider importing pydiamond first\."
         )
         with pytest.warns(UserWarning, match=expected_message):
-            import py_diamond
+            import pydiamond
 
-            del py_diamond
+            del pydiamond
 
         del pygame
 
@@ -134,9 +134,9 @@ class TestGlobalImport:
         with warnings.catch_warnings():
             warnings.simplefilter("error", category=UserWarning)
 
-            import py_diamond
+            import pydiamond
 
-            del py_diamond
+            del pydiamond
 
         del pygame
 
@@ -144,9 +144,9 @@ class TestGlobalImport:
         mocker.patch("sys.version_info", MockVersionInfo(3, 9, 5, "final", 0))
 
         with pytest.raises(ImportError, match=r"This framework must be run with python >= 3\.10 \(actual=3\.9\.5\)"):
-            import py_diamond
+            import pydiamond
 
-            del py_diamond
+            del pydiamond
 
 
 @pytest.mark.functional

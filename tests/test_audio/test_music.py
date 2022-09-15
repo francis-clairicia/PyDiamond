@@ -5,7 +5,7 @@ from __future__ import annotations
 from copy import copy, deepcopy
 from typing import TYPE_CHECKING, Any, Callable, Iterator
 
-from py_diamond.audio.music import Music, MusicStream
+from pydiamond.audio.music import Music, MusicStream
 
 import pygame
 import pytest
@@ -27,7 +27,7 @@ def do_not_encode_filepaths(module_mocker: MockerFixture) -> None:
 
     We do not need it for this test suite
     """
-    module_mocker.patch("py_diamond.audio.music.encode_file_path", lambda f: f)
+    module_mocker.patch("pydiamond.audio.music.encode_file_path", lambda f: f)
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -58,7 +58,7 @@ class TestMusicObject:
     @pytest.fixture
     @staticmethod
     def mock_music_stream(mocker: MockerFixture) -> MagicMock:
-        return mocker.patch("py_diamond.audio.music.MusicStream", spec=MusicStream)
+        return mocker.patch("pydiamond.audio.music.MusicStream", spec=MusicStream)
 
     def test__init__absolute_filepath(self, music_filepath_factory: Callable[[str], str]) -> None:
         # Arrange
@@ -525,7 +525,7 @@ class TestPygameMixerMusicModuleAlteration:
         assert pygame.USEREVENT < pygame.mixer.music.get_endevent() < pygame.NUMEVENTS
 
         # Just to be sure...
-        from py_diamond.window.event import BuiltinEventType
+        from pydiamond.window.event import BuiltinEventType
 
         assert pygame.mixer.music.get_endevent() == BuiltinEventType.MUSICEND
 

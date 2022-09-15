@@ -6,7 +6,7 @@ import time
 from threading import current_thread
 from typing import Any
 
-from py_diamond.system.threading import Thread, thread_factory, thread_factory_method
+from pydiamond.system.threading import Thread, thread_factory, thread_factory_method
 
 from ..conftest import silently_ignore_systemexit_in_thread
 

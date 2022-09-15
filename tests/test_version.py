@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from py_diamond.version import VersionInfo
+from pydiamond.version import VersionInfo
 
 import pytest
 

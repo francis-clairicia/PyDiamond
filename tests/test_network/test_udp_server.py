@@ -5,10 +5,10 @@ from __future__ import annotations
 from time import sleep
 from typing import Any
 
-from py_diamond.network.client import UDPNetworkClient
-from py_diamond.network.server import AbstractUDPRequestHandler, StateLessUDPNetworkServer
-from py_diamond.network.socket import IPv4SocketAddress
-from py_diamond.system.threading import Thread
+from pydiamond.network.client import UDPNetworkClient
+from pydiamond.network.server import AbstractUDPRequestHandler, StateLessUDPNetworkServer
+from pydiamond.network.socket import IPv4SocketAddress
+from pydiamond.system.threading import Thread
 
 from .random_port import random_port
 

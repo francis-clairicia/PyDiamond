@@ -17,7 +17,7 @@ import pickle
 import random
 import sys
 
-from py_diamond.system.collections import OrderedSet
+from pydiamond.system.collections import OrderedSet
 
 import pytest
 

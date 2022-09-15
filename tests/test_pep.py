@@ -12,7 +12,7 @@ import pytest
 class TestPEP561:
     def test__py_typed__exists_in_all_packages(self, pytestconfig: pytest.Config) -> None:
         # Arrange
-        py_diamond_rootdir = pytestconfig.rootpath / "py_diamond"
+        py_diamond_rootdir = pytestconfig.rootpath / "pydiamond"
         folder_without_py_typed_file: set[str] = set()
 
         # Act

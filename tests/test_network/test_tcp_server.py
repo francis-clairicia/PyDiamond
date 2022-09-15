@@ -5,11 +5,11 @@ from __future__ import annotations
 from time import sleep
 from typing import Any, ClassVar, Generator
 
-from py_diamond.network.client import TCPNetworkClient
-from py_diamond.network.protocol import StreamNetworkProtocol, ValidationError
-from py_diamond.network.server import AbstractTCPRequestHandler, StateLessTCPNetworkServer
-from py_diamond.network.socket import SocketAddress
-from py_diamond.system.threading import Thread
+from pydiamond.network.client import TCPNetworkClient
+from pydiamond.network.protocol import StreamNetworkProtocol, ValidationError
+from pydiamond.network.server import AbstractTCPRequestHandler, StateLessTCPNetworkServer
+from pydiamond.network.socket import SocketAddress
+from pydiamond.system.threading import Thread
 
 from .random_port import random_port
 

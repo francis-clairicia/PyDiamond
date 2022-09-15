@@ -5,14 +5,14 @@ from __future__ import annotations
 import random
 from typing import TYPE_CHECKING, Any, Iterator, MutableMapping, Sequence
 
-from py_diamond._patch.plugins.environment import check_booleans
+from pydiamond._patch.plugins.environment import check_booleans
 
 import pytest
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
 
-    from py_diamond._patch.plugins.environment import ArrangePygameEnvironmentBeforeImport, VerifyBooleanEnvironmentVariables
+    from pydiamond._patch.plugins.environment import ArrangePygameEnvironmentBeforeImport, VerifyBooleanEnvironmentVariables
 
     from pytest import MonkeyPatch
     from pytest_mock import MockerFixture
@@ -29,7 +29,7 @@ def fake_environ(monkeypatch: MonkeyPatch) -> MutableMapping[str, str]:
 
 @pytest.fixture
 def mock_check_booleans(mocker: MockerFixture) -> MagicMock:
-    return mocker.patch("py_diamond._patch.plugins.environment.check_booleans")
+    return mocker.patch("pydiamond._patch.plugins.environment.check_booleans")
 
 
 @pytest.mark.functional
@@ -37,7 +37,7 @@ class TestArrangePygameEnvironment:
     @pytest.fixture
     @staticmethod
     def patch(fake_environ: MutableMapping[str, str]) -> Iterator[ArrangePygameEnvironmentBeforeImport]:
-        from py_diamond._patch.plugins.environment import ArrangePygameEnvironmentBeforeImport
+        from pydiamond._patch.plugins.environment import ArrangePygameEnvironmentBeforeImport
 
         patch = ArrangePygameEnvironmentBeforeImport()
         patch.setup()
@@ -132,7 +132,7 @@ class TestVerifyBooleanEnvironmentVariables:
     @pytest.fixture
     @staticmethod
     def patch(fake_environ: MutableMapping[str, str]) -> Iterator[VerifyBooleanEnvironmentVariables]:
-        from py_diamond._patch.plugins.environment import VerifyBooleanEnvironmentVariables
+        from pydiamond._patch.plugins.environment import VerifyBooleanEnvironmentVariables
 
         patch = VerifyBooleanEnvironmentVariables()
         patch.setup()

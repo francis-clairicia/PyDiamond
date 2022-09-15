@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from socket import has_ipv6 as HAS_IPV6
 
-from py_diamond.network.socket import (
+from pydiamond.network.socket import (
     AF_INET,
     AF_INET6,
     IPv4SocketAddress,

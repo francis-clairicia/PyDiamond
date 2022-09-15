@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from py_diamond.network.protocol import EncryptorNetworkProtocol, JSONNetworkProtocol, PickleNetworkProtocol
+from pydiamond.network.protocol import EncryptorNetworkProtocol, JSONNetworkProtocol, PickleNetworkProtocol
 
 import pytest
 from cryptography.fernet import Fernet, InvalidToken

@@ -61,7 +61,7 @@ if any(name == "pygame" or name.startswith("pygame.") for name in list(sys.modul
 
         from .warnings import PyDiamondImportWarning
 
-        warn_msg = "'pygame' module already imported, this can cause unwanted behavior. Consider importing py_diamond first."
+        warn_msg = "'pygame' module already imported, this can cause unwanted behavior. Consider importing pydiamond first."
         _warnings.warn(warn_msg, category=PyDiamondImportWarning)
 
         del _warnings, warn_msg, PyDiamondImportWarning

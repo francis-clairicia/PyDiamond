@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Generator, TypeAlias, TypeVar
 
-from py_diamond.system.utils.itertools import send_return
+from pydiamond.system.utils.itertools import send_return
 
 _T_co = TypeVar("_T_co", covariant=True)
 

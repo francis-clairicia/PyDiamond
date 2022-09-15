@@ -5,8 +5,8 @@ from __future__ import annotations
 import importlib
 from typing import TYPE_CHECKING, Any, Callable, NamedTuple
 
-from py_diamond.audio.mixer import AllowedAudioChanges, AudioFormat
-from py_diamond.graphics.font import FontStyle
+from pydiamond.audio.mixer import AllowedAudioChanges, AudioFormat
+from pydiamond.graphics.font import FontStyle
 
 import pytest
 

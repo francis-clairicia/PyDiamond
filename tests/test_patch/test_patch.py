@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 if TYPE_CHECKING:
-    from py_diamond._patch._base import BasePatch
+    from pydiamond._patch._base import BasePatch
 
 
 @pytest.mark.functional
@@ -36,7 +36,7 @@ class TestPatchCommon:
     @staticmethod
     def patch_cls(patch_qualname: str) -> type[BasePatch]:
         module_path, _, patch_name = patch_qualname.rpartition(".")
-        module_path = f"py_diamond._patch.plugins.{module_path}"
+        module_path = f"pydiamond._patch.plugins.{module_path}"
         patch_cls: type[BasePatch] = getattr(importlib.import_module(module_path), patch_name)
         return patch_cls
 
@@ -49,7 +49,7 @@ class TestPatchCommon:
         assert patch_cls.get_name() == f"plugins.{patch_qualname}"
 
     def test__patch__required_context(self, patch_cls: type[BasePatch], patch_qualname: str) -> None:
-        from py_diamond._patch._base import PatchContext
+        from pydiamond._patch._base import PatchContext
 
         expected_context = PatchContext[self.EXPECTED_CONTEXT[patch_qualname]]
 

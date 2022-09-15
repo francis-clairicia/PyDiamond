@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from py_diamond.system.object import Object, final, mro, override
+from pydiamond.system.object import Object, final, mro, override
 
 import pytest
 

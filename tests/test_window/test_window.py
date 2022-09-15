@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Iterator
 
-from py_diamond.window.display import Window, WindowError
+from pydiamond.window.display import Window, WindowError
 
 import pygame
 import pytest
@@ -54,7 +54,7 @@ class TestWindow:
 
     def test__init__with_arguments(self, mock_pygame_display_module: MockDisplayModule) -> None:
         # Arrange
-        from py_diamond.window.display import Window
+        from pydiamond.window.display import Window
 
         # Act
         window = Window(title="A very beautiful title", size=(1920, 1080))

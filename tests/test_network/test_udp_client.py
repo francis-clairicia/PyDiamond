@@ -6,10 +6,10 @@ from selectors import EVENT_READ, DefaultSelector
 from threading import Event
 from typing import Any
 
-from py_diamond.network.client import UDPNetworkClient
-from py_diamond.network.protocol import PickleNetworkProtocol, SafePickleNetworkProtocol
-from py_diamond.network.socket import IPv4SocketAddress, PythonUDPClientSocket, PythonUDPServerSocket
-from py_diamond.system.threading import Thread, thread_factory
+from pydiamond.network.client import UDPNetworkClient
+from pydiamond.network.protocol import PickleNetworkProtocol, SafePickleNetworkProtocol
+from pydiamond.network.socket import IPv4SocketAddress, PythonUDPClientSocket, PythonUDPServerSocket
+from pydiamond.system.threading import Thread, thread_factory
 
 from cryptography.fernet import Fernet
 

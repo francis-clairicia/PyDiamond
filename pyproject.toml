@@ -4,7 +4,7 @@ requires = ["flit_core >=3.2,<4"]
 build-backend = "flit_core.buildapi"
 
 [project]
-name = "PyDiamond"
+name = "pydiamond-engine"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
@@ -46,7 +46,7 @@ test = [
 
 ############################ Flit configuration ############################
 [tool.flit.module]
-name = "py_diamond"
+name = "pydiamond"
 
 [tool.flit.sdist]
 exclude = [
@@ -62,7 +62,7 @@ profile = "black"
 line_length = 130
 combine_as_imports = true
 sections = ["FUTURE", "STDLIB", "PYDIAMOND", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
-known_pydiamond = ["py_diamond"]
+known_pydiamond = ["pydiamond"]
 add_imports = ["from __future__ import annotations"]
 
 [tool.black]

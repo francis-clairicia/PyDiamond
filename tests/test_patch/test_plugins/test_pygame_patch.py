@@ -9,7 +9,7 @@ import pytest
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
 
-    from py_diamond._patch.plugins.pygame_patch import PygamePatch
+    from pydiamond._patch.plugins.pygame_patch import PygamePatch
 
     from pytest_mock import MockerFixture
 
@@ -33,7 +33,7 @@ class TestPygamePatch:
     @pytest.fixture
     @staticmethod
     def patch(mock_pygame_event_module: Any, mock_pygame_mixer_music_module: Any) -> Iterator[PygamePatch]:
-        from py_diamond._patch.plugins.pygame_patch import PygamePatch
+        from pydiamond._patch.plugins.pygame_patch import PygamePatch
 
         patch = PygamePatch()
         patch.setup()
@@ -169,7 +169,7 @@ class TestPygamePatch:
         ## the set_blocked() wrapper will try to convert received values to int, as the real function declares to take
         ## 'SupportsInt' argument
         ## But try int(_SentinelObject) will raise a TypeError, so we replace the class for the tests
-        mocker.patch("py_diamond._patch.plugins.pygame_patch.int", lambda obj: obj)
+        mocker.patch("pydiamond._patch.plugins.pygame_patch.int", lambda obj: obj)
 
         mock_pygame_mixer_music_get_endevent: MagicMock = mock_pygame_mixer_music_module.get_endevent
         mock_pygame_mixer_music_set_endevent: MagicMock = mock_pygame_mixer_music_module.set_endevent

@@ -6,7 +6,7 @@ import pickle
 from dataclasses import FrozenInstanceError
 from itertools import combinations
 
-from py_diamond.graphics.color import Color, ImmutableColor
+from pydiamond.graphics.color import Color, ImmutableColor
 
 import pytest
 

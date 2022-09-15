@@ -3,14 +3,10 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from os.path import dirname
-from sys import path as SYS_PATH
 from time import monotonic as time
 from typing import Any, ClassVar, Iterator
 
-SYS_PATH.append(dirname(dirname(__file__)))
-
-from py_diamond.system.configuration import ConfigurationTemplate, OptionAttribute, initializer
+from pydiamond.system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 
 
 @contextmanager
