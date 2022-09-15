@@ -1391,8 +1391,8 @@ class MainWindow(SceneWindow):
         self.index = index % len(self.all_scenes)
         self.run(self.all_scenes[self.index])
 
-    def render_scene(self) -> None:
-        super().render_scene()
+    def update_and_render_scene(self, *, fixed_update: bool, interpolation_update: bool) -> None:
+        super().update_and_render_scene(fixed_update=fixed_update, interpolation_update=interpolation_update)
         self.draw(self.prev_button, self.next_button)
         text_framerate: TextFramerate = self.text_framerate
         if text_framerate.is_shown():

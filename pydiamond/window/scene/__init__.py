@@ -561,7 +561,7 @@ class SceneWindow(Window):
             yield
 
     @final
-    def run(self, default_scene: type[Scene], **scene_kwargs: Any) -> None:
+    def run(self, __default_scene: type[Scene], /, **scene_kwargs: Any) -> None:
         if not self.is_open():
             raise WindowError("Window not open")
         if self.__running:
@@ -572,17 +572,18 @@ class SceneWindow(Window):
         gc.collect()
         on_start_loop: Callable[[], None]
         try:
-            self.start_scene(default_scene, awake_kwargs=scene_kwargs)
+            self.start_scene(__default_scene, awake_kwargs=scene_kwargs)
         except _SceneManager.NewScene as exc:
             exc.actual_scene.on_start_loop_before_transition()
             on_start_loop = exc.actual_scene.on_start_loop
             del exc
         else:
             raise RuntimeError("self.start_scene() didn't raise")
+        finally:
+            del __default_scene
         loop = self.loop
         process_events = self.handle_events
-        update_scene = self.update_scene
-        render_scene = self.render_scene
+        update_and_render_scene = self.update_and_render_scene
         refresh_screen = self.refresh
         scene_transition = self.__scene_transition
 
@@ -592,8 +593,7 @@ class SceneWindow(Window):
             while loop():
                 try:
                     process_events()
-                    update_scene()
-                    render_scene()
+                    update_and_render_scene(fixed_update=True, interpolation_update=True)
                     refresh_screen()
                 except _SceneManager.NewScene as exc:
                     assert exc.previous_scene is not None, "Previous scene must not be None"
@@ -644,13 +644,16 @@ class SceneWindow(Window):
                         animating = False
                     next_transition = transition.send
                     next_fixed_transition = lambda: next_transition(None)
-                    while self.loop() and animating:
+                    loop = self.loop
+                    refresh = self.refresh
+                    while loop() and animating:
                         try:
                             self._fixed_updates_call(next_fixed_transition)
                             self._interpolation_updates_call(next_transition)
                         except StopIteration:
                             animating = False
-                        self.refresh()
+                        refresh()
+                    del loop, refresh
                     del next_fixed_transition, next_transition, transition
         self.__reset_interpolation_data()
         self.clear_all_events()
@@ -685,18 +688,18 @@ class SceneWindow(Window):
         for func in funcs:
             func(alpha)
 
-    def update_scene(self) -> None:
+    def update_and_render_scene(self, *, fixed_update: bool, interpolation_update: bool) -> None:
         scene: Scene | None = self.__scenes.top()
         if scene is None:
             return
-        self._fixed_updates_call(scene.fixed_update)
-        self._interpolation_updates_call(scene.interpolation_update)
+        if fixed_update:
+            scene_fixed_update = scene.fixed_update
+            for _ in range(self.__nb_fixed_update_call):
+                scene_fixed_update()
+            del scene_fixed_update
+        if interpolation_update:
+            scene.interpolation_update(self.__alpha_interpolation)
         scene.update()
-
-    def render_scene(self) -> None:
-        scene: Scene | None = self.__scenes.top()
-        if scene is None:
-            return
         self.__scenes._render(scene)
 
     @final
@@ -1040,8 +1043,7 @@ class _SceneManager:
             try:
                 while window.loop():
                     window.handle_events()
-                    window.update_scene()
-                    window.render_scene()
+                    window.update_and_render_scene(fixed_update=True, interpolation_update=True)
                     window.refresh()
             except _SceneManager.DialogStop:
                 dialog.on_quit_before_transition()

@@ -11,20 +11,7 @@ __all__ = ["AnimationInterpolator", "AnimationInterpolatorPool", "BaseAnimation"
 from abc import ABCMeta, abstractmethod
 from contextlib import ExitStack, contextmanager
 from types import MappingProxyType
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Final,
-    Iterator,
-    Literal,
-    NamedTuple,
-    Protocol,
-    TypeAlias,
-    TypeVar,
-    cast,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, Callable, Final, Iterator, Literal, NamedTuple, Protocol, TypeAlias, TypeVar, overload
 from weakref import WeakKeyDictionary, ref as weakref
 
 from ..math import Vector2, angle_interpolation, linear_interpolation
@@ -214,11 +201,10 @@ class BaseAnimation(Object):
         self.__on_stop = None
         self.start()
         with window.stuck():
-            while window.loop() and self.has_animation_started():
+            while window.loop() and scene.looping() and self.has_animation_started():
                 window._fixed_updates_call(self.fixed_update)
                 window._interpolation_updates_call(self.update)
-                scene.update()
-                window.render_scene()
+                window.update_and_render_scene(fixed_update=False, interpolation_update=False)
                 window.refresh()
 
 
@@ -292,7 +278,8 @@ class MoveAnimation(BaseAnimation):
         self.__animation = None
 
     def _launch_animations(self) -> None:
-        animation = cast(_AbstractAnimationClass, self.__animation)
+        animation = self.__animation
+        assert animation is not None
         if animation.started():
             animation.fixed_update()
         else:
