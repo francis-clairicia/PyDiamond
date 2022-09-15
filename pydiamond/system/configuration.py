@@ -79,6 +79,8 @@ _ValueValidator: TypeAlias = Callable[[Any, Any], None]
 _StaticValueValidator: TypeAlias = Callable[[Any], None]
 _ValueConverter: TypeAlias = Callable[[Any, Any], Any]
 _StaticValueConverter: TypeAlias = Callable[[Any], Any]
+_ValueComparator: TypeAlias = Callable[[Any, Any, Any], bool]
+_StaticValueComparator: TypeAlias = Callable[[Any, Any], bool]
 
 _FuncVar = TypeVar("_FuncVar", bound=_Func)
 _UpdaterVar = TypeVar("_UpdaterVar", bound=_Updater)
@@ -95,6 +97,8 @@ _ValueValidatorVar = TypeVar("_ValueValidatorVar", bound=_ValueValidator)
 _StaticValueValidatorVar = TypeVar("_StaticValueValidatorVar", bound=_StaticValueValidator)
 _ValueConverterVar = TypeVar("_ValueConverterVar", bound=_ValueConverter)
 _StaticValueConverterVar = TypeVar("_StaticValueConverterVar", bound=_StaticValueConverter)
+_ValueComparatorVar = TypeVar("_ValueComparatorVar", bound=_ValueComparator)
+_StaticValueComparatorVar = TypeVar("_StaticValueComparatorVar", bound=_StaticValueComparator)
 
 _S = TypeVar("_S")
 _T = TypeVar("_T")
@@ -1783,6 +1787,66 @@ class ConfigurationTemplate(Object):
             _make_enum_converter(enum, store_value, accept_none),
         )
 
+    @overload
+    def value_comparator(
+        self, option: str, /, *, use_override: bool = True
+    ) -> Callable[[_ValueComparatorVar], _ValueComparatorVar]:
+        ...
+
+    @overload
+    def value_comparator(self, option: str, func: _ValueComparator, /, *, use_override: bool = True) -> None:
+        ...
+
+    def value_comparator(
+        self,
+        option: str,
+        func: _ValueComparator | None = None,
+        /,
+        *,
+        use_override: bool = True,
+    ) -> Callable[[_ValueComparatorVar], _ValueComparatorVar] | None:
+        self.__check_locked()
+        template: _ConfigInfoTemplate = self.__template
+
+        @self.__option_decorator(option, allow_section_options=False)
+        def decorator(option: str, func: _ValueComparator, /) -> None:
+            if option in template.value_comparator:
+                raise OptionError(option, "A comparator is already configured")
+            template.value_comparator[option] = _make_function_wrapper(func, use_override=bool(use_override), no_object=False)
+
+        if func is None:
+            return decorator
+        decorator(func)
+        return None
+
+    @overload
+    def value_comparator_static(self, option: str, /) -> Callable[[_StaticValueComparatorVar], _StaticValueComparatorVar]:
+        ...
+
+    @overload
+    def value_comparator_static(self, option: str, func: _StaticValueComparator, /) -> None:
+        ...
+
+    def value_comparator_static(
+        self,
+        option: str,
+        func: _StaticValueComparator | None = None,
+        /,
+    ) -> Callable[[_StaticValueComparatorVar], _StaticValueComparatorVar] | None:
+        self.__check_locked()
+        template: _ConfigInfoTemplate = self.__template
+
+        @self.__option_decorator(option, allow_section_options=False)
+        def decorator(option: str, func: _StaticValueComparator, /) -> None:
+            if option in template.value_comparator:
+                raise OptionError(option, "A comparator is already configured")
+            template.value_comparator[option] = _make_function_wrapper(func, use_override=False, no_object=True)
+
+        if func is None:
+            return decorator
+        decorator(func)
+        return None
+
     def set_alias(self, option: str, alias: str, /, *aliases: str) -> None:
         self.__check_locked()
         template: _ConfigInfoTemplate = self.__template
@@ -2139,10 +2203,12 @@ class ConfigurationInfo(Object, Generic[_T]):
     value_converter_on_set: Mapping[str, Sequence[Callable[[_T, Any], Any]]] = field(default_factory=_default_mapping)
     value_validator: Mapping[str, Sequence[Callable[[_T, Any], None]]] = field(default_factory=_default_mapping)
     value_descriptor: Mapping[str, _Descriptor] = field(default_factory=_default_mapping)
+    value_comparator: Mapping[str, Callable[[_T, Any, Any], bool]] = field(default_factory=_default_mapping)
     aliases: Mapping[str, str] = field(default_factory=_default_mapping)
     readonly_options: Set[str] = field(default_factory=frozenset)
 
     _sections_map: MappingProxyType[str, Section[_T, Any]] = field(init=False, repr=False)
+    _default_comparator: Callable[[_T, Any, Any], bool] = field(init=False, repr=False, default=(lambda _, lhs, rhs: lhs == rhs))
 
     __hash__ = None  # type: ignore[assignment]
 
@@ -2171,11 +2237,12 @@ class ConfigurationInfo(Object, Generic[_T]):
         include_options: Set[str] | None = None,
         exclude_options: Set[str] | None = None,
     ) -> ConfigurationInfo[_T]:
-        from collections import defaultdict
         from dataclasses import replace
 
         if not include_options and not exclude_options:
             return replace(self)
+
+        from collections import defaultdict
 
         new_options: set[str] = set()
         new_section_include_options: defaultdict[str, set[str]] = defaultdict(set)
@@ -2225,8 +2292,8 @@ class ConfigurationInfo(Object, Generic[_T]):
             sections=tuple(
                 replace(
                     section,
-                    include_options=new_section_include_options[section.name],
-                    exclude_options=new_section_exclude_options[section.name],
+                    include_options=frozenset(new_section_include_options[section.name]),
+                    exclude_options=frozenset(new_section_exclude_options[section.name]),
                 )
                 for section in self.sections
                 if section.name not in exclude_sections
@@ -2299,6 +2366,9 @@ class ConfigurationInfo(Object, Generic[_T]):
         sections = {m["section"] for m in filter(None, map(_OPTIONS_IN_SECTION_PATTERN.match, options))}
         get_hooks = self.section_update_hooks.get
         return set(chain.from_iterable(get_hooks(section, ()) for section in sections))
+
+    def get_value_comparator(self, option: str) -> Callable[[_T, Any, Any], bool]:
+        return self.value_comparator.get(option, self._default_comparator)
 
 
 del _default_mapping
@@ -2461,7 +2531,7 @@ class Configuration(NonCopyable, Generic[_T]):
                 except AttributeError:
                     pass
                 else:
-                    if actual_value is value or actual_value == value:
+                    if actual_value is value or info.get_value_comparator(option)(obj, actual_value, value):
                         return
 
             descriptor.__set__(obj, value)
@@ -3279,6 +3349,7 @@ class _ConfigInfoTemplate:
         self.value_converter_on_get: dict[str, list[Callable[[object, Any], Any]]] = dict()
         self.value_converter_on_set: dict[str, list[Callable[[object, Any], Any]]] = dict()
         self.value_validator: dict[str, list[Callable[[object, Any], None]]] = dict()
+        self.value_comparator: dict[str, Callable[[object, Any, Any], bool]] = dict()
         self.aliases: dict[str, str] = dict()
 
         merge_dict = self.__merge_dict
@@ -3314,6 +3385,7 @@ class _ConfigInfoTemplate:
                 setting="value_validator",
                 copy=list.copy,
             )
+            merge_dict(self.value_comparator, p.value_comparator, on_conflict="raise", setting="value_comparator")
             merge_dict(self.aliases, p.aliases, on_conflict="raise", setting="aliases")
 
         for section in self.sections:
@@ -3385,6 +3457,7 @@ class _ConfigInfoTemplate:
             value_converter_on_set=self.__build_value_converter_dict(on="set"),
             value_validator=self.__build_value_validator_dict(),
             value_descriptor=self.__build_value_descriptor_dict(owner),
+            value_comparator=self.__build_value_comparator_dict(),
             aliases=self.__build_aliases_dict(),
             readonly_options=self.__build_readonly_options_set(),
         )
@@ -3429,6 +3502,8 @@ class _ConfigInfoTemplate:
             callback_list[:] = [build_wrapper_if_needed(func) for func in callback_list]
         for option, descriptor in tuple(self.value_descriptor.items()):
             self.value_descriptor[option] = build_wrapper_within_descriptor(descriptor)
+        for option, comparator in tuple(self.value_comparator.items()):
+            self.value_comparator[option] = build_wrapper_if_needed(comparator)
 
     def __set_default_value_descriptors(self, owner: type) -> None:
         for option in list(filter(lambda option: option not in self.value_descriptor, self.options)):
@@ -3511,6 +3586,9 @@ class _ConfigInfoTemplate:
             value_descriptors[option] = descriptor
 
         return MappingProxyType(value_descriptors)
+
+    def __build_value_comparator_dict(self) -> MappingProxyType[str, Callable[[object, Any, Any], bool]]:
+        return MappingProxyType(self.value_comparator.copy())
 
     def __build_aliases_dict(self) -> MappingProxyType[str, str]:
         return MappingProxyType(self.aliases.copy())

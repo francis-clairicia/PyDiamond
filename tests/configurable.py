@@ -35,6 +35,12 @@ class Configurable:
         self.c = 98
         print("END")
 
+    @config.value_comparator_static("a")
+    @staticmethod
+    def __cmp(lhs: int, rhs: int) -> bool:
+        print(f"==> Comparing {lhs!r} and {rhs!r}")
+        return lhs == rhs
+
     @config.on_update_value_with_key("a")
     @config.on_update_value_with_key("b")
     @config.on_update_value_with_key("c")
