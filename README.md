@@ -1,4 +1,11 @@
 # PyDiamond
+[![Build and test](https://github.com/francis-clairicia/PyDiamond/actions/workflows/build.yml/badge.svg)](https://github.com/francis-clairicia/PyDiamond/actions/workflows/build.yml)
+[![Lint/Format](https://github.com/francis-clairicia/PyDiamond/actions/workflows/lint-format.yml/badge.svg)](https://github.com/francis-clairicia/PyDiamond/actions/workflows/lint-format.yml)
+[![PyPI](https://img.shields.io/pypi/v/pydiamond-engine)](https://pypi.org/project/pydiamond-engine/)
+[![PyPI - License](https://img.shields.io/pypi/l/pydiamond-engine)](https://github.com/francis-clairicia/PyDiamond/blob/main/LICENSE)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/pydiamond-engine)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 PyDiamond engine is a game engine for Python game developers.
 
 The framework uses the popular [pygame library](https://github.com/pygame/pygame/).
