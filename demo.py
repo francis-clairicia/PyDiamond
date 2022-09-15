@@ -7,6 +7,7 @@ from __future__ import annotations
 import gc
 import weakref
 from argparse import ArgumentParser
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterator, Literal, Mapping, Sequence
 
 from pydiamond.audio.mixer import Mixer
@@ -430,9 +431,10 @@ class ImagesResources(ResourceManager):
     cross: Mapping[str, Surface]
     autumn_tree: Surface
     __resource_loader__ = ImageLoader
-    __resources_directory__ = "./demo_resources/img"
+    # __resources_directory__ = "./demo_resources/img"
+    __resources_directory__ = Path(".") / "demo_resources" / "img"
     __resources_files__ = {
-        "cactus": "cactus.png",
+        "cactus": Path("cactus.png"),
         "car": [f"gameplay/voiture_7/{i + 1}.png" for i in range(10)],
         "cross": {
             "normal": "croix_rouge.png",

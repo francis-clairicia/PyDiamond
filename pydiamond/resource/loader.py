@@ -10,6 +10,8 @@ __all__ = ["AbstractResourceLoader", "FontLoader", "ImageLoader", "MusicLoader",
 
 
 from abc import abstractmethod
+from os import PathLike
+from pathlib import Path
 from typing import Generic, TypeVar
 
 from ..audio.music import Music
@@ -26,9 +28,9 @@ class AbstractResourceLoader(Generic[_T], Object):
 
     __slots__ = ("__filepath",)
 
-    def __init__(self, filepath: str) -> None:
+    def __init__(self, filepath: str | PathLike[str]) -> None:
         super().__init__()
-        filepath = set_constant_file(filepath)
+        filepath = set_constant_file(str(Path(filepath)))
         self.__filepath: str = filepath
 
     def __repr__(self) -> str:

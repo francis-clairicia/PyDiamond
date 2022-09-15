@@ -10,14 +10,16 @@ __all__ = ["ResourceManager", "ResourceManagerMeta"]
 
 
 from contextlib import suppress
+from os import PathLike
 from os.path import join
+from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Callable, Mapping, Sequence, TypeAlias
 
 from ..system.path import set_constant_directory
 from .loader import AbstractResourceLoader
 
-_ResourcePath: TypeAlias = str | Sequence["_ResourcePath"] | Mapping[Any, "_ResourcePath"]  # type: ignore[misc]
+_ResourcePath: TypeAlias = str | PathLike[str] | Sequence["_ResourcePath"] | Mapping[Any, "_ResourcePath"]  # type: ignore[misc]
 _ResourceLoader: TypeAlias = AbstractResourceLoader[Any] | tuple["_ResourceLoader", ...] | dict[Any, "_ResourceLoader"]  # type: ignore[misc]
 
 
@@ -26,7 +28,8 @@ class _ResourceDescriptor:
         self, path: _ResourcePath, loader: Callable[[str], AbstractResourceLoader[Any]], directory: str | None = None
     ) -> None:
         def get_resources_loader(path: _ResourcePath) -> _ResourceLoader:
-            if isinstance(path, str):
+            if isinstance(path, (str, PathLike)):
+                path = str(Path(path))
                 if isinstance(directory, str):
                     path = join(directory, path)
                 resource_loader: AbstractResourceLoader[Any] = loader(path)
@@ -104,9 +107,9 @@ class ResourceManagerMeta(type):
             if attr_name not in annotations:
                 raise KeyError(f"Missing {attr_name!r} annotation")
 
-        directory: str | None = namespace.get("__resources_directory__")
+        directory: str | PathLike[str] | None = namespace.get("__resources_directory__")
         if directory is not None:
-            directory = set_constant_directory(directory, error_msg="Resource directory not found")
+            directory = set_constant_directory(str(Path(directory)), error_msg="Resource directory not found")
         namespace["__resources_directory__"] = directory
 
         for resource_name, resource_path in resources.items():
@@ -167,6 +170,6 @@ class ResourceManagerMeta(type):
 
 
 class ResourceManager(metaclass=ResourceManagerMeta):
-    __resources_directory__: str | None = None
+    __resources_directory__: str | PathLike[str] | None = None
     __resources_files__: dict[str, _ResourcePath]
-    __resource_loader__: Callable[[str], AbstractResourceLoader[Any]]
+    __resource_loader__: Callable[[str | PathLike[str]], AbstractResourceLoader[Any]]
