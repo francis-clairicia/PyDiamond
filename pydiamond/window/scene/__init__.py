@@ -298,7 +298,7 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
         self.__manager.render(scene)
 
     def handle_event(self, event: Event) -> bool:
-        return self.event.process_event(event)
+        return self.event._process_event(event)
 
     @final
     @no_theme_decorator
@@ -734,7 +734,7 @@ class SceneWindow(Window):
         super()._handle_mouse_position(mouse_pos)
         actual_scene: Scene | None = self.__scenes.top()
         if actual_scene is not None:
-            actual_scene.event.handle_mouse_position(mouse_pos)
+            actual_scene.event._handle_mouse_position(mouse_pos)
 
     def used_framerate(self) -> int:
         framerate = super().used_framerate()

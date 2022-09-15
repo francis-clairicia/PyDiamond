@@ -150,7 +150,7 @@ class AbstractWidget(Clickable):
     def _focus_handle_event(self, event: Event) -> bool:
         if isinstance(event, (KeyUpEvent, KeyDownEvent)) and self.__handle_key_press_event(event, focus_handle_event=True):
             return True
-        return self.event.process_event(event)
+        return self.event._process_event(event)
 
     def _focus_update(self) -> None:
         match self.focus.get_mode():

@@ -21,7 +21,6 @@ __all__ = ["Music", "MusicStream"]
 
 from collections import deque
 from dataclasses import dataclass, field
-from itertools import chain
 from typing import TYPE_CHECKING, Final
 from weakref import WeakValueDictionary
 
@@ -39,6 +38,7 @@ from ..system.namespace import ClassNamespace
 from ..system.non_copyable import NonCopyable
 from ..system.object import final
 from ..system.path import set_constant_file
+from ..system.utils.itertools import prepend
 
 
 @final
@@ -178,12 +178,10 @@ class MusicStream(ClassNamespace, frozen=True):
 
         Returns a list including the playing music and the queued music, in order.
         """
-        return list(
-            chain(
-                (running_payload.music,) if (running_payload := MusicStream.__playing.payload) is not None else (),
-                (payload.music for payload in MusicStream.__queue),
-            )
-        )
+        running_music = MusicStream.get_music()
+        if running_music:
+            return list(prepend(running_music, MusicStream.get_queue()))
+        return MusicStream.get_queue()
 
     @staticmethod
     def is_busy() -> bool:

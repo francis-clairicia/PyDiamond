@@ -62,7 +62,7 @@ from ..system.utils._mangling import setattr_pv
 from ..system.utils.contextlib import ExitStackView
 from ..system.utils.functools import wraps
 from ..system.utils.itertools import consume
-from .cursor import Cursor, SystemCursor, make_cursor_from_pygame_cursor
+from .cursor import Cursor
 from .event import Event, EventFactory, EventManager, ScreenshotEvent, UnknownEventTypeError
 from .keyboard import Keyboard
 from .mouse import Mouse
@@ -199,7 +199,8 @@ class Window(Object):
             size: tuple[int, int] = self.__size
             flags: int = self.__flags
             vsync = int(bool(self.__vsync))
-            _pg_display.set_mode(size, flags=flags, vsync=vsync)
+            _pg_display.set_mode(size, flags=flags, vsync=vsync).fill((0, 0, 0))
+            _pg_display.flip()
             self.__display_renderer = _WindowRenderer()
             self.__rect = ImmutableRect.convert(self.__display_renderer.get_rect())
 
@@ -236,6 +237,8 @@ class Window(Object):
                     delattr(self, "__exit__")
 
             del _
+
+            from .cursor import SystemCursor
 
             self.set_cursor(SystemCursor.ARROW)
 
@@ -545,10 +548,10 @@ class Window(Object):
                 yield event
 
     def _process_event(self, event: Event) -> bool:
-        return self.event.process_event(event)
+        return self.event._process_event(event)
 
     def _handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
-        return self.event.handle_mouse_position(mouse_pos)
+        return self.event._handle_mouse_position(mouse_pos)
 
     @final
     def post_event(self, event: Event) -> bool:
@@ -559,7 +562,7 @@ class Window(Object):
 
     @final
     def get_cursor(self) -> Cursor:
-        return make_cursor_from_pygame_cursor(_pg_mouse.get_cursor())
+        return Cursor(_pg_mouse.get_cursor())
 
     @final
     def set_cursor(self, cursor: Cursor, *, nb_frames: int = 0) -> None:

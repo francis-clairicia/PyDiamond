@@ -226,7 +226,7 @@ class Key(IntEnum):
     K_EURO = _pg_constants.K_EURO
 
     @classmethod
-    def from_name(cls, name: str) -> Key:
+    def from_pygame_name(cls, name: str) -> Key:
         return cls(_pg_key.key_code(name))
 
     @property

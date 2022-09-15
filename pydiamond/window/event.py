@@ -801,17 +801,17 @@ class EventManager:
         ):
             self.__priority_manager.pop(event_type)
 
-    def process_event(self, event: Event) -> bool:
+    def _process_event(self, event: Event) -> bool:
         event_type: type[Event] = type(event)
 
         priority_manager: EventManager | None = self.__priority_manager.get(event_type)
         if priority_manager is not None:
-            if priority_manager.process_event(event):
+            if priority_manager._process_event(event):
                 return True
             del self.__priority_manager[event_type]
 
         for manager in self.__other_manager_list:
-            if manager is not priority_manager and manager.process_event(event):
+            if manager is not priority_manager and manager._process_event(event):
                 self.__priority_manager[event_type] = manager
                 return True
 
@@ -836,9 +836,9 @@ class EventManager:
                 return True
         return False
 
-    def handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
+    def _handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
         for manager in self.__other_manager_list:
-            manager.handle_mouse_position(mouse_pos)
+            manager._handle_mouse_position(mouse_pos)
         for callback in self.__mouse_pos_handler_list:
             callback(mouse_pos)
 
@@ -1172,11 +1172,11 @@ class BoundEventManager(Generic[_T]):
             manager = manager.__manager
         return self.__manager.unbind_event_manager(manager)
 
-    def process_event(self, event: Event) -> bool:
-        return self.__manager.process_event(event)
+    def _process_event(self, event: Event) -> bool:
+        return self.__manager._process_event(event)
 
-    def handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
-        return self.__manager.handle_mouse_position(mouse_pos)
+    def _handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
+        return self.__manager._handle_mouse_position(mouse_pos)
 
     def _get_method_func_from_weak_method(self, weak_method: weakref.WeakMethod[Any]) -> Callable[..., Any]:
         method = weak_method()

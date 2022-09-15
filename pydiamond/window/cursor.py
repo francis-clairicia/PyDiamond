@@ -6,11 +6,11 @@
 
 from __future__ import annotations
 
-__all__ = ["Cursor", "SystemCursor", "make_cursor_from_pygame_cursor"]
+__all__ = ["Cursor", "SystemCursor"]
 
 
 from enum import Enum, unique
-from typing import TYPE_CHECKING, Any, Literal, Sequence, overload
+from typing import TYPE_CHECKING, Any, Final, Literal, Sequence, no_type_check, overload
 
 import pygame.constants as _pg_constants
 import pygame.cursors as _pg_cursors
@@ -22,8 +22,19 @@ if TYPE_CHECKING:
     from ..graphics.surface import Surface
 
 
-class Cursor(_pg_cursors.Cursor, Object):
+class Cursor(_pg_cursors.Cursor, Object, no_slots=True):
+    if TYPE_CHECKING:
+        __slots__: Final[tuple[str, ...]] = ("__dict__",)
+
     __hash__ = _pg_cursors.Cursor.__hash__
+
+    @no_type_check  # mypy crash when parsing match/case statement
+    def __new__(cls, *args: Any) -> Cursor:
+        if len(args) == 1:
+            match args[0]:
+                case int(constant) | _pg_cursors.Cursor(type="system", data=(constant,)):
+                    return SystemCursor(constant)
+        return super().__new__(cls)
 
     type: str
     data: tuple[Any, ...]  # type: ignore[assignment]
@@ -42,10 +53,25 @@ class Cursor(_pg_cursors.Cursor, Object):
     def __init__(self, cursor: _pg_cursors.Cursor, /) -> None:
         ...
 
+    @overload
+    def __init__(self, system_cursor_constant: int, /) -> None:
+        ...
+
     def __init__(self, *args: Any) -> None:
+        try:
+            SystemCursor
+        except NameError:
+            return super().__init__(*args)
+
+        if isinstance(self, SystemCursor):
+            if len(args) != 1 or not isinstance(args[0], (int, _pg_cursors.Cursor)):
+                raise TypeError("__init__(): Call twice")
+            return
+        if hasattr(self, "type"):
+            raise TypeError("__init__(): Call twice")
         super().__init__(*args)
-        if self.type == "system" and "SystemCursor" in globals():
-            raise TypeError("system cursors must be used with SystemCursor enum.")
+        if self.type == "system":
+            raise TypeError("system cursors must be instanciated with SystemCursor enum.")
 
     def __setattr__(self, name: str, value: Any, /) -> None:
         if name in ("type", "data") and hasattr(self, name):
@@ -78,7 +104,7 @@ class SystemCursor(Cursor, Enum, metaclass=EnumObjectMeta):
     __hash__ = Cursor.__hash__
 
     def __new__(cls, value: int | SystemCursor) -> SystemCursor:
-        self = Cursor.__new__(cls)
+        self = _pg_cursors.Cursor.__new__(cls)
         self._value_ = value
         return self
 
@@ -105,15 +131,6 @@ class SystemCursor(Cursor, Enum, metaclass=EnumObjectMeta):
         @property
         def value(self) -> int:
             ...
-
-
-def make_cursor_from_pygame_cursor(pygame_cursor: _pg_cursors.Cursor) -> Cursor:
-    cursor: Cursor
-    if pygame_cursor.type == "system":
-        cursor = SystemCursor(*pygame_cursor.data)
-    else:
-        cursor = Cursor(pygame_cursor)
-    return cursor
 
 
 del _pg_constants
