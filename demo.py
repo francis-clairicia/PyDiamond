@@ -42,7 +42,7 @@ from pydiamond.graphics.gradients import (
 from pydiamond.graphics.image import Image
 from pydiamond.graphics.progress import ProgressBar
 from pydiamond.graphics.shape import CircleShape, DiagonalCrossShape, PlusCrossShape, PolygonShape, RectangleShape
-from pydiamond.graphics.sprite import AnimatedSprite, Sprite, SpriteGroup
+from pydiamond.graphics.sprite import Sprite, SpriteGroup
 from pydiamond.graphics.surface import Surface, SurfaceRenderer
 from pydiamond.graphics.text import Text, TextImage
 from pydiamond.gui.scene import GUIScene
@@ -475,9 +475,9 @@ class SpriteMaskScene(MainScene):
         return super().on_start_loop_before_transition()
 
     def on_start_loop(self) -> None:
-        self.sprite.animation.clear()
-        self.sprite.animation.smooth_rotation(360)
-        self.sprite.animation.start()
+        self.sprite.transform_animation.clear()
+        self.sprite.transform_animation.smooth_rotation(360)
+        self.sprite.transform_animation.start()
         return super().on_start_loop()
 
     def fixed_update(self) -> None:
@@ -506,18 +506,18 @@ class AnimatedSpriteScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
-        self.sprite: AnimatedSprite = AnimatedSprite(*ImagesResources.car)
+        self.sprite: Sprite = Sprite(*ImagesResources.car)
 
     def on_start_loop_before_transition(self) -> None:
         self.sprite.angle = 0
         self.sprite.center = self.window.center
 
     def on_start_loop(self) -> None:
-        self.sprite.ratio = 20
+        self.sprite.animation_ratio = 20
         self.sprite.start_sprite_animation(loop=True)
-        self.sprite.animation.clear()
-        self.sprite.animation.smooth_rotation(360, speed=200)
-        self.sprite.animation.start()
+        self.sprite.transform_animation.clear()
+        self.sprite.transform_animation.smooth_rotation(360, speed=200)
+        self.sprite.transform_animation.start()
 
     def fixed_update(self) -> None:
         self.sprite.fixed_update()
@@ -536,7 +536,7 @@ class DraggableSprite(Sprite, Draggable):
     def __init__(
         self,
         master: Scene | Window,
-        image: Surface | None = None,
+        image: Surface,
         *,
         width: float | None = None,
         height: float | None = None,

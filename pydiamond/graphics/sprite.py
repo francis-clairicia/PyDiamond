@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["AnimatedSprite", "LayeredSpriteGroup", "Mask", "Sprite", "SpriteGroup"]
+__all__ = ["LayeredSpriteGroup", "Mask", "Sprite", "SpriteGroup"]
 
 
 from collections import deque
@@ -19,12 +19,13 @@ from pygame.transform import rotozoom as _surface_rotozoom
 
 from ..system.clock import Clock
 from ..system.object import Object, final
+from ..system.utils.itertools import prepend
 from ._transform import rotozoom2 as _surface_rotozoom2, scale_by as _surface_scale_by
 from .animation import TransformAnimation
 from .drawable import BaseDrawableGroup, BaseLayeredDrawableGroup, Drawable
 from .rect import Rect
 from .renderer import AbstractRenderer, BlendMode
-from .surface import Surface, create_surface
+from .surface import Surface
 from .transformable import Transformable
 
 
@@ -53,10 +54,18 @@ class _SpriteTransformAnimation(cached_property[TransformAnimation], Object):
 
 
 class Sprite(Drawable, Transformable):
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="Sprite")
+
     DEFAULT_MASK_THRESHOLD: Final[int] = 127
 
     __slots__ = (
-        "__default_image",
+        "__list",
+        "__sprite_idx",
+        "__clock",
+        "__wait_time",
+        "__animation",
+        "__loop",
         "__image",
         "__mask_threshold",
         "__mask",
@@ -64,20 +73,25 @@ class Sprite(Drawable, Transformable):
         "__blend_mode",
     )
 
-    animation: Final[_SpriteTransformAnimation] = final(_SpriteTransformAnimation())  # type: ignore[type-var]
+    transform_animation: Final[_SpriteTransformAnimation] = final(_SpriteTransformAnimation())  # type: ignore[type-var]
 
     def __init__(
         self,
-        image: Surface | None = None,
-        *,
+        image: Surface,
+        *images: Surface,
         mask_threshold: int = DEFAULT_MASK_THRESHOLD,
         width: float | None = None,
         height: float | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
-        self.__default_image: Surface = image.convert_alpha() if image is not None else create_surface((0, 0))
-        self.__image: Surface = self.__default_image.copy()
+        self.__list: list[Surface] = [i.convert_alpha() for i in prepend(image, images)]
+        self.__sprite_idx: int = 0
+        self.__clock = Clock()
+        self.__wait_time: float = 10
+        self.__animation: bool = False
+        self.__loop: bool = False
+        self.__image: Surface = self.__list[0].copy()
         self.__mask_threshold: int
         self.__mask: Mask
         self.__blend_mode: BlendMode = BlendMode.NONE
@@ -97,32 +111,94 @@ class Sprite(Drawable, Transformable):
 
         self.topleft = (0, 0)
 
+    @classmethod
+    def from_iterable(
+        cls: type[__Self],
+        iterable: Iterable[Surface],
+        *,
+        mask_threshold: int = DEFAULT_MASK_THRESHOLD,
+        width: float | None = None,
+        height: float | None = None,
+        **kwargs: Any,
+    ) -> __Self:
+        return cls(*iterable, mask_threshold=mask_threshold, width=width, height=height, **kwargs)
+
+    @classmethod
+    def from_spritesheet(
+        cls: type[__Self],
+        img: Surface,
+        rect_list: Iterable[Rect],
+        *,
+        mask_threshold: int = DEFAULT_MASK_THRESHOLD,
+        width: float | None = None,
+        height: float | None = None,
+        **kwargs: Any,
+    ) -> __Self:
+        return cls.from_iterable(
+            (img.subsurface(rect) for rect in rect_list),
+            mask_threshold=mask_threshold,
+            width=width,
+            height=height,
+            **kwargs,
+        )
+
     def fixed_update(self, **kwargs: Any) -> None:
-        self.animation.fixed_update()
+        if self.is_sprite_animating() and self.__clock.elapsed_time(self.__wait_time):
+            self.__sprite_idx = sprite_idx = (self.__sprite_idx + 1) % len(self.__list)
+            if sprite_idx == 0 and not self.__loop:
+                self.stop_sprite_animation(reset=True)
+            else:
+                self.update_transform()
+        self.transform_animation.fixed_update()
 
     def interpolation_update(self, interpolation: float) -> None:
-        self.animation.update(interpolation)
+        self.transform_animation.update(interpolation)
 
     def update(self, **kwargs: Any) -> None:
         pass
+
+    def is_sprite_animating(self) -> bool:
+        return self.__animation
+
+    def start_sprite_animation(self, loop: bool = False) -> None:
+        if len(self.__list) < 2:
+            return
+        self.__loop = bool(loop)
+        self.__sprite_idx = 0
+        self.__animation = True
+        self.__clock.restart()
+        self.update_transform()
+
+    def restart_sprite_animation(self) -> None:
+        if len(self.__list) < 2:
+            return
+        self.__animation = True
+        self.__clock.restart(reset=False)
+
+    def stop_sprite_animation(self, reset: bool = False) -> None:
+        self.__animation = False
+        if reset:
+            self.__sprite_idx = 0
+            self.__loop = False
+            self.update_transform()
 
     @final
     def draw_onto(self, target: AbstractRenderer) -> None:
         target.draw_surface(self.__image, self.topleft, special_flags=self.__blend_mode)
 
     def get_local_size(self) -> tuple[float, float]:
-        return self.__default_image.get_size()
+        return self.__list[self.__sprite_idx].get_size()
 
     def _apply_both_rotation_and_scale(self) -> None:
-        self.__image = _surface_rotozoom2(self.__default_image, self.angle, self.scale)
+        self.__image = _surface_rotozoom2(self.__list[self.__sprite_idx], self.angle, self.scale)
         self.update_mask()
 
     def _apply_only_rotation(self) -> None:
-        self.__image = _surface_rotozoom(self.__default_image, self.angle, 1)
+        self.__image = _surface_rotozoom(self.__list[self.__sprite_idx], self.angle, 1)
         self.update_mask()
 
     def _apply_only_scale(self) -> None:
-        self.__image = _surface_scale_by(self.__default_image, self.scale)
+        self.__image = _surface_scale_by(self.__list[self.__sprite_idx], self.scale)
         self.update_mask()
 
     def _freeze_state(self) -> dict[str, Any] | None:
@@ -171,17 +247,6 @@ class Sprite(Drawable, Transformable):
         return intersection
 
     @property
-    def default_image(self) -> Surface:
-        return self.__default_image.copy()
-
-    @default_image.setter
-    def default_image(self, new_image: Surface) -> None:
-        center: tuple[float, float] = self.center
-        self.__default_image = new_image.copy()
-        self.update_transform()
-        self.center = center
-
-    @property
     def image(self) -> Surface:
         return self.__image
 
@@ -199,104 +264,12 @@ class Sprite(Drawable, Transformable):
         mode = BlendMode(mode)
         self.__blend_mode = mode
 
-
-class AnimatedSprite(Sprite):
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="AnimatedSprite")
-
-    __slots__ = (
-        "__list",
-        "__sprite_idx",
-        "__clock",
-        "__wait_time",
-        "__animation",
-        "__loop",
-    )
-
-    def __init__(
-        self,
-        image: Surface,
-        *images: Surface,
-        mask_threshold: int = Sprite.DEFAULT_MASK_THRESHOLD,
-        width: float | None = None,
-        height: float | None = None,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(image=image, mask_threshold=mask_threshold, width=width, height=height, **kwargs)
-        self.__list: list[Surface] = [self.default_image, *(i.convert_alpha() for i in images)]
-        self.__sprite_idx: int = 0
-        self.__clock: Clock = Clock()
-        self.__wait_time: float = 10
-        self.__animation: bool = False
-        self.__loop: bool = False
-
-    @classmethod
-    def from_iterable(
-        cls: type[__Self],
-        iterable: Iterable[Surface],
-        *,
-        mask_threshold: int = Sprite.DEFAULT_MASK_THRESHOLD,
-        width: float | None = None,
-        height: float | None = None,
-    ) -> __Self:
-        return cls(*iterable, mask_threshold=mask_threshold, width=width, height=height)
-
-    @classmethod
-    def from_spritesheet(
-        cls: type[__Self],
-        img: Surface,
-        rect_list: Iterable[Rect],
-        *,
-        mask_threshold: int = Sprite.DEFAULT_MASK_THRESHOLD,
-        width: float | None = None,
-        height: float | None = None,
-    ) -> __Self:
-        return cls.from_iterable(
-            (img.subsurface(rect) for rect in rect_list),
-            mask_threshold=mask_threshold,
-            width=width,
-            height=height,
-        )
-
-    def fixed_update(self, **kwargs: Any) -> None:
-        if self.is_sprite_animating() and self.__clock.elapsed_time(self.__wait_time):
-            self.__sprite_idx = sprite_idx = (self.__sprite_idx + 1) % len(self.__list)
-            self.default_image = self.__list[sprite_idx]
-            if sprite_idx == 0 and not self.__loop:
-                self.stop_sprite_animation(reset=True)
-        super().fixed_update(**kwargs)
-
-    def is_sprite_animating(self) -> bool:
-        return self.__animation
-
-    def start_sprite_animation(self, loop: bool = False) -> None:
-        if len(self.__list) < 2:
-            return
-        self.__loop = bool(loop)
-        self.__sprite_idx = 0
-        self.__animation = True
-        self.__clock.restart()
-        self.default_image = self.__list[0]
-
-    def restart_sprite_animation(self) -> None:
-        if len(self.__list) < 2:
-            return
-        self.__animation = True
-        self.__clock.restart(reset=False)
-
-    def stop_sprite_animation(self, reset: bool = False) -> None:
-        self.__animation = False
-        if reset:
-            self.__sprite_idx = 0
-            self.__loop = False
-            self.default_image = self.__list[0]
-
     @property
-    def ratio(self) -> float:
+    def animation_ratio(self) -> float:
         return self.__wait_time
 
-    @ratio.setter
-    def ratio(self, value: float) -> None:
+    @animation_ratio.setter
+    def animation_ratio(self, value: float) -> None:
         self.__wait_time = max(float(value), 0)
 
 
