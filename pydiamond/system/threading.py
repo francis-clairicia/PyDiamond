@@ -49,7 +49,7 @@ class Thread(threading.Thread, Object, no_slots=True):
             case 0:  # Invalid ID
                 raise RuntimeError("Invalid thread ID")
             case 1:  # In case of success, join the thread
-                self.join(timeout=None)
+                self.join(timeout=None, terminate_on_timeout=False)
             case ret_val:  # Something went wrong
                 PyThreadState_SetAsyncExc(ctypes.c_ulong(thread_id), ctypes.c_void_p(0))
                 raise SystemError("PyThreadState_SetAsyncExc failed", ret_val)
@@ -101,6 +101,9 @@ def thread_factory(
         daemon = bool(daemon)
     auto_start = bool(auto_start)
 
+    if not issubclass(thread_cls, Thread):
+        raise TypeError("'thread_cls' must be Thread or a subclass of it.")
+
     def decorator(func: Callable[..., Any], /) -> Callable[..., Thread]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Thread:
@@ -143,7 +146,7 @@ def thread_factory_method(
     global_lock: bool = True,
     shared_lock: bool = False,
     **thread_cls_kwargs: Any,
-) -> Callable[[Callable[Concatenate[_T, _P], _R]], _ThreadFactoryMethod[_T, _P, _R, Thread]]:
+) -> Callable[[Callable[Concatenate[_T, _P], _R]], _ThreadFactoryMethod[_T, _P, _R, _ThreadT]]:
     ...
 
 
@@ -180,7 +183,7 @@ class _ThreadFactoryMethod(Generic[_T, _P, _R, _ThreadT]):
 
     def __init__(
         self,
-        func: Callable[Concatenate[_T, _P], _R],
+        __func: Callable[Concatenate[_T, _P], _R],
         /,
         thread_cls: type[_ThreadT],
         *,
@@ -189,7 +192,7 @@ class _ThreadFactoryMethod(Generic[_T, _P, _R, _ThreadT]):
         **kwargs: Any,
     ) -> None:
         super().__init__()
-        self.__func__: Callable[Concatenate[_T, _P], _R] = func
+        self.__func__: Callable[Concatenate[_T, _P], _R] = __func
         self.__global_lock: bool = bool(global_lock)
         self.__thread_factory = thread_factory(thread_cls=thread_cls, **kwargs)
         self.__default_lock: threading.RLock | None = threading.RLock() if shared_lock else None
@@ -237,9 +240,9 @@ class _ThreadFactoryMethod(Generic[_T, _P, _R, _ThreadT]):
         return thread_method  # type: ignore[return-value]
 
     def get_lock(self, obj: _T) -> threading.RLock:
-        if default_lock := self.__default_lock:
-            return default_lock
         lock_cache = self.__lock
+        if default_lock := self.__default_lock:
+            return lock_cache.setdefault(obj, default_lock)
         lock: threading.RLock | None = lock_cache.get(obj)
         if lock is None:
             with self.__private_lock:

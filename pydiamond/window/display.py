@@ -6,11 +6,12 @@
 
 from __future__ import annotations
 
-__all__ = ["Window", "WindowCallback", "WindowError", "WindowExit"]
+__all__ = ["AbstractWindowRenderer", "Window", "WindowCallback", "WindowError", "WindowExit"]
 
 import gc
 import os
 import os.path
+from abc import abstractmethod
 from bisect import insort_left
 from collections import deque
 from contextlib import ExitStack, contextmanager, suppress
@@ -52,6 +53,7 @@ from ..audio.music import MusicStream
 from ..environ.executable import get_executable_path
 from ..graphics.color import BLACK, Color
 from ..graphics.rect import ImmutableRect, Rect
+from ..graphics.renderer import AbstractRenderer
 from ..graphics.surface import Surface, SurfaceRenderer, create_surface, save_image
 from ..system.clock import Clock
 from ..system.object import Object, ObjectMeta, final
@@ -71,7 +73,6 @@ if TYPE_CHECKING:
     from pygame._common import _ColorValue  # pyright: reportMissingModuleSource=false
 
     from ..graphics.drawable import SupportsDrawing
-    from ..graphics.renderer import AbstractRenderer
 
 _P = ParamSpec("_P")
 
@@ -84,7 +85,10 @@ class WindowExit(BaseException):
     pass
 
 
-class Window(Object):
+class Window(Object, no_slots=True):
+    if TYPE_CHECKING:
+        __slots__: Final[tuple[str, ...]] = ("__dict__", "__weakref__")
+
     DEFAULT_TITLE: Final[str] = "PyDiamond window"
     DEFAULT_FRAMERATE: Final[int] = 60
     DEFAULT_SIZE: Final[tuple[int, int]] = (800, 600)
@@ -320,6 +324,7 @@ class Window(Object):
                     raise
                 continue
             if event.type == _PG_VIDEORESIZE:
+                renderer._resize_event()
                 self.__rect = ImmutableRect.convert(renderer.screen.get_rect())
                 continue
             if not handle_music_event(event):  # If it's a music event which is not expected
@@ -380,19 +385,8 @@ class Window(Object):
         for target in targets:
             target.draw_onto(renderer)
 
-    def capture(self, draw_on_default_at_end: bool = True) -> ContextManager[Surface]:
-        renderer = self.__display_renderer
-        assert renderer is not None, "No active renderer"
-        return renderer.capture(draw_on_default_at_end=draw_on_default_at_end)
-
-    @final
-    def get_screen_copy(self) -> Surface:
-        renderer = self.__display_renderer
-        assert renderer is not None, "No active renderer"
-        return renderer.surface.copy()
-
     def screenshot(self) -> None:
-        screen: Surface = self.get_screen_copy()
+        screen: Surface = self.renderer.get_screen_copy()
         self.__screenshot_threads.append(self.__screenshot_thread(screen))
 
     @thread_factory_method(daemon=True, shared_lock=True)
@@ -794,7 +788,7 @@ class Window(Object):
 
     @property
     @final
-    def renderer(self) -> AbstractRenderer:
+    def renderer(self) -> AbstractWindowRenderer:
         renderer = self.__display_renderer
         assert renderer is not None, "No active renderer"
         return renderer
@@ -922,6 +916,26 @@ class Window(Object):
     @final
     def midright(self) -> tuple[int, int]:
         return self.__rect.midright
+
+
+class AbstractWindowRenderer(AbstractRenderer):
+    __slots__ = ()
+
+    @abstractmethod
+    def get_screen_copy(self) -> Surface:
+        raise NotImplementedError
+
+    @abstractmethod
+    def system_renderer(self) -> ContextManager[None]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def capture(self, draw_on_default_at_end: bool) -> ContextManager[Surface]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def is_capturing(self) -> bool:
+        raise NotImplementedError
 
 
 class _FramerateManager:
@@ -1076,8 +1090,8 @@ class _WindowRendererMeta(ObjectMeta):
 
 
 @final
-class _WindowRenderer(SurfaceRenderer, metaclass=_WindowRendererMeta):
-    __slots__ = ("_dirty", "__drawn_rects")
+class _WindowRenderer(SurfaceRenderer, AbstractWindowRenderer, metaclass=_WindowRendererMeta):
+    __slots__ = ("_dirty", "__drawn_rects", "__capture_queue", "__last_frame", "__system_surface", "__system_surface_cache")
 
     __render_debug: bool = os.environ.get("PYDIAMOND_RENDER_DEBUG", "0") == "1"
 
@@ -1086,8 +1100,22 @@ class _WindowRenderer(SurfaceRenderer, metaclass=_WindowRendererMeta):
         if screen is None:
             raise _pg_error("No display mode configured")
         self.__drawn_rects: deque[Rect] = deque()
+        self.__capture_queue: deque[Surface] = deque()
+        self.__last_frame: Surface | None = None
+        self.__system_surface: Surface | None = None
+        self.__system_surface_cache: Surface = create_surface(screen.get_size())
         self._dirty: deque[Rect] = deque()
         super().__init__(screen)
+
+    def _resize_event(self) -> None:
+        if self.__capture_queue:
+            return
+        if (system_surface := self.__system_surface) and self.surface is system_surface:
+            self.__system_surface_cache = self.__system_surface = new_system_surface = create_surface(self.screen.get_size())
+            new_system_surface.blit(system_surface, (0, 0))
+            super().__init__(new_system_surface)
+            return
+        super().__init__(self.screen)
 
     def repaint_color(self, color: _ColorValue) -> None:
         self.surface.fill(color)
@@ -1123,23 +1151,65 @@ class _WindowRenderer(SurfaceRenderer, metaclass=_WindowRendererMeta):
         def present(self) -> None:
             screen = self.screen
             if self.surface is not screen:
+                if self.surface is self.__system_surface:
+                    raise WindowError("Screen refresh occured in system display context")
                 screen.fill((0, 0, 0))
                 screen.blit(self.surface, (0, 0))
+            if system_surface := self.__system_surface:
+                self.__last_frame = screen.copy()
+                screen.blit(system_surface, (0, 0))
+                system_surface.fill((0, 0, 0, 0))
+                self.__system_surface = None
+            else:
+                self.__last_frame = None
             _pg_display.flip()
 
-    @contextmanager
-    def capture(self, draw_on_default_at_end: bool = True) -> Iterator[Surface]:
-        fset = SurfaceRenderer.surface.fset  # type: ignore[attr-defined]
+    def get_screen_copy(self) -> Surface:
+        return (self.__last_frame or self.screen).copy()
 
-        default_surface = self.surface
-        captured_surface = default_surface.copy()
+    @contextmanager
+    def capture(self, draw_on_default_at_end: bool) -> Iterator[Surface]:
+        if self.surface is self.__system_surface:
+            raise WindowError("Screen capturing disabled in system display context")
+
+        fset = SurfaceRenderer.surface.fset  # type: ignore[attr-defined]
+        capture_queue = self.__capture_queue
+
+        captured_surface = self.surface.copy()
         fset(self, captured_surface)
         try:
+            capture_queue.append(captured_surface)
             yield captured_surface
         finally:
+            capture_queue.pop()
+            try:
+                default_surface = capture_queue[-1]
+            except IndexError:
+                default_surface = self.screen
             fset(self, default_surface)
             if draw_on_default_at_end:
                 default_surface.blit(captured_surface, (0, 0))
+
+    def is_capturing(self) -> bool:
+        return bool(self.__capture_queue)
+
+    @contextmanager
+    def system_renderer(self) -> Iterator[None]:
+        if self.__capture_queue:
+            raise WindowError("system display disabled in screen capturing context")
+
+        if (system_surface := self.__system_surface) is None:
+            self.__system_surface = system_surface = self.__system_surface_cache
+        elif self.surface is system_surface:
+            yield
+            return
+
+        fset = SurfaceRenderer.surface.fset  # type: ignore[attr-defined]
+        fset(self, system_surface)
+        try:
+            yield
+        finally:
+            fset(self, self.screen)
 
     @classmethod
     def _merge_sorted_rect_list(cls, rects: deque[Rect]) -> deque[Rect]:

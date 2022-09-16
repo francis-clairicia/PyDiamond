@@ -252,8 +252,8 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
 
     @no_theme_decorator
     def __del_scene__(self) -> None:
-        self.__stack_quit.close()
         with self.__stack_destroy:
+            self.__stack_quit.close()
             self.__event.unbind_all()
             for window_callback in list(self.__callback_after):
                 window_callback.kill()
@@ -572,7 +572,7 @@ class SceneWindow(Window):
         gc.collect()
         on_start_loop: Callable[[], None]
         try:
-            self.start_scene(__default_scene, awake_kwargs=scene_kwargs)
+            self.start_scene(__default_scene, **scene_kwargs)
         except _SceneManager.NewScene as exc:
             exc.actual_scene.on_start_loop_before_transition()
             on_start_loop = exc.actual_scene.on_start_loop
@@ -630,11 +630,12 @@ class SceneWindow(Window):
                 scene.on_quit_before_transition()
             actual_scene.on_start_loop_before_transition()
             if transition_factory is not None:
-                with self.capture(draw_on_default_at_end=False) as previous_scene_surface:
+                renderer = self.renderer
+                with renderer.capture(draw_on_default_at_end=False) as previous_scene_surface:
                     self.__scenes._render(previous_scene)
-                with self.capture(draw_on_default_at_end=False) as actual_scene_surface:
+                with renderer.capture(draw_on_default_at_end=False) as actual_scene_surface:
                     self.__scenes._render(actual_scene)
-                with self.capture() as window_surface, self.stuck():
+                with renderer.capture(draw_on_default_at_end=True) as window_surface, self.stuck():
                     transition: SceneTransitionCoroutine
                     transition = transition_factory(SurfaceRenderer(window_surface), previous_scene_surface, actual_scene_surface)
                     animating = True
@@ -805,6 +806,8 @@ class SceneWindow(Window):
             self.__alpha_interpolation = 1.0
 
 
+from .dialog import Dialog  # Import here because of circular import
+
 _S = TypeVar("_S", bound=Scene)
 
 
@@ -838,11 +841,10 @@ class _SceneManager:
             super().__init__("Dialog window closed")
 
     __theme_initialized: WeakSet[type[Scene]] = WeakSet()
+    __scene_manager_attribute: Final[str] = mangle_private_attribute(Scene, "manager")
+    __dialog_master_attribute: Final[str] = mangle_private_attribute(Dialog, "master")
 
     def __init__(self, window: SceneWindow) -> None:
-        self.__scene_manager_attribute: Final[str] = mangle_private_attribute(Scene, "manager")
-        self.__dialog_master_attribute: Final[str] = mangle_private_attribute(Dialog, "master")
-
         self.__window: SceneWindow = window
         self.__all_scenes: dict[type[Scene], Scene] = {}
         self.__stack: deque[Scene] = deque()
@@ -1038,9 +1040,9 @@ class _SceneManager:
             dialog.on_start_loop_before_transition()
             with window.stuck():
                 dialog.run_start_transition()
-            dialog.on_start_loop()
 
             try:
+                dialog.on_start_loop()
                 while window.loop():
                     window.handle_events()
                     window.update_and_render_scene(fixed_update=True, interpolation_update=True)
@@ -1088,6 +1090,3 @@ class _SceneWindowCallback(WindowCallback):
     @property
     def scene(self) -> Scene:
         return self.__scene
-
-
-from .dialog import Dialog  # Import at last because of circular import

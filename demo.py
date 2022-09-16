@@ -1400,7 +1400,8 @@ class MainWindow(SceneWindow):
                 text_framerate.message = f"{round(self.framerate)} FPS"
             text_framerate.draw_onto(self.renderer)
         if screenshot_img := self.screenshot_image:
-            screenshot_img.draw_onto(self.renderer)
+            with self.renderer.system_renderer():
+                screenshot_img.draw_onto(self.renderer)
 
     def __next_scene(self) -> None:
         self.index = (self.index + 1) % len(self.all_scenes)
