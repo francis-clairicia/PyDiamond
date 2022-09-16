@@ -6,7 +6,7 @@ from time import sleep
 from typing import Any
 
 from pydiamond.network.client import UDPNetworkClient
-from pydiamond.network.server import AbstractUDPRequestHandler, StateLessUDPNetworkServer
+from pydiamond.network.server.stateless import AbstractUDPRequestHandler, StateLessUDPNetworkServer
 from pydiamond.network.socket import IPv4SocketAddress
 from pydiamond.system.threading import Thread
 

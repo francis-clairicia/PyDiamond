@@ -7,7 +7,7 @@ from typing import Any, ClassVar, Generator
 
 from pydiamond.network.client import TCPNetworkClient
 from pydiamond.network.protocol import StreamNetworkProtocol, ValidationError
-from pydiamond.network.server import AbstractTCPRequestHandler, StateLessTCPNetworkServer
+from pydiamond.network.server.stateless import AbstractTCPRequestHandler, StateLessTCPNetworkServer
 from pydiamond.network.socket import SocketAddress
 from pydiamond.system.threading import Thread
 
