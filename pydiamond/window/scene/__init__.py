@@ -42,13 +42,12 @@ from typing import (
     TypeAlias,
     TypeGuard,
     TypeVar,
-    cast,
     overload,
     runtime_checkable,
 )
 from weakref import WeakSet
 
-from ...graphics.color import BLACK, Color
+from ...graphics.color import Color
 from ...graphics.drawable import Drawable, LayeredDrawableGroup
 from ...graphics.renderer import AbstractRenderer
 from ...graphics.surface import Surface, SurfaceRenderer
@@ -62,11 +61,6 @@ from ...system.utils.contextlib import ExitStackView
 from ...system.utils.functools import wraps
 from ..display import Window, WindowCallback, WindowError, _WindowCallbackList
 from ..event import Event, EventManager
-
-if TYPE_CHECKING:
-    from pygame._common import _ColorValue  # pyright: reportMissingModuleSource=false
-
-    from ..display import _WindowRenderer
 
 _P = ParamSpec("_P")
 
@@ -543,14 +537,12 @@ class SceneWindow(Window):
         self.__accumulator: float = 0
         self.__reset_interpolation_data()
         self.__running: bool = False
-        self.__last_clear_color: Color | None = None
 
     @contextmanager
     def open(self) -> Iterator[None]:
         def cleanup() -> None:
             self.__scenes.clear()
             self.__callback_after_scenes.clear()
-            self.__last_clear_color = None
             del self.__scenes
             self.__reset_interpolation_data()
 
@@ -658,16 +650,6 @@ class SceneWindow(Window):
                     del next_fixed_transition, next_transition, transition
         self.__reset_interpolation_data()
         self.clear_all_events()
-
-    def clear(self, color: _ColorValue = BLACK, *, blend_alpha: bool = False) -> None:
-        color = Color(color)
-        if not blend_alpha:
-            color = color.with_alpha(255)
-            if color == self.__last_clear_color:
-                cast("_WindowRenderer", self.renderer).repaint_color(color)
-                return
-        self.__last_clear_color = color
-        return super().clear(color, blend_alpha=blend_alpha)
 
     def _handle_framerate(self) -> float:
         real_delta_time: float = super()._handle_framerate()

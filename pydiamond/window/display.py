@@ -12,13 +12,12 @@ import gc
 import os
 import os.path
 from abc import abstractmethod
-from bisect import insort_left
 from collections import deque
 from contextlib import ExitStack, contextmanager, suppress
 from dataclasses import dataclass
 from datetime import datetime
 from inspect import isgeneratorfunction
-from itertools import count as itertools_count, filterfalse, islice
+from itertools import count as itertools_count, filterfalse
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -52,11 +51,11 @@ from pygame.constants import (
 from ..audio.music import MusicStream
 from ..environ.executable import get_executable_path
 from ..graphics.color import BLACK, Color
-from ..graphics.rect import ImmutableRect, Rect
+from ..graphics.rect import ImmutableRect
 from ..graphics.renderer import AbstractRenderer
 from ..graphics.surface import Surface, SurfaceRenderer, create_surface, save_image
 from ..system.clock import Clock
-from ..system.object import Object, ObjectMeta, final
+from ..system.object import Object, final
 from ..system.path import ConstantFileNotFoundError, set_constant_file
 from ..system.threading import Thread, thread_factory_method
 from ..system.time import Time
@@ -1033,78 +1032,17 @@ class _WindowCallbackList(list[WindowCallback]):
 
 
 @final
-class _WindowRendererMeta(ObjectMeta):
-    def __new__(
-        mcs,
-        name: str,
-        bases: tuple[type, ...],
-        namespace: dict[str, Any],
-        **kwargs: Any,
-    ) -> _WindowRendererMeta:
-        if os.environ.get("PYDIAMOND_RENDER_UPDATE", "0") == "1":
-            draw_function_names = {
-                "fill",
-                "draw_surface",
-                "draw_rect",
-                "draw_polygon",
-                "draw_circle",
-                "draw_ellipse",
-                "draw_arc",
-                "draw_line",
-                "draw_lines",
-                "draw_aaline",
-                "draw_aalines",
-            }
-            for draw_function_name in draw_function_names:
-                draw_function: Callable[..., Rect] = getattr(SurfaceRenderer, draw_function_name)
-
-                @wraps(draw_function)  # type: ignore[arg-type]
-                def draw_wrapper(
-                    self: _WindowRenderer,
-                    /,
-                    *args: Any,
-                    __name: str = str(draw_function_name),
-                    **kwargs: Any,
-                ) -> Rect:
-                    rect: Rect = getattr(super(_WindowRenderer, self), __name)(*args, **kwargs)
-                    self._dirty.append(rect)
-                    return rect
-
-                namespace[draw_function_name] = draw_wrapper
-
-            @wraps(SurfaceRenderer.draw_many_surfaces)
-            def draw_many_surfaces(
-                self: _WindowRenderer,
-                /,
-                sequence: Iterable[Any],
-                doreturn: bool = True,
-            ) -> list[Rect] | None:
-                rects = super(_WindowRenderer, self).draw_many_surfaces(sequence, doreturn=True)
-                if rects:
-                    self._dirty.extend(rects)
-                return rects if doreturn else None
-
-            namespace["draw_many_surfaces"] = draw_many_surfaces
-
-        return super().__new__(mcs, name, bases, namespace, **kwargs)
-
-
-@final
-class _WindowRenderer(SurfaceRenderer, AbstractWindowRenderer, metaclass=_WindowRendererMeta):
-    __slots__ = ("_dirty", "__drawn_rects", "__capture_queue", "__last_frame", "__system_surface", "__system_surface_cache")
-
-    __render_debug: bool = os.environ.get("PYDIAMOND_RENDER_DEBUG", "0") == "1"
+class _WindowRenderer(SurfaceRenderer, AbstractWindowRenderer):
+    __slots__ = ("__capture_queue", "__last_frame", "__system_surface", "__system_surface_cache")
 
     def __init__(self) -> None:
         screen: Surface | None = _pg_display.get_surface()
         if screen is None:
             raise _pg_error("No display mode configured")
-        self.__drawn_rects: deque[Rect] = deque()
         self.__capture_queue: deque[Surface] = deque()
         self.__last_frame: Surface | None = None
         self.__system_surface: Surface | None = None
         self.__system_surface_cache: Surface = create_surface(screen.get_size())
-        self._dirty: deque[Rect] = deque()
         super().__init__(screen)
 
     def _resize_event(self) -> None:
@@ -1117,52 +1055,21 @@ class _WindowRenderer(SurfaceRenderer, AbstractWindowRenderer, metaclass=_Window
             return
         super().__init__(self.screen)
 
-    def repaint_color(self, color: _ColorValue) -> None:
-        self.surface.fill(color)
-
-    if os.environ.get("PYDIAMOND_RENDER_UPDATE", "0") == "1":
-
-        def present(self) -> None:
-            screen = self.screen
-            if self.surface is not screen:
-                screen.fill((0, 0, 0))
-                screen.blit(self.surface, (0, 0))
-                _pg_display.flip()
-                self.__drawn_rects = deque([screen.get_rect()])
-            else:
-                already_drawn_rects = self.__drawn_rects
-                dirty_rects: deque[Rect] = deque(sorted(self._dirty, key=lambda r: r.w * r.h))
-                self.__drawn_rects = dirty_rects
-                self._dirty = deque()
-                for rect in dirty_rects:
-                    insort_left(already_drawn_rects, rect, key=lambda r: r.w * r.h)
-                dirty_rects = self._merge_sorted_rect_list(already_drawn_rects)
-                if dirty_rects:
-                    if self.__render_debug:
-                        draw_rect = super().draw_rect
-                        for rect in dirty_rects:
-                            draw_rect((127, 127, 127), rect, width=2)
-                        dirty_rects = deque([screen.get_rect()])
-                    _pg_display.update(dirty_rects)  # type: ignore[arg-type]
-                del dirty_rects
-
-    else:
-
-        def present(self) -> None:
-            screen = self.screen
-            if self.surface is not screen:
-                if self.surface is self.__system_surface:
-                    raise WindowError("Screen refresh occured in system display context")
-                screen.fill((0, 0, 0))
-                screen.blit(self.surface, (0, 0))
-            if system_surface := self.__system_surface:
-                self.__last_frame = screen.copy()
-                screen.blit(system_surface, (0, 0))
-                system_surface.fill((0, 0, 0, 0))
-                self.__system_surface = None
-            else:
-                self.__last_frame = None
-            _pg_display.flip()
+    def present(self) -> None:
+        screen = self.screen
+        if self.surface is not screen:
+            if self.surface is self.__system_surface:
+                raise WindowError("Screen refresh occured in system display context")
+            screen.fill((0, 0, 0))
+            screen.blit(self.surface, (0, 0))
+        if system_surface := self.__system_surface:
+            self.__last_frame = screen.copy()
+            screen.blit(system_surface, (0, 0))
+            system_surface.fill((0, 0, 0, 0))
+            self.__system_surface = None
+        else:
+            self.__last_frame = None
+        _pg_display.flip()
 
     def get_screen_copy(self) -> Surface:
         return (self.__last_frame or self.screen).copy()
@@ -1210,47 +1117,6 @@ class _WindowRenderer(SurfaceRenderer, AbstractWindowRenderer, metaclass=_Window
             yield
         finally:
             fset(self, self.screen)
-
-    @classmethod
-    def _merge_sorted_rect_list(cls, rects: deque[Rect]) -> deque[Rect]:
-        if len(rects) < 2:
-            return deque(rects)
-        merged_rects_queue = deque([rects[0]])
-        inner_merge = cls._merge_sorted_rect_list
-        for r in islice(rects, 1, None):
-            for actual_rect_index, actual_rect in zip(range(len(merged_rects_queue) - 1, -1, -1), reversed(merged_rects_queue)):
-                if actual_rect.contains(r):
-                    break
-                if actual_rect.colliderect(r):
-                    actual_rect = actual_rect.union(r)
-                    if len(merged_rects_queue) > 1:
-                        del merged_rects_queue[actual_rect_index]
-                        insort_left(merged_rects_queue, actual_rect, key=lambda r: r.w * r.h)
-                        merged_rects_queue = inner_merge(merged_rects_queue)
-                    else:
-                        merged_rects_queue[actual_rect_index] = actual_rect
-                    break
-            else:
-                insort_left(merged_rects_queue, r, key=lambda r: r.w * r.h)
-        return merged_rects_queue
-
-    # @classmethod
-    # def _append_dirty(cls, dirty_rects: deque[Rect], rect: Rect) -> None:
-    #     nb_rects = len(dirty_rects)
-    #     for nb_rotate in range(nb_rects):
-    #         actual_rect = dirty_rects[0]
-    #         if actual_rect.colliderect(rect):
-    #             if not actual_rect.contains(rect):
-    #                 actual_rect.union_ip(rect)
-    #                 del rect
-    #                 if nb_rects > 1:
-    #                     dirty_rects.popleft()
-    #                     cls._append_dirty(dirty_rects, actual_rect)
-    #             dirty_rects.rotate(-nb_rotate)
-    #             break
-    #         dirty_rects.rotate(1)
-    #     else:
-    #         dirty_rects.append(rect)
 
     @property
     def screen(self) -> Surface:
