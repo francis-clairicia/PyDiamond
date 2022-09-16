@@ -34,17 +34,6 @@ keywords = ["game", "game-engine", "game-development", "pygame", "pygame-library
 [project.urls]
 Homepage = "https://github.com/francis-clairicia/PyDiamond"
 
-[project.optional-dependencies]
-dev = [
-  "mypy ==0.971",
-  "isort >=5.10.1",
-  "black >=22.6.0"
-]
-test = [
-  "pytest ==7.1.2",
-  "pytest-mock ==3.8.*"
-]
-
 ############################ Flit configuration ############################
 [tool.flit.module]
 name = "pydiamond"
