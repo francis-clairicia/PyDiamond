@@ -29,6 +29,7 @@ classifiers = [
   "Typing :: Typed"
 ]
 dynamic = ["version", "description"]
+keywords = ["game", "game-engine", "game-development", "pygame", "pygame-library", "game-engine-2d"]
 
 [project.urls]
 Homepage = "https://github.com/francis-clairicia/PyDiamond"
