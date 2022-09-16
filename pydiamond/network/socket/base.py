@@ -19,17 +19,15 @@ __all__ = [
     "ReceivedDatagram",
     "SocketAddress",
     "SocketMeta",
-    "SocketRawIOWrapper",
     "new_socket_address",
 ]
 
 from abc import abstractmethod
-from io import RawIOBase
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypeAlias, TypeVar, overload
+from io import BufferedReader, BufferedRWPair, BufferedWriter, IOBase, RawIOBase, TextIOWrapper
+from typing import IO, TYPE_CHECKING, Any, Literal, NamedTuple, TypeAlias, TypeVar, overload
 
 from ...system.non_copyable import NonCopyableMeta
 from ...system.object import Object, ObjectMeta
-from ...system.utils.io import readable_buffer_to_bytes
 from .constants import AddressFamily, ShutdownFlag
 
 if TYPE_CHECKING:
@@ -71,9 +69,9 @@ def new_socket_address(addr: tuple[Any, ...], family: int) -> SocketAddress:
 def new_socket_address(addr: tuple[Any, ...], family: int) -> SocketAddress:
     match AddressFamily(family):
         case AddressFamily.AF_INET:
-            return IPv4SocketAddress._make(addr)
+            return IPv4SocketAddress(*addr)
         case AddressFamily.AF_INET6:
-            return IPv6SocketAddress._make(addr)
+            return IPv6SocketAddress(*addr)
         case _:
             return IPv4SocketAddress(addr[0], addr[1])
 
@@ -216,6 +214,96 @@ class AbstractTCPClientSocket(AbstractTCPSocket):
             return f"<{type(self).__name__} fd={sock_fd}, family={sock_family}, laddr={laddr}, raddr={raddr}>"
         return f"<{type(self).__name__} fd={sock_fd}, family={sock_family}, laddr={laddr}>"
 
+    @overload
+    @abstractmethod
+    def makefile(  # type: ignore[misc]
+        self,
+        mode: Literal["b", "rb", "br", "wb", "bw", "rwb", "rbw", "wrb", "wbr", "brw", "bwr"],
+        buffering: Literal[0],
+        *,
+        encoding: str | None = ...,
+        errors: str | None = ...,
+        newline: str | None = ...,
+    ) -> RawIOBase:
+        ...
+
+    @overload
+    @abstractmethod
+    def makefile(  # type: ignore[misc]
+        self,
+        mode: Literal["rwb", "rbw", "wrb", "wbr", "brw", "bwr"],
+        buffering: Literal[-1, 1] | None = ...,
+        *,
+        encoding: str | None = ...,
+        errors: str | None = ...,
+        newline: str | None = ...,
+    ) -> BufferedRWPair:
+        ...
+
+    @overload
+    @abstractmethod
+    def makefile(
+        self,
+        mode: Literal["rb", "br"],
+        buffering: Literal[-1, 1] | None = ...,
+        *,
+        encoding: str | None = ...,
+        errors: str | None = ...,
+        newline: str | None = ...,
+    ) -> BufferedReader:
+        ...
+
+    @overload
+    @abstractmethod
+    def makefile(
+        self,
+        mode: Literal["wb", "bw"],
+        buffering: Literal[-1, 1] | None = ...,
+        *,
+        encoding: str | None = ...,
+        errors: str | None = ...,
+        newline: str | None = ...,
+    ) -> BufferedWriter:
+        ...
+
+    @overload
+    @abstractmethod
+    def makefile(
+        self,
+        mode: Literal["b", "rb", "br", "wb", "bw", "rwb", "rbw", "wrb", "wbr", "brw", "bwr"],
+        buffering: int,
+        *,
+        encoding: str | None = ...,
+        errors: str | None = ...,
+        newline: str | None = ...,
+    ) -> IO[bytes]:
+        ...
+
+    @overload
+    @abstractmethod
+    def makefile(
+        self,
+        mode: Literal["r", "w", "rw", "wr", ""] = ...,
+        buffering: int | None = ...,
+        *,
+        encoding: str | None = ...,
+        errors: str | None = ...,
+        newline: str | None = ...,
+    ) -> TextIOWrapper:
+        ...
+
+    @abstractmethod
+    def makefile(
+        self,
+        mode: str = "r",
+        buffering: int | None = None,
+        *,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
+    ) -> IOBase | IO[bytes]:
+        raise NotImplementedError
+
     @abstractmethod
     def recv(self, bufsize: int, *, flags: int = ...) -> bytes:
         raise NotImplementedError
@@ -225,7 +313,7 @@ class AbstractTCPClientSocket(AbstractTCPSocket):
         raise NotImplementedError
 
     @abstractmethod
-    def send(self, data: bytes, *, flags: int = ...) -> int:
+    def send(self, data: ReadableBuffer, *, flags: int = ...) -> int:
         raise NotImplementedError
 
     @abstractmethod
@@ -235,7 +323,6 @@ class AbstractTCPClientSocket(AbstractTCPSocket):
     def is_connected(self) -> bool:
         return self.is_open() and self.getpeername() is not None
 
-    @abstractmethod
     def reconnect(self, timeout: float | None = ...) -> None:
         raise NotImplementedError
 
@@ -295,29 +382,3 @@ class AbstractUDPClientSocket(AbstractUDPSocket):
     @abstractmethod
     def create(cls: type[__Self], family: int = ...) -> __Self:
         raise NotImplementedError
-
-
-class SocketRawIOWrapper(RawIOBase):
-    def __init__(self, socket: AbstractTCPClientSocket, *, flags: int = 0) -> None:
-        self._socket: AbstractTCPClientSocket = socket
-        self._flags: int = flags
-        super().__init__()
-
-    def readable(self) -> bool:
-        return True
-
-    def readinto(self, buffer: WriteableBuffer, /) -> int | None:
-        try:
-            return self._socket.recv_into(buffer, flags=self._flags)
-        except BlockingIOError:
-            return None
-
-    def writable(self) -> bool:
-        return True
-
-    def write(self, b: ReadableBuffer, /) -> int | None:
-        b = readable_buffer_to_bytes(b)
-        try:
-            return self._socket.send(b, flags=self._flags)
-        except BlockingIOError:
-            return None

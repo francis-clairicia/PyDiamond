@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Callable, NamedTuple
 
 from pydiamond.audio.mixer import AllowedAudioChanges, AudioFormat
 from pydiamond.graphics.font import FontStyle
+from pydiamond.network.socket.constants import AddressFamily, ShutdownFlag
 
 import pytest
 
@@ -37,13 +38,18 @@ def enum_sample(
 @pytest.mark.parametrize(
     "sample",
     [
+        # pydiamond.audio
         *enum_sample(AudioFormat),
         *enum_sample(AllowedAudioChanges, constant_name=lambda name: f"AUDIO_ALLOW_{name}_CHANGE"),
+        # pydiamond.graphics
         *enum_sample(FontStyle, constant_name=lambda name: f"STYLE_{name}", module="pygame.freetype"),
+        # pydiamond.network
+        *enum_sample(AddressFamily, module="socket"),
+        *enum_sample(ShutdownFlag, module="socket"),
     ],
     ids=lambda sample: f"{sample.enum.__name__}.{sample.name}=={sample.module}.{sample.constant_name}",
 )
-def test__enum_member__value_from_pygame_constants(sample: EnumConstantSample) -> None:
+def test__enum_member__value_from_constant(sample: EnumConstantSample) -> None:
     # Arrange
     module = importlib.import_module(sample.module)
     expected_value: int = getattr(module, sample.constant_name)

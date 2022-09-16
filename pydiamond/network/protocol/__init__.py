@@ -7,6 +7,9 @@
 from __future__ import annotations
 
 __all__ = [
+    "AbstractStructNetworkProtocol",
+    "AbstractStructPacketDeserializer",
+    "AbstractStructPacketSerializer",
     "AutoParsedPacketDeserializer",
     "AutoParsedPacketSerializer",
     "AutoParsedStreamNetworkProtocol",
@@ -19,6 +22,9 @@ __all__ = [
     "EncryptorNetworkProtocol",
     "EncryptorPacketDeserializer",
     "EncryptorPacketSerializer",
+    "FixedPacketSizeDeserializer",
+    "FixedPacketSizeSerializer",
+    "FixedPacketSizeStreamNetworkProtocol",
     "GenericNetworkPacketDeserializerWrapper",
     "GenericNetworkPacketSerializerWrapper",
     "GenericNetworkProtocolWrapper",
@@ -39,7 +45,9 @@ __all__ = [
     "SafePickleNetworkProtocol",
     "SafePicklePacketDeserializer",
     "SafePicklePacketSerializer",
-    "StreamNetworkPacketHandler",
+    "StreamNetworkDataConsumer",
+    "StreamNetworkPacketProducer",
+    "StreamNetworkPacketWriter",
     "StreamNetworkProtocol",
     "ValidationError",
     "ZlibCompressorNetworkProtocol",
@@ -55,3 +63,4 @@ from .encryptor import *
 from .json import *
 from .pickle import *
 from .stream import *
+from .struct import *

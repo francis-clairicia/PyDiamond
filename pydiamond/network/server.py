@@ -29,9 +29,9 @@ from ..system.threading import Thread, thread_factory
 from ..system.utils.abc import concreteclass, concreteclasscheck
 from ..system.utils.functools import dsuppress
 from .client import DisconnectedClientError, TCPNetworkClient, UDPNetworkClient
-from .protocol.base import NetworkPacketDeserializer, NetworkPacketSerializer, NetworkProtocol
+from .protocol.base import NetworkProtocol
 from .protocol.pickle import PickleNetworkProtocol
-from .protocol.stream import NetworkPacketIncrementalDeserializer, NetworkPacketIncrementalSerializer, StreamNetworkProtocol
+from .protocol.stream import StreamNetworkProtocol
 from .selector import DefaultSelector as _Selector
 from .socket.base import AbstractSocket, AbstractTCPServerSocket, AbstractUDPServerSocket, SocketAddress
 from .socket.python import PythonTCPServerSocket, PythonUDPServerSocket
@@ -159,12 +159,8 @@ class AbstractNetworkServer(Object):
 
 
 NetworkProtocolFactory: TypeAlias = Callable[[], NetworkProtocol[_ResponseT, _RequestT]]
-NetworkPacketDeserializerFactory: TypeAlias = Callable[[], NetworkPacketDeserializer[_RequestT]]
-NetworkPacketSerializerFactory: TypeAlias = Callable[[], NetworkPacketSerializer[_ResponseT]]
 
 StreamNetworkProtocolFactory: TypeAlias = Callable[[], StreamNetworkProtocol[_ResponseT, _RequestT]]
-NetworkPacketIncrementalDeserializerFactory: TypeAlias = Callable[[], NetworkPacketIncrementalDeserializer[_RequestT]]
-NetworkPacketIncrementalSerializerFactory: TypeAlias = Callable[[], NetworkPacketIncrementalSerializer[_ResponseT]]
 
 
 class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _ResponseT]):
@@ -177,11 +173,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
         family: int = ...,
         backlog: int | None = ...,
         dualstack_ipv6: bool = ...,
-        protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT]
-        | tuple[
-            NetworkPacketIncrementalSerializerFactory[_ResponseT],
-            NetworkPacketIncrementalDeserializerFactory[_RequestT],
-        ] = ...,
+        protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT] = ...,
         socket_cls: type[AbstractTCPServerSocket] = ...,
     ) -> None:
         ...
@@ -192,11 +184,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
         socket: AbstractTCPServerSocket,
         /,
         *,
-        protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT]
-        | tuple[
-            NetworkPacketIncrementalSerializerFactory[_ResponseT],
-            NetworkPacketIncrementalDeserializerFactory[_RequestT],
-        ] = ...,
+        protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT] = ...,
     ) -> None:
         ...
 
@@ -205,17 +193,11 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
         __arg: AbstractTCPServerSocket | tuple[str, int] | tuple[str, int, int, int],
         /,
         *,
-        protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT]
-        | tuple[
-            NetworkPacketIncrementalSerializerFactory[_ResponseT],
-            NetworkPacketIncrementalDeserializerFactory[_RequestT],
-        ] = PickleNetworkProtocol,
+        protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT] = PickleNetworkProtocol,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(protocol_cls, tuple):
-            if not callable(protocol_cls):
-                raise TypeError("Invalid arguments")
-            protocol_cls = protocol_cls, protocol_cls
+        if not callable(protocol_cls):
+            raise TypeError("Invalid arguments")
         socket: AbstractTCPServerSocket
         self.__socket_cls: type[AbstractTCPServerSocket] | None
         if isinstance(__arg, AbstractTCPServerSocket):
@@ -232,10 +214,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
         else:
             raise TypeError("Invalid arguments")
         self.__socket: AbstractTCPServerSocket = socket
-        self.__protocol_cls: tuple[
-            NetworkPacketIncrementalSerializerFactory[_ResponseT],
-            NetworkPacketIncrementalDeserializerFactory[_RequestT],
-        ] = protocol_cls
+        self.__protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT] = protocol_cls
         self.__lock: RLock = RLock()
         self.__loop: bool = False
         self.__is_shutdown: Event = Event()
@@ -268,8 +247,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
                 client_socket, address = socket.accept()
             except OSError:
                 return
-            serializer_cls, deserializer_cls = self.__protocol_cls
-            protocol = (serializer_cls(), deserializer_cls())
+            protocol = self.__protocol_cls()
             client: TCPNetworkClient[_ResponseT, _RequestT] = TCPNetworkClient(client_socket, protocol=protocol, give=True)
             verify_client(client, address)
 
@@ -278,7 +256,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
                 return
             try:
                 connected_client: ConnectedClient[_ResponseT] = clients_dict[client]
-                for request in client.recv_packets(block=True, flags=self.recv_flags):  # TODO: Handle one packet per loop
+                for request in client.recv_packets(timeout=None):  # TODO: Handle one packet per loop
                     # TODO (3.11): Exception groups
                     try:
                         self._process_request(request, connected_client)
@@ -412,7 +390,9 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
             return self.__client.close()
 
         def send_packet(self, packet: _ResponseT, *, flags: int = 0) -> None:
-            return self.__client.send_packet(packet, flags=flags)
+            if flags != 0:
+                raise NotImplementedError("flags not implemented")
+            return self.__client.send_packet(packet)
 
 
 @concreteclass
@@ -427,11 +407,7 @@ class StateLessTCPNetworkServer(AbstractTCPNetworkServer[_RequestT, _ResponseT])
         family: int = ...,
         backlog: int | None = ...,
         dualstack_ipv6: bool = ...,
-        protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT]
-        | tuple[
-            NetworkPacketIncrementalSerializerFactory[_ResponseT],
-            NetworkPacketIncrementalDeserializerFactory[_RequestT],
-        ] = ...,
+        protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT] = ...,
         socket_cls: type[AbstractTCPServerSocket] = ...,
     ) -> None:
         ...
@@ -443,11 +419,7 @@ class StateLessTCPNetworkServer(AbstractTCPNetworkServer[_RequestT, _ResponseT])
         /,
         request_handler_cls: type[AbstractTCPRequestHandler[_RequestT, _ResponseT]],
         *,
-        protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT]
-        | tuple[
-            NetworkPacketIncrementalSerializerFactory[_ResponseT],
-            NetworkPacketIncrementalDeserializerFactory[_RequestT],
-        ] = ...,
+        protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT] = ...,
     ) -> None:
         ...
 
@@ -484,9 +456,7 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
         /,
         *,
         family: int = ...,
-        protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT]
-        | tuple[NetworkPacketSerializerFactory[_ResponseT], NetworkPacketDeserializerFactory[_RequestT]] = ...,
-        socket_cls: type[AbstractUDPServerSocket] = ...,
+        protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT] = ...,
     ) -> None:
         ...
 
@@ -496,8 +466,7 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
         socket: AbstractUDPServerSocket,
         /,
         *,
-        protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT]
-        | tuple[NetworkPacketSerializerFactory[_ResponseT], NetworkPacketDeserializerFactory[_RequestT]] = ...,
+        protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT] = ...,
     ) -> None:
         ...
 
@@ -506,19 +475,12 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
         __arg: AbstractUDPServerSocket | tuple[str, int] | tuple[str, int, int, int],
         /,
         *,
-        protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT]
-        | tuple[NetworkPacketSerializerFactory[_ResponseT], NetworkPacketDeserializerFactory[_RequestT]] = PickleNetworkProtocol,
+        protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT] = PickleNetworkProtocol,
         **kwargs: Any,
     ) -> None:
-        serializer_cls: NetworkPacketSerializerFactory[_ResponseT]
-        deserializer_cls: NetworkPacketDeserializerFactory[_RequestT]
-        if not isinstance(protocol_cls, tuple):
-            if not callable(protocol_cls):
-                raise TypeError("Invalid arguments")
-            serializer_cls, deserializer_cls = protocol_cls, protocol_cls
-        else:
-            serializer_cls, deserializer_cls = protocol_cls
-        protocol = (serializer_cls(), deserializer_cls())
+        protocol = protocol_cls()
+        if not isinstance(protocol, NetworkProtocol):
+            raise TypeError("Invalid arguments")
         socket: AbstractUDPServerSocket
         self.__socket_cls: type[AbstractUDPServerSocket] | None
         if isinstance(__arg, AbstractUDPServerSocket):
@@ -555,7 +517,7 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
 
         def parse_requests() -> None:
             with self.__lock:
-                for request, address in client.recv_packets(block=True, flags=self.recv_flags):
+                for request, address in client.recv_packets(timeout=None, flags=self.recv_flags):
                     connected_client: ConnectedClient[_ResponseT] = self.__ConnectedClient(client, address)
                     try:
                         self._process_request(request, connected_client)
@@ -655,8 +617,7 @@ class StateLessUDPNetworkServer(AbstractUDPNetworkServer[_RequestT, _ResponseT])
         request_handler_cls: type[AbstractUDPRequestHandler[_RequestT, _ResponseT]],
         *,
         family: int = ...,
-        protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT]
-        | tuple[NetworkPacketSerializerFactory[_ResponseT], NetworkPacketDeserializerFactory[_RequestT]] = ...,
+        protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT] = ...,
         socket_cls: type[AbstractUDPServerSocket] = ...,
     ) -> None:
         ...
@@ -668,8 +629,7 @@ class StateLessUDPNetworkServer(AbstractUDPNetworkServer[_RequestT, _ResponseT])
         /,
         request_handler_cls: type[AbstractUDPRequestHandler[_RequestT, _ResponseT]],
         *,
-        protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT]
-        | tuple[NetworkPacketSerializerFactory[_ResponseT], NetworkPacketDeserializerFactory[_RequestT]] = ...,
+        protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT] = ...,
     ) -> None:
         ...
 

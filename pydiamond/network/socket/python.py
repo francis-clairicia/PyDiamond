@@ -14,6 +14,7 @@ __all__ = [
 ]
 
 import os
+from io import BufferedReader, BufferedRWPair, BufferedWriter, RawIOBase, TextIOWrapper
 from socket import (
     SO_REUSEADDR,
     SOCK_DGRAM,
@@ -26,7 +27,7 @@ from socket import (
     socket,
 )
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Callable, Concatenate, Final, ParamSpec, TypeVar
+from typing import IO, TYPE_CHECKING, Any, Callable, Concatenate, Final, Literal, ParamSpec, TypeVar, overload
 
 from ...system.object import final
 from ...system.utils._mangling import delattr_pv, getattr_pv, hasattr_pv, setattr_pv
@@ -47,7 +48,7 @@ from .base import (
 from .constants import AF_INET, AF_INET6, AddressFamily, ShutdownFlag
 
 if TYPE_CHECKING:
-    from _typeshed import WriteableBuffer
+    from _typeshed import ReadableBuffer, WriteableBuffer
 
 
 _P = ParamSpec("_P")
@@ -278,6 +279,86 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
             return f"<{type(self).__name__} fd={fd}, family={sock_family}, type={sock_type}, laddr={laddr}, raddr={raddr}>"
         return f"<{type(self).__name__} fd={fd}, family={sock_family}, type={sock_type}, laddr={laddr}>"
 
+    @overload
+    def makefile(  # type: ignore[misc]
+        self,
+        mode: Literal["b", "rb", "br", "wb", "bw", "rwb", "rbw", "wrb", "wbr", "brw", "bwr"],
+        buffering: Literal[0],
+        *,
+        encoding: str | None = ...,
+        errors: str | None = ...,
+        newline: str | None = ...,
+    ) -> RawIOBase:
+        ...
+
+    @overload
+    def makefile(  # type: ignore[misc]
+        self,
+        mode: Literal["rwb", "rbw", "wrb", "wbr", "brw", "bwr"],
+        buffering: Literal[-1, 1] | None = ...,
+        *,
+        encoding: str | None = ...,
+        errors: str | None = ...,
+        newline: str | None = ...,
+    ) -> BufferedRWPair:
+        ...
+
+    @overload
+    def makefile(
+        self,
+        mode: Literal["rb", "br"],
+        buffering: Literal[-1, 1] | None = ...,
+        *,
+        encoding: str | None = ...,
+        errors: str | None = ...,
+        newline: str | None = ...,
+    ) -> BufferedReader:
+        ...
+
+    @overload
+    def makefile(
+        self,
+        mode: Literal["wb", "bw"],
+        buffering: Literal[-1, 1] | None = ...,
+        *,
+        encoding: str | None = ...,
+        errors: str | None = ...,
+        newline: str | None = ...,
+    ) -> BufferedWriter:
+        ...
+
+    @overload
+    def makefile(
+        self,
+        mode: Literal["b", "rb", "br", "wb", "bw", "rwb", "rbw", "wrb", "wbr", "brw", "bwr"],
+        buffering: int,
+        *,
+        encoding: str | None = ...,
+        errors: str | None = ...,
+        newline: str | None = ...,
+    ) -> IO[bytes]:
+        ...
+
+    @overload
+    def makefile(
+        self,
+        mode: Literal["r", "w", "rw", "wr", ""] = ...,
+        buffering: int | None = ...,
+        *,
+        encoding: str | None = ...,
+        errors: str | None = ...,
+        newline: str | None = ...,
+    ) -> TextIOWrapper:
+        ...
+
+    @final  # type: ignore[misc]
+    @_thread_safe_python_socket_method
+    def makefile(self, *args: Any, **kwargs: Any) -> Any:
+        sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
+        if sock is None:
+            raise RuntimeError("Closed socket")
+        return sock.makefile(*args, **kwargs)
+
     @final
     @_thread_safe_python_socket_method
     def recv(self, bufsize: int, *, flags: int = 0) -> bytes:
@@ -296,7 +377,7 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
 
     @final
     @_thread_safe_python_socket_method
-    def send(self, data: bytes, *, flags: int = 0) -> int:
+    def send(self, data: ReadableBuffer, *, flags: int = 0) -> int:
         sock: socket | None = getattr_pv(self, "socket", None, owner=_AbstractPythonSocket)
         if sock is None:
             raise RuntimeError("Closed socket")

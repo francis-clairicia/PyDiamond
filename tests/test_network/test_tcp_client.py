@@ -53,8 +53,8 @@ def test_default() -> None:
             assert client.recv_packet() == {"data": [5, 2]}
             client.send_packet("Hello")
             assert client.recv_packet() == "Hello"
-            assert len(list(client.recv_packets(block=False))) == 0
-            assert client.recv_packet_no_wait() is None
+            assert len(list(client.recv_packets(timeout=0))) == 0
+            assert client.recv_packet_no_block() is None
     finally:
         shutdow_requested.set()
         server_thread.join()

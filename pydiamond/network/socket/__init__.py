@@ -30,7 +30,6 @@ __all__ = [
     "ShutdownFlag",
     "SocketAddress",
     "SocketMeta",
-    "SocketRawIOWrapper",
     "new_socket_address",
 ]
 
