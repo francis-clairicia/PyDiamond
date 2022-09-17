@@ -24,11 +24,11 @@ from ...system.threading import Thread, thread_factory
 from ...system.utils.abc import concreteclasscheck
 from ...system.utils.functools import dsuppress
 from ..client import DisconnectedClientError, TCPNetworkClient, UDPNetworkClient
-from ..protocol.base import NetworkProtocol
+from ..protocol.abc import NetworkProtocol
 from ..protocol.pickle import PickleNetworkProtocol
 from ..protocol.stream import StreamNetworkProtocol
 from ..selector import DefaultSelector as _Selector
-from ..socket.base import AbstractSocket, AbstractTCPServerSocket, AbstractUDPServerSocket, SocketAddress
+from ..socket.abc import AbstractSocket, AbstractTCPServerSocket, AbstractUDPServerSocket, SocketAddress
 from ..socket.python import PythonTCPServerSocket, PythonUDPServerSocket
 
 _RequestT = TypeVar("_RequestT")

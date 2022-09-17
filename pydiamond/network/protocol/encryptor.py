@@ -19,7 +19,7 @@ from typing_extensions import assert_never
 
 from ...system.object import final
 from ...system.utils.abc import concreteclass
-from .base import (
+from .abc import (
     GenericNetworkPacketDeserializerWrapper,
     GenericNetworkPacketSerializerWrapper,
     GenericNetworkProtocolWrapper,

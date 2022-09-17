@@ -18,7 +18,7 @@ from typing import IO, Generator, Generic, TypeVar
 
 from ...system.object import final
 from ...system.utils.abc import concreteclass
-from .base import ValidationError
+from .abc import ValidationError
 from .stream import (
     IncrementalDeserializeError,
     NetworkPacketIncrementalDeserializer,

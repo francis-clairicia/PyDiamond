@@ -57,7 +57,7 @@ __all__ = [
 
 
 ############ Package initialization ############
-from .base import *
+from .abc import *
 from .compressor import *
 from .encryptor import *
 from .json import *

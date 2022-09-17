@@ -35,7 +35,7 @@ from typing import IO, Any, Final, Generator, Generic, Iterator, Protocol, TypeV
 
 from ...system.object import Object, ProtocolObjectMeta, final
 from ...system.utils.itertools import consumer_start, send_return
-from .base import NetworkPacketDeserializer, NetworkPacketSerializer, NetworkProtocol, ValidationError
+from .abc import NetworkPacketDeserializer, NetworkPacketSerializer, NetworkProtocol, ValidationError
 
 _T_co = TypeVar("_T_co", covariant=True)
 _T_contra = TypeVar("_T_contra", contravariant=True)

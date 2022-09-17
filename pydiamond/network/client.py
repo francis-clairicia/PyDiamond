@@ -20,10 +20,10 @@ from typing import TYPE_CHECKING, Any, Generator, Generic, TypeVar, overload
 
 from ..system.object import Object, final
 from ..system.utils.abc import concreteclass, concreteclasscheck
-from .protocol.base import NetworkProtocol, ValidationError
+from .protocol.abc import NetworkProtocol, ValidationError
 from .protocol.pickle import PickleNetworkProtocol
 from .protocol.stream import StreamNetworkDataConsumer, StreamNetworkPacketWriter, StreamNetworkProtocol
-from .socket.base import (
+from .socket.abc import (
     AbstractSocket,
     AbstractTCPClientSocket,
     AbstractUDPClientSocket,

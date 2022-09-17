@@ -33,7 +33,7 @@ from ...system.object import final
 from ...system.utils._mangling import delattr_pv, getattr_pv, hasattr_pv, setattr_pv
 from ...system.utils.abc import concreteclass
 from ...system.utils.functools import wraps
-from .base import (
+from .abc import (
     AbstractSocket,
     AbstractTCPClientSocket,
     AbstractTCPServerSocket,

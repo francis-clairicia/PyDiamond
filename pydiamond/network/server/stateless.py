@@ -20,7 +20,7 @@ from typing import Any, Generic, TypeVar, overload
 from ...system.object import Object, final
 from ...system.utils.abc import concreteclass, concreteclasscheck
 from ..client import TCPNetworkClient
-from ..socket.base import AbstractTCPServerSocket, AbstractUDPServerSocket, SocketAddress
+from ..socket.abc import AbstractTCPServerSocket, AbstractUDPServerSocket, SocketAddress
 from .abc import (
     AbstractNetworkServer,
     AbstractTCPNetworkServer,

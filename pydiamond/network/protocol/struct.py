@@ -16,7 +16,7 @@ from abc import abstractmethod
 from struct import Struct, error as StructError
 from typing import Any, Generic, TypeVar, final
 
-from .base import ValidationError
+from .abc import ValidationError
 from .stream import (
     FixedPacketSizeDeserializer,
     FixedPacketSizeSerializer,

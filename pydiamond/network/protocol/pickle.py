@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 from ...system.object import Object, ProtocolObjectMeta, final
 from ...system.utils.abc import concreteclass
 from ...system.utils.weakref import weakref_unwrap
-from .base import ValidationError
+from .abc import ValidationError
 from .encryptor import EncryptorNetworkProtocol, EncryptorPacketDeserializer, EncryptorPacketSerializer
 from .stream import (
     IncrementalDeserializeError,
@@ -119,7 +119,7 @@ class PickleNetworkProtocol(
 
 
 if TYPE_CHECKING:
-    from .base import _BaseGenericWrapper
+    from .abc import _BaseGenericWrapper
 
 
 def _monkeypatch_protocol(self: _BaseGenericWrapper[Any], method_name: str) -> None:

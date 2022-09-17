@@ -25,7 +25,7 @@ from typing import Any, Generic, TypeVar
 
 from ...system.object import ObjectMeta, final
 from ...system.utils.abc import concreteclass
-from .base import (
+from .abc import (
     GenericNetworkPacketDeserializerWrapper,
     GenericNetworkPacketSerializerWrapper,
     GenericNetworkProtocolWrapper,
