@@ -3446,9 +3446,9 @@ class _ConfigInfoTemplate:
             options=self.__build_options_set(),
             sections=self.__build_sections_list(),
             option_value_update_hooks=self.__build_option_value_update_hooks_dict(),
-            option_delete_hooks=self.__build_option_delete_hooks_dict(),
-            option_update_hooks=self.__build_option_update_hooks_dict(),
-            section_update_hooks=self.__build_section_update_hooks_dict(),
+            option_delete_hooks=self.__build_hooks_dict("option_delete"),
+            option_update_hooks=self.__build_hooks_dict("option_update"),
+            section_update_hooks=self.__build_hooks_dict("section_update"),
             main_object_update_hooks=self.__build_main_object_update_hooks_set(),
             value_converter_on_get=self.__build_value_converter_dict(on="get"),
             value_converter_on_set=self.__build_value_converter_dict(on="set"),
@@ -3528,29 +3528,21 @@ class _ConfigInfoTemplate:
             {option: frozenset(hooks) for option, hooks in self.option_value_update_hooks.items() if len(hooks) > 0}
         )
 
-    def __build_option_update_hooks_dict(self) -> MappingProxyType[str, frozenset[Callable[[object], None]]]:
-        return MappingProxyType(
-            {
-                option: frozenset(filtered_hooks)
-                for option, hooks in self.option_update_hooks.items()
-                if len((filtered_hooks := hooks.difference(self.main_update_hooks))) > 0
-            }
-        )
+    def __build_hooks_dict(
+        self,
+        name: Literal[
+            "option_update",
+            "option_delete",
+            "section_update",
+        ],
+    ) -> MappingProxyType[str, frozenset[Callable[[object], None]]]:
+        hooks: dict[str, set[Callable[[object], None]]] = getattr(self, f"{name}_hooks")
+        assert isinstance(hooks, dict)
 
-    def __build_option_delete_hooks_dict(self) -> MappingProxyType[str, frozenset[Callable[[object], None]]]:
         return MappingProxyType(
             {
                 option: frozenset(filtered_hooks)
-                for option, hooks in self.option_delete_hooks.items()
-                if len((filtered_hooks := hooks.difference(self.main_update_hooks))) > 0
-            }
-        )
-
-    def __build_section_update_hooks_dict(self) -> MappingProxyType[str, frozenset[Callable[[object], None]]]:
-        return MappingProxyType(
-            {
-                option: frozenset(filtered_hooks)
-                for option, hooks in self.section_update_hooks.items()
+                for option, hooks in hooks.items()
                 if len((filtered_hooks := hooks.difference(self.main_update_hooks))) > 0
             }
         )
