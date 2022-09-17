@@ -40,6 +40,13 @@ class _PatchCollectorType:
         "pygame": PatchContext.AFTER_IMPORTING_PYGAME,
         __main_package__: PatchContext.PATCH_SUBMODULES,
     }
+    __absolute_import_exempt: frozenset[str] = frozenset(
+        {
+            __main_package__,
+            f"{__main_package__}.version",
+            f"{__main_package__}.warnings",
+        }
+    )
 
     def __new__(cls: type[Self]) -> Self:
         try:
@@ -156,10 +163,14 @@ class _PatchCollectorType:
         def is_forbidden_module(resolved_name: str) -> str | None:
             return next((module_name for module_name, pattern in forbidden_modules.items() if pattern.match(resolved_name)), None)
 
+        def can_be_imported(resolved_name: str) -> bool:
+            if __package__ in resolved_name:
+                return True
+            return any(resolved_name == n for n in _PatchCollectorType.__absolute_import_exempt)
+
         patch = _PatchCollectorType._patch
 
         original_import = __import__
-        patch_package = __package__
 
         @no_type_check
         def import_mock(name, globals=None, locals=None, fromlist=(), level=0):
@@ -174,7 +185,7 @@ class _PatchCollectorType:
                 for _ in range(level):
                     actual_package = actual_package.rpartition(".")[0]
                 resolved_name = f"{actual_package}.{name}"
-            if patch_package not in resolved_name and (forbidden_module := is_forbidden_module(resolved_name)):
+            if (forbidden_module := is_forbidden_module(resolved_name)) and not can_be_imported(resolved_name):
                 msg = f"{forbidden_module!r} must not be imported during patch {context}"
                 raise ImportError(msg, name=importer_name, path=importer_path)
             return original_import(name, globals, locals, fromlist, level)

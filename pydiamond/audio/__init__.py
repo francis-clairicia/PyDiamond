@@ -16,8 +16,6 @@ from __future__ import annotations
 
 __all__ = []  # type: list[str]
 
-import os
-
 import pygame
 
 ############ pygame.mixer initialization ############
@@ -37,4 +35,4 @@ if SDL_MIXER_VERSION < (2, 0, 0):
     )
 
 ############ Cleanup ############
-del os, pygame
+del pygame

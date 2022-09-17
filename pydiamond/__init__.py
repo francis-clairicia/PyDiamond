@@ -55,17 +55,6 @@ collector.start_record()
 
 collector.run_patches(PatchContext.BEFORE_ALL)
 
-if any(name == "pygame" or name.startswith("pygame.") for name in list(sys.modules)):
-    if os.environ.get("PYDIAMOND_IMPORT_WARNINGS", "1") == "1":
-        import warnings as _warnings
-
-        from .warnings import PyDiamondImportWarning
-
-        warn_msg = "'pygame' module already imported, this can cause unwanted behavior. Consider importing pydiamond first."
-        _warnings.warn(warn_msg, category=PyDiamondImportWarning)
-
-        del _warnings, warn_msg, PyDiamondImportWarning
-
 collector.run_patches(PatchContext.BEFORE_IMPORTING_PYGAME)
 
 try:

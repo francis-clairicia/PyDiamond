@@ -39,16 +39,12 @@ class AbstractEnvironmentPatch(BasePatch):
 class ArrangePygameEnvironmentBeforeImport(AbstractEnvironmentPatch):
     OVERRIDEN_VARIABLES: Final[MappingProxyType[str, str]] = MappingProxyType(
         {
-            "PYGAME_HIDE_SUPPORT_PROMPT": "1",
-            "PYGAME_FREETYPE": "1",
+            "PYGAME_BLEND_ALPHA_SDL2": "1",
+            "SDL_VIDEO_CENTERED": "1",
             "SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS": "1",
         }
     )
-    FORCE_OVERRIDE: Final[frozenset[str]] = frozenset(
-        {
-            "PYGAME_FREETYPE",
-        }
-    )
+    FORCE_OVERRIDE: Final[frozenset[str]] = frozenset()
 
     @classmethod
     def get_required_context(cls) -> PatchContext:

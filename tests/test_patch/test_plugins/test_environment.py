@@ -48,9 +48,9 @@ class TestArrangePygameEnvironment:
     @pytest.mark.parametrize(
         "environ_var_value",
         [
-            ("PYGAME_HIDE_SUPPORT_PROMPT", "1"),
+            ("PYGAME_BLEND_ALPHA_SDL2", "1"),
+            ("SDL_VIDEO_CENTERED", "1"),
             ("SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1"),
-            ("PYGAME_FREETYPE", "1"),
         ],
         ids=lambda t: "{0}={1}".format(*t),
     )
@@ -76,9 +76,9 @@ class TestArrangePygameEnvironment:
     @pytest.mark.parametrize(
         "environ_var_value",
         [
-            ("PYGAME_HIDE_SUPPORT_PROMPT", False),
+            ("PYGAME_BLEND_ALPHA_SDL2", False),
+            ("SDL_VIDEO_CENTERED", False),
             ("SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS", False),
-            ("PYGAME_FREETYPE", True),
         ],
         ids=lambda t: "{0}={1}".format(*t),
     )
@@ -120,8 +120,8 @@ class TestArrangePygameEnvironment:
         mock_check_booleans.assert_called_once_with(
             os.environ,
             only=[
-                "PYGAME_HIDE_SUPPORT_PROMPT",
-                "PYGAME_FREETYPE",
+                "PYGAME_BLEND_ALPHA_SDL2",
+                "SDL_VIDEO_CENTERED",
                 "SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS",
             ],
         )
@@ -155,8 +155,8 @@ class TestVerifyBooleanEnvironmentVariables:
         mock_check_booleans.assert_called_once_with(
             os.environ,
             exclude=[
-                "PYGAME_HIDE_SUPPORT_PROMPT",
-                "PYGAME_FREETYPE",
+                "PYGAME_BLEND_ALPHA_SDL2",
+                "SDL_VIDEO_CENTERED",
                 "SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS",
             ],
         )

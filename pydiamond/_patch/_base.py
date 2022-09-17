@@ -52,7 +52,7 @@ class BasePatch(metaclass=ABCMeta):
     @classmethod
     @typing.final
     def enabled(cls) -> bool:
-        if issubclass(cls, RequiredPatch):
+        if RequiredPatch in cls.__bases__:
             return True
         if not BasePatch.ENABLE_PATCH:
             return False
@@ -114,7 +114,7 @@ def __read_environment() -> None:
         if inspect.isabstract(patch_cls):
             invalid_patches[patch_path] = "It is an abstract base patch class"
             continue
-        if issubclass(patch_cls, RequiredPatch):
+        if RequiredPatch in patch_cls.__bases__:
             invalid_patches[patch_path] = "It is a required patch and cannot be disabled"
             continue
         BasePatch.DISABLED_PATCHES.add(patch_name)
