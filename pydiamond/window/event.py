@@ -89,7 +89,6 @@ _T = TypeVar("_T")
 
 _PYGAME_EVENT_TYPE: dict[int, type[Event]] = {}
 _ASSOCIATIONS: dict[type[Event], int] = {}
-_EVENT_NAME_DISPATCH_TABLE: dict[int, str] = getattr(_pg_event.event_name, "__event_name_dispatch_table__")
 
 
 class EventMeta(ObjectMeta):
@@ -98,8 +97,6 @@ class EventMeta(ObjectMeta):
 
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="EventMeta")
-
-    __event_name_dispatch_table: dict[int, str] = _EVENT_NAME_DISPATCH_TABLE
 
     def __new__(
         mcs: type[__Self],
@@ -134,7 +131,12 @@ class EventMeta(ObjectMeta):
             event_cls = cast(type[Event], cls)
             mcs.__associations[event_cls] = event_type
             mcs.__type[event_type] = event_cls
-            mcs.__event_name_dispatch_table[event_type] = event_cls.__name__
+            try:
+                event_name_dispatch_table: dict[int, str] = getattr(_pg_event.event_name, "__event_name_dispatch_table__")
+            except AttributeError:
+                pass
+            else:
+                event_name_dispatch_table[event_type] = event_cls.__name__
         return cls
 
     def __call__(cls, *args: Any, **kwds: Any) -> Any:
@@ -172,6 +174,7 @@ class _BuiltinEventMeta(EventMeta):
         namespace: dict[str, Any],
         *,
         event_type: BuiltinEventType | None = None,
+        event_name: str | None = None,
         **kwargs: Any,
     ) -> _BuiltinEventMeta:  # noqa: F821
         try:
@@ -189,6 +192,9 @@ class _BuiltinEventMeta(EventMeta):
         event_cls = cast(type[BuiltinEvent], cls)
         mcs.__associations[event_cls] = event_type
         mcs.__type[event_type] = event_cls
+        if event_name:
+            event_name_dispatch_table: dict[int, str] = getattr(_pg_event.event_name, "__event_name_dispatch_table__")
+            event_name_dispatch_table[int(event_type)] = event_name
         return cls
 
 
@@ -255,10 +261,6 @@ class BuiltinEventType(IntEnum):
         return _pg_event.event_name(self)
 
 
-_EVENT_NAME_DISPATCH_TABLE[BuiltinEventType.MUSICEND] = "MusicEnd"
-_EVENT_NAME_DISPATCH_TABLE[BuiltinEventType.SCREENSHOT] = "Screenshot"
-
-
 class BuiltinUserEventCode(IntEnum):
     DROPFILE = _pg_constants.USEREVENT_DROPFILE
 
@@ -267,7 +269,6 @@ class BuiltinUserEventCode(IntEnum):
 
 
 # TODO (3.11) dataclass_transform (PEP-681)
-@dataclass
 class BuiltinEvent(Event, metaclass=_BuiltinEventMeta, model=True):
     @classmethod
     def from_dict(cls: type[Self], event_dict: Mapping[str, Any]) -> Self:
@@ -538,14 +539,14 @@ class WindowTakeFocusEvent(BuiltinEvent, event_type=BuiltinEventType.WINDOWTAKEF
 
 @final
 @dataclass(kw_only=True)
-class MusicEndEvent(BuiltinEvent, event_type=BuiltinEventType.MUSICEND):
+class MusicEndEvent(BuiltinEvent, event_type=BuiltinEventType.MUSICEND, event_name="MusicEnd"):
     finished: Music
     next: Music | None = None
 
 
 @final
 @dataclass(kw_only=True)
-class ScreenshotEvent(BuiltinEvent, event_type=BuiltinEventType.SCREENSHOT):
+class ScreenshotEvent(BuiltinEvent, event_type=BuiltinEventType.SCREENSHOT, event_name="Screenshot"):
     filepath: str
     screen: Surface
 
@@ -1196,4 +1197,4 @@ class BoundEventManager(Generic[_T]):
 
 
 del _pg_constants, _pg_music, _BuiltinEventMeta
-del _ASSOCIATIONS, _PYGAME_EVENT_TYPE, _BUILTIN_ASSOCIATIONS, _BUILTIN_PYGAME_EVENT_TYPE, _EVENT_NAME_DISPATCH_TABLE
+del _ASSOCIATIONS, _PYGAME_EVENT_TYPE, _BUILTIN_ASSOCIATIONS, _BUILTIN_PYGAME_EVENT_TYPE
