@@ -138,8 +138,8 @@ class TestJSONPacketDeserializer(BaseTestStreamPacketIncrementalDeserializer):
     @pytest.mark.parametrize(
         ["data", "expected_output", "expected_remainder"],
         [
-            pytest.param(b'    "leading-whitespaces"', "leading-whitespaces", b""),
-            pytest.param(b'"trailing-whitespaces"    ', "trailing-whitespaces", b"    "),  # Trailing whitespace will be ignored
+            pytest.param(b'    "leading-whitespaces""a"', "leading-whitespaces", b'"a"'),
+            pytest.param(b'"trailing-whitespaces"    "a"', "trailing-whitespaces", b'"a"'),
         ],
         ids=repr,
     )

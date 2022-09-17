@@ -30,6 +30,8 @@ _T_contra = TypeVar("_T_contra", contravariant=True)
 
 class _BaseStructPacket(_BaseFixedPacketSize):
     def __init__(self, format: str, **kwargs: Any) -> None:
+        if format[0] not in {"@", "=", "<", ">", "!"}:
+            format = f"!{format}"  # network byte order
         struct = Struct(format)
         super().__init__(struct.size, **kwargs)
         self.__s: Struct = struct
@@ -40,6 +42,9 @@ class _BaseStructPacket(_BaseFixedPacketSize):
 
 
 class AbstractStructPacketSerializer(_BaseStructPacket, FixedPacketSizeSerializer[_T_contra]):
+    def __init__(self, format: str) -> None:
+        super().__init__(format)
+
     @abstractmethod
     def to_tuple(self, packet: _T_contra) -> tuple[Any, ...]:
         raise NotImplementedError
@@ -54,6 +59,9 @@ class AbstractStructPacketSerializer(_BaseStructPacket, FixedPacketSizeSerialize
 
 
 class AbstractStructPacketDeserializer(_BaseStructPacket, FixedPacketSizeDeserializer[_T_co]):
+    def __init__(self, format: str) -> None:
+        super().__init__(format)
+
     @abstractmethod
     def from_tuple(self, t: tuple[Any, ...]) -> _T_co:
         raise NotImplementedError

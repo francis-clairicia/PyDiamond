@@ -123,8 +123,6 @@ if TYPE_CHECKING:
 
 
 def _monkeypatch_protocol(self: _BaseGenericWrapper[Any], method_name: str) -> None:
-    assert self.protocol is not None
-
     def unset_patch(_: Any, _protocol_ref: weakref[Any] = weakref(self.protocol)) -> None:
         protocol: Any | None = _protocol_ref()
         if protocol is not None:

@@ -147,21 +147,20 @@ class AutoSeparatedPacketDeserializer(_BaseAutoSeparatedPacket, NetworkPacketInc
         buffer: bytes = b""
         separator: bytes = self.separator
         keepends: bool = self.keepends
-        while True:
+        while separator not in buffer:
             buffer += yield
-            if separator not in buffer:
-                continue
-            data, _, buffer = buffer.partition(separator)
-            if keepends:
-                data += separator
-            try:
-                packet = self.deserialize(data)
-            except ValidationError:
-                continue
-            else:
-                return (packet, buffer)
-            finally:
-                del data
+        data, _, buffer = buffer.partition(separator)
+        if keepends:
+            data += separator
+        try:
+            packet = self.deserialize(data)
+        except ValidationError as exc:
+            raise IncrementalDeserializeError(
+                f"Error when deserializing data: {exc}",
+                remaining_data=buffer,
+                data_with_error=data,
+            )
+        return (packet, buffer)
 
 
 class AutoSeparatedStreamNetworkProtocol(
@@ -223,7 +222,7 @@ class AutoParsedPacketDeserializer(_BaseAutoParsedPacket, NetworkPacketIncrement
                 magic, body_length = header_struct.unpack(header)
                 if magic != self.__class__.MAGIC:
                     raise StructError
-            except (StructError, TypeError):
+            except StructError:
                 # data may be corrupted
                 # Shift by 1 received data
                 header = header[1:] + buffer.read()
@@ -235,28 +234,29 @@ class AutoParsedPacketDeserializer(_BaseAutoParsedPacket, NetworkPacketIncrement
                     buffer.write((yield))
 
                 buffer.seek(0)
+                data = buffer.read(body_struct.size)
                 try:
                     body: bytes
                     checksum_digest: bytes
-                    body, checksum_digest = body_struct.unpack(buffer.read(body_struct.size))
-                except (StructError, TypeError):
-                    # data may be corrupted
-                    pass
-                else:
-                    try:
-                        checksum.update(body)
-                        if not compare_digest(checksum.digest(), checksum_digest):  # Data really corrupted
-                            raise ValidationError
-                        packet: _T_co = self.deserialize(body)
-                    except ValidationError:
-                        pass
-                    else:
-                        return (packet, buffer.read())
-                    finally:
-                        del body, checksum_digest
-                finally:
-                    del checksum
-                header = buffer.read()
+                    body, checksum_digest = body_struct.unpack(data)
+                    checksum.update(body)
+                    if not compare_digest(checksum.digest(), checksum_digest):  # Data really corrupted
+                        raise StructError
+                except StructError as exc:
+                    raise IncrementalDeserializeError(
+                        f"Data corrupted: {exc}",
+                        remaining_data=buffer.read(),
+                        data_with_error=data,
+                    ) from exc
+                try:
+                    packet: _T_co = self.deserialize(body)
+                except ValidationError as exc:
+                    raise IncrementalDeserializeError(
+                        f"Error when deserializing data: {exc}",
+                        remaining_data=buffer.read(),
+                        data_with_error=data,
+                    ) from exc
+                return (packet, buffer.read())
             finally:
                 del buffer
 
@@ -306,19 +306,18 @@ class FixedPacketSizeDeserializer(_BaseFixedPacketSize, NetworkPacketIncremental
     def incremental_deserialize(self) -> Generator[None, bytes, tuple[_T_co, bytes]]:
         buffer: bytes = b""
         packet_size: int = self.packet_size
-        while True:
+        while len(buffer) < packet_size:
             buffer += yield
-            if len(buffer) < packet_size:
-                continue
-            data, buffer = buffer[:packet_size], buffer[packet_size:]
-            try:
-                packet = self.deserialize(data)
-            except ValidationError:
-                continue
-            else:
-                return (packet, buffer)
-            finally:
-                del data
+        data, buffer = buffer[:packet_size], buffer[packet_size:]
+        try:
+            packet = self.deserialize(data)
+        except ValidationError as exc:
+            raise IncrementalDeserializeError(
+                f"Error when deserializing data: {exc}",
+                remaining_data=buffer,
+                data_with_error=data,
+            ) from exc
+        return (packet, buffer)
 
 
 class FixedPacketSizeStreamNetworkProtocol(
@@ -357,7 +356,7 @@ class StreamNetworkPacketProducer(Iterator[bytes], Generic[_T_contra], Object):
                     break
                 wait = timeout is None
                 self.__cv.wait_for(lambda: queue, timeout=timeout)
-        raise StopIteration
+            raise StopIteration
 
     def wait(self, timeout: float | None = None) -> bytes:
         try:
@@ -427,6 +426,8 @@ class StreamNetworkDataConsumer(Iterator[_T_co], Generic[_T_co], Object):
                     packet: _T_co
                     try:
                         packet, chunk = send_return(consumer, chunk)
+                    except IncrementalDeserializeError as exc:
+                        self.__b = exc.remaining_data + self.__b
                     except StopIteration:
                         self.__c = consumer
                     else:
@@ -436,7 +437,7 @@ class StreamNetworkDataConsumer(Iterator[_T_co], Generic[_T_co], Object):
                     break
                 wait = timeout is None
                 self.__cv.wait_for(lambda: self.__b, timeout=timeout)
-        raise StopIteration
+            raise StopIteration
 
     def wait(self, timeout: float | None = None) -> _T_co:
         try:

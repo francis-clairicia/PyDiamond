@@ -86,6 +86,9 @@ class JSONPacketDeserializer(NetworkPacketIncrementalDeserializer[_T_co]):
     def incremental_deserialize(self) -> Generator[None, bytes, tuple[_T_co, bytes]]:
         import struct
 
+        def escaped(partial_document: bytes) -> bool:
+            return ((len(partial_document) - len(partial_document.rstrip(b"\\"))) % 2) == 1
+
         encoding: str = "utf-8"
         enclosure_counter: Counter[bytes] = Counter()
         partial_document: bytes = b""
@@ -98,7 +101,7 @@ class JSONPacketDeserializer(NetworkPacketIncrementalDeserializer[_T_co]):
                 char: bytes
                 for nb_chars, char in enumerate(struct.unpack(f"{len(chunk)}c", chunk), start=1):
                     match char:
-                        case b'"' if not partial_document or partial_document[-1] != b"\\"[0]:
+                        case b'"' if not escaped(partial_document):
                             enclosure_counter[b'"'] = 0 if enclosure_counter[b'"'] == 1 else 1
                         case _ if enclosure_counter[b'"'] > 0:
                             partial_document += char
@@ -141,7 +144,7 @@ class JSONPacketDeserializer(NetworkPacketIncrementalDeserializer[_T_co]):
                     data_with_error=complete_document,
                     remaining_data=partial_document,
                 ) from exc
-            return packet, document[end:].encode(encoding) + partial_document
+            return packet, (document[end:].encode(encoding) + partial_document).lstrip(b" \t\n\r")
 
     def get_decoder(self) -> JSONDecoder:
         return JSONDecoder(object_hook=None, object_pairs_hook=None, strict=True)
