@@ -425,7 +425,7 @@ class ConfigurationTemplate(Object):
                 if underlying_descriptor is None:
                     raise OptionError(option, "There is no parent ownership")
                 if isinstance(actual_descriptor, _PrivateAttributeOptionProperty):
-                    actual_descriptor.set_new_descriptor(None)
+                    template.value_descriptor[option] = _ReadOnlyOptionBuildPayload(None)
                     return
                 actual_descriptor = underlying_descriptor
             raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
@@ -446,16 +446,15 @@ class ConfigurationTemplate(Object):
         template: _ConfigInfoTemplate = self.__template
 
         @self.__option_decorator(option, allow_section_options=False)
-        def decorator(option: str, func: _Getter, /) -> None:
+        def decorator(option: str, func: _Getter, /, *, readonly: bool = readonly) -> None:
             actual_descriptor: _Descriptor | None = template.value_descriptor.get(option)
             if not isinstance(actual_descriptor, _ReadOnlyOptionBuildPayload):
-                if actual_descriptor is not None:
+                if actual_descriptor is not None and not isinstance(actual_descriptor, _ConfigProperty):
                     raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
-                actual_property: _ConfigProperty | None = actual_descriptor
                 if (
-                    actual_property is not None
+                    actual_descriptor is not None
                     and readonly
-                    and (actual_property.fset is not None or actual_property.fdel is not None)
+                    and (actual_descriptor.fset is not None or actual_descriptor.fdel is not None)
                 ):
                     raise OptionError(option, "Trying to flag option as read-only with custom setter/deleter")
                 if readonly and (
@@ -464,25 +463,23 @@ class ConfigurationTemplate(Object):
                     or template.option_delete_hooks.get(option)
                 ):
                     raise OptionError(option, "Trying to flag option as read-only with registered update/delete hooks")
-
-                wrapper = _make_function_wrapper(func, use_override=bool(use_override))
-                new_config_property: _ConfigProperty
-                if actual_property is None:
-                    new_config_property = _ConfigProperty(wrapper)
-                else:
-                    new_config_property = actual_property.getter(wrapper)
-                if readonly:
-                    template.value_descriptor[option] = _ReadOnlyOptionBuildPayload(new_config_property)
-                else:
-                    template.value_descriptor[option] = new_config_property
             else:
                 readonly_descriptor: _ReadOnlyOptionBuildPayload = actual_descriptor
                 actual_descriptor = readonly_descriptor.get_descriptor()
-                if not isinstance(actual_descriptor, _ConfigProperty):
+                if actual_descriptor is not None and not isinstance(actual_descriptor, _ConfigProperty):
                     raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
+                readonly = True
 
-                wrapper = _make_function_wrapper(func, use_override=bool(use_override))
-                readonly_descriptor.set_new_descriptor(actual_descriptor.getter(wrapper))
+            wrapper = _make_function_wrapper(func, use_override=bool(use_override))
+            new_config_property: _ConfigProperty
+            if actual_descriptor is None:
+                new_config_property = _ConfigProperty(wrapper)
+            else:
+                new_config_property = actual_descriptor.getter(wrapper)
+            if readonly:
+                template.value_descriptor[option] = _ReadOnlyOptionBuildPayload(new_config_property)
+            else:
+                template.value_descriptor[option] = new_config_property
 
         if func is None:
             return decorator
@@ -989,7 +986,7 @@ class ConfigurationTemplate(Object):
             underlying_descriptor = actual_descriptor.get_descriptor()
             if not isinstance(underlying_descriptor, _ConfigProperty):
                 raise OptionError(option, f"Already bound to a descriptor: {type(underlying_descriptor).__name__}")
-            actual_descriptor.set_new_descriptor(None)
+            template.value_descriptor[option] = _ReadOnlyOptionBuildPayload(None)
             return
         if not isinstance(actual_descriptor, _ConfigProperty):
             raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
@@ -3478,7 +3475,9 @@ class _ConfigInfoTemplate:
                     descriptor = descriptor.deleter(build_wrapper_if_needed(descriptor.fdel))
             elif isinstance(descriptor, _ReadOnlyOptionBuildPayload):
                 if (underlying_descriptor := descriptor.get_descriptor()) is not None:
-                    descriptor.set_new_descriptor(build_wrapper_within_descriptor(underlying_descriptor))
+                    underlying_descriptor = build_wrapper_within_descriptor(underlying_descriptor)
+                    if underlying_descriptor is not descriptor.get_descriptor():
+                        descriptor = _ReadOnlyOptionBuildPayload(underlying_descriptor)
             return descriptor
 
         def build_update_hooks_wrappers(attr_name: str) -> None:
@@ -3575,13 +3574,13 @@ class _ConfigInfoTemplate:
     def __build_value_descriptor_dict(self, owner: type) -> MappingProxyType[str, _Descriptor]:
         value_descriptors: dict[str, _Descriptor] = {}
 
-        for option, descriptor in self.value_descriptor.items():
+        for option, descriptor in tuple(self.value_descriptor.items()):
             if isinstance(descriptor, _ReadOnlyOptionBuildPayload):
                 underlying_descriptor = descriptor.get_descriptor()
                 if underlying_descriptor is None:
                     underlying_descriptor = _PrivateAttributeOptionProperty()
                     underlying_descriptor.__set_name__(owner, option)
-                    descriptor.set_new_descriptor(underlying_descriptor)
+                    self.value_descriptor[option] = _ReadOnlyOptionBuildPayload(underlying_descriptor)
                 descriptor = underlying_descriptor
             value_descriptors[option] = descriptor
 
@@ -3680,9 +3679,10 @@ class _PrivateAttributeOptionProperty:
 
 
 class _ReadOnlyOptionBuildPayload:
-    def __init__(self, default_descriptor: _Descriptor | None) -> None:
-        self.__descriptor: Callable[[], _Descriptor | None]
-        self.set_new_descriptor(default_descriptor)
+    def __init__(self, descriptor: _Descriptor | None) -> None:
+        if isinstance(descriptor, _ReadOnlyOptionBuildPayload):
+            descriptor = descriptor.__descriptor()
+        self.__descriptor: Callable[[], _Descriptor | None] = lambda: descriptor
 
     def __set_name__(self, owner: type, name: str, /) -> None:
         descriptor: Any = self.__descriptor()
@@ -3694,9 +3694,6 @@ class _ReadOnlyOptionBuildPayload:
 
     def get_descriptor(self) -> _Descriptor | None:
         return self.__descriptor()
-
-    def set_new_descriptor(self, descriptor: _Descriptor | None) -> None:
-        self.__descriptor = lambda: descriptor
 
 
 @dataclass(eq=True, unsafe_hash=True)
