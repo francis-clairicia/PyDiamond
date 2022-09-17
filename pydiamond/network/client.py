@@ -252,7 +252,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
                 if chunk is None:
                     break
                 self.__consumer.feed(chunk)
-                yield from self.__consumer
+            yield from self.__consumer
         finally:
             chunk_reader.close()
 
@@ -302,16 +302,8 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
     def fileno(self) -> int:
         return self.__socket.fileno()
 
-    @overload
-    def reconnect(self) -> None:
-        ...
-
-    @overload
-    def reconnect(self, timeout: float | None) -> None:
-        ...
-
-    def reconnect(self, *args: Any, **kwargs: Any) -> None:
-        return self.__socket.reconnect(*args, **kwargs)
+    def reconnect(self, timeout: float | None = None) -> None:
+        return self.__socket.reconnect(timeout=timeout)
 
     def try_reconnect(self, timeout: float | None = None) -> bool:
         return self.__socket.try_reconnect(timeout=timeout)

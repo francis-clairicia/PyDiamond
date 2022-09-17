@@ -255,6 +255,8 @@ class PythonTCPClientSocket(_AbstractPythonTCPSocket, AbstractTCPClientSocket):
 
     @classmethod
     def from_builtin_socket(cls, sock: socket, *, register_peername: bool) -> PythonTCPClientSocket:
+        if sock.type != SOCK_STREAM:
+            raise ValueError("Invalid socket type")
         self = cls(sock.family)
         setattr_pv(self, "socket", sock, owner=_AbstractPythonSocket)
         if register_peername:
@@ -521,11 +523,10 @@ class PythonUDPClientSocket(_AbstractPythonUDPSocket, AbstractUDPClientSocket):
 
     @classmethod
     @final
-    def create(cls, family: int = AF_INET, *, host: str = "") -> PythonUDPClientSocket:
-        family = AddressFamily(family)
+    def create(cls, family: int = AF_INET) -> PythonUDPClientSocket:
         self: PythonUDPClientSocket = cls(family)
         sock: socket = socket(family, SOCK_DGRAM)
-        sock.bind((host, 0))
+        sock.bind(("", 0))
         setattr_pv(self, "socket", sock, owner=_AbstractPythonSocket)
         return self
 
