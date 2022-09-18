@@ -28,7 +28,7 @@ import hashlib
 from abc import abstractmethod
 from collections import deque
 from hmac import compare_digest
-from io import BytesIO
+from io import BytesIO, IOBase
 from struct import Struct, error as StructError
 from threading import Condition, RLock
 from typing import IO, Any, Final, Generator, Generic, Iterator, Protocol, TypeVar, runtime_checkable
@@ -60,7 +60,7 @@ class NetworkPacketIncrementalSerializer(NetworkPacketSerializer[_T_contra], Pro
     def incremental_serialize(self, packet: _T_contra) -> Generator[bytes, None, None]:
         raise NotImplementedError
 
-    def incremental_serialize_to(self, file: IO[bytes], packet: _T_contra) -> None:
+    def incremental_serialize_to(self, file: IOBase | IO[bytes], packet: _T_contra) -> None:
         assert file.writable()
         write = file.write
         for chunk in self.incremental_serialize(packet):
@@ -133,7 +133,7 @@ class AutoSeparatedPacketSerializer(_BaseAutoSeparatedPacket, NetworkPacketIncre
         yield data + separator
 
     @final
-    def incremental_serialize_to(self, file: IO[bytes], packet: _T_contra) -> None:
+    def incremental_serialize_to(self, file: IOBase | IO[bytes], packet: _T_contra) -> None:
         return NetworkPacketIncrementalSerializer.incremental_serialize_to(self, file, packet)
 
 
@@ -197,7 +197,7 @@ class AutoParsedPacketSerializer(_BaseAutoParsedPacket, NetworkPacketIncremental
         yield checksum.digest()
 
     @final
-    def incremental_serialize_to(self, file: IO[bytes], packet: _T_contra) -> None:
+    def incremental_serialize_to(self, file: IOBase | IO[bytes], packet: _T_contra) -> None:
         return NetworkPacketIncrementalSerializer.incremental_serialize_to(self, file, packet)
 
 
@@ -382,14 +382,14 @@ class StreamNetworkPacketWriter(Generic[_T_contra], Object):
 
     def __init__(
         self,
-        file: IO[bytes],
+        file: IOBase | IO[bytes],
         serializer: NetworkPacketIncrementalSerializer[_T_contra],
         *,
         lock: RLock | None = None,
     ) -> None:
         super().__init__()
         assert isinstance(serializer, NetworkPacketIncrementalSerializer)
-        self.__f: IO[bytes] = file
+        self.__f: IOBase | IO[bytes] = file
         self.__s: NetworkPacketIncrementalSerializer[_T_contra] = serializer
         self.__lock: RLock = lock or RLock()
 
@@ -400,6 +400,9 @@ class StreamNetworkPacketWriter(Generic[_T_contra], Object):
     def flush(self) -> None:
         with self.__lock:
             self.__f.flush()
+
+    def close(self) -> None:
+        self.__f.close()
 
 
 @final

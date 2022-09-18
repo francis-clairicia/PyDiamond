@@ -16,20 +16,19 @@ __all__ = [
 from abc import abstractmethod
 from contextlib import suppress
 from selectors import EVENT_READ, BaseSelector
+from socket import SOCK_DGRAM, SOCK_STREAM, socket as Socket
 from threading import Event, RLock, current_thread
-from typing import TYPE_CHECKING, Any, Callable, Generic, Sequence, TypeAlias, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Callable, Generic, Sequence, TypeAlias, TypeVar
 
 from ...system.object import Object, final
 from ...system.threading import Thread, thread_factory
-from ...system.utils.abc import concreteclasscheck
 from ...system.utils.functools import dsuppress
 from ..client import DisconnectedClientError, TCPNetworkClient, UDPNetworkClient
 from ..protocol.abc import NetworkProtocol
 from ..protocol.pickle import PickleNetworkProtocol
 from ..protocol.stream import StreamNetworkProtocol
 from ..selector import DefaultSelector as _Selector
-from ..socket.abc import AbstractSocket, AbstractTCPServerSocket, AbstractUDPServerSocket, SocketAddress
-from ..socket.python import PythonTCPServerSocket, PythonUDPServerSocket
+from ..socket import AF_INET, SocketAddress, create_server, new_socket_address
 
 _RequestT = TypeVar("_RequestT")
 _ResponseT = TypeVar("_ResponseT")
@@ -55,6 +54,8 @@ class ConnectedClient(Generic[_ResponseT], Object):
 
 
 class AbstractNetworkServer(Object):
+    __slots__ = ("__t",)
+
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="AbstractNetworkServer")
 
@@ -86,18 +87,19 @@ class AbstractNetworkServer(Object):
         *,
         daemon: bool | None = None,
         name: str | None = None,
+        **kwargs: Any,
     ) -> Thread:
         if self.running():
             raise RuntimeError("Server already running")
 
         @thread_factory(daemon=daemon, name=name)
-        def run(self: AbstractNetworkServer, poll_interval: float) -> None:
-            self.serve_forever(poll_interval)
+        def run(self: AbstractNetworkServer, poll_interval: float, **kwargs: Any) -> None:
+            self.serve_forever(poll_interval, **kwargs)
 
         t: Thread | None = self.__t
         if t is not None and t.is_alive():
             t.join()
-        self.__t = t = run(self, poll_interval)
+        self.__t = t = run(self, poll_interval, **kwargs)
         return t
 
     @abstractmethod
@@ -124,63 +126,46 @@ StreamNetworkProtocolFactory: TypeAlias = Callable[[], StreamNetworkProtocol[_Re
 
 
 class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _ResponseT]):
-    @overload
+    __slots__ = (
+        "__socket",
+        "__addr",
+        "__protocol_cls",
+        "__closed",
+        "__lock",
+        "__loop",
+        "__is_shutdown",
+        "__is_shutdown",
+        "__clients",
+    )
+
     def __init__(
         self,
         address: tuple[str, int] | tuple[str, int, int, int],
-        /,
         *,
-        family: int = ...,
-        backlog: int | None = ...,
-        dualstack_ipv6: bool = ...,
-        protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT] = ...,
-        socket_cls: type[AbstractTCPServerSocket] = ...,
-    ) -> None:
-        ...
-
-    @overload
-    def __init__(
-        self,
-        socket: AbstractTCPServerSocket,
-        /,
-        *,
-        protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT] = ...,
-    ) -> None:
-        ...
-
-    def __init__(
-        self,
-        __arg: AbstractTCPServerSocket | tuple[str, int] | tuple[str, int, int, int],
-        /,
-        *,
+        family: int = AF_INET,
+        backlog: int | None = None,
+        reuse_port: bool = False,
+        dualstack_ipv6: bool = False,
         protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT] = PickleNetworkProtocol,
-        **kwargs: Any,
     ) -> None:
         if not callable(protocol_cls):
             raise TypeError("Invalid arguments")
-        socket: AbstractTCPServerSocket
-        self.__socket_cls: type[AbstractTCPServerSocket] | None
-        if isinstance(__arg, AbstractTCPServerSocket):
-            if kwargs:
-                raise TypeError("Invalid arguments")
-            socket = __arg
-            self.__socket_cls = None
-        elif isinstance(__arg, tuple):
-            address: tuple[str, int] | tuple[str, int, int, int] = __arg
-            socket_cls: type[AbstractTCPServerSocket] = kwargs.pop("socket_cls", PythonTCPServerSocket)
-            concreteclasscheck(socket_cls)
-            socket = socket_cls.bind(address, **kwargs)
-            self.__socket_cls = socket_cls
-        else:
-            raise TypeError("Invalid arguments")
-        self.__socket: AbstractTCPServerSocket = socket
+        self.__socket: Socket = create_server(
+            address,
+            family=family,
+            type=SOCK_STREAM,
+            backlog=backlog,
+            reuse_port=reuse_port,
+            dualstack_ipv6=dualstack_ipv6,
+        )
+        self.__addr: SocketAddress = new_socket_address(self.__socket.getsockname(), self.__socket.family)
+        self.__closed: bool = False
         self.__protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT] = protocol_cls
         self.__lock: RLock = RLock()
         self.__loop: bool = False
         self.__is_shutdown: Event = Event()
         self.__is_shutdown.set()
         self.__clients: dict[TCPNetworkClient[_ResponseT, _RequestT], ConnectedClient[_ResponseT]] = {}
-        self.__recv_flags: int = 0
         super().__init__()
 
     @dsuppress(KeyboardInterrupt)
@@ -190,7 +175,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
         with self.__lock:
             self.__loop = True
             self.__is_shutdown.clear()
-        socket: AbstractTCPServerSocket = self.__socket
+        socket: Socket = self.__socket
         clients_dict: dict[TCPNetworkClient[_ResponseT, _RequestT], ConnectedClient[_ResponseT]] = self.__clients
         selector: BaseSelector = _Selector()
 
@@ -207,6 +192,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
                 client_socket, address = socket.accept()
             except OSError:
                 return
+            address = new_socket_address(address, client_socket.family)
             protocol = self.__protocol_cls()
             client: TCPNetworkClient[_ResponseT, _RequestT] = TCPNetworkClient(client_socket, protocol=protocol, give=True)
             verify_client(client, address)
@@ -295,12 +281,11 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
 
     def server_close(self) -> None:
         with self.__lock:
-            if self.__socket_cls is None:
+            if self.__closed:
                 return
-            self.__socket_cls = None
-            socket: AbstractSocket = self.__socket
-            if socket.is_open():
-                socket.close()
+            self.__closed = True
+            self.__socket.close()
+            del self.__socket
 
     def shutdown(self) -> None:
         with self.__lock:
@@ -313,32 +298,17 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
     @property
     @final
     def server_address(self) -> SocketAddress:
-        with self.__lock:
-            socket: AbstractSocket = self.__socket
-            return socket.getsockname()
+        return self.__addr
 
     @final
     def listen(self, backlog: int) -> None:
-        with self.__lock:
-            socket: AbstractTCPServerSocket = self.__socket
-            return socket.listen(backlog)
+        return self.__socket.listen(backlog)
 
     @property
     @final
     def clients(self) -> Sequence[ConnectedClient[_ResponseT]]:
         with self.__lock:
             return tuple(self.__clients.values())
-
-    @property  # type: ignore[misc]
-    @final
-    def recv_flags(self) -> int:
-        with self.__lock:
-            return self.__recv_flags
-
-    @recv_flags.setter
-    def recv_flags(self, value: int) -> None:
-        with self.__lock:
-            self.__recv_flags = int(value)
 
     @final
     class __ConnectedClient(ConnectedClient[_ResponseT]):
@@ -356,55 +326,37 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
 
 
 class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _ResponseT]):
-    @overload
+    __slots__ = (
+        "__client",
+        "__addr",
+        "__lock",
+        "__loop",
+        "__is_shutdown",
+        "__is_shutdown",
+        "__recv_flags",
+    )
+
     def __init__(
         self,
         address: tuple[str, int] | tuple[str, int, int, int],
-        /,
         *,
-        family: int = ...,
-        protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT] = ...,
-    ) -> None:
-        ...
-
-    @overload
-    def __init__(
-        self,
-        socket: AbstractUDPServerSocket,
-        /,
-        *,
-        protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT] = ...,
-    ) -> None:
-        ...
-
-    def __init__(
-        self,
-        __arg: AbstractUDPServerSocket | tuple[str, int] | tuple[str, int, int, int],
-        /,
-        *,
+        family: int = AF_INET,
+        reuse_port: bool = False,
         protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT] = PickleNetworkProtocol,
-        **kwargs: Any,
     ) -> None:
         protocol = protocol_cls()
         if not isinstance(protocol, NetworkProtocol):
             raise TypeError("Invalid arguments")
-        socket: AbstractUDPServerSocket
-        self.__socket_cls: type[AbstractUDPServerSocket] | None
-        if isinstance(__arg, AbstractUDPServerSocket):
-            if kwargs:
-                raise TypeError("Invalid arguments")
-            socket = __arg
-            self.__socket_cls = None
-        elif isinstance(__arg, tuple):
-            address: tuple[str, int] | tuple[str, int, int, int] = __arg
-            socket_cls: type[AbstractUDPServerSocket] = kwargs.pop("socket_cls", PythonUDPServerSocket)
-            concreteclasscheck(socket_cls)
-            socket = socket_cls.bind(address, **kwargs)
-            self.__socket_cls = socket_cls
-        else:
-            raise TypeError("Invalid arguments")
-        self.__socket: AbstractUDPServerSocket = socket
-        self.__client: UDPNetworkClient[_ResponseT, _RequestT] = UDPNetworkClient(socket, protocol=protocol)
+        socket = create_server(
+            address,
+            family=family,
+            type=SOCK_DGRAM,
+            backlog=None,
+            reuse_port=reuse_port,
+            dualstack_ipv6=False,
+        )
+        self.__client: UDPNetworkClient[_ResponseT, _RequestT] = UDPNetworkClient(socket, protocol=protocol, give=True)
+        self.__addr: SocketAddress = self.__client.getsockname()
         self.__lock: RLock = RLock()
         self.__loop: bool = False
         self.__is_shutdown: Event = Event()
@@ -434,7 +386,7 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
                         self._handle_error(connected_client)
 
         with _Selector() as selector:
-            selector.register(self.__socket, EVENT_READ)
+            selector.register(self.__client, EVENT_READ)
             try:
                 while self.running():
                     ready: bool = len(selector.select(poll_interval)) > 0
@@ -450,12 +402,7 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
 
     def server_close(self) -> None:
         with self.__lock:
-            if self.__socket_cls is None:
-                return
-            self.__socket_cls = None
-            socket: AbstractSocket = self.__socket
-            if socket.is_open():
-                socket.close()
+            self.__client.close()
 
     def service_actions(self) -> None:
         pass
@@ -487,8 +434,7 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
     @final
     def server_address(self) -> SocketAddress:
         with self.__lock:
-            socket: AbstractSocket = self.__socket
-            return socket.getsockname()
+            return self.__addr
 
     @property  # type: ignore[misc]
     @final

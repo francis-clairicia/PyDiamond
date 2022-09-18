@@ -13,6 +13,7 @@ __all__ = [
 ]
 
 from collections import Counter
+from io import IOBase
 from json import JSONDecodeError, JSONDecoder, JSONEncoder
 from typing import IO, Generator, Generic, TypeVar
 
@@ -49,7 +50,7 @@ class JSONPacketSerializer(NetworkPacketIncrementalSerializer[_T_contra]):
             yield chunk.encode(encoding)
 
     @final
-    def incremental_serialize_to(self, file: IO[bytes], packet: _T_contra) -> None:
+    def incremental_serialize_to(self, file: IOBase | IO[bytes], packet: _T_contra) -> None:
         return NetworkPacketIncrementalSerializer.incremental_serialize_to(self, file, packet)
 
     def get_encoder(self) -> JSONEncoder:

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Callable, NamedTuple
 
 from pydiamond.audio.mixer import AllowedAudioChanges, AudioFormat
 from pydiamond.graphics.font import FontStyle
-from pydiamond.network.socket.constants import AddressFamily, ShutdownFlag
+from pydiamond.network.socket import AddressFamily, ShutdownFlag
 
 import pytest
 

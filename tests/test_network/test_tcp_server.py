@@ -11,8 +11,6 @@ from pydiamond.network.server.stateless import AbstractTCPRequestHandler, StateL
 from pydiamond.network.socket import SocketAddress
 from pydiamond.system.threading import Thread
 
-from .random_port import random_port
-
 
 class _BroadcastRequestHandler(AbstractTCPRequestHandler[Any, Any]):
     def handle(self) -> None:
@@ -21,10 +19,11 @@ class _BroadcastRequestHandler(AbstractTCPRequestHandler[Any, Any]):
             client.send_packet(request)
 
 
-def test_serve_forever_default() -> None:
-    address: tuple[str, int] = ("localhost", random_port())
+_RANDOM_HOST_PORT = ("localhost", 0)
 
-    with StateLessTCPNetworkServer(address, _BroadcastRequestHandler) as server:
+
+def test_serve_forever_default() -> None:
+    with StateLessTCPNetworkServer(_RANDOM_HOST_PORT, _BroadcastRequestHandler) as server:
         assert not server.running()
         t: Thread = Thread(target=server.serve_forever, args=(0.1,))
         t.start()
@@ -36,9 +35,7 @@ def test_serve_forever_default() -> None:
 
 
 def test_serve_forever_context_shut_down() -> None:
-    address: tuple[str, int] = ("localhost", random_port())
-
-    with StateLessTCPNetworkServer(address, _BroadcastRequestHandler) as server:
+    with StateLessTCPNetworkServer(_RANDOM_HOST_PORT, _BroadcastRequestHandler) as server:
         t: Thread = Thread(target=server.serve_forever, args=(0.1,))
         t.start()
         sleep(0.15)
@@ -47,9 +44,7 @@ def test_serve_forever_context_shut_down() -> None:
 
 
 def test_serve_forever_in_thread_default() -> None:
-    address: tuple[str, int] = ("localhost", random_port())
-
-    with StateLessTCPNetworkServer(address, _BroadcastRequestHandler) as server:
+    with StateLessTCPNetworkServer(_RANDOM_HOST_PORT, _BroadcastRequestHandler) as server:
         t: Thread = server.serve_forever_in_thread(poll_interval=0.1)
         sleep(0.15)
         assert server.running()
@@ -59,9 +54,7 @@ def test_serve_forever_in_thread_default() -> None:
 
 
 def test_serve_forver_in_thread_context_shut_down() -> None:
-    address: tuple[str, int] = ("localhost", random_port())
-
-    with StateLessTCPNetworkServer(address, _BroadcastRequestHandler) as server:
+    with StateLessTCPNetworkServer(_RANDOM_HOST_PORT, _BroadcastRequestHandler) as server:
         t: Thread = server.serve_forever_in_thread(poll_interval=0.1)
         sleep(0.15)
         assert server.running()
@@ -76,18 +69,15 @@ class _TestServiceActionServer(StateLessTCPNetworkServer[Any, Any]):
 
 
 def test_service_actions() -> None:
-    address: tuple[str, int] = ("localhost", random_port())
-
-    with _TestServiceActionServer(address, _BroadcastRequestHandler) as server:
+    with _TestServiceActionServer(_RANDOM_HOST_PORT, _BroadcastRequestHandler) as server:
         server.serve_forever_in_thread(poll_interval=0.1)
         sleep(0.3)
     assert getattr(server, "service_actions_called", False)
 
 
 def test_client_connection() -> None:
-    address: tuple[str, int] = ("localhost", random_port())
-
-    with StateLessTCPNetworkServer(address, _BroadcastRequestHandler, backlog=1) as server:
+    with StateLessTCPNetworkServer(_RANDOM_HOST_PORT, _BroadcastRequestHandler, backlog=1) as server:
+        address = server.server_address.for_connection()
         server.serve_forever_in_thread(poll_interval=0.1)
         sleep(0.1)
         assert len(server.clients) == 0
@@ -105,18 +95,16 @@ class _TestWelcomeServer(StateLessTCPNetworkServer[Any, Any]):
 
 
 def test_welcome_connection() -> None:
-    address: tuple[str, int] = ("localhost", random_port())
-
-    with _TestWelcomeServer(address, _BroadcastRequestHandler, backlog=1) as server:
+    with _TestWelcomeServer(_RANDOM_HOST_PORT, _BroadcastRequestHandler, backlog=1) as server:
+        address = server.server_address.for_connection()
         server.serve_forever_in_thread(poll_interval=0.1)
         with TCPNetworkClient[Any, Any](address) as client:
             assert client.recv_packet() == "Welcome !"
 
 
 def test_multiple_connections() -> None:
-    address: tuple[str, int] = ("localhost", random_port())
-
-    with _TestWelcomeServer(address, _BroadcastRequestHandler) as server:
+    with _TestWelcomeServer(_RANDOM_HOST_PORT, _BroadcastRequestHandler) as server:
+        address = server.server_address.for_connection()
         server.serve_forever_in_thread(poll_interval=0)
         with (
             TCPNetworkClient[Any, Any](address) as client_1,
@@ -151,9 +139,8 @@ class _IntegerNetworkProtocol(StreamNetworkProtocol[int, int]):
 
 
 def test_request_handling() -> None:
-    address: tuple[str, int] = ("localhost", random_port())
-
-    with StateLessTCPNetworkServer(address, _BroadcastRequestHandler, protocol_cls=_IntegerNetworkProtocol) as server:
+    with StateLessTCPNetworkServer(_RANDOM_HOST_PORT, _BroadcastRequestHandler, protocol_cls=_IntegerNetworkProtocol) as server:
+        address = server.server_address.for_connection()
         server.serve_forever_in_thread(poll_interval=0)
         with (
             TCPNetworkClient(address, protocol=_IntegerNetworkProtocol()) as client_1,

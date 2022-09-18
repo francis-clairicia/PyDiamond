@@ -15,28 +15,24 @@ from collections import deque
 from contextlib import suppress
 from io import DEFAULT_BUFFER_SIZE
 from selectors import EVENT_READ, SelectSelector as _Selector
+from socket import socket as Socket
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Generator, Generic, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Generator, Generic, TypeAlias, TypeVar, overload
 
 from ..system.object import Object, final
-from ..system.utils.abc import concreteclass, concreteclasscheck
+from ..system.utils.abc import concreteclass
 from .protocol.abc import NetworkProtocol, ValidationError
 from .protocol.pickle import PickleNetworkProtocol
 from .protocol.stream import StreamNetworkDataConsumer, StreamNetworkPacketWriter, StreamNetworkProtocol
-from .socket.abc import (
-    AbstractSocket,
-    AbstractTCPClientSocket,
-    AbstractUDPClientSocket,
-    AbstractUDPSocket,
-    ReceivedDatagram,
-    SocketAddress,
-)
-from .socket.constants import SHUT_WR
-from .socket.python import PythonTCPClientSocket, PythonUDPClientSocket
+from .socket import SHUT_WR, AddressFamily, SocketAddress, create_connection, new_socket_address
 
 _T = TypeVar("_T")
 _ReceivedPacketT = TypeVar("_ReceivedPacketT")
 _SentPacketT = TypeVar("_SentPacketT")
+
+
+_Address: TypeAlias = tuple[str, int] | tuple[str, int, int, int]  # type: ignore[misc]
+# False positive, see https://github.com/python/mypy/issues/11098
 
 
 class AbstractNetworkClient(Object):
@@ -90,13 +86,15 @@ class NoValidPacket(ValueError):
 class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPacketT]):
     __slots__ = (
         "__socket",
-        "__socket_cls",
+        "__owner",
+        "__closed",
         "__buffer_recv",
         "__queue",
         "__lock",
         "__chunk_size",
         "__writer",
         "__consumer",
+        "__peer",
     )
 
     @overload
@@ -105,17 +103,17 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         address: tuple[str, int],
         /,
         *,
-        family: int = ...,
-        timeout: int = ...,
+        timeout: float | None = ...,
+        family: int | None = ...,
+        source_address: tuple[bytearray | bytes | str, int] | None = ...,
         protocol: StreamNetworkProtocol[_SentPacketT, _ReceivedPacketT] = ...,
-        socket_cls: type[AbstractTCPClientSocket] = ...,
     ) -> None:
         ...
 
     @overload
     def __init__(
         self,
-        socket: AbstractTCPClientSocket,
+        socket: Socket,
         /,
         *,
         protocol: StreamNetworkProtocol[_SentPacketT, _ReceivedPacketT] = ...,
@@ -125,7 +123,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
 
     def __init__(
         self,
-        arg: AbstractTCPClientSocket | tuple[str, int],
+        arg: Socket | tuple[str, int],
         /,
         *,
         protocol: StreamNetworkProtocol[_SentPacketT, _ReceivedPacketT] | None = None,
@@ -135,23 +133,29 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
             protocol = PickleNetworkProtocol[_SentPacketT, _ReceivedPacketT]()
         elif not isinstance(protocol, StreamNetworkProtocol):
             raise TypeError("Invalid argument")
-        socket: AbstractTCPClientSocket
-        self.__socket_cls: type[AbstractTCPClientSocket] | None
-        if isinstance(arg, AbstractTCPClientSocket):
+        socket: Socket
+        self.__owner: bool
+        if isinstance(arg, Socket):
             give: bool = kwargs.pop("give", False)
             if kwargs:
                 raise TypeError("Invalid arguments")
             socket = arg
-            self.__socket_cls = None if not give else type(socket)
+            self.__owner = bool(give)
         elif isinstance(arg, tuple):
             address: tuple[str, int] = arg
-            socket_cls: type[AbstractTCPClientSocket] = kwargs.pop("socket_cls", PythonTCPClientSocket)
-            concreteclasscheck(socket_cls)
-            socket = socket_cls.connect(address, **kwargs)
-            self.__socket_cls = socket_cls
+            socket = create_connection(address, **kwargs)
+            self.__owner = True
         else:
             raise TypeError("Invalid arguments")
-        self.__socket: AbstractTCPClientSocket = socket
+
+        from socket import SOCK_STREAM
+
+        if socket.type != SOCK_STREAM:
+            raise ValueError("Invalid socket type")
+
+        self.__peer: tuple[Any, ...] = socket.getpeername()
+        self.__closed: bool = False
+        self.__socket: Socket = socket
         self.__queue: deque[_ReceivedPacketT] = deque()
         self.__lock: RLock = RLock()
         self.__chunk_size: int = DEFAULT_BUFFER_SIZE
@@ -173,19 +177,24 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
 
     def close(self) -> None:
         with self.__lock:
-            if self.__socket_cls is None:
+            if self.__closed:
                 return
-            self.__socket_cls = None
-            socket: AbstractTCPClientSocket = self.__socket
-            if socket.is_open():
-                try:
-                    socket.shutdown(SHUT_WR)
-                except OSError:
-                    pass
-                finally:
-                    socket.close()
+            self.__closed = True
+            self.__queue.clear()
+            self.__writer.close()
+            if not self.__owner:
+                return
+            socket: Socket = self.__socket
+            del self.__socket
+            try:
+                socket.shutdown(SHUT_WR)
+            except OSError:
+                pass
+            finally:
+                socket.close()
 
     def send_packet(self, packet: _SentPacketT) -> None:
+        self._check_closed()
         try:
             self.__writer.write(packet)
             self.__writer.flush()
@@ -193,6 +202,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
             raise DisconnectedClientError(self) from exc
 
     def send_packets(self, *packets: _SentPacketT) -> None:
+        self._check_closed()
         if not packets:
             return
         with self.__lock:
@@ -205,6 +215,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
                 raise DisconnectedClientError(self) from exc
 
     def recv_packet(self, *, retry_on_fail: bool = True) -> _ReceivedPacketT:
+        self._check_closed()
         with self.__lock:
             queue: deque[_ReceivedPacketT] = self.__queue
             while not queue:
@@ -224,6 +235,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         ...
 
     def recv_packet_no_block(self, *, default: Any = None, timeout: int = 0) -> Any:
+        self._check_closed()
         timeout = int(timeout)
         with self.__lock:
             queue: deque[_ReceivedPacketT] = self.__queue
@@ -234,6 +246,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
             return queue.popleft()
 
     def recv_packets(self, *, timeout: int | None = None) -> Generator[_ReceivedPacketT, None, None]:
+        self._check_closed()
         with self.__lock:
             queue: deque[_ReceivedPacketT] = self.__queue
             if not queue:
@@ -259,7 +272,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
     @staticmethod
     @final
     def read_socket(
-        socket: AbstractTCPClientSocket,
+        socket: Socket,
         chunk_size: int,
         *,
         timeout: int | None = None,
@@ -281,42 +294,78 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
                 yield data
 
     def has_saved_packets(self) -> bool:
+        self._check_closed()
         with self.__lock:
             return True if self.__queue else False
 
     def getsockname(self) -> SocketAddress:
-        return self.__socket.getsockname()
+        self._check_closed()
+        return new_socket_address(self.__socket.getsockname(), self.__socket.family)
 
     def getpeername(self) -> SocketAddress | None:
-        return self.__socket.getpeername()
+        self._check_closed()
+        try:
+            return new_socket_address(self.__socket.getpeername(), self.__socket.family)
+        except OSError:
+            return None
 
     def is_connected(self) -> bool:
-        return self.__socket.is_connected()
-
-    def getblocking(self) -> bool:
-        return self.__socket.getblocking()
-
-    def setblocking(self, flag: bool) -> None:
-        return self.__socket.setblocking(flag)
+        if self.__closed:
+            return False
+        try:
+            self.__socket.getpeername()
+        except OSError:
+            return False
+        return True
 
     def fileno(self) -> int:
         return self.__socket.fileno()
 
     def reconnect(self, timeout: float | None = None) -> None:
-        return self.__socket.reconnect(timeout=timeout)
+        self._check_closed()
+        socket: Socket = self.__socket
+        try:
+            socket.getpeername()
+        except OSError:
+            pass
+        else:
+            return
+        address: tuple[Any, ...] = self.__peer
+        try:
+            socket.settimeout(timeout)
+            socket.connect(address)
+        finally:
+            if timeout is not None:
+                socket.settimeout(None)
 
     def try_reconnect(self, timeout: float | None = None) -> bool:
-        return self.__socket.try_reconnect(timeout=timeout)
+        try:
+            self.reconnect(timeout=timeout)
+        except OSError:
+            return False
+        return True
+
+    @final
+    def _check_closed(self) -> None:
+        if self.__closed:
+            raise RuntimeError("Closed client")
+
+    @property
+    @final
+    def closed(self) -> bool:
+        return self.__closed
 
 
 @concreteclass
 class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPacketT]):
     __slots__ = (
         "__socket",
-        "__socket_cls",
+        "__owner",
+        "__closed",
         "__protocol",
         "__queue",
         "__lock",
+        "__max_packet_size",
     )
 
     @overload
@@ -325,28 +374,31 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         /,
         *,
         family: int = ...,
+        source_address: tuple[bytearray | bytes | str, int] | None = ...,
         protocol: NetworkProtocol[_SentPacketT, _ReceivedPacketT] = ...,
-        socket_cls: AbstractUDPClientSocket = ...,
+        max_packet_size: int | None = ...,
     ) -> None:
         ...
 
     @overload
     def __init__(
         self,
-        socket: AbstractUDPSocket,
+        socket: Socket,
         /,
         *,
         protocol: NetworkProtocol[_SentPacketT, _ReceivedPacketT] = ...,
         give: bool = ...,
+        max_packet_size: int | None = ...,
     ) -> None:
         ...
 
     def __init__(
         self,
-        socket: AbstractUDPSocket | None = None,
+        socket: Socket | None = None,
         /,
         *,
         protocol: NetworkProtocol[_SentPacketT, _ReceivedPacketT] | None = None,
+        max_packet_size: int | None = None,
         **kwargs: Any,
     ) -> None:
         self.__protocol: NetworkProtocol[_SentPacketT, _ReceivedPacketT]
@@ -355,46 +407,67 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         elif not isinstance(protocol, NetworkProtocol):
             raise TypeError("Invalid argument")
         self.__protocol = protocol
-        self.__socket_cls: type[AbstractUDPSocket] | None
-        if isinstance(socket, AbstractUDPSocket):
+
+        from socket import AF_INET, SOCK_DGRAM
+
+        if isinstance(socket, Socket):
             give: bool = kwargs.pop("give", False)
             if kwargs:
                 raise TypeError("Invalid arguments")
-            self.__socket_cls = None if not give else type(socket)
+            self.__owner = bool(give)
         elif socket is None:
-            socket_cls: type[AbstractUDPClientSocket] = kwargs.pop("socket_cls", PythonUDPClientSocket)
-            concreteclasscheck(socket_cls)
-            socket = socket_cls.create(**kwargs)
-            self.__socket_cls = socket_cls
+            family = AddressFamily(kwargs.pop("family", AF_INET))
+            source_address: tuple[bytearray | bytes | str, int] | None = kwargs.pop("source_address", None)
+            if kwargs:
+                raise TypeError("Invalid arguments")
+            socket = Socket(family, SOCK_DGRAM)
+            if source_address is None:
+                socket.bind(("", 0))
+            else:
+                socket.bind(source_address)
+            self.__owner = True
         else:
             raise TypeError("Invalid arguments")
-        super().__init__()
-        self.__socket: AbstractUDPSocket = socket
+
+        if socket.type != SOCK_DGRAM:
+            raise ValueError("Invalid socket type")
+
+        if max_packet_size is None:
+            max_packet_size = DEFAULT_BUFFER_SIZE
+
+        self.__closed: bool = False
+        self.__socket: Socket = socket
         self.__queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = deque()
         self.__lock: RLock = RLock()
+        self.__max_packet_size: int = max_packet_size
+        super().__init__()
 
     def close(self) -> None:
         with self.__lock:
-            if self.__socket_cls is None:
+            if self.__closed:
                 return
-            self.__socket_cls = None
-            socket: AbstractSocket = self.__socket
-            if socket.is_open():
-                socket.close()
+            self.__closed = True
+            self.__queue.clear()
+            if not self.__owner:
+                return
+            self.__socket.close()
 
-    def send_packet(self, address: SocketAddress, packet: _SentPacketT, *, flags: int = 0) -> None:
+    def send_packet(self, address: _Address, packet: _SentPacketT, *, flags: int = 0) -> None:
+        self._check_closed()
         with self.__lock:
-            self.__socket.sendto(self.__protocol.serialize(packet), address, flags=flags)
+            self.__socket.sendto(self.__protocol.serialize(packet), flags, address)
 
-    def send_packets(self, address: SocketAddress, *packets: _SentPacketT, flags: int = 0) -> None:
+    def send_packets(self, address: _Address, *packets: _SentPacketT, flags: int = 0) -> None:
+        self._check_closed()
         if not packets:
             return
         with self.__lock:
             sendto = self.__socket.sendto
             for data in map(self.__protocol.serialize, packets):
-                sendto(data, address, flags=flags)
+                sendto(data, flags, address)
 
     def recv_packet(self, *, flags: int = 0, retry_on_fail: bool = True) -> tuple[_ReceivedPacketT, SocketAddress]:
+        self._check_closed()
         with self.__lock:
             queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = self.__queue
             while not queue:
@@ -418,6 +491,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         ...
 
     def recv_packet_no_block(self, *, flags: int = 0, default: Any = None, timeout: int = 0) -> Any:
+        self._check_closed()
         timeout = int(timeout)
         with self.__lock:
             queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = self.__queue
@@ -433,6 +507,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         flags: int = 0,
         timeout: int | None = None,
     ) -> Generator[tuple[_ReceivedPacketT, SocketAddress], None, None]:
+        self._check_closed()
         with self.__lock:
             queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = self.__queue
             if not queue:
@@ -443,7 +518,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
     def __recv_packets(self, flags: int, timeout: int | None) -> Generator[tuple[_ReceivedPacketT, SocketAddress], None, None]:
         deserialize = self.__protocol.deserialize
 
-        chunk_generator = self.read_socket(self.__socket, timeout=timeout, flags=flags)
+        chunk_generator = self.read_socket(self.__socket, self.__max_packet_size, timeout=timeout, flags=flags)
 
         for data, sender in chunk_generator:
             try:
@@ -458,29 +533,42 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
 
     @staticmethod
     def read_socket(
-        socket: AbstractUDPSocket,
+        socket: Socket,
+        bufsize: int,
         *,
         timeout: int | None = None,
         flags: int = 0,
-    ) -> Generator[ReceivedDatagram, None, None]:
+    ) -> Generator[tuple[bytes, SocketAddress], None, None]:
+        def convert(recv: tuple[bytes, tuple[Any, ...]]) -> tuple[bytes, SocketAddress]:
+            return recv[0], new_socket_address(recv[1], socket.family)
+
         with _Selector() as selector, suppress(BlockingIOError):
             selector.register(socket, EVENT_READ)
             if timeout is not None and not selector.select(timeout=0):
                 return
-            yield socket.recvfrom(flags=flags)
+            yield convert(socket.recvfrom(bufsize, flags))
             while selector.select(timeout=0):
-                yield socket.recvfrom(flags=flags)
+                yield convert(socket.recvfrom(bufsize, flags))
 
     def has_saved_packets(self) -> bool:
+        self._check_closed()
         with self.__lock:
             return True if self.__queue else False
 
     def getsockname(self) -> SocketAddress:
-        with self.__lock:
-            socket: AbstractSocket = self.__socket
-            return socket.getsockname()
+        self._check_closed()
+        return new_socket_address(self.__socket.getsockname(), self.__socket.family)
 
     def fileno(self) -> int:
-        with self.__lock:
-            socket: AbstractSocket = self.__socket
-            return socket.fileno()
+        self._check_closed()
+        return self.__socket.fileno()
+
+    @final
+    def _check_closed(self) -> None:
+        if self.__closed:
+            raise RuntimeError("Closed client")
+
+    @property
+    @final
+    def closed(self) -> bool:
+        return self.__closed

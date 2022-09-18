@@ -15,7 +15,7 @@ __all__ = [
     "SafePicklePacketSerializer",
 ]
 
-from io import BytesIO
+from io import BytesIO, IOBase
 from pickle import DEFAULT_PROTOCOL, STOP as STOP_OPCODE, Pickler, Unpickler, UnpicklingError
 from pickletools import optimize as pickletools_optimize
 from typing import IO, TYPE_CHECKING, Any, Callable, Generator, Generic, TypeVar
@@ -23,6 +23,7 @@ from weakref import ref as weakref
 
 if TYPE_CHECKING:
     from cryptography.fernet import Fernet, MultiFernet
+    from pickle import _WritableFileobj, _ReadableFileobj
 
 from ...system.object import Object, ProtocolObjectMeta, final
 from ...system.utils.abc import concreteclass
@@ -56,7 +57,7 @@ class PicklePacketSerializer(NetworkPacketIncrementalSerializer[_T_contra], Obje
         yield self.serialize(packet)  # 'incremental' :)
 
     @final
-    def incremental_serialize_to(self, file: IO[bytes], packet: _T_contra) -> None:
+    def incremental_serialize_to(self, file: IOBase | IO[bytes], packet: _T_contra) -> None:
         assert file.writable()
         pickler = self.get_pickler(file)
         try:
@@ -65,7 +66,7 @@ class PicklePacketSerializer(NetworkPacketIncrementalSerializer[_T_contra], Obje
             file.write(STOP_OPCODE)  # Ensure there is a stop opcode, so the receiver can quickly ignore it
             raise
 
-    def get_pickler(self, buffer: IO[bytes]) -> Pickler:
+    def get_pickler(self, buffer: _WritableFileobj) -> Pickler:
         return Pickler(buffer, protocol=DEFAULT_PROTOCOL, fix_imports=False, buffer_callback=None)
 
 
@@ -104,7 +105,7 @@ class PicklePacketDeserializer(NetworkPacketIncrementalDeserializer[_T_co], Obje
                 raise IncrementalDeserializeError(f"Unpickling error: {exc}", remaining_data=remainder) from exc
             return (packet, data.read())
 
-    def get_unpickler(self, buffer: IO[bytes]) -> Unpickler:
+    def get_unpickler(self, buffer: _ReadableFileobj) -> Unpickler:
         return Unpickler(buffer, fix_imports=False, encoding="utf-8", errors="strict", buffers=None)
 
 
