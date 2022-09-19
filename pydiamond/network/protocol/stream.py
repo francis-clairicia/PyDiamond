@@ -37,8 +37,8 @@ from ...system.object import Object, ProtocolObjectMeta, final
 from ...system.utils.itertools import consumer_start, send_return
 from .abc import NetworkPacketDeserializer, NetworkPacketSerializer, NetworkProtocol, ValidationError
 
-_T_co = TypeVar("_T_co", covariant=True)
-_T_contra = TypeVar("_T_contra", contravariant=True)
+_ST_contra = TypeVar("_ST_contra", contravariant=True)
+_DT_co = TypeVar("_DT_co", covariant=True)
 
 
 class IncrementalDeserializeError(ValidationError):
@@ -50,17 +50,17 @@ class IncrementalDeserializeError(ValidationError):
 
 
 @runtime_checkable
-class NetworkPacketIncrementalSerializer(NetworkPacketSerializer[_T_contra], Protocol[_T_contra]):
-    def serialize(self, packet: _T_contra) -> bytes:
+class NetworkPacketIncrementalSerializer(NetworkPacketSerializer[_ST_contra], Protocol[_ST_contra]):
+    def serialize(self, packet: _ST_contra) -> bytes:
         # The list call should be roughly
         # equivalent to the PySequence_Fast that ''.join() would do.
         return b"".join(list(self.incremental_serialize(packet)))
 
     @abstractmethod
-    def incremental_serialize(self, packet: _T_contra) -> Generator[bytes, None, None]:
+    def incremental_serialize(self, packet: _ST_contra) -> Generator[bytes, None, None]:
         raise NotImplementedError
 
-    def incremental_serialize_to(self, file: IOBase | IO[bytes], packet: _T_contra) -> None:
+    def incremental_serialize_to(self, file: IOBase | IO[bytes], packet: _ST_contra) -> None:
         assert file.writable()
         write = file.write
         for chunk in self.incremental_serialize(packet):
@@ -68,11 +68,11 @@ class NetworkPacketIncrementalSerializer(NetworkPacketSerializer[_T_contra], Pro
 
 
 @runtime_checkable
-class NetworkPacketIncrementalDeserializer(NetworkPacketDeserializer[_T_co], Protocol[_T_co]):
-    def deserialize(self, data: bytes) -> _T_co:
-        consumer: Generator[None, bytes, tuple[_T_co, bytes]] = self.incremental_deserialize()
+class NetworkPacketIncrementalDeserializer(NetworkPacketDeserializer[_DT_co], Protocol[_DT_co]):
+    def deserialize(self, data: bytes) -> _DT_co:
+        consumer: Generator[None, bytes, tuple[_DT_co, bytes]] = self.incremental_deserialize()
         consumer_start(consumer)
-        packet: _T_co
+        packet: _DT_co
         remaining: bytes
         try:
             packet, remaining = send_return(consumer, data)
@@ -84,16 +84,16 @@ class NetworkPacketIncrementalDeserializer(NetworkPacketDeserializer[_T_co], Pro
         return packet
 
     @abstractmethod
-    def incremental_deserialize(self) -> Generator[None, bytes, tuple[_T_co, bytes]]:
+    def incremental_deserialize(self) -> Generator[None, bytes, tuple[_DT_co, bytes]]:
         raise NotImplementedError
 
 
 @runtime_checkable
 class StreamNetworkProtocol(
-    NetworkPacketIncrementalSerializer[_T_contra],
-    NetworkPacketIncrementalDeserializer[_T_co],
-    NetworkProtocol[_T_contra, _T_co],
-    Protocol[_T_contra, _T_co],
+    NetworkPacketIncrementalSerializer[_ST_contra],
+    NetworkPacketIncrementalDeserializer[_DT_co],
+    NetworkProtocol[_ST_contra, _DT_co],
+    Protocol[_ST_contra, _DT_co],
 ):
     pass
 
@@ -118,13 +118,13 @@ class _BaseAutoSeparatedPacket(metaclass=ProtocolObjectMeta):
         return self.__keepends
 
 
-class AutoSeparatedPacketSerializer(_BaseAutoSeparatedPacket, NetworkPacketIncrementalSerializer[_T_contra]):
+class AutoSeparatedPacketSerializer(_BaseAutoSeparatedPacket, NetworkPacketIncrementalSerializer[_ST_contra]):
     @abstractmethod
-    def serialize(self, packet: _T_contra) -> bytes:
+    def serialize(self, packet: _ST_contra) -> bytes:
         raise NotImplementedError
 
     @final
-    def incremental_serialize(self, packet: _T_contra) -> Generator[bytes, None, None]:
+    def incremental_serialize(self, packet: _ST_contra) -> Generator[bytes, None, None]:
         data: bytes = self.serialize(packet)
         separator: bytes = self.separator
         data = data.rstrip(separator)
@@ -133,17 +133,17 @@ class AutoSeparatedPacketSerializer(_BaseAutoSeparatedPacket, NetworkPacketIncre
         yield data + separator
 
     @final
-    def incremental_serialize_to(self, file: IOBase | IO[bytes], packet: _T_contra) -> None:
+    def incremental_serialize_to(self, file: IOBase | IO[bytes], packet: _ST_contra) -> None:
         return NetworkPacketIncrementalSerializer.incremental_serialize_to(self, file, packet)
 
 
-class AutoSeparatedPacketDeserializer(_BaseAutoSeparatedPacket, NetworkPacketIncrementalDeserializer[_T_co]):
+class AutoSeparatedPacketDeserializer(_BaseAutoSeparatedPacket, NetworkPacketIncrementalDeserializer[_DT_co]):
     @abstractmethod
-    def deserialize(self, data: bytes) -> _T_co:
+    def deserialize(self, data: bytes) -> _DT_co:
         raise NotImplementedError
 
     @final
-    def incremental_deserialize(self) -> Generator[None, bytes, tuple[_T_co, bytes]]:
+    def incremental_deserialize(self) -> Generator[None, bytes, tuple[_DT_co, bytes]]:
         buffer: bytes = b""
         separator: bytes = self.separator
         keepends: bool = self.keepends
@@ -164,10 +164,10 @@ class AutoSeparatedPacketDeserializer(_BaseAutoSeparatedPacket, NetworkPacketInc
 
 
 class AutoSeparatedStreamNetworkProtocol(
-    AutoSeparatedPacketSerializer[_T_contra],
-    AutoSeparatedPacketDeserializer[_T_co],
-    StreamNetworkProtocol[_T_contra, _T_co],
-    Generic[_T_contra, _T_co],
+    AutoSeparatedPacketSerializer[_ST_contra],
+    AutoSeparatedPacketDeserializer[_DT_co],
+    StreamNetworkProtocol[_ST_contra, _DT_co],
+    Generic[_ST_contra, _DT_co],
 ):
     pass
 
@@ -180,13 +180,13 @@ class _BaseAutoParsedPacket(metaclass=ProtocolObjectMeta):
         super().__init__(**kwargs)
 
 
-class AutoParsedPacketSerializer(_BaseAutoParsedPacket, NetworkPacketIncrementalSerializer[_T_contra]):
+class AutoParsedPacketSerializer(_BaseAutoParsedPacket, NetworkPacketIncrementalSerializer[_ST_contra]):
     @abstractmethod
-    def serialize(self, packet: _T_contra) -> bytes:
+    def serialize(self, packet: _ST_contra) -> bytes:
         raise NotImplementedError
 
     @final
-    def incremental_serialize(self, packet: _T_contra) -> Generator[bytes, None, None]:
+    def incremental_serialize(self, packet: _ST_contra) -> Generator[bytes, None, None]:
         data: bytes = self.serialize(packet)
         header: bytes = self.header.pack(self.__class__.MAGIC, len(data))
         yield header
@@ -197,17 +197,17 @@ class AutoParsedPacketSerializer(_BaseAutoParsedPacket, NetworkPacketIncremental
         yield checksum.digest()
 
     @final
-    def incremental_serialize_to(self, file: IOBase | IO[bytes], packet: _T_contra) -> None:
+    def incremental_serialize_to(self, file: IOBase | IO[bytes], packet: _ST_contra) -> None:
         return NetworkPacketIncrementalSerializer.incremental_serialize_to(self, file, packet)
 
 
-class AutoParsedPacketDeserializer(_BaseAutoParsedPacket, NetworkPacketIncrementalDeserializer[_T_co]):
+class AutoParsedPacketDeserializer(_BaseAutoParsedPacket, NetworkPacketIncrementalDeserializer[_DT_co]):
     @abstractmethod
-    def deserialize(self, data: bytes) -> _T_co:
+    def deserialize(self, data: bytes) -> _DT_co:
         raise NotImplementedError
 
     @final
-    def incremental_deserialize(self) -> Generator[None, bytes, tuple[_T_co, bytes]]:
+    def incremental_deserialize(self) -> Generator[None, bytes, tuple[_DT_co, bytes]]:
         header_struct: Struct = self.header
         header: bytes = yield
         while True:
@@ -249,7 +249,7 @@ class AutoParsedPacketDeserializer(_BaseAutoParsedPacket, NetworkPacketIncrement
                         data_with_error=data,
                     ) from exc
                 try:
-                    packet: _T_co = self.deserialize(body)
+                    packet: _DT_co = self.deserialize(body)
                 except ValidationError as exc:
                     raise IncrementalDeserializeError(
                         f"Error when deserializing data: {exc}",
@@ -262,10 +262,10 @@ class AutoParsedPacketDeserializer(_BaseAutoParsedPacket, NetworkPacketIncrement
 
 
 class AutoParsedStreamNetworkProtocol(
-    AutoParsedPacketSerializer[_T_contra],
-    AutoParsedPacketDeserializer[_T_co],
-    StreamNetworkProtocol[_T_contra, _T_co],
-    Generic[_T_contra, _T_co],
+    AutoParsedPacketSerializer[_ST_contra],
+    AutoParsedPacketDeserializer[_DT_co],
+    StreamNetworkProtocol[_ST_contra, _DT_co],
+    Generic[_ST_contra, _DT_co],
 ):
     pass
 
@@ -284,26 +284,26 @@ class _BaseFixedPacketSize(metaclass=ProtocolObjectMeta):
         return self.__size
 
 
-class FixedPacketSizeSerializer(_BaseFixedPacketSize, NetworkPacketIncrementalSerializer[_T_contra]):
+class FixedPacketSizeSerializer(_BaseFixedPacketSize, NetworkPacketIncrementalSerializer[_ST_contra]):
     @abstractmethod
-    def serialize(self, packet: _T_contra) -> bytes:
+    def serialize(self, packet: _ST_contra) -> bytes:
         raise NotImplementedError
 
     @final
-    def incremental_serialize(self, packet: _T_contra) -> Generator[bytes, None, None]:
+    def incremental_serialize(self, packet: _ST_contra) -> Generator[bytes, None, None]:
         data = self.serialize(packet)
         if len(data) != self.packet_size:
             raise ValidationError("serialized data size does not meet expectation")
         yield data
 
 
-class FixedPacketSizeDeserializer(_BaseFixedPacketSize, NetworkPacketIncrementalDeserializer[_T_co]):
+class FixedPacketSizeDeserializer(_BaseFixedPacketSize, NetworkPacketIncrementalDeserializer[_DT_co]):
     @abstractmethod
-    def deserialize(self, data: bytes) -> _T_co:
+    def deserialize(self, data: bytes) -> _DT_co:
         raise NotImplementedError
 
     @final
-    def incremental_deserialize(self) -> Generator[None, bytes, tuple[_T_co, bytes]]:
+    def incremental_deserialize(self) -> Generator[None, bytes, tuple[_DT_co, bytes]]:
         buffer: bytes = b""
         packet_size: int = self.packet_size
         while len(buffer) < packet_size:
@@ -321,22 +321,22 @@ class FixedPacketSizeDeserializer(_BaseFixedPacketSize, NetworkPacketIncremental
 
 
 class FixedPacketSizeStreamNetworkProtocol(
-    FixedPacketSizeSerializer[_T_contra],
-    FixedPacketSizeDeserializer[_T_co],
-    StreamNetworkProtocol[_T_contra, _T_co],
-    Generic[_T_contra, _T_co],
+    FixedPacketSizeSerializer[_ST_contra],
+    FixedPacketSizeDeserializer[_DT_co],
+    StreamNetworkProtocol[_ST_contra, _DT_co],
+    Generic[_ST_contra, _DT_co],
 ):
     pass
 
 
 @final
-class StreamNetworkPacketProducer(Iterator[bytes], Generic[_T_contra], Object):
+class StreamNetworkPacketProducer(Iterator[bytes], Generic[_ST_contra], Object):
     __slots__ = ("__s", "__q", "__cv")
 
-    def __init__(self, serializer: NetworkPacketIncrementalSerializer[_T_contra], *, lock: RLock | None = None) -> None:
+    def __init__(self, serializer: NetworkPacketIncrementalSerializer[_ST_contra], *, lock: RLock | None = None) -> None:
         super().__init__()
         assert isinstance(serializer, NetworkPacketIncrementalSerializer)
-        self.__s: NetworkPacketIncrementalSerializer[_T_contra] = serializer
+        self.__s: NetworkPacketIncrementalSerializer[_ST_contra] = serializer
         self.__q: deque[Generator[bytes, None, None]] = deque()
         self.__cv: Condition = Condition(lock)
 
@@ -368,7 +368,7 @@ class StreamNetworkPacketProducer(Iterator[bytes], Generic[_T_contra], Object):
         with self.__cv:
             return b"".join(list(self))
 
-    def queue(self, *packets: _T_contra) -> None:
+    def queue(self, *packets: _ST_contra) -> None:
         if not packets:
             return
         with self.__cv:
@@ -377,23 +377,23 @@ class StreamNetworkPacketProducer(Iterator[bytes], Generic[_T_contra], Object):
 
 
 @final
-class StreamNetworkPacketWriter(Generic[_T_contra], Object):
+class StreamNetworkPacketWriter(Generic[_ST_contra], Object):
     __slots__ = ("__s", "__f", "__lock")
 
     def __init__(
         self,
         file: IOBase | IO[bytes],
-        serializer: NetworkPacketIncrementalSerializer[_T_contra],
+        serializer: NetworkPacketIncrementalSerializer[_ST_contra],
         *,
         lock: RLock | None = None,
     ) -> None:
         super().__init__()
         assert isinstance(serializer, NetworkPacketIncrementalSerializer)
         self.__f: IOBase | IO[bytes] = file
-        self.__s: NetworkPacketIncrementalSerializer[_T_contra] = serializer
+        self.__s: NetworkPacketIncrementalSerializer[_ST_contra] = serializer
         self.__lock: RLock = lock or RLock()
 
-    def write(self, packet: _T_contra) -> None:
+    def write(self, packet: _ST_contra) -> None:
         with self.__lock:
             return self.__s.incremental_serialize_to(self.__f, packet)
 
@@ -406,18 +406,18 @@ class StreamNetworkPacketWriter(Generic[_T_contra], Object):
 
 
 @final
-class StreamNetworkDataConsumer(Iterator[_T_co], Generic[_T_co], Object):
+class StreamNetworkDataConsumer(Iterator[_DT_co], Generic[_DT_co], Object):
     __slots__ = ("__d", "__b", "__c", "__cv")
 
-    def __init__(self, deserializer: NetworkPacketIncrementalDeserializer[_T_co], *, lock: RLock | None = None) -> None:
+    def __init__(self, deserializer: NetworkPacketIncrementalDeserializer[_DT_co], *, lock: RLock | None = None) -> None:
         super().__init__()
         assert isinstance(deserializer, NetworkPacketIncrementalDeserializer)
-        self.__d: NetworkPacketIncrementalDeserializer[_T_co] = deserializer
-        self.__c: Generator[None, bytes, tuple[_T_co, bytes]] | None = None
+        self.__d: NetworkPacketIncrementalDeserializer[_DT_co] = deserializer
+        self.__c: Generator[None, bytes, tuple[_DT_co, bytes]] | None = None
         self.__b: bytes = b""
         self.__cv: Condition = Condition(lock)
 
-    def __next__(self, *, wait: bool = False, timeout: float | None = None) -> _T_co:
+    def __next__(self, *, wait: bool = False, timeout: float | None = None) -> _DT_co:
         with self.__cv:
             while True:
                 chunk, self.__b = self.__b, b""
@@ -426,7 +426,7 @@ class StreamNetworkDataConsumer(Iterator[_T_co], Generic[_T_co], Object):
                     if consumer is None:
                         consumer = self.__d.incremental_deserialize()
                         consumer_start(consumer)
-                    packet: _T_co
+                    packet: _DT_co
                     try:
                         packet, chunk = send_return(consumer, chunk)
                     except IncrementalDeserializeError as exc:
@@ -442,13 +442,13 @@ class StreamNetworkDataConsumer(Iterator[_T_co], Generic[_T_co], Object):
                 self.__cv.wait_for(lambda: self.__b, timeout=timeout)
             raise StopIteration
 
-    def wait(self, timeout: float | None = None) -> _T_co:
+    def wait(self, timeout: float | None = None) -> _DT_co:
         try:
             return self.__next__(wait=True, timeout=timeout)
         except StopIteration:
             raise TimeoutError from None
 
-    def oneshot(self) -> list[_T_co]:
+    def oneshot(self) -> list[_DT_co]:
         with self.__cv:
             return list(self)
 

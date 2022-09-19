@@ -27,30 +27,30 @@ from .stream import (
     StreamNetworkProtocol,
 )
 
-_T_co = TypeVar("_T_co", covariant=True)
-_T_contra = TypeVar("_T_contra", contravariant=True)
+_ST_contra = TypeVar("_ST_contra", contravariant=True)
+_DT_co = TypeVar("_DT_co", covariant=True)
 
 
 @concreteclass
-class JSONPacketSerializer(NetworkPacketIncrementalSerializer[_T_contra]):
+class JSONPacketSerializer(NetworkPacketIncrementalSerializer[_ST_contra]):
     def __init__(self) -> None:
         super().__init__()
 
     @final
-    def serialize(self, packet: _T_contra) -> bytes:
+    def serialize(self, packet: _ST_contra) -> bytes:
         encoder = self.get_encoder()
         encoding: str = "ascii" if encoder.ensure_ascii else "utf-8"
         return encoder.encode(packet).encode(encoding)
 
     @final
-    def incremental_serialize(self, packet: _T_contra) -> Generator[bytes, None, None]:
+    def incremental_serialize(self, packet: _ST_contra) -> Generator[bytes, None, None]:
         encoder = self.get_encoder()
         encoding: str = "ascii" if encoder.ensure_ascii else "utf-8"
         for chunk in encoder.iterencode(packet):
             yield chunk.encode(encoding)
 
     @final
-    def incremental_serialize_to(self, file: IOBase | IO[bytes], packet: _T_contra) -> None:
+    def incremental_serialize_to(self, file: IOBase | IO[bytes], packet: _ST_contra) -> None:
         return NetworkPacketIncrementalSerializer.incremental_serialize_to(self, file, packet)
 
     def get_encoder(self) -> JSONEncoder:
@@ -66,25 +66,25 @@ class JSONPacketSerializer(NetworkPacketIncrementalSerializer[_T_contra]):
 
 
 @concreteclass
-class JSONPacketDeserializer(NetworkPacketIncrementalDeserializer[_T_co]):
+class JSONPacketDeserializer(NetworkPacketIncrementalDeserializer[_DT_co]):
     def __init__(self) -> None:
         super().__init__()
 
     @final
-    def deserialize(self, data: bytes) -> _T_co:
+    def deserialize(self, data: bytes) -> _DT_co:
         try:
             document: str = data.decode(encoding="utf-8")
         except UnicodeDecodeError as exc:
             raise ValidationError("Unicode decode error") from exc
         decoder = self.get_decoder()
         try:
-            packet: _T_co = decoder.decode(document)
+            packet: _DT_co = decoder.decode(document)
         except JSONDecodeError as exc:
             raise ValidationError("JSON decode error") from exc
         return packet
 
     @final
-    def incremental_deserialize(self) -> Generator[None, bytes, tuple[_T_co, bytes]]:
+    def incremental_deserialize(self) -> Generator[None, bytes, tuple[_DT_co, bytes]]:
         import struct
 
         def escaped(partial_document: bytes) -> bool:
@@ -128,7 +128,7 @@ class JSONPacketDeserializer(NetworkPacketIncrementalDeserializer[_T_co]):
                         partial_document = chunk[nb_chars:]
                         break
             decoder = self.get_decoder()
-            packet: _T_co
+            packet: _DT_co
             try:
                 document: str = complete_document.decode(encoding)
             except UnicodeDecodeError as exc:
@@ -153,9 +153,9 @@ class JSONPacketDeserializer(NetworkPacketIncrementalDeserializer[_T_co]):
 
 @concreteclass
 class JSONNetworkProtocol(
-    JSONPacketSerializer[_T_contra],
-    JSONPacketDeserializer[_T_co],
-    StreamNetworkProtocol[_T_contra, _T_co],
-    Generic[_T_contra, _T_co],
+    JSONPacketSerializer[_ST_contra],
+    JSONPacketDeserializer[_DT_co],
+    StreamNetworkProtocol[_ST_contra, _DT_co],
+    Generic[_ST_contra, _DT_co],
 ):
     pass

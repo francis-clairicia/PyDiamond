@@ -12,34 +12,24 @@ __all__ = [
     "EncryptorPacketSerializer",
 ]
 
-from typing import Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 from typing_extensions import assert_never
 
-from ...system.object import final
-from ...system.utils.abc import concreteclass
-from .abc import (
-    GenericNetworkPacketDeserializerWrapper,
-    GenericNetworkPacketSerializerWrapper,
-    GenericNetworkProtocolWrapper,
-    NetworkPacketDeserializer,
-    NetworkPacketSerializer,
-    NetworkProtocol,
-    ValidationError,
-)
-from .stream import (
+from ....system.object import final
+from ....system.utils.abc import concreteclass
+from ..abc import NetworkPacketDeserializer, NetworkPacketSerializer, NetworkProtocol, ValidationError
+from ..stream import (
     AutoSeparatedPacketDeserializer,
     AutoSeparatedPacketSerializer,
     StreamNetworkProtocol,
     _BaseAutoSeparatedPacket,
 )
+from .generic import GenericNetworkPacketDeserializerWrapper, GenericNetworkPacketSerializerWrapper
 
-_T_co = TypeVar("_T_co", covariant=True)
-_T_contra = TypeVar("_T_contra", contravariant=True)
-_SP = TypeVar("_SP", bound=NetworkPacketSerializer[Any])
-_DP = TypeVar("_DP", bound=NetworkPacketDeserializer[Any])
-_P = TypeVar("_P", bound=NetworkProtocol[Any, Any])
+_ST_contra = TypeVar("_ST_contra", contravariant=True)
+_DT_co = TypeVar("_DT_co", covariant=True)
 
 
 class _BaseEncryptor(_BaseAutoSeparatedPacket):
@@ -65,45 +55,50 @@ class _BaseEncryptor(_BaseAutoSeparatedPacket):
 @concreteclass
 class EncryptorPacketSerializer(
     _BaseEncryptor,
-    GenericNetworkPacketSerializerWrapper[_T_contra, _SP],
-    AutoSeparatedPacketSerializer[_T_contra],
-    Generic[_T_contra, _SP],
+    GenericNetworkPacketSerializerWrapper[_ST_contra],
+    AutoSeparatedPacketSerializer[_ST_contra],
+    Generic[_ST_contra],
 ):
-    def __init__(self, protocol: _SP, key: str | bytes | Fernet | MultiFernet) -> None:
+    def __init__(self, protocol: NetworkPacketSerializer[_ST_contra], key: str | bytes | Fernet | MultiFernet) -> None:
         super().__init__(protocol=protocol, key=key)
 
     @final
-    def serialize(self, packet: _T_contra) -> bytes:
+    def serialize(self, packet: _ST_contra) -> bytes:
         return self.key.encrypt(self.protocol.serialize(packet))
 
 
 @concreteclass
 class EncryptorPacketDeserializer(
     _BaseEncryptor,
-    GenericNetworkPacketDeserializerWrapper[_T_co, _DP],
-    AutoSeparatedPacketDeserializer[_T_co],
-    Generic[_T_co, _DP],
+    GenericNetworkPacketDeserializerWrapper[_DT_co],
+    AutoSeparatedPacketDeserializer[_DT_co],
+    Generic[_DT_co],
 ):
-    def __init__(self, protocol: _DP, key: str | bytes | Fernet | MultiFernet) -> None:
+    def __init__(self, protocol: NetworkPacketDeserializer[_DT_co], key: str | bytes | Fernet | MultiFernet) -> None:
         super().__init__(protocol=protocol, key=key)
 
     @final
-    def deserialize(self, data: bytes) -> _T_co:
+    def deserialize(self, data: bytes) -> _DT_co:
         try:
             data = self.key.decrypt(data)
         except InvalidToken as exc:
             raise ValidationError("Invalid token") from exc
-        packet: _T_co = self.protocol.deserialize(data)
+        packet: _DT_co = self.protocol.deserialize(data)
         return packet
 
 
 @concreteclass
 class EncryptorNetworkProtocol(
-    GenericNetworkProtocolWrapper[_T_contra, _T_co, _P],
-    EncryptorPacketSerializer[_T_contra, _P],
-    EncryptorPacketDeserializer[_T_co, _P],
-    StreamNetworkProtocol[_T_contra, _T_co],
-    Generic[_T_contra, _T_co, _P],
+    EncryptorPacketSerializer[_ST_contra],
+    EncryptorPacketDeserializer[_DT_co],
+    StreamNetworkProtocol[_ST_contra, _DT_co],
+    Generic[_ST_contra, _DT_co],
 ):
-    def __init__(self, protocol: _P, key: str | bytes | Fernet | MultiFernet) -> None:
+    def __init__(self, protocol: NetworkProtocol[_ST_contra, _DT_co], key: str | bytes | Fernet | MultiFernet) -> None:
         super().__init__(protocol=protocol, key=key)
+
+    if TYPE_CHECKING:
+
+        @property
+        def protocol(self) -> NetworkProtocol[_ST_contra, _DT_co]:
+            ...

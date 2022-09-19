@@ -24,8 +24,8 @@ from .stream import (
     _BaseFixedPacketSize,
 )
 
-_T_co = TypeVar("_T_co", covariant=True)
-_T_contra = TypeVar("_T_contra", contravariant=True)
+_ST_contra = TypeVar("_ST_contra", contravariant=True)
+_DT_co = TypeVar("_DT_co", covariant=True)
 
 
 class _BaseStructPacket(_BaseFixedPacketSize):
@@ -41,16 +41,16 @@ class _BaseStructPacket(_BaseFixedPacketSize):
         return self.__s
 
 
-class AbstractStructPacketSerializer(_BaseStructPacket, FixedPacketSizeSerializer[_T_contra]):
+class AbstractStructPacketSerializer(_BaseStructPacket, FixedPacketSizeSerializer[_ST_contra]):
     def __init__(self, format: str) -> None:
         super().__init__(format)
 
     @abstractmethod
-    def to_tuple(self, packet: _T_contra) -> tuple[Any, ...]:
+    def to_tuple(self, packet: _ST_contra) -> tuple[Any, ...]:
         raise NotImplementedError
 
     @final
-    def serialize(self, packet: _T_contra) -> bytes:
+    def serialize(self, packet: _ST_contra) -> bytes:
         tuple_value = self.to_tuple(packet)
         try:
             return self.struct.pack(*tuple_value)
@@ -58,16 +58,16 @@ class AbstractStructPacketSerializer(_BaseStructPacket, FixedPacketSizeSerialize
             raise ValidationError("Invalid value") from exc
 
 
-class AbstractStructPacketDeserializer(_BaseStructPacket, FixedPacketSizeDeserializer[_T_co]):
+class AbstractStructPacketDeserializer(_BaseStructPacket, FixedPacketSizeDeserializer[_DT_co]):
     def __init__(self, format: str) -> None:
         super().__init__(format)
 
     @abstractmethod
-    def from_tuple(self, t: tuple[Any, ...]) -> _T_co:
+    def from_tuple(self, t: tuple[Any, ...]) -> _DT_co:
         raise NotImplementedError
 
     @final
-    def deserialize(self, data: bytes) -> _T_co:
+    def deserialize(self, data: bytes) -> _DT_co:
         try:
             packet_tuple: tuple[Any, ...] = self.struct.unpack(data)
         except StructError as exc:
@@ -76,9 +76,9 @@ class AbstractStructPacketDeserializer(_BaseStructPacket, FixedPacketSizeDeseria
 
 
 class AbstractStructNetworkProtocol(
-    AbstractStructPacketSerializer[_T_contra],
-    AbstractStructPacketDeserializer[_T_co],
-    FixedPacketSizeStreamNetworkProtocol[_T_contra, _T_co],
-    Generic[_T_contra, _T_co],
+    AbstractStructPacketSerializer[_ST_contra],
+    AbstractStructPacketDeserializer[_DT_co],
+    FixedPacketSizeStreamNetworkProtocol[_ST_contra, _DT_co],
+    Generic[_ST_contra, _DT_co],
 ):
     pass

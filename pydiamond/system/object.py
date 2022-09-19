@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING, Any, Callable, TypeVar, overload
 
 from typing_extensions import final
 
+from .utils.abc import isabstractmethod
+
 _T = TypeVar("_T")
 
 
@@ -85,7 +87,14 @@ class ObjectMeta(ABCMeta):
                 for actual_base in bases_mro
                 if method_name in bases_final_methods_dict.get(actual_base, ())
                 for base in chain(
-                    takewhile(lambda base: base is not actual_base, (base for base in bases_mro if method_name in vars(base))),
+                    takewhile(
+                        lambda base: base is not actual_base,
+                        (
+                            base
+                            for base in bases_mro
+                            if method_name in vars(base) and not isabstractmethod(vars(base)[method_name])
+                        ),
+                    ),
                     [actual_base],
                 )
             }

@@ -28,9 +28,7 @@ def test_json_protocol() -> None:
 
 def test_secured_protocol() -> None:
     key: bytes = Fernet.generate_key()
-    protocol: EncryptorNetworkProtocol[Any, Any, JSONNetworkProtocol[Any, Any]] = EncryptorNetworkProtocol(
-        JSONNetworkProtocol(), key
-    )
+    protocol: EncryptorNetworkProtocol[Any, Any] = EncryptorNetworkProtocol(JSONNetworkProtocol(), key)
     d: bytes = protocol.serialize({"key": [1, 2], "value": True})
     assert d != b'{"key":[1,2],"value":true}'
     assert protocol.key.decrypt(d) == b'{"key":[1,2],"value":true}'
