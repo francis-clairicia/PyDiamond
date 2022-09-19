@@ -61,9 +61,9 @@ __all__ = [
 
 import weakref
 from abc import abstractmethod
-from collections import defaultdict
+from collections import ChainMap, defaultdict
 from dataclasses import dataclass, fields
-from enum import IntEnum, unique
+from enum import IntEnum, auto, unique
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, Final, Generic, Mapping, Sequence, TypeAlias, TypeVar, cast, overload
 
@@ -71,7 +71,7 @@ import pygame.constants as _pg_constants
 import pygame.event as _pg_event
 from pygame.mixer import music as _pg_music
 
-from ..system.collections import ChainMapProxy, OrderedSet, OrderedWeakSet
+from ..system.collections import OrderedSet, OrderedWeakSet
 from ..system.namespace import ClassNamespaceMeta
 from ..system.object import Object, ObjectMeta, final
 from ..system.utils.abc import isabstractclass
@@ -193,8 +193,12 @@ class _BuiltinEventMeta(EventMeta):
         mcs.__associations[event_cls] = event_type
         mcs.__type[event_type] = event_cls
         if event_name:
-            event_name_dispatch_table: dict[int, str] = getattr(_pg_event.event_name, "__event_name_dispatch_table__")
-            event_name_dispatch_table[int(event_type)] = event_name
+            try:
+                event_name_dispatch_table: dict[int, str] = getattr(_pg_event.event_name, "__event_name_dispatch_table__")
+            except AttributeError:
+                pass
+            else:
+                event_name_dispatch_table[int(event_type)] = event_name
         return cls
 
 
@@ -213,6 +217,10 @@ class Event(Object, metaclass=EventMeta):
 
 @unique
 class BuiltinEventType(IntEnum):
+    @staticmethod
+    def _generate_next_value_(name: str, start: int, count: int, last_values: list[Any]) -> Any:
+        return _pg_event.custom_type()
+
     # pygame's built-in events
     KEYDOWN = _pg_constants.KEYDOWN
     KEYUP = _pg_constants.KEYUP
@@ -251,7 +259,7 @@ class BuiltinEventType(IntEnum):
 
     # PyDiamond's events
     MUSICEND = _pg_music.get_endevent()
-    SCREENSHOT = _pg_event.custom_type()
+    SCREENSHOT = auto()
 
     def __repr__(self) -> str:
         return f"<{self.name} ({self.pygame_name}): {self.value}>"
@@ -406,6 +414,7 @@ TextEvent: TypeAlias = TextEditingEvent | TextInputEvent
 
 
 @final
+@dataclass(init=False)
 class UserEvent(BuiltinEvent, event_type=BuiltinEventType.USEREVENT):
     code: int = 0
 
@@ -423,7 +432,7 @@ class UserEvent(BuiltinEvent, event_type=BuiltinEventType.USEREVENT):
         return cls(**event_dict)
 
     def to_dict(self) -> dict[str, Any]:
-        return self.__dict__.copy()
+        return self.__dict__ | super().to_dict()
 
 
 @final
@@ -573,12 +582,8 @@ class UnknownEventTypeError(EventFactoryError):
 
 @final
 class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
-    associations: Final[Mapping[type[Event], int]] = ChainMapProxy(
-        MappingProxyType(_BUILTIN_ASSOCIATIONS), MappingProxyType(_ASSOCIATIONS)
-    )
-    pygame_type: Final[Mapping[int, type[Event]]] = ChainMapProxy(
-        MappingProxyType(_BUILTIN_PYGAME_EVENT_TYPE), MappingProxyType(_PYGAME_EVENT_TYPE)
-    )
+    associations: Final[Mapping[type[Event], int]] = MappingProxyType(ChainMap(_BUILTIN_ASSOCIATIONS, _ASSOCIATIONS))
+    pygame_type: Final[Mapping[int, type[Event]]] = MappingProxyType(ChainMap(_BUILTIN_PYGAME_EVENT_TYPE, _PYGAME_EVENT_TYPE))
 
     NUMEVENTS: Final[int] = _pg_constants.NUMEVENTS
     NON_BLOCKABLE_EVENTS: Final[frozenset[int]] = frozenset(map(int, getattr(_pg_event.set_blocked, "__forbidden_events__", ())))
