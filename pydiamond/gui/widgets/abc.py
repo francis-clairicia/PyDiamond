@@ -8,8 +8,6 @@ from __future__ import annotations
 
 __all__ = ["AbstractWidget"]
 
-
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from ...audio.sound import Sound
@@ -19,8 +17,8 @@ from ...window.display import Window
 from ...window.event import Event, KeyDownEvent, KeyEvent, KeyUpEvent, MouseButtonUpEvent
 from ...window.keyboard import Key
 from ...window.scene import Scene
-from ..focus import BoundFocus, BoundFocusMode
-from ..scene import GUIScene
+from ..focus import BoundFocus
+from ..scene import FocusMode, GUIScene
 
 
 class AbstractWidget(Clickable):
@@ -53,7 +51,8 @@ class AbstractWidget(Clickable):
             disabled_cursor=disabled_cursor,
             **kwargs,
         )
-        self.focus.take(take_focus)
+        self.__focus = BoundFocus(self, self.scene)
+        self.__focus.take(take_focus)
         self.event.bind(KeyDownEvent, lambda self, event: self.__handle_key_press_event(event, focus_handle_event=False))
         self.event.bind(KeyUpEvent, lambda self, event: self.__handle_key_press_event(event, focus_handle_event=False))
 
@@ -145,7 +144,7 @@ class AbstractWidget(Clickable):
         return key in (Key.K_RETURN, Key.K_KP_ENTER)
 
     def _should_ignore_mouse_position(self, mouse_pos: tuple[float, float]) -> bool:
-        return super()._should_ignore_mouse_position(mouse_pos) or self.focus.get_mode() == BoundFocusMode.KEY
+        return super()._should_ignore_mouse_position(mouse_pos) or self.focus.get_mode() == FocusMode.KEY
 
     def _focus_handle_event(self, event: Event) -> bool:
         if isinstance(event, (KeyUpEvent, KeyDownEvent)) and self.__handle_key_press_event(event, focus_handle_event=True):
@@ -154,9 +153,9 @@ class AbstractWidget(Clickable):
 
     def _focus_update(self) -> None:
         match self.focus.get_mode():
-            case BoundFocusMode.KEY:
+            case FocusMode.KEY:
                 self.hover = self.focus.has()
-            case BoundFocusMode.MOUSE if self.__focus_on_hover and self.hover and not self.focus.has():
+            case FocusMode.MOUSE if self.__focus_on_hover and self.hover and not self.focus.has():
                 self.focus.set()
 
     def _on_valid_click(self, event: KeyUpEvent | MouseButtonUpEvent) -> None:
@@ -190,6 +189,6 @@ class AbstractWidget(Clickable):
         def master(self) -> AbstractWidget | Clickable | Scene | Window:
             ...
 
-    @cached_property
+    @property
     def focus(self) -> BoundFocus:
-        return BoundFocus(self, self.scene)
+        return self.__focus

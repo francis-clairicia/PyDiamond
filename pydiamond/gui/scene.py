@@ -6,27 +6,24 @@
 
 from __future__ import annotations
 
-__all__ = [
-    "FocusableContainer",
-    "GUIScene",
-]
+__all__ = ["GUIScene"]
 
 import weakref
+from enum import auto, unique
 from types import MappingProxyType
-from typing import Any, Callable, Final, Iterator, Literal, Mapping, Sequence, overload
+from typing import Any, Callable, ClassVar, Final, Iterator, Literal, Mapping, Sequence, overload
 
 from ..system.collections import OrderedWeakSet
+from ..system.enum import AutoLowerNameEnum
 from ..system.object import final
 from ..system.theme import no_theme_decorator
 from ..system.utils.weakref import weakref_unwrap
 from ..window.event import (
     Event,
     KeyDownEvent,
-    KeyEvent,
     KeyUpEvent,
     MouseButtonDownEvent,
     MouseButtonUpEvent,
-    MouseEvent,
     MouseMotionEvent,
     MouseWheelEvent,
 )
@@ -34,30 +31,42 @@ from ..window.keyboard import Key, KeyModifiers
 from ..window.scene import Scene
 
 
+@unique
+class FocusMode(AutoLowerNameEnum):
+    NONE = str()
+    KEY = auto()
+    MOUSE = auto()
+
+
 class GUIScene(Scene):
+    __mode: ClassVar[FocusMode] = FocusMode.MOUSE
+
     def __init__(self) -> None:
         super().__init__()
-        self.__container: FocusableContainer = FocusableContainer(self)
+        self.__container: _FocusableContainer = _FocusableContainer(self)
         self.__focus_index: int = -1
-        set_focus_mode_key: Callable[[KeyEvent], None] = lambda _: BoundFocus.set_mode(BoundFocusMode.KEY)
-        set_focus_mode_mouse: Callable[[MouseEvent], None] = lambda _: BoundFocus.set_mode(BoundFocusMode.MOUSE)
-        self.event.bind(KeyDownEvent, set_focus_mode_key)
-        self.event.bind(KeyUpEvent, set_focus_mode_key)
-        self.event.bind(MouseButtonDownEvent, set_focus_mode_mouse)
-        self.event.bind(MouseButtonUpEvent, set_focus_mode_mouse)
-        self.event.bind(MouseMotionEvent, set_focus_mode_mouse)
-        self.event.bind(MouseWheelEvent, set_focus_mode_mouse)
 
     def update(self) -> None:
         super().update()
         self.__container.update()
 
     def handle_event(self, event: Event) -> bool:
+        match event:
+            case KeyDownEvent() | KeyUpEvent():
+                GUIScene.__mode = FocusMode.KEY
+            case MouseButtonDownEvent() | MouseButtonUpEvent() | MouseMotionEvent() | MouseWheelEvent():
+                GUIScene.__mode = FocusMode.MOUSE
+
         return (
             ((obj := self.focus_get()) is not None and obj._focus_handle_event(event))
             or super().handle_event(event)
             or (isinstance(event, KeyDownEvent) and self.__handle_key_event(event))  # Must be handled after event manager
         )
+
+    @staticmethod
+    @final
+    def focus_mode() -> FocusMode:
+        return GUIScene.__mode
 
     @no_theme_decorator
     def focus_get(self) -> SupportsFocus | None:
@@ -201,11 +210,11 @@ class GUIScene(Scene):
 
     @property
     @final
-    def _focus_container(self) -> FocusableContainer:
+    def _focus_container(self) -> _FocusableContainer:
         return self.__container
 
 
-from .focus import BoundFocus, BoundFocusMode, BoundFocusSide, SupportsFocus  # Import here because of circular import
+from .focus import BoundFocus, BoundFocusSide, SupportsFocus  # Import here because of circular import
 
 _SIDE_WITH_KEY_EVENT: Final[MappingProxyType[int, BoundFocusSide]] = MappingProxyType(
     {
@@ -217,7 +226,7 @@ _SIDE_WITH_KEY_EVENT: Final[MappingProxyType[int, BoundFocusSide]] = MappingProx
 )
 
 
-class FocusableContainer(Sequence[SupportsFocus]):
+class _FocusableContainer(Sequence[SupportsFocus]):
 
     __slots__ = ("__master", "__list")
 

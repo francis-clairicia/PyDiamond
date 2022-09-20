@@ -26,7 +26,7 @@ from ...system.validation import valid_integer, valid_optional_float, valid_opti
 from ...window.cursor import SystemCursor
 from ...window.event import KeyDownEvent, TextInputEvent
 from ...window.keyboard import Key, Keyboard
-from ..focus import BoundFocusMode
+from ..scene import FocusMode
 from .abc import AbstractWidget
 
 if TYPE_CHECKING:
@@ -270,7 +270,7 @@ class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta)
         self.__insert_mode = False
 
     def invoke(self) -> None:
-        if self.focus.get_mode() == BoundFocusMode.MOUSE:
+        if self.focus.get_mode() == FocusMode.MOUSE:
             self.start_edit()
 
     def _on_focus_set(self) -> None:
@@ -299,7 +299,7 @@ class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta)
     def __edit(self) -> bool:
         if not self.__start_edit:
             return False
-        if self.focus.get_mode() == BoundFocusMode.KEY:
+        if self.focus.get_mode() == FocusMode.KEY:
             if self.focus.has():
                 Keyboard.IME.start_text_input()
             else:

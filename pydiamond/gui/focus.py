@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = [
     "BoundFocus",
-    "BoundFocusMode",
     "BoundFocusSide",
     "NoFocusSupportError",
     "SupportsFocus",
@@ -17,7 +16,7 @@ __all__ = [
 import weakref
 from abc import abstractmethod
 from enum import auto, unique
-from typing import Callable, ClassVar, Mapping, Protocol, TypedDict, overload, runtime_checkable
+from typing import Callable, Mapping, Protocol, TypedDict, overload, runtime_checkable
 
 from ..system.enum import AutoLowerNameEnum
 from ..system.utils.functools import setdefaultattr
@@ -65,20 +64,12 @@ class BoundFocusSide(AutoLowerNameEnum):
     ON_RIGHT = auto()
 
 
-@unique
-class BoundFocusMode(AutoLowerNameEnum):
-    KEY = auto()
-    MOUSE = auto()
-
-
 class BoundFocus:
-    __mode: ClassVar[BoundFocusMode] = BoundFocusMode.MOUSE
-
     __slots__ = ("__f", "__scene")
 
     def __init__(self, focusable: SupportsFocus, scene: Scene | None) -> None:
         if not isinstance(focusable, _HasFocusMethods):
-            raise NoFocusSupportError(repr(focusable))
+            raise NoFocusSupportError(focusable)
         self.__f: weakref.ref[SupportsFocus] = weakref.ref(focusable)
         if scene is not None and not isinstance(scene, Scene):
             raise TypeError(f"Must be a Scene or None, got {scene.__class__.__name__!r}")
@@ -90,11 +81,8 @@ class BoundFocus:
     def is_bound_to(self, scene: GUIScene) -> bool:
         return (bound_scene := self.__scene) is not None and bound_scene is scene
 
-    def get(self) -> SupportsFocus | None:
-        return scene.focus_get() if (scene := self.__scene) else None
-
     def has(self) -> bool:
-        return self.get() is self.__self__
+        return (scene.focus_get() if (scene := self.__scene) else None) is self.__self__
 
     @overload
     def take(self, status: bool) -> None:
@@ -237,17 +225,12 @@ class BoundFocus:
         list_callback: list[Callable[[], None]] = setdefaultattr(f, "_focus_leave_callbacks_", [])
         list_callback.remove(callback)
 
-    @classmethod
-    def get_mode(cls) -> BoundFocusMode:
-        return cls.__mode
-
-    @classmethod
-    def set_mode(cls, mode: BoundFocusMode) -> None:
-        cls.__mode = BoundFocusMode(mode)
+    def get_mode(self) -> FocusMode:
+        return scene.focus_mode() if (scene := self.__scene) else FocusMode.NONE
 
     @property
     def __self__(self) -> SupportsFocus:
         return weakref_unwrap(self.__f)
 
 
-from .scene import GUIScene  # Import at last because of circular import
+from .scene import FocusMode, GUIScene  # Import at last because of circular import
