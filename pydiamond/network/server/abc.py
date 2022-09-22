@@ -450,13 +450,15 @@ class _SelectorKeyData(Generic[_RequestT, _ResponseT]):
 
 class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _ResponseT]):
     __slots__ = (
-        "__client",
+        "__socket",
+        "__server",
         "__addr",
         "__lock",
         "__loop",
         "__is_shutdown",
         "__is_shutdown",
         "__flags",
+        "__protocol_cls",
     )
 
     def __init__(
@@ -479,13 +481,15 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
             reuse_port=reuse_port,
             dualstack_ipv6=False,
         )
-        self.__client: UDPNetworkClient[_ResponseT, _RequestT] = UDPNetworkClient(socket, protocol=protocol, give=True)
-        self.__addr: SocketAddress = self.__client.getsockname()
+        self.__socket: Socket = socket
+        self.__server: UDPNetworkClient[_ResponseT, _RequestT] = UDPNetworkClient(socket, protocol=protocol, give=True)
+        self.__addr: SocketAddress = self.__server.getsockname()
         self.__lock: RLock = RLock()
         self.__loop: bool = False
         self.__is_shutdown: Event = Event()
         self.__is_shutdown.set()
         self.__flags: int = int(flags)
+        self.__protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT] = protocol_cls
         super().__init__()
 
     @dsuppress(KeyboardInterrupt)
@@ -496,21 +500,24 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
             self.__loop = True
             self.__is_shutdown.clear()
 
-        client: UDPNetworkClient[_ResponseT, _RequestT] = self.__client
+        socket: Socket = self.__socket
+        server: UDPNetworkClient[_ResponseT, _RequestT] = self.__server
         ConnectedClient = self.__ConnectedClient
+        protocol_cls = self.__protocol_cls
 
         def parse_requests() -> None:
             flags: int = self.flags
             with self.__lock:
-                for request, address in client.recv_packets(timeout=None, flags=flags):
-                    connected_client = ConnectedClient(client, address, flags)
-                    try:
-                        self._process_request(request, connected_client)
-                    except Exception:
-                        self._handle_error(connected_client)
+                for request, address in server.recv_packets(timeout=None, flags=flags):
+                    with UDPNetworkClient(socket, protocol=protocol_cls(), give=False) as client:
+                        connected_client = ConnectedClient(client, address, flags)
+                        try:
+                            self._process_request(request, connected_client)
+                        except Exception:
+                            self._handle_error(connected_client)
 
         with _Selector() as selector:
-            selector.register(self.__client, EVENT_READ)
+            selector.register(self.__server, EVENT_READ)
             try:
                 while self.running():
                     ready: bool = len(selector.select(poll_interval)) > 0
@@ -526,7 +533,7 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
 
     def server_close(self) -> None:
         with self.__lock:
-            self.__client.close()
+            self.__server.close()
 
     def service_actions(self) -> None:
         pass
