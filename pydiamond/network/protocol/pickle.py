@@ -11,8 +11,6 @@ __all__ = [
     "PicklePacketDeserializer",
     "PicklePacketSerializer",
     "SafePickleNetworkProtocol",
-    "SafePicklePacketDeserializer",
-    "SafePicklePacketSerializer",
 ]
 
 from io import BytesIO, IOBase
@@ -35,7 +33,7 @@ from .stream import (
     NetworkPacketIncrementalSerializer,
     StreamNetworkProtocol,
 )
-from .wrapper.encryptor import EncryptorNetworkProtocol, EncryptorPacketDeserializer, EncryptorPacketSerializer
+from .wrapper.encryptor import EncryptorNetworkProtocol
 
 _ST_contra = TypeVar("_ST_contra", contravariant=True)
 _DT_co = TypeVar("_DT_co", covariant=True)
@@ -119,68 +117,11 @@ class PickleNetworkProtocol(
     pass
 
 
-if TYPE_CHECKING:
-    from .wrapper.generic import _BaseGenericWrapper
-
-
-def _monkeypatch_protocol(self: _BaseGenericWrapper[Any], method_name: str) -> None:
-    def unset_patch(_: Any, _protocol_ref: weakref[Any] = weakref(self.protocol)) -> None:
-        protocol: Any | None = _protocol_ref()
-        if protocol is not None:
-            try:
-                delattr(protocol, method_name)
-            except AttributeError:
-                pass
-
-    selfref: weakref[_BaseGenericWrapper[Any]] = weakref(self, unset_patch)
-
-    def patch(*args: Any, **kwargs: Any) -> Any:
-        self: _BaseGenericWrapper[Any] = weakref_unwrap(selfref)
-        method: Callable[..., Any] = getattr(self, method_name)
-        return method(*args, **kwargs)
-
-    setattr(self.protocol, method_name, patch)
-
-    del self  # Explicitly breaks the reference
-
-
-class SafePicklePacketSerializer(EncryptorPacketSerializer[_ST_contra], Generic[_ST_contra]):
-    def __init__(self, key: str | bytes | Fernet | MultiFernet) -> None:
-        super().__init__(PicklePacketSerializer(), key)
-        _monkeypatch_protocol(self, "get_pickler")
-
-    def get_pickler(self, buffer: IO[bytes]) -> Pickler:
-        protocol: PicklePacketSerializer[Any] = self.protocol
-        return protocol.__class__.get_pickler(protocol, buffer)
-
-    if TYPE_CHECKING:
-
-        @property
-        def protocol(self) -> PicklePacketSerializer[_ST_contra]:
-            ...
-
-
-class SafePicklePacketDeserializer(EncryptorPacketDeserializer[_DT_co], Generic[_DT_co]):
-    def __init__(self, key: str | bytes | Fernet | MultiFernet) -> None:
-        super().__init__(PicklePacketDeserializer(), key)
-        _monkeypatch_protocol(self, "get_unpickler")
-
-    def get_unpickler(self, buffer: IO[bytes]) -> Unpickler:
-        protocol: PicklePacketDeserializer[Any] = self.protocol
-        return protocol.__class__.get_unpickler(protocol, buffer)
-
-    if TYPE_CHECKING:
-
-        @property
-        def protocol(self) -> PicklePacketDeserializer[_DT_co]:
-            ...
-
-
 class SafePickleNetworkProtocol(EncryptorNetworkProtocol[_ST_contra, _DT_co], Generic[_ST_contra, _DT_co]):
     def __init__(self, key: str | bytes | Fernet | MultiFernet) -> None:
         super().__init__(PickleNetworkProtocol(), key)
-        _monkeypatch_protocol(self, "get_pickler")
-        _monkeypatch_protocol(self, "get_unpickler")
+        self.__monkeypatch_protocol("get_pickler")
+        self.__monkeypatch_protocol("get_unpickler")
 
     def get_pickler(self, buffer: IO[bytes]) -> Pickler:
         protocol: PickleNetworkProtocol[Any, Any] = self.protocol
@@ -189,9 +130,30 @@ class SafePickleNetworkProtocol(EncryptorNetworkProtocol[_ST_contra, _DT_co], Ge
     def get_unpickler(self, buffer: IO[bytes]) -> Unpickler:
         protocol: PickleNetworkProtocol[Any, Any] = self.protocol
         return protocol.__class__.get_unpickler(protocol, buffer)
+
+    def __monkeypatch_protocol(self, method_name: str) -> None:
+        def unset_patch(_: Any, _protocol_ref: weakref[Any] = weakref(self.protocol)) -> None:
+            protocol: Any | None = _protocol_ref()
+            if protocol is not None:
+                try:
+                    delattr(protocol, method_name)
+                except AttributeError:
+                    pass
+
+        selfref = weakref(self, unset_patch)
+
+        def patch(*args: Any, **kwargs: Any) -> Any:
+            self = weakref_unwrap(selfref)
+            method: Callable[..., Any] = getattr(self, method_name)
+            return method(*args, **kwargs)
+
+        setattr(self.protocol, method_name, patch)
 
     if TYPE_CHECKING:
 
         @property
         def protocol(self) -> PickleNetworkProtocol[_ST_contra, _DT_co]:
             ...
+
+
+print(SafePickleNetworkProtocol.__mro__)

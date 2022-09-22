@@ -16,8 +16,8 @@ __all__ = [
     "ShutdownFlag",
     "create_connection",
     "create_server",
-    "new_socket_address",
     "guess_best_buffer_size",
+    "new_socket_address",
 ]
 
 import os
