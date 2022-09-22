@@ -17,6 +17,7 @@ __all__ = [
     "create_connection",
     "create_server",
     "new_socket_address",
+    "guess_best_buffer_size",
 ]
 
 import os
@@ -59,6 +60,9 @@ class IPv4SocketAddress(NamedTuple):
     host: str
     port: int
 
+    def __str__(self) -> str:
+        return f"{self.host}:{self.port}"
+
     def for_connection(self) -> tuple[str, int]:
         return self.host, self.port
 
@@ -68,6 +72,9 @@ class IPv6SocketAddress(NamedTuple):
     port: int
     flowinfo: int = 0
     scope_id: int = 0
+
+    def __str__(self) -> str:
+        return f"{self.host}:{self.port}"
 
     def for_connection(self) -> tuple[str, int]:
         return self.host, self.port
@@ -139,6 +146,8 @@ def create_server(
 ) -> _socket.socket:
     family = AddressFamily(family)
     sock: _socket.socket
+    if backlog is not None and backlog <= 0:
+        raise ValueError("Negative or null backlog")
     match type:
         case _socket.SOCK_STREAM:
             sock = _socket.create_server(
@@ -187,3 +196,18 @@ def create_server(
             raise ValueError("Unsupported socket type")
 
     return sock
+
+
+def guess_best_buffer_size(socket: _socket.socket) -> int:
+    from io import DEFAULT_BUFFER_SIZE
+
+    chunk_size: int = DEFAULT_BUFFER_SIZE
+    try:
+        socket_stat = os.fstat(socket.fileno())
+    except OSError:  # Will not work for sockets which have not a real file descriptor (e.g. Windows)
+        pass
+    else:
+        blksize: int = getattr(socket_stat, "st_blksize", 0)
+        if blksize > 0:
+            chunk_size = blksize
+    return chunk_size

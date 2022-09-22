@@ -76,7 +76,7 @@ from .test_tcp_server import _IntegerNetworkProtocol
 
 def test_request_handling() -> None:
     with StateLessUDPNetworkServer(_RANDOM_HOST_PORT, _MirrorRequestHandler, protocol_cls=_IntegerNetworkProtocol) as server:
-        address = server.server_address
+        address = server.address
         server.serve_forever_in_thread(poll_interval=0.1)
         with (
             UDPNetworkClient(protocol=_IntegerNetworkProtocol()) as client_1,

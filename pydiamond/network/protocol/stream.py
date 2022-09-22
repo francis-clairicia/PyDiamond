@@ -18,22 +18,17 @@ __all__ = [
     "FixedPacketSizeStreamNetworkProtocol",
     "NetworkPacketIncrementalDeserializer",
     "NetworkPacketIncrementalSerializer",
-    "StreamNetworkDataConsumer",
-    "StreamNetworkPacketProducer",
-    "StreamNetworkPacketWriter",
     "StreamNetworkProtocol",
 ]
 
 import hashlib
 from abc import abstractmethod
-from collections import deque
 from hmac import compare_digest
 from io import BytesIO, IOBase
 from struct import Struct, error as StructError
-from threading import Condition, RLock
-from typing import IO, Any, Final, Generator, Generic, Iterator, Protocol, TypeVar, runtime_checkable
+from typing import IO, Any, Final, Generator, Generic, Protocol, TypeVar, runtime_checkable
 
-from ...system.object import Object, ProtocolObjectMeta, final
+from ...system.object import ProtocolObjectMeta, final
 from ...system.utils.itertools import consumer_start, send_return
 from .abc import NetworkPacketDeserializer, NetworkPacketSerializer, NetworkProtocol, ValidationError
 
@@ -327,135 +322,3 @@ class FixedPacketSizeStreamNetworkProtocol(
     Generic[_ST_contra, _DT_co],
 ):
     pass
-
-
-@final
-class StreamNetworkPacketProducer(Iterator[bytes], Generic[_ST_contra], Object):
-    __slots__ = ("__s", "__q", "__cv")
-
-    def __init__(self, serializer: NetworkPacketIncrementalSerializer[_ST_contra], *, lock: RLock | None = None) -> None:
-        super().__init__()
-        assert isinstance(serializer, NetworkPacketIncrementalSerializer)
-        self.__s: NetworkPacketIncrementalSerializer[_ST_contra] = serializer
-        self.__q: deque[Generator[bytes, None, None]] = deque()
-        self.__cv: Condition = Condition(lock)
-
-    def __next__(self, *, wait: bool = False, timeout: float | None = None) -> bytes:
-        with self.__cv:
-            queue: deque[Generator[bytes, None, None]] = self.__q
-            while True:
-                while queue:
-                    generator = queue[0]
-                    try:
-                        while not (chunk := next(generator)):  # Empty bytes are useless
-                            continue
-                        return chunk
-                    except StopIteration:
-                        queue.popleft()
-                if not wait:
-                    break
-                wait = timeout is None
-                self.__cv.wait_for(lambda: queue, timeout=timeout)
-            raise StopIteration
-
-    def wait(self, timeout: float | None = None) -> bytes:
-        try:
-            return self.__next__(wait=True, timeout=timeout)
-        except StopIteration:
-            raise TimeoutError from None
-
-    def oneshot(self) -> bytes:
-        with self.__cv:
-            return b"".join(list(self))
-
-    def queue(self, *packets: _ST_contra) -> None:
-        if not packets:
-            return
-        with self.__cv:
-            self.__q.extend(map(self.__s.incremental_serialize, packets))
-            self.__cv.notify(n=1)
-
-
-@final
-class StreamNetworkPacketWriter(Generic[_ST_contra], Object):
-    __slots__ = ("__s", "__f", "__lock")
-
-    def __init__(
-        self,
-        file: IOBase | IO[bytes],
-        serializer: NetworkPacketIncrementalSerializer[_ST_contra],
-        *,
-        lock: RLock | None = None,
-    ) -> None:
-        super().__init__()
-        assert isinstance(serializer, NetworkPacketIncrementalSerializer)
-        self.__f: IOBase | IO[bytes] = file
-        self.__s: NetworkPacketIncrementalSerializer[_ST_contra] = serializer
-        self.__lock: RLock = lock or RLock()
-
-    def write(self, packet: _ST_contra) -> None:
-        with self.__lock:
-            return self.__s.incremental_serialize_to(self.__f, packet)
-
-    def flush(self) -> None:
-        with self.__lock:
-            self.__f.flush()
-
-    def close(self) -> None:
-        self.__f.close()
-
-
-@final
-class StreamNetworkDataConsumer(Iterator[_DT_co], Generic[_DT_co], Object):
-    __slots__ = ("__d", "__b", "__c", "__cv")
-
-    def __init__(self, deserializer: NetworkPacketIncrementalDeserializer[_DT_co], *, lock: RLock | None = None) -> None:
-        super().__init__()
-        assert isinstance(deserializer, NetworkPacketIncrementalDeserializer)
-        self.__d: NetworkPacketIncrementalDeserializer[_DT_co] = deserializer
-        self.__c: Generator[None, bytes, tuple[_DT_co, bytes]] | None = None
-        self.__b: bytes = b""
-        self.__cv: Condition = Condition(lock)
-
-    def __next__(self, *, wait: bool = False, timeout: float | None = None) -> _DT_co:
-        with self.__cv:
-            while True:
-                chunk, self.__b = self.__b, b""
-                if chunk:
-                    consumer, self.__c = self.__c, None
-                    if consumer is None:
-                        consumer = self.__d.incremental_deserialize()
-                        consumer_start(consumer)
-                    packet: _DT_co
-                    try:
-                        packet, chunk = send_return(consumer, chunk)
-                    except IncrementalDeserializeError as exc:
-                        self.__b = exc.remaining_data + self.__b
-                    except StopIteration:
-                        self.__c = consumer
-                    else:
-                        self.__b = chunk + self.__b
-                        return packet
-                if not wait:
-                    break
-                wait = timeout is None
-                self.__cv.wait_for(lambda: self.__b, timeout=timeout)
-            raise StopIteration
-
-    def wait(self, timeout: float | None = None) -> _DT_co:
-        try:
-            return self.__next__(wait=True, timeout=timeout)
-        except StopIteration:
-            raise TimeoutError from None
-
-    def oneshot(self) -> list[_DT_co]:
-        with self.__cv:
-            return list(self)
-
-    def feed(self, chunk: bytes) -> None:
-        assert isinstance(chunk, bytes)
-        if not chunk:
-            return
-        with self.__cv:
-            self.__b += chunk
-            self.__cv.notify(n=1)

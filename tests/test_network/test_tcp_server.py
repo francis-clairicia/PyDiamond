@@ -77,7 +77,7 @@ def test_service_actions() -> None:
 
 def test_client_connection() -> None:
     with StateLessTCPNetworkServer(_RANDOM_HOST_PORT, _BroadcastRequestHandler, backlog=1) as server:
-        address = server.server_address.for_connection()
+        address = server.address.for_connection()
         server.serve_forever_in_thread(poll_interval=0.1)
         sleep(0.1)
         assert len(server.clients) == 0
@@ -96,7 +96,7 @@ class _TestWelcomeServer(StateLessTCPNetworkServer[Any, Any]):
 
 def test_welcome_connection() -> None:
     with _TestWelcomeServer(_RANDOM_HOST_PORT, _BroadcastRequestHandler, backlog=1) as server:
-        address = server.server_address.for_connection()
+        address = server.address.for_connection()
         server.serve_forever_in_thread(poll_interval=0.1)
         with TCPNetworkClient[Any, Any](address) as client:
             assert client.recv_packet() == "Welcome !"
@@ -104,7 +104,7 @@ def test_welcome_connection() -> None:
 
 def test_multiple_connections() -> None:
     with _TestWelcomeServer(_RANDOM_HOST_PORT, _BroadcastRequestHandler) as server:
-        address = server.server_address.for_connection()
+        address = server.address.for_connection()
         server.serve_forever_in_thread(poll_interval=0)
         with (
             TCPNetworkClient[Any, Any](address) as client_1,
@@ -140,7 +140,7 @@ class _IntegerNetworkProtocol(StreamNetworkProtocol[int, int]):
 
 def test_request_handling() -> None:
     with StateLessTCPNetworkServer(_RANDOM_HOST_PORT, _BroadcastRequestHandler, protocol_cls=_IntegerNetworkProtocol) as server:
-        address = server.server_address.for_connection()
+        address = server.address.for_connection()
         server.serve_forever_in_thread(poll_interval=0)
         with (
             TCPNetworkClient(address, protocol=_IntegerNetworkProtocol()) as client_1,

@@ -6,25 +6,25 @@
 
 from __future__ import annotations
 
-__all__ = ["AbstractNetworkClient", "DisconnectedClientError", "TCPClientError", "TCPNetworkClient", "UDPNetworkClient"]
+__all__ = ["AbstractNetworkClient", "TCPNetworkClient", "UDPNetworkClient"]
 
 
-import os
 from abc import abstractmethod
 from collections import deque
-from contextlib import suppress
+from contextlib import contextmanager
 from io import DEFAULT_BUFFER_SIZE
 from selectors import EVENT_READ, SelectSelector as _Selector
 from socket import socket as Socket
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Generator, Generic, TypeAlias, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Generator, Generic, Iterator, TypeAlias, TypeVar, overload
 
 from ..system.object import Object, final
 from ..system.utils.abc import concreteclass
 from .protocol.abc import NetworkProtocol, ValidationError
 from .protocol.pickle import PickleNetworkProtocol
-from .protocol.stream import StreamNetworkDataConsumer, StreamNetworkPacketWriter, StreamNetworkProtocol
-from .socket import SHUT_WR, AddressFamily, SocketAddress, create_connection, new_socket_address
+from .protocol.stream import StreamNetworkProtocol
+from .socket import SHUT_WR, AddressFamily, SocketAddress, create_connection, guess_best_buffer_size, new_socket_address
+from .tools.stream import StreamNetworkDataConsumer, StreamNetworkPacketWriter
 
 _T = TypeVar("_T")
 _ReceivedPacketT = TypeVar("_ReceivedPacketT")
@@ -58,24 +58,6 @@ class AbstractNetworkClient(Object):
     @abstractmethod
     def fileno(self) -> int:
         raise NotImplementedError
-
-
-class TCPClientError(Exception):
-    def __init__(self, client: TCPNetworkClient[Any, Any], message: str | None = None) -> None:
-        if not message:
-            if not client.is_connected():
-                message = "Something went wrong for a client, and was disconnected"
-            else:
-                addr: SocketAddress = client.getsockname()
-                message = f"Something went wrong for the client {addr.host}:{addr.port}"
-        super().__init__(message)
-        self.client: TCPNetworkClient[Any, Any] = client
-
-
-class DisconnectedClientError(TCPClientError, ConnectionError):
-    def __init__(self, client: TCPNetworkClient[Any, Any]) -> None:
-        addr: SocketAddress = client.getsockname()
-        super().__init__(client, f"{addr.host}:{addr.port} has been disconnected")
 
 
 class NoValidPacket(ValueError):
@@ -158,12 +140,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         self.__socket: Socket = socket
         self.__queue: deque[_ReceivedPacketT] = deque()
         self.__lock: RLock = RLock()
-        self.__chunk_size: int = DEFAULT_BUFFER_SIZE
-        with suppress(OSError):  # Will not work on Windows
-            socket_stat = os.fstat(socket.fileno())
-            blksize: int = getattr(socket_stat, "st_blksize", 0)
-            if blksize > 0:
-                self.__chunk_size = blksize
+        self.__chunk_size: int = guess_best_buffer_size(socket)
         self.__writer: StreamNetworkPacketWriter[_SentPacketT] = StreamNetworkPacketWriter(
             socket.makefile("wb", buffering=self.__chunk_size),
             protocol,
@@ -195,11 +172,8 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
 
     def send_packet(self, packet: _SentPacketT) -> None:
         self._check_closed()
-        try:
-            self.__writer.write(packet)
-            self.__writer.flush()
-        except ConnectionError as exc:
-            raise DisconnectedClientError(self) from exc
+        self.__writer.write(packet)
+        self.__writer.flush()
 
     def send_packets(self, *packets: _SentPacketT) -> None:
         self._check_closed()
@@ -207,12 +181,9 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
             return
         with self.__lock:
             send = self.__writer.write
-            try:
-                for packet in packets:
-                    send(packet)
-                self.__writer.flush()
-            except ConnectionError as exc:
-                raise DisconnectedClientError(self) from exc
+            for packet in packets:
+                send(packet)
+            self.__writer.flush()
 
     def recv_packet(self, *, retry_on_fail: bool = True) -> _ReceivedPacketT:
         self._check_closed()
@@ -255,13 +226,10 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
                 yield queue.popleft()
 
     def __recv_packets(self, *, timeout: int | None) -> Generator[_ReceivedPacketT, None, None]:
-        chunk_reader: Generator[bytes, None, None] = self.read_socket(self.__socket, self.__chunk_size, timeout=timeout)
+        chunk_reader: Generator[bytes, None, None] = self.__read_socket(self.__socket, self.__chunk_size, timeout=timeout)
         try:
             while True:
-                try:
-                    chunk: bytes | None = next(chunk_reader, None)
-                except (ConnectionError, EOFError) as exc:
-                    raise DisconnectedClientError(self) from exc
+                chunk: bytes | None = next(chunk_reader, None)
                 if chunk is None:
                     break
                 self.__consumer.feed(chunk)
@@ -271,7 +239,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
 
     @staticmethod
     @final
-    def read_socket(
+    def __read_socket(
         socket: Socket,
         chunk_size: int,
         *,
@@ -279,9 +247,9 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
     ) -> Generator[bytes, None, None]:
         if chunk_size <= 0:
             return
-        with _Selector() as selector, suppress(BlockingIOError):
+        with _Selector() as selector, _remove_timeout(socket):
             selector.register(socket, EVENT_READ)
-            if timeout is not None and not selector.select(timeout=timeout):
+            if not selector.select(timeout=timeout):
                 return
             data: bytes = socket.recv(chunk_size)
             if (length := len(data)) == 0:
@@ -518,7 +486,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
     def __recv_packets(self, flags: int, timeout: int | None) -> Generator[tuple[_ReceivedPacketT, SocketAddress], None, None]:
         deserialize = self.__protocol.deserialize
 
-        chunk_generator = self.read_socket(self.__socket, self.__max_packet_size, timeout=timeout, flags=flags)
+        chunk_generator = self.__read_socket(self.__socket, self.__max_packet_size, timeout=timeout, flags=flags)
 
         for data, sender in chunk_generator:
             try:
@@ -532,7 +500,8 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
                 raise
 
     @staticmethod
-    def read_socket(
+    @final
+    def __read_socket(
         socket: Socket,
         bufsize: int,
         *,
@@ -542,7 +511,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         def convert(recv: tuple[bytes, tuple[Any, ...]]) -> tuple[bytes, SocketAddress]:
             return recv[0], new_socket_address(recv[1], socket.family)
 
-        with _Selector() as selector, suppress(BlockingIOError):
+        with _Selector() as selector, _remove_timeout(socket):
             selector.register(socket, EVENT_READ)
             if timeout is not None and not selector.select(timeout=0):
                 return
@@ -572,3 +541,16 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
     @final
     def closed(self) -> bool:
         return self.__closed
+
+
+@contextmanager
+def _remove_timeout(socket: Socket) -> Iterator[None]:
+    timeout: float | None = socket.gettimeout()
+    if timeout is None:
+        yield
+        return
+    socket.settimeout(None)
+    try:
+        yield
+    finally:
+        socket.settimeout(timeout)

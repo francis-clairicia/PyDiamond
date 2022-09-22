@@ -15,10 +15,8 @@ __all__ = [
     "AbstractUDPNetworkServer",
     "AbstractUDPRequestHandler",
     "ConnectedClient",
-    "DisconnectedClientError",
     "StateLessTCPNetworkServer",
     "StateLessUDPNetworkServer",
-    "TCPClientError",
     "TCPNetworkClient",
     "UDPNetworkClient",
 ]
