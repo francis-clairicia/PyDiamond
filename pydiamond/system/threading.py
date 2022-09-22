@@ -57,7 +57,10 @@ class Thread(threading.Thread, Object, no_slots=True):
     def join(self, timeout: float | None = None, terminate_on_timeout: bool = False) -> None:
         super().join(timeout)
         if terminate_on_timeout and timeout is not None and self.is_alive():
-            self.terminate()
+            try:
+                self.terminate()
+            except RuntimeError:
+                pass
 
 
 @overload
@@ -130,7 +133,7 @@ def thread_factory_method(
     daemon: bool | None = None,
     auto_start: bool = True,
     name: str | None = None,
-    global_lock: bool = True,
+    global_lock: bool = False,
     shared_lock: bool = False,
 ) -> Callable[[Callable[Concatenate[_T, _P], _R]], _ThreadFactoryMethod[_T, _P, _R, Thread]]:
     ...
@@ -143,7 +146,7 @@ def thread_factory_method(
     daemon: bool | None = None,
     auto_start: bool = True,
     name: str | None = None,
-    global_lock: bool = True,
+    global_lock: bool = False,
     shared_lock: bool = False,
     **thread_cls_kwargs: Any,
 ) -> Callable[[Callable[Concatenate[_T, _P], _R]], _ThreadFactoryMethod[_T, _P, _R, _ThreadT]]:
@@ -187,7 +190,7 @@ class _ThreadFactoryMethod(Generic[_T, _P, _R, _ThreadT]):
         /,
         thread_cls: type[_ThreadT],
         *,
-        global_lock: bool = True,
+        global_lock: bool = False,
         shared_lock: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -208,7 +211,7 @@ class _ThreadFactoryMethod(Generic[_T, _P, _R, _ThreadT]):
         return func(*args, **kwargs)
 
     @overload
-    def __get__(self: __Self, obj: None, objtype: type | None = None, /) -> __Self:
+    def __get__(self: __Self, obj: None, objtype: type, /) -> __Self:
         ...
 
     @overload

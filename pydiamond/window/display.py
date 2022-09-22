@@ -385,11 +385,11 @@ class Window(Object, no_slots=True):
             target.draw_onto(renderer)
 
     def screenshot(self) -> None:
-        screen: Surface = self.renderer.get_screen_copy()
-        self.__screenshot_threads.append(self.__screenshot_thread(screen))
+        self.__screenshot_threads.append(self.__screenshot_thread())
 
-    @thread_factory_method(daemon=True, shared_lock=True)
-    def __screenshot_thread(self, screen: Surface) -> None:
+    @thread_factory_method(daemon=True, global_lock=True, shared_lock=True)
+    def __screenshot_thread(self) -> None:
+        screen: Surface = self.renderer.get_screen_copy()
         filename_fmt: str = self.get_screenshot_filename_format()
         extension: str = ".png"
 
