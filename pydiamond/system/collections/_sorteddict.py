@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["SortedDict", "SortedDictItemsView", "SortedDictKeysView", "SortedDictValuesView"]
 
-
 import reprlib
 from bisect import insort_right as insort
 from collections.abc import ItemsView, KeysView, Reversible, ValuesView

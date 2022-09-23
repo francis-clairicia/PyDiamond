@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["Clickable"]
 
-
 from abc import abstractmethod
 from enum import auto, unique
 from types import MappingProxyType

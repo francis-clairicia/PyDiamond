@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["ProgressBar"]
 
-
 from dataclasses import dataclass
 from enum import auto, unique
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Mapping, Sequence, TypeAlias

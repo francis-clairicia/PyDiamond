@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["ScaleBar"]
 
-
 import sys
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Sequence
 

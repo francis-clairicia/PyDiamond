@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["AbstractRenderer"]
 
-
 from abc import abstractmethod
 from enum import IntEnum, unique
 from itertools import starmap

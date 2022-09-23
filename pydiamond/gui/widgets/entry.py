@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["Entry"]
 
-
 from string import printable as ASCII_PRINTABLE
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Sequence, TypeAlias
 from weakref import WeakMethod

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["Grid", "GridElement"]
 
-
 from abc import abstractmethod
 from dataclasses import dataclass
 from enum import auto, unique

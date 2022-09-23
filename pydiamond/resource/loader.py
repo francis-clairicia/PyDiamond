@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["AbstractResourceLoader", "FontLoader", "ImageLoader", "MusicLoader", "SoundLoader"]
 
-
 from abc import abstractmethod
 from os import PathLike
 from pathlib import Path

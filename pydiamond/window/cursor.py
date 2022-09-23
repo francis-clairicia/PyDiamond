@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["Cursor", "SystemCursor"]
 
-
 from enum import Enum, unique
 from typing import TYPE_CHECKING, Any, Final, Literal, Sequence, no_type_check, overload
 

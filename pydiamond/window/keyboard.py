@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["Key", "KeyModifiers", "Keyboard"]
 
-
 from enum import IntEnum, IntFlag, unique
 from typing import ClassVar, Sequence, final, overload
 

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["Image"]
 
-
 from typing import TYPE_CHECKING, Any, Mapping, overload
 
 from pygame.transform import rotozoom as _surface_rotozoom

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["Mouse", "MouseButton"]
 
-
 from enum import IntEnum
 from typing import final
 

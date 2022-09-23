@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["Transformable", "TransformableProxy"]
 
-
 from abc import abstractmethod
 from typing import Any, Callable, Literal, Mapping, overload
 

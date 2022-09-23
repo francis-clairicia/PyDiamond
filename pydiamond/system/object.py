@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["Object", "ObjectMeta", "ProtocolObjectMeta", "final", "mro", "override"]
 
-
 from abc import ABCMeta
 from dataclasses import is_dataclass
 from functools import cached_property, partialmethod

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["Form"]
 
-
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Mapping, Sequence, TypeAlias, TypeVar, overload
 from weakref import WeakValueDictionary

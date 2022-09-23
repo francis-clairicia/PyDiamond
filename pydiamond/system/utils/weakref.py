@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["weakref_unwrap"]
 
-
 from typing import TypeVar
 from weakref import ReferenceType
 

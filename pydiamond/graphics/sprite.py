@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["LayeredSpriteGroup", "Mask", "Sprite", "SpriteGroup"]
 
-
 from collections import deque
 from functools import cached_property
 from itertools import combinations

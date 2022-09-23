@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["ResourceManager", "ResourceManagerMeta"]
 
-
 from contextlib import suppress
 from os import PathLike
 from os.path import join

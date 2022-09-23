@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["ClassNamespace", "ClassNamespaceMeta"]
 
-
 from typing import TYPE_CHECKING, Any, Final, TypeVar
 
 from .object import Object, ObjectMeta

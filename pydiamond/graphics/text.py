@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["Text", "TextImage"]
 
-
 import os.path
 from collections import deque
 from contextlib import suppress

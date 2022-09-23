@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["NonCopyable", "NonCopyableMeta"]
 
-
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
 
 from .object import Object, ObjectMeta, final

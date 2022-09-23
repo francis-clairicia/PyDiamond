@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["Thread", "thread_factory", "thread_factory_method"]
 
-
 import ctypes
 import threading
 from typing import TYPE_CHECKING, Any, Callable, Concatenate, Final, Generic, ParamSpec, Sequence, TypeVar, overload

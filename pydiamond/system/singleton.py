@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["Singleton", "SingletonMeta"]
 
-
 from types import MethodType
 from typing import Any, Callable, TypeVar
 

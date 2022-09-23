@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["ImmutableRect", "Rect"]
 
-
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, SupportsIndex
 

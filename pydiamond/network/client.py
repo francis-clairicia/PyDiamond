@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["AbstractNetworkClient", "TCPNetworkClient", "UDPNetworkClient"]
 
-
 from abc import abstractmethod
 from collections import deque
 from contextlib import contextmanager

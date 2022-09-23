@@ -14,7 +14,6 @@ from __future__ import annotations
 
 __all__ = ["OrderedSet", "OrderedSetIndexError"]
 
-
 from collections.abc import MutableSet, Sequence, Set
 from copy import deepcopy
 from threading import RLock

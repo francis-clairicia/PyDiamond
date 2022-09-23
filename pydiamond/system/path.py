@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["ConstantFileNotFoundError", "set_constant_directory", "set_constant_file"]
 
-
 import os.path as os_path
 from typing import Any, overload
 

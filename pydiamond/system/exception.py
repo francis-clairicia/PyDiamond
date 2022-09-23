@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["noexcept"]
 
-
 import inspect
 import os
 import sys

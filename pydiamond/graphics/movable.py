@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["Movable", "MovableProxy"]
 
-
 from abc import abstractmethod
 from typing import Any, Callable, overload
 

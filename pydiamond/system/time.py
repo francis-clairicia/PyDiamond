@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["Time"]
 
-
 from typing import ClassVar, Final
 
 import pygame.time as _pg_time

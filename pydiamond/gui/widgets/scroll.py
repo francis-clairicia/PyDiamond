@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["ScrollArea", "ScrollAreaElement", "ScrollBar"]
 
-
 from abc import abstractmethod
 from contextlib import suppress
 from enum import auto, unique

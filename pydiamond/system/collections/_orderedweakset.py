@@ -8,7 +8,6 @@ from __future__ import annotations
 
 __all__ = ["OrderedWeakSet"]
 
-
 from typing import TYPE_CHECKING, Any, Iterator, Sequence
 from weakref import WeakSet, ref
 
