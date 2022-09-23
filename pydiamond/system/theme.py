@@ -415,7 +415,6 @@ class ThemedObjectMeta(ObjectMeta):
     __virtual_themed_class_bases__: tuple[ThemedObjectMeta, ...]
     __theme_ignore__: Sequence[str]
     __theme_associations__: Mapping[ThemedObjectMeta, dict[str, str]]
-    __theme_override__: Sequence[str]
 
     __themed_class_bases__: Final[_ThemedObjectBasesResolver] = _ThemedObjectBasesResolver()
     __themed_class_mro__: Final[_ThemedObjectMROResolver] = _ThemedObjectMROResolver()
@@ -459,7 +458,7 @@ class ThemedObjectMeta(ObjectMeta):
             if init_method is not None:
                 check_parameters(init_method)
 
-        for attr_name in ("__theme_ignore__", "__theme_override__"):
+        for attr_name in ("__theme_ignore__",):
             sequence: str | Sequence[str] = namespace.pop(attr_name, ())
             if isinstance(sequence, str):
                 sequence = (sequence,)
@@ -513,7 +512,6 @@ class ThemedObjectMeta(ObjectMeta):
             "__virtual_themed_class_bases__",
             "__theme_ignore__",
             "__theme_associations__",
-            "__theme_override__",
         ):
             raise AttributeError("Read-only attribute")
         return super().__setattr__(name, value)
@@ -525,7 +523,6 @@ class ThemedObjectMeta(ObjectMeta):
             "__virtual_themed_class_bases__",
             "__theme_ignore__",
             "__theme_associations__",
-            "__theme_override__",
         ):
             raise AttributeError("Read-only attribute")
         return super().__delattr__(name)
@@ -654,7 +651,6 @@ class ThemedObjectMeta(ObjectMeta):
             else ()
         )
         theme_key_associations = cls.__theme_associations__
-        theme_key_override = cls.__theme_override__
         for t in dict.fromkeys(themes):
             for parent in all_parents_classes:
                 parent_theme_kwargs = parent.get_theme_options(
@@ -665,8 +661,6 @@ class ThemedObjectMeta(ObjectMeta):
                         theme_kwargs[cls_param] = theme_kwargs.pop(parent_param)
                     if parent_param in parent_theme_kwargs:
                         parent_theme_kwargs[cls_param] = parent_theme_kwargs.pop(parent_param)
-                for opt in theme_key_override:
-                    parent_theme_kwargs.pop(opt, None)
                 theme_kwargs |= parent_theme_kwargs
             with suppress(KeyError):
                 theme_kwargs |= _THEMES[cls][t]

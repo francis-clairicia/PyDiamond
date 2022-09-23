@@ -52,10 +52,6 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
             "distance": "distance_text_img",
         },
     }
-    __theme_override__: Sequence[str] = (
-        "outline",
-        "outline_color",
-    )
 
     @unique
     class HorizontalAlign(AutoLowerNameEnum):

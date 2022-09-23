@@ -37,7 +37,6 @@ class ScaleBar(ProgressBar, AbstractWidget):
         "value_callback",
         "percent_callback",
     )
-    __theme_override__: Sequence[str] = ("cursor_thickness",)
 
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "resolution",
