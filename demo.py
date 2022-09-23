@@ -1445,7 +1445,8 @@ def main() -> None:
     if args.debug:
         gc.set_debug(gc.DEBUG_STATS | gc.DEBUG_LEAK)
 
-    with Mixer.init(), MainWindow() as window:
+    window = MainWindow()
+    with Mixer.init(), window.open():
         weakref.finalize(window, print, "Window dead")
         MusicStream.set_volume(0)
         window.mainloop(args.index)

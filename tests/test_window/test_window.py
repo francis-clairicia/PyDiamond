@@ -158,28 +158,6 @@ class TestWindow:
 
             mock_pygame_display_module.set_mode.assert_called_once_with(expected_size, flags=expected_flags, vsync=int(vsync))
 
-    def test__enter__context_manager_return_reference_to_window(self) -> None:
-        # Arrange
-
-        window = Window()
-
-        # Act & Assert
-        with window as window_ref:
-
-            assert window_ref is window
-
-    def test__enter__calls_window_open(self, mocker: MockerFixture) -> None:
-        # Arrange
-        window = Window()
-        mock_window_open = mocker.patch.object(window, "open")
-
-        # Act
-        with window:
-            pass
-
-        # Assert
-        mock_window_open.assert_called_once()
-
     @pytest.mark.parametrize("error", [pytest.param(pygame.error, id="pygame.error"), ValueError, KeyError, ZeroDivisionError])
     def test__open__do_not_call_pygame_display_quit_on_init_error(
         self, error: type[Exception], mock_pygame_display_module: MockDisplayModule

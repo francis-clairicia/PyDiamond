@@ -32,7 +32,6 @@ from typing import (
     NoReturn,
     ParamSpec,
     Sequence,
-    TypeVar,
     overload,
 )
 
@@ -164,25 +163,6 @@ class Window(Object, no_slots=True):
     def __del__(self) -> None:
         Window.__main_window = True
 
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="Window")
-
-    def __enter__(self: __Self) -> __Self:
-        cm = self.open()
-        cm.__enter__()
-        cm_exit = cm.__exit__
-        setattr(self, "__exit__", cm_exit)
-        return self
-
-    def __exit__(self, *args: Any) -> bool | None:
-        # When using the 'with' statement, the __exit__ method will be retrieved through the class, not the object
-        # The __exit__ mock made in __enter__ will, therefore, not be used
-        try:
-            open_exit: Callable[..., bool | None] = self.__dict__["__exit__"]
-        except KeyError:
-            return False
-        return open_exit(*args)
-
     @contextmanager
     def open(self) -> Iterator[None]:
         if _pg_display.get_surface() is not None:
@@ -233,11 +213,6 @@ class Window(Object, no_slots=True):
                 screenshot_threads = self.__screenshot_threads
                 while screenshot_threads:
                     screenshot_threads.pop(0).join(timeout=1, terminate_on_timeout=True)
-
-            @stack.callback
-            def _() -> None:  # Ensure patches added by __enter__ are deleted
-                with suppress(AttributeError):
-                    delattr(self, "__exit__")
 
             del _
 
