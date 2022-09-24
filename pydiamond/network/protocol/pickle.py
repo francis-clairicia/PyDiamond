@@ -154,6 +154,3 @@ class SafePickleNetworkProtocol(EncryptorNetworkProtocol[_ST_contra, _DT_co], Ge
         @property
         def protocol(self) -> PickleNetworkProtocol[_ST_contra, _DT_co]:
             ...
-
-
-print(SafePickleNetworkProtocol.__mro__)

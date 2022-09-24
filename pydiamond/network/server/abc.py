@@ -203,17 +203,19 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
         def verify_client(socket: Socket, address: SocketAddress) -> None:
             protocol = self.__protocol_cls()
             with TCPNetworkClient(socket, protocol=protocol, give=False) as client:
-                if not self._verify_new_client(client, address):
-                    socket.close()
-                    return
+                accepted = self._verify_new_client(client, address)
             del client
+            if not accepted:
+                socket.close()
+                return
             key_data = _SelectorKeyData(
                 producer=StreamNetworkDataProducer(protocol),
                 consumer=StreamNetworkDataConsumer(protocol),
                 chunk_size=guess_best_buffer_size(socket),
             )
-            selector.register(socket, EVENT_READ | EVENT_WRITE, key_data)
-            clients_dict[socket] = self.__ConnectedClient(key_data.producer, address)
+            with self.__lock:
+                clients_dict[socket] = self.__ConnectedClient(key_data.producer, address)
+                selector.register(socket, EVENT_READ | EVENT_WRITE, key_data)
 
         def new_client() -> None:
             try:
@@ -224,7 +226,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
             verify_client(client_socket, address)
 
         def receive_requests(ready: Sequence[SelectorKey]) -> None:
-            for key in ready:
+            for key in list(ready):
                 socket: Socket = key.fileobj  # type: ignore[assignment]
                 if socket is server_socket:
                     new_client()
@@ -264,7 +266,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
                         self._handle_error(client)
 
         def send_responses(ready: Sequence[SelectorKey]) -> None:
-            for key in ready:
+            for key in list(ready):
                 key_data: _SelectorKeyData[_RequestT, _ResponseT] = key.data
                 producer = key_data.producer
                 if not producer:  # There is nothing to send
@@ -283,11 +285,11 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
                     continue
                 try:
                     data = producer.read(bufsize)
-                    if not data:
-                        continue
                 except Exception:
                     self._handle_error(client)
                 else:
+                    if not data:
+                        continue
                     try:
                         socket.sendall(data)
                     except Exception:
@@ -298,17 +300,25 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
                             shutdown_client(socket)
 
         def shutdown_client(socket: Socket) -> None:
+            with suppress(KeyError):
+                key = selector.unregister(socket)
+                for key_sequences in ready.values():
+                    if key in key_sequences:
+                        key_sequences.remove(key)
             if (client := clients_dict.pop(socket, None)) and not client.closed:
                 client.close()
-            with suppress(KeyError):
-                selector.unregister(socket)
             with suppress(Exception):
                 try:
                     socket.shutdown(SHUT_WR)
-                except OSError:
-                    pass
                 finally:
                     socket.close()
+
+        def remove_closed_clients() -> None:
+            for socket in list(clients_dict):
+                try:
+                    socket.getpeername()
+                except OSError:  # Broken connection
+                    shutdown_client(socket)
 
         try:
             with selector:
@@ -321,8 +331,10 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
                         ready = select()
                         if not self.__loop:
                             break  # type: ignore[unreachable]
-                        send_responses(ready.get(EVENT_WRITE, ()))
-                        receive_requests(ready.get(EVENT_READ, ()))
+                        with self.__lock:
+                            receive_requests(ready.get(EVENT_READ, ()))
+                            send_responses(ready.get(EVENT_WRITE, ()))
+                            remove_closed_clients()
                         self.service_actions()
                 finally:
                     del self.__selector
