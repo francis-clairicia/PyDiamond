@@ -601,10 +601,6 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
         return event not in EventFactory.NON_BLOCKABLE_EVENTS
 
     @staticmethod
-    def get_available_custom_event_number() -> int:
-        return max(EventFactory.NUMEVENTS - 1 - max(EventFactory.pygame_type), 0)
-
-    @staticmethod
     def from_pygame_event(pygame_event: _pg_event.Event, *, handle_user_events: bool = True) -> Event:
         try:
             event_cls: type[Event] = EventFactory.pygame_type[pygame_event.type]

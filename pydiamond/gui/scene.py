@@ -162,14 +162,14 @@ class GUIScene(Scene):
     def __on_focus_set(self, focusable: SupportsFocus) -> None:
         focusable._on_focus_set()
         callback: Callable[[], None]
-        for callback in getattr(focusable, "_focus_set_callbacks_", ()):
+        for callback in focusable.focus.iter_focus_set_callbacks():
             callback()
 
     @no_theme_decorator
     def __on_focus_leave(self, focusable: SupportsFocus) -> None:
         focusable._on_focus_leave()
         callback: Callable[[], None]
-        for callback in getattr(focusable, "_focus_leave_callbacks_", ()):
+        for callback in focusable.focus.iter_focus_leave_callbacks():
             callback()
 
     @no_theme_decorator

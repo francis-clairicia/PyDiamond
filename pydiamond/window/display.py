@@ -362,7 +362,7 @@ class Window(Object, no_slots=True):
     def screenshot(self) -> None:
         self.__screenshot_threads.append(self.__screenshot_thread())
 
-    @thread_factory_method(daemon=True, global_lock=True, shared_lock=True)
+    @thread_factory_method(global_lock=True, shared_lock=True)
     def __screenshot_thread(self) -> None:
         screen: Surface = self.renderer.get_screen_copy()
         filename_fmt: str = self.get_screenshot_filename_format()
@@ -510,7 +510,10 @@ class Window(Object, no_slots=True):
             try:
                 event = make_event(pg_event, handle_user_events=True)
             except UnknownEventTypeError:
-                _pg_event.set_blocked(pg_event.type)
+                try:
+                    _pg_event.set_blocked(pg_event.type)
+                except ValueError:
+                    pass
                 continue
             if not process_event(event):
                 yield event

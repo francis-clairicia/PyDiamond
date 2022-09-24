@@ -13,13 +13,12 @@ __all__ = [
     "SupportsFocus",
 ]
 
-import weakref
 from abc import abstractmethod
 from enum import auto, unique
-from typing import Callable, Mapping, Protocol, TypedDict, overload, runtime_checkable
+from typing import Callable, Final, Iterator, Mapping, Protocol, TypedDict, overload, runtime_checkable
+from weakref import WeakKeyDictionary, WeakSet, WeakValueDictionary, ref as weakref
 
 from ..system.enum import AutoLowerNameEnum
-from ..system.utils.functools import setdefaultattr
 from ..system.utils.weakref import weakref_unwrap
 from ..window.event import Event
 from ..window.scene import Scene
@@ -67,10 +66,15 @@ class BoundFocusSide(AutoLowerNameEnum):
 class BoundFocus:
     __slots__ = ("__f", "__scene")
 
+    __enabled: Final[WeakSet[SupportsFocus]] = WeakSet()
+    __side: Final[WeakKeyDictionary[SupportsFocus, WeakValueDictionary[BoundFocusSide, SupportsFocus]]] = WeakKeyDictionary()
+    __focus_set_callback: Final[WeakKeyDictionary[SupportsFocus, set[Callable[[], None]]]] = WeakKeyDictionary()
+    __focus_leave_callback: Final[WeakKeyDictionary[SupportsFocus, set[Callable[[], None]]]] = WeakKeyDictionary()
+
     def __init__(self, focusable: SupportsFocus, scene: Scene | None) -> None:
         if not isinstance(focusable, _HasFocusMethods):
             raise NoFocusSupportError(focusable)
-        self.__f: weakref.ref[SupportsFocus] = weakref.ref(focusable)
+        self.__f: weakref[SupportsFocus] = weakref(focusable)
         if scene is not None and not isinstance(scene, Scene):
             raise TypeError(f"Must be a Scene or None, got {scene.__class__.__name__!r}")
         scene = scene if isinstance(scene, GUIScene) else None
@@ -96,14 +100,16 @@ class BoundFocus:
         f: SupportsFocus = self.__self__
         scene: GUIScene | None = self.__scene
         if status is not None:
-            status = bool(status)
-            setattr(f, "_take_focus_", status)
+            if status:
+                self.__enabled.add(f)
+            else:
+                self.__enabled.discard(f)
             if scene is not None:
                 scene.focus_get()  # Force update
             return None
         if scene is None or not f.is_shown():
             return False
-        return bool(getattr(f, "_take_focus_", False))
+        return f in self.__enabled
 
     def set(self) -> bool:
         return scene.focus_set(self.__self__) if (scene := self.__scene) else False
@@ -134,17 +140,24 @@ class BoundFocus:
         /,
         **kwargs: SupportsFocus | None,
     ) -> None:
-        if __m is None and not kwargs:
+        if (__m is None and not kwargs) or (__m is not None and kwargs):
             raise TypeError("Invalid arguments")
 
         f: SupportsFocus = self.__self__
-        bound_object_dict: dict[BoundFocusSide, SupportsFocus | None] = setdefaultattr(f, "_bound_focus_objects_", {})
+        bound_object_dict: WeakValueDictionary[BoundFocusSide, SupportsFocus]
+        try:
+            bound_object_dict = self.__side[f]
+        except KeyError:
+            self.__side[f] = bound_object_dict = WeakValueDictionary()
         if __m is not None:
             kwargs = __m | kwargs
         del __m
         for side, obj in kwargs.items():
             side = BoundFocusSide(side)
-            if obj is not None and not isinstance(obj, SupportsFocus):
+            if obj is None:
+                bound_object_dict.pop(side, None)
+                continue
+            if not isinstance(obj, SupportsFocus):
                 raise TypeError(f"Expected None or SupportsFocus object, got {obj!r}")
             bound_object_dict[side] = obj
 
@@ -152,7 +165,8 @@ class BoundFocus:
         self.set_obj_on_side(dict.fromkeys(sides, None))
 
     def remove_all_links(self) -> None:
-        self.remove_obj_on_side(*BoundFocusSide)
+        f: SupportsFocus = self.__self__
+        self.__side.pop(f, None)
 
     class BoundObjectsDict(TypedDict):
         on_top: SupportsFocus | None
@@ -170,7 +184,7 @@ class BoundFocus:
 
     def get_obj_on_side(self, side: str | None = None) -> BoundObjectsDict | SupportsFocus | None:
         f: SupportsFocus = self.__self__
-        bound_object_dict: dict[BoundFocusSide, SupportsFocus | None] = getattr(f, "_bound_focus_objects_", {})
+        bound_object_dict: Mapping[BoundFocusSide, SupportsFocus] = self.__side.get(f, {})
 
         if side is None:
             return {
@@ -183,47 +197,51 @@ class BoundFocus:
         side = BoundFocusSide(side)
         return bound_object_dict.get(side)
 
-    def left_to(self, right: SupportsFocus, *, bind_other: bool = True) -> None:
+    def left_to(self, right: SupportsFocus, *, bind_other: bool = False) -> None:
         if bind_other:
             right.focus.set_obj_on_side(on_left=self.__self__)
         self.set_obj_on_side(on_right=right)
 
-    def right_to(self, left: SupportsFocus, *, bind_other: bool = True) -> None:
+    def right_to(self, left: SupportsFocus, *, bind_other: bool = False) -> None:
         if bind_other:
             left.focus.set_obj_on_side(on_right=self.__self__)
         self.set_obj_on_side(on_left=left)
 
-    def above(self, bottom: SupportsFocus, *, bind_other: bool = True) -> None:
+    def above(self, bottom: SupportsFocus, *, bind_other: bool = False) -> None:
         if bind_other:
             bottom.focus.set_obj_on_side(on_top=self.__self__)
         self.set_obj_on_side(on_bottom=bottom)
 
-    def below(self, top: SupportsFocus, *, bind_other: bool = True) -> None:
+    def below(self, top: SupportsFocus, *, bind_other: bool = False) -> None:
         if bind_other:
             top.focus.set_obj_on_side(on_bottom=self.__self__)
         self.set_obj_on_side(on_top=top)
 
     def register_focus_set_callback(self, callback: Callable[[], None]) -> None:
         f: SupportsFocus = self.__self__
-        list_callback: list[Callable[[], None]] = setdefaultattr(f, "_focus_set_callbacks_", [])
-        if callback not in list_callback:
-            list_callback.append(callback)
+        list_callback: set[Callable[[], None]] = self.__focus_set_callback.setdefault(f, set())
+        list_callback.add(callback)
 
     def unregister_focus_set_callback(self, callback: Callable[[], None]) -> None:
         f: SupportsFocus = self.__self__
-        list_callback: list[Callable[[], None]] = setdefaultattr(f, "_focus_set_callbacks_", [])
+        list_callback: set[Callable[[], None]] = self.__focus_set_callback.setdefault(f, set())
         list_callback.remove(callback)
+
+    def iter_focus_set_callbacks(self) -> Iterator[Callable[[], None]]:
+        return iter(self.__focus_set_callback.get(self.__self__, ()))
 
     def register_focus_leave_callback(self, callback: Callable[[], None]) -> None:
         f: SupportsFocus = self.__self__
-        list_callback: list[Callable[[], None]] = setdefaultattr(f, "_focus_leave_callbacks_", [])
-        if callback not in list_callback:
-            list_callback.append(callback)
+        list_callback: set[Callable[[], None]] = self.__focus_leave_callback.setdefault(f, set())
+        list_callback.add(callback)
 
     def unregister_focus_leave_callback(self, callback: Callable[[], None]) -> None:
         f: SupportsFocus = self.__self__
-        list_callback: list[Callable[[], None]] = setdefaultattr(f, "_focus_leave_callbacks_", [])
+        list_callback: set[Callable[[], None]] = self.__focus_leave_callback.setdefault(f, set())
         list_callback.remove(callback)
+
+    def iter_focus_leave_callbacks(self) -> Iterator[Callable[[], None]]:
+        return iter(self.__focus_leave_callback.get(self.__self__, ()))
 
     def get_mode(self) -> FocusMode:
         return scene.focus_mode() if (scene := self.__scene) else FocusMode.NONE
