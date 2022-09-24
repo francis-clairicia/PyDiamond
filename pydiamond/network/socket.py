@@ -207,7 +207,9 @@ def guess_best_buffer_size(socket: _socket.socket) -> int:
     except OSError:  # Will not work for sockets which have not a real file descriptor (e.g. Windows)
         pass
     else:
-        blksize: int = getattr(socket_stat, "st_blksize", 0)
-        if blksize > 0:
-            chunk_size = blksize
+        try:
+            if socket_stat.st_blksize > 0:
+                chunk_size = socket_stat.st_blksize
+        except AttributeError:
+            pass
     return chunk_size
