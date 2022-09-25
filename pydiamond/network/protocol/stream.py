@@ -124,7 +124,7 @@ class AutoSeparatedPacketSerializer(_BaseAutoSeparatedPacket, NetworkPacketIncre
         separator: bytes = self.separator
         data = data.rstrip(separator)
         if separator in data:
-            raise ValidationError(f"{separator!r} separator found in serialized packet {packet!r} and is not at the end")
+            raise ValueError(f"{separator!r} separator found in serialized packet {packet!r} and is not at the end")
         yield data + separator
 
     @final
@@ -288,7 +288,7 @@ class FixedPacketSizeSerializer(_BaseFixedPacketSize, NetworkPacketIncrementalSe
     def incremental_serialize(self, packet: _ST_contra) -> Generator[bytes, None, None]:
         data = self.serialize(packet)
         if len(data) != self.packet_size:
-            raise ValidationError("serialized data size does not meet expectation")
+            raise ValueError("serialized data size does not meet expectation")
         yield data
 
 

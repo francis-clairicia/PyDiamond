@@ -105,9 +105,11 @@ class StateLessTCPNetworkServer(AbstractTCPNetworkServer[_RequestT, _ResponseT])
         self.__request_handler_cls: type[AbstractTCPRequestHandler[_RequestT, _ResponseT]] = request_handler_cls
         super().__init__(address, **kwargs)
 
+    @final
     def _process_request(self, request: _RequestT, client: ConnectedClient[_ResponseT]) -> None:
         self.__request_handler_cls(request, client, self)
 
+    @final
     def _verify_new_client(self, client: TCPNetworkClient[_ResponseT, _RequestT], address: SocketAddress) -> bool:
         return self.__request_handler_cls.welcome(client, address)
 
@@ -151,6 +153,7 @@ class StateLessUDPNetworkServer(AbstractUDPNetworkServer[_RequestT, _ResponseT])
         self.__request_handler_cls: type[AbstractUDPRequestHandler[_RequestT, _ResponseT]] = request_handler_cls
         super().__init__(address, **kwargs)
 
+    @final
     def _process_request(self, request: _RequestT, client: ConnectedClient[_ResponseT]) -> None:
         self.__request_handler_cls(request, client, self)
 

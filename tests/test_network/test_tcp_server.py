@@ -88,14 +88,15 @@ def test_client_connection() -> None:
         assert len(server.clients) == 0
 
 
-class _TestWelcomeServer(StateLessTCPNetworkServer[Any, Any]):
-    def _verify_new_client(self, client: TCPNetworkClient[Any, Any], address: SocketAddress) -> bool:
+class _WelcomeBroadcastRequestHandler(_BroadcastRequestHandler):
+    @classmethod
+    def welcome(cls, client: TCPNetworkClient[Any, Any], address: SocketAddress) -> bool:
         client.send_packet("Welcome !")
         return True
 
 
 def test_welcome_connection() -> None:
-    with _TestWelcomeServer(_RANDOM_HOST_PORT, _BroadcastRequestHandler, backlog=1) as server:
+    with StateLessTCPNetworkServer(_RANDOM_HOST_PORT, _WelcomeBroadcastRequestHandler, backlog=1) as server:
         address = server.address.for_connection()
         server.serve_forever_in_thread(poll_interval=0.1)
         with TCPNetworkClient[Any, Any](address) as client:
@@ -103,7 +104,7 @@ def test_welcome_connection() -> None:
 
 
 def test_multiple_connections() -> None:
-    with _TestWelcomeServer(_RANDOM_HOST_PORT, _BroadcastRequestHandler) as server:
+    with StateLessTCPNetworkServer(_RANDOM_HOST_PORT, _WelcomeBroadcastRequestHandler) as server:
         address = server.address.for_connection()
         server.serve_forever_in_thread(poll_interval=0)
         with (

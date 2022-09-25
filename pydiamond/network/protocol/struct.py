@@ -52,10 +52,7 @@ class AbstractStructPacketSerializer(_BaseStructPacket, FixedPacketSizeSerialize
     @final
     def serialize(self, packet: _ST_contra) -> bytes:
         tuple_value = self.to_tuple(packet)
-        try:
-            return self.struct.pack(*tuple_value)
-        except StructError as exc:
-            raise ValidationError("Invalid value") from exc
+        return self.struct.pack(*tuple_value)
 
 
 class AbstractStructPacketDeserializer(_BaseStructPacket, FixedPacketSizeDeserializer[_DT_co]):

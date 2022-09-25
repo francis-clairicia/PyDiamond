@@ -135,12 +135,25 @@ class AbstractNetworkServer(Object):
         raise NotImplementedError
 
 
+class _AbstractNetworkServerImpl(AbstractNetworkServer):
+    __slots__ = ()
+
+    def _handle_error(self, client: ConnectedClient[_ResponseT]) -> None:
+        from sys import stderr
+        from traceback import print_exc
+
+        print("-" * 40, file=stderr)
+        print(f"Exception occurred during processing of request from {client.address}", file=stderr)
+        print_exc(file=stderr)
+        print("-" * 40, file=stderr)
+
+
 NetworkProtocolFactory: TypeAlias = Callable[[], NetworkProtocol[_ResponseT, _RequestT]]
 
 StreamNetworkProtocolFactory: TypeAlias = Callable[[], StreamNetworkProtocol[_ResponseT, _RequestT]]
 
 
-class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _ResponseT]):
+class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _ResponseT]):
     __slots__ = (
         "__socket",
         "__addr",
@@ -381,15 +394,6 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
     def _process_request(self, request: _RequestT, client: ConnectedClient[_ResponseT]) -> None:
         raise NotImplementedError
 
-    def _handle_error(self, client: ConnectedClient[_ResponseT]) -> None:
-        from sys import stderr
-        from traceback import print_exc
-
-        print("-" * 40, file=stderr)
-        print(f"Exception occurred during processing of request from {client.address}", file=stderr)
-        print_exc(file=stderr)
-        print("-" * 40, file=stderr)
-
     def server_close(self) -> None:
         with self.__lock:
             if not self.__is_shutdown.is_set():
@@ -502,7 +506,7 @@ class _SelectorKeyData(Generic[_RequestT, _ResponseT]):
             return self.__closed
 
 
-class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _ResponseT]):
+class AbstractUDPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _ResponseT]):
     __slots__ = (
         "__socket",
         "__server",
@@ -600,15 +604,6 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
     @abstractmethod
     def _process_request(self, request: _RequestT, client: ConnectedClient[_ResponseT]) -> None:
         raise NotImplementedError
-
-    def _handle_error(self, client: ConnectedClient[_ResponseT]) -> None:
-        from sys import stderr
-        from traceback import print_exc
-
-        print("-" * 40, file=stderr)
-        print(f"Exception occurred during processing of request from {client.address}", file=stderr)
-        print_exc(file=stderr)
-        print("-" * 40, file=stderr)
 
     def running(self) -> bool:
         with self.__lock:
