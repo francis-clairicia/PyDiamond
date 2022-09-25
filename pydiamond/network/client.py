@@ -265,6 +265,12 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         with self.__lock:
             return True if self.__queue else False
 
+    def flush_queue(self) -> deque[_ReceivedPacketT]:
+        with self.__lock:
+            q = self.__queue.copy()
+            self.__queue.clear()
+            return q
+
     def getsockname(self) -> SocketAddress:
         self._check_closed()
         return new_socket_address(self.__socket.getsockname(), self.__socket.family)
@@ -311,6 +317,10 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         except OSError:
             return False
         return True
+
+    @final
+    def _get_buffer(self) -> bytes:
+        return self.__consumer.get_buffer()
 
     @final
     def _check_closed(self) -> None:
@@ -417,7 +427,9 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
             self.__queue.clear()
             if not self.__owner:
                 return
-            self.__socket.close()
+            socket: Socket = self.__socket
+            del self.__socket
+            socket.close()
 
     def send_packet(self, address: _Address, packet: _SentPacketT, *, flags: int = 0) -> None:
         self._check_closed()
@@ -522,6 +534,12 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         self._check_closed()
         with self.__lock:
             return True if self.__queue else False
+
+    def flush_queue(self) -> deque[tuple[_ReceivedPacketT, SocketAddress]]:
+        with self.__lock:
+            q = self.__queue.copy()
+            self.__queue.clear()
+            return q
 
     def getsockname(self) -> SocketAddress:
         self._check_closed()

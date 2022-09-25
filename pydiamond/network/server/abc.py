@@ -21,6 +21,7 @@ from selectors import EVENT_READ, EVENT_WRITE, BaseSelector, DefaultSelector as 
 from socket import SHUT_WR, SOCK_DGRAM, SOCK_STREAM, socket as Socket
 from threading import Event, RLock, current_thread
 from typing import TYPE_CHECKING, Any, Callable, Generic, Iterator, Sequence, TypeAlias, TypeVar
+from weakref import WeakKeyDictionary
 
 from ...system.object import Object, final
 from ...system.threading import Thread, thread_factory
@@ -55,6 +56,11 @@ class ConnectedClient(Generic[_ResponseT], Object):
         send_packet = self.send_packet
         for packet in packets:
             send_packet(packet)
+
+    @property
+    @abstractmethod
+    def closed(self) -> bool:
+        raise NotImplementedError
 
     @property
     @final
@@ -177,19 +183,21 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
         self.__loop: bool = False
         self.__is_shutdown: Event = Event()
         self.__is_shutdown.set()
-        self.__clients: dict[Socket, AbstractTCPNetworkServer.__ConnectedClient[_ResponseT]] = {}
+        self.__clients: WeakKeyDictionary[Socket, ConnectedClient[_ResponseT]] = WeakKeyDictionary()
         self.__selector: BaseSelector
         super().__init__()
 
     @dsuppress(KeyboardInterrupt)
     def serve_forever(self, poll_interval: float = 0.5) -> None:
-        self._check_closed()
-        if self.running():
-            raise RuntimeError("Server already running")
-        self.__is_shutdown.clear()
+        with self.__lock:
+            self._check_closed()
+            if self.running():
+                raise RuntimeError("Server already running")
+            self.__is_shutdown.clear()
+            self.__selector = _Selector()
+            self.__loop = True
+
         server_socket: Socket = self.__socket
-        clients_dict: dict[Socket, AbstractTCPNetworkServer.__ConnectedClient[_ResponseT]] = self.__clients
-        selector: BaseSelector = _Selector()
 
         def select() -> dict[int, deque[SelectorKey]]:
             ready: defaultdict[int, deque[SelectorKey]] = defaultdict(deque)
@@ -199,22 +207,27 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
                         ready[mask].append(key)
             return ready
 
+        def selector_client_keys() -> list[SelectorKey]:
+            return [key for key in selector.get_map().values() if key.fileobj is not server_socket]
+
         @thread_factory(daemon=True)
         def verify_client(socket: Socket, address: SocketAddress) -> None:
             protocol = self.__protocol_cls()
             with TCPNetworkClient(socket, protocol=protocol, give=False) as client:
                 accepted = self._verify_new_client(client, address)
-            del client
             if not accepted:
                 socket.close()
                 return
             key_data = _SelectorKeyData(
-                producer=StreamNetworkDataProducer(protocol),
-                consumer=StreamNetworkDataConsumer(protocol),
-                chunk_size=guess_best_buffer_size(socket),
+                protocol=protocol,
+                socket=socket,
+                address=address,
             )
+            key_data.consumer.feed(client._get_buffer())
+            key_data.extra_queue = client.flush_queue()
+            del client
             with self.__lock:
-                clients_dict[socket] = self.__ConnectedClient(key_data.producer, address)
+                self.__clients[socket] = key_data.client
                 selector.register(socket, EVENT_READ | EVENT_WRITE, key_data)
 
         def new_client() -> None:
@@ -232,18 +245,13 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
                     new_client()
                     continue
                 key_data: _SelectorKeyData[_RequestT, _ResponseT] = key.data
-                consumer = key_data.consumer
-                bufsize = key_data.chunk_size
-                try:
-                    client = clients_dict[socket]
-                except KeyError:
-                    continue
+                client = key_data.client
                 data: bytes
                 if client.closed:
                     shutdown_client(socket)
                     continue
                 try:
-                    data = socket.recv(bufsize)
+                    data = socket.recv(key_data.chunk_size)
                 except Exception:
                     try:
                         client.close()
@@ -254,16 +262,26 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
                     if not data:  # Closed connection (EOF)
                         shutdown_client(socket)
                         continue
+                    key_data.consumer.feed(data)
+
+        def process_requests() -> None:
+            for key in selector_client_keys():
+                key_data: _SelectorKeyData[_RequestT, _ResponseT] = key.data
+                client = key_data.client
+                if client.closed:
+                    continue
+                request: _RequestT
+                if key_data.extra_queue:
+                    request = key_data.extra_queue.popleft()
+                else:
                     try:
-                        consumer.feed(data)
-                        try:
-                            request: _RequestT = next(consumer)
-                        except StopIteration:  # Not enough data
-                            pass
-                        else:
-                            self._process_request(request, client)
-                    except Exception:
-                        self._handle_error(client)
+                        request = next(key_data.consumer)
+                    except StopIteration:  # Not enough data
+                        continue
+                try:
+                    self._process_request(request, client)
+                except Exception:
+                    self._handle_error(client)
 
         def send_responses(ready: Sequence[SelectorKey]) -> None:
             for key in list(ready):
@@ -272,19 +290,17 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
                 if not producer:  # There is nothing to send
                     continue
                 socket: Socket = key.fileobj  # type: ignore[assignment]
-                bufsize = key_data.chunk_size
-                try:
-                    client = clients_dict[socket]
-                except KeyError:
-                    continue
+                client = key_data.client
                 data: bytes
                 if client.closed:
                     with suppress(Exception):
-                        socket.sendall(producer.read())
+                        data = producer.read()
+                        if data:
+                            socket.sendall(data)
                     shutdown_client(socket)
                     continue
                 try:
-                    data = producer.read(bufsize)
+                    data = producer.read(key_data.chunk_size)
                 except Exception:
                     self._handle_error(client)
                 else:
@@ -300,13 +316,15 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
                             shutdown_client(socket)
 
         def shutdown_client(socket: Socket) -> None:
-            with suppress(KeyError):
-                key = selector.unregister(socket)
-                for key_sequences in ready.values():
-                    if key in key_sequences:
-                        key_sequences.remove(key)
-            if (client := clients_dict.pop(socket, None)) and not client.closed:
+            if (client := self.__clients.pop(socket, None)) and not client.closed:
                 client.close()
+            try:
+                key = selector.unregister(socket)
+            except KeyError:
+                return
+            for key_sequences in ready.values():
+                if key in key_sequences:
+                    key_sequences.remove(key)
             with suppress(Exception):
                 try:
                     socket.shutdown(SHUT_WR)
@@ -314,18 +332,24 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
                     socket.close()
 
         def remove_closed_clients() -> None:
-            for socket in list(clients_dict):
+            for key in selector_client_keys():
+                socket: Socket = key.fileobj  # type: ignore[assignment]
                 try:
                     socket.getpeername()
                 except OSError:  # Broken connection
                     shutdown_client(socket)
+                key_data: _SelectorKeyData[_RequestT, _ResponseT] = key.data
+                if key_data.client.closed:
+                    shutdown_client(socket)
+
+        def destroy_all_clients() -> None:
+            for key in selector_client_keys():
+                socket: Socket = key.fileobj  # type: ignore[assignment]
+                shutdown_client(socket)
 
         try:
-            with selector:
+            with self.__selector as selector:
                 selector.register(server_socket, EVENT_READ)
-                self.__selector = selector
-                with self.__lock:
-                    self.__loop = True
                 try:
                     while self.__loop:
                         ready = select()
@@ -333,15 +357,18 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
                             break  # type: ignore[unreachable]
                         with self.__lock:
                             receive_requests(ready.get(EVENT_READ, ()))
+                            process_requests()
                             send_responses(ready.get(EVENT_WRITE, ()))
                             remove_closed_clients()
-                        self.service_actions()
+                            self.service_actions()
                 finally:
-                    del self.__selector
-                    deque(map(shutdown_client, tuple(clients_dict)))
+                    with self.__lock:
+                        destroy_all_clients()
         finally:
-            self.__loop = False
-            self.__is_shutdown.set()
+            with self.__lock:
+                del self.__selector
+                self.__loop = False
+                self.__is_shutdown.set()
 
     @final
     def running(self) -> bool:
@@ -365,7 +392,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
 
     def server_close(self) -> None:
         with self.__lock:
-            if self.__loop:
+            if not self.__is_shutdown.is_set():
                 raise RuntimeError("Cannot close running server. Use shutdown() first")
             if self.__closed:
                 return
@@ -388,21 +415,27 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
             raise RuntimeError("Server is not running")
         selector: BaseSelector = self.__selector
         server_socket: Socket = self.__socket
-        try:
-            key = selector.unregister(server_socket)
-        except KeyError:
+        key: SelectorKey | None
+        with self.__lock:
+            try:
+                key = selector.unregister(server_socket)
+            except KeyError:
+                key = None
+        if key is None:
             yield
             return
         try:
             server_socket.listen(0)
             yield
         finally:
-            default_backlog: int | None = self.__default_backlog
-            if default_backlog is None:
-                server_socket.listen()
-            else:
-                server_socket.listen(default_backlog)
-            selector.register(key.fileobj, key.events, key.data)
+            if self.__loop:
+                default_backlog: int | None = self.__default_backlog
+                if default_backlog is None:
+                    server_socket.listen()
+                else:
+                    server_socket.listen(default_backlog)
+                with self.__lock:
+                    selector.register(key.fileobj, key.events, key.data)
 
     @final
     def _check_closed(self) -> None:
@@ -421,6 +454,22 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
         self._check_closed()
         with self.__lock:
             return tuple(self.__clients.values())
+
+
+@dataclass(init=False)
+class _SelectorKeyData(Generic[_RequestT, _ResponseT]):
+    producer: StreamNetworkDataProducer[_ResponseT]
+    consumer: StreamNetworkDataConsumer[_RequestT]
+    chunk_size: int
+    client: ConnectedClient[_ResponseT]
+    extra_queue: deque[_RequestT]
+
+    def __init__(self, *, protocol: StreamNetworkProtocol[_ResponseT, _RequestT], socket: Socket, address: SocketAddress) -> None:
+        self.producer = StreamNetworkDataProducer(protocol)
+        self.consumer = StreamNetworkDataConsumer(protocol)
+        self.chunk_size = guess_best_buffer_size(socket)
+        self.client = self.__ConnectedClient(self.producer, address)
+        self.extra_queue = deque()
 
     @final
     class __ConnectedClient(ConnectedClient[_ResponseT]):
@@ -451,13 +500,6 @@ class AbstractTCPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
         @property
         def closed(self) -> bool:
             return self.__closed
-
-
-@dataclass(kw_only=True)
-class _SelectorKeyData(Generic[_RequestT, _ResponseT]):
-    producer: StreamNetworkDataProducer[_ResponseT]
-    consumer: StreamNetworkDataConsumer[_RequestT]
-    chunk_size: int
 
 
 class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _ResponseT]):
@@ -506,11 +548,12 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
 
     @dsuppress(KeyboardInterrupt)
     def serve_forever(self, poll_interval: float = 0.5) -> None:
-        if self.running():
-            raise RuntimeError("Server already running")
         with self.__lock:
-            self.__loop = True
+            self._check_closed()
+            if self.running():
+                raise RuntimeError("Server already running")
             self.__is_shutdown.clear()
+            self.__loop = True
 
         socket: Socket = self.__socket
         server: UDPNetworkClient[_ResponseT, _RequestT] = self.__server
@@ -519,33 +562,37 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
 
         def parse_requests() -> None:
             flags: int = self.flags
-            with self.__lock:
-                for request, address in server.recv_packets(timeout=None, flags=flags):
-                    with UDPNetworkClient(socket, protocol=protocol_cls(), give=False) as client:
-                        connected_client = ConnectedClient(client, address, flags)
-                        try:
-                            self._process_request(request, connected_client)
-                        except Exception:
-                            self._handle_error(connected_client)
+            for request, address in server.recv_packets(timeout=None, flags=flags):
+                with UDPNetworkClient(socket, protocol=protocol_cls(), give=False) as client:
+                    connected_client = ConnectedClient(client, address, flags)
+                    try:
+                        self._process_request(request, connected_client)
+                    except Exception:
+                        self._handle_error(connected_client)
 
         with _Selector() as selector:
-            selector.register(self.__server, EVENT_READ)
+            selector.register(server, EVENT_READ)
             try:
-                while self.running():
+                while self.__loop:
                     ready: bool = len(selector.select(poll_interval)) > 0
-                    if not self.running():
-                        break
-                    if ready:
-                        parse_requests()
-                    self.service_actions()
+                    if not self.__loop:
+                        break  # type: ignore[unreachable]
+                    with self.__lock:
+                        if ready:
+                            parse_requests()
+                        self.service_actions()
             finally:
                 with self.__lock:
                     self.__loop = False
-                self.__is_shutdown.set()
+                    self.__is_shutdown.set()
 
     def server_close(self) -> None:
         with self.__lock:
-            self.__server.close()
+            if not self.__is_shutdown.is_set():
+                raise RuntimeError("Cannot close running server. Use shutdown() first")
+            if not self.__server.closed:
+                self.__server.close()
+                del self.__socket
 
     def service_actions(self) -> None:
         pass
@@ -565,12 +612,17 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
 
     def running(self) -> bool:
         with self.__lock:
-            return self.__loop
+            return not self.__is_shutdown.is_set()
 
     def shutdown(self) -> None:
         with self.__lock:
             self.__loop = False
         self.__is_shutdown.wait()
+
+    @final
+    def _check_closed(self) -> None:
+        if self.__server.closed:
+            raise RuntimeError("Closed server")
 
     @property
     @final
@@ -604,3 +656,7 @@ class AbstractUDPNetworkServer(AbstractNetworkServer, Generic[_RequestT, _Respon
 
         def send_packets(self, *packets: _ResponseT) -> None:
             return self.__client.send_packets(self.address, *packets, flags=self.__flags)
+
+        @property
+        def closed(self) -> bool:
+            return self.__client.closed

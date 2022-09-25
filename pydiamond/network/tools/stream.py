@@ -160,3 +160,7 @@ class StreamNetworkDataConsumer(Iterator[_DT_co], Generic[_DT_co], Object):
             return
         with self.__lock:
             self.__b += chunk
+
+    def get_buffer(self) -> bytes:
+        with self.__lock:
+            return self.__b
