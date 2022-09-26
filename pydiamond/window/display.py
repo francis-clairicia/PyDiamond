@@ -181,7 +181,7 @@ class Window(Object, no_slots=True):
 
             size: tuple[int, int] = self.__size
             flags: int = self.__flags
-            vsync = int(bool(self.__vsync))
+            vsync: bool = self.__vsync
             _pg_display.set_mode(size, flags=flags, vsync=vsync).fill((0, 0, 0))
             _pg_display.flip()
             self.__display_renderer = _WindowRenderer()
@@ -340,10 +340,8 @@ class Window(Object, no_slots=True):
         real_time: float
         if framerate <= 0:
             real_time = self.__main_clock.tick()
-        elif self.get_busy_loop():
-            real_time = self.__main_clock.tick_busy_loop(framerate)
         else:
-            real_time = self.__main_clock.tick(framerate)
+            real_time = self.__main_clock.tick(framerate, self.get_busy_loop())
         return real_time
 
     def refresh(self) -> None:
@@ -566,7 +564,7 @@ class Window(Object, no_slots=True):
         if size == screen.get_size():
             return
         flags: int = self.__flags
-        vsync = int(bool(self.__vsync))
+        vsync: bool = self.__vsync
         screen = _pg_display.set_mode(size, flags=flags, vsync=vsync)
         self.__rect = ImmutableRect.convert(screen.get_rect())
 
@@ -926,7 +924,7 @@ class _FramerateManager:
         self.__fps_tick: float = self.get_ticks()
         self.__last_tick: float = self.__fps_tick
 
-    def __tick_impl(self, framerate: int, use_accurate_delay: bool) -> float:
+    def tick(self, framerate: int = 0, use_accurate_delay: bool = False) -> float:
         actual_tick: float = self.get_ticks()
         elapsed: float = actual_tick - self.__last_tick
         if framerate >= 1:
@@ -948,12 +946,6 @@ class _FramerateManager:
             self.__fps_count = 0
             self.__fps_tick = actual_tick
         return elapsed
-
-    def tick(self, framerate: int = 0) -> float:
-        return self.__tick_impl(framerate, False)
-
-    def tick_busy_loop(self, framerate: int = 0) -> float:
-        return self.__tick_impl(framerate, True)
 
     def get_fps(self) -> float:
         return self.__fps
