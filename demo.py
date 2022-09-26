@@ -1359,6 +1359,8 @@ class MainWindow(SceneWindow):
 
     def __window_init__(self) -> None:
         super().__window_init__()
+        self.exit_stack.enter_context(Mixer.init())
+
         # Text.set_default_font(FontResources.cooperblack)
 
         Button.set_default_theme("default")
@@ -1444,7 +1446,7 @@ def main() -> None:
         gc.set_debug(gc.DEBUG_STATS | gc.DEBUG_LEAK)
 
     window = MainWindow()
-    with Mixer.init(), window.open():
+    with window.open():
         weakref.finalize(window, print, "Window dead")
         MusicStream.set_volume(0)
         window.mainloop(args.index)

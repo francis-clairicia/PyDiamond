@@ -236,6 +236,8 @@ class BuiltinEventType(IntEnum):
     JOYDEVICEADDED = _pg_constants.JOYDEVICEADDED
     JOYDEVICEREMOVED = _pg_constants.JOYDEVICEREMOVED
     USEREVENT = _pg_constants.USEREVENT
+    AUDIODEVICEADDED = _pg_constants.AUDIODEVICEADDED
+    AUDIODEVICEREMOVED = _pg_constants.AUDIODEVICEREMOVED
     TEXTEDITING = _pg_constants.TEXTEDITING
     TEXTINPUT = _pg_constants.TEXTINPUT
     DROPBEGIN = _pg_constants.DROPBEGIN
@@ -331,6 +333,9 @@ class MouseMotionEvent(BuiltinEvent, event_type=BuiltinEventType.MOUSEMOTION):
     rel: tuple[int, int]
     buttons: tuple[bool, bool, bool]
 
+    def __post_init__(self) -> None:
+        setattr(self, "buttons", tuple(map(bool, self.buttons)))
+
 
 @final
 @dataclass(kw_only=True)
@@ -338,6 +343,9 @@ class MouseWheelEvent(BuiltinEvent, event_type=BuiltinEventType.MOUSEWHEEL):
     flipped: bool
     x: int
     y: int
+
+    def __post_init__(self) -> None:
+        self.flipped = bool(self.flipped)
 
 
 MouseEvent: TypeAlias = MouseButtonEvent | MouseWheelEvent | MouseMotionEvent
@@ -394,6 +402,26 @@ class JoyDeviceAddedEvent(BuiltinEvent, event_type=BuiltinEventType.JOYDEVICEADD
 @dataclass(kw_only=True)
 class JoyDeviceRemovedEvent(BuiltinEvent, event_type=BuiltinEventType.JOYDEVICEREMOVED):
     instance_id: int
+
+
+@final
+@dataclass(kw_only=True)
+class AudioDeviceAddedEvent(BuiltinEvent, event_type=BuiltinEventType.AUDIODEVICEADDED):
+    which: int
+    iscapture: bool
+
+    def __post_init__(self) -> None:
+        self.iscapture = bool(self.iscapture)
+
+
+@final
+@dataclass(kw_only=True)
+class AudioDeviceRemovedEvent(BuiltinEvent, event_type=BuiltinEventType.AUDIODEVICEREMOVED):
+    which: int
+    iscapture: bool
+
+    def __post_init__(self) -> None:
+        self.iscapture = bool(self.iscapture)
 
 
 @final

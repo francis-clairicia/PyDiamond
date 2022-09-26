@@ -220,7 +220,7 @@ class Window(Object, no_slots=True):
 
             self.set_cursor(SystemCursor.ARROW)
 
-            self.clear_all_events()
+            self.__event_queue.clear()
             self.__main_clock.tick()
             self._last_tick_time = -1
             yield
