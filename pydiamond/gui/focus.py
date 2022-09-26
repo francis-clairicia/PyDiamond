@@ -162,7 +162,16 @@ class BoundFocus:
             bound_object_dict[side] = obj
 
     def remove_obj_on_side(self, *sides: str) -> None:
-        self.set_obj_on_side(dict.fromkeys(sides, None))
+        sides_set = set(map(BoundFocusSide, sides))
+        del sides
+        f: SupportsFocus = self.__self__
+        bound_object_dict: WeakValueDictionary[BoundFocusSide, SupportsFocus]
+        try:
+            bound_object_dict = self.__side[f]
+        except KeyError:
+            return
+        for side in sides_set:
+            bound_object_dict.pop(side, None)
 
     def remove_all_links(self) -> None:
         f: SupportsFocus = self.__self__

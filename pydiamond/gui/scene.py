@@ -134,9 +134,12 @@ class GUIScene(Scene):
             else:
                 self.__on_focus_leave(focusable)
             return None
-        if focusable not in focusable_list or not focusable.focus.take():
+        if not focusable.focus.take():
             return False
-        self.__focus_index = focusable_list.index(focusable)
+        try:
+            self.__focus_index = focusable_list.index(focusable)
+        except ValueError:
+            return False
         try:
             actual_focusable: SupportsFocus = focusable_list[focus_index]
         except IndexError:
@@ -188,11 +191,9 @@ class GUIScene(Scene):
             case Key.K_ESCAPE:
                 self.focus_set(None)
                 return True
-        side_with_key_event = self.get_side_with_key_event()
-        if event.key in side_with_key_event:
-            side: BoundFocusSide = side_with_key_event[event.key]
-            self.__focus_obj_on_side(side)
-            return True
+            case key if key in (side_with_key_event := self.get_side_with_key_event()):
+                self.__focus_obj_on_side(side_with_key_event[key])
+                return True
         return False
 
     @no_theme_decorator
