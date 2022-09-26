@@ -136,7 +136,7 @@ class EventMeta(ObjectMeta):
             except AttributeError:
                 pass
             else:
-                event_name_dispatch_table[event_type] = event_cls.__name__
+                event_name_dispatch_table[event_type] = f"{event_cls.__qualname__}({_pg_event.event_name(event_type)})"
         return cls
 
     def __call__(cls, *args: Any, **kwds: Any) -> Any:
