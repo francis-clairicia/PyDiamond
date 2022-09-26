@@ -12,9 +12,9 @@ authors = [
 ]
 license = {file = "LICENSE"}
 dependencies = [
-  "pygame ==2.1.2",
-  "cryptography ==37.0.4",
-  "typing_extensions ==4.3.0"
+  "pygame==2.1.2",
+  "cryptography~=38.0.1",
+  "typing_extensions>=4.3.0,<5"
 ]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
