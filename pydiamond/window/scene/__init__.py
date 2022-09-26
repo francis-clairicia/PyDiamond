@@ -140,15 +140,11 @@ class ReturningSceneTransitionProtocol(SceneTransitionProtocol, Protocol):
         raise NotImplementedError
 
 
-class SceneTransition(Object):
-    window: AbstractRenderer
+class _BaseSceneTransitionImpl(Object):
+    __slots__ = ()
 
     @final
-    def show_new_scene(
-        self, window: AbstractRenderer, previous_scene_image: Surface, actual_scene_image: Surface
-    ) -> SceneTransitionCoroutine:
-        self.window = window
-        self.init(previous_scene_image=previous_scene_image, actual_scene_image=actual_scene_image)
+    def _loop(self) -> SceneTransitionCoroutine:
         while True:
             try:
                 while (interpolation := (yield)) is None:
@@ -159,10 +155,9 @@ class SceneTransition(Object):
             except GeneratorExit:
                 self.destroy()
                 return
-
-    @abstractmethod
-    def init(self, previous_scene_image: Surface, actual_scene_image: Surface) -> None:
-        raise NotImplementedError
+            except BaseException:
+                self.destroy()
+                raise
 
     def fixed_update(self) -> None:
         pass
@@ -185,15 +180,54 @@ class SceneTransition(Object):
         pass
 
 
-class ReturningSceneTransition(SceneTransition):
+class SceneTransition(_BaseSceneTransitionImpl):
+    __slots__ = ("window",)
+
+    window: AbstractRenderer
+
+    @abstractmethod
+    def init(self, previous_scene_image: Surface, actual_scene_image: Surface) -> None:
+        raise NotImplementedError
+
+    @final
+    def show_new_scene(
+        self, window: AbstractRenderer, previous_scene_image: Surface, actual_scene_image: Surface
+    ) -> SceneTransitionCoroutine:
+        self.window = window
+        self.init(previous_scene_image=previous_scene_image, actual_scene_image=actual_scene_image)
+        try:
+            return (yield from self._loop())
+        finally:
+            with suppress(AttributeError):
+                del self.window
+
+
+class ReturningSceneTransition(_BaseSceneTransitionImpl):
+    __slots__ = ("window",)
+
+    window: AbstractRenderer
+
     @unique
     class Context(AutoLowerNameEnum):
         SHOW = auto()
         HIDE = auto()
 
     @abstractmethod
-    def init(self, previous_scene_image: Surface, actual_scene_image: Surface, *, context: Context = Context.SHOW) -> None:
+    def init(self, previous_scene_image: Surface, actual_scene_image: Surface, context: Context) -> None:
         raise NotImplementedError
+
+    @final
+    def show_new_scene(
+        self, window: AbstractRenderer, previous_scene_image: Surface, actual_scene_image: Surface
+    ) -> SceneTransitionCoroutine:
+        self.window = window
+        context = ReturningSceneTransition.Context.SHOW
+        self.init(previous_scene_image=previous_scene_image, actual_scene_image=actual_scene_image, context=context)
+        try:
+            return (yield from self._loop())
+        finally:
+            with suppress(AttributeError):
+                del self.window
 
     @final
     def hide_actual_scene(
@@ -202,16 +236,11 @@ class ReturningSceneTransition(SceneTransition):
         self.window = window
         context = ReturningSceneTransition.Context.HIDE
         self.init(previous_scene_image=previous_scene_image, actual_scene_image=actual_scene_image, context=context)
-        while True:
-            try:
-                while (interpolation := (yield)) is None:
-                    self.fixed_update()
-                self.interpolation_update(interpolation)
-                self.update()
-                self.render()
-            except GeneratorExit:
-                self.destroy()
-                return
+        try:
+            return (yield from self._loop())
+        finally:
+            with suppress(AttributeError):
+                del self.window
 
 
 class Scene(Object, metaclass=SceneMeta, no_slots=True):
@@ -246,13 +275,17 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
 
     @no_theme_decorator
     def __del_scene__(self) -> None:
-        with self.__stack_destroy:
-            self.__stack_quit.close()
-            self.__event.unbind_all()
-            for window_callback in list(self.__callback_after):
-                window_callback.kill()
-            self.__callback_after_dict.pop(self, None)
-            self.__dict__.clear()
+        with self.__stack_destroy, ExitStack() as stack:
+            stack.callback(self.__dict__.clear)
+
+            @stack.callback
+            def _() -> None:
+                for window_callback in list(self.__callback_after):
+                    window_callback.kill()
+                self.__callback_after_dict.pop(self, None)
+
+            stack.callback(self.__event.unbind_all)
+            stack.callback(self.__stack_quit.close)
 
     @abstractmethod
     def awake(self, **kwargs: Any) -> None:
@@ -843,7 +876,7 @@ class _SceneManager:
             if not self.__stack:
                 raise RuntimeError("Trying to open dialog without open scene")
             scene.__dict__[self.__dialog_master_attribute] = self.__dialogs[0] if self.__dialogs else self.__stack[0]
-        scene.__init__()  # type: ignore[misc]
+        type(scene).__init__(scene)
         return scene
 
     def __delete_scene(self, scene: Scene) -> None:
@@ -851,8 +884,10 @@ class _SceneManager:
             stack_quit: ExitStack = getattr_pv(scene, "stack_quit", owner=Scene)
             stack_destroy: ExitStack = getattr_pv(scene, "stack_destroy", owner=Scene)
             with stack_destroy.pop_all():
-                stack_quit.close()
-                scene.__del_scene__()
+                try:
+                    stack_quit.close()
+                finally:
+                    type(scene).__del_scene__(scene)
         finally:
             self.__awaken.discard(scene)
             scene_cls = scene.__class__

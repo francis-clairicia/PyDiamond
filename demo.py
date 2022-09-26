@@ -1271,8 +1271,6 @@ class TestDialogScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawabl
 
 
 class SceneTransitionTranslation(SceneTransition):
-    __slots__ = "__side"
-
     def __init__(self, side: Literal["left", "right"]) -> None:
         super().__init__()
         self.__side: Literal["left", "right"] = side
