@@ -6,11 +6,11 @@ from time import sleep
 from typing import Any
 
 from pydiamond.network.client import UDPNetworkClient
-from pydiamond.network.server.stateless import AbstractUDPRequestHandler, StateLessUDPNetworkServer
+from pydiamond.network.server.stateless import AbstractRequestHandler, StateLessUDPNetworkServer
 from pydiamond.system.threading import Thread
 
 
-class _MirrorRequestHandler(AbstractUDPRequestHandler[Any, Any]):
+class _MirrorRequestHandler(AbstractRequestHandler[Any, Any]):
     def handle(self) -> None:
         self.client.send_packet(self.request)
 

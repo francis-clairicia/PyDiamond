@@ -44,6 +44,9 @@ class ConnectedClient(Generic[_ResponseT], Object):
         super().__init__()
         self.__addr: SocketAddress = address
 
+    def __repr__(self) -> str:
+        return f"<connected client with address {self.__addr} at {id(self):#x}>"
+
     @abstractmethod
     def close(self) -> None:
         raise NotImplementedError
@@ -162,10 +165,10 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
         "__lock",
         "__loop",
         "__is_shutdown",
-        "__is_shutdown",
         "__clients",
         "__selector",
         "__default_backlog",
+        "__verify_in_thread",
     )
 
     def __init__(
@@ -177,6 +180,7 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
         reuse_port: bool = False,
         dualstack_ipv6: bool = False,
         protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT] = PickleNetworkProtocol,
+        verify_client_in_thread: bool = False,
     ) -> None:
         if not callable(protocol_cls):
             raise TypeError("Invalid arguments")
@@ -198,6 +202,7 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
         self.__is_shutdown.set()
         self.__clients: WeakKeyDictionary[Socket, ConnectedClient[_ResponseT]] = WeakKeyDictionary()
         self.__selector: BaseSelector
+        self.__verify_in_thread: bool = bool(verify_client_in_thread)
         super().__init__()
 
     @dsuppress(KeyboardInterrupt)
@@ -223,7 +228,6 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
         def selector_client_keys() -> list[SelectorKey]:
             return [key for key in selector.get_map().values() if key.fileobj is not server_socket]
 
-        @thread_factory(daemon=True)
         def verify_client(socket: Socket, address: SocketAddress) -> None:
             protocol = self.__protocol_cls()
             with TCPNetworkClient(socket, protocol=protocol, give=False) as client:
@@ -243,13 +247,18 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                 self.__clients[socket] = key_data.client
                 selector.register(socket, EVENT_READ | EVENT_WRITE, key_data)
 
+        verify_client_in_thread = thread_factory(daemon=True, auto_start=True)(verify_client)
+
         def new_client() -> None:
             try:
                 client_socket, address = server_socket.accept()
             except OSError:
                 return
             address = new_socket_address(address, client_socket.family)
-            verify_client(client_socket, address)
+            if self.__verify_in_thread:
+                verify_client_in_thread(client_socket, address)
+            else:
+                verify_client(client_socket, address)
 
         def receive_requests(ready: Sequence[SelectorKey]) -> None:
             for key in list(ready):
