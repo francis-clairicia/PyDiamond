@@ -199,15 +199,13 @@ def create_server(
 
 
 def guess_best_buffer_size(socket: _socket.socket) -> int:
-    from io import DEFAULT_BUFFER_SIZE
-
-    chunk_size: int = DEFAULT_BUFFER_SIZE
     try:
         socket_stat = os.fstat(socket.fileno())
+        if (blksize := getattr(socket_stat, "st_blksize", 0)) > 0:
+            return blksize
     except OSError:  # Will not work for sockets which have not a real file descriptor (e.g. on Windows)
         pass
-    else:
-        if (blksize := getattr(socket_stat, "st_blksize", 0)) > 0:
-            chunk_size = blksize
-            del blksize
-    return chunk_size
+
+    from io import DEFAULT_BUFFER_SIZE
+
+    return DEFAULT_BUFFER_SIZE

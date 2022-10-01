@@ -277,7 +277,7 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                         continue
                     key_data.consumer.feed(data)
 
-        def process_requests() -> None:
+        def process_requests(ready: Sequence[SelectorKey]) -> None:
             for key in selector_client_keys():
                 key_data: _SelectorKeyData[_RequestT, _ResponseT] = key.data
                 client = key_data.client
@@ -287,6 +287,8 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                 if key_data.extra_queue:
                     request = key_data.extra_queue.popleft()
                 else:
+                    if key not in ready:
+                        continue
                     try:
                         request = next(key_data.consumer)
                     except StopIteration:  # Not enough data
@@ -316,17 +318,17 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                     data = producer.read(key_data.chunk_size)
                 except Exception:
                     self._handle_error(client)
-                else:
-                    if not data:
-                        continue
+                    continue
+                if not data:
+                    continue
+                try:
+                    socket.sendall(data)
+                except Exception:
                     try:
-                        socket.sendall(data)
-                    except Exception:
-                        try:
-                            client.close()
-                            self._handle_error(client)
-                        finally:
-                            shutdown_client(socket)
+                        client.close()
+                        self._handle_error(client)
+                    finally:
+                        shutdown_client(socket)
 
         def shutdown_client(socket: Socket) -> None:
             if (client := self.__clients.pop(socket, None)) and not client.closed:
@@ -370,10 +372,10 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                             break  # type: ignore[unreachable]
                         with self.__lock:
                             receive_requests(ready.get(EVENT_READ, ()))
-                            process_requests()
+                            process_requests(ready.get(EVENT_READ, ()))
                             send_responses(ready.get(EVENT_WRITE, ()))
-                            remove_closed_clients()
                             self.service_actions()
+                            remove_closed_clients()
                 finally:
                     with self.__lock:
                         destroy_all_clients()
