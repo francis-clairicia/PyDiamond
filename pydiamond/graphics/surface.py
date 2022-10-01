@@ -37,7 +37,7 @@ from ._draw import (
     draw_polygon as _draw_polygon,
     draw_rect as _draw_rect,
 )
-from .color import TRANSPARENT, Color
+from .color import TRANSPARENT
 from .rect import Rect
 from .renderer import AbstractRenderer, BlendMode
 
@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 del pygame
 
 
-def create_surface(size: tuple[float, float], *, convert_alpha: bool = True, default_color: Color = TRANSPARENT) -> Surface:
+def create_surface(size: tuple[float, float], *, convert_alpha: bool = True, default_color: _ColorValue = TRANSPARENT) -> Surface:
     size = (max(size[0], 0), max(size[1], 0))
     s: Surface = Surface(size)
     if convert_alpha:

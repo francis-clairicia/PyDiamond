@@ -33,8 +33,7 @@ if TYPE_CHECKING:
     from ...graphics.font import Font
     from ...graphics.renderer import AbstractRenderer
     from ...window.cursor import Cursor
-    from ...window.display import Window
-    from ...window.scene import Scene
+    from ...window.scene import Scene, SceneWindow
 
     _TupleFont: TypeAlias = tuple[str | None, int]
     _TextFont: TypeAlias = Font | _TupleFont
@@ -184,7 +183,7 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
     @initializer
     def __init__(
         self,
-        master: AbstractWidget | Clickable | Scene | Window,
+        master: AbstractWidget | Clickable | Scene | SceneWindow,
         text: str = "",
         callback: Callable[[], None] | None = None,
         *,
@@ -846,7 +845,7 @@ class ImageButton(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjec
     @initializer
     def __init__(
         self,
-        master: AbstractWidget | Clickable | Scene | Window,
+        master: AbstractWidget | Clickable | Scene | SceneWindow,
         img: Surface,
         callback: Callable[[], None] | None = None,
         *,

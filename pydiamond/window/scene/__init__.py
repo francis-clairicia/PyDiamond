@@ -45,7 +45,7 @@ from typing import (
     overload,
     runtime_checkable,
 )
-from weakref import WeakSet
+from weakref import WeakKeyDictionary, WeakSet
 
 from ...graphics.color import Color
 from ...graphics.drawable import Drawable, LayeredDrawableGroup
@@ -263,7 +263,7 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
         self.__event: EventManager = EventManager()
         self.__bg_color: Color = Color(0, 0, 0)
         self.__callback_after: _WindowCallbackList = _WindowCallbackList()
-        self.__callback_after_dict: dict[Scene, _WindowCallbackList] = getattr_pv(
+        self.__callback_after_dict: WeakKeyDictionary[Scene, _WindowCallbackList] = getattr_pv(
             manager.window, "callback_after_scenes", owner=SceneWindow
         )
         self.__stack_quit: ExitStack = ExitStack()
@@ -325,7 +325,10 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
         self.__manager.render(scene)
 
     def handle_event(self, event: Event) -> bool:
-        return self.event._process_event(event)
+        return self.__event._process_event(event)
+
+    def handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
+        self.__event._handle_mouse_position(mouse_pos)
 
     @final
     @no_theme_decorator
@@ -400,7 +403,7 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
     ) -> WindowCallback | Callable[[Callable[..., None]], WindowCallback]:
         def decorator(__callback: Callable[..., None], /) -> WindowCallback:
             window_callback: WindowCallback = _SceneWindowCallback(self, __milliseconds, __callback, args, kwargs)
-            callback_dict: dict[Scene, _WindowCallbackList] = self.__callback_after_dict
+            callback_dict: WeakKeyDictionary[Scene, _WindowCallbackList] = self.__callback_after_dict
             callback_list: _WindowCallbackList = self.__callback_after
 
             callback_dict[self] = callback_list
@@ -433,7 +436,7 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
     ) -> WindowCallback | Callable[[Callable[..., Any]], WindowCallback]:
         def decorator(__callback: Callable[..., Any], /) -> WindowCallback:
             window_callback: WindowCallback
-            callback_dict: dict[Scene, _WindowCallbackList] = self.__callback_after_dict
+            callback_dict: WeakKeyDictionary[Scene, _WindowCallbackList] = self.__callback_after_dict
             callback_list: _WindowCallbackList = self.__callback_after
             callback_dict[self] = callback_list
 
@@ -564,26 +567,34 @@ class SceneWindow(Window):
         vsync: bool = False,
     ) -> None:
         super().__init__(title=title, size=size, resizable=resizable, fullscreen=fullscreen, vsync=vsync)
-        self.__callback_after_scenes: dict[Scene, _WindowCallbackList] = dict()
+        self.__callback_after_scenes: WeakKeyDictionary[Scene, _WindowCallbackList] = WeakKeyDictionary()
         self.__scenes: _SceneManager
         self.__default_fixed_framerate: int = self.DEFAULT_FIXED_FRAMERATE
         self.__accumulator: float = 0
         self.__reset_interpolation_data()
         self.__running: bool = False
+        self.__event = EventManager()
 
     @contextmanager
     def open(self) -> Iterator[None]:
-        def cleanup() -> None:
-            self.__scenes.clear()
-            self.__callback_after_scenes.clear()
-            del self.__scenes
-            self.__reset_interpolation_data()
+        with ExitStack() as stack_before_open:
+            stack_before_open.callback(self.__event.unbind_all)
 
-        with super().open(), ExitStack() as stack:
-            self.__scenes = _SceneManager(self)
-            self.__reset_interpolation_data()
-            stack.callback(cleanup)
-            yield
+            del stack_before_open
+            with super().open(), ExitStack() as stack_after_open:
+                self.__scenes = _SceneManager(self)
+                self.__reset_interpolation_data()
+                stack_after_open.callback(self.__reset_interpolation_data)
+
+                @stack_after_open.callback
+                def _() -> None:
+                    try:
+                        self.__scenes.clear()
+                    finally:
+                        del self.__scenes
+
+                stack_after_open.callback(self.__callback_after_scenes.clear)
+                yield
 
     @final
     def run(self, __default_scene: type[Scene], /, **scene_kwargs: Any) -> None:
@@ -690,8 +701,7 @@ class SceneWindow(Window):
         if fixed_framerate < 1:
             fixed_framerate = self.used_framerate()
         setattr_pv(Time, "fixed_delta", 1 / fixed_framerate if fixed_framerate > 0 else Time.delta())
-        if real_delta_time > 0:
-            self.__compute_interpolation_data(real_delta_time / 1000)
+        self.__compute_interpolation_data(real_delta_time / 1000)
         return real_delta_time
 
     def _fixed_updates_call(self, *funcs: Callable[[], None]) -> None:
@@ -742,7 +752,7 @@ class SceneWindow(Window):
             window_callback_list.process()
 
     def _process_event(self, event: Event) -> bool:
-        if super()._process_event(event):
+        if self.__event._process_event(event) or super()._process_event(event):
             return True
         actual_scene: Scene | None = self.__scenes.top()
         if actual_scene is None:
@@ -750,19 +760,18 @@ class SceneWindow(Window):
         return actual_scene.handle_event(event)
 
     def _handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
+        self.__event._handle_mouse_position(mouse_pos)
         super()._handle_mouse_position(mouse_pos)
         actual_scene: Scene | None = self.__scenes.top()
         if actual_scene is not None:
-            actual_scene.event._handle_mouse_position(mouse_pos)
+            actual_scene.handle_mouse_position(mouse_pos)
 
     def used_framerate(self) -> int:
-        framerate = super().used_framerate()
         for scene in self.__scenes.from_top_to_bottom():
-            f: int = scene.use_framerate()
-            if f > 0:
-                framerate = f
-                break
-        return framerate
+            framerate: int = scene.use_framerate()
+            if framerate > 0:
+                return framerate
+        return super().used_framerate()
 
     @final
     def get_default_fixed_framerate(self) -> int:
@@ -773,13 +782,11 @@ class SceneWindow(Window):
         self.__default_fixed_framerate = max(int(value), 0)
 
     def used_fixed_framerate(self) -> int:
-        framerate = self.__default_fixed_framerate
         for scene in self.__scenes.from_top_to_bottom():
-            f: int = scene.use_fixed_framerate()
-            if f > 0:
-                framerate = f
-                break
-        return framerate
+            framerate: int = scene.use_fixed_framerate()
+            if framerate > 0:
+                return framerate
+        return self.__default_fixed_framerate
 
     def get_busy_loop(self) -> bool:
         actual_scene: Scene | None = self.__scenes.top()
@@ -819,6 +826,10 @@ class SceneWindow(Window):
             self.__alpha_interpolation = min(max(self.__accumulator / dt, 0.0), 1.0)
         else:
             self.__alpha_interpolation = 1.0
+
+    @property
+    def event(self) -> EventManager:
+        return self.__event
 
 
 from .dialog import Dialog  # Import here because of circular import

@@ -19,14 +19,14 @@ if TYPE_CHECKING:
     from ..graphics.rect import Rect
     from .cursor import Cursor
     from .display import Window
-    from .event import MouseMotionEvent
-    from .scene import Scene
+    from .event import BoundEventManager, EventManager, MouseMotionEvent
 
 
 class Draggable(Clickable):
     def __init__(
         self,
-        master: Clickable | Scene | Window,
+        master: Clickable | EventManager | BoundEventManager[Any],
+        window: Window | None = None,
         *,
         state: str = "normal",
         hover_sound: Sound | None = None,
@@ -38,6 +38,7 @@ class Draggable(Clickable):
     ) -> None:
         super().__init__(
             master=master,
+            window=window,
             state=state,
             hover_sound=hover_sound,
             click_sound=click_sound,
@@ -79,7 +80,8 @@ _D = TypeVar("_D", bound=SupportsDragging)
 class DraggingContainer(Draggable, Generic[_D]):
     def __init__(
         self,
-        master: Clickable | Scene | Window,
+        master: Clickable | EventManager | BoundEventManager[Any],
+        window: Window,
         target: _D,
         *,
         state: str = "normal",
@@ -91,6 +93,7 @@ class DraggingContainer(Draggable, Generic[_D]):
     ) -> None:
         super().__init__(
             master,
+            window,
             state=state,
             hover_sound=hover_sound,
             click_sound=click_sound,
@@ -99,6 +102,7 @@ class DraggingContainer(Draggable, Generic[_D]):
             disabled_cursor=disabled_cursor,
         )
 
+        self.__window: Window = window
         self.__target: _D = target
 
     def is_shown(self) -> bool:

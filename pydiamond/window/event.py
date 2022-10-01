@@ -190,8 +190,8 @@ class _BuiltinEventMeta(EventMeta):
         assert isinstance(event_type, BuiltinEventType), f"Got {event_type!r}"
         assert event_type not in mcs.__type, f"{event_type!r} event already taken"
         event_cls = cast(type[BuiltinEvent], cls)
-        mcs.__associations[event_cls] = event_type
-        mcs.__type[event_type] = event_cls
+        mcs.__associations[event_cls] = int(event_type)
+        mcs.__type[int(event_type)] = event_cls
         if event_name:
             try:
                 event_name_dispatch_table: dict[int, str] = getattr(_pg_event.event_name, "__event_name_dispatch_table__")
@@ -588,16 +588,16 @@ class ScreenshotEvent(BuiltinEvent, event_type=BuiltinEventType.SCREENSHOT, even
     screen: Surface
 
 
-def _check_event_types_association() -> None:
+def __check_event_types_association() -> None:
     if unbound_types := set(filter(lambda e: e not in _BUILTIN_PYGAME_EVENT_TYPE, BuiltinEventType)):  # noqa: F821
         raise AssertionError(
             f"The following events do not have an associated BuiltinEvent class: {', '.join(e.name for e in unbound_types)}"
         )
 
 
-_check_event_types_association()
+__check_event_types_association()
 
-del _check_event_types_association
+del __check_event_types_association
 
 
 class EventFactoryError(Exception):
@@ -639,9 +639,9 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
                 ) from exc
             return UserEvent.from_dict(pygame_event.__dict__ | {"code": pygame_event.type})
         match event_cls.from_dict(pygame_event.__dict__):
-            case UserEvent(code=BuiltinUserEventCode.DROPFILE) as event:
+            case UserEvent(code=BuiltinUserEventCode.DROPFILE, filename=filename) as event:
                 # c.f.: https://www.pygame.org/docs/ref/event.html#:~:text=%3Dpygame.-,USEREVENT_DROPFILE,-%2C%20filename
-                return DropFileEvent(file=event.filename)
+                return DropFileEvent(file=filename)
             case event:
                 return event
 
@@ -820,6 +820,7 @@ class EventManager:
         mouse_pos_handler_list.remove(callback_to_remove)
 
     def bind_event_manager(self, manager: EventManager) -> None:
+        assert isinstance(manager, EventManager)
         if manager is self:
             raise ValueError("Trying to add yourself")
         self.__other_manager_list.add(manager)

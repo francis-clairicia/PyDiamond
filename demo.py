@@ -538,13 +538,13 @@ class AnimatedSpriteScene(MainScene):
 class DraggableSprite(Sprite, Draggable):
     def __init__(
         self,
-        master: Scene | Window,
+        scene: Scene,
         image: Surface,
         *,
         width: float | None = None,
         height: float | None = None,
     ) -> None:
-        super().__init__(image, width=width, height=height, master=master)
+        super().__init__(image, width=width, height=height, master=scene.event, window=scene.window)
 
     def invoke(self) -> None:
         pass
@@ -1077,7 +1077,7 @@ class SoundManager(ResourceManager):
 
 
 class VolumeScaleBar(ScaleBar):
-    def __init__(self, master: Scene | Window, width: float, height: float, *, theme: Any | None = None):
+    def __init__(self, master: Scene, width: float, height: float, *, theme: Any | None = None):
         super().__init__(
             master,
             width,

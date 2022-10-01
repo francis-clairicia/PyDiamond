@@ -39,7 +39,7 @@ class _HasFocusMethods(Protocol):
     def _focus_update(self) -> None:
         pass
 
-    def _focus_handle_event(self, event: Event) -> bool | None:
+    def _focus_handle_event(self, event: Event) -> bool:
         pass
 
 
@@ -78,15 +78,18 @@ class BoundFocus:
         if scene is not None and not isinstance(scene, Scene):
             raise TypeError(f"Must be a Scene or None, got {scene.__class__.__name__!r}")
         scene = scene if isinstance(scene, GUIScene) else None
-        self.__scene: GUIScene | None = scene
+        self.__scene: Callable[[], GUIScene | None]
         if scene is not None:
+            self.__scene = weakref(scene)
             scene._focus_container.add(self)
+        else:
+            self.__scene = lambda: None
 
     def is_bound_to(self, scene: GUIScene) -> bool:
-        return (bound_scene := self.__scene) is not None and bound_scene is scene
+        return (bound_scene := self.__scene()) is not None and bound_scene is scene
 
     def has(self) -> bool:
-        return (scene.focus_get() if (scene := self.__scene) else None) is self.__self__
+        return (scene.focus_get() if (scene := self.__scene()) else None) is self.__self__
 
     @overload
     def take(self, status: bool) -> None:
@@ -98,7 +101,7 @@ class BoundFocus:
 
     def take(self, status: bool | None = None) -> bool | None:
         f: SupportsFocus = self.__self__
-        scene: GUIScene | None = self.__scene
+        scene: GUIScene | None = self.__scene()
         if status is not None:
             if status:
                 self.__enabled.add(f)
@@ -112,10 +115,10 @@ class BoundFocus:
         return f in self.__enabled
 
     def set(self) -> bool:
-        return scene.focus_set(self.__self__) if (scene := self.__scene) else False
+        return scene.focus_set(self.__self__) if (scene := self.__scene()) else False
 
     def leave(self) -> None:
-        if (scene := self.__scene) is not None and self.has():
+        if (scene := self.__scene()) is not None and self.has():
             scene.focus_set(None)
 
     @overload
@@ -253,7 +256,7 @@ class BoundFocus:
         return iter(self.__focus_leave_callback.get(self.__self__, ()))
 
     def get_mode(self) -> FocusMode:
-        return scene.focus_mode() if (scene := self.__scene) else FocusMode.NONE
+        return scene.focus_mode() if (scene := self.__scene()) else FocusMode.NONE
 
     @property
     def __self__(self) -> SupportsFocus:

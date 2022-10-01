@@ -23,8 +23,7 @@ if TYPE_CHECKING:
     from ...system.theme import ThemeType
     from ...window.clickable import Clickable
     from ...window.cursor import Cursor
-    from ...window.display import Window
-    from ...window.scene import Scene
+    from ...window.scene import Scene, SceneWindow
 
 
 class ScaleBar(ProgressBar, AbstractWidget):
@@ -51,7 +50,7 @@ class ScaleBar(ProgressBar, AbstractWidget):
     @initializer
     def __init__(
         self,
-        master: AbstractWidget | Clickable | Scene | Window,
+        master: AbstractWidget | Clickable | Scene | SceneWindow,
         width: float,
         height: float,
         *,

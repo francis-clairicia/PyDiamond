@@ -113,7 +113,7 @@ class PopupDialog(Dialog):
         if draggable:
             from ..draggable import DraggingContainer  # lazy import to avoid circular import
 
-            self.draggable_popup = DraggingContainer(self, target=self.__bg)
+            self.draggable_popup = DraggingContainer(self.event, self.window, target=self.__bg)
 
     def on_start_loop_before_transition(self) -> None:
         self.set_default_popup_position()

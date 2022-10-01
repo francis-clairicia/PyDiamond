@@ -8,17 +8,22 @@ from __future__ import annotations
 
 __all__ = ["AbstractWidget"]
 
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, Callable, ClassVar
+from weakref import ref as weakref
+
+from typing_extensions import assert_never
 
 from ...audio.sound import Sound
 from ...window.clickable import Clickable
 from ...window.cursor import Cursor
-from ...window.display import Window
-from ...window.event import Event, KeyDownEvent, KeyEvent, KeyUpEvent, MouseButtonUpEvent
+from ...window.event import BoundEventManager, Event, EventManager, KeyDownEvent, KeyEvent, KeyUpEvent, MouseButtonUpEvent
 from ...window.keyboard import Key
-from ...window.scene import Scene
+from ...window.scene import Scene, SceneWindow
 from ..focus import BoundFocus
-from ..scene import FocusMode, GUIScene
+from ..scene import FocusMode
+
+if TYPE_CHECKING:
+    from ...window.display import Window
 
 
 class AbstractWidget(Clickable):
@@ -26,7 +31,7 @@ class AbstractWidget(Clickable):
 
     def __init__(
         self,
-        master: AbstractWidget | Clickable | Scene | Window,
+        master: AbstractWidget | Clickable | Scene | SceneWindow,
         *,
         state: str = "normal",
         hover_sound: Sound | None = None,
@@ -41,8 +46,34 @@ class AbstractWidget(Clickable):
         if focus_on_hover is None:
             focus_on_hover = self.__default_focus_on_hover
         self.__focus_on_hover: bool = bool(focus_on_hover)
+
+        window: Window | None
+        scene: Scene | None
+        manager: Clickable | EventManager | BoundEventManager[Any]
+
+        match master:
+            case AbstractWidget():
+                window = None
+                manager = master
+                scene = master.__scene()
+            case Clickable():
+                window = None
+                manager = master
+                scene = None
+            case Scene():
+                window = master.window
+                manager = master.event
+                scene = master
+            case SceneWindow():
+                window = master
+                manager = master.event
+                scene = None
+            case _:
+                assert_never(master)
+
         super().__init__(
-            master=master,
+            master=manager,
+            window=window,
             state=state,
             hover_sound=hover_sound,
             click_sound=click_sound,
@@ -51,8 +82,15 @@ class AbstractWidget(Clickable):
             disabled_cursor=disabled_cursor,
             **kwargs,
         )
-        self.__focus = BoundFocus(self, self.scene)
+        self.__focus = BoundFocus(self, scene)
         self.__focus.take(take_focus)
+
+        self.__scene: Callable[[], Scene | None]
+        if scene is not None:
+            self.__scene = weakref(scene)
+        else:
+            self.__scene = lambda: None
+
         self.event.bind(KeyDownEvent, lambda self, event: self.__handle_key_press_event(event, focus_handle_event=False))
         self.event.bind(KeyUpEvent, lambda self, event: self.__handle_key_press_event(event, focus_handle_event=False))
 
@@ -82,7 +120,7 @@ class AbstractWidget(Clickable):
         return cls.__default_focus_on_hover
 
     def __handle_key_press_event(self, event: KeyEvent, focus_handle_event: bool) -> bool:
-        if not isinstance(self.scene, GUIScene) or self._should_ignore_event(event):
+        if self.focus.get_mode() == FocusMode.NONE or self._should_ignore_event(event):
             return False
 
         if event.key in (
@@ -186,8 +224,12 @@ class AbstractWidget(Clickable):
     if TYPE_CHECKING:
 
         @property
-        def master(self) -> AbstractWidget | Clickable | Scene | Window:
+        def master(self) -> AbstractWidget | Clickable | None:
             ...
+
+    @property
+    def scene(self) -> Scene | None:
+        return self.__scene()
 
     @property
     def focus(self) -> BoundFocus:

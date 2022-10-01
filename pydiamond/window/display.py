@@ -34,6 +34,7 @@ from typing import (
     Sequence,
     overload,
 )
+from weakref import ref as weakref
 
 import pygame.display as _pg_display
 import pygame.event as _pg_event
@@ -63,7 +64,7 @@ from ..system.utils.contextlib import ExitStackView
 from ..system.utils.functools import wraps
 from ..system.utils.itertools import consume
 from .cursor import Cursor
-from .event import Event, EventFactory, EventManager, ScreenshotEvent, UnknownEventTypeError
+from .event import Event, EventFactory, ScreenshotEvent, UnknownEventTypeError
 from .keyboard import Keyboard
 from .mouse import Mouse
 
@@ -91,13 +92,22 @@ class Window(Object, no_slots=True):
     DEFAULT_FRAMERATE: Final[int] = 60
     DEFAULT_SIZE: Final[tuple[int, int]] = (800, 600)
 
-    __main_window: ClassVar[bool] = True
+    __instance: ClassVar[Callable[[], "Window" | None]] = lambda: None
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Any:
-        if not Window.__main_window:
-            raise WindowError("Cannot have multiple open windows")
-        Window.__main_window = False
-        return super().__new__(cls)
+        instance = Window.__instance()
+        try:
+            if instance is not None:
+                raise WindowError("Cannot have multiple open windows")
+        finally:
+            del instance
+
+        def reset_singleton(_: Any) -> None:
+            Window.__instance = lambda: None
+
+        instance = super().__new__(cls)
+        Window.__instance = weakref(instance, reset_singleton)
+        return instance
 
     def __init__(
         self,
@@ -135,7 +145,6 @@ class Window(Object, no_slots=True):
         self.__display_renderer: _WindowRenderer | None = None
         self.__rect: ImmutableRect = ImmutableRect(0, 0, 0, 0)
         self.__main_clock: _FramerateManager = _FramerateManager()
-        self.__event: EventManager = EventManager()
         self.__event_queue: deque[_pg_event.Event] = deque()
 
         self._last_tick_time: float = -1
@@ -159,9 +168,6 @@ class Window(Object, no_slots=True):
 
     def __window_quit__(self) -> None:
         pass
-
-    def __del__(self) -> None:
-        Window.__main_window = True
 
     @contextmanager
     def open(self) -> Iterator[None]:
@@ -192,7 +198,6 @@ class Window(Object, no_slots=True):
                 self.__display_renderer = None
                 self.__rect = ImmutableRect(0, 0, 0, 0)
                 self._last_tick_time = -1
-                self.__event.unbind_all()
                 self.__event_queue.clear()
 
             stack.enter_context(self.__stack)
@@ -312,8 +317,7 @@ class Window(Object, no_slots=True):
         if screen is None:
             return
         if blend_alpha and (color := Color(color)).a < 255:
-            fake_screen: Surface = create_surface(screen.get_size())
-            fake_screen.fill(color)
+            fake_screen: Surface = create_surface(screen.get_size(), default_color=color)
             screen.draw_surface(fake_screen, (0, 0))
         else:
             screen.fill(color)
@@ -390,6 +394,7 @@ class Window(Object, no_slots=True):
     def get_screenshot_directory(self) -> str:
         return os.path.join(os.path.dirname(get_executable_path()), "screenshots")
 
+    @final
     def handle_events(self) -> None:
         consume(self.process_events())
 
@@ -494,6 +499,7 @@ class Window(Object, no_slots=True):
     def _process_callbacks(self) -> None:
         self.__callback_after.process()
 
+    @final
     def process_events(self) -> Generator[Event, None, None]:
         if self.__handle_mouse_position:
             self._handle_mouse_position(Mouse.get_pos())
@@ -517,10 +523,10 @@ class Window(Object, no_slots=True):
                 yield event
 
     def _process_event(self, event: Event) -> bool:
-        return self.event._process_event(event)
+        return False
 
     def _handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
-        return self.event._handle_mouse_position(mouse_pos)
+        pass
 
     @final
     def post_event(self, event: Event) -> bool:
@@ -771,11 +777,6 @@ class Window(Object, no_slots=True):
     @property
     def framerate(self) -> float:
         return self.__main_clock.get_fps()
-
-    @property
-    @final
-    def event(self) -> EventManager:
-        return self.__event
 
     @property
     @final

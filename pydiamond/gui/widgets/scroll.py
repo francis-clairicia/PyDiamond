@@ -32,8 +32,7 @@ from ...window.mouse import Mouse
 if TYPE_CHECKING:
     from ...audio.sound import Sound
     from ...window.cursor import Cursor
-    from ...window.display import Window
-    from ...window.scene import Scene
+    from ...window.scene import Scene, SceneWindow
 
 
 class ScrollBar(Drawable, Transformable, Clickable, metaclass=ThemedObjectMeta):
@@ -100,11 +99,14 @@ class ScrollBar(Drawable, Transformable, Clickable, metaclass=ThemedObjectMeta):
         theme: ThemeType | None = None,
         **kwargs: Any,
     ) -> None:
+        from ...window.scene import Scene
+
         if not isinstance(master, ScrollArea):
             raise TypeError("ScrollBar objects must be created for a ScrollArea object")
         self.__master: ScrollArea = master
         super().__init__(
-            master=master.master,
+            master=master.master.event,
+            window=master.master.window if isinstance(master.master, Scene) else master.master,
             state=state,
             hover_sound=hover_sound,
             click_sound=click_sound,
@@ -383,7 +385,7 @@ class ScrollArea(BaseLayeredDrawableGroup[ScrollAreaElement], Drawable, Movable)
     def __init__(
         self,
         *objects: ScrollAreaElement,
-        master: Scene | Window,
+        master: Scene | SceneWindow,
         width: float,
         height: float,
         default_layer: int = 0,
@@ -391,7 +393,7 @@ class ScrollArea(BaseLayeredDrawableGroup[ScrollAreaElement], Drawable, Movable)
         **kwargs: Any,
     ) -> None:
         super().__init__(*objects, default_layer=default_layer, **kwargs)
-        self.__master: Scene | Window = master
+        self.__master: Scene | SceneWindow = master
         self.__view_rect: Rect = Rect(0, 0, width, height)
         self.__whole_area: SurfaceRenderer = SurfaceRenderer((width, height))
         self.__h_scroll: ScrollBar | None = None
@@ -533,5 +535,5 @@ class ScrollArea(BaseLayeredDrawableGroup[ScrollAreaElement], Drawable, Movable)
             v_scroll._update()
 
     @property
-    def master(self) -> Scene | Window:
+    def master(self) -> Scene | SceneWindow:
         return self.__master

@@ -196,15 +196,6 @@ class ObjectMeta(ABCMeta):
 class Object(metaclass=ObjectMeta):
     __slots__ = ()
 
-    if TYPE_CHECKING:
-
-        @classmethod
-        def __post_init_class__(cls) -> None:
-            pass
-
-        def __post_init__(self) -> None:
-            pass
-
 
 from typing import _ProtocolMeta
 

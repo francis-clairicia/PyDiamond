@@ -22,8 +22,8 @@ from ...system.clock import Clock
 from ...system.configuration import Configuration, ConfigurationTemplate, OptionAttribute, initializer
 from ...system.theme import NoTheme, ThemedObjectMeta, ThemeType
 from ...system.validation import valid_integer, valid_optional_float, valid_optional_integer
-from ...window.cursor import SystemCursor
-from ...window.event import KeyDownEvent, TextInputEvent
+from ...window.cursor import Cursor, SystemCursor
+from ...window.event import KeyDownEvent, MouseButtonDownEvent, TextInputEvent
 from ...window.keyboard import Key, Keyboard
 from ..scene import FocusMode
 from .abc import AbstractWidget
@@ -33,8 +33,7 @@ if TYPE_CHECKING:
     from ...graphics.font import Font
     from ...graphics.renderer import AbstractRenderer
     from ...window.clickable import Clickable
-    from ...window.display import Window
-    from ...window.scene import Scene
+    from ...window.scene import Scene, SceneWindow
 
     _TupleFont: TypeAlias = tuple[str | None, int]
     _TextFont: TypeAlias = Font | _TupleFont
@@ -106,7 +105,7 @@ class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta)
     @initializer
     def __init__(
         self,
-        master: AbstractWidget | Clickable | Scene | Window,
+        master: AbstractWidget | Clickable | Scene | SceneWindow,
         *,
         on_validate: Callable[[], Any] | None = None,
         max_nb_chars: int = 10,
@@ -129,6 +128,8 @@ class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta)
         hover_sound: Sound | None = None,
         click_sound: Sound | None = None,
         disabled_sound: Sound | None = None,
+        hover_cursor: Cursor | None = SystemCursor.IBEAM,
+        disabled_cursor: Cursor | None = None,
         take_focus: bool = True,
         focus_on_hover: bool | None = None,
         border_radius: int = 0,
@@ -145,7 +146,8 @@ class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta)
             hover_sound=hover_sound,
             click_sound=click_sound,
             disabled_sound=disabled_sound,
-            hover_cursor=SystemCursor.IBEAM,
+            hover_cursor=hover_cursor,
+            disabled_cursor=disabled_cursor,
             take_focus=take_focus,
             focus_on_hover=focus_on_hover,
             **kwargs,
@@ -269,8 +271,13 @@ class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta)
         self.__insert_mode = False
 
     def invoke(self) -> None:
-        if self.focus.get_mode() == FocusMode.MOUSE:
+        if self.focus.get_mode() in {FocusMode.MOUSE, FocusMode.NONE}:
             self.start_edit()
+
+    def _on_click_out(self, event: MouseButtonDownEvent) -> None:
+        super()._on_click_out(event)
+        if self.focus.get_mode() == FocusMode.NONE:
+            self.stop_edit()
 
     def _on_focus_set(self) -> None:
         self.start_edit()

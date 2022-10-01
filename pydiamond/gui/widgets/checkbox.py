@@ -26,8 +26,7 @@ if TYPE_CHECKING:
     from ...graphics.renderer import AbstractRenderer
     from ...window.clickable import Clickable
     from ...window.cursor import Cursor
-    from ...window.display import Window
-    from ...window.scene import Scene
+    from ...window.scene import Scene, SceneWindow
 
 _OnValue = TypeVar("_OnValue")
 _OffValue = TypeVar("_OffValue")
@@ -71,7 +70,7 @@ class CheckBox(Drawable, Transformable, AbstractWidget, Generic[_OnValue, _OffVa
     @initializer
     def __init__(
         self,
-        master: AbstractWidget | Clickable | Scene | Window,
+        master: AbstractWidget | Clickable | Scene | SceneWindow,
         width: float,
         height: float,
         color: Color,
@@ -295,7 +294,7 @@ class BooleanCheckBox(CheckBox[bool, bool]):
 
     def __init__(
         self,
-        master: AbstractWidget | Clickable | Scene | Window,
+        master: AbstractWidget | Clickable | Scene | SceneWindow,
         width: float,
         height: float,
         color: Color,

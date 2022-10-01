@@ -11,19 +11,24 @@ __all__ = ["Clickable"]
 from abc import abstractmethod
 from enum import auto, unique
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Final, TypeVar
+from typing import TYPE_CHECKING, Any, Final, TypeVar, final
 from weakref import WeakMethod
-
-from typing_extensions import assert_never
 
 from ..audio.sound import Sound
 from ..system.enum import AutoLowerNameEnum
 from ..system.object import Object
 from .cursor import Cursor, SystemCursor
 from .display import Window
-from .event import BoundEventManager, Event, MouseButtonDownEvent, MouseButtonEvent, MouseButtonUpEvent, MouseMotionEvent
+from .event import (
+    BoundEventManager,
+    Event,
+    EventManager,
+    MouseButtonDownEvent,
+    MouseButtonEvent,
+    MouseButtonUpEvent,
+    MouseMotionEvent,
+)
 from .mouse import MouseButton
-from .scene import Scene
 
 
 class Clickable(Object):
@@ -44,7 +49,8 @@ class Clickable(Object):
 
     def __init__(
         self,
-        master: Clickable | Scene | Window,
+        master: Clickable | EventManager | BoundEventManager[Any],
+        window: Window | None = None,
         *,
         state: str = "normal",
         hover_sound: Sound | None = None,
@@ -55,19 +61,23 @@ class Clickable(Object):
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
-        if master is self:
-            raise RecursionError("master is self")
-        self.__master: Clickable | Scene | Window = master
-        self.__scene: Scene | None
-        match master:
-            case Clickable():
-                self.__scene = master.__scene
-            case Scene():
-                self.__scene = master
-            case Window():
-                self.__scene = None
-            case _:
-                assert_never(master)
+        self.__master: Clickable | None
+
+        if isinstance(master, Clickable):
+            if window is None:
+                window = master.__window
+            elif master.__window is not window:
+                raise ValueError("window is not master's bound Window")
+            self.__master = master
+            master = master.__event
+        else:
+            self.__master = None
+            if window is None:
+                raise ValueError("There is no Window instance")
+
+        assert isinstance(window, Window)
+
+        self.__window: Window = window
         self.__state: Clickable.State = Clickable.State(state)
         self.__hover: bool = False
         self.__active: bool = False
@@ -85,7 +95,7 @@ class Clickable(Object):
         self.disabled_sound = disabled_sound
         self.__event: BoundEventManager[Any]
         self.__event = event = BoundEventManager(self)
-        event.register_to_existing_manager(master.event)
+        event.register_to_existing_manager(master)
         event.bind(MouseButtonDownEvent, WeakMethod(self.__handle_click_event))
         event.bind(MouseButtonUpEvent, WeakMethod(self.__handle_click_event))
         event.bind(MouseMotionEvent, WeakMethod(self.__handle_mouse_motion))
@@ -191,7 +201,8 @@ class Clickable(Object):
             return
 
         if self.hover or (not self.__active_only_on_hover and self.active):
-            self.window.set_cursor(self.__hover_cursor[self.__state], nb_frames=1)
+            window: Window = self.__window
+            window.set_cursor(self.__hover_cursor[self.__state], nb_frames=1)
 
     def _should_ignore_event(self, event: Event) -> bool:
         return False
@@ -234,21 +245,15 @@ class Clickable(Object):
         pass
 
     @property
-    def master(self) -> Clickable | Scene | Window:
+    def master(self) -> Clickable | None:
         return self.__master
 
     @property
     def window(self) -> Window:
-        master: Clickable | Scene | Window = self.__master
-        if isinstance(master, Window):
-            return master
-        return master.window
+        return self.__window
 
     @property
-    def scene(self) -> Scene | None:
-        return self.__scene
-
-    @property
+    @final
     def event(self: __Self) -> BoundEventManager[__Self]:
         return self.__event
 
