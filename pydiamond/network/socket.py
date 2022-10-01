@@ -172,7 +172,7 @@ def create_server(
                 if reuse_port:
                     if not hasattr(_socket, "SO_REUSEPORT"):
                         raise ValueError("SO_REUSEPORT not supported on this platform")
-                    sock.setsockopt(_socket.SOL_SOCKET, _socket.SO_REUSEPORT, 1)
+                    sock.setsockopt(_socket.SOL_SOCKET, getattr(_socket, "SO_REUSEPORT"), 1)
 
                 if family == AF_INET6 and _socket.has_ipv6:
                     try:
