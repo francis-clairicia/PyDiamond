@@ -15,9 +15,12 @@ __all__ = [
     "SortedDictItemsView",
     "SortedDictKeysView",
     "SortedDictValuesView",
+    "WeakKeyDefaultDictionary",
+    "WeakValueDefaultDictionary",
 ]
 
 from ._chainmap import ChainMapProxy
+from ._defaultdict import WeakKeyDefaultDictionary, WeakValueDefaultDictionary
 from ._orderedset import OrderedSet, OrderedSetIndexError
 from ._orderedweakset import OrderedWeakSet
 from ._sorteddict import SortedDict, SortedDictItemsView, SortedDictKeysView, SortedDictValuesView

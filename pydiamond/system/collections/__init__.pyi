@@ -14,6 +14,8 @@ __all__ = [
     "SortedDictItemsView",
     "SortedDictKeysView",
     "SortedDictValuesView",
+    "WeakKeyDefaultDictionary",
+    "WeakValueDefaultDictionary",
 ]
 
 from typing import (
@@ -31,7 +33,7 @@ from typing import (
     final,
     overload,
 )
-from weakref import WeakSet
+from weakref import WeakKeyDictionary, WeakSet, WeakValueDictionary
 
 from _collections_abc import dict_items, dict_keys, dict_values
 from _typeshed import Self, SupportsRichComparison, SupportsRichComparisonT
@@ -163,3 +165,36 @@ class OrderedWeakSet(WeakSet[_T], Sequence[_T]):
     @overload
     def __getitem__(self: Self, index: slice, /) -> Self: ...
     def __delitem__(self, index: int) -> None: ...
+
+class WeakKeyDefaultDictionary(WeakKeyDictionary[_KT, _VT]):
+    @overload
+    def __init__(self, __default_factory: Callable[[], _VT] | None = ..., /, dict: None = ...) -> None: ...
+    @overload
+    def __init__(
+        self, __default_factory: Callable[[], _VT] | None, /, dict: Mapping[_KT, _VT] | Iterable[tuple[_KT, _VT]]
+    ) -> None: ...
+    def __missing__(self, key: _KT) -> _VT: ...
+    @property
+    def default_factory(self) -> Callable[[], _VT] | None: ...
+
+class WeakValueDefaultDictionary(WeakValueDictionary[_KT, _VT]):
+    @overload
+    def __init__(self, __default_factory: Callable[[], _VT] | None = ..., /) -> None: ...
+    @overload
+    def __init__(
+        self: WeakValueDefaultDictionary[_KT, _VT],
+        __default_factory: Callable[[], _VT] | None,
+        __other: Mapping[_KT, _VT] | Iterable[tuple[_KT, _VT]],
+        /,
+    ) -> None: ...
+    @overload
+    def __init__(
+        self: WeakValueDefaultDictionary[str, _VT],
+        __default_factory: Callable[[], _VT] | None = ...,
+        __other: Mapping[str, _VT] | Iterable[tuple[str, _VT]] = ...,
+        /,
+        **kwargs: _VT,
+    ) -> None: ...
+    def __missing__(self, key: _KT) -> _VT: ...
+    @property
+    def default_factory(self) -> Callable[[], _VT] | None: ...
