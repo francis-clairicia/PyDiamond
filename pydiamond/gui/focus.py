@@ -16,8 +16,9 @@ __all__ = [
 from abc import abstractmethod
 from enum import auto, unique
 from typing import Callable, Final, Iterator, Mapping, Protocol, TypedDict, overload, runtime_checkable
-from weakref import WeakKeyDictionary, WeakSet, WeakValueDictionary, ref as weakref
+from weakref import WeakSet, WeakValueDictionary, ref as weakref
 
+from ..system.collections import WeakKeyDefaultDictionary
 from ..system.enum import AutoLowerNameEnum
 from ..system.utils.weakref import weakref_unwrap
 from ..window.event import Event
@@ -66,10 +67,12 @@ class BoundFocusSide(AutoLowerNameEnum):
 class BoundFocus:
     __slots__ = ("__f", "__scene")
 
+    # fmt: off
     __enabled: Final[WeakSet[SupportsFocus]] = WeakSet()
-    __side: Final[WeakKeyDictionary[SupportsFocus, WeakValueDictionary[BoundFocusSide, SupportsFocus]]] = WeakKeyDictionary()
-    __focus_set_callback: Final[WeakKeyDictionary[SupportsFocus, set[Callable[[], None]]]] = WeakKeyDictionary()
-    __focus_leave_callback: Final[WeakKeyDictionary[SupportsFocus, set[Callable[[], None]]]] = WeakKeyDictionary()
+    __side: Final[WeakKeyDefaultDictionary[SupportsFocus, WeakValueDictionary[BoundFocusSide, SupportsFocus]]] = WeakKeyDefaultDictionary(WeakValueDictionary)
+    __focus_set_callback: Final[WeakKeyDefaultDictionary[SupportsFocus, set[Callable[[], None]]]] = WeakKeyDefaultDictionary(set)
+    __focus_leave_callback: Final[WeakKeyDefaultDictionary[SupportsFocus, set[Callable[[], None]]]] = WeakKeyDefaultDictionary(set)
+    # fmt: on
 
     def __init__(self, focusable: SupportsFocus, scene: Scene | None) -> None:
         if not isinstance(focusable, _HasFocusMethods):
@@ -147,11 +150,7 @@ class BoundFocus:
             raise TypeError("Invalid arguments")
 
         f: SupportsFocus = self.__self__
-        bound_object_dict: WeakValueDictionary[BoundFocusSide, SupportsFocus]
-        try:
-            bound_object_dict = self.__side[f]
-        except KeyError:
-            self.__side[f] = bound_object_dict = WeakValueDictionary()
+        bound_object_dict: WeakValueDictionary[BoundFocusSide, SupportsFocus] = self.__side[f]
         if __m is not None:
             kwargs = __m | kwargs
         del __m
@@ -231,12 +230,12 @@ class BoundFocus:
 
     def register_focus_set_callback(self, callback: Callable[[], None]) -> None:
         f: SupportsFocus = self.__self__
-        list_callback: set[Callable[[], None]] = self.__focus_set_callback.setdefault(f, set())
+        list_callback: set[Callable[[], None]] = self.__focus_set_callback[f]
         list_callback.add(callback)
 
     def unregister_focus_set_callback(self, callback: Callable[[], None]) -> None:
         f: SupportsFocus = self.__self__
-        list_callback: set[Callable[[], None]] = self.__focus_set_callback.setdefault(f, set())
+        list_callback: set[Callable[[], None]] = self.__focus_set_callback[f]
         list_callback.remove(callback)
 
     def iter_focus_set_callbacks(self) -> Iterator[Callable[[], None]]:
@@ -244,12 +243,12 @@ class BoundFocus:
 
     def register_focus_leave_callback(self, callback: Callable[[], None]) -> None:
         f: SupportsFocus = self.__self__
-        list_callback: set[Callable[[], None]] = self.__focus_leave_callback.setdefault(f, set())
+        list_callback: set[Callable[[], None]] = self.__focus_leave_callback[f]
         list_callback.add(callback)
 
     def unregister_focus_leave_callback(self, callback: Callable[[], None]) -> None:
         f: SupportsFocus = self.__self__
-        list_callback: set[Callable[[], None]] = self.__focus_leave_callback.setdefault(f, set())
+        list_callback: set[Callable[[], None]] = self.__focus_leave_callback[f]
         list_callback.remove(callback)
 
     def iter_focus_leave_callbacks(self) -> Iterator[Callable[[], None]]:

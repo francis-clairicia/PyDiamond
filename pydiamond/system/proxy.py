@@ -9,7 +9,9 @@ __all__ = [
 ]
 
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, SupportsIndex, TypeVar
-from weakref import WeakKeyDictionary, WeakSet, WeakValueDictionary
+from weakref import WeakSet, WeakValueDictionary
+
+from ..system.collections import WeakKeyDefaultDictionary
 
 # Inspired from https://code.activestate.com/recipes/496741-object-proxying/
 
@@ -224,8 +226,8 @@ class ProxyType(object):
 
         return new_class(cls_name, cls_bases, exec_body=exec_body)
 
-    __class_proxy_cache: ClassVar[WeakKeyDictionary[type[ProxyType], WeakValueDictionary[type[Any], type[ProxyType]]]]
-    __class_proxy_cache = WeakKeyDictionary()
+    __class_proxy_cache: ClassVar[WeakKeyDefaultDictionary[type[ProxyType], WeakValueDictionary[type[Any], type[ProxyType]]]]
+    __class_proxy_cache = WeakKeyDefaultDictionary(WeakValueDictionary)
     __dynamic_classes: WeakSet[type[ProxyType]] = WeakSet()
 
     def __new__(cls, obj: Any, /, *args: Any, **kwargs: Any) -> Any:
@@ -238,11 +240,7 @@ class ProxyType(object):
         """
         while cls in ProxyType.__dynamic_classes:
             cls = cls.__base__
-        cache: WeakValueDictionary[type[Any], type[ProxyType]]
-        try:
-            cache = ProxyType.__class_proxy_cache[cls]
-        except KeyError:
-            ProxyType.__class_proxy_cache[cls] = cache = WeakValueDictionary()
+        cache: WeakValueDictionary[type[Any], type[ProxyType]] = ProxyType.__class_proxy_cache[cls]
         try:
             theclass = cache[obj.__class__]
         except KeyError:
