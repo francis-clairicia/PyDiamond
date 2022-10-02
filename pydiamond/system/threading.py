@@ -70,9 +70,9 @@ def thread_factory(func: Callable[_P, Any], /) -> Callable[_P, Thread]:
 @overload
 def thread_factory(
     *,
-    daemon: bool | None = None,
-    auto_start: bool = True,
-    name: str | None = None,
+    daemon: bool | None = ...,
+    auto_start: bool = ...,
+    name: str | None = ...,
 ) -> Callable[[Callable[_P, Any]], Callable[_P, Thread]]:
     ...
 
@@ -81,9 +81,9 @@ def thread_factory(
 def thread_factory(
     *,
     thread_cls: type[_ThreadT],
-    daemon: bool | None = None,
-    auto_start: bool = True,
-    name: str | None = None,
+    daemon: bool | None = ...,
+    auto_start: bool = ...,
+    name: str | None = ...,
     **thread_cls_kwargs: Any,
 ) -> Callable[[Callable[_P, Any]], Callable[_P, _ThreadT]]:
     ...
@@ -129,11 +129,23 @@ def thread_factory_method(func: Callable[Concatenate[_T, _P], _R], /) -> _Thread
 @overload
 def thread_factory_method(
     *,
-    daemon: bool | None = None,
-    auto_start: bool = True,
-    name: str | None = None,
-    global_lock: bool = False,
-    shared_lock: bool = False,
+    daemon: bool | None = ...,
+    auto_start: bool = ...,
+    name: str | None = ...,
+    global_lock: bool = ...,
+    shared_lock: bool = ...,
+) -> Callable[[Callable[Concatenate[_T, _P], _R]], _ThreadFactoryMethod[_T, _P, _R, Thread]]:
+    ...
+
+
+@overload
+def thread_factory_method(
+    *,
+    daemon: bool | None = ...,
+    auto_start: bool = ...,
+    name: str | None = ...,
+    global_lock: bool = ...,
+    shared_lock: Callable[[_T], threading.RLock],
 ) -> Callable[[Callable[Concatenate[_T, _P], _R]], _ThreadFactoryMethod[_T, _P, _R, Thread]]:
     ...
 
@@ -142,11 +154,25 @@ def thread_factory_method(
 def thread_factory_method(
     *,
     thread_cls: type[_ThreadT],
-    daemon: bool | None = None,
-    auto_start: bool = True,
-    name: str | None = None,
-    global_lock: bool = False,
-    shared_lock: bool = False,
+    daemon: bool | None = ...,
+    auto_start: bool = ...,
+    name: str | None = ...,
+    global_lock: bool = ...,
+    shared_lock: bool = ...,
+    **thread_cls_kwargs: Any,
+) -> Callable[[Callable[Concatenate[_T, _P], _R]], _ThreadFactoryMethod[_T, _P, _R, _ThreadT]]:
+    ...
+
+
+@overload
+def thread_factory_method(
+    *,
+    thread_cls: type[_ThreadT],
+    daemon: bool | None = ...,
+    auto_start: bool = ...,
+    name: str | None = ...,
+    global_lock: bool = ...,
+    shared_lock: Callable[[_T], threading.RLock],
     **thread_cls_kwargs: Any,
 ) -> Callable[[Callable[Concatenate[_T, _P], _R]], _ThreadFactoryMethod[_T, _P, _R, _ThreadT]]:
     ...
@@ -190,16 +216,22 @@ class _ThreadFactoryMethod(Generic[_T, _P, _R, _ThreadT]):
         thread_cls: type[_ThreadT],
         *,
         global_lock: bool = False,
-        shared_lock: bool = False,
+        shared_lock: bool | Callable[[_T], threading.RLock] = False,
         **kwargs: Any,
     ) -> None:
         super().__init__()
         self.__func__: Callable[Concatenate[_T, _P], _R] = __func
         self.__global_lock: bool = bool(global_lock)
         self.__thread_factory = thread_factory(thread_cls=thread_cls, **kwargs)
-        self.__default_lock: threading.RLock | None = threading.RLock() if shared_lock else None
         self.__private_lock = threading.RLock()
-        self.__lock: WeakKeyDictionary[_T, threading.RLock] = WeakKeyDictionary()
+        self.__lock_cache: WeakKeyDictionary[_T, threading.RLock] = WeakKeyDictionary()
+        self.__lock_factory: Callable[[_T], threading.RLock]
+        if callable(shared_lock):
+            self.__lock_factory = shared_lock
+        elif shared_lock:
+            self.__lock_factory = lambda _, __lock=threading.RLock(): __lock  # type: ignore[misc]
+        else:
+            self.__lock_factory = lambda _: threading.RLock()
 
     def __set_name__(self, owner: type, name: str, /) -> None:
         if not hasattr(owner, "__weakref__"):
@@ -242,15 +274,13 @@ class _ThreadFactoryMethod(Generic[_T, _P, _R, _ThreadT]):
         return thread_method  # type: ignore[return-value]
 
     def get_lock(self, obj: _T) -> threading.RLock:
-        lock_cache = self.__lock
-        if default_lock := self.__default_lock:
-            return lock_cache.setdefault(obj, default_lock)
+        lock_cache = self.__lock_cache
         lock: threading.RLock | None = lock_cache.get(obj)
         if lock is None:
             with self.__private_lock:
                 lock = lock_cache.get(obj)
                 if lock is None:
-                    lock_cache[obj] = lock = threading.RLock()
+                    lock_cache[obj] = lock = self.__lock_factory(obj)
         return lock
 
     @property

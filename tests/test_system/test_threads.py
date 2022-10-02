@@ -126,3 +126,32 @@ def test_thread_factory_method() -> None:
     for t in threads:
         t.join()
     assert sorted(c.list) == list(range(10))
+
+
+def test_thread_factory_method_shared_lock_true() -> None:
+    class C:
+        @thread_factory_method(shared_lock=True)
+        def action(self) -> None:
+            pass
+
+    c1 = C()
+    c2 = C()
+
+    assert c1.action.get_lock() is c2.action.get_lock()
+
+
+def test_thread_factory_method_shared_lock_callable(sentinel: Any) -> None:
+    class C:
+        def __init__(self) -> None:
+            self.__lock = sentinel.lock
+
+        def get_lock(self) -> Any:
+            return self.__lock
+
+        @thread_factory_method(shared_lock=get_lock)
+        def action(self) -> None:
+            pass
+
+    c = C()
+
+    assert c.action.get_lock() is c.get_lock()
