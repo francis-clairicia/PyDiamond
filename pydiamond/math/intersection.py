@@ -3,7 +3,7 @@
 # Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine
 #
 #
-"""Interpolation utils module
+"""Intersection utils module
 
 Source from:
 - https://www.geeksforgeeks.org/check-if-two-given-line-segments-intersect/

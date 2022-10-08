@@ -343,8 +343,8 @@ class AbstractWidget(Drawable, Movable, prepare_namespace=__prepare_abstract_wid
                 return False
         elif not weakref_unwrap(self.__manager)._is_mouse_hovering_widget(self, mouse_pos):
             return False
-        rect = self.get_rect()
-        point = mouse_pos[0] - rect.x, mouse_pos[1] - rect.y
+        x, y = self.topleft
+        point = mouse_pos[0] - x, mouse_pos[1] - y
         return self._point_in_hitbox(point)
 
     def _is_mouse_hovering_child(self, widget: AbstractWidget, mouse_pos: tuple[float, float]) -> bool:
