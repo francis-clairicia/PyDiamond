@@ -18,10 +18,10 @@ from weakref import WeakMethod
 from typing_extensions import assert_never
 
 from ...graphics.color import BLACK, GRAY, TRANSPARENT, WHITE, Color
-from ...graphics.rect import Rect
 from ...graphics.renderer import AbstractRenderer
 from ...graphics.shape import RectangleShape
 from ...graphics.transformable import Transformable
+from ...math.rect import Rect
 from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ...system.enum import AutoLowerNameEnum
 from ...system.theme import ThemedObjectMeta, ThemeType
@@ -618,20 +618,18 @@ class ScrollingContainer(AbstractWidget):
                 return 0
 
         whole_area = view_rect.union(children_area)
-        start: float
-        end: float
+        x_start = view_rect.left / whole_area.width
+        x_end = view_rect.right / whole_area.width
+        if not (0 <= x_start <= 1) or not (0 <= x_end <= 1):
+            return self.__set_view_rect_from_fraction(fraction(x_start, x_end), "x")
         if x_scroll is not None:
-            start = view_rect.left / whole_area.width
-            end = view_rect.right / whole_area.width
-            if not (0 <= start <= 1) or not (0 <= end <= 1):
-                return self.__set_view_rect_from_fraction(fraction(start, end), "x")
-            x_scroll.set(start, end)
+            x_scroll.set(x_start, x_end)
+        y_start = view_rect.top / whole_area.height
+        y_end = view_rect.bottom / whole_area.height
+        if not (0 <= y_start <= 1) or not (0 <= y_end <= 1):
+            return self.__set_view_rect_from_fraction(fraction(y_start, y_end), "y")
         if y_scroll is not None:
-            start = view_rect.top / whole_area.height
-            end = view_rect.bottom / whole_area.height
-            if not (0 <= start <= 1) or not (0 <= end <= 1):
-                return self.__set_view_rect_from_fraction(fraction(start, end), "y")
-            y_scroll.set(start, end)
+            y_scroll.set(y_start, y_end)
 
     config.add_value_converter_on_set_static("xscrollincrement", valid_integer(min_value=0))
     config.add_value_converter_on_set_static("yscrollincrement", valid_integer(min_value=0))

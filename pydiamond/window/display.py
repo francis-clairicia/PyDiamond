@@ -51,9 +51,9 @@ from pygame.constants import (
 from ..audio.music import MusicStream
 from ..environ.executable import get_executable_path
 from ..graphics.color import BLACK, Color
-from ..graphics.rect import ImmutableRect
 from ..graphics.renderer import AbstractRenderer
 from ..graphics.surface import Surface, SurfaceRenderer, create_surface, save_image
+from ..math.rect import ImmutableRect
 from ..system.clock import Clock
 from ..system.object import Object, final
 from ..system.path import ConstantFileNotFoundError, set_constant_file

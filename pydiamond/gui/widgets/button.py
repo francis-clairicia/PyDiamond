@@ -13,12 +13,11 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, Seque
 
 from ...graphics.color import BLACK, BLUE, GRAY, GRAY_DARK, GRAY_LIGHT, TRANSPARENT, WHITE, Color
 from ...graphics.image import Image
-from ...graphics.rect import Rect
 from ...graphics.shape import RectangleShape
 from ...graphics.surface import Surface
 from ...graphics.text import TextImage
 from ...graphics.transformable import Transformable
-from ...math import Vector2
+from ...math import is_inside_polygon
 from ...system.configuration import Configuration, ConfigurationTemplate, OptionAttribute, initializer
 from ...system.enum import AutoLowerNameEnum
 from ...system.theme import NoTheme, ThemedObjectMeta, ThemeType
@@ -503,12 +502,8 @@ class Button(Widget, Transformable, metaclass=ThemedObjectMeta):
         self.__shape.angle = self.__text.angle = self.angle
         self.__update_shape_size()
 
-    def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
-        rect: Rect = self.get_area(apply_rotation=False, center=self.center)
-        pivot: Vector2 = Vector2(rect.center)
-        mouse: Vector2 = Vector2(mouse_pos)
-        mouse = pivot + (mouse - pivot).rotate(self.angle)
-        return rect.collidepoint(mouse.x, mouse.y)
+    def _point_in_hitbox(self, point: tuple[float, float]) -> bool:
+        return is_inside_polygon(self.get_area_edges(apply_rotation=True, apply_scale=True), point)
 
     def _on_hover(self) -> None:
         self.__set_state("hover")

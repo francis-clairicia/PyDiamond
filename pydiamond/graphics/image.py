@@ -13,10 +13,10 @@ from typing import TYPE_CHECKING, Any, Mapping, overload
 from pygame.transform import rotozoom as _surface_rotozoom
 from typing_extensions import assert_never
 
+from ..math.rect import Rect
 from ._transform import rotozoom2 as _surface_rotozoom2, scale_by as _surface_scale_by
 from .color import Color
 from .drawable import Drawable
-from .rect import Rect
 from .surface import Surface, create_surface, load_image, save_image
 from .transformable import Transformable
 

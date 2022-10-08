@@ -28,6 +28,7 @@ else:
 from pygame.draw import aaline as _draw_antialiased_line, aalines as _draw_multiple_antialiased_lines
 from pygame.surface import Surface
 
+from ..math.rect import Rect
 from ..system.utils.abc import concreteclass
 from ._draw import (
     draw_arc as _draw_arc,
@@ -39,7 +40,6 @@ from ._draw import (
     draw_rect as _draw_rect,
 )
 from .color import TRANSPARENT
-from .rect import Rect
 from .renderer import AbstractRenderer, BlendMode
 
 if TYPE_CHECKING:

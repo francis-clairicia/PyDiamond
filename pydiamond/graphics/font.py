@@ -17,10 +17,10 @@ from typing import TYPE_CHECKING, Any, ClassVar, Final, Iterable, NamedTuple
 import pygame.freetype as _pg_freetype
 import pygame.sysfont as _pg_sysfont
 
+from ..math.rect import Rect
 from ..math.vector2 import Vector2
 from ..system.configuration import ConfigurationTemplate, OptionAttribute
 from ..system.object import Object, final
-from .rect import Rect
 from .surface import Surface
 
 if TYPE_CHECKING:

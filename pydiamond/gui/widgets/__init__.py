@@ -19,6 +19,8 @@ __all__ = [
     "ScaleBar",
     "ScrollBar",
     "ScrollingContainer",
+    "WidgetWrappedElement",
+    "WidgetWrapper",
 ]
 
 ############ Package initialization ############
@@ -29,3 +31,4 @@ from .form import *
 from .grid import *
 from .scale import *
 from .scroll import *
+from .wrapper import *

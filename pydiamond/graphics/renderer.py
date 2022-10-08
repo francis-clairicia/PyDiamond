@@ -15,8 +15,8 @@ from typing import TYPE_CHECKING, ContextManager, Iterable, Literal, Sequence, o
 
 import pygame.constants as _pg_constants
 
+from ..math.rect import Rect
 from ..system.object import Object
-from .rect import Rect
 
 if TYPE_CHECKING:
     from pygame._common import _CanBeRect, _ColorValue, _Coordinate, _RectValue  # pyright: reportMissingModuleSource=false

@@ -7,15 +7,25 @@
 from __future__ import annotations
 
 __all__ = [
+    "ImmutableRect",
+    "Rect",
     "Vector2",
     "angle_interpolation",
+    "compute_edges_from_rect",
     "compute_rect_from_edges",
     "compute_size_from_edges",
+    "do_intersect",
+    "is_inside_polygon",
     "linear_interpolation",
+    "normalize_points",
+    "on_segment",
+    "orientation",
 ]
 
 
 ############ Package initialization ############
 from .area import *
 from .interpolation import *
+from .intersection import *
+from .rect import *
 from .vector2 import *

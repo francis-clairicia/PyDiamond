@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["WidgetWrapper", "WidgetWrappedElement"]
+__all__ = ["WidgetWrappedElement", "WidgetWrapper"]
 
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, runtime_checkable

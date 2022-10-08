@@ -20,6 +20,7 @@ from weakref import proxy as weakproxy
 from pygame.transform import rotozoom as _surface_rotozoom
 from typing_extensions import assert_never
 
+from ..math.rect import Rect
 from ..system.configuration import Configuration, ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
 from ..system.theme import ThemedObjectMeta, ThemeType
@@ -30,7 +31,6 @@ from .color import BLACK, Color
 from .drawable import Drawable
 from .font import Font, SysFont, get_default_font
 from .image import Image
-from .rect import Rect
 from .renderer import AbstractRenderer
 from .surface import Surface, SurfaceRenderer, create_surface
 from .transformable import Transformable

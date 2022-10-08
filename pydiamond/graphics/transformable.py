@@ -13,11 +13,10 @@ from typing import Any, Literal, Mapping, overload
 
 from typing_extensions import assert_never
 
-from ..math import Vector2, compute_size_from_edges
+from ..math import Rect, Vector2, compute_edges_from_rect, compute_size_from_edges
 from ..system.object import final
 from ..system.utils.abc import concreteclass
 from .movable import Movable, MovableProxy
-from .rect import Rect
 
 
 class Transformable(Movable):
@@ -337,16 +336,67 @@ class Transformable(Movable):
         if apply_scale:
             w *= scale_x
             h *= scale_y
+        if w <= 0 or h <= 0:
+            return (0, 0)
         if not apply_rotation or angle == 0 or angle == 180:
             return (w, h)
         if angle == 90 or angle == 270:
             return (h, w)
 
-        center: Vector2 = Vector2(w / 2, h / 2)
+        center: Vector2 = Vector2((w - 1) / 2, (h - 1) / 2)
         all_points: list[Vector2] = [
-            center + (Vector2(point) - center).rotate(-angle) for point in ((0, 0), (w, 0), (w, h), (0, h))
+            center + (Vector2(point) - center).rotate(-angle) for point in ((0, 0), (w - 1, 0), (w - 1, h - 1), (0, h - 1))
         ]
         return compute_size_from_edges(all_points)
+
+    @overload
+    def get_area_edges(
+        self,
+        *,
+        apply_scale: bool = True,
+        apply_rotation: bool = True,
+    ) -> tuple[()] | tuple[Vector2, Vector2, Vector2, Vector2]:
+        ...
+
+    @overload
+    def get_area_edges(
+        self,
+        *,
+        apply_scale: bool = True,
+        apply_rotation: bool = True,
+        x: float = ...,
+        y: float = ...,
+        left: float = ...,
+        right: float = ...,
+        top: float = ...,
+        bottom: float = ...,
+        centerx: float = ...,
+        centery: float = ...,
+        center: tuple[float, float] = ...,
+        topleft: tuple[float, float] = ...,
+        topright: tuple[float, float] = ...,
+        bottomleft: tuple[float, float] = ...,
+        bottomright: tuple[float, float] = ...,
+        midleft: tuple[float, float] = ...,
+        midright: tuple[float, float] = ...,
+        midtop: tuple[float, float] = ...,
+        midbottom: tuple[float, float] = ...,
+    ) -> tuple[()] | tuple[Vector2, Vector2, Vector2, Vector2]:
+        ...
+
+    @final
+    def get_area_edges(
+        self,
+        *,
+        apply_scale: bool = True,
+        apply_rotation: bool = True,
+        **kwargs: float | tuple[float, float],
+    ) -> tuple[()] | tuple[Vector2, Vector2, Vector2, Vector2]:
+        return compute_edges_from_rect(
+            self.get_area(apply_scale=apply_scale, apply_rotation=False, **kwargs),
+            angle=self.angle if apply_rotation else 0,
+            normalize=not kwargs,
+        )
 
     @overload
     def get_area(self, *, apply_scale: bool = True, apply_rotation: bool = True) -> Rect:

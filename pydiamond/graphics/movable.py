@@ -11,11 +11,10 @@ __all__ = ["Movable", "MovableProxy"]
 from abc import abstractmethod
 from typing import Any, Callable, Literal, overload
 
-from ..math import Vector2
+from ..math import Rect, Vector2
 from ..system.object import Object, final
 from ..system.utils.abc import concreteclass
 from ..system.utils.functools import wraps
-from .rect import Rect
 
 _SINGLE_COMPONENT_POSITIONS = (
     "x",

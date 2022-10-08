@@ -10,8 +10,8 @@ __all__ = ["WidgetRendererView"]
 
 from typing import TYPE_CHECKING, Any, ContextManager, Iterable, Literal, Sequence, final, overload
 
-from ...graphics.rect import Rect
 from ...graphics.renderer import AbstractRenderer
+from ...math.rect import Rect
 from ...system.utils.typing import reflect_method_signature
 
 if TYPE_CHECKING:

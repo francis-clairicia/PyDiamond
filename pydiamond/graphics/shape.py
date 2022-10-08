@@ -27,13 +27,12 @@ from typing import Any, ClassVar, Mapping, Sequence, TypeAlias, final
 
 from pygame.transform import rotozoom as _surface_rotozoom, smoothscale as _surface_scale
 
-from ..math import Vector2, compute_rect_from_edges, compute_size_from_edges
+from ..math import Rect, Vector2, compute_rect_from_edges, compute_size_from_edges, normalize_points
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, UnregisteredOptionError, initializer
 from ..system.utils.abc import concreteclass
 from ..system.validation import valid_float, valid_integer
 from .color import BLACK, Color
 from .drawable import Drawable
-from .rect import Rect
 from .renderer import AbstractRenderer
 from .surface import Surface, SurfaceRenderer, create_surface
 from .transformable import Transformable
@@ -213,9 +212,8 @@ class PolygonShape(OutlinedShape, SingleColorShape):
         if nb_points < 2:
             return create_surface((0, 0))
 
-        PolygonShape.normalize_points(all_points)
+        w, h = normalize_points(all_points)
 
-        w, h = compute_size_from_edges(all_points)
         if nb_points == 2 and outline < 1:
             return create_surface((w, h))
         image: SurfaceRenderer = SurfaceRenderer((w + outline * 2, h + outline * 2))
@@ -254,20 +252,10 @@ class PolygonShape(OutlinedShape, SingleColorShape):
     @staticmethod
     def __valid_points(edges: PointList) -> tuple[_FPoint, ...]:
         edges = tuple(Vector2(p) for p in edges)
-        PolygonShape.normalize_points(edges)
+        normalize_points(edges)
         return tuple((p.x, p.y) for p in edges)
 
     del __valid_points
-
-    @staticmethod
-    @final
-    def normalize_points(points: Sequence[Vector2]) -> None:
-        if not points:
-            return
-        left, top, _, _ = compute_rect_from_edges(points)
-        for p in points:
-            p.x -= left
-            p.y -= top
 
 
 class AbstractRectangleShape(AbstractShape):
@@ -618,9 +606,8 @@ class AbstractCrossShape(OutlinedShape, SingleColorShape):
         if not all_points:
             return create_surface((0, 0))
 
-        PolygonShape.normalize_points(all_points)
+        w, h = normalize_points(all_points)
 
-        w, h = compute_size_from_edges(all_points)
         image: SurfaceRenderer = SurfaceRenderer((w + outline * 2, h + outline * 2))
 
         for p in all_points:

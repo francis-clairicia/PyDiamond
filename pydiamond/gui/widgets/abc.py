@@ -25,8 +25,8 @@ from typing_extensions import assert_never
 from ...audio.sound import Sound
 from ...graphics.drawable import Drawable
 from ...graphics.movable import Movable
-from ...graphics.rect import Rect
 from ...graphics.renderer import AbstractRenderer
+from ...math.rect import Rect
 from ...system.collections import OrderedSet, OrderedWeakSet
 from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ...system.enum import AutoLowerNameEnum
@@ -343,12 +343,14 @@ class AbstractWidget(Drawable, Movable, prepare_namespace=__prepare_abstract_wid
                 return False
         elif not weakref_unwrap(self.__manager)._is_mouse_hovering_widget(self, mouse_pos):
             return False
-        return self._mouse_in_hitbox(mouse_pos)
+        rect = self.get_rect()
+        point = mouse_pos[0] - rect.x, mouse_pos[1] - rect.y
+        return self._point_in_hitbox(point)
 
     def _is_mouse_hovering_child(self, widget: AbstractWidget, mouse_pos: tuple[float, float]) -> bool:
         return True
 
-    def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
+    def _point_in_hitbox(self, point: tuple[float, float]) -> bool:
         return True
 
     @property
