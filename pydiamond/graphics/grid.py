@@ -125,7 +125,7 @@ class Grid(Drawable, Movable, Container[GridElement]):
         if column is None:
             return iter(all_rows.keys())
         if column not in self.__columns:
-            raise IndexError("'column' is undefined")
+            return iter(())
         return (cell.row for row in self.__rows.values() for cell in row.iter_cells() if cell.column == column)
 
     def columns(self, row: int | None = None) -> Iterator[int]:
@@ -135,8 +135,8 @@ class Grid(Drawable, Movable, Container[GridElement]):
         all_rows: SortedDict[int, _GridRow] = self.__rows
         try:
             grid_row: _GridRow = all_rows[row]
-        except KeyError as exc:
-            raise IndexError("'row' is undefined") from exc
+        except KeyError:
+            return iter(())
         return (cell.column for cell in grid_row.iter_cells())
 
     def cells(self) -> Iterator[tuple[int, int]]:
@@ -211,6 +211,50 @@ class Grid(Drawable, Movable, Container[GridElement]):
         cell: _GridCell = self.__find_cell(obj)
         cell.set_object(None)
         self._update()
+
+    def remove_row(self, row: int) -> None:
+        grid_row: _GridRow | None = self.__rows.get(row, None)
+        if grid_row is None:
+            raise IndexError(f"row {row} does not exists")
+        try:
+            for cell in grid_row.iter_cells():
+                cell.set_object(None)
+        finally:
+            self._update()
+
+    def remove_column(self, column: int) -> None:
+        if column not in self.__columns:
+            raise IndexError(f"column {column} does not exists")
+        try:
+            for cell in filter(lambda cell: cell.column == column, flatten(row.iter_cells() for row in self.__rows.values())):
+                cell.set_object(None)
+        finally:
+            self._update()
+
+    def pop_row(self, row: int) -> list[GridElement]:
+        grid_row: _GridRow | None = self.__rows.get(row, None)
+        if grid_row is None:
+            return []
+        elements: list[GridElement] = []
+        try:
+            for cell in grid_row.iter_cells():
+                if (obj := cell.get_object()) is not None:
+                    elements.append(obj)
+                    cell.set_object(None)
+        finally:
+            self._update()
+        return elements
+
+    def pop_column(self, column: int) -> list[GridElement]:
+        elements: list[GridElement] = []
+        try:
+            for cell in filter(lambda cell: cell.column == column, flatten(row.iter_cells() for row in self.__rows.values())):
+                if (obj := cell.get_object()) is not None:
+                    elements.append(obj)
+                    cell.set_object(None)
+        finally:
+            self._update()
+        return elements
 
     def index(self, obj: GridElement) -> tuple[int, int]:
         cell = self.__find_cell(obj)
