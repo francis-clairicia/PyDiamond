@@ -3,7 +3,13 @@
 
 from __future__ import annotations
 
-__all__ = ["compute_edges_from_rect", "compute_rect_from_edges", "compute_size_from_edges", "normalize_points"]
+__all__ = [
+    "compute_edges_from_rect",
+    "compute_rect_from_edges",
+    "compute_size_from_edges",
+    "get_edges_center",
+    "normalize_points",
+]
 
 from typing import Sequence, TypeAlias
 
@@ -11,6 +17,13 @@ from .rect import Rect
 from .vector2 import Vector2
 
 _FPoint: TypeAlias = tuple[float, float]
+
+
+def get_edges_center(edges: Sequence[_FPoint] | Sequence[Vector2]) -> Vector2:
+    left, top, width, height = compute_rect_from_edges(edges)
+    if width <= 0 or height <= 0:
+        return Vector2(0, 0)
+    return Vector2((left + width - 1) / 2, (top + height - 1) / 2)
 
 
 def compute_rect_from_edges(edges: Sequence[_FPoint] | Sequence[Vector2]) -> tuple[float, float, float, float]:
@@ -85,8 +98,7 @@ def rotate_points(
     if not points:
         return ()
     if pivot is None:
-        left, top, width, height = compute_rect_from_edges(points)
-        pivot = Vector2((left + width - 1) / 2, (top + height - 1) / 2)
+        pivot = get_edges_center(points)
     else:
         pivot = Vector2(pivot)
     return tuple(pivot + (Vector2(point) - pivot).rotate(-angle) for point in points)

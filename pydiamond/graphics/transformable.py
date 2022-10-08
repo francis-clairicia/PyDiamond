@@ -13,7 +13,7 @@ from typing import Any, Literal, Mapping, overload
 
 from typing_extensions import assert_never
 
-from ..math import Rect, Vector2, compute_edges_from_rect, compute_size_from_edges
+from ..math import Rect, Vector2, compute_edges_from_rect, compute_size_from_edges, get_edges_center
 from ..system.object import final
 from ..system.utils.abc import concreteclass
 from .movable import Movable, MovableProxy
@@ -392,11 +392,22 @@ class Transformable(Movable):
         apply_rotation: bool = True,
         **kwargs: float | tuple[float, float],
     ) -> tuple[()] | tuple[Vector2, Vector2, Vector2, Vector2]:
-        return compute_edges_from_rect(
+        edges = compute_edges_from_rect(
             self.get_area(apply_scale=apply_scale, apply_rotation=False, **kwargs),
             angle=self.angle if apply_rotation else 0,
-            normalize=not kwargs,
+            normalize=True,
         )
+        if kwargs and edges:
+            rect = self.get_area(apply_scale=apply_scale, apply_rotation=apply_rotation, **kwargs)
+            center = get_edges_center(edges)
+            dx = rect.centerx - center.x
+            dy = rect.centery - center.y
+
+            for point in edges:
+                point.x += dx
+                point.y += dy
+
+        return edges
 
     @overload
     def get_area(self, *, apply_scale: bool = True, apply_rotation: bool = True) -> Rect:

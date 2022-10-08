@@ -15,6 +15,7 @@ __all__ = [
     "compute_rect_from_edges",
     "compute_size_from_edges",
     "do_intersect",
+    "get_edges_center",
     "is_inside_polygon",
     "linear_interpolation",
     "normalize_points",

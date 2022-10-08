@@ -750,6 +750,9 @@ class ButtonScene(MainScene):
 
     def render(self) -> None:
         self.window.draw(self.widgets)
+        self.window.renderer.draw_polygon(YELLOW, self.button.get_area_edges(topleft=(0, 0)), width=1)
+        self.window.renderer.draw_polygon(YELLOW, self.button.get_area_edges(center=self.button.center), width=1)
+        self.window.renderer.draw_polygon(YELLOW, self.button.get_area_edges(bottomright=self.window.bottomright), width=1)
 
 
 class CheckBoxScene(MainScene):
