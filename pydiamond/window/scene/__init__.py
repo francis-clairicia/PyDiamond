@@ -7,10 +7,7 @@
 from __future__ import annotations
 
 __all__ = [
-    "AbstractAutoLayeredDrawableScene",
-    "AbstractLayeredScene",
     "MainScene",
-    "RenderedLayeredScene",
     "ReturningSceneTransition",
     "ReturningSceneTransitionProtocol",
     "Scene",
@@ -48,7 +45,6 @@ from typing import (
 from weakref import WeakKeyDictionary, WeakSet
 
 from ...graphics.color import Color
-from ...graphics.drawable import Drawable, LayeredDrawableGroup
 from ...graphics.renderer import AbstractRenderer
 from ...graphics.surface import Surface, SurfaceRenderer
 from ...system.enum import AutoLowerNameEnum
@@ -284,7 +280,7 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
                     window_callback.kill()
                 self.__callback_after_dict.pop(self, None)
 
-            stack.callback(self.__event.unbind_all)
+            stack.callback(self.__event.clear)
             stack.callback(self.__stack_quit.close)
 
     @abstractmethod
@@ -496,64 +492,6 @@ class MainScene(Scene):
             cls.set_closed_theme_namespace()
 
 
-class AbstractLayeredScene(Scene):
-    @property
-    @abstractmethod
-    def group(self) -> LayeredDrawableGroup:
-        raise NotImplementedError
-
-    def __del_scene__(self) -> None:
-        self.group.clear()
-        super().__del_scene__()
-
-
-class RenderedLayeredScene(AbstractLayeredScene):
-    def __init__(self) -> None:
-        super().__init__()
-        self.__group: LayeredDrawableGroup = LayeredDrawableGroup()
-
-    @no_theme_decorator
-    def render_before(self) -> None:
-        pass
-
-    @no_theme_decorator
-    def render_after(self) -> None:
-        pass
-
-    @final
-    def render(self) -> None:
-        group: LayeredDrawableGroup = self.group
-        self.render_before()
-        self.window.draw(group)
-        self.render_after()
-
-    @property
-    def group(self) -> LayeredDrawableGroup:
-        return self.__group
-
-
-class AbstractAutoLayeredDrawableScene(AbstractLayeredScene):
-    def __setattr__(self, name: str, value: Any, /) -> None:
-        try:
-            group: LayeredDrawableGroup = self.group
-        except AttributeError:
-            return super().__setattr__(name, value)
-        super().__setattr__(name, value)
-        if isinstance(value, Drawable):
-            group.add(value)
-
-    def __delattr__(self, name: str, /) -> None:
-        try:
-            group: LayeredDrawableGroup = self.group
-        except AttributeError:
-            return super().__delattr__(name)
-        _MISSING: Any = object()
-        value: Any = getattr(self, name, _MISSING)
-        super().__delattr__(name)
-        if value is not _MISSING and isinstance(value, Drawable) and value in group:
-            group.remove(value)
-
-
 class SceneWindow(Window):
     DEFAULT_FIXED_FRAMERATE: Final[int] = 50
 
@@ -578,7 +516,7 @@ class SceneWindow(Window):
     @contextmanager
     def open(self) -> Iterator[None]:
         with ExitStack() as stack_before_open:
-            stack_before_open.callback(self.__event.unbind_all)
+            stack_before_open.callback(self.__event.clear)
 
             del stack_before_open
             with super().open(), ExitStack() as stack_after_open:

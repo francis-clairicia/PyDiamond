@@ -275,7 +275,7 @@ class Window(Object, no_slots=True):
                 type.__setattr__(Keyboard, "_KEY_STATES", [])
         if self.__handle_mouse_button is not None:
             if self.__handle_mouse_button:
-                type.__setattr__(Mouse, "_MOUSE_BUTTON_STATE", _pg_mouse.get_pressed(3))
+                type.__setattr__(Mouse, "_MOUSE_BUTTON_STATE", _pg_mouse.get_pressed(5))
             else:
                 type.__setattr__(Mouse, "_MOUSE_BUTTON_STATE", ())
 
@@ -361,7 +361,7 @@ class Window(Object, no_slots=True):
         for target in targets:
             target.draw_onto(renderer)
 
-    def screenshot(self) -> None:
+    def take_screenshot(self) -> None:
         self.__screenshot_threads.append(self.__screenshot_thread())
 
     @thread_factory_method(global_lock=True, shared_lock=True)
@@ -373,10 +373,10 @@ class Window(Object, no_slots=True):
         if any(c in filename_fmt for c in {"/", "\\", os.path.sep}):
             raise ValueError("filename format contains invalid characters")
 
-        screeshot_dir: str = os.path.abspath(os.path.realpath(self.get_screenshot_directory()))
-        os.makedirs(screeshot_dir, exist_ok=True)
+        screenshot_dir: str = os.path.abspath(os.path.realpath(self.get_screenshot_directory()))
+        os.makedirs(screenshot_dir, exist_ok=True)
 
-        filename_fmt = os.path.join(screeshot_dir, filename_fmt)
+        filename_fmt = os.path.join(screenshot_dir, filename_fmt)
         date = datetime.now()
         file: str = ""
         try:

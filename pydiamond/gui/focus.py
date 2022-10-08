@@ -11,11 +11,12 @@ __all__ = [
     "BoundFocusSide",
     "NoFocusSupportError",
     "SupportsFocus",
+    "supports_focus",
 ]
 
 from abc import abstractmethod
 from enum import auto, unique
-from typing import Callable, Final, Iterator, Mapping, Protocol, TypedDict, overload, runtime_checkable
+from typing import Any, Callable, Final, Iterator, Literal, Mapping, Protocol, TypedDict, TypeGuard, overload, runtime_checkable
 from weakref import WeakSet, WeakValueDictionary, ref as weakref
 
 from ..system.collections import WeakKeyDefaultDictionary
@@ -44,7 +45,6 @@ class _HasFocusMethods(Protocol):
         pass
 
 
-@runtime_checkable
 class SupportsFocus(_HasFocusMethods, Protocol):
     @property
     @abstractmethod
@@ -64,29 +64,52 @@ class BoundFocusSide(AutoLowerNameEnum):
     ON_RIGHT = auto()
 
 
+class BoundObjectsDict(TypedDict):
+    on_top: SupportsFocus | None
+    on_bottom: SupportsFocus | None
+    on_left: SupportsFocus | None
+    on_right: SupportsFocus | None
+
+
+# TODO: Generic[_T]
 class BoundFocus:
-    __slots__ = ("__f", "__scene")
+    __slots__ = ("__f", "__scene", "__weakref__")
+
+    __enabled: Final[WeakSet[SupportsFocus]] = WeakSet()
+    __never_take_focus: Final[WeakSet[SupportsFocus]] = WeakSet()
+    __register: Final[WeakSet[BoundFocus]] = WeakSet()
 
     # fmt: off
-    __enabled: Final[WeakSet[SupportsFocus]] = WeakSet()
     __side: Final[WeakKeyDefaultDictionary[SupportsFocus, WeakValueDictionary[BoundFocusSide, SupportsFocus]]] = WeakKeyDefaultDictionary(WeakValueDictionary)
     __focus_set_callback: Final[WeakKeyDefaultDictionary[SupportsFocus, set[Callable[[], None]]]] = WeakKeyDefaultDictionary(set)
     __focus_leave_callback: Final[WeakKeyDefaultDictionary[SupportsFocus, set[Callable[[], None]]]] = WeakKeyDefaultDictionary(set)
     # fmt: on
 
-    def __init__(self, focusable: SupportsFocus, scene: Scene | None) -> None:
+    def __init__(self, focusable: SupportsFocus, scene: Scene | None | Literal[False]) -> None:
         if not isinstance(focusable, _HasFocusMethods):
             raise NoFocusSupportError(focusable)
-        self.__f: weakref[SupportsFocus] = weakref(focusable)
-        if scene is not None and not isinstance(scene, Scene):
-            raise TypeError(f"Must be a Scene or None, got {scene.__class__.__name__!r}")
-        scene = scene if isinstance(scene, GUIScene) else None
+        self.__f: weakref[SupportsFocus]
         self.__scene: Callable[[], GUIScene | None]
-        if scene is not None:
-            self.__scene = weakref(scene)
+        if any(bound_focus.__f() is focusable for bound_focus in self.__register):
+            raise ValueError("There is already a BoundFocus instance for this object")
+        self.__f = focusable_ref = weakref(focusable)
+        if scene is not None and scene is not False and not isinstance(scene, Scene):
+            raise TypeError(f"Must be a Scene or None, got {scene.__class__.__name__!r}")
+        if isinstance(scene, GUIScene):
+
+            def disable(_: Any) -> None:
+                focusable: SupportsFocus | None = focusable_ref()
+                if focusable is not None:
+                    BoundFocus.__enabled.discard(focusable)
+
+            self.__scene = weakref(scene, disable)
             scene._focus_container.add(self)
+            self.__enabled.add(focusable)
         else:
+            if scene is False:
+                self.__never_take_focus.add(focusable)
             self.__scene = lambda: None
+        self.__register.add(self)
 
     def is_bound_to(self, scene: GUIScene) -> bool:
         return (bound_scene := self.__scene()) is not None and bound_scene is scene
@@ -106,6 +129,8 @@ class BoundFocus:
         f: SupportsFocus = self.__self__
         scene: GUIScene | None = self.__scene()
         if status is not None:
+            if f in self.__never_take_focus:
+                raise TypeError("Cannot take focus: Not bound to a GUIScene")
             if status:
                 self.__enabled.add(f)
             else:
@@ -113,7 +138,7 @@ class BoundFocus:
             if scene is not None:
                 scene.focus_get()  # Force update
             return None
-        if scene is None or not f.is_shown():
+        if scene is None or not f.is_shown() or f in self.__never_take_focus:
             return False
         return f in self.__enabled
 
@@ -159,7 +184,7 @@ class BoundFocus:
             if obj is None:
                 bound_object_dict.pop(side, None)
                 continue
-            if not isinstance(obj, SupportsFocus):
+            if not supports_focus(obj):
                 raise TypeError(f"Expected None or SupportsFocus object, got {obj!r}")
             bound_object_dict[side] = obj
 
@@ -178,12 +203,6 @@ class BoundFocus:
     def remove_all_links(self) -> None:
         f: SupportsFocus = self.__self__
         self.__side.pop(f, None)
-
-    class BoundObjectsDict(TypedDict):
-        on_top: SupportsFocus | None
-        on_bottom: SupportsFocus | None
-        on_left: SupportsFocus | None
-        on_right: SupportsFocus | None
 
     @overload
     def get_obj_on_side(self) -> BoundObjectsDict:
@@ -208,22 +227,22 @@ class BoundFocus:
         side = BoundFocusSide(side)
         return bound_object_dict.get(side)
 
-    def left_to(self, right: SupportsFocus, *, bind_other: bool = False) -> None:
+    def left_to(self, right: SupportsFocus, *, bind_other: bool = True) -> None:
         if bind_other:
             right.focus.set_obj_on_side(on_left=self.__self__)
         self.set_obj_on_side(on_right=right)
 
-    def right_to(self, left: SupportsFocus, *, bind_other: bool = False) -> None:
+    def right_to(self, left: SupportsFocus, *, bind_other: bool = True) -> None:
         if bind_other:
             left.focus.set_obj_on_side(on_right=self.__self__)
         self.set_obj_on_side(on_left=left)
 
-    def above(self, bottom: SupportsFocus, *, bind_other: bool = False) -> None:
+    def above(self, bottom: SupportsFocus, *, bind_other: bool = True) -> None:
         if bind_other:
             bottom.focus.set_obj_on_side(on_top=self.__self__)
         self.set_obj_on_side(on_bottom=bottom)
 
-    def below(self, top: SupportsFocus, *, bind_other: bool = False) -> None:
+    def below(self, top: SupportsFocus, *, bind_other: bool = True) -> None:
         if bind_other:
             top.focus.set_obj_on_side(on_bottom=self.__self__)
         self.set_obj_on_side(on_top=top)
@@ -260,6 +279,21 @@ class BoundFocus:
     @property
     def __self__(self) -> SupportsFocus:
         return weakref_unwrap(self.__f)
+
+
+def supports_focus(obj: Any) -> TypeGuard[SupportsFocus]:
+    if not isinstance(obj, _HasFocusMethods):
+        return False
+    try:
+        focus: Any = getattr(obj, "focus")
+    except AttributeError:
+        return False
+    if not isinstance(focus, BoundFocus):
+        return False
+    try:
+        return focus.__self__ is obj
+    except ReferenceError:
+        return False
 
 
 from .scene import FocusMode, GUIScene  # Import at last because of circular import

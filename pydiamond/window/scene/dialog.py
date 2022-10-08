@@ -12,7 +12,7 @@ __all__ = [
 ]
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from ...graphics.color import BLACK, TRANSPARENT, WHITE, Color
 from ...graphics.movable import MovableProxy
@@ -20,9 +20,6 @@ from ...graphics.shape import RectangleShape
 from ...system.object import final
 from ...system.validation import valid_optional_float
 from . import Scene, SceneWindow
-
-if TYPE_CHECKING:
-    from ..draggable import Draggable
 
 
 class Dialog(Scene):
@@ -62,7 +59,6 @@ class PopupDialog(Dialog):
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
-        draggable: bool = False,
         **kwargs: Any,
     ) -> None:
         super().awake(**kwargs)
@@ -108,12 +104,6 @@ class PopupDialog(Dialog):
             border_bottom_left_radius=border_bottom_left_radius,
             border_bottom_right_radius=border_bottom_right_radius,
         )
-
-        self.draggable_popup: Draggable | None = None
-        if draggable:
-            from ..draggable import DraggingContainer  # lazy import to avoid circular import
-
-            self.draggable_popup = DraggingContainer(self.event, self.window, target=self.__bg)
 
     def on_start_loop_before_transition(self) -> None:
         self.set_default_popup_position()

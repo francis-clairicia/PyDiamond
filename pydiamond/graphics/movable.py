@@ -9,7 +9,7 @@ from __future__ import annotations
 __all__ = ["Movable", "MovableProxy"]
 
 from abc import abstractmethod
-from typing import Any, Callable, overload
+from typing import Any, Callable, Literal, overload
 
 from ..math import Vector2
 from ..system.object import Object, final
@@ -54,16 +54,92 @@ def _position_decorator(fset: Callable[[Movable, Any], None], fget: Callable[[Mo
 
 
 def __prepare_movable_namespace(mcs: Any, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> None:
+    _positions_getter: dict[str, Callable[[Movable], float | tuple[float, float]]] = {}
+    _positions_setter: dict[str, Callable[[Movable, float | tuple[float, float]], None]] = {}
+
+    _single_component_positions_getter: dict[str, Callable[[Movable], float]] = {}
+    _single_component_positions_setter: dict[str, Callable[[Movable, float], None]] = {}
+
+    _point_positions_getter: dict[str, Callable[[Movable], tuple[float, float]]] = {}
+    _point_positions_setter: dict[str, Callable[[Movable, tuple[float, float]], None]] = {}
+
     for position in _ALL_VALID_POSITIONS:
         if position not in namespace:
             raise AttributeError(f"Missing {position!r} property")
         prop: property = namespace[position]
         assert prop.fget
         assert prop.fset
-        prop = prop.setter(_position_decorator(prop.fset, prop.fget))
+        fget = prop.fget
+        fset = _position_decorator(prop.fset, fget)
+        prop = prop.setter(fset)
         for func in filter(callable, (prop.fget, prop.fset, prop.fdel)):
             final(func)
         namespace[position] = prop
+        _positions_getter[position] = fget
+        _positions_setter[position] = fset
+        if position in _SINGLE_COMPONENT_POSITIONS:
+            _single_component_positions_getter[position] = fget
+            _single_component_positions_setter[position] = fset
+        if position in _POINT_POSITIONS:
+            _point_positions_getter[position] = fget
+            _point_positions_setter[position] = fset
+
+    def wraps_method(name: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        def decorator(f: Any) -> Any:
+            assert f.__name__ == name
+            f = wraps(namespace[name])(f)
+            namespace[name] = f
+            return f
+
+        return decorator
+
+    @wraps_method("_get_position")
+    def _get_position(self: Movable, anchor: str) -> float | tuple[float, float]:
+        try:
+            fget = _positions_getter[anchor]
+        except KeyError:
+            raise ValueError(anchor) from None
+        return fget(self)
+
+    @wraps_method("_set_position")
+    def _set_position(self: Movable, anchor: str, value: float | tuple[float, float]) -> None:
+        try:
+            fset = _positions_setter[anchor]
+        except KeyError:
+            raise ValueError(anchor) from None
+        return fset(self, value)
+
+    @wraps_method("_get_single_component_position")
+    def _get_single_component_position(self: Movable, anchor: str) -> float:
+        try:
+            fget = _single_component_positions_getter[anchor]
+        except KeyError:
+            raise ValueError(anchor) from None
+        return fget(self)
+
+    @wraps_method("_set_single_component_position")
+    def _set_single_component_position(self: Movable, anchor: str, value: float) -> None:
+        try:
+            fset = _single_component_positions_setter[anchor]
+        except KeyError:
+            raise ValueError(anchor) from None
+        return fset(self, value)
+
+    @wraps_method("_get_point_position")
+    def _get_point_position(self: Movable, anchor: str) -> tuple[float, float]:
+        try:
+            fget = _point_positions_getter[anchor]
+        except KeyError:
+            raise ValueError(anchor) from None
+        return fget(self)
+
+    @wraps_method("_set_point_position")
+    def _set_point_position(self: Movable, anchor: str, value: tuple[float, float]) -> None:
+        try:
+            fset = _point_positions_setter[anchor]
+        except KeyError:
+            raise ValueError(anchor) from None
+        return fset(self, value)
 
 
 class Movable(Object, prepare_namespace=__prepare_movable_namespace):
@@ -71,6 +147,43 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
         super().__init__(**kwargs)
         self.__x: float = 0
         self.__y: float = 0
+
+    @overload
+    def _get_position(self, anchor: Literal["x", "y", "left", "top", "right", "bottom", "centerx", "centery"]) -> float:
+        ...
+
+    @overload
+    def _get_position(
+        self,
+        anchor: Literal[
+            "center",
+            "topleft",
+            "topright",
+            "bottomleft",
+            "bottomright",
+            "midleft",
+            "midright",
+            "midtop",
+            "midbottom",
+        ],
+    ) -> tuple[float, float]:
+        ...
+
+    @overload
+    def _get_position(self, anchor: str) -> float | tuple[float, float]:
+        ...
+
+    @final
+    def _get_position(self, anchor: str) -> float | tuple[float, float]:
+        raise AssertionError("Should not be called")
+
+    @final
+    def _get_single_component_position(self, anchor: str) -> float:
+        raise AssertionError("Should not be called")
+
+    @final
+    def _get_point_position(self, anchor: str) -> tuple[float, float]:
+        raise AssertionError("Should not be called")
 
     @overload
     def set_position(
@@ -103,15 +216,14 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
     ) -> None:
         ...
 
+    @final
     def set_position(self, **kwargs: Any) -> None:
         if not kwargs:
             return
 
         if len(kwargs) == 1:
             attr_name, attr_value = next(iter(kwargs.items()))
-            if attr_name not in _ALL_VALID_POSITIONS:
-                raise TypeError("Bad parameters")
-            return self.__setattr__(attr_name, attr_value)
+            return self._set_position(attr_name, attr_value)
 
         if len(kwargs) != 2:
             raise TypeError("Bad parameters")
@@ -123,25 +235,67 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
 
         match kwargs:
             case {"left": left, "top": top}:
-                self.topleft = (left, top)
+                self._set_position("topleft", (left, top))
             case {"left": left, "centery": centery}:
-                self.midleft = (left, centery)
+                self._set_position("midleft", (left, centery))
             case {"left": left, "bottom": bottom}:
-                self.bottomleft = (left, bottom)
+                self._set_position("bottomleft", (left, bottom))
             case {"centerx": centerx, "top": top}:
-                self.midtop = (centerx, top)
+                self._set_position("midtop", (centerx, top))
             case {"centerx": centerx, "centery": centery}:
-                self.center = (centerx, centery)
+                self._set_position("center", (centerx, centery))
             case {"centerx": centerx, "bottom": bottom}:
-                self.midbottom = (centerx, bottom)
+                self._set_position("midbottom", (centerx, bottom))
             case {"right": right, "top": top}:
-                self.topright = (right, top)
+                self._set_position("topright", (right, top))
             case {"right": right, "centery": centery}:
-                self.midright = (right, centery)
+                self._set_position("midright", (right, centery))
             case {"right": right, "bottom": bottom}:
-                self.bottomright = (right, bottom)
+                self._set_position("bottomright", (right, bottom))
             case _:
                 raise TypeError("Bad parameters")
+
+    @overload
+    def _set_position(
+        self,
+        anchor: Literal["x", "y", "left", "top", "right", "bottom", "centerx", "centery"],
+        value: float,
+    ) -> None:
+        ...
+
+    @overload
+    def _set_position(
+        self,
+        anchor: Literal[
+            "center",
+            "topleft",
+            "topright",
+            "bottomleft",
+            "bottomright",
+            "midleft",
+            "midright",
+            "midtop",
+            "midbottom",
+        ],
+        value: tuple[float, float],
+    ) -> None:
+        ...
+
+    @overload
+    def _set_position(self, anchor: str, value: float | tuple[float, float]) -> None:
+        ...
+
+    @final
+    def _set_position(self, anchor: str, value: float | tuple[float, float]) -> None:
+        raise AssertionError("Should not be called")
+
+    @final
+    def _set_single_component_position(self, anchor: str, value: float) -> None:
+        raise AssertionError("Should not be called")
+
+    @final
+    def _set_point_position(self, anchor: str, value: tuple[float, float]) -> None:
+        raise AssertionError("Should not be called")
 
     def move(self, dx: float, dy: float) -> None:
         if (dx, dy) == (0, 0):
@@ -164,7 +318,7 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
         if isinstance(pivot, str):
             if pivot == "center":
                 return
-            pivot = self._get_pivot_from_attribute(pivot)
+            pivot = Vector2(self._get_point_position(pivot))
         else:
             pivot = Vector2(pivot)
         center: Vector2 = Vector2(self.center)
@@ -172,12 +326,6 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
             return
         center = pivot + (center - pivot).rotate(-angle_offset)
         self.center = center.x, center.y
-
-    @final
-    def _get_pivot_from_attribute(self, pivot: str) -> Vector2:
-        if pivot not in _POINT_POSITIONS:
-            raise ValueError(f"Bad pivot attribute: {pivot!r}")
-        return Vector2(getattr(self, pivot))
 
     @abstractmethod
     def get_size(self) -> tuple[float, float]:
@@ -191,13 +339,49 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
     def get_height(self) -> float:
         return self.get_size()[1]
 
+    @overload
+    def get_rect(self) -> Rect:
+        ...
+
+    @overload
+    def get_rect(
+        self,
+        *,
+        x: float = ...,
+        y: float = ...,
+        left: float = ...,
+        right: float = ...,
+        top: float = ...,
+        bottom: float = ...,
+        centerx: float = ...,
+        centery: float = ...,
+        center: tuple[float, float] = ...,
+        topleft: tuple[float, float] = ...,
+        topright: tuple[float, float] = ...,
+        bottomleft: tuple[float, float] = ...,
+        bottomright: tuple[float, float] = ...,
+        midleft: tuple[float, float] = ...,
+        midright: tuple[float, float] = ...,
+        midtop: tuple[float, float] = ...,
+        midbottom: tuple[float, float] = ...,
+    ) -> Rect:
+        ...
+
+    @final
     def get_rect(self, **kwargs: float | tuple[float, float]) -> Rect:
-        r: Rect = Rect(self.topleft, self.get_size())
+        r: Rect = Rect((self.__x, self.__y), self.get_size())
         if kwargs:
             r_setattr = r.__setattr__
             for name, value in kwargs.items():
                 r_setattr(name, value)
+        r.normalize()
         return r
+
+    @final
+    def clamp(self, rect: Rect) -> None:
+        r: Rect = Rect((self.__x, self.__y), self.get_size())
+        r.clamp_ip(rect)
+        self.__x, self.__y = r.topleft
 
     def _on_move(self) -> None:
         pass
@@ -366,29 +550,15 @@ def __prepare_proxy_namespace(mcs: Any, name: str, bases: tuple[type, ...], name
             movable: Movable = object.__getattribute__(self, "_object")
             return getattr(movable, attr)
 
-        def setter(self: MovableProxy, value: Any, /, *, attr: str = str(attr)) -> Any:
+        def setter(self: MovableProxy, value: Any, /, *, attr: str = str(attr)) -> None:
             movable: Movable = object.__getattribute__(self, "_object")
             return setattr(movable, attr, value)
 
-        namespace[attr] = property(fget=getter, fset=setter)
-
-    for method_name in (
-        "set_position",
-        "move",
-        "translate",
-        "get_rect",
-    ):
-
-        @wraps(getattr(Movable, method_name))  # type: ignore[arg-type]
-        def wrapper(self: MovableProxy, *args: Any, __method_name: str = str(method_name), **kwargs: Any) -> Any:
-            method_name = __method_name
+        def deleter(self: MovableProxy, /, *, attr: str = str(attr)) -> None:
             movable: Movable = object.__getattribute__(self, "_object")
-            method: Callable[..., Any] = getattr(movable, method_name)
-            return method(*args, **kwargs)
+            return delattr(movable, attr)
 
-        wrapper.__qualname__ = f"{name}.{wrapper.__name__}"
-
-        namespace[method_name] = wrapper
+        namespace[attr] = property(fget=getter, fset=setter, fdel=deleter)
 
 
 @concreteclass

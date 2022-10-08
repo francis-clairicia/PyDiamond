@@ -9,14 +9,13 @@ from __future__ import annotations
 __all__ = ["Transformable", "TransformableProxy"]
 
 from abc import abstractmethod
-from typing import Any, Callable, Literal, Mapping, overload
+from typing import Any, Literal, Mapping, overload
 
 from typing_extensions import assert_never
 
 from ..math import Vector2, compute_size_from_edges
 from ..system.object import final
 from ..system.utils.abc import concreteclass
-from ..system.utils.functools import wraps
 from .movable import Movable, MovableProxy
 from .rect import Rect
 
@@ -28,9 +27,11 @@ class Transformable(Movable):
         self.__scale_x: float = 1
         self.__scale_y: float = 1
 
+    @final
     def rotate(self, angle_offset: float, pivot: tuple[float, float] | Vector2 | str | None = None) -> None:
         self.set_rotation(self.__angle + angle_offset, pivot=pivot)
 
+    @final
     def set_rotation(self, angle: float, pivot: tuple[float, float] | Vector2 | str | None = None) -> None:
         angle = float(angle) % 360
         former_angle: float = self.__angle
@@ -48,7 +49,7 @@ class Transformable(Movable):
             raise NotImplementedError from None
         if pivot is not None and pivot != "center" and pivot != (center.x, center.y):
             if isinstance(pivot, str):
-                pivot = self._get_pivot_from_attribute(pivot)
+                pivot = Vector2(self._get_point_position(pivot))
             else:
                 pivot = Vector2(pivot)
             center = pivot + (center - pivot).rotate(-self.__angle + former_angle)
@@ -74,7 +75,8 @@ class Transformable(Movable):
     def set_scale(self, __scale: tuple[float, float], /) -> None:
         ...
 
-    def set_scale(  # type: ignore[misc]  # mypy will not understand
+    @final  # type: ignore[misc]  # mypy will not understand
+    def set_scale(
         self,
         __scale: tuple[float, float] | float | None = None,
         /,
@@ -113,6 +115,7 @@ class Transformable(Movable):
             raise NotImplementedError from None
         self.center = center
 
+    @final
     def set_rotation_and_scale(self, angle: float, scale: tuple[float, float]) -> None:
         angle = float(angle) % 360
         scale_x, scale_y = scale
@@ -164,6 +167,7 @@ class Transformable(Movable):
                 del only_scale_exc, only_rotation_exc
         self.center = center
 
+    @final
     def scale_to_width(self, width: float, *, uniform: bool = True) -> None:
         w: float = self.get_local_size()[0]
         scale = width / w if w > 0 else 0
@@ -171,6 +175,7 @@ class Transformable(Movable):
             return self.set_scale(scale_x=scale)
         self.set_scale(scale)
 
+    @final
     def scale_to_height(self, height: float, *, uniform: bool = True) -> None:
         h: float = self.get_local_size()[1]
         scale = height / h if h > 0 else 0
@@ -178,6 +183,7 @@ class Transformable(Movable):
             return self.set_scale(scale_y=scale)
         self.set_scale(scale)
 
+    @final
     def scale_to_size(self, size: tuple[float, float], *, strategy: Literal["both", "min", "max"] = "both") -> None:
         w, h = self.get_local_size()
         scale_width: float = size[0] / w if w > 0 else 0
@@ -191,22 +197,27 @@ class Transformable(Movable):
             case _:
                 assert_never(strategy)
 
+    @final
     def set_min_width(self, width: float, *, uniform: bool = True) -> None:
         if self.width < width:
             self.scale_to_width(width, uniform=uniform)
 
+    @final
     def set_max_width(self, width: float, *, uniform: bool = True) -> None:
         if self.width > width:
             self.scale_to_width(width, uniform=uniform)
 
+    @final
     def set_min_height(self, height: float, *, uniform: bool = True) -> None:
         if self.height < height:
             self.scale_to_height(height, uniform=uniform)
 
+    @final
     def set_max_height(self, height: float, *, uniform: bool = True) -> None:
         if self.height > height:
             self.scale_to_height(height, uniform=uniform)
 
+    @final
     def set_min_size(self, size: tuple[float, float], *, uniform: bool = True) -> None:
         actual_width, actual_height = self.get_size()
         if not (actual_width < size[0] or actual_height < size[1]):
@@ -229,6 +240,7 @@ class Transformable(Movable):
                 scale = max(scale, higher_pair[0] / higher_pair[1] if higher_pair[1] > 0 else 0)
             self.set_scale(scale)
 
+    @final
     def set_max_size(self, size: tuple[float, float], *, uniform: bool = True) -> None:
         actual_width, actual_height = self.get_size()
         if not (actual_width > size[0] or actual_height > size[1]):
@@ -336,21 +348,82 @@ class Transformable(Movable):
         ]
         return compute_size_from_edges(all_points)
 
+    @overload
+    def get_area(self, *, apply_scale: bool = True, apply_rotation: bool = True) -> Rect:
+        ...
+
+    @overload
+    def get_area(
+        self,
+        *,
+        apply_scale: bool = True,
+        apply_rotation: bool = True,
+        x: float = ...,
+        y: float = ...,
+        left: float = ...,
+        right: float = ...,
+        top: float = ...,
+        bottom: float = ...,
+        centerx: float = ...,
+        centery: float = ...,
+        center: tuple[float, float] = ...,
+        topleft: tuple[float, float] = ...,
+        topright: tuple[float, float] = ...,
+        bottomleft: tuple[float, float] = ...,
+        bottomright: tuple[float, float] = ...,
+        midleft: tuple[float, float] = ...,
+        midright: tuple[float, float] = ...,
+        midtop: tuple[float, float] = ...,
+        midbottom: tuple[float, float] = ...,
+    ) -> Rect:
+        ...
+
     @final
-    def get_area(self, *, apply_scale: bool = True, apply_rotation: bool = True, **kwargs: Any) -> Rect:
+    def get_area(self, *, apply_scale: bool = True, apply_rotation: bool = True, **kwargs: float | tuple[float, float]) -> Rect:
         r: Rect = Rect((0, 0), self.get_area_size(apply_scale=apply_scale, apply_rotation=apply_rotation))
         if kwargs:
             r_setattr = r.__setattr__
             for name, value in kwargs.items():
                 r_setattr(name, value)
+        r.normalize()
         return r
 
+    @overload
+    def get_local_rect(self) -> Rect:
+        ...
+
+    @overload
+    def get_local_rect(
+        self,
+        *,
+        x: float = ...,
+        y: float = ...,
+        left: float = ...,
+        right: float = ...,
+        top: float = ...,
+        bottom: float = ...,
+        centerx: float = ...,
+        centery: float = ...,
+        center: tuple[float, float] = ...,
+        topleft: tuple[float, float] = ...,
+        topright: tuple[float, float] = ...,
+        bottomleft: tuple[float, float] = ...,
+        bottomright: tuple[float, float] = ...,
+        midleft: tuple[float, float] = ...,
+        midright: tuple[float, float] = ...,
+        midtop: tuple[float, float] = ...,
+        midbottom: tuple[float, float] = ...,
+    ) -> Rect:
+        ...
+
+    @final
     def get_local_rect(self, **kwargs: float | tuple[float, float]) -> Rect:
         r: Rect = Rect((0, 0), self.get_local_size())
         if kwargs:
             r_setattr = r.__setattr__
             for name, value in kwargs.items():
                 r_setattr(name, value)
+        r.normalize()
         return r
 
     @property
@@ -421,40 +494,15 @@ def __prepare_proxy_namespace(mcs: Any, name: str, bases: tuple[type, ...], name
             transformable: Transformable = object.__getattribute__(self, "_object")
             return getattr(transformable, attr)
 
-        def setter(self: TransformableProxy, value: Any, /, *, attr: str = str(attr)) -> Any:
+        def setter(self: TransformableProxy, value: Any, /, *, attr: str = str(attr)) -> None:
             transformable: Transformable = object.__getattribute__(self, "_object")
             return setattr(transformable, attr, value)
 
-        namespace[attr] = property(fget=getter, fset=setter)
-
-    for method_name in (
-        "rotate",
-        "set_rotation",
-        "set_scale",
-        "scale_to_width",
-        "scale_to_height",
-        "scale_to_size",
-        "set_min_width",
-        "set_max_width",
-        "set_min_height",
-        "set_max_height",
-        "set_min_size",
-        "set_max_size",
-        "_freeze_state",
-        "_set_frozen_state",
-        "get_local_rect",
-    ):
-
-        @wraps(getattr(Transformable, method_name))  # type: ignore[arg-type]
-        def wrapper(self: TransformableProxy, *args: Any, __method_name: str = str(method_name), **kwargs: Any) -> Any:
-            method_name = __method_name
+        def deleter(self: TransformableProxy, /, *, attr: str = str(attr)) -> None:
             transformable: Transformable = object.__getattribute__(self, "_object")
-            method: Callable[..., Any] = getattr(transformable, method_name)
-            return method(*args, **kwargs)
+            return delattr(transformable, attr)
 
-        wrapper.__qualname__ = f"{name}.{wrapper.__name__}"
-
-        namespace[method_name] = wrapper
+        namespace[attr] = property(fget=getter, fset=setter, fdel=deleter)
 
 
 @concreteclass
@@ -477,6 +525,14 @@ class TransformableProxy(Transformable, MovableProxy, prepare_namespace=__prepar
     def _apply_only_scale(self) -> None:
         transformable: Transformable = object.__getattribute__(self, "_object")
         return transformable._apply_only_scale()
+
+    def _freeze_state(self) -> dict[str, Any] | None:
+        transformable: Transformable = object.__getattribute__(self, "_object")
+        return transformable._freeze_state()
+
+    def _set_frozen_state(self, angle: float, scale: tuple[float, float], state: Mapping[str, Any] | None) -> bool:
+        transformable: Transformable = object.__getattribute__(self, "_object")
+        return transformable._set_frozen_state(angle, scale, state)
 
 
 del __prepare_proxy_namespace

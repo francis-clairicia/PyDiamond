@@ -11,7 +11,7 @@ __all__ = ["AbstractRenderer"]
 from abc import abstractmethod
 from enum import IntEnum, unique
 from itertools import starmap
-from typing import TYPE_CHECKING, Iterable, Literal, Sequence, overload
+from typing import TYPE_CHECKING, ContextManager, Iterable, Literal, Sequence, overload
 
 import pygame.constants as _pg_constants
 
@@ -62,7 +62,15 @@ class AbstractRenderer(Object):
         raise NotImplementedError
 
     @abstractmethod
-    def fill(self, color: _ColorValue, rect: _CanBeRect = ...) -> Rect:
+    def fill(self, color: _ColorValue, rect: _CanBeRect | None = ...) -> Rect:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_clip(self) -> Rect:
+        raise NotImplementedError
+
+    @abstractmethod
+    def using_clip(self, rect: _CanBeRect | None) -> ContextManager[None]:
         raise NotImplementedError
 
     @abstractmethod
@@ -70,8 +78,8 @@ class AbstractRenderer(Object):
         self,
         surface: Surface,
         dest: _Coordinate | _CanBeRect,
-        area: _CanBeRect | None = None,
-        special_flags: int = BlendMode.NONE,
+        area: _CanBeRect | None = ...,
+        special_flags: int = ...,
     ) -> Rect:
         raise NotImplementedError
 
@@ -132,12 +140,12 @@ class AbstractRenderer(Object):
         self,
         color: _ColorValue,
         rect: _RectValue,
-        width: int = 0,
-        border_radius: int = -1,
-        border_top_left_radius: int = -1,
-        border_top_right_radius: int = -1,
-        border_bottom_left_radius: int = -1,
-        border_bottom_right_radius: int = -1,
+        width: int = ...,
+        border_radius: int = ...,
+        border_top_left_radius: int = ...,
+        border_top_right_radius: int = ...,
+        border_bottom_left_radius: int = ...,
+        border_bottom_right_radius: int = ...,
     ) -> Rect:
         raise NotImplementedError
 
@@ -146,7 +154,7 @@ class AbstractRenderer(Object):
         self,
         color: _ColorValue,
         points: Sequence[_Coordinate],
-        width: int = 0,
+        width: int = ...,
     ) -> Rect:
         raise NotImplementedError
 
@@ -156,16 +164,16 @@ class AbstractRenderer(Object):
         color: _ColorValue,
         center: _Coordinate,
         radius: float,
-        width: int = 0,
-        draw_top_right: bool | None = None,
-        draw_top_left: bool | None = None,
-        draw_bottom_left: bool | None = None,
-        draw_bottom_right: bool | None = None,
+        width: int = ...,
+        draw_top_right: bool | None = ...,
+        draw_top_left: bool | None = ...,
+        draw_bottom_left: bool | None = ...,
+        draw_bottom_right: bool | None = ...,
     ) -> Rect:
         raise NotImplementedError
 
     @abstractmethod
-    def draw_ellipse(self, color: _ColorValue, rect: _RectValue, width: int = 0) -> Rect:
+    def draw_ellipse(self, color: _ColorValue, rect: _RectValue, width: int = ...) -> Rect:
         raise NotImplementedError
 
     @abstractmethod
@@ -175,7 +183,7 @@ class AbstractRenderer(Object):
         rect: _RectValue,
         start_angle: float,
         stop_angle: float,
-        width: int = 1,
+        width: int = ...,
     ) -> Rect:
         raise NotImplementedError
 
@@ -185,7 +193,7 @@ class AbstractRenderer(Object):
         color: _ColorValue,
         start_pos: _Coordinate,
         end_pos: _Coordinate,
-        width: int = 1,
+        width: int = ...,
     ) -> Rect:
         raise NotImplementedError
 
@@ -195,7 +203,7 @@ class AbstractRenderer(Object):
         color: _ColorValue,
         closed: bool,
         points: Sequence[_Coordinate],
-        width: int = 1,
+        width: int = ...,
     ) -> Rect:
         raise NotImplementedError
 

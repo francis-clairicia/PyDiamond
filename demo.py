@@ -49,20 +49,22 @@ from pydiamond.graphics.sprite import Sprite, SpriteGroup
 from pydiamond.graphics.surface import Surface, SurfaceRenderer
 from pydiamond.graphics.text import Text, TextImage
 from pydiamond.gui.scene import GUIScene
-from pydiamond.gui.widgets.abc import AbstractWidget
+from pydiamond.gui.widgets.abc import Widget, WidgetsManager
 from pydiamond.gui.widgets.button import Button, ImageButton
 from pydiamond.gui.widgets.checkbox import CheckBox
 from pydiamond.gui.widgets.entry import Entry
 from pydiamond.gui.widgets.form import Form
 from pydiamond.gui.widgets.grid import Grid
 from pydiamond.gui.widgets.scale import ScaleBar
-from pydiamond.gui.widgets.scroll import ScrollArea, ScrollBar
+
+# from pydiamond.gui.widgets.scroll import ScrollableView, ScrollBar
+from pydiamond.gui.widgets.scroll import ScrollBar, ScrollingContainer
+from pydiamond.gui.widgets.wrapper import WidgetWrapper
 from pydiamond.resource.loader import FontLoader, ImageLoader, MusicLoader, SoundLoader
 from pydiamond.resource.manager import ResourceManager
 from pydiamond.system.clock import Clock
 from pydiamond.system.time import Time
 from pydiamond.window.display import Window, WindowCallback
-from pydiamond.window.draggable import Draggable
 from pydiamond.window.event import (
     Event,
     KeyDownEvent,
@@ -70,19 +72,13 @@ from pydiamond.window.event import (
     MouseButtonDownEvent,
     MouseButtonEvent,
     MouseButtonUpEvent,
+    MouseMotionEvent,
     MusicEndEvent,
     ScreenshotEvent,
 )
 from pydiamond.window.keyboard import Key, Keyboard
 from pydiamond.window.mouse import Mouse, MouseButton
-from pydiamond.window.scene import (
-    AbstractAutoLayeredDrawableScene,
-    MainScene,
-    RenderedLayeredScene,
-    Scene,
-    SceneTransition,
-    SceneWindow,
-)
+from pydiamond.window.scene import MainScene, Scene, SceneTransition, SceneWindow
 from pydiamond.window.scene.dialog import PopupDialog
 
 if TYPE_CHECKING:
@@ -535,58 +531,56 @@ class AnimatedSpriteScene(MainScene):
         self.window.draw(self.sprite)
 
 
-class DraggableSprite(Sprite, Draggable):
+class DraggableSprite(Sprite, Widget):
     def __init__(
         self,
-        scene: Scene,
+        master: WidgetsManager,
         image: Surface,
         *,
         width: float | None = None,
         height: float | None = None,
     ) -> None:
-        super().__init__(image, width=width, height=height, master=scene.event, window=scene.window)
+        super().__init__(image, width=width, height=height, master=master)
+        self.set_active_only_on_hover(False)
 
     def invoke(self) -> None:
         pass
 
-    def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
-        return self.get_rect().collidepoint(mouse_pos)
+    def _on_mouse_motion(self, event: MouseMotionEvent) -> None:
+        if self.active:
+            self.translate(event.rel)
+        return super()._on_mouse_motion(event)
 
 
 class SpriteCollisionScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
+        self.widgets = WidgetsManager(self)
 
-        self.car = DraggableSprite(self, ImagesResources.car[0])
-        self.cactus = DraggableSprite(self, ImagesResources.cactus, height=200)
+        self.car = DraggableSprite(self.widgets, ImagesResources.car[0])
+        self.cactus = DraggableSprite(self.widgets, ImagesResources.cactus, height=200)
         self.cross = Image(ImagesResources.cross["normal"], width=30)
 
     def on_start_loop_before_transition(self) -> None:
         self.car.center = self.window.width / 4, self.window.centery
         self.cactus.center = self.window.width * 3 / 4, self.window.centery
-        self.cross.hide()
         return super().on_start_loop_before_transition()
 
-    def update(self) -> None:
-        super().update()
-
-        if intersection := self.car.is_mask_colliding(self.cactus):
-            self.cross.show()
-            self.cross.center = intersection
-        else:
-            self.cross.hide()
-
     def render(self) -> None:
-        self.window.draw(self.car, self.cactus, self.cross)
+        self.window.draw(self.widgets)
+        if intersection := self.car.is_mask_colliding(self.cactus):
+            self.cross.center = intersection
+            self.window.draw(self.cross)
 
 
 class SpriteGroupCollisionScene(MainScene, framerate=60, fixed_framerate=50):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
+        self.widgets = WidgetsManager(self)
 
-        self.car = DraggableSprite(self, ImagesResources.car[0])
+        self.car = DraggableSprite(self.widgets, ImagesResources.car[0])
         self.cacti = SpriteGroup()
 
     def on_start_loop_before_transition(self) -> None:
@@ -622,7 +616,7 @@ class SpriteGroupCollisionScene(MainScene, framerate=60, fixed_framerate=50):
         self.window.set_title(f"{len(self.cacti)} {'cacti' if len(self.cacti) > 1 else 'cactus'}")
 
     def render(self) -> None:
-        self.window.draw(self.cacti, self.car)
+        self.window.draw(self.cacti, self.widgets)
 
 
 class MyCustomEvent(Event):
@@ -667,8 +661,9 @@ class EventScene(MainScene):
                 self.cross.color = RED
         self.window.post_event(MyCustomEvent(f"mouse_pos=({event.pos})"))
 
-    def __update_window_title(self, event: MyCustomEvent) -> None:
+    def __update_window_title(self, event: MyCustomEvent) -> bool:
         self.window.set_title(event.message)
+        return True
 
 
 class TextImageScene(MainScene):
@@ -706,8 +701,11 @@ class ButtonScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
+
+        self.widgets = WidgetsManager(self)
+
         self.button = Button(
-            self,
+            self.widgets,
             font=(None, 80),
             img=ImagesResources.cactus,
             callback=self.__increase_counter,
@@ -722,7 +720,7 @@ class ButtonScene(MainScene):
             self.on_start_loop()
 
         self.cancel = ImageButton(
-            self, img=ImagesResources.cross["normal"], active_img=ImagesResources.cross["hover"], callback=restart
+            self.widgets, img=ImagesResources.cross["normal"], active_img=ImagesResources.cross["hover"], callback=restart
         )
         self.cancel.center = self.window.center
         self.cancel.move(450, 0)
@@ -751,16 +749,19 @@ class ButtonScene(MainScene):
         self.button.text.set("message", str(self.counter))
 
     def render(self) -> None:
-        self.window.draw(self.button, self.cancel)
+        self.window.draw(self.widgets)
 
 
 class CheckBoxScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
+
+        self.widgets = WidgetsManager(self)
+
         self.text = Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
         self.box: CheckBox[int, int] = CheckBox(
-            self, 50, 50, BLUE_LIGHT, off_value=0, on_value=10, callback=self.__set_text, callback_at_init=False
+            self.widgets, 50, 50, BLUE_LIGHT, off_value=0, on_value=10, callback=self.__set_text, callback_at_init=False
         )
 
     def on_start_loop_before_transition(self) -> None:
@@ -769,7 +770,7 @@ class CheckBoxScene(MainScene):
         self.__set_text(self.box.value)
 
     def render(self) -> None:
-        self.window.draw(self.box, self.text)
+        self.window.draw(self.widgets, self.text)
 
     def __set_text(self, value: int) -> None:
         self.text.message = f"Value: {value}"
@@ -780,10 +781,11 @@ class ProgressScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
+        self.widgets = WidgetsManager(self)
         self.hprogress = hprogress = ProgressBar(500, 75, from_=10, to=90, orient="horizontal", outline=10)
         self.vprogress = vprogress = ProgressBar(125, 500, from_=10, to=90, orient="vertical")
         self.restart = restart = ImageButton(
-            self,
+            self.widgets,
             img=ImagesResources.cross["normal"],
             active_img=ImagesResources.cross["hover"],
             callback=self.__restart,
@@ -812,7 +814,7 @@ class ProgressScene(MainScene):
         self.callback.kill()
 
     def render(self) -> None:
-        self.window.draw(self.hprogress, self.vprogress, self.restart)
+        self.window.draw(self.hprogress, self.vprogress, self.widgets)
 
     def __restart(self) -> None:
         self.hprogress.percent = 0
@@ -823,9 +825,11 @@ class ScaleBarScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
+        self.widgets = WidgetsManager(self)
+
         self.text = text = Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
         self.scale = scale = ScaleBar(
-            self,
+            self.widgets,
             500,
             75,
             from_=10,
@@ -833,7 +837,7 @@ class ScaleBarScene(MainScene):
             value_callback=lambda value: self.text.config.update(message=f"Value: {value}"),
             cursor_thickness=10,
         )
-        self.vscale = vscale = ScaleBar(self, 75, 500, from_=10, to=90, orient="vertical", outline=10)
+        self.vscale = vscale = ScaleBar(self.widgets, 75, 500, from_=10, to=90, orient="vertical", outline=10)
 
         scale.resolution = 0
         scale.center = self.window.width / 4, self.window.centery
@@ -846,55 +850,59 @@ class ScaleBarScene(MainScene):
         self.vscale.value = self.vscale.from_value
 
     def render(self) -> None:
-        self.window.draw(self.scale, self.vscale, self.text)
+        self.window.draw(self.widgets, self.text)
 
 
 class EntryScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
-        self.entry = entry = Entry(self, font=(None, 70), fg=BLUE, outline=5)
+        self.widgets = WidgetsManager(self)
+        self.entry = entry = Entry(self.widgets, font=(None, 70), fg=BLUE, outline=5)
         entry.center = self.window.center
 
     def on_start_loop_before_transition(self) -> None:
         self.entry.clear()
 
     def render(self) -> None:
-        self.window.draw(self.entry)
+        self.window.draw(self.widgets)
 
 
 LOREM_IPSUM = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin euismod justo ac pharetra fermentum. Duis neque massa, commodo eu est vel, dignissim interdum eros. Nulla augue ex, blandit ac magna dapibus, dignissim venenatis massa. Donec tempus laoreet eros tristique rhoncus. Sed eget metus vitae purus ultricies semper. Suspendisse sodales rhoncus quam ac aliquam. Duis quis elit rhoncus, condimentum dolor nec, elementum lorem. Integer placerat dui orci, in ultricies nulla viverra ac. Morbi at justo eu libero rutrum dignissim a in velit. Suspendisse magna odio, fermentum vel tortor eget, condimentum sagittis ex. Vivamus tristique venenatis purus, at pharetra erat lobortis id. Pellentesque tincidunt bibendum erat, ac faucibus ligula semper vitae. Vestibulum ac quam in nulla tristique congue id quis lectus. Sed fermentum hendrerit velit."
 
 
-class ScrollBarScene(RenderedLayeredScene, AbstractAutoLayeredDrawableScene, MainScene):
+class ScrollBarScene(MainScene):
     window: MainWindow
 
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
+        self.destroy_exit_stack.callback(self.window.set_title, self.window.get_title())
         self.background_color = BLUE_DARK
-        self.area = ScrollArea(master=self, width=self.window.width - 25, height=self.window.height - 25)
-        self.hscroll = ScrollBar(self.area, self.window.width, 25, outline=3, orient="horizontal")
+        self.widgets = WidgetsManager(self)
+        self.area = ScrollingContainer(self.widgets, width=self.window.width - 25, height=self.window.height - 25)
+        self.hscroll = ScrollBar(self.widgets, self.window.width, 25, outline=3, orient="horizontal")
         self.hscroll.midbottom = self.window.midbottom
         next_button: Button = self.window.next_button
         self.vscroll = ScrollBar(
-            self.area, 25, self.window.height - self.hscroll.height - (next_button.bottom + 10), outline=3, orient="vertical"
+            self.widgets,
+            25,
+            self.window.height - self.hscroll.height - (next_button.bottom + 10),
+            outline=3,
+            orient="vertical",
         )
         self.vscroll.bottomright = self.window.right, self.hscroll.top
         self.vscroll.border_radius = 25
-        Text(LOREM_IPSUM, font=(None, 100), wrap=50, line_spacing=10).add_to_group(self.area)
 
-    def on_start_loop(self) -> None:
-        super().on_start_loop()
-        ScrollArea.set_vertical_flip(True)
-        ScrollArea.set_horizontal_flip(True)
+        self.area.bind_xview(self.hscroll)
+        self.area.bind_yview(self.vscroll)
 
-    def on_quit(self) -> None:
-        super().on_quit()
-        ScrollArea.set_vertical_flip(False)
-        ScrollArea.set_horizontal_flip(False)
+        WidgetWrapper(self.area, Text(LOREM_IPSUM, font=(None, 100), wrap=50, line_spacing=10))
+
+    def render(self) -> None:
+        self.window.draw(self.widgets)
 
 
-class TestGUIScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableScene):
+class TestGUIScene(GUIScene):
     @classmethod
     def __theme_init__(cls) -> None:
         super().__theme_init__()
@@ -911,12 +919,16 @@ class TestGUIScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableSc
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
+        self.widgets = WidgetsManager(self)
+
         Button.set_default_focus_on_hover(True)
 
-        self.text = Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
-        self.first = Button(self, "First", callback=lambda: self.text.config.update(message="First"))
-        self.second = Button(self, "Second", callback=lambda: self.text.config.update(message="Second"))
-        self.third = Button(self, "Third", callback=lambda: self.text.config.update(message="Third"))
+        self.text = WidgetWrapper(
+            self.widgets, Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
+        ).ref
+        self.first = Button(self.widgets, "First", callback=lambda: self.text.config.update(message="First"))
+        self.second = Button(self.widgets, "Second", callback=lambda: self.text.config.update(message="Second"))
+        self.third = Button(self.widgets, "Third", callback=lambda: self.text.config.update(message="Third"))
 
         self.first.focus.set_obj_on_side(on_right=self.second)
         self.second.focus.set_obj_on_side(on_left=self.first, on_right=self.third)
@@ -932,21 +944,26 @@ class TestGUIScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableSc
         self.text.midtop = (self.second.centerx, self.second.bottom + 10)
         return super().update()
 
+    def render(self) -> None:
+        self.window.draw(self.widgets)
 
-class GridScene(GUIScene, RenderedLayeredScene):
+
+class GridScene(GUIScene):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         Button.set_default_focus_on_hover(True)
 
+        self.widgets = WidgetsManager(self)
+
         self.text = Text("None", font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
-        self.grid = Grid(self, bg_color=YELLOW)
+        self.grid = Grid(self.widgets, bg_color=YELLOW)
 
         self.grid.default_padding.x = 20
         self.grid.default_padding.y = 20
 
         def create_button(text: str) -> Button:
-            return Button(self, text, callback=lambda: self.text.config.update(message=text))
+            return Button(self.grid, text, callback=lambda: self.text.config.update(message=text))
 
         self.grid.place(create_button("First"), 0, 0)
         self.grid.place(create_button("Second"), 2, 1)
@@ -965,7 +982,6 @@ class GridScene(GUIScene, RenderedLayeredScene):
         self.grid.outline_color = PURPLE
 
         self.grid.center = self.window.center
-        self.group.add(self.text, self.grid)
 
         Button.set_default_focus_on_hover(None)
 
@@ -980,8 +996,11 @@ class GridScene(GUIScene, RenderedLayeredScene):
     def set_text_position(self) -> None:
         self.text.midtop = (self.grid.centerx, self.grid.bottom + 10)
 
+    def render(self) -> None:
+        self.window.draw(self.text, self.widgets)
 
-class FormScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableScene):
+
+class FormScene(GUIScene):
     @classmethod
     def __theme_init__(cls) -> None:
         super().__theme_init__()
@@ -996,16 +1015,18 @@ class FormScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableScene
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
 
-        self.form = Form(self, on_submit=self.on_form_submit)
+        self.widgets = WidgetsManager(self)
+
+        self.form = Form(self.widgets, on_submit=self.on_form_submit)
         self.form.add_entry(
-            "first_name", Entry(self, on_validate=lambda: last_name.focus.set()), Text("First name", theme="text")
+            "first_name", Entry(self.form, on_validate=lambda: last_name.focus.set()), Text("First name", theme="text")
         )
         last_name = self.form.add_entry(
-            "last_name", Entry(self, on_validate=lambda: self.submit.focus.set()), Text("Last name", theme="text")
+            "last_name", Entry(self.form, on_validate=lambda: self.submit.focus.set()), Text("Last name", theme="text")
         )
 
         self.response = Text(theme=["text", "response"])
-        self.submit = Button(self, "Submit", callback=self.form.submit)
+        self.submit = Button(self.widgets, "Submit", callback=self.form.submit)
         self.submit.focus.below(last_name)
 
     def on_start_loop_before_transition(self) -> None:
@@ -1018,6 +1039,9 @@ class FormScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableScene
     def on_form_submit(self, data: Mapping[str, str]) -> None:
         self.response.message = "{first_name}\n{last_name}".format_map(data)
         self.response.center = self.window.width * 3 / 4, self.window.centery
+
+    def render(self) -> None:
+        self.window.draw(self.widgets, self.response)
 
 
 class WidgetsScene(GUIScene):
@@ -1036,26 +1060,27 @@ class WidgetsScene(GUIScene):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
 
-        AbstractWidget.set_default_focus_on_hover(True)
+        Widget.set_default_focus_on_hover(True)
 
         self.background_color = BLUE_DARK
+        self.widgets = WidgetsManager(self)
 
-        self.grid = grid = Grid(self, padx=10, pady=10)
+        self.grid = grid = Grid(self.widgets, padx=10, pady=10)
 
-        grid.place(Button(self, "Button"), 0, 0)
-        grid.place(CheckBox(self, 50, 50, BLUE_LIGHT, on_value=10, off_value=0), 0, 1)
-        grid.place(Entry(self), 1, 0)
-        grid.place(ScaleBar(self, 100, 50, from_=0, to=100, cursor_thickness=1), 1, 1)
-        grid.place(ImageButton(self, img=ImagesResources.cross["normal"], active_img=ImagesResources.cross["hover"]), 2, 2)
+        grid.place(Button(grid, "Button"), 0, 0)
+        grid.place(CheckBox(grid, 50, 50, BLUE_LIGHT, on_value=10, off_value=0), 0, 1)
+        grid.place(Entry(grid), 1, 0)
+        grid.place(ScaleBar(grid, 100, 50, from_=0, to=100, cursor_thickness=1), 1, 1)
+        grid.place(ImageButton(grid, img=ImagesResources.cross["normal"], active_img=ImagesResources.cross["hover"]), 2, 2)
 
-        AbstractWidget.set_default_focus_on_hover(False)
+        Widget.set_default_focus_on_hover(False)
 
     def on_start_loop_before_transition(self) -> None:
         self.grid.center = self.window.center
         return super().on_start_loop_before_transition()
 
     def render(self) -> None:
-        self.window.draw(self.grid)
+        self.window.draw(self.widgets)
 
 
 class MusicManager(ResourceManager):
@@ -1077,7 +1102,7 @@ class SoundManager(ResourceManager):
 
 
 class VolumeScaleBar(ScaleBar):
-    def __init__(self, master: Scene, width: float, height: float, *, theme: Any | None = None):
+    def __init__(self, master: WidgetsManager, width: float, height: float, *, theme: Any | None = None):
         super().__init__(
             master,
             width,
@@ -1095,7 +1120,7 @@ class VolumeScaleBar(ScaleBar):
 class AudioScene(MainScene):
     def __init__(self) -> None:
         super().__init__()
-        self.event.bind(MusicEndEvent, print)
+        self.event.bind(MusicEndEvent, lambda event: print(event) or True)
         self.event.bind_key_press(Key.K_F2, lambda _: MusicStream.fadeout(1000))
 
     @classmethod
@@ -1107,9 +1132,10 @@ class AudioScene(MainScene):
 
     def awake(self, **kwargs: Any) -> None:
         self.background_color = BLUE_DARK
+        self.widgets = WidgetsManager(self)
         self.text = Text("Audio Scene")
         self.first = Button(
-            self,
+            self.widgets,
             "First",
             shadow_x=0,
             shadow_y=0,
@@ -1117,7 +1143,7 @@ class AudioScene(MainScene):
             click_sound=SoundManager.validate,
             callback=self.on_start_loop,
         )
-        self.scale = VolumeScaleBar(self, 500, 75)
+        self.scale = VolumeScaleBar(self.widgets, 500, 75)
         self.scale.show_label("Music volume", side="top")
         self.scale.show_percent("inside", shadow_x=0, shadow_y=0, color=BLACK)
         return super().awake(**kwargs)
@@ -1139,14 +1165,14 @@ class AudioScene(MainScene):
         return super().update()
 
     def render(self) -> None:
-        self.window.draw(self.text, self.first, self.scale)
+        self.window.draw(self.text, self.widgets)
 
     def on_quit(self) -> None:
         MusicStream.stop()
         return super().on_quit()
 
 
-class GUIAudioScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableScene, MainScene):
+class GUIAudioScene(GUIScene, MainScene):
     @classmethod
     def __theme_init__(cls) -> None:
         super().__theme_init__()
@@ -1170,12 +1196,13 @@ class GUIAudioScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableS
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
+        self.widgets = WidgetsManager(self)
 
         self.text = Text("None")
-        self.grid = Grid(self, bg_color=YELLOW, padx=20, pady=20)
+        self.grid = Grid(self.widgets, bg_color=YELLOW, padx=20, pady=20)
 
         def create_button(text: str, state: str = "normal") -> Button:
-            return Button(self, text, callback=lambda: self.text.config.update(message=text), state=state)
+            return Button(self.grid, text, callback=lambda: self.text.config.update(message=text), state=state)
 
         self.grid.place(create_button("First"), 0, 0)
         self.grid.place(create_button("Second"), 2, 1)
@@ -1187,7 +1214,7 @@ class GUIAudioScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableS
 
         self.grid.center = self.window.center
 
-        self.scale = VolumeScaleBar(self, 500, 75)
+        self.scale = VolumeScaleBar(self.widgets, 500, 75)
         self.scale.focus.take(False)
         self.scale.show_label("Music volume", side="top")
         self.scale.show_percent("inside", shadow_x=0, shadow_y=0, color=BLACK)
@@ -1209,6 +1236,9 @@ class GUIAudioScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableS
         MusicManager.menu.play(repeat=-1)
         return super().on_start_loop()
 
+    def render(self) -> None:
+        self.window.draw(self.widgets, self.text)
+
     def on_quit(self) -> None:
         MusicStream.stop()
         return super().on_quit()
@@ -1224,9 +1254,10 @@ class MyDialog(PopupDialog, GUIScene):
         print(kwargs)
         super().awake(border_radius=30, draggable=True, **kwargs)
         self.background_color = BLACK.with_alpha(200)
+        self.widgets = WidgetsManager(self)
         self.event.bind_key_press(Key.K_ESCAPE, lambda _: self.stop())
         self.cancel = ImageButton(
-            self if self.draggable_popup is None else self.draggable_popup,
+            self.widgets,
             img=ImagesResources.cross["normal"],
             active_img=ImagesResources.cross["hover"],
             callback=self.stop,
@@ -1252,18 +1283,22 @@ class MyDialog(PopupDialog, GUIScene):
         return super().update()
 
     def _render(self) -> None:
-        self.window.draw(self.cancel, self.text)
+        self.window.draw(self.widgets, self.text)
 
 
-class TestDialogScene(GUIScene, RenderedLayeredScene, AbstractAutoLayeredDrawableScene):
+class TestDialogScene(GUIScene):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
-        self.button = Button(self, "Open dialog", callback=self.__open_dialog)
+        self.widgets = WidgetsManager(self)
+        self.button = Button(self.widgets, "Open dialog", callback=self.__open_dialog)
 
     def on_start_loop_before_transition(self) -> None:
         self.button.center = self.window.center
         return super().on_start_loop_before_transition()
+
+    def render(self) -> None:
+        self.window.draw(self.widgets)
 
     def __open_dialog(self) -> None:
         self.start(MyDialog, test=True)
@@ -1372,13 +1407,16 @@ class MainWindow(SceneWindow):
         self.set_default_framerate(120)
         self.set_default_fixed_framerate(60)
         self.index: int = 0
-        self.prev_button: Button = Button(self, "Previous", callback=self.__previous_scene)
-        self.next_button: Button = Button(self, "Next", callback=self.__next_scene)
+
+        self.widgets = WidgetsManager(self)
+
+        self.prev_button: Button = Button(self.widgets, "Previous", callback=self.__previous_scene)
+        self.next_button: Button = Button(self.widgets, "Next", callback=self.__next_scene)
         self.prev_button.topleft = self.left + 10, self.top + 10
         self.next_button.topright = self.right - 10, self.top + 10
 
         self.event.bind_key_press(Key.K_F5, lambda _: gc.collect())
-        self.event.bind_key_release(Key.K_F11, lambda _: self.screenshot())
+        self.event.bind_key_release(Key.K_F11, lambda _: self.take_screenshot())
         self.event.bind(ScreenshotEvent, self.__show_screenshot)
         self.screenshot_image: Image | None = None
         self.screenshot_callback: WindowCallback | None = None
@@ -1386,7 +1424,7 @@ class MainWindow(SceneWindow):
     def __window_quit__(self) -> None:
         super().__window_quit__()
         try:
-            del self.prev_button, self.next_button, self.text_framerate
+            del self.widgets, self.prev_button, self.next_button, self.text_framerate
         except AttributeError:
             pass
 
@@ -1396,12 +1434,11 @@ class MainWindow(SceneWindow):
 
     def update_and_render_scene(self, *, fixed_update: bool, interpolation_update: bool) -> None:
         super().update_and_render_scene(fixed_update=fixed_update, interpolation_update=interpolation_update)
-        self.draw(self.prev_button, self.next_button)
+        self.draw(self.widgets)
         text_framerate: TextFramerate = self.text_framerate
-        if text_framerate.is_shown():
-            if not text_framerate.message or self.__framerate_update_clock.elapsed_time(text_framerate.refresh_rate):
-                text_framerate.message = f"{round(self.framerate)} FPS"
-            text_framerate.draw_onto(self.renderer)
+        if not text_framerate.message or self.__framerate_update_clock.elapsed_time(text_framerate.refresh_rate):
+            text_framerate.message = f"{round(self.framerate)} FPS"
+        text_framerate.draw_onto(self.renderer)
         if screenshot_img := self.screenshot_image:
             with self.renderer.system_renderer():
                 screenshot_img.draw_onto(self.renderer)
@@ -1414,7 +1451,7 @@ class MainWindow(SceneWindow):
         self.index = (self.index - 1) % len(self.all_scenes)
         self.start_scene(self.all_scenes[self.index], remove_actual=True, transition=SceneTransitionTranslation("right"))
 
-    def __show_screenshot(self, event: ScreenshotEvent) -> None:
+    def __show_screenshot(self, event: ScreenshotEvent) -> bool:
         if self.screenshot_callback is not None:
             self.screenshot_callback.kill()
         SurfaceRenderer(event.screen).draw_rect(WHITE, event.screen.get_rect(), width=3)
@@ -1427,6 +1464,7 @@ class MainWindow(SceneWindow):
             self.screenshot_callback = None
 
         self.screenshot_callback = screenshot_alive
+        return True
 
 
 def main() -> None:

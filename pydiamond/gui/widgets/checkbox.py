@@ -8,10 +8,9 @@ from __future__ import annotations
 
 __all__ = ["BooleanCheckBox", "CheckBox"]
 
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Sequence, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Literal, Sequence, TypeVar
 
 from ...graphics.color import BLACK, BLUE, Color
-from ...graphics.drawable import Drawable
 from ...graphics.image import Image
 from ...graphics.shape import DiagonalCrossShape, RectangleShape
 from ...graphics.surface import Surface
@@ -19,14 +18,12 @@ from ...graphics.transformable import Transformable
 from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ...system.theme import ThemedObjectMeta, ThemeType
 from ...system.validation import valid_integer
-from .abc import AbstractWidget
+from .abc import AbstractWidget, Widget, WidgetsManager
 
 if TYPE_CHECKING:
     from ...audio.sound import Sound
     from ...graphics.renderer import AbstractRenderer
-    from ...window.clickable import Clickable
     from ...window.cursor import Cursor
-    from ...window.scene import Scene, SceneWindow
 
 _OnValue = TypeVar("_OnValue")
 _OffValue = TypeVar("_OffValue")
@@ -34,7 +31,7 @@ _OffValue = TypeVar("_OffValue")
 NoDefaultValue: Any = object()
 
 
-class CheckBox(Drawable, Transformable, AbstractWidget, Generic[_OnValue, _OffValue], metaclass=ThemedObjectMeta):
+class CheckBox(Generic[_OnValue, _OffValue], Widget, Transformable, metaclass=ThemedObjectMeta):
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "value",
         "local_width",
@@ -50,6 +47,7 @@ class CheckBox(Drawable, Transformable, AbstractWidget, Generic[_OnValue, _OffVa
         "border_bottom_right_radius",
         "highlight_color",
         "highlight_thickness",
+        parent=Widget.config,
     )
 
     value: OptionAttribute[_OnValue | _OffValue] = OptionAttribute()
@@ -70,7 +68,7 @@ class CheckBox(Drawable, Transformable, AbstractWidget, Generic[_OnValue, _OffVa
     @initializer
     def __init__(
         self,
-        master: AbstractWidget | Clickable | Scene | SceneWindow,
+        master: AbstractWidget | WidgetsManager,
         width: float,
         height: float,
         color: Color,
@@ -86,7 +84,7 @@ class CheckBox(Drawable, Transformable, AbstractWidget, Generic[_OnValue, _OffVa
         highlight_color: Color = BLUE,
         highlight_thickness: int = 2,
         state: str = "normal",
-        take_focus: bool = True,
+        take_focus: bool | Literal["never"] = True,
         focus_on_hover: bool | None = None,
         hover_cursor: Cursor | None = None,
         disabled_cursor: Cursor | None = None,
@@ -187,9 +185,6 @@ class CheckBox(Drawable, Transformable, AbstractWidget, Generic[_OnValue, _OffVa
         callback = self.__on_changed_value
         if callable(callback):
             callback(value)
-
-    def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
-        return self.__shape.get_rect().collidepoint(mouse_pos)
 
     def _apply_both_rotation_and_scale(self) -> None:
         angle: float = self.angle
@@ -294,7 +289,7 @@ class BooleanCheckBox(CheckBox[bool, bool]):
 
     def __init__(
         self,
-        master: AbstractWidget | Clickable | Scene | SceneWindow,
+        master: AbstractWidget | WidgetsManager,
         width: float,
         height: float,
         color: Color,
@@ -309,6 +304,8 @@ class BooleanCheckBox(CheckBox[bool, bool]):
         highlight_color: Color = BLUE,
         highlight_thickness: int = 2,
         state: str = "normal",
+        take_focus: bool | Literal["never"] = True,
+        focus_on_hover: bool | None = None,
         hover_cursor: Cursor | None = None,
         disabled_cursor: Cursor | None = None,
         hover_sound: Sound | None = None,
@@ -336,6 +333,8 @@ class BooleanCheckBox(CheckBox[bool, bool]):
             highlight_color=highlight_color,
             highlight_thickness=highlight_thickness,
             state=state,
+            take_focus=take_focus,
+            focus_on_hover=focus_on_hover,
             hover_cursor=hover_cursor,
             disabled_cursor=disabled_cursor,
             hover_sound=hover_sound,

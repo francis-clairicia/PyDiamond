@@ -64,20 +64,34 @@ from abc import abstractmethod
 from collections import ChainMap, defaultdict
 from dataclasses import dataclass, fields
 from enum import IntEnum, auto, unique
+from itertools import chain
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, Final, Generic, Mapping, Sequence, TypeAlias, TypeVar, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Concatenate,
+    Final,
+    Generic,
+    Iterable,
+    Mapping,
+    ParamSpec,
+    Sequence,
+    TypeAlias,
+    TypeVar,
+    cast,
+    overload,
+)
 
 import pygame.constants as _pg_constants
 import pygame.event as _pg_event
 from pygame.mixer import music as _pg_music
 
-from ..system.collections import OrderedSet, OrderedWeakSet
+from ..system.collections import OrderedSet
 from ..system.namespace import ClassNamespaceMeta
 from ..system.object import Object, ObjectMeta, final
 from ..system.utils.abc import isabstractclass
 from ..system.utils.weakref import weakref_unwrap
-from .keyboard import Key
-from .mouse import MouseButton
 
 if TYPE_CHECKING:
     from _typeshed import Self
@@ -654,7 +668,7 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
         return _pg_event.Event(event_type, event_dict)
 
 
-_EventCallback: TypeAlias = Callable[[Event], bool | None]
+_EventCallback: TypeAlias = Callable[[Event], bool]
 _TE = TypeVar("_TE", bound=Event)
 
 _MousePositionCallback: TypeAlias = Callable[[tuple[float, float]], Any]
@@ -664,47 +678,56 @@ class EventManager:
 
     __slots__ = (
         "__event_handler_dict",
+        "__event_handler_list",
         "__key_pressed_handler_dict",
         "__key_released_handler_dict",
         "__mouse_button_pressed_handler_dict",
         "__mouse_button_released_handler_dict",
         "__mouse_pos_handler_list",
-        "__other_manager_list",
-        "__priority_callback",
-        "__priority_manager",
+        "__priority_callback_dict",
         "__weakref__",
     )
 
-    def __init__(self) -> None:
+    def __init__(self, *, priority_callbacks: bool = True) -> None:
         self.__event_handler_dict: dict[type[Event], OrderedSet[_EventCallback]] = dict()
-        self.__key_pressed_handler_dict: dict[Key, Callable[[KeyDownEvent], Any]] = dict()
-        self.__key_released_handler_dict: dict[Key, Callable[[KeyUpEvent], Any]] = dict()
-        self.__mouse_button_pressed_handler_dict: dict[MouseButton, Callable[[MouseButtonDownEvent], Any]] = dict()
-        self.__mouse_button_released_handler_dict: dict[MouseButton, Callable[[MouseButtonUpEvent], Any]] = dict()
+        self.__event_handler_list: OrderedSet[_EventCallback] = OrderedSet()
+        self.__key_pressed_handler_dict: dict[int, Callable[[KeyDownEvent], Any]] = dict()
+        self.__key_released_handler_dict: dict[int, Callable[[KeyUpEvent], Any]] = dict()
+        self.__mouse_button_pressed_handler_dict: dict[int, Callable[[MouseButtonDownEvent], Any]] = dict()
+        self.__mouse_button_released_handler_dict: dict[int, Callable[[MouseButtonUpEvent], Any]] = dict()
         self.__mouse_pos_handler_list: OrderedSet[_MousePositionCallback] = OrderedSet()
-        self.__other_manager_list: OrderedWeakSet[EventManager] = OrderedWeakSet()
-        self.__priority_callback: dict[type[Event], _EventCallback] = dict()
-        self.__priority_manager: weakref.WeakValueDictionary[type[Event], EventManager] = weakref.WeakValueDictionary()
+        self.__priority_callback_dict: dict[type[Event], _EventCallback] | None = dict() if priority_callbacks else None
 
     def __del__(self) -> None:
-        self.unbind_all()
+        type(self).clear(self)
+
+    def clear(self) -> None:
+        self.__event_handler_dict.clear()
+        self.__event_handler_list.clear()
+        self.__key_pressed_handler_dict.clear()
+        self.__key_released_handler_dict.clear()
+        self.__mouse_button_pressed_handler_dict.clear()
+        self.__mouse_button_released_handler_dict.clear()
+        self.__mouse_pos_handler_list.clear()
+        if self.__priority_callback_dict is not None:
+            self.__priority_callback_dict.clear()
 
     @overload
     @staticmethod
     def __bind(
         handler_dict: dict[type[Event], OrderedSet[_EventCallback]],
         key: type[Event],
-        callback: Callable[[_TE], bool | None],
+        callback: Callable[[_TE], bool],
     ) -> None:
         ...
 
     @overload
     @staticmethod
-    def __bind(handler_dict: dict[_T, OrderedSet[_EventCallback]], key: _T, callback: Callable[[_TE], bool | None]) -> None:
+    def __bind(handler_dict: dict[_T, OrderedSet[_EventCallback]], key: _T, callback: Callable[[_TE], bool]) -> None:
         ...
 
     @staticmethod
-    def __bind(handler_dict: dict[_T, OrderedSet[_EventCallback]], key: _T, callback: Callable[[_TE], bool | None]) -> None:
+    def __bind(handler_dict: dict[_T, OrderedSet[_EventCallback]], key: _T, callback: Callable[[_TE], bool]) -> None:
         try:
             handler_list: OrderedSet[_EventCallback] = handler_dict[key]
         except KeyError:
@@ -716,17 +739,17 @@ class EventManager:
     def __unbind(
         handler_dict: dict[type[Event], OrderedSet[_EventCallback]],
         key: type[Event],
-        callback: Callable[[_TE], bool | None],
+        callback: Callable[[_TE], bool],
     ) -> None:
         ...
 
     @overload
     @staticmethod
-    def __unbind(handler_dict: dict[_T, OrderedSet[_EventCallback]], key: _T, callback: Callable[[_TE], bool | None]) -> None:
+    def __unbind(handler_dict: dict[_T, OrderedSet[_EventCallback]], key: _T, callback: Callable[[_TE], bool]) -> None:
         ...
 
     @staticmethod
-    def __unbind(handler_dict: dict[_T, OrderedSet[_EventCallback]], key: _T, callback: Callable[[_TE], bool | None]) -> None:
+    def __unbind(handler_dict: dict[_T, OrderedSet[_EventCallback]], key: _T, callback: Callable[[_TE], bool]) -> None:
         handler_dict[key].remove(cast(_EventCallback, callback))
 
     @staticmethod
@@ -741,75 +764,113 @@ class EventManager:
     def __unbind_single(handler_dict: dict[_T, Callable[[_TE], Any]], key: _T) -> None:
         del handler_dict[key]
 
-    def bind(self, event_cls: type[_TE], callback: Callable[[_TE], bool | None]) -> None:
+    @overload
+    def bind(self, event_cls: type[_TE], callback: Callable[[_TE], bool]) -> None:
+        ...
+
+    @overload
+    def bind(self, event_cls: None, callback: Callable[[Event], bool]) -> None:
+        ...
+
+    def bind(self, event_cls: type[_TE] | None, callback: Callable[[_TE], bool]) -> None:
+        if event_cls is None:
+            return self.__event_handler_list.add(cast(_EventCallback, callback))
         if not issubclass(event_cls, Event):
             raise TypeError("Invalid argument")
         if event_cls.is_model():
             raise TypeError("Cannot assign events to event models")
         EventManager.__bind(self.__event_handler_dict, event_cls, callback)
 
-    def unbind(self, event_cls: type[_TE], callback_to_remove: Callable[[_TE], bool | None]) -> None:
+    @overload
+    def unbind(self, event_cls: type[_TE], callback_to_remove: Callable[[_TE], bool]) -> None:
+        ...
+
+    @overload
+    def unbind(self, event_cls: None, callback_to_remove: Callable[[Event], bool]) -> None:
+        ...
+
+    def unbind(self, event_cls: type[_TE] | None, callback_to_remove: Callable[[_TE], bool]) -> None:
+        if event_cls is None:
+            return self.__event_handler_list.remove(cast(_EventCallback, callback_to_remove))
         if not issubclass(event_cls, Event):
             raise TypeError("Invalid argument")
         if event_cls.is_model():
             raise TypeError("Cannot assign events to event models")
         EventManager.__unbind(self.__event_handler_dict, event_cls, callback_to_remove)
-        for event_type in tuple(
-            event_type
-            for event_type, priority_callback in self.__priority_callback.items()
-            if priority_callback is callback_to_remove
-        ):
-            self.__priority_callback.pop(event_type)
+        priority_callback_dict = self.__priority_callback_dict
+        if priority_callback_dict is not None:
+            for event_type in tuple(
+                event_type
+                for event_type, priority_callback in priority_callback_dict.items()
+                if priority_callback == callback_to_remove
+            ):
+                priority_callback_dict.pop(event_type)
 
-    def unbind_all(self) -> None:
-        self.__event_handler_dict.clear()
-        self.__key_pressed_handler_dict.clear()
-        self.__key_released_handler_dict.clear()
-        self.__mouse_button_pressed_handler_dict.clear()
-        self.__mouse_button_released_handler_dict.clear()
-        self.__mouse_pos_handler_list.clear()
-        self.__priority_callback.clear()
-        self.__priority_manager.clear()
+    @overload
+    def bind_all(self, event_cls: type[_TE], sequence: Iterable[Callable[[_TE], bool]]) -> None:
+        ...
 
-    def bind_key(self, key: Key, callback: Callable[[KeyEvent], Any]) -> None:
+    @overload
+    def bind_all(self, event_cls: None, sequence: Iterable[Callable[[Event], bool]]) -> None:
+        ...
+
+    def bind_all(self, event_cls: type[Event] | None, sequence: Iterable[Callable[[Event], bool]]) -> None:  # type: ignore[misc]
+        bind = self.bind
+        for callback in sequence:
+            bind(event_cls, callback)
+
+    @overload
+    def unbind_all(self, event_cls: type[_TE], sequence: Iterable[Callable[[_TE], bool]]) -> None:
+        ...
+
+    @overload
+    def unbind_all(self, event_cls: None, sequence: Iterable[Callable[[Event], bool]]) -> None:
+        ...
+
+    def unbind_all(self, event_cls: type[Event] | None, sequence: Iterable[Callable[[Event], bool]]) -> None:  # type: ignore[misc]
+        unbind = self.unbind
+        for callback in sequence:
+            unbind(event_cls, callback)
+
+    def bind_key(self, key: int, callback: Callable[[KeyEvent], Any]) -> None:
         self.bind_key_press(key, callback)
         self.bind_key_release(key, callback)
 
-    def bind_key_press(self, key: Key, callback: Callable[[KeyDownEvent], Any]) -> None:
-        EventManager.__bind_single(self.__key_pressed_handler_dict, Key(key), callback)
+    def bind_key_press(self, key: int, callback: Callable[[KeyDownEvent], Any]) -> None:
+        EventManager.__bind_single(self.__key_pressed_handler_dict, int(key), callback)
 
-    def bind_key_release(self, key: Key, callback: Callable[[KeyUpEvent], Any]) -> None:
-        EventManager.__bind_single(self.__key_released_handler_dict, Key(key), callback)
+    def bind_key_release(self, key: int, callback: Callable[[KeyUpEvent], Any]) -> None:
+        EventManager.__bind_single(self.__key_released_handler_dict, int(key), callback)
 
-    def unbind_key(self, key: Key) -> None:
+    def unbind_key(self, key: int) -> None:
         self.unbind_key_press(key)
         self.unbind_key_release(key)
 
-    def unbind_key_press(self, key: Key) -> None:
-        EventManager.__unbind_single(self.__key_pressed_handler_dict, Key(key))
+    def unbind_key_press(self, key: int) -> None:
+        EventManager.__unbind_single(self.__key_pressed_handler_dict, int(key))
 
-    def unbind_key_release(self, key: Key) -> None:
-        EventManager.__unbind_single(self.__key_released_handler_dict, Key(key))
+    def unbind_key_release(self, key: int) -> None:
+        EventManager.__unbind_single(self.__key_released_handler_dict, int(key))
 
-    def bind_mouse_button(self, button: MouseButton, callback: Callable[[MouseButtonEvent], Any]) -> None:
+    def bind_mouse_button(self, button: int, callback: Callable[[MouseButtonEvent], Any]) -> None:
         self.bind_mouse_button_press(button, callback)
         self.bind_mouse_button_release(button, callback)
 
-    def bind_mouse_button_press(self, button: MouseButton, callback: Callable[[MouseButtonDownEvent], Any]) -> None:
-        EventManager.__bind_single(self.__mouse_button_pressed_handler_dict, MouseButton(button), callback)
+    def bind_mouse_button_press(self, button: int, callback: Callable[[MouseButtonDownEvent], Any]) -> None:
+        EventManager.__bind_single(self.__mouse_button_pressed_handler_dict, int(button), callback)
 
-    def bind_mouse_button_release(self, button: MouseButton, callback: Callable[[MouseButtonUpEvent], Any]) -> None:
-        EventManager.__bind_single(self.__mouse_button_released_handler_dict, MouseButton(button), callback)
+    def bind_mouse_button_release(self, button: int, callback: Callable[[MouseButtonUpEvent], Any]) -> None:
+        EventManager.__bind_single(self.__mouse_button_released_handler_dict, int(button), callback)
 
-    def unbind_mouse_button(self, button: MouseButton) -> None:
+    def unbind_mouse_button(self, button: int) -> None:
         self.unbind_mouse_button_press(button)
         self.unbind_mouse_button_release(button)
 
-    def unbind_mouse_button_press(self, button: MouseButton) -> None:
-        EventManager.__unbind_single(self.__mouse_button_pressed_handler_dict, MouseButton(button))
+    def unbind_mouse_button_press(self, button: int) -> None:
+        EventManager.__unbind_single(self.__mouse_button_pressed_handler_dict, int(button))
 
-    def unbind_mouse_button_release(self, button: MouseButton) -> None:
-        EventManager.__unbind_single(self.__mouse_button_released_handler_dict, MouseButton(button))
+    def unbind_mouse_button_release(self, button: int) -> None:
+        EventManager.__unbind_single(self.__mouse_button_released_handler_dict, int(button))
 
     def bind_mouse_position(self, callback: _MousePositionCallback) -> None:
         mouse_pos_handler_list: OrderedSet[_MousePositionCallback] = self.__mouse_pos_handler_list
@@ -819,32 +880,8 @@ class EventManager:
         mouse_pos_handler_list: OrderedSet[_MousePositionCallback] = self.__mouse_pos_handler_list
         mouse_pos_handler_list.remove(callback_to_remove)
 
-    def bind_event_manager(self, manager: EventManager) -> None:
-        assert isinstance(manager, EventManager)
-        if manager is self:
-            raise ValueError("Trying to add yourself")
-        self.__other_manager_list.add(manager)
-
-    def unbind_event_manager(self, manager: EventManager) -> None:
-        self.__other_manager_list.remove(manager)
-        for event_type in tuple(
-            event_type for event_type, priority_manager in self.__priority_manager.items() if priority_manager is manager
-        ):
-            self.__priority_manager.pop(event_type)
-
     def _process_event(self, event: Event) -> bool:
         event_type: type[Event] = type(event)
-
-        priority_manager: EventManager | None = self.__priority_manager.get(event_type)
-        if priority_manager is not None:
-            if priority_manager._process_event(event):
-                return True
-            del self.__priority_manager[event_type]
-
-        for manager in self.__other_manager_list:
-            if manager is not priority_manager and manager._process_event(event):
-                self.__priority_manager[event_type] = manager
-                return True
 
         # mypy does not handle isinstance() with TypeAlias of UnionTypes yet
         if isinstance(event, KeyEvent):  # type: ignore[arg-type,misc]
@@ -854,54 +891,50 @@ class EventManager:
             if self.__handle_mouse_event(event):  # type: ignore[arg-type]
                 return True
 
-        priority_callback: _EventCallback | None = self.__priority_callback.get(event_type)
+        event_handler_iterator = chain(self.__event_handler_dict.get(event_type, ()), self.__event_handler_list)
+
+        priority_callback_dict = self.__priority_callback_dict
+        if priority_callback_dict is None:
+            return any(callback(event) for callback in event_handler_iterator)
+
+        priority_callback: _EventCallback | None = priority_callback_dict.get(event_type)
         if priority_callback is not None:
             if priority_callback(event):
                 return True
-            del self.__priority_callback[event_type]
+            priority_callback_dict[event_type]
 
-        event_dict: dict[type[Event], OrderedSet[_EventCallback]] = self.__event_handler_dict
-        for callback in event_dict.get(event_type, ()):
+        for callback in event_handler_iterator:
             if callback is not priority_callback and callback(event):
-                self.__priority_callback[event_type] = callback
+                priority_callback_dict[event_type] = callback
                 return True
         return False
 
     def _handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
-        for manager in self.__other_manager_list:
-            manager._handle_mouse_position(mouse_pos)
         for callback in self.__mouse_pos_handler_list:
             callback(mouse_pos)
 
     def __handle_key_event(self, event: KeyEvent) -> bool:
-        try:
-            key = Key(event.key)
-        except ValueError:
-            return False
         match event:
-            case KeyDownEvent() if key in self.__key_pressed_handler_dict:
+            case KeyDownEvent(key=key) if key in self.__key_pressed_handler_dict:
                 self.__key_pressed_handler_dict[key](event)
                 return True
-            case KeyUpEvent() if key in self.__key_released_handler_dict:
+            case KeyUpEvent(key=key) if key in self.__key_released_handler_dict:
                 self.__key_released_handler_dict[key](event)
                 return True
         return False
 
     def __handle_mouse_event(self, event: MouseButtonEvent) -> bool:
-        try:
-            mouse_button = MouseButton(event.button)
-        except ValueError:
-            return False
         match event:
-            case MouseButtonDownEvent() if mouse_button in self.__mouse_button_pressed_handler_dict:
+            case MouseButtonDownEvent(button=mouse_button) if mouse_button in self.__mouse_button_pressed_handler_dict:
                 self.__mouse_button_pressed_handler_dict[mouse_button](event)
                 return True
-            case MouseButtonUpEvent() if mouse_button in self.__mouse_button_released_handler_dict:
+            case MouseButtonUpEvent(button=mouse_button) if mouse_button in self.__mouse_button_released_handler_dict:
                 self.__mouse_button_released_handler_dict[mouse_button](event)
                 return True
         return False
 
 
+_P = ParamSpec("_P")
 _U = TypeVar("_U")
 _V = TypeVar("_V")
 
@@ -912,7 +945,7 @@ class BoundEventManager(Generic[_T]):
     __slots__ = (
         "__ref",
         "__manager",
-        "__any_callbacks",
+        "__event_callbacks",
         "__key_press_callbacks",
         "__key_release_callbacks",
         "__mouse_press_callbacks",
@@ -921,29 +954,45 @@ class BoundEventManager(Generic[_T]):
         "__weakref__",
     )
 
-    def __init__(self, obj: _T) -> None:
-        def unbind_all(_: Any, /, selfref: weakref.ref[BoundEventManager[_T]] = weakref.ref(self)) -> None:
+    def __init__(
+        self,
+        obj: _T,
+        *,
+        priority_callbacks: bool = True,
+        weakref_callback: Callable[[weakref.ref[_T]], None] | None = None,
+    ) -> None:
+        selfref: weakref.ref[BoundEventManager[_T]] = weakref.ref(self)
+
+        def unbind_all(ref: weakref.ref[_T], /) -> None:
             self = selfref()
             if self is not None:
-                self.unbind_all()
+                self.__manager.clear()
+                self.__event_callbacks.clear()
+                self.__key_press_callbacks.clear()
+                self.__key_release_callbacks.clear()
+                self.__mouse_press_callbacks.clear()
+                self.__mouse_release_callbacks.clear()
+                self.__mouse_position_callbacks.clear()
+            if weakref_callback is not None:
+                weakref_callback(ref)
 
         self.__ref: weakref.ref[_T] = weakref.ref(obj, unbind_all)
-        self.__manager: EventManager = EventManager()
-        self.__any_callbacks: defaultdict[Any, _CallbackRegistry] = defaultdict(weakref.WeakKeyDictionary)
-        self.__key_press_callbacks: defaultdict[Key, _CallbackRegistry] = defaultdict(weakref.WeakKeyDictionary)
-        self.__key_release_callbacks: defaultdict[Key, _CallbackRegistry] = defaultdict(weakref.WeakKeyDictionary)
-        self.__mouse_press_callbacks: defaultdict[MouseButton, _CallbackRegistry] = defaultdict(weakref.WeakKeyDictionary)
-        self.__mouse_release_callbacks: defaultdict[MouseButton, _CallbackRegistry] = defaultdict(weakref.WeakKeyDictionary)
+        self.__manager: EventManager = EventManager(priority_callbacks=priority_callbacks)
+        self.__event_callbacks: defaultdict[Any, _CallbackRegistry] = defaultdict(weakref.WeakKeyDictionary)
+        self.__key_press_callbacks: defaultdict[int, _CallbackRegistry] = defaultdict(weakref.WeakKeyDictionary)
+        self.__key_release_callbacks: defaultdict[int, _CallbackRegistry] = defaultdict(weakref.WeakKeyDictionary)
+        self.__mouse_press_callbacks: defaultdict[int, _CallbackRegistry] = defaultdict(weakref.WeakKeyDictionary)
+        self.__mouse_release_callbacks: defaultdict[int, _CallbackRegistry] = defaultdict(weakref.WeakKeyDictionary)
         self.__mouse_position_callbacks: _CallbackRegistry = weakref.WeakKeyDictionary()
 
     def __del__(self) -> None:
-        self.unbind_all()
-
-    def register_to_existing_manager(self, manager: EventManager | BoundEventManager[Any]) -> None:
-        return manager.bind_event_manager(self.__manager)
-
-    def unregister_from_existing_manager(self, manager: EventManager | BoundEventManager[Any]) -> None:
-        return manager.unbind_event_manager(self.__manager)
+        self.__manager.clear()
+        self.__event_callbacks.clear()
+        self.__key_press_callbacks.clear()
+        self.__key_release_callbacks.clear()
+        self.__mouse_press_callbacks.clear()
+        self.__mouse_release_callbacks.clear()
+        self.__mouse_position_callbacks.clear()
 
     def __bind(
         self,
@@ -951,94 +1000,191 @@ class BoundEventManager(Generic[_T]):
         key: _U,
         callback: weakref.WeakMethod[Callable[[_TE], _V]] | Callable[[_T, _TE], _V],
         callback_register: defaultdict[_U, _CallbackRegistry],
+        dead_ref_fallback: _V,
     ) -> None:
-        if isinstance(callback, weakref.WeakMethod):
-            callback = self._get_method_func_from_weak_method(callback)
+        callback, event_callback = self.__build_callback(callback, dead_ref_fallback)
+        callback = cast(Callable[[_T, Event], _V], callback)
+        event_callback = cast(Callable[[Event], _V], event_callback)
 
-        method_callback = cast(Callable[[_T, Event], _V], callback)
-
-        if method_callback in callback_register[key]:
-            return
-
-        def event_callback(event: Event, /, selfref: weakref.ref[_T] = self.__ref) -> Any:
-            self = selfref()
-            if self is None:
-                return None
-            return method_callback(self, event)
+        if callback in callback_register[key]:
+            event_callback = callback_register[key][callback]
+            return manager_bind(key, event_callback)
 
         manager_bind(key, event_callback)
-        callback_register[key][method_callback] = event_callback
+        callback_register[key][callback] = event_callback
 
     @overload
-    def bind(self, event_cls: type[_TE], callback: weakref.WeakMethod[Callable[[_TE], bool | None]]) -> None:
+    def bind(self, event_cls: type[_TE], callback: Callable[[_T, _TE], bool]) -> None:
         ...
 
     @overload
-    def bind(self, event_cls: type[_TE], callback: Callable[[_T, _TE], bool | None]) -> None:
+    def bind(self, event_cls: type[_TE], callback: weakref.WeakMethod[Callable[[_TE], bool]]) -> None:
+        ...
+
+    @overload
+    def bind(self, event_cls: None, callback: Callable[[_T, Event], bool]) -> None:
+        ...
+
+    @overload
+    def bind(self, event_cls: None, callback: weakref.WeakMethod[Callable[[Event], bool]]) -> None:
         ...
 
     def bind(
         self,
-        event_cls: type[_TE],
-        callback: weakref.WeakMethod[Callable[[_TE], bool | None]] | Callable[[_T, _TE], bool | None],
+        event_cls: type[_TE] | None,
+        callback: weakref.WeakMethod[Callable[[_TE], bool]] | Callable[[_T, _TE], bool],
     ) -> None:
         return self.__bind(
             manager_bind=self.__manager.bind,
             key=event_cls,
             callback=callback,
-            callback_register=self.__any_callbacks,
+            callback_register=self.__event_callbacks,
+            dead_ref_fallback=False,
         )
 
     @overload
-    def unbind(self, event_cls: type[_TE], callback_to_remove: weakref.WeakMethod[Callable[[_TE], bool | None]]) -> None:
+    def unbind(self, event_cls: type[_TE], callback_to_remove: Callable[[_T, _TE], bool]) -> None:
         ...
 
     @overload
-    def unbind(self, event_cls: type[_TE], callback_to_remove: Callable[[_T, _TE], bool | None]) -> None:
+    def unbind(self, event_cls: type[_TE], callback_to_remove: weakref.WeakMethod[Callable[[_TE], bool]]) -> None:
+        ...
+
+    @overload
+    def unbind(self, event_cls: None, callback_to_remove: Callable[[_T, Event], bool]) -> None:
+        ...
+
+    @overload
+    def unbind(self, event_cls: None, callback_to_remove: weakref.WeakMethod[Callable[[Event], bool]]) -> None:
         ...
 
     def unbind(
         self,
-        event_cls: type[_TE],
-        callback_to_remove: weakref.WeakMethod[Callable[[_TE], bool | None]] | Callable[[_T, _TE], bool | None],
+        event_cls: type[_TE] | None,
+        callback_to_remove: weakref.WeakMethod[Callable[[_TE], bool]] | Callable[[_T, _TE], bool],
     ) -> None:
         if isinstance(callback_to_remove, weakref.WeakMethod):
-            callback_to_remove = self._get_method_func_from_weak_method(callback_to_remove)
-        event_callback = self.__any_callbacks[event_cls].pop(callback_to_remove)
+            callback_to_remove = self.__get_method_func_from_weak_method(callback_to_remove)
+        event_callback = self.__event_callbacks[event_cls].pop(callback_to_remove)
         return self.__manager.unbind(event_cls, event_callback)
 
-    def unbind_all(self) -> None:
-        self.__manager.unbind_all()
-        self.__any_callbacks.clear()
-        self.__key_press_callbacks.clear()
-        self.__key_release_callbacks.clear()
-        self.__mouse_press_callbacks.clear()
-        self.__mouse_release_callbacks.clear()
-        self.__mouse_position_callbacks.clear()
-
     @overload
-    def bind_key(self, key: Key, callback: weakref.WeakMethod[Callable[[KeyEvent], Any]]) -> None:
+    def bind_all(
+        self,
+        event_cls: type[_TE],
+        sequence: Iterable[weakref.WeakMethod[Callable[[_TE], bool]] | Callable[[_T, _TE], bool]],
+    ) -> None:
         ...
 
     @overload
-    def bind_key(self, key: Key, callback: Callable[[_T, KeyEvent], Any]) -> None:
+    def bind_all(
+        self,
+        event_cls: None,
+        sequence: Iterable[weakref.WeakMethod[Callable[[Event], bool]] | Callable[[_T, Event], bool]],
+    ) -> None:
         ...
 
-    def bind_key(self, key: Key, callback: Callable[..., Any]) -> None:
+    def bind_all(  # type: ignore[misc]
+        self,
+        event_cls: type[Event] | None,
+        sequence: Iterable[weakref.WeakMethod[Callable[[Event], bool]] | Callable[[_T, Event], bool]],
+    ) -> None:
+        bind = self.bind
+        for callback in sequence:
+            bind(event_cls, callback)
+
+    @overload
+    def unbind_all(
+        self,
+        event_cls: type[_TE],
+        sequence: Iterable[weakref.WeakMethod[Callable[[_TE], bool]] | Callable[[_T, _TE], bool]],
+    ) -> None:
+        ...
+
+    @overload
+    def unbind_all(
+        self,
+        event_cls: None,
+        sequence: Iterable[weakref.WeakMethod[Callable[[Event], bool]] | Callable[[_T, Event], bool]],
+    ) -> None:
+        ...
+
+    def unbind_all(  # type: ignore[misc]
+        self,
+        event_cls: type[Event] | None,
+        sequence: Iterable[weakref.WeakMethod[Callable[[Event], bool]] | Callable[[_T, Event], bool]],
+    ) -> None:
+        unbind = self.unbind
+        for callback in sequence:
+            unbind(event_cls, callback)
+
+    @overload
+    def static_bind(self, event_cls: type[_TE], callback: Callable[[_TE], bool]) -> None:
+        ...
+
+    @overload
+    def static_bind(self, event_cls: None, callback: Callable[[Event], bool]) -> None:
+        ...
+
+    def static_bind(self, event_cls: type[Event] | None, callback: Callable[[Event], bool]) -> None:  # type: ignore[misc]
+        return self.__manager.bind(event_cls, callback)
+
+    @overload
+    def static_unbind(self, event_cls: type[_TE], callback_to_remove: Callable[[_TE], bool]) -> None:
+        ...
+
+    @overload
+    def static_unbind(self, event_cls: None, callback_to_remove: Callable[[Event], bool]) -> None:
+        ...
+
+    def static_unbind(self, event_cls: type[Event] | None, callback_to_remove: Callable[[Event], bool]) -> None:  # type: ignore[misc]
+        return self.__manager.unbind(event_cls, callback_to_remove)
+
+    @overload
+    def static_bind_all(self, event_cls: type[_TE], sequence: Iterable[Callable[[_TE], bool]]) -> None:
+        ...
+
+    @overload
+    def static_bind_all(self, event_cls: None, sequence: Iterable[Callable[[Event], bool]]) -> None:
+        ...
+
+    def static_bind_all(self, event_cls: type[Event] | None, sequence: Iterable[Callable[[Event], bool]]) -> None:  # type: ignore[misc]
+        return self.__manager.bind_all(event_cls, sequence)
+
+    @overload
+    def static_unbind_all(self, event_cls: type[_TE], sequence: Iterable[Callable[[_TE], bool]]) -> None:
+        ...
+
+    @overload
+    def static_unbind_all(self, event_cls: None, sequence: Iterable[Callable[[Event], bool]]) -> None:
+        ...
+
+    def static_unbind_all(self, event_cls: type[Event] | None, sequence: Iterable[Callable[[Event], bool]]) -> None:  # type: ignore[misc]
+        return self.__manager.unbind_all(event_cls, sequence)
+
+    @overload
+    def bind_key(self, key: int, callback: Callable[[_T, KeyEvent], Any]) -> None:
+        ...
+
+    @overload
+    def bind_key(self, key: int, callback: weakref.WeakMethod[Callable[[KeyEvent], Any]]) -> None:
+        ...
+
+    def bind_key(self, key: int, callback: Callable[..., Any]) -> None:
         self.bind_key_press(key, callback)
         self.bind_key_release(key, callback)
 
     @overload
-    def bind_key_press(self, key: Key, callback: weakref.WeakMethod[Callable[[KeyDownEvent], Any]]) -> None:
+    def bind_key_press(self, key: int, callback: Callable[[_T, KeyDownEvent], Any]) -> None:
         ...
 
     @overload
-    def bind_key_press(self, key: Key, callback: Callable[[_T, KeyDownEvent], Any]) -> None:
+    def bind_key_press(self, key: int, callback: weakref.WeakMethod[Callable[[KeyDownEvent], Any]]) -> None:
         ...
 
     def bind_key_press(
         self,
-        key: Key,
+        key: int,
         callback: weakref.WeakMethod[Callable[[KeyDownEvent], Any]] | Callable[[_T, KeyDownEvent], Any],
     ) -> None:
         return self.__bind(
@@ -1046,19 +1192,20 @@ class BoundEventManager(Generic[_T]):
             key=key,
             callback=callback,
             callback_register=self.__key_press_callbacks,
+            dead_ref_fallback=None,
         )
 
     @overload
-    def bind_key_release(self, key: Key, callback: weakref.WeakMethod[Callable[[KeyUpEvent], Any]]) -> None:
+    def bind_key_release(self, key: int, callback: Callable[[_T, KeyUpEvent], Any]) -> None:
         ...
 
     @overload
-    def bind_key_release(self, key: Key, callback: Callable[[_T, KeyUpEvent], Any]) -> None:
+    def bind_key_release(self, key: int, callback: weakref.WeakMethod[Callable[[KeyUpEvent], Any]]) -> None:
         ...
 
     def bind_key_release(
         self,
-        key: Key,
+        key: int,
         callback: weakref.WeakMethod[Callable[[KeyUpEvent], Any]] | Callable[[_T, KeyUpEvent], Any],
     ) -> None:
         return self.__bind(
@@ -1066,45 +1213,53 @@ class BoundEventManager(Generic[_T]):
             key=key,
             callback=callback,
             callback_register=self.__key_release_callbacks,
+            dead_ref_fallback=None,
         )
 
-    def unbind_key(self, key: Key) -> None:
+    def static_bind_key(self, key: int, callback: Callable[[KeyEvent], Any]) -> None:
+        return self.__manager.bind_key(key, callback)
+
+    def static_bind_key_press(self, key: int, callback: Callable[[KeyDownEvent], Any]) -> None:
+        return self.__manager.bind_key_press(key, callback)
+
+    def static_bind_key_release(self, key: int, callback: Callable[[KeyUpEvent], Any]) -> None:
+        return self.__manager.bind_key_release(key, callback)
+
+    def unbind_key(self, key: int) -> None:
         self.unbind_key_press(key)
         self.unbind_key_release(key)
 
-    def unbind_key_press(self, key: Key) -> None:
+    def unbind_key_press(self, key: int) -> None:
         self.__manager.unbind_key_press(key)
         self.__key_press_callbacks[key].clear()
 
-    def unbind_key_release(self, key: Key) -> None:
+    def unbind_key_release(self, key: int) -> None:
         self.__manager.unbind_key_release(key)
         self.__key_release_callbacks[key].clear()
 
     @overload
-    def bind_mouse_button(self, button: MouseButton, callback: weakref.WeakMethod[Callable[[MouseButtonEvent], Any]]) -> None:
+    def bind_mouse_button(self, button: int, callback: Callable[[_T, MouseButtonEvent], Any]) -> None:
         ...
 
     @overload
-    def bind_mouse_button(self, button: MouseButton, callback: Callable[[_T, MouseButtonEvent], Any]) -> None:
+    def bind_mouse_button(self, button: int, callback: weakref.WeakMethod[Callable[[MouseButtonEvent], Any]]) -> None:
         ...
 
-    def bind_mouse_button(self, button: MouseButton, callback: Callable[..., Any]) -> None:
+    def bind_mouse_button(self, button: int, callback: Callable[..., Any]) -> None:
         self.bind_mouse_button_press(button, callback)
         self.bind_mouse_button_release(button, callback)
 
     @overload
-    def bind_mouse_button_press(
-        self, button: MouseButton, callback: weakref.WeakMethod[Callable[[MouseButtonDownEvent], Any]]
-    ) -> None:
+    def bind_mouse_button_press(self, button: int, callback: Callable[[_T, MouseButtonDownEvent], Any]) -> None:
         ...
 
     @overload
-    def bind_mouse_button_press(self, button: MouseButton, callback: Callable[[_T, MouseButtonDownEvent], Any]) -> None:
+    def bind_mouse_button_press(self, button: int, callback: weakref.WeakMethod[Callable[[MouseButtonDownEvent], Any]]) -> None:
         ...
 
     def bind_mouse_button_press(
         self,
-        button: MouseButton,
+        button: int,
         callback: weakref.WeakMethod[Callable[[MouseButtonDownEvent], Any]] | Callable[[_T, MouseButtonDownEvent], Any],
     ) -> None:
         return self.__bind(
@@ -1112,21 +1267,20 @@ class BoundEventManager(Generic[_T]):
             key=button,
             callback=callback,
             callback_register=self.__mouse_press_callbacks,
+            dead_ref_fallback=None,
         )
 
     @overload
-    def bind_mouse_button_release(
-        self, button: MouseButton, callback: weakref.WeakMethod[Callable[[MouseButtonUpEvent], Any]]
-    ) -> None:
+    def bind_mouse_button_release(self, button: int, callback: Callable[[_T, MouseButtonUpEvent], Any]) -> None:
         ...
 
     @overload
-    def bind_mouse_button_release(self, button: MouseButton, callback: Callable[[_T, MouseButtonUpEvent], Any]) -> None:
+    def bind_mouse_button_release(self, button: int, callback: weakref.WeakMethod[Callable[[MouseButtonUpEvent], Any]]) -> None:
         ...
 
     def bind_mouse_button_release(
         self,
-        button: MouseButton,
+        button: int,
         callback: weakref.WeakMethod[Callable[[MouseButtonUpEvent], Any]] | Callable[[_T, MouseButtonUpEvent], Any],
     ) -> None:
         return self.__bind(
@@ -1134,54 +1288,56 @@ class BoundEventManager(Generic[_T]):
             key=button,
             callback=callback,
             callback_register=self.__mouse_release_callbacks,
+            dead_ref_fallback=None,
         )
 
-    def unbind_mouse_button(self, button: MouseButton) -> None:
+    def static_bind_mouse_button(self, button: int, callback: Callable[[MouseButtonEvent], Any]) -> None:
+        return self.__manager.bind_mouse_button(button, callback)
+
+    def static_bind_mouse_button_press(self, button: int, callback: Callable[[MouseButtonDownEvent], Any]) -> None:
+        return self.__manager.bind_mouse_button_press(button, callback)
+
+    def static_bind_mouse_button_release(self, button: int, callback: Callable[[MouseButtonUpEvent], Any]) -> None:
+        return self.__manager.bind_mouse_button_release(button, callback)
+
+    def unbind_mouse_button(self, button: int) -> None:
         self.unbind_mouse_button_press(button)
         self.unbind_mouse_button_release(button)
 
-    def unbind_mouse_button_press(self, button: MouseButton) -> None:
+    def unbind_mouse_button_press(self, button: int) -> None:
         self.__manager.unbind_mouse_button_press(button)
         self.__mouse_press_callbacks[button].clear()
 
-    def unbind_mouse_button_release(self, button: MouseButton) -> None:
+    def unbind_mouse_button_release(self, button: int) -> None:
         self.__manager.unbind_mouse_button_release(button)
         self.__mouse_release_callbacks[button].clear()
-
-    @overload
-    def bind_mouse_position(self, callback: weakref.WeakMethod[Callable[[tuple[float, float]], Any]]) -> None:
-        ...
 
     @overload
     def bind_mouse_position(self, callback: Callable[[_T, tuple[float, float]], Any]) -> None:
         ...
 
+    @overload
+    def bind_mouse_position(self, callback: weakref.WeakMethod[Callable[[tuple[float, float]], Any]]) -> None:
+        ...
+
     def bind_mouse_position(
         self, callback: weakref.WeakMethod[Callable[[tuple[float, float]], Any]] | Callable[[_T, tuple[float, float]], Any]
     ) -> None:
-        if isinstance(callback, weakref.WeakMethod):
-            callback = self._get_method_func_from_weak_method(callback)
+        callback, mouse_position_callback = self.__build_callback(callback, None)
 
-        method_callback = cast(Callable[[_T, tuple[float, float]], Any], callback)
-
-        if method_callback in self.__mouse_position_callbacks:
-            return
-
-        def mouse_position_callback(mouse_pos: tuple[float, float], /, selfref: weakref.ref[_T] = self.__ref) -> Any:
-            self = selfref()
-            if self is None:
-                return None
-            return method_callback(self, mouse_pos)
+        if callback in self.__mouse_position_callbacks:
+            mouse_position_callback = self.__mouse_position_callbacks[callback]
+            return self.__manager.bind_mouse_position(mouse_position_callback)
 
         self.__manager.bind_mouse_position(mouse_position_callback)
-        self.__mouse_position_callbacks[method_callback] = mouse_position_callback
-
-    @overload
-    def unbind_mouse_position(self, callback_to_remove: weakref.WeakMethod[Callable[[tuple[float, float]], Any]]) -> None:
-        ...
+        self.__mouse_position_callbacks[callback] = mouse_position_callback
 
     @overload
     def unbind_mouse_position(self, callback_to_remove: Callable[[_T, tuple[float, float]], Any]) -> None:
+        ...
+
+    @overload
+    def unbind_mouse_position(self, callback_to_remove: weakref.WeakMethod[Callable[[tuple[float, float]], Any]]) -> None:
         ...
 
     def unbind_mouse_position(
@@ -1189,19 +1345,15 @@ class BoundEventManager(Generic[_T]):
         callback_to_remove: weakref.WeakMethod[Callable[[tuple[float, float]], Any]] | Callable[[_T, tuple[float, float]], Any],
     ) -> None:
         if isinstance(callback_to_remove, weakref.WeakMethod):
-            callback_to_remove = self._get_method_func_from_weak_method(callback_to_remove)
+            callback_to_remove = self.__get_method_func_from_weak_method(callback_to_remove)
         mouse_position_callback = self.__mouse_position_callbacks.pop(callback_to_remove)
         return self.__manager.unbind_mouse_position(mouse_position_callback)
 
-    def bind_event_manager(self, manager: EventManager | BoundEventManager[Any]) -> None:
-        if isinstance(manager, BoundEventManager):
-            manager = manager.__manager
-        return self.__manager.bind_event_manager(manager)
+    def static_bind_mouse_position(self, callback: _MousePositionCallback) -> None:
+        return self.__manager.bind_mouse_position(callback)
 
-    def unbind_event_manager(self, manager: EventManager | BoundEventManager[Any]) -> None:
-        if isinstance(manager, BoundEventManager):
-            manager = manager.__manager
-        return self.__manager.unbind_event_manager(manager)
+    def static_unbind_mouse_position(self, callback_to_remove: _MousePositionCallback) -> None:
+        return self.__manager.unbind_mouse_position(callback_to_remove)
 
     def _process_event(self, event: Event) -> bool:
         return self.__manager._process_event(event)
@@ -1209,8 +1361,10 @@ class BoundEventManager(Generic[_T]):
     def _handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
         return self.__manager._handle_mouse_position(mouse_pos)
 
-    def _get_method_func_from_weak_method(self, weak_method: weakref.WeakMethod[Any]) -> Callable[..., Any]:
-        method = weak_method()
+    def __get_method_func_from_weak_method(
+        self, weak_method: weakref.WeakMethod[Callable[_P, _U]]
+    ) -> Callable[Concatenate[_T, _P], _U]:
+        method: Any | None = weak_method()
         if method is None:
             raise ReferenceError("Dead reference")
         if not hasattr(method, "__self__") or not hasattr(method, "__func__"):
@@ -1220,6 +1374,34 @@ class BoundEventManager(Generic[_T]):
         callback: Callable[..., Any] = method.__func__
         del obj, method
         return callback
+
+    def __build_callback(
+        self,
+        callback: weakref.WeakMethod[Callable[_P, _U]] | Callable[Concatenate[_T, _P], _U],
+        default_fallback: _U,
+    ) -> tuple[Callable[Concatenate[_T, _P], _U], Callable[_P, _U]]:
+        method: Callable[Concatenate[_T, _P], _U]
+        if isinstance(callback, weakref.WeakMethod):
+            method = self.__get_method_func_from_weak_method(callback)
+            weak_method = callback
+
+            def callback_wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _U:
+                method = weak_method()
+                if method is None:
+                    return default_fallback
+                return method(*args, **kwargs)
+
+        else:
+            method = callback
+            selfref = self.__ref
+
+            def callback_wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _U:
+                self = selfref()
+                if self is None:
+                    return default_fallback
+                return method(self, *args, **kwargs)
+
+        return method, callback_wrapper
 
     @property
     def __self__(self) -> _T:

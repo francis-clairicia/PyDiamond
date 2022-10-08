@@ -12,7 +12,6 @@ from enum import auto, unique
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, Sequence, TypeAlias, TypedDict, overload
 
 from ...graphics.color import BLACK, BLUE, GRAY, GRAY_DARK, GRAY_LIGHT, TRANSPARENT, WHITE, Color
-from ...graphics.drawable import Drawable
 from ...graphics.image import Image
 from ...graphics.rect import Rect
 from ...graphics.shape import RectangleShape
@@ -25,22 +24,20 @@ from ...system.enum import AutoLowerNameEnum
 from ...system.theme import NoTheme, ThemedObjectMeta, ThemeType
 from ...system.utils.typing import reflect_method_signature
 from ...system.validation import valid_float, valid_integer, valid_optional_float
-from ...window.clickable import Clickable
-from .abc import AbstractWidget
+from .abc import AbstractWidget, Widget, WidgetsManager, WidgetState
 
 if TYPE_CHECKING:
     from ...audio.sound import Sound
     from ...graphics.font import Font
     from ...graphics.renderer import AbstractRenderer
     from ...window.cursor import Cursor
-    from ...window.scene import Scene, SceneWindow
 
     _TupleFont: TypeAlias = tuple[str | None, int]
     _TextFont: TypeAlias = Font | _TupleFont
 
 
 @TextImage.register_themed_subclass
-class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta):
+class Button(Widget, Transformable, metaclass=ThemedObjectMeta):
     Justify: TypeAlias = TextImage.Justify
     Compound: TypeAlias = TextImage.Compound
 
@@ -112,6 +109,7 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
         "border_top_right_radius",
         "border_bottom_left_radius",
         "border_bottom_right_radius",
+        parent=Widget.config,
     )
 
     config.set_alias("background", "bg")
@@ -183,7 +181,7 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
     @initializer
     def __init__(
         self,
-        master: AbstractWidget | Clickable | Scene | SceneWindow,
+        master: AbstractWidget | WidgetsManager,
         text: str = "",
         callback: Callable[[], None] | None = None,
         *,
@@ -229,7 +227,7 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
         disabled_active_img: Surface | None = None,
         highlight_color: Color = BLUE,
         highlight_thickness: int = 2,
-        take_focus: bool = True,
+        take_focus: bool | Literal["never"] = True,
         focus_on_hover: bool | None = None,
         hover_cursor: Cursor | None = None,
         disabled_cursor: Cursor | None = None,
@@ -294,38 +292,38 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
         )
         self.outline = outline
         self.outline_color = outline_color
-        self.__shape.set_visibility(show_bg)
-        self.__bg_dict: dict[Clickable.State, _ButtonColor] = {
-            Clickable.State.NORMAL: {
+        self.__show_bg: bool = bool(show_bg)
+        self.__bg_dict: dict[WidgetState, _ButtonColor] = {
+            WidgetState.NORMAL: {
                 "normal": Color(bg),
                 "hover": _copy_color(hover_bg),
                 "active": _copy_color(active_bg),
             },
-            Clickable.State.DISABLED: {
+            WidgetState.DISABLED: {
                 "normal": Color(disabled_bg),
                 "hover": _copy_color(disabled_hover_bg),
                 "active": _copy_color(disabled_active_bg),
             },
         }
-        self.__fg_dict: dict[Clickable.State, _ButtonColor] = {
-            Clickable.State.NORMAL: {
+        self.__fg_dict: dict[WidgetState, _ButtonColor] = {
+            WidgetState.NORMAL: {
                 "normal": Color(fg),
                 "hover": _copy_color(hover_fg),
                 "active": _copy_color(active_fg),
             },
-            Clickable.State.DISABLED: {
+            WidgetState.DISABLED: {
                 "normal": Color(disabled_fg),
                 "hover": _copy_color(disabled_hover_fg),
                 "active": _copy_color(disabled_active_fg),
             },
         }
-        self.__img_dict: dict[Clickable.State, _ImageDict] = {
-            Clickable.State.NORMAL: {
+        self.__img_dict: dict[WidgetState, _ImageDict] = {
+            WidgetState.NORMAL: {
                 "normal": _copy_img(img),
                 "hover": _copy_img(hover_img),
                 "active": _copy_img(active_img),
             },
-            Clickable.State.DISABLED: {
+            WidgetState.DISABLED: {
                 "normal": _copy_img(disabled_img),
                 "hover": _copy_img(disabled_hover_img),
                 "active": _copy_img(disabled_active_img),
@@ -362,13 +360,14 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
             }
         )
         text.translate(compute_offset(self.text_offset))
-        if self.state != Clickable.State.DISABLED:
+        if self.state != WidgetState.DISABLED:
             if self.active:
                 text.translate(compute_offset(self.text_active_offset))
             elif self.hover:
                 text.translate(compute_offset(self.text_hover_offset))
         text.rotate_around_point(angle, center)
-        shape.draw_onto(target)
+        if self.__show_bg:
+            shape.draw_onto(target)
         text.draw_onto(target)
 
     def get_local_size(self) -> tuple[float, float]:
@@ -487,8 +486,8 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
 
     def show_background(self, status: bool | None = None) -> bool | None:
         if status is None:
-            return self.__shape.is_shown()
-        self.__shape.set_visibility(bool(status))
+            return self.__show_bg
+        self.__show_bg = bool(status)
         return None
 
     def _apply_both_rotation_and_scale(self) -> None:
@@ -505,9 +504,7 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
         self.__update_shape_size()
 
     def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
-        rect: Rect = Rect((0, 0), self.get_area_size(apply_rotation=False))
-        center: tuple[float, float] = self.center
-        rect.center = int(center[0]), int(center[1])
+        rect: Rect = self.get_area(apply_rotation=False, center=self.center)
         pivot: Vector2 = Vector2(rect.center)
         mouse: Vector2 = Vector2(mouse_pos)
         mouse = pivot + (mouse - pivot).rotate(self.angle)
@@ -545,7 +542,7 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
         return super()._on_focus_leave()
 
     def __set_state(self, button_state: Literal["normal", "hover", "active"]) -> None:
-        clickable_state: Clickable.State = Clickable.State(self.state)
+        clickable_state: WidgetState = WidgetState(self.state)
         bg_color: Color | None = self.__bg_dict[clickable_state][button_state]
         if bg_color is None:
             bg_color = self.__bg_dict[clickable_state]["normal"]
@@ -600,26 +597,26 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
     config.on_update("x_add_size", __update_shape_size)
     config.on_update("y_add_size", __update_shape_size)
 
-    __TupleState: TypeAlias = tuple[Clickable.State, Literal["normal", "hover", "active"]]
+    __TupleState: TypeAlias = tuple[WidgetState, Literal["normal", "hover", "active"]]
     __STATE: Final[dict[str, __TupleState]] = {
-        "background": (Clickable.State.NORMAL, "normal"),
-        "hover_background": (Clickable.State.NORMAL, "hover"),
-        "active_background": (Clickable.State.NORMAL, "active"),
-        "disabled_background": (Clickable.State.DISABLED, "normal"),
-        "disabled_hover_background": (Clickable.State.DISABLED, "hover"),
-        "disabled_active_background": (Clickable.State.DISABLED, "active"),
-        "foreground": (Clickable.State.NORMAL, "normal"),
-        "hover_foreground": (Clickable.State.NORMAL, "hover"),
-        "active_foreground": (Clickable.State.NORMAL, "active"),
-        "disabled_foreground": (Clickable.State.DISABLED, "normal"),
-        "disabled_hover_foreground": (Clickable.State.DISABLED, "hover"),
-        "disabled_active_foreground": (Clickable.State.DISABLED, "active"),
-        "img": (Clickable.State.NORMAL, "normal"),
-        "hover_img": (Clickable.State.NORMAL, "hover"),
-        "active_img": (Clickable.State.NORMAL, "active"),
-        "disabled_img": (Clickable.State.DISABLED, "normal"),
-        "disabled_hover_img": (Clickable.State.DISABLED, "hover"),
-        "disabled_active_img": (Clickable.State.DISABLED, "active"),
+        "background": (WidgetState.NORMAL, "normal"),
+        "hover_background": (WidgetState.NORMAL, "hover"),
+        "active_background": (WidgetState.NORMAL, "active"),
+        "disabled_background": (WidgetState.DISABLED, "normal"),
+        "disabled_hover_background": (WidgetState.DISABLED, "hover"),
+        "disabled_active_background": (WidgetState.DISABLED, "active"),
+        "foreground": (WidgetState.NORMAL, "normal"),
+        "hover_foreground": (WidgetState.NORMAL, "hover"),
+        "active_foreground": (WidgetState.NORMAL, "active"),
+        "disabled_foreground": (WidgetState.DISABLED, "normal"),
+        "disabled_hover_foreground": (WidgetState.DISABLED, "hover"),
+        "disabled_active_foreground": (WidgetState.DISABLED, "active"),
+        "img": (WidgetState.NORMAL, "normal"),
+        "hover_img": (WidgetState.NORMAL, "hover"),
+        "active_img": (WidgetState.NORMAL, "active"),
+        "disabled_img": (WidgetState.DISABLED, "normal"),
+        "disabled_hover_img": (WidgetState.DISABLED, "hover"),
+        "disabled_active_img": (WidgetState.DISABLED, "active"),
     }
 
     @config.getter_with_key_from_map("background", __STATE)
@@ -774,7 +771,7 @@ class Button(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta
 
 
 @Button.register_themed_subclass
-class ImageButton(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta):
+class ImageButton(Widget, Transformable, metaclass=ThemedObjectMeta):
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "img",
         "x_add_size",
@@ -801,6 +798,7 @@ class ImageButton(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjec
         "border_top_right_radius",
         "border_bottom_left_radius",
         "border_bottom_right_radius",
+        parent=Widget.config,
     )
 
     config.set_alias("background", "bg")
@@ -845,7 +843,7 @@ class ImageButton(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjec
     @initializer
     def __init__(
         self,
-        master: AbstractWidget | Clickable | Scene | SceneWindow,
+        master: AbstractWidget | WidgetsManager,
         img: Surface,
         callback: Callable[[], None] | None = None,
         *,
@@ -872,6 +870,8 @@ class ImageButton(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjec
         highlight_thickness: int = 2,
         hover_cursor: Cursor | None = None,
         disabled_cursor: Cursor | None = None,
+        take_focus: bool | Literal["never"] = True,
+        focus_on_hover: bool | None = None,
         hover_offset: tuple[float, float] = (0, 0),
         active_offset: tuple[float, float] = (0, 3),
         border_radius: int = 0,
@@ -890,6 +890,8 @@ class ImageButton(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjec
             disabled_sound=disabled_sound,
             hover_cursor=hover_cursor,
             disabled_cursor=disabled_cursor,
+            take_focus=take_focus,
+            focus_on_hover=focus_on_hover,
             **kwargs,
         )
         self.__image: Image = Image(img)
@@ -908,25 +910,25 @@ class ImageButton(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjec
             border_bottom_left_radius=border_bottom_left_radius,
             border_bottom_right_radius=border_bottom_right_radius,
         )
-        self.__bg_dict: dict[Clickable.State, _ButtonColor] = {
-            Clickable.State.NORMAL: {
+        self.__bg_dict: dict[WidgetState, _ButtonColor] = {
+            WidgetState.NORMAL: {
                 "normal": Color(bg),
                 "hover": _copy_color(hover_bg),
                 "active": _copy_color(active_bg),
             },
-            Clickable.State.DISABLED: {
+            WidgetState.DISABLED: {
                 "normal": _copy_color(disabled_bg, default=bg),
                 "hover": _copy_color(disabled_hover_bg),
                 "active": _copy_color(disabled_active_bg),
             },
         }
-        self.__img_dict: dict[Clickable.State, _ImageButtonDict] = {
-            Clickable.State.NORMAL: {
+        self.__img_dict: dict[WidgetState, _ImageButtonDict] = {
+            WidgetState.NORMAL: {
                 "normal": img.copy(),
                 "hover": _copy_img(hover_img),
                 "active": _copy_img(active_img),
             },
-            Clickable.State.DISABLED: {
+            WidgetState.DISABLED: {
                 "normal": _copy_img(disabled_img, default=img),
                 "hover": _copy_img(disabled_hover_img),
                 "active": _copy_img(disabled_active_img),
@@ -978,9 +980,6 @@ class ImageButton(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjec
         self.__shape.scale = self.__image.scale = self.scale
         self.__update_shape_size()
 
-    def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
-        return self.get_rect().collidepoint(mouse_pos)
-
     def _on_hover(self) -> None:
         self.__set_state("hover")
 
@@ -1010,7 +1009,7 @@ class ImageButton(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjec
         self.__shape.config.update(outline=outline, outline_color=outline_color)
 
     def __set_state(self, button_state: Literal["normal", "hover", "active"]) -> None:
-        clickable_state: Clickable.State = Clickable.State(self.state)
+        clickable_state: WidgetState = WidgetState(self.state)
         bg_color: Color | None = self.__bg_dict[clickable_state][button_state]
         if bg_color is None:
             bg_color = self.__bg_dict[clickable_state]["normal"]
@@ -1053,20 +1052,20 @@ class ImageButton(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjec
     config.on_update("x_add_size", __update_shape_size)
     config.on_update("y_add_size", __update_shape_size)
 
-    __TupleState: TypeAlias = tuple[Clickable.State, Literal["normal", "hover", "active"]]
+    __TupleState: TypeAlias = tuple[WidgetState, Literal["normal", "hover", "active"]]
     __STATE: Final[dict[str, __TupleState]] = {
-        "background": (Clickable.State.NORMAL, "normal"),
-        "hover_background": (Clickable.State.NORMAL, "hover"),
-        "active_background": (Clickable.State.NORMAL, "active"),
-        "disabled_background": (Clickable.State.DISABLED, "normal"),
-        "disabled_hover_background": (Clickable.State.DISABLED, "hover"),
-        "disabled_active_background": (Clickable.State.DISABLED, "active"),
-        "img": (Clickable.State.NORMAL, "normal"),
-        "hover_img": (Clickable.State.NORMAL, "hover"),
-        "active_img": (Clickable.State.NORMAL, "active"),
-        "disabled_img": (Clickable.State.DISABLED, "normal"),
-        "disabled_hover_img": (Clickable.State.DISABLED, "hover"),
-        "disabled_active_img": (Clickable.State.DISABLED, "active"),
+        "background": (WidgetState.NORMAL, "normal"),
+        "hover_background": (WidgetState.NORMAL, "hover"),
+        "active_background": (WidgetState.NORMAL, "active"),
+        "disabled_background": (WidgetState.DISABLED, "normal"),
+        "disabled_hover_background": (WidgetState.DISABLED, "hover"),
+        "disabled_active_background": (WidgetState.DISABLED, "active"),
+        "img": (WidgetState.NORMAL, "normal"),
+        "hover_img": (WidgetState.NORMAL, "hover"),
+        "active_img": (WidgetState.NORMAL, "active"),
+        "disabled_img": (WidgetState.DISABLED, "normal"),
+        "disabled_hover_img": (WidgetState.DISABLED, "hover"),
+        "disabled_active_img": (WidgetState.DISABLED, "active"),
     }
 
     @config.getter_with_key_from_map("background", __STATE)

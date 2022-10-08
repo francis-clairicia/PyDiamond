@@ -215,7 +215,7 @@ class GUIScene(Scene):
         return self.__container
 
 
-from .focus import BoundFocus, BoundFocusSide, SupportsFocus  # Import here because of circular import
+from .focus import BoundFocus, BoundFocusSide, SupportsFocus, supports_focus  # Import here because of circular import
 
 _SIDE_WITH_KEY_EVENT: Final[MappingProxyType[int, BoundFocusSide]] = MappingProxyType(
     {
@@ -271,7 +271,7 @@ class _FocusableContainer(Sequence[SupportsFocus]):
             bound_focus = focusable
             focusable = bound_focus.__self__
         else:
-            if not isinstance(focusable, SupportsFocus):
+            if not supports_focus(focusable):
                 raise TypeError("'focusable' must be a SupportsFocus object")
             bound_focus = focusable.focus
         if not bound_focus.is_bound_to(master):

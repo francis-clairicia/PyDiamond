@@ -9,11 +9,10 @@ from __future__ import annotations
 __all__ = ["Entry"]
 
 from string import printable as ASCII_PRINTABLE
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Sequence, TypeAlias
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Literal, Sequence, TypeAlias
 from weakref import WeakMethod
 
 from ...graphics.color import BLACK, BLUE, TRANSPARENT, WHITE, Color
-from ...graphics.drawable import Drawable
 from ...graphics.shape import RectangleShape
 from ...graphics.surface import Surface
 from ...graphics.text import Text
@@ -26,21 +25,19 @@ from ...window.cursor import Cursor, SystemCursor
 from ...window.event import KeyDownEvent, MouseButtonDownEvent, TextInputEvent
 from ...window.keyboard import Key, Keyboard
 from ..scene import FocusMode
-from .abc import AbstractWidget
+from .abc import AbstractWidget, Widget, WidgetsManager
 
 if TYPE_CHECKING:
     from ...audio.sound import Sound
     from ...graphics.font import Font
     from ...graphics.renderer import AbstractRenderer
-    from ...window.clickable import Clickable
-    from ...window.scene import Scene, SceneWindow
 
     _TupleFont: TypeAlias = tuple[str | None, int]
     _TextFont: TypeAlias = Font | _TupleFont
 
 
 @Text.register_themed_subclass
-class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta):
+class Entry(Widget, Transformable, metaclass=ThemedObjectMeta):
     __theme_ignore__: ClassVar[Sequence[str]] = ("on_validate",)
     __theme_associations__: ClassVar[dict[type, dict[str, str]]] = {
         Text: {
@@ -70,6 +67,7 @@ class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta)
         "border_top_right_radius",
         "border_bottom_left_radius",
         "border_bottom_right_radius",
+        parent=Widget.config,
     )
 
     cursor: OptionAttribute[int] = OptionAttribute()
@@ -105,7 +103,7 @@ class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta)
     @initializer
     def __init__(
         self,
-        master: AbstractWidget | Clickable | Scene | SceneWindow,
+        master: AbstractWidget | WidgetsManager,
         *,
         on_validate: Callable[[], Any] | None = None,
         max_nb_chars: int = 10,
@@ -130,7 +128,7 @@ class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta)
         disabled_sound: Sound | None = None,
         hover_cursor: Cursor | None = SystemCursor.IBEAM,
         disabled_cursor: Cursor | None = None,
-        take_focus: bool = True,
+        take_focus: bool | Literal["never"] = True,
         focus_on_hover: bool | None = None,
         border_radius: int = 0,
         border_top_left_radius: int = -1,
@@ -286,9 +284,6 @@ class Entry(Drawable, Transformable, AbstractWidget, metaclass=ThemedObjectMeta)
     def _on_focus_leave(self) -> None:
         self.stop_edit()
         self.__update_shape_outline()
-
-    def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
-        return self.__shape.get_rect().collidepoint(mouse_pos)
 
     def _apply_both_rotation_and_scale(self) -> None:
         raise NotImplementedError

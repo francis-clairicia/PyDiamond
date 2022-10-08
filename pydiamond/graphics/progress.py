@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 _NO_DEFAULT: Any = object()
 
 
+# TODO: Include text label/value in get_size() result (ScaleBar clipping issue)
 class ProgressBar(RectangleShape, metaclass=ThemedObjectMeta):
     __theme_ignore__: ClassVar[Sequence[str]] = (
         "from_",
@@ -61,6 +62,8 @@ class ProgressBar(RectangleShape, metaclass=ThemedObjectMeta):
         "orient",
         "cursor_color",
         "cursor_thickness",
+        "label_offset",
+        "value_display_offset",
         parent=RectangleShape.config,
     )
 
@@ -70,6 +73,8 @@ class ProgressBar(RectangleShape, metaclass=ThemedObjectMeta):
     orient: OptionAttribute[str] = OptionAttribute()
     cursor_color: OptionAttribute[Color] = OptionAttribute()
     cursor_thickness: OptionAttribute[int] = OptionAttribute()
+    value_display_offset: OptionAttribute[float] = OptionAttribute()
+    label_offset: OptionAttribute[float] = OptionAttribute()
 
     @config.section_property(exclude_options={"message"})
     def text_value(self) -> Configuration[Text]:
@@ -101,6 +106,8 @@ class ProgressBar(RectangleShape, metaclass=ThemedObjectMeta):
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
+        value_display_offset: float = 10,
+        label_offset: float = 10,
         theme: ThemeType | None = None,
         **kwargs: Any,
     ) -> None:
@@ -149,6 +156,9 @@ class ProgressBar(RectangleShape, metaclass=ThemedObjectMeta):
 
         self.orient = orient
 
+        self.label_offset = label_offset
+        self.value_display_offset = value_display_offset
+
         self.__text_label = _ProgressTextLabel(Text(), None)
         self.__text_value = _ProgressTextValue(Text(), None, 0, None)
 
@@ -182,14 +192,13 @@ class ProgressBar(RectangleShape, metaclass=ThemedObjectMeta):
 
         outline_rect.draw_onto(target)
 
-        offset = 10
         match self.__text_value:
             case _ProgressTextValue(
                 text=text,
                 type="value" | "percent" as text_type,
                 round_n=int(round_n),
                 side=ProgressBar.Side() as side,
-            ) if text.is_shown():
+            ):
                 if round_n > 0:
                     message_fmt = "{:." + str(round_n) + "f}"
                 else:
@@ -204,15 +213,15 @@ class ProgressBar(RectangleShape, metaclass=ThemedObjectMeta):
                     case _:
                         assert_never(text_type)
 
-                self.__place_text(text, side, offset=offset)
+                self.__place_text(text, side, offset=self.value_display_offset)
                 text.draw_onto(target)
 
         match self.__text_label:
-            case _ProgressTextLabel(text=text, side=ProgressBar.Side() as side) if text.is_shown():
-                self.__place_text(text, side, offset=offset)
+            case _ProgressTextLabel(text=text, side=ProgressBar.Side() as side):
+                self.__place_text(text, side, offset=self.label_offset)
                 text.draw_onto(target)
 
-    def __place_text(self, text: Text, side: Side, *, offset: int = 0) -> None:
+    def __place_text(self, text: Text, side: Side, offset: float) -> None:
         match side:
             case ProgressBar.Side.LEFT:
                 text.midright = (self.left - offset, self.centery)
@@ -241,20 +250,22 @@ class ProgressBar(RectangleShape, metaclass=ThemedObjectMeta):
         self.__text_value.side = ProgressBar.Side(side)
         self.__text_value.round_n = int(round_n)
         self.__text_value.type = "value"
-        self.__text_value.text.show()
 
     def hide_value(self) -> None:
-        self.__text_value.text.hide()
         self.__text_value.side = None
         self.__text_value.round_n = 0
         self.__text_value.type = None
 
     def show_percent(self, side: str, round_n: int = 0, *, font: _TextFont | None = _NO_DEFAULT, **kwargs: Any) -> None:
-        self.show_value(side, round_n, font=font, **kwargs)
+        self.config_value_text(font=font, **kwargs)
+        self.__text_value.side = ProgressBar.Side(side)
+        self.__text_value.round_n = int(round_n)
         self.__text_value.type = "percent"
 
     def hide_percent(self) -> None:
-        self.hide_value()
+        self.__text_value.side = None
+        self.__text_value.round_n = 0
+        self.__text_value.type = None
 
     def config_value_text(self, *, font: _TextFont | None = _NO_DEFAULT, **kwargs: Any) -> None:
         if font is not _NO_DEFAULT:
@@ -264,10 +275,8 @@ class ProgressBar(RectangleShape, metaclass=ThemedObjectMeta):
     def show_label(self, label: str, side: str, *, font: _TextFont | None = _NO_DEFAULT, **kwargs: Any) -> None:
         self.config_label_text(message=label, font=font, **kwargs)
         self.__text_label.side = ProgressBar.Side(side)
-        self.__text_label.text.show()
 
     def hide_label(self) -> None:
-        self.__text_label.text.hide()
         self.__text_label.side = None
 
     def config_label_text(self, message: str = _NO_DEFAULT, *, font: _TextFont | None = _NO_DEFAULT, **kwargs: Any) -> None:
@@ -360,6 +369,9 @@ class ProgressBar(RectangleShape, metaclass=ThemedObjectMeta):
         else:
             scale_rect.config.update(local_width=width, local_height=height * percent)
         outline_rect.config.update(local_width=width, local_height=height)
+
+    config.add_value_converter_on_set_static("label_offset", valid_float(min_value=0))
+    config.add_value_converter_on_set_static("value_display_offset", valid_float(min_value=0))
 
     @property
     def from_value(self) -> float:

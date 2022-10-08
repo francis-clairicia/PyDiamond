@@ -14,7 +14,8 @@ __all__ = [
     "save_image",
 ]
 
-from typing import TYPE_CHECKING, Iterable, Literal, Sequence, overload
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Iterable, Iterator, Literal, Sequence, overload
 
 import pygame.image
 from pygame import encode_file_path
@@ -92,7 +93,6 @@ class SurfaceRenderer(AbstractRenderer):
             self.__target = arg  # type: ignore[assignment]
         else:
             self.__target = create_surface((w, h), convert_alpha=convert_alpha)
-        # arg if isinstance(arg, Surface) else create_surface(arg, convert_alpha=convert_alpha)
 
     def get_rect(self, **kwargs: float | Sequence[float]) -> Rect:
         return self.__target.get_rect(**kwargs)
@@ -108,6 +108,20 @@ class SurfaceRenderer(AbstractRenderer):
 
     def fill(self, color: _ColorValue, rect: _CanBeRect | None = None) -> Rect:
         return self.__target.fill(color, rect=rect)
+
+    def get_clip(self) -> Rect:
+        return self.__target.get_clip()
+
+    @contextmanager
+    def using_clip(self, rect: _CanBeRect | None) -> Iterator[None]:
+        target = self.__target
+        set_clip = target.set_clip
+        former_rect = target.get_clip()
+        set_clip(rect)
+        try:
+            yield
+        finally:
+            set_clip(former_rect)
 
     def draw_surface(
         self,

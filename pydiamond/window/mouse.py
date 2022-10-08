@@ -19,7 +19,7 @@ from ..system.namespace import ClassNamespace
 
 @final
 class Mouse(ClassNamespace, frozen=True):
-    _MOUSE_BUTTON_STATE: tuple[bool, bool, bool] | tuple[()] = ()
+    _MOUSE_BUTTON_STATE: tuple[bool, bool, bool, bool, bool] | tuple[()] = ()
 
     @staticmethod
     def get_pos() -> tuple[int, int]:
@@ -62,6 +62,8 @@ class MouseButton(IntEnum):
     LEFT = _pg_constants.BUTTON_LEFT
     RIGHT = _pg_constants.BUTTON_RIGHT
     MIDDLE = _pg_constants.BUTTON_MIDDLE
+    WHEELUP = _pg_constants.BUTTON_WHEELUP
+    WHEELDOWN = _pg_constants.BUTTON_WHEELDOWN
 
 
 del _pg_constants

@@ -6,34 +6,27 @@
 
 from __future__ import annotations
 
-__all__ = ["Form"]
+__all__ = ["Form", "FormJustify"]
 
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Mapping, Sequence, TypeAlias, TypeVar, overload
+from typing import Any, Callable, ClassVar, Mapping, Sequence, TypeVar, final, overload
 from weakref import WeakValueDictionary
 
 from ...graphics.color import BLACK, TRANSPARENT, Color
-from ...graphics.drawable import Drawable
-from ...graphics.movable import Movable
 from ...graphics.renderer import AbstractRenderer
 from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ...system.theme import ThemedObjectMeta, ThemeType
 from ...system.validation import valid_integer
+from .._grid import AbstractGUIGrid as _BaseGrid, GridElement, GridJustify as FormJustify
+from ..scene import GUIScene
+from .abc import AbstractWidget, WidgetsManager
 from .entry import Entry
-from .grid import Grid, GridElement
 
-if TYPE_CHECKING:
-    from ..scene import GUIScene
+_Entry = TypeVar("_Entry", bound=Entry)
 
 
-_Label = TypeVar("_Label", bound=GridElement)
-
-
-class Form(Drawable, Movable, metaclass=ThemedObjectMeta):
+class Form(AbstractWidget, metaclass=ThemedObjectMeta):
     __theme_ignore__: ClassVar[Sequence[str]] = ("on_submit",)
-
-    Justify: TypeAlias = Grid.Justify
-    Padding: TypeAlias = Grid.Padding
 
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "bg_color",
@@ -48,48 +41,58 @@ class Form(Drawable, Movable, metaclass=ThemedObjectMeta):
     bg_color: OptionAttribute[Color] = OptionAttribute()
     outline: OptionAttribute[int] = OptionAttribute()
     outline_color: OptionAttribute[Color] = OptionAttribute()
-    label_justify: OptionAttribute[Justify] = OptionAttribute()
-    entry_justify: OptionAttribute[Justify] = OptionAttribute()
+    label_justify: OptionAttribute[FormJustify] = OptionAttribute()
+    entry_justify: OptionAttribute[FormJustify] = OptionAttribute()
     padx: OptionAttribute[int] = OptionAttribute()
     pady: OptionAttribute[int] = OptionAttribute()
 
     @initializer
     def __init__(
         self,
-        master: GUIScene | None = None,
+        master: AbstractWidget | WidgetsManager,
         *,
         on_submit: Callable[[Mapping[str, str]], None],
         bg_color: Color = TRANSPARENT,
         outline: int = 0,
         outline_color: Color = BLACK,
-        label_justify: Justify = Justify.RIGHT,
-        entry_justify: Justify = Justify.LEFT,
+        label_justify: FormJustify = FormJustify.RIGHT,
+        entry_justify: FormJustify = FormJustify.LEFT,
         padx: int = 10,
         pady: int = 10,
         theme: ThemeType | None = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(master=master, **kwargs)
+        scene = scene if isinstance((scene := self.scene), GUIScene) else None
         self.__on_submit: Callable[[Mapping[str, str]], None] = on_submit
-        self.__grid: Grid = Grid(master=master, bg_color=bg_color, outline=outline, outline_color=outline_color)
+        self.__grid = _GUIFormGrid(master=scene, bg_color=bg_color, outline=outline, outline_color=outline_color)
         self.label_justify = label_justify
         self.entry_justify = entry_justify
         self.padx = padx
         self.pady = pady
         self.__entry_dict: WeakValueDictionary[str, Entry] = WeakValueDictionary()
 
+    def _child_removed(self, child: AbstractWidget) -> None:
+        if isinstance(child, Entry) and child in self.__entry_dict.values():
+            raise ValueError("Entry children must be removed trought remove_entry()")
+        super()._child_removed(child)
+        grid: _GUIFormGrid = self.__grid
+        if child in grid:
+            grid.remove(child)
+
     def get_size(self) -> tuple[float, float]:
         return self.__grid.get_size()
 
     def draw_onto(self, target: AbstractRenderer) -> None:
+        self.__grid.center = self.center
         self.__grid.draw_onto(target)
 
     def add_entry(
         self,
         name: str,
-        entry: Entry,
-        label: _Label | None = None,
-    ) -> Entry:
+        entry: _Entry,
+        label: GridElement | None = None,
+    ) -> _Entry:
         if (
             not isinstance(name, str)
             or not isinstance(entry, Entry)
@@ -98,10 +101,13 @@ class Form(Drawable, Movable, metaclass=ThemedObjectMeta):
             raise TypeError("Invalid arguments")
         if not name:
             raise ValueError("Empty name")
+        self._check_is_child(entry)
+        if isinstance(label, AbstractWidget):
+            self._check_is_child(label)
         entry_dict: WeakValueDictionary[str, Entry] = self.__entry_dict
         if name in entry_dict:
             raise ValueError(f"{name!r} already set")
-        grid: Grid = self.__grid
+        grid: _GUIFormGrid = self.__grid
         last_row: int = grid.nb_rows
         padx: int = self.padx
         pady: int = self.pady
@@ -113,13 +119,15 @@ class Form(Drawable, Movable, metaclass=ThemedObjectMeta):
 
     def remove_entry(self, name: str) -> None:
         entry: Entry = self.__entry_dict.pop(name)
-        grid: Grid = self.__grid
-        entry_pos: tuple[int, int] | None = grid.get_position(entry)
-        if entry_pos is not None:
-            label_pos = (entry_pos[0], 0)
-            grid.pop(*label_pos, None)
-            grid.pop(*entry_pos)
-            grid.unify()
+        grid: _GUIFormGrid = self.__grid
+        try:
+            entry_pos: tuple[int, int] = grid.index(entry)
+        except ValueError:
+            return
+        label_pos = (entry_pos[0], 0)
+        grid.pop(*label_pos, None)
+        grid.pop(*entry_pos)
+        grid.unify()
 
     @overload
     def get(self) -> MappingProxyType[str, str]:
@@ -139,14 +147,6 @@ class Form(Drawable, Movable, metaclass=ThemedObjectMeta):
         on_submit: Callable[[Mapping[str, str]], None] = self.__on_submit
         return on_submit(self.get())
 
-    def set_visibility(self, status: bool) -> None:
-        super().set_visibility(status)
-        self.__grid.set_visibility(self.is_shown())
-
-    def _on_move(self) -> None:
-        self.__grid.topleft = self.topleft
-        return super()._on_move()
-
     @config.getter_with_key("bg_color")
     @config.getter_with_key("outline")
     @config.getter_with_key("outline_color")
@@ -159,13 +159,13 @@ class Form(Drawable, Movable, metaclass=ThemedObjectMeta):
     def __set_grid_option(self, option: str, value: Any) -> None:
         return self.__grid.config.set(option, value)
 
-    config.add_enum_converter("label_justify", Justify)
-    config.add_enum_converter("entry_justify", Justify)
+    config.add_enum_converter("label_justify", FormJustify)
+    config.add_enum_converter("entry_justify", FormJustify)
 
     @config.on_update_value_with_key("label_justify")
     @config.on_update_value_with_key("entry_justify")
-    def __update_grid_justify(self, option: str, justify: Justify) -> None:
-        grid: Grid = self.__grid
+    def __update_grid_justify(self, option: str, justify: FormJustify) -> None:
+        grid: _GUIFormGrid = self.__grid
         column: int = {"label_justify": 0, "entry_justify": 1}[option]
         for row in range(grid.nb_rows):
             grid.modify(row=row, column=column, justify=justify)
@@ -176,12 +176,21 @@ class Form(Drawable, Movable, metaclass=ThemedObjectMeta):
     @config.on_update_value_with_key("padx")
     @config.on_update_value_with_key("pady")
     def __upgrade_grid_padding(self, option: str, value: int) -> None:
-        grid: Grid = self.__grid
+        grid: _GUIFormGrid = self.__grid
         padding: dict[str, Any] = {option: value}
         for row in range(grid.nb_rows):
             for column in range(grid.nb_columns):
                 grid.modify(row=row, column=column, **padding)
 
-    @property
-    def master(self) -> GUIScene | None:
-        return self.__grid.master
+
+class _GUIFormGrid(_BaseGrid):
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(parent=_BaseGrid.config)
+
+    @initializer
+    def __init__(self, master: GUIScene | None, *, bg_color: Color, outline: int, outline_color: Color) -> None:
+        super().__init__(bg_color=bg_color, outline=outline, outline_color=outline_color)
+        self.__master: GUIScene | None = master
+
+    @final
+    def _get_gui_scene(self) -> GUIScene | None:
+        return self.__master

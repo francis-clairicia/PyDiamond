@@ -9,7 +9,6 @@ from __future__ import annotations
 __all__ = ["Object", "ObjectMeta", "ProtocolObjectMeta", "final", "mro", "override"]
 
 from abc import ABCMeta
-from dataclasses import is_dataclass
 from functools import cached_property, partialmethod
 from itertools import chain, takewhile
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, overload
@@ -140,18 +139,6 @@ class ObjectMeta(ABCMeta):
 
     def __post_init_class__(cls) -> None:
         pass
-
-    def __call__(cls, *args: Any, **kwds: Any) -> Any:
-        self = super().__call__(*args, **kwds)
-
-        try:
-            __post_init__: Callable[[], None] = getattr(self, "__post_init__")
-        except AttributeError:
-            pass
-        else:
-            if not is_dataclass(cls):  # __post_init__ already called for dataclasses
-                __post_init__()
-        return self
 
     def __setattr__(cls, name: str, value: Any, /) -> None:
         if name in getattr(cls, "__finalmethods__", ()):

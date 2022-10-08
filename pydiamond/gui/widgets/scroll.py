@@ -2,40 +2,49 @@
 # Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine
 #
 #
-"""ScrollBar and ScrollArea module"""
+"""ScrollBar and ScrollingContainer module"""
 
 from __future__ import annotations
 
-__all__ = ["ScrollArea", "ScrollAreaElement", "ScrollBar"]
+__all__ = ["ScrollBar", "ScrollingContainer"]
 
-from abc import abstractmethod
-from contextlib import suppress
+
 from enum import auto, unique
-from typing import TYPE_CHECKING, Any, ClassVar, Protocol, Sequence, final, runtime_checkable
+from functools import reduce
+from itertools import takewhile
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol, Sequence, final
+from weakref import WeakMethod
+
+from typing_extensions import assert_never
 
 from ...graphics.color import BLACK, GRAY, TRANSPARENT, WHITE, Color
-from ...graphics.drawable import BaseLayeredDrawableGroup, Drawable, SupportsDrawableGroups
-from ...graphics.movable import Movable
 from ...graphics.rect import Rect
 from ...graphics.renderer import AbstractRenderer
 from ...graphics.shape import RectangleShape
-from ...graphics.surface import SurfaceRenderer
 from ...graphics.transformable import Transformable
 from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ...system.enum import AutoLowerNameEnum
 from ...system.theme import ThemedObjectMeta, ThemeType
-from ...system.utils._mangling import mangle_private_attribute
-from ...window.clickable import Clickable
+from ...system.validation import valid_integer
 from ...window.event import MouseButtonDownEvent, MouseButtonUpEvent, MouseMotionEvent, MouseWheelEvent
-from ...window.mouse import Mouse
+from .abc import AbstractWidget, Widget, WidgetsManager
 
 if TYPE_CHECKING:
     from ...audio.sound import Sound
     from ...window.cursor import Cursor
-    from ...window.scene import Scene, SceneWindow
 
 
-class ScrollBar(Drawable, Transformable, Clickable, metaclass=ThemedObjectMeta):
+class _ScrollBarCommand(Protocol):
+    def __call__(self, action: Literal["moveto"], fraction: float, /) -> None:
+        ...
+
+    # TODO: Add this command (arrow buttons)
+    # @overload
+    # def __call__(self, action: Literal["scroll"], offset: Literal[-1, 1], what: Literal["units", "pages"], /) -> None:
+    #     ...
+
+
+class ScrollBar(Widget, Transformable, metaclass=ThemedObjectMeta):
     __theme_ignore__: ClassVar[Sequence[str]] = ("orient",)
 
     @unique
@@ -44,6 +53,7 @@ class ScrollBar(Drawable, Transformable, Clickable, metaclass=ThemedObjectMeta):
         VERTICAL = auto()
 
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
+        "command",
         "local_width",
         "local_height",
         "local_size",
@@ -57,6 +67,7 @@ class ScrollBar(Drawable, Transformable, Clickable, metaclass=ThemedObjectMeta):
         "border_bottom_left_radius",
         "border_bottom_right_radius",
         "orient",
+        parent=Widget.config,
     )
 
     local_width: OptionAttribute[float] = OptionAttribute()
@@ -76,9 +87,10 @@ class ScrollBar(Drawable, Transformable, Clickable, metaclass=ThemedObjectMeta):
     @initializer
     def __init__(
         self,
-        master: ScrollArea,
+        master: AbstractWidget | WidgetsManager,
         width: float,
         height: float,
+        command: _ScrollBarCommand | WeakMethod[_ScrollBarCommand] | None = None,
         *,
         orient: str = "horizontal",
         color: Color = WHITE,
@@ -89,6 +101,8 @@ class ScrollBar(Drawable, Transformable, Clickable, metaclass=ThemedObjectMeta):
         disabled_sound: Sound | None = None,
         hover_cursor: Cursor | None = None,
         disabled_cursor: Cursor | None = None,
+        take_focus: bool = True,
+        focus_on_hover: bool | None = None,
         outline: int = 0,
         outline_color: Color = BLACK,
         border_radius: int = 0,
@@ -99,20 +113,16 @@ class ScrollBar(Drawable, Transformable, Clickable, metaclass=ThemedObjectMeta):
         theme: ThemeType | None = None,
         **kwargs: Any,
     ) -> None:
-        from ...window.scene import Scene
-
-        if not isinstance(master, ScrollArea):
-            raise TypeError("ScrollBar objects must be created for a ScrollArea object")
-        self.__master: ScrollArea = master
         super().__init__(
-            master=master.master.event,
-            window=master.master.window if isinstance(master.master, Scene) else master.master,
+            master=master,
             state=state,
             hover_sound=hover_sound,
             click_sound=click_sound,
             disabled_sound=disabled_sound,
             hover_cursor=hover_cursor,
             disabled_cursor=disabled_cursor,
+            take_focus=take_focus,
+            focus_on_hover=focus_on_hover,
             **kwargs,
         )
         self.__bg_shape: RectangleShape = RectangleShape(
@@ -139,7 +149,7 @@ class ScrollBar(Drawable, Transformable, Clickable, metaclass=ThemedObjectMeta):
             border_bottom_right_radius=border_bottom_right_radius,
         )
         self.__start: float = 0
-        self.__end: float = 0
+        self.__end: float = 1
         self.__cursor_click: float
         self.__cursor_shape: RectangleShape = RectangleShape(
             width=0,
@@ -152,9 +162,13 @@ class ScrollBar(Drawable, Transformable, Clickable, metaclass=ThemedObjectMeta):
             border_bottom_left_radius=border_bottom_left_radius,
             border_bottom_right_radius=border_bottom_right_radius,
         )
+
+        self.__command: _ScrollBarCommand | None
+
+        self.set_command(command)
+
         self.orient = orient
         self.set_active_only_on_hover(False)
-        master._bind(self)
 
     def get_local_size(self) -> tuple[float, float]:
         return self.__outline_shape.get_local_size()
@@ -171,39 +185,22 @@ class ScrollBar(Drawable, Transformable, Clickable, metaclass=ThemedObjectMeta):
         bg_shape.draw_onto(target)
 
         cursor_start: float = self.__start
-        cursor_end: float = self.__end
-        cursor_middle: float = (cursor_start + cursor_end) / 2
         if self.orient == ScrollBar.Orient.HORIZONTAL:
-            if cursor_middle <= 0.5:
-                cursor_shape.midleft = (
-                    max(bg_shape.left + bg_shape.width * cursor_start, bg_shape.left + (outline / 2)),
-                    bg_shape.centery,
-                )
-            else:
-                cursor_shape.midright = (
-                    min(bg_shape.left + bg_shape.width * cursor_end, bg_shape.right - (outline / 2)),
-                    bg_shape.centery,
-                )
+            cursor_shape.midleft = (
+                max(bg_shape.left + bg_shape.width * cursor_start, bg_shape.left + (outline / 2)),
+                bg_shape.centery,
+            )
         else:
-            if cursor_middle <= 0.5:
-                cursor_shape.midtop = (
-                    bg_shape.centerx,
-                    max(bg_shape.top + bg_shape.height * cursor_start, bg_shape.top + (outline / 2)),
-                )
-            else:
-                cursor_shape.midbottom = (
-                    bg_shape.centerx,
-                    min(bg_shape.top + bg_shape.height * cursor_end, bg_shape.bottom - (outline / 2)),
-                )
+            cursor_shape.midtop = (
+                bg_shape.centerx,
+                max(bg_shape.top + bg_shape.height * cursor_start, bg_shape.top + (outline / 2)),
+            )
 
         cursor_shape.draw_onto(target)
         outline_shape.draw_onto(target)
 
     def invoke(self) -> None:
         pass
-
-    def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
-        return self.get_rect().collidepoint(mouse_pos)
 
     def _on_click_down(self, event: MouseButtonDownEvent) -> None:
         cursor_rect: Rect = self.__get_cursor_shape_rect()
@@ -218,8 +215,7 @@ class ScrollBar(Drawable, Transformable, Clickable, metaclass=ThemedObjectMeta):
         return super()._on_click_down(event)
 
     def _on_click_up(self, event: MouseButtonUpEvent) -> None:
-        with suppress(AttributeError):
-            del self.__cursor_click
+        del self.__cursor_click
         return super()._on_click_up(event)
 
     def _on_mouse_motion(self, event: MouseMotionEvent) -> None:
@@ -265,28 +261,59 @@ class ScrollBar(Drawable, Transformable, Clickable, metaclass=ThemedObjectMeta):
         return cursor_rect
 
     def __set_cursor_bounds(self, cursor_rect: Rect) -> None:
-        offset: float = round(self.__end - self.__start, 2)
+        offset: float = self.__end - self.__start
         if self.orient == ScrollBar.Orient.HORIZONTAL:
-            left: float = self.left
-            width: float = self.width
+            left: int = int(self.left)
+            width: int = int(self.width)
             if width == 0:
                 return
             if cursor_rect.left < left:
-                cursor_rect.left = int(left)
-            self.__start = max((cursor_rect.left - left) / width, 0)
+                self.__start = 0
+            else:
+                self.__start = (cursor_rect.left - left) / width
         else:
-            top: float = self.top
-            height: float = self.height
+            top: int = int(self.top)
+            height: int = int(self.height)
             if height == 0:
                 return
             if cursor_rect.top < top:
-                cursor_rect.top = int(top)
-            self.__start = max((cursor_rect.top - top) / height, 0)
+                self.__start = 0
+            else:
+                self.__start = (cursor_rect.top - top) / height
         if (end := self.__start + offset) > 1:
             end = 1
             self.__start = 1 - offset
         self.__end = end
-        self.__master._update()
+        command = self.__command
+        if command is not None:
+            command("moveto", self.fraction)
+
+    def get(self) -> tuple[float, float]:
+        return (self.__start, self.__end)
+
+    def set(self, start: float, end: float) -> None:
+        start = float(start)
+        end = float(end)
+        if not (0 <= start <= 1) or not (0 <= end <= 1) or start > end:
+            raise ValueError(f"Invalid bounds: {(start, end)}")
+        min_offset = 0.02
+        if end - start < min_offset:
+            end = start + min_offset
+            if end > 1:
+                end = 1
+                start = 1 - min_offset
+        self.__start = start
+        self.__end = end
+        self.__update_all_shapes()
+
+    @property
+    def fraction(self) -> float:
+        start = self.__start
+        end = self.__end
+        try:
+            return start / (start + 1 - end)
+        except ZeroDivisionError:
+            return 0
 
     config.add_enum_converter("orient", Orient, return_value_on_get=True)
 
@@ -345,12 +372,9 @@ class ScrollBar(Drawable, Transformable, Clickable, metaclass=ThemedObjectMeta):
     @config.on_update("local_width")
     @config.on_update("local_height")
     @config.on_update("local_size")
-    def __update_all_shape(self) -> None:
+    def __update_all_shapes(self) -> None:
         outline_shape: RectangleShape = self.__outline_shape
         outline_shape.local_size = self.local_size
-        self._update()
-
-    def _update(self) -> None:
         width, height = self.local_size
         orient: str = self.orient
         cursor_shape: RectangleShape = self.__cursor_shape
@@ -360,180 +384,254 @@ class ScrollBar(Drawable, Transformable, Clickable, metaclass=ThemedObjectMeta):
         else:
             cursor_shape.local_size = (width, height * cursor_size_percent)
 
-    @property
-    @final
-    def scroll_area(self) -> ScrollArea:
-        return self.__master
+    @config.getter("command")
+    def get_command(self) -> _ScrollBarCommand | None:
+        return self.__command
 
-    @property
-    @final
-    def bounds(self) -> tuple[float, float]:
-        return (self.__start, self.__end)
+    @config.setter("command")
+    def set_command(self, command: _ScrollBarCommand | WeakMethod[_ScrollBarCommand] | None) -> None:
+        if isinstance(command, WeakMethod):
+            _weak_command = command
+
+            def command_wrapper(action: Literal["moveto"], fraction: float, /) -> None:
+                command = _weak_command()
+                if command is None:
+                    return None
+                return command(action, fraction)
+
+            command = command_wrapper
+
+        self.__command = command
+        if command is not None:
+            command("moveto", self.fraction)
 
 
-@runtime_checkable
-class ScrollAreaElement(SupportsDrawableGroups, Protocol):
-    @abstractmethod
-    def get_rect(self) -> Rect:
-        raise NotImplementedError
+class ScrollingContainer(AbstractWidget):
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
+        "xscrollincrement",
+        "yscrollincrement",
+    )
 
+    xscrollincrement: OptionAttribute[int] = OptionAttribute()
+    yscrollincrement: OptionAttribute[int] = OptionAttribute()
 
-class ScrollArea(BaseLayeredDrawableGroup[ScrollAreaElement], Drawable, Movable):
-    __h_flip: ClassVar[bool] = False
-    __v_flip: ClassVar[bool] = False
-
+    @initializer
     def __init__(
         self,
-        *objects: ScrollAreaElement,
-        master: Scene | SceneWindow,
-        width: float,
-        height: float,
-        default_layer: int = 0,
-        bg_color: Color = TRANSPARENT,
+        master: AbstractWidget | WidgetsManager,
+        width: int,
+        height: int,
+        *,
+        xscrollincrement: int = 20,
+        yscrollincrement: int = 20,
         **kwargs: Any,
     ) -> None:
-        super().__init__(*objects, default_layer=default_layer, **kwargs)
-        self.__master: Scene | SceneWindow = master
-        self.__view_rect: Rect = Rect(0, 0, width, height)
-        self.__whole_area: SurfaceRenderer = SurfaceRenderer((width, height))
-        self.__h_scroll: ScrollBar | None = None
-        self.__v_scroll: ScrollBar | None = None
-        self.__bg_color: Color = bg_color
-        master.event.bind(MouseWheelEvent, self.__handle_wheel_event)
+        super().__init__(master=master, **kwargs)
 
-    @classmethod
-    def set_horizontal_flip(cls, status: bool) -> None:
-        cls.__h_flip = bool(status)
+        self.__view_size: tuple[int, int] = int(width), int(height)
+        self.__x_scroll: ScrollBar | None = None
+        self.__y_scroll: ScrollBar | None = None
+        self.__known_area_rect: Rect = Rect(0, 0, 0, 0)
+        self.__mouse_pos: tuple[float, float] = (0, 0)
 
-    @classmethod
-    def set_vertical_flip(cls, status: bool) -> None:
-        cls.__v_flip = bool(status)
+        self.xscrollincrement = xscrollincrement
+        self.yscrollincrement = yscrollincrement
 
-    @classmethod
-    def get_wheel_flip(cls) -> tuple[bool, bool]:
-        return (cls.__h_flip, cls.__v_flip)
+        def get_mouse_position(self: ScrollingContainer, mouse_pos: tuple[float, float]) -> None:
+            self.__mouse_pos = mouse_pos
 
-    def get_size(self) -> tuple[float, float]:
-        return self.__view_rect.size
+        self.event.bind(MouseWheelEvent, WeakMethod(self.__handle_wheel_event))
+        self.event.bind_mouse_position(get_mouse_position)
 
-    def add(self, *objects: ScrollAreaElement, layer: int | None = None) -> None:
-        if any(not isinstance(obj, ScrollAreaElement) for obj in objects):
-            raise TypeError("Invalid arguments")
-        return super().add(*objects, layer=layer)
+    def _is_mouse_hovering_child(self, widget: AbstractWidget, mouse_pos: tuple[float, float]) -> bool:
+        return not any(
+            child.get_visible_rect().collidepoint(mouse_pos)
+            for child in takewhile(lambda child: child is not widget, reversed(self.children))
+        )
+
+    @final
+    def get_size(self) -> tuple[int, int]:
+        return self.__view_size
+
+    def set_size(self, size: tuple[int, int]) -> None:
+        width, height = size
+        self.__view_size = int(width), int(height)
+        self.__update_scrollbars(force=True)
 
     def draw_onto(self, target: AbstractRenderer) -> None:
-        whole_area = self.__update_whole_area()
-        super().draw_onto(whole_area)
-        target.draw_surface(whole_area.surface, self.topleft, area=self.__view_rect)
+        self.__update_scrollbars(force=False)
+        for child in self.iter_children():
+            child.draw_onto(target)
 
-    def _bind(self, scrollbar: ScrollBar) -> None:
-        if scrollbar.scroll_area is not self:
-            raise ValueError("scrollbar bound to an another ScrollArea")
-        if scrollbar.orient == ScrollBar.Orient.HORIZONTAL:
-            if (h_scroll := self.__h_scroll) is not None:
-                if h_scroll is not scrollbar:
-                    raise ValueError("self already have a horizontal scrollbar")
-                return
-            self.__h_scroll = scrollbar
+    def bind_xview(self, scrollbar: ScrollBar | None) -> None:
+        if scrollbar is not None:
+            self.__x_scroll = scrollbar
+            scrollbar.set_command(WeakMethod(self.xview))
         else:
-            if (v_scroll := self.__v_scroll) is not None:
-                if v_scroll is not scrollbar:
-                    raise ValueError("self already have a vertical scrollbar")
-                return
-            self.__v_scroll = scrollbar
-        self.__update_scrollbars_cursor()
+            if self.__x_scroll is not None:
+                self.__x_scroll.set_command(None)
+            self.__x_scroll = None
 
-    def _update(self) -> None:
-        whole_area: SurfaceRenderer = self.__whole_area
-        whole_area_rect = whole_area.get_rect()
-        view_rect: Rect = self.__view_rect
-        start: float
-        end: float
-        h_scroll: ScrollBar | None = self.__h_scroll
-        v_scroll: ScrollBar | None = self.__v_scroll
-        if h_scroll is not None:
-            start, end = h_scroll.bounds
-            view_rect.left = int(whole_area_rect.width * start)
-            view_rect.width = int(whole_area_rect.width * (end - start))
-        if v_scroll is not None:
-            start, end = v_scroll.bounds
-            view_rect.top = int(whole_area_rect.height * start)
-            view_rect.height = int(whole_area_rect.height * (end - start))
+    def xview(self, action: Literal["moveto"], *args: Any) -> None:
+        match action:
+            case "moveto":
+                return self.xview_moveto(*args)
+            case _:
+                assert_never(action)
+
+    def xview_moveto(self, fraction: float) -> None:
+        if not (0 <= fraction <= 1):
+            raise ValueError("Must be between 0 and 1")
+        self.__set_view_rect_from_fraction(fraction, "x")
+
+    def bind_yview(self, scrollbar: ScrollBar | None) -> None:
+        if scrollbar is not None:
+            self.__y_scroll = scrollbar
+            scrollbar.set_command(WeakMethod(self.yview))
+        else:
+            if self.__y_scroll is not None:
+                self.__y_scroll.set_command(None)
+            self.__y_scroll = None
+
+    def yview(self, action: Literal["moveto"], *args: Any) -> None:
+        match action:
+            case "moveto":
+                return self.yview_moveto(*args)
+            case _:
+                assert_never(action)
+
+    def yview_moveto(self, fraction: float) -> None:
+        if not (0 <= fraction <= 1):
+            raise ValueError("Must be between 0 and 1")
+        self.__set_view_rect_from_fraction(fraction, "y")
+
+    @final
+    def _get_whole_relative_area(self) -> Rect:
+        return reduce(Rect.union, (child.get_relative_rect() for child in self.iter_children()), Rect((0, 0), self.get_size()))
+
+    @final
+    def _get_whole_area(self) -> Rect:
+        return reduce(Rect.union, (child.get_rect() for child in self.iter_children()), Rect(self.topleft, self.get_size()))
+
+    @final
+    def _get_children_relative_area(self) -> Rect | None:
+        children: list[AbstractWidget] = list(self.iter_children())
+        if not children:
+            return None
+        return reduce(Rect.union, (child.get_relative_rect() for child in children))
+
+    @final
+    def _get_children_area(self) -> Rect | None:
+        children: list[AbstractWidget] = list(self.iter_children())
+        if not children:
+            return None
+        return reduce(Rect.union, (child.get_rect() for child in children))
+
+    def __set_view_rect_from_fraction(self, fraction: float, side: Literal["x", "y"]) -> None:
+        match side:
+            case "x":
+                rect_size = "width"
+            case "y":
+                rect_size = "height"
+            case _:
+                assert_never(side)
+
+        view_rect, children_area = self.__get_view_rects()
+        if children_area is None or view_rect.width <= 0 or view_rect.height <= 0 or view_rect.contains(children_area):
+            self.__update_scrollbars(force=True)
+            return
+
+        whole_area = view_rect.union(children_area)
+
+        start: float = fraction * (1 - (getattr(view_rect, rect_size) / getattr(whole_area, rect_size)))
+        projection_view_rect = view_rect.copy()
+        setattr(projection_view_rect, side, start * getattr(whole_area, rect_size))
+
+        dx = view_rect.x - projection_view_rect.x
+        dy = view_rect.y - projection_view_rect.y
+
+        for child in self.iter_children():
+            child.move(dx, dy)
+
+        self.__update_scrollbars(force=True)
 
     def __handle_wheel_event(self, event: MouseWheelEvent) -> bool:
-        if not self.get_rect().collidepoint(Mouse.get_pos()):
+        if not self.is_mouse_hovering(self.__mouse_pos):
             return False
-        view_rect: Rect = self.__view_rect
-        whole_area: SurfaceRenderer = self.__whole_area
-        whole_area_rect = whole_area.get_rect()
-        offset: int = 20
-        need_update: bool = False
-        if event.x != 0:
-            x: int = (1 if event.x > 0 else -1) if not self.__h_flip else (-1 if event.x > 0 else 1)
-            if event.flipped:
-                x = -x
-            view_rect.x += offset * x
-            if x > 0:
-                view_rect.right = min(view_rect.right, whole_area_rect.right)
-            else:
-                view_rect.left = max(view_rect.left, whole_area_rect.left)
-            need_update = True
-        if event.y != 0:
-            y: int = (1 if event.y > 0 else -1) if not self.__v_flip else (-1 if event.y > 0 else 1)
-            if event.flipped:
-                y = -y
-            view_rect.y += offset * y
-            if y > 0:
-                view_rect.bottom = min(view_rect.bottom, whole_area_rect.bottom)
-            else:
-                view_rect.top = max(view_rect.top, whole_area_rect.top)
-            need_update = True
-        if need_update:
-            self.__update_whole_area()
-            self.__update_scrollbars_cursor()
+
+        view_rect, children_area = self.__get_view_rects()
+        if view_rect.width <= 0 or view_rect.height <= 0:
+            return False
+        if children_area is None or view_rect.contains(children_area):
+            return True
+
+        dx: int = int(event.x * self.xscrollincrement)
+        dy: int = int(event.y * self.yscrollincrement)
+
+        if (dx, dy) != (0, 0):
+            whole_area = view_rect.union(children_area)
+            projection_view_rect = view_rect.move(-dx, -dy)
+            projection_view_rect.clamp_ip(whole_area)
+            dx = view_rect.x - projection_view_rect.x
+            dy = view_rect.y - projection_view_rect.y
+
+            for child in self.iter_children():
+                child.move(dx, dy)
+
+            self.__update_scrollbars(force=True)
+
         return True
 
-    def __update_whole_area(self) -> SurfaceRenderer:
-        whole_area: SurfaceRenderer = self.__whole_area
-        view_rect: Rect = self.__view_rect
-        width: int = view_rect.width
-        height: int = view_rect.height
-        for m in self:
-            m_rect = m.get_rect()
-            width = max(width, m_rect.right)
-            height = max(height, m_rect.bottom)
+    def __get_view_rects(self) -> tuple[Rect, Rect | None]:
+        children_area: Rect | None = self._get_children_relative_area()
+        view_rect = Rect((0, 0), self.get_size())
 
-        if (width, height) != whole_area.get_size():
-            self.__whole_area = whole_area = SurfaceRenderer((width, height))
-            whole_area_rect = whole_area.get_rect()
-            view_rect.right = min(view_rect.right, whole_area_rect.right)
-            view_rect.bottom = min(view_rect.bottom, whole_area_rect.bottom)
-            self.__update_scrollbars_cursor()
-        whole_area.fill(self.__bg_color)
-        return whole_area
+        if children_area is not None:
+            view_rect.x = -children_area.x
+            view_rect.y = -children_area.y
+            children_area.x = 0
+            children_area.y = 0
 
-    def __update_scrollbars_cursor(self) -> None:
-        start_attr: str = mangle_private_attribute(ScrollBar, "start")
-        end_attr: str = mangle_private_attribute(ScrollBar, "end")
-        whole_area_rect = self.__whole_area.get_rect()
-        view_rect: Rect = self.__view_rect
+        return view_rect, children_area
+
+    def __update_scrollbars(self, *, force: bool) -> None:
+        view_rect, children_area = self.__get_view_rects()
+        known_area_rect = children_area.copy() if children_area is not None else Rect(0, 0, 0, 0)
+        if not force and known_area_rect == self.__known_area_rect:
+            return
+
+        self.__known_area_rect = known_area_rect
+        x_scroll: ScrollBar | None = self.__x_scroll
+        y_scroll: ScrollBar | None = self.__y_scroll
+
+        if children_area is None or view_rect.width <= 0 or view_rect.height <= 0 or view_rect.contains(children_area):
+            if x_scroll is not None:
+                x_scroll.set(0, 1)
+            if y_scroll is not None:
+                y_scroll.set(0, 1)
+            return
+
+        def fraction(start: float, end: float) -> float:
+            try:
+                return max(0, min(start / (start + 1 - end), 1))
+            except ZeroDivisionError:
+                return 0
+
+        whole_area = view_rect.union(children_area)
         start: float
         end: float
-        h_scroll: ScrollBar | None = self.__h_scroll
-        v_scroll: ScrollBar | None = self.__v_scroll
-        if h_scroll is not None:
-            start = (view_rect.left - whole_area_rect.left) / whole_area_rect.width
-            end = view_rect.right / whole_area_rect.width
-            setattr(h_scroll, start_attr, start)
-            setattr(h_scroll, end_attr, end)
-            h_scroll._update()
-        if v_scroll is not None:
-            start = view_rect.top / whole_area_rect.height
-            end = view_rect.bottom / whole_area_rect.height
-            setattr(v_scroll, start_attr, start)
-            setattr(v_scroll, end_attr, end)
-            v_scroll._update()
+        if x_scroll is not None:
+            start = view_rect.left / whole_area.width
+            end = view_rect.right / whole_area.width
+            if not (0 <= start <= 1) or not (0 <= end <= 1):
+                return self.__set_view_rect_from_fraction(fraction(start, end), "x")
+            x_scroll.set(start, end)
+        if y_scroll is not None:
+            start = view_rect.top / whole_area.height
+            end = view_rect.bottom / whole_area.height
+            if not (0 <= start <= 1) or not (0 <= end <= 1):
+                return self.__set_view_rect_from_fraction(fraction(start, end), "y")
+            y_scroll.set(start, end)
 
-    @property
-    def master(self) -> Scene | SceneWindow:
-        return self.__master
+    config.add_value_converter_on_set_static("xscrollincrement", valid_integer(min_value=0))
+    config.add_value_converter_on_set_static("yscrollincrement", valid_integer(min_value=0))

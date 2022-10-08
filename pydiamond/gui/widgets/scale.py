@@ -16,17 +16,15 @@ from ...graphics.progress import ProgressBar
 from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ...system.validation import valid_integer
 from ...window.event import Event, KeyDownEvent, KeyEvent, KeyUpEvent, MouseButtonDownEvent, MouseMotionEvent
-from .abc import AbstractWidget
+from .abc import AbstractWidget, Widget, WidgetsManager
 
 if TYPE_CHECKING:
     from ...audio.sound import Sound
     from ...system.theme import ThemeType
-    from ...window.clickable import Clickable
     from ...window.cursor import Cursor
-    from ...window.scene import Scene, SceneWindow
 
 
-class ScaleBar(ProgressBar, AbstractWidget):
+class ScaleBar(ProgressBar, Widget):
     __theme_ignore__: ClassVar[Sequence[str]] = (
         "from_",
         "to",
@@ -40,7 +38,7 @@ class ScaleBar(ProgressBar, AbstractWidget):
         "resolution",
         "highlight_color",
         "highlight_thickness",
-        parent=ProgressBar.config,
+        parent=[ProgressBar.config, Widget.config],
     )
 
     resolution: OptionAttribute[int] = OptionAttribute()
@@ -50,7 +48,7 @@ class ScaleBar(ProgressBar, AbstractWidget):
     @initializer
     def __init__(
         self,
-        master: AbstractWidget | Clickable | Scene | SceneWindow,
+        master: AbstractWidget | WidgetsManager,
         width: float,
         height: float,
         *,
@@ -78,6 +76,8 @@ class ScaleBar(ProgressBar, AbstractWidget):
         border_top_right_radius: int = -1,
         border_bottom_left_radius: int = -1,
         border_bottom_right_radius: int = -1,
+        value_display_offset: float = 10,
+        label_offset: float = 10,
         highlight_color: Color = BLUE,
         highlight_thickness: int = 2,
         theme: ThemeType | None = None,
@@ -106,8 +106,10 @@ class ScaleBar(ProgressBar, AbstractWidget):
             border_top_right_radius=border_top_right_radius,
             border_bottom_left_radius=border_bottom_left_radius,
             border_bottom_right_radius=border_bottom_right_radius,
+            value_display_offset=value_display_offset,
+            label_offset=label_offset,
             theme=theme,
-            # AbstractWidget
+            # Widget
             master=master,
             state=state,
             hover_sound=hover_sound,
@@ -132,9 +134,6 @@ class ScaleBar(ProgressBar, AbstractWidget):
         callback = self.__percent_callback
         if callable(callback):
             callback(self.percent)
-
-    def _mouse_in_hitbox(self, mouse_pos: tuple[float, float]) -> bool:
-        return self.get_rect().collidepoint(mouse_pos)
 
     def _should_ignore_event(self, event: Event) -> bool:
         return super()._should_ignore_event(event) or (

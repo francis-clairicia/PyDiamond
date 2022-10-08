@@ -11,13 +11,14 @@ __all__ = [
     "CheckBox",
     "Entry",
     "Form",
+    "FormJustify",
     "Grid",
     "GridElement",
+    "GridJustify",
     "ImageButton",
     "ScaleBar",
-    "ScrollArea",
-    "ScrollAreaElement",
     "ScrollBar",
+    "ScrollingContainer",
 ]
 
 ############ Package initialization ############

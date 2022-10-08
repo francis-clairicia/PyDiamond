@@ -20,41 +20,15 @@ from abc import abstractmethod
 from bisect import insort_left, insort_right
 from collections import deque
 from itertools import dropwhile, filterfalse, takewhile
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Iterator,
-    MutableSequence,
-    Protocol,
-    Sequence,
-    TypeVar,
-    overload,
-    runtime_checkable,
-)
+from typing import TYPE_CHECKING, Any, Iterator, MutableSequence, Protocol, Sequence, TypeVar, overload, runtime_checkable
 from weakref import WeakKeyDictionary, WeakSet
 
-from ..system.object import Object, final
-from ..system.utils._mangling import getattr_pv
-from ..system.utils.abc import isabstractmethod
-from ..system.utils.functools import wraps
+from ..system.object import Object
 
 if TYPE_CHECKING:
     from .renderer import AbstractRenderer
 
 _T = TypeVar("_T")
-
-
-def _draw_decorator(func: Callable[[Drawable, AbstractRenderer], None], /) -> Callable[[Drawable, AbstractRenderer], None]:
-    @wraps(func)
-    def wrapper(self: Drawable, /, target: AbstractRenderer) -> None:
-        if self.is_shown():
-            func(self, target)
-
-    setattr(wrapper, "__draw_onto_decorator__", True)
-    if getattr(func, "__final__", False):
-        setattr(wrapper, "__final__", True)
-    return wrapper
 
 
 @runtime_checkable
@@ -65,37 +39,13 @@ class SupportsDrawing(Protocol):
 
 
 class Drawable(Object):
-    __slots__ = ("__weakref__", "__dict__")
-
-    def __init_subclass__(cls, **kwargs: Any) -> None:
-        super().__init_subclass__(**kwargs)
-        draw_method: Callable[[Drawable, AbstractRenderer], None] = getattr(cls, "draw_onto")
-        if not getattr(draw_method, "__draw_onto_decorator__", False) and not isabstractmethod(draw_method):
-            type.__setattr__(cls, "draw_onto", _draw_decorator(draw_method))
-
-        if not hasattr(cls, "__weakref__"):
-            raise TypeError("A Drawable object must be weak-referencable")
-
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.__shown: bool = True
         self.__groups: WeakSet[BaseDrawableGroup[Any]] = WeakSet()
 
     @abstractmethod
     def draw_onto(self, target: AbstractRenderer) -> None:
         raise NotImplementedError
-
-    def show(self) -> None:
-        self.set_visibility(True)
-
-    def hide(self) -> None:
-        self.set_visibility(False)
-
-    def set_visibility(self, status: bool) -> None:
-        self.__shown = bool(status)
-
-    def is_shown(self) -> bool:
-        return self.__shown
 
     def add_to_group(self, *groups: BaseDrawableGroup[Any]) -> None:
         actual_groups: WeakSet[BaseDrawableGroup[Any]] = self.__groups
@@ -114,7 +64,7 @@ class Drawable(Object):
         actual_groups: WeakSet[BaseDrawableGroup[Any]] = self.__groups
         for g in groups:
             if g not in actual_groups:
-                raise ValueError(f"sprite not in {g!r}")
+                raise ValueError(f"drawable not in {g!r}")
         for g in groups:
             actual_groups.remove(g)
             if self in g:
@@ -134,9 +84,7 @@ class Drawable(Object):
     def is_alive(self) -> bool:
         return len(self.__groups) > 0
 
-    @property
-    @final
-    def groups(self) -> frozenset[BaseDrawableGroup[Any]]:
+    def get_groups(self) -> frozenset[BaseDrawableGroup[Any]]:
         return frozenset(self.__groups)
 
 
@@ -154,25 +102,32 @@ class SupportsDrawableGroups(SupportsDrawing, Protocol):
     def has_group(self, group: BaseDrawableGroup[Any]) -> bool:
         raise NotImplementedError
 
+    @abstractmethod
+    def get_groups(self) -> frozenset[BaseDrawableGroup[Any]]:
+        raise NotImplementedError
+
 
 _D = TypeVar("_D", bound=SupportsDrawableGroups)
 
 
 class BaseDrawableGroup(Sequence[_D]):
 
-    __slots__ = ("__list", "__weakref__")
+    __slots__ = ("_list", "__weakref__")
 
     def __init__(self, *objects: _D, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.__list: MutableSequence[_D] = deque()
+        self._list: MutableSequence[_D] = deque()
         if objects:
             self.add(*objects)
 
     def __iter__(self) -> Iterator[_D]:
-        return self.__list.__iter__()
+        return self._list.__iter__()
 
     def __len__(self) -> int:
-        return self.__list.__len__()
+        return self._list.__len__()
+
+    def __contains__(self, value: object) -> bool:
+        return self._list.__contains__(value)
 
     @overload
     def __getitem__(self, index: int, /) -> _D:
@@ -183,17 +138,17 @@ class BaseDrawableGroup(Sequence[_D]):
         ...
 
     def __getitem__(self, index: int | slice, /) -> _D | Sequence[_D]:
-        return self.__list[index]
+        return self._list[index]
 
     def __bool__(self) -> bool:
-        return bool(self.__list)
+        return bool(self._list)
 
     def draw_onto(self, target: AbstractRenderer) -> None:
-        for drawable in self.__list:
+        for drawable in self:
             drawable.draw_onto(target)
 
     def add(self, *objects: _D) -> None:
-        drawable_list: MutableSequence[_D] = self.__list
+        drawable_list: MutableSequence[_D] = self._list
         for d in filterfalse(drawable_list.__contains__, objects):
             drawable_list.append(d)
             if not d.has_group(self):
@@ -206,7 +161,7 @@ class BaseDrawableGroup(Sequence[_D]):
     def remove(self, *objects: _D) -> None:
         if not objects:
             return
-        drawable_list: MutableSequence[_D] = self.__list
+        drawable_list: MutableSequence[_D] = self._list
         for d in objects:
             if d not in drawable_list:
                 raise ValueError(f"{d!r} not in self")
@@ -217,7 +172,7 @@ class BaseDrawableGroup(Sequence[_D]):
 
     def pop(self, index: int = -1) -> _D:
         assert isinstance(index, int)
-        drawable_list: MutableSequence[_D] = self.__list
+        drawable_list: MutableSequence[_D] = self._list
         d: _D = drawable_list[index]  # deque.pop() does not accept argument
         del drawable_list[index]
         if d.has_group(self):
@@ -225,8 +180,8 @@ class BaseDrawableGroup(Sequence[_D]):
         return d
 
     def clear(self) -> None:
-        drawable_list: MutableSequence[_D] = self.__list
-        self.__list = deque()
+        drawable_list: MutableSequence[_D] = self._list
+        self._list = deque()
         for d in drawable_list:
             if d.has_group(self):
                 d.remove_from_group(self)
@@ -252,7 +207,7 @@ class BaseLayeredDrawableGroup(BaseDrawableGroup[_D]):
         if not objects:
             return
         layer_dict: WeakKeyDictionary[_D, int] = self.__layer_dict
-        drawable_list: MutableSequence[_D] = getattr_pv(self, "list", owner=BaseDrawableGroup)
+        drawable_list: MutableSequence[_D] = self._list
         if layer is None:
             layer = self.__default_layer
         for d in filterfalse(drawable_list.__contains__, objects):
@@ -292,7 +247,7 @@ class BaseLayeredDrawableGroup(BaseDrawableGroup[_D]):
         actual_layer: int | None = layer_dict.get(obj, None)
         if (actual_layer is None and layer == self.__default_layer) or (actual_layer is not None and actual_layer == layer):
             return
-        drawable_list: MutableSequence[_D] = getattr_pv(self, "list", owner=BaseDrawableGroup)
+        drawable_list: MutableSequence[_D] = self._list
         try:
             drawable_list.remove(obj)
         except ValueError:
@@ -321,12 +276,11 @@ class BaseLayeredDrawableGroup(BaseDrawableGroup[_D]):
 
     def iter_in_layer(self, layer: int) -> Iterator[_D]:
         layer_dict = self.__layer_dict
-        drawable_list: MutableSequence[_D] = getattr_pv(self, "list", owner=BaseDrawableGroup)
         return takewhile(
             lambda item: layer_dict[item] == layer,
             dropwhile(
                 lambda item: layer_dict[item] < layer,
-                drawable_list,
+                self,
             ),
         )
 

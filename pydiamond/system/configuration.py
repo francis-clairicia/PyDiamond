@@ -258,18 +258,19 @@ class ConfigurationTemplate(Object):
 
         self.__info = template.build(owner)
 
-        default_init_subclass = owner.__init_subclass__
+        # TODO: FIX THIS
+        # default_init_subclass = owner.__init_subclass__
 
-        @wraps(default_init_subclass)
-        def __init_subclass__(cls: type, **kwargs: Any) -> None:
-            config: ConfigurationTemplate = getattr(cls, name)
-            if config.__bound_class is not cls:
-                subclass_config = ConfigurationTemplate(parent=list(filter(None, map(retrieve_config_or_none, cls.__bases__))))
-                setattr(cls, name, subclass_config)
-                subclass_config.__set_name__(cls, name)
-            return default_init_subclass(**kwargs)
+        # @wraps(default_init_subclass)
+        # def __init_subclass__(cls: type, **kwargs: Any) -> None:
+        #     config: ConfigurationTemplate = getattr(cls, name)
+        #     if config.__bound_class is not cls:
+        #         subclass_config = ConfigurationTemplate(parent=list(filter(None, map(retrieve_config_or_none, cls.__bases__))))
+        #         setattr(cls, name, subclass_config)
+        #         subclass_config.__set_name__(cls, name)
+        #     return default_init_subclass(**kwargs)
 
-        owner.__init_subclass__ = classmethod(__init_subclass__)  # type: ignore[assignment]
+        # owner.__init_subclass__ = classmethod(__init_subclass__)  # type: ignore[assignment]
 
     @overload
     def __get__(self, obj: None, objtype: type, /) -> ConfigurationTemplate:
@@ -2749,8 +2750,12 @@ class Configuration(NonCopyable, Generic[_T]):
 
     def section(self, section: str) -> Configuration[Any]:
         info: ConfigurationInfo[_T] = self.__info
+        section, dot, subsection = section.partition(".")
         section = info.check_section_validity(section)
-        return info.get_section(section).config(self)
+        config = info.get_section(section).config(self)
+        if dot:
+            return config.section(subsection)
+        return config
 
     def update_option(self, option: str) -> None:
         option = self._parse_option_without_split(option)
