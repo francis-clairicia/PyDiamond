@@ -4,9 +4,9 @@
 from __future__ import annotations
 
 __all__ = [
-    "compute_vertices_from_rect",
     "compute_rect_from_vertices",
     "compute_size_from_vertices",
+    "compute_vertices_from_rect",
     "get_vertices_center",
     "normalize_points",
     "rotate_points",

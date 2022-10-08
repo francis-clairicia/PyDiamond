@@ -27,7 +27,7 @@ from typing import Any, ClassVar, Mapping, Sequence, TypeAlias, final
 
 from pygame.transform import rotozoom as _surface_rotozoom, smoothscale as _surface_scale
 
-from ..math import Rect, Vector2, compute_rect_from_vertices, compute_size_from_vertices, normalize_points
+from ..math import Rect, Vector2, compute_rect_from_vertices, compute_size_from_vertices, get_vertices_center, normalize_points
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, UnregisteredOptionError, initializer
 from ..system.utils.abc import concreteclass
 from ..system.validation import valid_float, valid_integer
@@ -109,9 +109,7 @@ class AbstractShape(Drawable, Transformable):
             return [Vector2(point) for point in all_points]
         vertices: list[Vector2] = []
 
-        left, top, w, h = compute_rect_from_vertices(all_points)
-
-        local_center: Vector2 = Vector2(left + w / 2, top + h / 2)
+        local_center: Vector2 = get_vertices_center(all_points)
 
         if center is None:
             try:
@@ -276,9 +274,13 @@ class AbstractRectangleShape(AbstractShape):
         super().__init__(**kwargs)
 
     @final
-    def get_local_vertices(self) -> tuple[_FPoint, _FPoint, _FPoint, _FPoint]:
+    def get_local_vertices(self) -> tuple[()] | tuple[_FPoint, _FPoint, _FPoint, _FPoint]:
         w, h = self.local_size
-        return ((0, 0), (w, 0), (w, h), (0, h))
+        if w < 1 or h < 1:
+            return ()
+        right = w - 1
+        bottom = h - 1
+        return ((0, 0), (right, 0), (right, bottom), (0, bottom))
 
     @final
     def get_local_size(self) -> tuple[float, float]:
@@ -308,9 +310,12 @@ class AbstractSquareShape(AbstractShape):
         super().__init__(**kwargs)
 
     @final
-    def get_local_vertices(self) -> tuple[_FPoint, _FPoint, _FPoint, _FPoint]:
-        w = h = self.local_size
-        return ((0, 0), (w, 0), (w, h), (0, h))
+    def get_local_vertices(self) -> tuple[()] | tuple[_FPoint, _FPoint, _FPoint, _FPoint]:
+        size = self.local_size
+        if size < 1:
+            return ()
+        right = bottom = size - 1
+        return ((0, 0), (right, 0), (right, bottom), (0, bottom))
 
     @final
     def get_local_size(self) -> tuple[float, float]:
@@ -433,8 +438,10 @@ class AbstractCircleShape(AbstractShape):
 
     def get_local_vertices(self) -> Sequence[_FPoint]:
         r: float = self.radius
-        center: Vector2 = Vector2(r, r)
-        radius: Vector2 = Vector2(r, 0)
+        if r < 1:
+            return ()
+        center: Vector2 = Vector2(r - 0.5, r - 0.5)
+        radius: Vector2 = Vector2(r - 0.5, 0)
         gen = (center + radius.rotate(-i) for i in range(360))
         return tuple((p.x, p.y) for p in gen)
 
@@ -537,12 +544,12 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape):
     @config.on_update("draw_bottom_right")
     def __compute_vertices(self) -> None:
         draw_params = self.__draw_params
-        center: Vector2 = Vector2(self.radius, self.radius)
+        center: Vector2 = Vector2(self.radius - 0.5, self.radius - 0.5)
         if all(not drawn for drawn in draw_params.values()):
             self.__points = ((center.x, center.y),)
             return
 
-        radius: Vector2 = Vector2(self.radius, 0)
+        radius: Vector2 = Vector2(self.radius - 0.5, 0)
 
         angle_ranges: dict[str, range] = {
             "draw_top_right": range(0, 90),
