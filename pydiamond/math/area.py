@@ -9,6 +9,7 @@ __all__ = [
     "compute_size_from_edges",
     "get_edges_center",
     "normalize_points",
+    "rotate_points",
 ]
 
 from typing import Sequence, TypeAlias
@@ -21,7 +22,7 @@ _FPoint: TypeAlias = tuple[float, float]
 
 def get_edges_center(edges: Sequence[_FPoint] | Sequence[Vector2]) -> Vector2:
     left, top, width, height = compute_rect_from_edges(edges)
-    if width <= 0 or height <= 0:
+    if width < 1 or height < 1:
         return Vector2(0, 0)
     return Vector2((left + width - 1) / 2, (top + height - 1) / 2)
 
@@ -58,7 +59,7 @@ def compute_edges_from_rect(
     *,
     normalize: bool = False,
 ) -> tuple[()] | tuple[Vector2, Vector2, Vector2, Vector2]:
-    if rect.width <= 0 or rect.height <= 0:
+    if rect.width < 1 or rect.height < 1:
         return ()
 
     left: float = rect.left

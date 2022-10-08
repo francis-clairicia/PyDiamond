@@ -21,6 +21,7 @@ __all__ = [
     "normalize_points",
     "on_segment",
     "orientation",
+    "rotate_points",
 ]
 
 

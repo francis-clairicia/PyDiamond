@@ -13,7 +13,7 @@ from typing import Any, Literal, Mapping, overload
 
 from typing_extensions import assert_never
 
-from ..math import Rect, Vector2, compute_edges_from_rect, compute_size_from_edges, get_edges_center
+from ..math import Rect, Vector2, compute_rect_from_edges, compute_size_from_edges, normalize_points, rotate_points
 from ..system.object import final
 from ..system.utils.abc import concreteclass
 from .movable import Movable, MovableProxy
@@ -336,7 +336,7 @@ class Transformable(Movable):
         if apply_scale:
             w *= scale_x
             h *= scale_y
-        if w <= 0 or h <= 0:
+        if w < 1 or h < 1:
             return (0, 0)
         if not apply_rotation or angle == 0 or angle == 180:
             return (w, h)
@@ -392,16 +392,34 @@ class Transformable(Movable):
         apply_rotation: bool = True,
         **kwargs: float | tuple[float, float],
     ) -> tuple[()] | tuple[Vector2, Vector2, Vector2, Vector2]:
-        edges = compute_edges_from_rect(
-            self.get_area(apply_scale=apply_scale, apply_rotation=False, **kwargs),
-            angle=self.angle if apply_rotation else 0,
-            normalize=True,
+        w, h = self.get_local_size()
+        scale_x: float = self.__scale_x
+        scale_y: float = self.__scale_y
+        if apply_scale:
+            w *= scale_x
+            h *= scale_y
+        if w < 1 or h < 1:
+            return ()
+
+        edges: tuple[Vector2, Vector2, Vector2, Vector2] = (
+            Vector2(0, 0),
+            Vector2(w - 1, 0),
+            Vector2(w - 1, h - 1),
+            Vector2(0, h - 1),
         )
-        if kwargs and edges:
-            rect = self.get_area(apply_scale=apply_scale, apply_rotation=apply_rotation, **kwargs)
-            center = get_edges_center(edges)
-            dx = rect.centerx - center.x
-            dy = rect.centery - center.y
+
+        if apply_rotation:
+            angle: float = self.__angle
+            edges = rotate_points(edges, angle)  # type: ignore[assignment]
+            normalize_points(edges)
+
+        if kwargs:
+            rect = Rect(*compute_rect_from_edges(edges))
+            r_setattr = rect.__setattr__
+            for name, value in kwargs.items():
+                r_setattr(name, value)
+            dx = rect.x
+            dy = rect.y
 
             for point in edges:
                 point.x += dx
