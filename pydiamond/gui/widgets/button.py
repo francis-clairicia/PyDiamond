@@ -503,7 +503,7 @@ class Button(Widget, Transformable, metaclass=ThemedObjectMeta):
         self.__update_shape_size()
 
     def _point_in_hitbox(self, point: tuple[float, float]) -> bool:
-        return is_inside_polygon(self.get_area_edges(apply_rotation=True, apply_scale=True), point)
+        return is_inside_polygon(self.get_area_vertices(apply_rotation=True, apply_scale=True), point)
 
     def _on_hover(self) -> None:
         self.__set_state("hover")

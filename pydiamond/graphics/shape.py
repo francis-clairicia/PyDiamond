@@ -27,7 +27,7 @@ from typing import Any, ClassVar, Mapping, Sequence, TypeAlias, final
 
 from pygame.transform import rotozoom as _surface_rotozoom, smoothscale as _surface_scale
 
-from ..math import Rect, Vector2, compute_rect_from_edges, compute_size_from_edges, normalize_points
+from ..math import Rect, Vector2, compute_rect_from_vertices, compute_size_from_vertices, normalize_points
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, UnregisteredOptionError, initializer
 from ..system.utils.abc import concreteclass
 from ..system.validation import valid_float, valid_integer
@@ -85,17 +85,17 @@ class AbstractShape(Drawable, Transformable):
         return True
 
     def __compute_shape_size(self) -> None:
-        self.__local_size = compute_size_from_edges(self.get_local_edges())
+        self.__local_size = compute_size_from_vertices(self.get_local_vertices())
 
     @abstractmethod
     def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
         raise NotImplementedError
 
     @abstractmethod
-    def get_local_edges(self) -> Sequence[_FPoint]:
+    def get_local_vertices(self) -> Sequence[_FPoint]:
         raise NotImplementedError
 
-    def get_edges(
+    def get_vertices(
         self,
         *,
         center: Vector2 | _FPoint | None = None,
@@ -104,12 +104,12 @@ class AbstractShape(Drawable, Transformable):
     ) -> Sequence[Vector2]:
         angle: float = self.angle
         scale_x, scale_y = self.scale
-        all_points: Sequence[_FPoint] = self.get_local_edges()
+        all_points: Sequence[_FPoint] = self.get_local_vertices()
         if len(all_points) < 2 or (not apply_rotation and not apply_scale):
             return [Vector2(point) for point in all_points]
-        edges: list[Vector2] = []
+        vertices: list[Vector2] = []
 
-        left, top, w, h = compute_rect_from_edges(all_points)
+        left, top, w, h = compute_rect_from_vertices(all_points)
 
         local_center: Vector2 = Vector2(left + w / 2, top + h / 2)
 
@@ -131,9 +131,9 @@ class AbstractShape(Drawable, Transformable):
                     offset = Vector2(0, 0)
             if apply_rotation:
                 offset.rotate_ip(-angle)
-            edges.append(center + offset)
+            vertices.append(center + offset)
 
-        return edges
+        return vertices
 
     @config.add_main_update
     def __update_shape(self) -> None:
@@ -183,11 +183,11 @@ class PolygonShape(OutlinedShape, SingleColorShape):
     PointList: TypeAlias = Sequence[Vector2] | Sequence[tuple[int | float, int | float]]
 
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
-        "local_edges",
+        "local_vertices",
         parent=[OutlinedShape.config, SingleColorShape.config],
     )
 
-    local_edges: OptionAttribute[tuple[_FPoint, ...]] = OptionAttribute()
+    local_vertices: OptionAttribute[tuple[_FPoint, ...]] = OptionAttribute()
 
     @initializer
     def __init__(
@@ -196,17 +196,17 @@ class PolygonShape(OutlinedShape, SingleColorShape):
         *,
         outline: int = 0,
         outline_color: Color = BLACK,
-        edges: PointList = (),
+        vertices: PointList = (),
         **kwargs: Any,
     ) -> None:
         super().__init__(color=color, outline=outline, outline_color=outline_color, **kwargs)
-        self.set_edges(edges)
+        self.set_vertices(vertices)
 
     def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
         outline: int = self.outline
         if apply_scale:
             outline = int(outline * max(self.scale))
-        all_points: Sequence[Vector2] = self.get_edges(apply_rotation=apply_rotation, apply_scale=apply_scale)
+        all_points: Sequence[Vector2] = self.get_vertices(apply_rotation=apply_rotation, apply_scale=apply_scale)
         nb_points = len(all_points)
 
         if nb_points < 2:
@@ -234,26 +234,26 @@ class PolygonShape(OutlinedShape, SingleColorShape):
         return _surface_scale(image.surface.subsurface(rect), (w, h))
 
     @final
-    def get_local_edges(self) -> Sequence[_FPoint]:
-        edges: Sequence[_FPoint] = self.config.get("local_edges")
-        return edges
+    def get_local_vertices(self) -> Sequence[_FPoint]:
+        vertices: Sequence[_FPoint] = self.config.get("local_vertices")
+        return vertices
 
     @final
-    def set_local_edges(self, edges: PointList) -> None:
-        self.config.set("local_edges", edges)
+    def set_local_vertices(self, vertices: PointList) -> None:
+        self.config.set("local_vertices", vertices)
 
     @final
-    def set_edges(self, edges: PointList) -> None:
-        left, top, _, _ = compute_rect_from_edges(edges)
-        self.config.set("local_edges", edges)
+    def set_vertices(self, vertices: PointList) -> None:
+        left, top, _, _ = compute_rect_from_vertices(vertices)
+        self.config.set("local_vertices", vertices)
         self.topleft = (left, top)
 
-    @config.add_value_converter_on_set_static("local_edges")
+    @config.add_value_converter_on_set_static("local_vertices")
     @staticmethod
-    def __valid_points(edges: PointList) -> tuple[_FPoint, ...]:
-        edges = tuple(Vector2(p) for p in edges)
-        normalize_points(edges)
-        return tuple((p.x, p.y) for p in edges)
+    def __valid_points(vertices: PointList) -> tuple[_FPoint, ...]:
+        vertices = tuple(Vector2(p) for p in vertices)
+        normalize_points(vertices)
+        return tuple((p.x, p.y) for p in vertices)
 
     del __valid_points
 
@@ -276,7 +276,7 @@ class AbstractRectangleShape(AbstractShape):
         super().__init__(**kwargs)
 
     @final
-    def get_local_edges(self) -> tuple[_FPoint, _FPoint, _FPoint, _FPoint]:
+    def get_local_vertices(self) -> tuple[_FPoint, _FPoint, _FPoint, _FPoint]:
         w, h = self.local_size
         return ((0, 0), (w, 0), (w, h), (0, h))
 
@@ -308,7 +308,7 @@ class AbstractSquareShape(AbstractShape):
         super().__init__(**kwargs)
 
     @final
-    def get_local_edges(self) -> tuple[_FPoint, _FPoint, _FPoint, _FPoint]:
+    def get_local_vertices(self) -> tuple[_FPoint, _FPoint, _FPoint, _FPoint]:
         w = h = self.local_size
         return ((0, 0), (w, 0), (w, h), (0, h))
 
@@ -431,7 +431,7 @@ class AbstractCircleShape(AbstractShape):
         self.radius = radius
         super().__init__(**kwargs)
 
-    def get_local_edges(self) -> Sequence[_FPoint]:
+    def get_local_vertices(self) -> Sequence[_FPoint]:
         r: float = self.radius
         center: Vector2 = Vector2(r, r)
         radius: Vector2 = Vector2(r, 0)
@@ -506,7 +506,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape):
             surface = _surface_rotozoom(surface, angle, 1)
         return surface
 
-    def get_local_edges(self) -> Sequence[_FPoint]:
+    def get_local_vertices(self) -> Sequence[_FPoint]:
         return self.__points
 
     config.add_value_converter_on_set_static("draw_top_left", bool)
@@ -535,7 +535,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape):
     @config.on_update("draw_top_right")
     @config.on_update("draw_bottom_left")
     @config.on_update("draw_bottom_right")
-    def __compute_edges(self) -> None:
+    def __compute_vertices(self) -> None:
         draw_params = self.__draw_params
         center: Vector2 = Vector2(self.radius, self.radius)
         if all(not drawn for drawn in draw_params.values()):
@@ -602,7 +602,7 @@ class AbstractCrossShape(OutlinedShape, SingleColorShape):
         outline: int = self.outline
         if apply_scale:
             outline = int(outline * max(self.scale))
-        all_points: Sequence[Vector2] = self.get_edges(apply_rotation=apply_rotation, apply_scale=apply_scale)
+        all_points: Sequence[Vector2] = self.get_vertices(apply_rotation=apply_rotation, apply_scale=apply_scale)
         if not all_points:
             return create_surface((0, 0))
 
@@ -623,7 +623,7 @@ class AbstractCrossShape(OutlinedShape, SingleColorShape):
     def get_local_size(self) -> tuple[float, float]:
         return self.local_size
 
-    def get_local_edges(self) -> Sequence[_FPoint]:
+    def get_local_vertices(self) -> Sequence[_FPoint]:
         return self.__points
 
     @staticmethod
@@ -644,7 +644,7 @@ class AbstractCrossShape(OutlinedShape, SingleColorShape):
     @config.on_update("local_width")
     @config.on_update("local_height")
     @config.on_update("line_width_percent")
-    def __compute_edges(self) -> None:
+    def __compute_vertices(self) -> None:
         local_width, local_height = local_size = self.local_size
         line_width_percent = self.line_width_percent
         line_width = min(local_width * line_width_percent, local_height * line_width_percent)

@@ -4,10 +4,10 @@
 from __future__ import annotations
 
 __all__ = [
-    "compute_edges_from_rect",
-    "compute_rect_from_edges",
-    "compute_size_from_edges",
-    "get_edges_center",
+    "compute_vertices_from_rect",
+    "compute_rect_from_vertices",
+    "compute_size_from_vertices",
+    "get_vertices_center",
     "normalize_points",
     "rotate_points",
 ]
@@ -20,25 +20,25 @@ from .vector2 import Vector2
 _FPoint: TypeAlias = tuple[float, float]
 
 
-def get_edges_center(edges: Sequence[_FPoint] | Sequence[Vector2]) -> Vector2:
-    left, top, width, height = compute_rect_from_edges(edges)
+def get_vertices_center(vertices: Sequence[_FPoint] | Sequence[Vector2]) -> Vector2:
+    left, top, width, height = compute_rect_from_vertices(vertices)
     if width < 1 or height < 1:
         return Vector2(0, 0)
     return Vector2((left + width - 1) / 2, (top + height - 1) / 2)
 
 
-def compute_rect_from_edges(edges: Sequence[_FPoint] | Sequence[Vector2]) -> tuple[float, float, float, float]:
+def compute_rect_from_vertices(vertices: Sequence[_FPoint] | Sequence[Vector2]) -> tuple[float, float, float, float]:
     # TODO: FRect
-    if not edges:
+    if not vertices:
         return 0, 0, 0, 0
-    if len(edges) < 2:
-        point = edges[0]
+    if len(vertices) < 2:
+        point = vertices[0]
         return point[0], point[1], 1, 1
 
-    left = right = edges[0][0]
-    top = bottom = edges[0][1]
+    left = right = vertices[0][0]
+    top = bottom = vertices[0][1]
 
-    for point in edges:
+    for point in vertices:
         left = point[0] if point[0] < left else left
         right = point[0] if point[0] > right else right
         top = point[1] if point[1] < top else top
@@ -47,13 +47,13 @@ def compute_rect_from_edges(edges: Sequence[_FPoint] | Sequence[Vector2]) -> tup
     return left, top, right - left + 1, bottom - top + 1
 
 
-def compute_size_from_edges(edges: Sequence[_FPoint] | Sequence[Vector2]) -> tuple[float, float]:
-    _, _, w, h = compute_rect_from_edges(edges)
+def compute_size_from_vertices(vertices: Sequence[_FPoint] | Sequence[Vector2]) -> tuple[float, float]:
+    _, _, w, h = compute_rect_from_vertices(vertices)
 
     return w, h
 
 
-def compute_edges_from_rect(
+def compute_vertices_from_rect(
     rect: Rect,
     angle: float = 0,
     *,
@@ -84,7 +84,7 @@ def compute_edges_from_rect(
 def normalize_points(points: Sequence[Vector2]) -> tuple[float, float]:
     if not points:
         return 0, 0
-    left, top, width, height = compute_rect_from_edges(points)
+    left, top, width, height = compute_rect_from_vertices(points)
     for p in points:
         p.x -= left
         p.y -= top
@@ -99,7 +99,7 @@ def rotate_points(
     if not points:
         return ()
     if pivot is None:
-        pivot = get_edges_center(points)
+        pivot = get_vertices_center(points)
     else:
         pivot = Vector2(pivot)
     return tuple(pivot + (Vector2(point) - pivot).rotate(-angle) for point in points)

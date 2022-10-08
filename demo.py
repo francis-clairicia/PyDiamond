@@ -99,7 +99,7 @@ class ShapeScene(MainScene, busy_loop=True):
             outline=3,
             outline_color=WHITE,
         )
-        self.__p.set_edges(
+        self.__p.set_vertices(
             [
                 (20, 0),
                 (40, 0),
@@ -175,7 +175,7 @@ class ShapeScene(MainScene, busy_loop=True):
     def update(self) -> None:
         self.__x_center.center = self.__x.center
         self.__c_center.center = self.__c.center
-        self.__shape_copy.set_local_edges(self.__c.get_edges())
+        self.__shape_copy.set_local_vertices(self.__c.get_vertices())
 
     def render(self) -> None:
         self.window.draw(
@@ -750,9 +750,9 @@ class ButtonScene(MainScene):
 
     def render(self) -> None:
         self.window.draw(self.widgets)
-        self.window.renderer.draw_polygon(YELLOW, self.button.get_area_edges(topleft=(0, 0)), width=1)
-        self.window.renderer.draw_polygon(YELLOW, self.button.get_area_edges(center=self.button.center), width=1)
-        self.window.renderer.draw_polygon(YELLOW, self.button.get_area_edges(bottomright=self.window.bottomright), width=1)
+        self.window.renderer.draw_polygon(YELLOW, self.button.get_area_vertices(topleft=(0, 0)), width=1)
+        self.window.renderer.draw_polygon(YELLOW, self.button.get_area_vertices(center=self.button.center), width=1)
+        self.window.renderer.draw_polygon(YELLOW, self.button.get_area_vertices(bottomright=self.window.bottomright), width=1)
 
 
 class CheckBoxScene(MainScene):

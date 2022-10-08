@@ -13,7 +13,7 @@ from typing import Any, Literal, Mapping, overload
 
 from typing_extensions import assert_never
 
-from ..math import Rect, Vector2, compute_rect_from_edges, compute_size_from_edges, normalize_points, rotate_points
+from ..math import Rect, Vector2, compute_rect_from_vertices, compute_size_from_vertices, normalize_points, rotate_points
 from ..system.object import final
 from ..system.utils.abc import concreteclass
 from .movable import Movable, MovableProxy
@@ -347,10 +347,10 @@ class Transformable(Movable):
         all_points: list[Vector2] = [
             center + (Vector2(point) - center).rotate(-angle) for point in ((0, 0), (w - 1, 0), (w - 1, h - 1), (0, h - 1))
         ]
-        return compute_size_from_edges(all_points)
+        return compute_size_from_vertices(all_points)
 
     @overload
-    def get_area_edges(
+    def get_area_vertices(
         self,
         *,
         apply_scale: bool = True,
@@ -359,7 +359,7 @@ class Transformable(Movable):
         ...
 
     @overload
-    def get_area_edges(
+    def get_area_vertices(
         self,
         *,
         apply_scale: bool = True,
@@ -385,7 +385,7 @@ class Transformable(Movable):
         ...
 
     @final
-    def get_area_edges(
+    def get_area_vertices(
         self,
         *,
         apply_scale: bool = True,
@@ -401,7 +401,7 @@ class Transformable(Movable):
         if w < 1 or h < 1:
             return ()
 
-        edges: tuple[Vector2, Vector2, Vector2, Vector2] = (
+        vertices: tuple[Vector2, Vector2, Vector2, Vector2] = (
             Vector2(0, 0),
             Vector2(w - 1, 0),
             Vector2(w - 1, h - 1),
@@ -410,22 +410,22 @@ class Transformable(Movable):
 
         if apply_rotation:
             angle: float = self.__angle
-            edges = rotate_points(edges, angle)  # type: ignore[assignment]
-            normalize_points(edges)
+            vertices = rotate_points(vertices, angle)  # type: ignore[assignment]
+            normalize_points(vertices)
 
         if kwargs:
-            rect = Rect(*compute_rect_from_edges(edges))
+            rect = Rect(*compute_rect_from_vertices(vertices))
             r_setattr = rect.__setattr__
             for name, value in kwargs.items():
                 r_setattr(name, value)
             dx = rect.x
             dy = rect.y
 
-            for point in edges:
+            for point in vertices:
                 point.x += dx
                 point.y += dy
 
-        return edges
+        return vertices
 
     @overload
     def get_area(self, *, apply_scale: bool = True, apply_rotation: bool = True) -> Rect:
