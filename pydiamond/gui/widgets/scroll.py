@@ -443,21 +443,6 @@ class ScrollView(Object, Generic[_W]):
         widget.event.static.bind(MouseWheelEvent, WeakMethod(self.__handle_wheel_event))
         widget.event.static.weak_bind_mouse_position(get_mouse_position, self)
 
-    def is_mouse_hovering_child(self, widget: AbstractWidget, mouse_pos: tuple[float, float]) -> bool:
-        return not any(
-            child.get_visible_rect().collidepoint(mouse_pos)
-            for child in takewhile(lambda child: child is not widget, reversed(weakref_unwrap(self.__ref).children))
-        )
-
-    def render(self, target: AbstractRenderer) -> None:
-        self.__update(force=False)
-        for child in weakref_unwrap(self.__ref).iter_children():
-            child.draw_onto(target)
-
-    def update(self) -> None:
-        self.__update(force=True)
-
-    @final
     def get_size(self) -> tuple[float, float]:
         return weakref_unwrap(self.__ref).get_size()
 
@@ -559,8 +544,12 @@ class ScrollView(Object, Generic[_W]):
             return None
         return reduce(Rect.union, (child.get_rect() for child in children))
 
-    def __move_view_rect(self, dx: int, dy: int) -> bool:
+    def _move_children(self, dx: int, dy: int) -> None:
         widget: AbstractWidget = weakref_unwrap(self.__ref)
+        for child in widget.iter_children():
+            child.move(dx, dy)
+
+    def __move_view_rect(self, dx: int, dy: int) -> bool:
         dx = int(dx)
         dy = int(dy)
         if (dx, dy) == (0, 0):
@@ -577,14 +566,11 @@ class ScrollView(Object, Generic[_W]):
         dx = view_rect.x - projection_view_rect.x
         dy = view_rect.y - projection_view_rect.y
 
-        for child in widget.iter_children():
-            child.move(dx, dy)
-        self.update()
+        self._move_children(dx, dy)
+        self.update(force=True)
         return True
 
     def __set_view_rect_from_fraction(self, fraction: float, side: Literal["x", "y"]) -> None:
-        widget: AbstractWidget = weakref_unwrap(self.__ref)
-
         match side:
             case "x":
                 rect_size = "width"
@@ -595,7 +581,7 @@ class ScrollView(Object, Generic[_W]):
 
         view_rect, children_area = self.__get_view_rects()
         if children_area is None or view_rect.width <= 0 or view_rect.height <= 0 or view_rect.contains(children_area):
-            self.update()
+            self.update(force=True)
             return
 
         whole_area = view_rect.union(children_area)
@@ -607,10 +593,8 @@ class ScrollView(Object, Generic[_W]):
         dx = view_rect.x - projection_view_rect.x
         dy = view_rect.y - projection_view_rect.y
 
-        for child in widget.iter_children():
-            child.move(dx, dy)
-
-        self.update()
+        self._move_children(dx, dy)
+        self.update(force=True)
 
     def __handle_wheel_event(self, event: MouseWheelEvent) -> bool:
         widget: AbstractWidget = weakref_unwrap(self.__ref)
@@ -635,7 +619,7 @@ class ScrollView(Object, Generic[_W]):
 
         return view_rect, children_area
 
-    def __update(self, *, force: bool) -> None:
+    def update(self, *, force: bool = False) -> None:
         view_rect, children_area = self.__get_view_rects()
         known_area_rect = children_area.copy() if children_area is not None else Rect(0, 0, 0, 0)
         if not force and known_area_rect == self.__known_area_rect and view_rect.size == self.__known_widget_size:
@@ -704,7 +688,10 @@ class ScrollingContainer(AbstractWidget):
         )
 
     def _is_mouse_hovering_child(self, widget: AbstractWidget, mouse_pos: tuple[float, float]) -> bool:
-        return self.__view.is_mouse_hovering_child(widget, mouse_pos)
+        return not any(
+            child.get_visible_rect().collidepoint(mouse_pos)
+            for child in takewhile(lambda child: child is not widget, reversed(self.children))
+        )
 
     def get_size(self) -> tuple[int, int]:
         return self.__size
@@ -712,10 +699,12 @@ class ScrollingContainer(AbstractWidget):
     def set_size(self, size: tuple[int, int]) -> None:
         width, height = size
         self.__size = int(width), int(height)
-        self.__view.update()
+        self.__view.update(force=True)
 
     def draw_onto(self, target: AbstractRenderer) -> None:
-        return self.__view.render(target)
+        self.__view.update(force=False)
+        for child in self.iter_children():
+            child.draw_onto(target)
 
     def xview(self, action: Literal["moveto"], *args: Any) -> None:
         match action:

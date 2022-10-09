@@ -887,7 +887,7 @@ class ScrollBarScene(MainScene):
             self.widgets,
             self.window.width,
             25,
-            command=weakref.WeakMethod(self.area.yview),
+            command=weakref.WeakMethod(self.area.xview),
             outline=3,
             orient="horizontal",
         )
