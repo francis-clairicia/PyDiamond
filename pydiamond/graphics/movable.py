@@ -297,6 +297,7 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
     def _set_point_position(self, anchor: str, value: tuple[float, float]) -> None:
         raise AssertionError("Should not be called")
 
+    @final
     def move(self, dx: float, dy: float) -> None:
         if (dx, dy) == (0, 0):
             return
@@ -304,6 +305,7 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
         self.__y += dy
         self._on_move()
 
+    @final
     def translate(self, vector: Vector2 | tuple[float, float]) -> None:
         if (vector[0], vector[1]) == (0, 0):
             return
@@ -377,6 +379,12 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
         r: Rect = Rect((self.__x, self.__y), self.get_size())
         if kwargs:
             modify_rect_in_place(r, **kwargs)
+        r.normalize()
+        return r
+
+    @final
+    def get_rect_relative_to(self, point: tuple[float, float] | Vector2) -> Rect:
+        r: Rect = Rect((self.__x - point[0], self.__y - point[1]), self.get_size())
         r.normalize()
         return r
 
