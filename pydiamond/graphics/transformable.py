@@ -14,6 +14,7 @@ from typing import Any, Literal, Mapping, overload
 from typing_extensions import assert_never
 
 from ..math import Rect, Vector2, compute_rect_from_vertices, compute_size_from_vertices, normalize_points, rotate_points
+from ..math.rect import modify_rect_in_place
 from ..system.object import final
 from ..system.utils.abc import concreteclass
 from .movable import Movable, MovableProxy
@@ -390,7 +391,7 @@ class Transformable(Movable):
         *,
         apply_scale: bool = True,
         apply_rotation: bool = True,
-        **kwargs: float | tuple[float, float],
+        **kwargs: Any,
     ) -> tuple[()] | tuple[Vector2, Vector2, Vector2, Vector2]:
         w, h = self.get_local_size()
         scale_x: float = self.__scale_x
@@ -414,10 +415,8 @@ class Transformable(Movable):
             normalize_points(vertices)
 
         if kwargs:
-            rect = Rect(*compute_rect_from_vertices(vertices))
-            r_setattr = rect.__setattr__
-            for name, value in kwargs.items():
-                r_setattr(name, value)
+            rect = Rect(compute_rect_from_vertices(vertices))
+            modify_rect_in_place(rect, size=None, width=None, height=None, w=None, h=None, **kwargs)
             dx = rect.x
             dy = rect.y
 
@@ -454,6 +453,11 @@ class Transformable(Movable):
         midright: tuple[float, float] = ...,
         midtop: tuple[float, float] = ...,
         midbottom: tuple[float, float] = ...,
+        size: tuple[float, float] = ...,
+        width: float = ...,
+        height: float = ...,
+        w: float = ...,
+        h: float = ...,
     ) -> Rect:
         ...
 
@@ -461,9 +465,7 @@ class Transformable(Movable):
     def get_area(self, *, apply_scale: bool = True, apply_rotation: bool = True, **kwargs: float | tuple[float, float]) -> Rect:
         r: Rect = Rect((0, 0), self.get_area_size(apply_scale=apply_scale, apply_rotation=apply_rotation))
         if kwargs:
-            r_setattr = r.__setattr__
-            for name, value in kwargs.items():
-                r_setattr(name, value)
+            modify_rect_in_place(r, **kwargs)
         r.normalize()
         return r
 
@@ -492,6 +494,11 @@ class Transformable(Movable):
         midright: tuple[float, float] = ...,
         midtop: tuple[float, float] = ...,
         midbottom: tuple[float, float] = ...,
+        size: tuple[float, float] = ...,
+        width: float = ...,
+        height: float = ...,
+        w: float = ...,
+        h: float = ...,
     ) -> Rect:
         ...
 
@@ -499,9 +506,7 @@ class Transformable(Movable):
     def get_local_rect(self, **kwargs: float | tuple[float, float]) -> Rect:
         r: Rect = Rect((0, 0), self.get_local_size())
         if kwargs:
-            r_setattr = r.__setattr__
-            for name, value in kwargs.items():
-                r_setattr(name, value)
+            modify_rect_in_place(r, **kwargs)
         r.normalize()
         return r
 

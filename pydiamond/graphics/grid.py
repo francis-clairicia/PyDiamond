@@ -6,16 +6,19 @@
 
 from __future__ import annotations
 
+from itertools import takewhile
+
 __all__ = ["Grid", "GridElement", "GridJustify"]
 
 from abc import abstractmethod
 from dataclasses import dataclass
 from enum import auto, unique
-from typing import Any, ClassVar, Container, Iterator, Protocol, Sequence, TypeVar, overload, runtime_checkable
+from typing import Any, ClassVar, Container, Iterator, Protocol, Sequence, TypeVar, final, overload, runtime_checkable
 from weakref import ref as weakref
 
 from typing_extensions import assert_never
 
+from ..math.rect import Rect, modify_rect_in_place
 from ..system.collections import SortedDict
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ..system.enum import AutoLowerNameEnum
@@ -105,8 +108,102 @@ class Grid(Drawable, Movable, Container[GridElement]):
     def get_size(self) -> tuple[float, float]:
         return (sum(self.__max_width_columns.values()), sum(self.__max_height_rows.values()))
 
+    @final
     def get_cell_size(self, row: int, column: int) -> tuple[float, float]:
         return (self.__max_width_columns.get(column, 0), self.__max_height_rows.get(row, 0))
+
+    @overload
+    def get_cell_rect(self, row: int, column: int) -> Rect:
+        ...
+
+    @overload
+    def get_cell_rect(
+        self,
+        row: int,
+        column: int,
+        *,
+        x: float = ...,
+        y: float = ...,
+        left: float = ...,
+        right: float = ...,
+        top: float = ...,
+        bottom: float = ...,
+        centerx: float = ...,
+        centery: float = ...,
+        center: tuple[float, float] = ...,
+        topleft: tuple[float, float] = ...,
+        topright: tuple[float, float] = ...,
+        bottomleft: tuple[float, float] = ...,
+        bottomright: tuple[float, float] = ...,
+        midleft: tuple[float, float] = ...,
+        midright: tuple[float, float] = ...,
+        midtop: tuple[float, float] = ...,
+        midbottom: tuple[float, float] = ...,
+        size: tuple[float, float] = ...,
+        width: float = ...,
+        height: float = ...,
+        w: float = ...,
+        h: float = ...,
+    ) -> Rect:
+        ...
+
+    @final
+    def get_cell_rect(self, row: int, column: int, **kwargs: float | tuple[float, float]) -> Rect:
+        r: Rect = Rect(*self.__compute_cell_rect(row, column, relative=False))
+        if kwargs:
+            modify_rect_in_place(r, **kwargs)
+        return r
+
+    @final
+    def get_cell_relative_rect(self, row: int, column: int) -> Rect:
+        return Rect(self.__compute_cell_rect(row, column, relative=True))
+
+    @overload
+    def get_cell_rect_from_object(self, obj: GridElement) -> Rect:
+        ...
+
+    @overload
+    def get_cell_rect_from_object(
+        self,
+        obj: GridElement,
+        *,
+        x: float = ...,
+        y: float = ...,
+        left: float = ...,
+        right: float = ...,
+        top: float = ...,
+        bottom: float = ...,
+        centerx: float = ...,
+        centery: float = ...,
+        center: tuple[float, float] = ...,
+        topleft: tuple[float, float] = ...,
+        topright: tuple[float, float] = ...,
+        bottomleft: tuple[float, float] = ...,
+        bottomright: tuple[float, float] = ...,
+        midleft: tuple[float, float] = ...,
+        midright: tuple[float, float] = ...,
+        midtop: tuple[float, float] = ...,
+        midbottom: tuple[float, float] = ...,
+        size: tuple[float, float] = ...,
+        width: float = ...,
+        height: float = ...,
+        w: float = ...,
+        h: float = ...,
+    ) -> Rect:
+        ...
+
+    @final
+    def get_cell_rect_from_object(self, obj: GridElement, **kwargs: float | tuple[float, float]) -> Rect:
+        cell = self.__find_cell(obj)
+        r: Rect = Rect(*self.__compute_cell_rect(cell.row, cell.column, relative=False))
+        if kwargs:
+            modify_rect_in_place(r, **kwargs)
+        return r
+
+    @final
+    def get_cell_relative_rect_from_object(self, obj: _GridCell) -> Rect:
+        cell = self.__find_cell(obj)
+        return Rect(self.__compute_cell_rect(cell.row, cell.column, relative=True))
 
     def draw_onto(self, target: AbstractRenderer) -> None:
         if any(row.grid_must_be_updated() for row in self.__rows.values()):
@@ -120,27 +217,30 @@ class Grid(Drawable, Movable, Container[GridElement]):
             cell.draw_onto(target)
         outline.draw_onto(target)
 
-    def rows(self, column: int | None = None) -> Iterator[int]:
+    def rows(self, column: int | None = None) -> list[int]:
+        self.__remove_useless_cells()
         all_rows: SortedDict[int, _GridRow] = self.__rows
         if column is None:
-            return iter(all_rows.keys())
+            return list(all_rows.keys())
         if column not in self.__columns:
-            return iter(())
-        return (cell.row for row in self.__rows.values() for cell in row.iter_cells() if cell.column == column)
+            return []
+        return [cell.row for row in all_rows.values() for cell in row.iter_cells() if cell.column == column]
 
-    def columns(self, row: int | None = None) -> Iterator[int]:
+    def columns(self, row: int | None = None) -> list[int]:
+        self.__remove_useless_cells()
         if row is None:
             all_columns: SortedDict[int, _GridColumnPlaceholder] = self.__columns
-            return iter(all_columns.keys())
+            return list(all_columns.keys())
         all_rows: SortedDict[int, _GridRow] = self.__rows
         try:
             grid_row: _GridRow = all_rows[row]
         except KeyError:
-            return iter(())
-        return (cell.column for cell in grid_row.iter_cells())
+            return []
+        return [cell.column for cell in grid_row.iter_cells()]
 
-    def cells(self) -> Iterator[tuple[int, int]]:
-        return ((row, column) for row in self.rows() for column in self.columns(row))
+    def cells(self) -> list[tuple[int, int]]:
+        self.__remove_useless_cells()
+        return [(cell.row, cell.column) for grid_row in self.__rows.values() for cell in grid_row.iter_cells()]
 
     def place(
         self,
@@ -180,10 +280,9 @@ class Grid(Drawable, Movable, Container[GridElement]):
 
     def get(self, row: int, column: int, default: Any = None) -> Any:
         try:
-            grid_row: _GridRow = self.__rows[row]
-        except KeyError:
+            return self.__get_cell(row, column).check_non_empty()
+        except IndexError:
             return default
-        return obj if (obj := grid_row.get_cell_object(column)) is not None else default
 
     @overload
     def pop(self, row: int, column: int) -> GridElement:
@@ -195,17 +294,13 @@ class Grid(Drawable, Movable, Container[GridElement]):
 
     def pop(self, row: int, column: int, default: Any = _MISSING) -> Any:
         try:
-            grid_row: _GridRow = self.__rows[row]
-        except KeyError:
-            pass
-        else:
-            if (cell := grid_row.get_cell(column)) and (obj := cell.get_object()) is not None:
-                cell.set_object(None)
-                self._update()
-                return obj
-        if default is not _MISSING:
-            return default
-        raise IndexError(f"{(row, column)} does not exists")
+            cell = self.__get_cell(row, column)
+            obj = cell.check_non_empty()
+        except IndexError:
+            if default is not _MISSING:
+                return default
+            raise
+        return obj
 
     def remove(self, obj: GridElement) -> None:
         cell: _GridCell = self.__find_cell(obj)
@@ -274,16 +369,10 @@ class Grid(Drawable, Movable, Container[GridElement]):
         pady: int | None = None,
         justify: str | None = None,
     ) -> None:
-        try:
-            grid_row: _GridRow = self.__rows[row]
-        except KeyError:
-            pass
-        else:
-            if cell := grid_row.get_cell(column):
-                cell.update_params(padx=padx, pady=pady, justify=justify)
-                self.__update_size()
-                return
-        raise IndexError(f"{(row, column)} does not exists")
+        cell = self.__get_cell(row, column)
+        cell.check_non_empty()
+        cell.update_params(padx=padx, pady=pady, justify=justify)
+        self.__update_size()
 
     def unify(self) -> None:
         all_grid_rows: SortedDict[int, _GridRow] = self.__rows
@@ -347,6 +436,16 @@ class Grid(Drawable, Movable, Container[GridElement]):
             raise ValueError(f"{obj!r} not in grid")
         return cell
 
+    def __get_cell(self, row: int, column: int) -> _GridCell:
+        try:
+            grid_row: _GridRow = self.__rows[row]
+        except KeyError:
+            pass
+        else:
+            if cell := grid_row.get_cell(column):
+                return cell
+        raise IndexError(f"{(row, column)} does not exists")
+
     def __remove_useless_cells(
         self,
         *,
@@ -371,6 +470,26 @@ class Grid(Drawable, Movable, Container[GridElement]):
         for column in tuple(all_grid_columns):
             if column not in all_columns:
                 all_grid_columns.pop(column, None)
+
+    def __compute_cell_rect(self, row: int, column: int, relative: bool) -> tuple[float, float, float, float]:
+        nb_rows: int = self.nb_rows
+        nb_columns: int = self.nb_columns
+        max_width_columns: dict[int, float] = self.__max_width_columns
+        max_height_rows: dict[int, float] = self.__max_height_rows
+
+        width: float = max_width_columns.get(column, 0)
+        height: float = max_height_rows.get(row, 0)
+
+        left: float
+        top: float
+        if relative:
+            left = top = 0
+        else:
+            left, top = self.topleft
+        left = sum((max_width_columns.get(c, 0) for c in takewhile(lambda c: c < column, range(nb_columns))), left)
+        top = sum((max_height_rows.get(r, 0) for r in takewhile(lambda r: r < row, range(nb_rows))), top)
+
+        return left, top, width, height
 
     @config.getter_with_key("bg_color", use_key="color")
     def __get_bg_option(self, option: str) -> Any:
@@ -425,9 +544,6 @@ class _GridRow:
 
     def get_cell(self, column: int) -> _GridCell | None:
         return self.__cells.get(column, None)
-
-    def get_cell_object(self, column: int) -> GridElement | None:
-        return cell.get_object() if (cell := self.__cells.get(column, None)) is not None else None
 
     def get_cell_size(self, column: int) -> tuple[float, float]:
         return self.grid.get_cell_size(self.row, column)
@@ -555,6 +671,13 @@ class _GridCell(Drawable, Movable):
 
     def get_object(self) -> GridElement | None:
         return self.__object
+
+    def check_non_empty(self) -> GridElement:
+        obj: GridElement | None = self.__object
+        if obj is None:
+            row, column = self.row, self.column
+            raise IndexError(f"{(row, column)} does not exists")
+        return obj
 
     @overload
     def set_object(

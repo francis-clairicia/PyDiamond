@@ -12,6 +12,7 @@ from abc import abstractmethod
 from typing import Any, Callable, Literal, overload
 
 from ..math import Rect, Vector2
+from ..math.rect import modify_rect_in_place
 from ..system.object import Object, final
 from ..system.utils.abc import concreteclass
 from ..system.utils.functools import wraps
@@ -363,6 +364,11 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
         midright: tuple[float, float] = ...,
         midtop: tuple[float, float] = ...,
         midbottom: tuple[float, float] = ...,
+        size: tuple[float, float] = ...,
+        width: float = ...,
+        height: float = ...,
+        w: float = ...,
+        h: float = ...,
     ) -> Rect:
         ...
 
@@ -370,9 +376,7 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
     def get_rect(self, **kwargs: float | tuple[float, float]) -> Rect:
         r: Rect = Rect((self.__x, self.__y), self.get_size())
         if kwargs:
-            r_setattr = r.__setattr__
-            for name, value in kwargs.items():
-                r_setattr(name, value)
+            modify_rect_in_place(r, **kwargs)
         r.normalize()
         return r
 

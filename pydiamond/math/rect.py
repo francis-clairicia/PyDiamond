@@ -9,7 +9,7 @@ from __future__ import annotations
 __all__ = ["ImmutableRect", "Rect"]
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, SupportsIndex
+from typing import TYPE_CHECKING, Any, SupportsIndex, overload
 
 from pygame.rect import Rect
 
@@ -56,3 +56,91 @@ class ImmutableRect(Rect):
 
     def __reduce__(self) -> str | tuple[Any, ...]:
         return type(self), (self.x, self.y, self.w, self.h)
+
+
+@overload
+def modify_rect(r: Rect) -> Rect:
+    ...
+
+
+@overload
+def modify_rect(
+    r: Rect,
+    *,
+    x: float | None = ...,
+    y: float | None = ...,
+    top: float | None = ...,
+    left: float | None = ...,
+    bottom: float | None = ...,
+    right: float | None = ...,
+    topleft: tuple[float, float] | None = ...,
+    bottomleft: tuple[float, float] | None = ...,
+    topright: tuple[float, float] | None = ...,
+    bottomright: tuple[float, float] | None = ...,
+    midtop: tuple[float, float] | None = ...,
+    midleft: tuple[float, float] | None = ...,
+    midbottom: tuple[float, float] | None = ...,
+    midright: tuple[float, float] | None = ...,
+    center: tuple[float, float] | None = ...,
+    centerx: float | None = ...,
+    centery: float | None = ...,
+    size: tuple[float, float] | None = ...,
+    width: float | None = ...,
+    height: float | None = ...,
+    w: float | None = ...,
+    h: float | None = ...,
+) -> Rect:
+    ...
+
+
+def modify_rect(r: Rect, **kwargs: float | tuple[float, float] | None) -> Rect:
+    r_copy = Rect(r.topleft, r.size)
+    r_copy_setattr = r_copy.__setattr__
+    for name, value in kwargs.items():
+        if value is None:
+            continue
+        r_copy_setattr(name, value)
+    return r_copy
+
+
+@overload
+def modify_rect_in_place(r: Rect) -> None:
+    ...
+
+
+@overload
+def modify_rect_in_place(
+    r: Rect,
+    *,
+    x: float | None = ...,
+    y: float | None = ...,
+    top: float | None = ...,
+    left: float | None = ...,
+    bottom: float | None = ...,
+    right: float | None = ...,
+    topleft: tuple[float, float] | None = ...,
+    bottomleft: tuple[float, float] | None = ...,
+    topright: tuple[float, float] | None = ...,
+    bottomright: tuple[float, float] | None = ...,
+    midtop: tuple[float, float] | None = ...,
+    midleft: tuple[float, float] | None = ...,
+    midbottom: tuple[float, float] | None = ...,
+    midright: tuple[float, float] | None = ...,
+    center: tuple[float, float] | None = ...,
+    centerx: float | None = ...,
+    centery: float | None = ...,
+    size: tuple[float, float] | None = ...,
+    width: float | None = ...,
+    height: float | None = ...,
+    w: float | None = ...,
+    h: float | None = ...,
+) -> None:
+    ...
+
+
+def modify_rect_in_place(r: Rect, **kwargs: float | tuple[float, float] | None) -> None:
+    r_setattr = r.__setattr__
+    for name, value in kwargs.items():
+        if value is None:
+            continue
+        r_setattr(name, value)
