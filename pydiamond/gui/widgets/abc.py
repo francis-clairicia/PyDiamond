@@ -939,7 +939,7 @@ class _WidgetEventManager(BoundEventManager[Any]):
 
         selfref: weakref[_WidgetEventManager] = weakref(self)
 
-        def unbind_all(_: Any, /) -> None:
+        def unbind_all() -> None:
             self = selfref()
             if self is not None:
                 for manager in list(self.__parent_managers):

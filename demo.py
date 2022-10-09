@@ -1258,7 +1258,6 @@ class MyDialog(PopupDialog, GUIScene):
         super().awake(border_radius=30, draggable=True, **kwargs)
         self.background_color = BLACK.with_alpha(200)
         self.widgets = WidgetsManager(self)
-        self.event.bind_key_press(Key.K_ESCAPE, lambda _: self.stop())
         self.cancel = ImageButton(
             self.widgets,
             img=ImagesResources.cross["normal"],
@@ -1266,6 +1265,7 @@ class MyDialog(PopupDialog, GUIScene):
             callback=self.stop,
         )
         self.text = Text("I'm a text", theme="text")
+        self.event.bind_key_press(Key.K_ESCAPE, lambda _: self.stop())
 
     def set_default_popup_position(self) -> None:
         self.popup.midbottom = self.window.midtop
