@@ -418,6 +418,7 @@ class ScrollView(Object, Generic[_W]):
         "__wheel_xscroll_increment",
         "__wheel_yscroll_increment",
         "__known_area_rect",
+        "__known_widget_size",
         "__mouse_pos",
         "__weakref__",
     )
@@ -433,7 +434,8 @@ class ScrollView(Object, Generic[_W]):
         self.set_wheel_xscroll_increment(wheel_xscroll_increment)
         self.set_wheel_yscroll_increment(wheel_yscroll_increment)
         self.__known_area_rect: Rect = Rect(0, 0, 0, 0)
-        self.__mouse_pos: tuple[float, float] = (0, 0)
+        self.__known_widget_size: tuple[int, int] = (-1, -1)
+        self.__mouse_pos: tuple[float, float] = (-1, -1)
 
         def get_mouse_position(self: ScrollView[Any], mouse_pos: tuple[float, float]) -> None:
             self.__mouse_pos = mouse_pos
@@ -636,9 +638,10 @@ class ScrollView(Object, Generic[_W]):
     def __update(self, *, force: bool) -> None:
         view_rect, children_area = self.__get_view_rects()
         known_area_rect = children_area.copy() if children_area is not None else Rect(0, 0, 0, 0)
-        if not force and known_area_rect == self.__known_area_rect:
+        if not force and known_area_rect == self.__known_area_rect and view_rect.size == self.__known_widget_size:
             return
 
+        self.__known_widget_size = view_rect.size
         self.__known_area_rect = known_area_rect
         xscrollcommand: Callable[[float, float], None] | None = self.__xscrollcommand
         yscrollcommand: Callable[[float, float], None] | None = self.__yscrollcommand
