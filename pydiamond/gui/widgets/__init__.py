@@ -18,6 +18,7 @@ __all__ = [
     "ImageButton",
     "ScaleBar",
     "ScrollBar",
+    "ScrollView",
     "ScrollingContainer",
     "WidgetWrappedElement",
     "WidgetWrapper",

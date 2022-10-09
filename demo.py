@@ -883,21 +883,29 @@ class ScrollBarScene(MainScene):
         self.background_color = BLUE_DARK
         self.widgets = WidgetsManager(self)
         self.area = ScrollingContainer(self.widgets, width=self.window.width - 25, height=self.window.height - 25)
-        self.hscroll = ScrollBar(self.widgets, self.window.width, 25, outline=3, orient="horizontal")
+        self.hscroll = ScrollBar(
+            self.widgets,
+            self.window.width,
+            25,
+            command=weakref.WeakMethod(self.area.yview),
+            outline=3,
+            orient="horizontal",
+        )
         self.hscroll.midbottom = self.window.midbottom
         next_button: Button = self.window.next_button
         self.vscroll = ScrollBar(
             self.widgets,
             25,
             self.window.height - self.hscroll.height - (next_button.bottom + 10),
+            command=weakref.WeakMethod(self.area.yview),
             outline=3,
             orient="vertical",
         )
         self.vscroll.bottomright = self.window.right, self.hscroll.top
         self.vscroll.border_radius = 25
 
-        self.area.bind_xview(self.hscroll)
-        self.area.bind_yview(self.vscroll)
+        self.area.view.bind_xview(weakref.WeakMethod(self.hscroll.set))
+        self.area.view.bind_yview(weakref.WeakMethod(self.vscroll.set))
 
         WidgetWrapper(self.area, Text(LOREM_IPSUM, font=(None, 100), wrap=50, line_spacing=10))
 

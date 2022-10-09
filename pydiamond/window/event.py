@@ -364,6 +364,18 @@ class MouseWheelEvent(BuiltinEvent, event_type=BuiltinEventType.MOUSEWHEEL):
     def __post_init__(self) -> None:
         self.flipped = bool(self.flipped)
 
+    def x_offset(self, factor: float = 1) -> float:
+        offset = float(factor) * self.x
+        if self.flipped:
+            return -offset
+        return offset
+
+    def y_offset(self, factor: float = 1) -> float:
+        offset = float(factor) * self.y
+        if self.flipped:
+            return offset
+        return -offset
+
 
 MouseEvent: TypeAlias = MouseButtonEvent | MouseWheelEvent | MouseMotionEvent
 
