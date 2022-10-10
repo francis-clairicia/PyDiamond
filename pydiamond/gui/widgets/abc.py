@@ -172,6 +172,9 @@ class AbstractWidget(Drawable, Movable, prepare_namespace=__prepare_abstract_wid
         if child in self.__children:
             raise ValueError("child was not removed ?")
 
+    def _update_widget(self) -> None:
+        pass
+
     @final
     def _check_is_child(self, widget: AbstractWidget) -> None:
         if widget.__parent() is not self or widget not in self.__children:
@@ -199,6 +202,9 @@ class AbstractWidget(Drawable, Movable, prepare_namespace=__prepare_abstract_wid
         finally:
             self.__parent = lambda: None
             self.__event._unbind_from_parents()
+
+    def get_clip(self) -> Rect:
+        return self.get_rect()
 
     @final
     def get_visible_rect(self) -> Rect:
@@ -878,9 +884,15 @@ class WidgetsManager(Object):
                 assert_never(master)
 
     def draw_onto(self, target: AbstractRenderer) -> None:
+        def update_widget_and_its_children(widget: AbstractWidget) -> None:
+            for child in widget.iter_children():
+                update_widget_and_its_children(child)
+            widget._update_widget()
+
         self.__drawing = True
         try:
             for widget in self.__widgets:
+                update_widget_and_its_children(widget)
                 widget.draw_onto(target)
         finally:
             self.__drawing = False

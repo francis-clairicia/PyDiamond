@@ -83,6 +83,7 @@ class Grid(Drawable, Movable, Container[GridElement]):
     def __init__(
         self,
         *,
+        uniform_cell_size: bool = False,
         bg_color: Color = TRANSPARENT,
         outline: int = 0,
         outline_color: Color = BLACK,
@@ -92,6 +93,7 @@ class Grid(Drawable, Movable, Container[GridElement]):
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
+        self.__uniform_cell_size: bool = bool(uniform_cell_size)
         self.__rows: SortedDict[int, _GridRow] = SortedDict()
         self.__columns: SortedDict[int, _GridColumnPlaceholder] = SortedDict()
         self.__max_width_columns: dict[int, float] = dict()
@@ -101,6 +103,8 @@ class Grid(Drawable, Movable, Container[GridElement]):
         self.__padding: Grid.Padding = Grid.Padding(x=padx, y=pady)
         self.__grid_group: _GridGroup = _GridGroup(self)
         self.justify = justify
+
+        self._relative_cell_start: tuple[float, float] = (0, 0)
 
     def __contains__(self, __x: object, /) -> bool:
         return any(cell.get_object() is __x for row in self.__rows.values() for cell in row.iter_cells())
@@ -211,7 +215,7 @@ class Grid(Drawable, Movable, Container[GridElement]):
         bg: RectangleShape = self.__bg
         outline: RectangleShape = self.__outline
         outline.local_size = bg.local_size = self.get_size()
-        outline.center = bg.center = self.center
+        outline.topleft = bg.topleft = self.topleft
         bg.draw_onto(target)
         for cell in flatten(row.iter_cells() for row in self.__rows.values()):
             cell.draw_onto(target)
@@ -405,6 +409,15 @@ class Grid(Drawable, Movable, Container[GridElement]):
             cell_w, cell_h = cell.get_local_size(from_grid=True)
             max_width_columns[cell.column] = max(max_width_columns.get(cell.column, 0), cell_w)
             max_height_rows[cell.row] = max(max_height_rows.get(cell.row, 0), cell_h)
+
+        if self.__uniform_cell_size:
+            max_width: float = max(max_width_columns.values(), default=0)
+            max_height: float = max(max_height_rows.values(), default=0)
+            for row in range(self.nb_rows):
+                max_height_rows[row] = max_height
+            for column in range(self.nb_columns):
+                max_width_columns[column] = max_width
+
         self._on_move()
 
     def _on_move(self) -> None:
@@ -422,6 +435,9 @@ class Grid(Drawable, Movable, Container[GridElement]):
             except KeyError:
                 return None
 
+        dx, dy = self._relative_cell_start
+        default_left += dx
+        top += dy
         for row in range(nb_rows):
             left: float = default_left
             for col in range(nb_columns):
@@ -482,10 +498,10 @@ class Grid(Drawable, Movable, Container[GridElement]):
 
         left: float
         top: float
-        if relative:
-            left = top = 0
-        else:
-            left, top = self.topleft
+        left, top = self._relative_cell_start
+        if not relative:
+            left += self.x
+            top += self.y
         left = sum((max_width_columns.get(c, 0) for c in takewhile(lambda c: c < column, range(nb_columns))), left)
         top = sum((max_height_rows.get(r, 0) for r in takewhile(lambda r: r < row, range(nb_rows))), top)
 

@@ -466,7 +466,6 @@ class Transformable(Movable):
         r: Rect = Rect((0, 0), self.get_area_size(apply_scale=apply_scale, apply_rotation=apply_rotation))
         if kwargs:
             modify_rect_in_place(r, **kwargs)
-        r.normalize()
         return r
 
     @overload
@@ -507,7 +506,6 @@ class Transformable(Movable):
         r: Rect = Rect((0, 0), self.get_local_size())
         if kwargs:
             modify_rect_in_place(r, **kwargs)
-        r.normalize()
         return r
 
     @property

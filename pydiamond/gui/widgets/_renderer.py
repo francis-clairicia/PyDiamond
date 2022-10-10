@@ -27,7 +27,8 @@ class WidgetRendererView(AbstractRenderer):
 
     def __init__(self, widget: AbstractWidget, target: AbstractRenderer) -> None:
         super().__init__()
-        self.__rect: Rect = Rect(widget.topleft, widget.get_size())
+        requested_clip = widget.get_clip()
+        self.__rect: Rect = requested_clip.clip(widget.get_rect())
         self.__target: AbstractRenderer = target
 
     def __clip_rect(self, rect: _CanBeRect | None) -> Rect:

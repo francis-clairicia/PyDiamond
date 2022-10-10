@@ -54,7 +54,7 @@ from pydiamond.gui.widgets.button import Button, ImageButton
 from pydiamond.gui.widgets.checkbox import CheckBox
 from pydiamond.gui.widgets.entry import Entry
 from pydiamond.gui.widgets.form import Form
-from pydiamond.gui.widgets.grid import Grid
+from pydiamond.gui.widgets.grid import Grid, ScrollableGrid
 from pydiamond.gui.widgets.scale import ScaleBar
 
 # from pydiamond.gui.widgets.scroll import ScrollableView, ScrollBar
@@ -882,7 +882,13 @@ class ScrollBarScene(MainScene):
         self.destroy_exit_stack.callback(self.window.set_title, self.window.get_title())
         self.background_color = BLUE_DARK
         self.widgets = WidgetsManager(self)
-        self.area = ScrollingContainer(self.widgets, width=self.window.width - 25, height=self.window.height - 25)
+        self.area = ScrollingContainer(
+            self.widgets,
+            width=self.window.width - 25,
+            height=self.window.height - 25,
+            wheel_xscroll_increment=20,
+            wheel_yscroll_increment=20,
+        )
         self.hscroll = ScrollBar(
             self.widgets,
             self.window.width,
@@ -904,8 +910,8 @@ class ScrollBarScene(MainScene):
         self.vscroll.bottomright = self.window.right, self.hscroll.top
         self.vscroll.border_radius = 25
 
-        self.area.view.bind_xview(weakref.WeakMethod(self.hscroll.set))
-        self.area.view.bind_yview(weakref.WeakMethod(self.vscroll.set))
+        self.area.set_xscrollcommand(weakref.WeakMethod(self.hscroll.set))
+        self.area.set_yscrollcommand(weakref.WeakMethod(self.vscroll.set))
 
         WidgetWrapper(self.area, Text(LOREM_IPSUM, font=(None, 100), wrap=50, line_spacing=10))
 
@@ -1009,6 +1015,77 @@ class GridScene(GUIScene):
 
     def render(self) -> None:
         self.window.draw(self.text, self.widgets)
+
+
+class ScrollableGridScene(GUIScene):
+    def awake(self, **kwargs: Any) -> None:
+        super().awake(**kwargs)
+        self.background_color = BLUE_DARK
+        Button.set_default_focus_on_hover(True)
+
+        self.widgets = WidgetsManager(self)
+
+        self.text = Text("None", font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
+        self.grid = ScrollableGrid(
+            self.widgets,
+            self.window.width // 2,
+            self.window.height // 2,
+            bg_color=YELLOW,
+            padx=20,
+            pady=20,
+            outline=2,
+            outline_color=PURPLE,
+            uniform_cell_size=True,
+            wheel_xscroll_increment=40,
+            wheel_yscroll_increment=40,
+        )
+        self.hscroll = ScrollBar(
+            self.widgets,
+            self.grid.get_width(),
+            10,
+            command=weakref.WeakMethod(self.grid.xview),
+            outline=3,
+            orient="horizontal",
+        )
+        self.vscroll = ScrollBar(
+            self.widgets,
+            10,
+            self.grid.get_height(),
+            command=weakref.WeakMethod(self.grid.yview),
+            outline=3,
+            orient="vertical",
+        )
+
+        self.grid.set_xscrollcommand(weakref.WeakMethod(self.hscroll.set))
+        self.grid.set_yscrollcommand(weakref.WeakMethod(self.vscroll.set))
+
+        def create_button(text: str) -> Button:
+            return Button(self.grid, text, callback=lambda: self.text.config.update(message=text))
+
+        self.grid.place(create_button("First"), 0, 0)
+        self.grid.place(create_button("Second"), 7, 3)
+        self.grid.place(create_button("Third"), 4, 12)
+        self.grid.place(create_button("Fourth"), 4, 3)
+
+        self.grid.center = self.window.center
+        self.hscroll.midtop = self.grid.midbottom
+        self.vscroll.midleft = self.grid.midright
+
+        Button.set_default_focus_on_hover(None)
+
+    def on_start_loop_before_transition(self) -> None:
+        self.set_text_position()
+        return super().on_start_loop_before_transition()
+
+    def update(self) -> None:
+        self.set_text_position()
+        super().update()
+
+    def set_text_position(self) -> None:
+        self.text.midtop = (self.grid.centerx, self.grid.bottom + 10)
+
+    def render(self) -> None:
+        self.window.draw(self.widgets, self.text)
 
 
 class FormScene(GUIScene):
@@ -1392,6 +1469,7 @@ class MainWindow(SceneWindow):
         ScrollBarScene,
         TestGUIScene,
         GridScene,
+        ScrollableGridScene,
         FormScene,
         WidgetsScene,
         AudioScene,

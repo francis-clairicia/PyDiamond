@@ -6,10 +6,12 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+
 __all__ = ["Movable", "MovableProxy"]
 
 from abc import abstractmethod
-from typing import Any, Callable, Literal, overload
+from typing import Any, Callable, Iterator, Literal, overload
 
 from ..math import Rect, Vector2
 from ..math.rect import modify_rect_in_place
@@ -379,20 +381,27 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
         r: Rect = Rect((self.__x, self.__y), self.get_size())
         if kwargs:
             modify_rect_in_place(r, **kwargs)
-        r.normalize()
         return r
 
     @final
     def get_rect_relative_to(self, point: tuple[float, float] | Vector2) -> Rect:
         r: Rect = Rect((self.__x - point[0], self.__y - point[1]), self.get_size())
-        r.normalize()
         return r
+
+    @final
+    @contextmanager
+    def temporary_position(self) -> Iterator[None]:
+        x, y = self.topleft
+        try:
+            yield
+        finally:
+            self.topleft = (x, y)
 
     @final
     def clamp(self, rect: Rect) -> None:
         r: Rect = Rect((self.__x, self.__y), self.get_size())
         r.clamp_ip(rect)
-        self.__x, self.__y = r.topleft
+        self.topleft = r.topleft
 
     def _on_move(self) -> None:
         pass

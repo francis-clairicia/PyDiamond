@@ -6,18 +6,25 @@
 
 from __future__ import annotations
 
-__all__ = ["AbstractGUIGrid", "GridElement", "GridJustify"]
+__all__ = ["AbstractGUIGrid", "AbstractGUIScrollableGrid", "GridElement", "GridJustify"]
+
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Sequence, TypeVar
+from functools import reduce
+from itertools import starmap
+from typing import TYPE_CHECKING, Any, Callable, Literal, Sequence, TypeVar
 
 from ..graphics.grid import Grid as _Grid, GridElement, GridJustify
+from ..math.rect import Rect
 from ..system.collections import SortedDict
-from ..system.configuration import ConfigurationTemplate
 from .focus import supports_focus
 from .scene import GUIScene
+from .tools.view import AbstractScrollableView
 
 if TYPE_CHECKING:
+    from weakref import WeakMethod
+
+    from ..graphics.color import Color
     from ..graphics.grid import _GridCell
     from .focus import SupportsFocus
 
@@ -119,4 +126,48 @@ class _Grid(_Grid):  # type: ignore[no-redef]
 
 
 class AbstractGUIGrid(_Grid):
-    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(parent=_Grid.config)
+    @abstractmethod
+    def _get_gui_scene(self) -> GUIScene | None:
+        raise NotImplementedError
+
+
+class AbstractGUIScrollableGrid(AbstractGUIGrid, AbstractScrollableView):
+    if TYPE_CHECKING:
+
+        def __init__(
+            self,
+            *,
+            uniform_cell_size: bool = ...,
+            bg_color: Color = ...,
+            outline: int = ...,
+            outline_color: Color = ...,
+            padx: int = ...,
+            pady: int = ...,
+            justify: GridJustify = ...,
+            xscrollcommand: Callable[[float, float], None] | WeakMethod[Callable[[float, float], None]] | None = ...,
+            yscrollcommand: Callable[[float, float], None] | WeakMethod[Callable[[float, float], None]] | None = ...,
+            wheel_xscroll_increment: int = ...,
+            wheel_yscroll_increment: int = ...,
+            **kwargs: Any,
+        ) -> None:
+            ...
+
+    @abstractmethod
+    def get_size(self) -> tuple[float, float]:
+        raise NotImplementedError
+
+    def get_view_rect(self) -> Rect:
+        return self.get_rect()
+
+    def get_whole_rect(self) -> Rect:
+        nb_rows = self.nb_rows
+        nb_columns = self.nb_columns
+        all_rects = list(starmap(self.get_cell_rect, ((row, column) for row in range(nb_rows) for column in range(nb_columns))))
+        if not all_rects:
+            return Rect(self.topleft, (0, 0))
+        return reduce(Rect.union, all_rects)
+
+    def _move_view(self, dx: int, dy: int) -> None:
+        x, y = self._relative_cell_start
+        self._relative_cell_start = x + dx, y + dy
+        self._on_move()

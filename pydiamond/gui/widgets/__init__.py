@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 __all__ = [
+    "AbstractScrollableWidget",
     "BooleanCheckBox",
     "Button",
     "CheckBox",
@@ -18,7 +19,6 @@ __all__ = [
     "ImageButton",
     "ScaleBar",
     "ScrollBar",
-    "ScrollView",
     "ScrollingContainer",
     "WidgetWrappedElement",
     "WidgetWrapper",
