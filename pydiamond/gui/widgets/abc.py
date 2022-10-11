@@ -986,7 +986,7 @@ class _WidgetEventManager(BoundEventManager[Any]):
         self.__other_manager_list.remove(manager)
         manager.__parent_managers.discard(self)
         for event_type in tuple(
-            event_type for event_type, priority_manager in self.__priority_manager.items() if priority_manager == manager
+            event_type for event_type, priority_manager in self.__priority_manager.items() if priority_manager is manager
         ):
             self.__priority_manager.pop(event_type)
 
