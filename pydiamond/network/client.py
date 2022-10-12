@@ -58,6 +58,10 @@ class AbstractNetworkClient(Object):
     def fileno(self) -> int:
         raise NotImplementedError
 
+    @abstractmethod
+    def detach(self) -> Socket:
+        raise NotImplementedError
+
 
 class NoValidPacket(ValueError):
     pass
@@ -156,12 +160,11 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
             if self.__closed:
                 return
             self.__closed = True
-            self.__queue.clear()
             self.__writer.close()
-            if not self.__owner:
-                return
             socket: Socket = self.__socket
             del self.__socket
+            if not self.__owner:
+                return
             try:
                 socket.shutdown(SHUT_WR)
             except OSError:
@@ -227,10 +230,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
     def __recv_packets(self, *, timeout: int | None) -> Generator[_ReceivedPacketT, None, None]:
         chunk_reader: Generator[bytes, None, None] = self.__read_socket(self.__socket, self.__chunk_size, timeout=timeout)
         try:
-            while True:
-                chunk: bytes | None = next(chunk_reader, None)
-                if chunk is None:
-                    break
+            while (chunk := next(chunk_reader, None)) is not None:
                 self.__consumer.feed(chunk)
             yield from self.__consumer
         finally:
@@ -292,7 +292,48 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         return True
 
     def fileno(self) -> int:
+        if self.__closed:
+            return -1
         return self.__socket.fileno()
+
+    def detach(self) -> Socket:
+        self._check_closed()
+        socket: Socket = self.__socket
+        fd: int = socket.detach()
+        if fd < 0:
+            raise OSError("Closed socket")
+        socket = Socket(fileno=fd)
+        try:
+            self.__owner = False
+            self.close()
+        except BaseException:
+            socket.close()
+            raise
+        return socket
+
+    @overload
+    def getsockopt(self, __level: int, __optname: int, /) -> int:
+        ...
+
+    @overload
+    def getsockopt(self, __level: int, __optname: int, __buflen: int, /) -> bytes:
+        ...
+
+    def getsockopt(self, *args: int) -> int | bytes:
+        self._check_closed()
+        return self.__socket.getsockopt(*args)
+
+    @overload
+    def setsockopt(self, __level: int, __optname: int, __value: int | bytes, /) -> None:
+        ...
+
+    @overload
+    def setsockopt(self, __level: int, __optname: int, __value: None, __optlen: int, /) -> None:
+        ...
+
+    def setsockopt(self, *args: Any) -> None:
+        self._check_closed()
+        return self.__socket.setsockopt(*args)
 
     def reconnect(self, timeout: float | None = None) -> None:
         self._check_closed()
@@ -424,11 +465,10 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
             if self.__closed:
                 return
             self.__closed = True
-            self.__queue.clear()
-            if not self.__owner:
-                return
             socket: Socket = self.__socket
             del self.__socket
+            if not self.__owner:
+                return
             socket.close()
 
     def send_packet(self, address: _Address, packet: _SentPacketT, *, flags: int = 0) -> None:
@@ -546,8 +586,48 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         return new_socket_address(self.__socket.getsockname(), self.__socket.family)
 
     def fileno(self) -> int:
-        self._check_closed()
+        if self.__closed:
+            return -1
         return self.__socket.fileno()
+
+    def detach(self) -> Socket:
+        self._check_closed()
+        socket: Socket = self.__socket
+        fd: int = socket.detach()
+        if fd < 0:
+            raise OSError("Closed socket")
+        socket = Socket(fileno=fd)
+        try:
+            self.__owner = False
+            self.close()
+        except BaseException:
+            socket.close()
+            raise
+        return socket
+
+    @overload
+    def getsockopt(self, __level: int, __optname: int, /) -> int:
+        ...
+
+    @overload
+    def getsockopt(self, __level: int, __optname: int, __buflen: int, /) -> bytes:
+        ...
+
+    def getsockopt(self, *args: int) -> int | bytes:
+        self._check_closed()
+        return self.__socket.getsockopt(*args)
+
+    @overload
+    def setsockopt(self, __level: int, __optname: int, __value: int | bytes, /) -> None:
+        ...
+
+    @overload
+    def setsockopt(self, __level: int, __optname: int, __value: None, __optlen: int, /) -> None:
+        ...
+
+    def setsockopt(self, *args: Any) -> None:
+        self._check_closed()
+        return self.__socket.setsockopt(*args)
 
     @final
     def _check_closed(self) -> None:

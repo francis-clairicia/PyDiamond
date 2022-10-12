@@ -93,18 +93,16 @@ class PicklePacketDeserializer(NetworkPacketIncrementalDeserializer[_DT_co], Obj
     @final
     def incremental_deserialize(self) -> Generator[None, bytes, tuple[_DT_co, bytes]]:
         data = BytesIO()
-        while True:
+        while STOP_OPCODE not in data.getvalue():
             data.write((yield))
-            if STOP_OPCODE not in data.getvalue():
-                continue
-            data.seek(0)
-            unpickler = self.get_unpickler(data)
-            try:
-                packet: _DT_co = unpickler.load()
-            except UnpicklingError as exc:
-                remainder = data.getvalue().partition(STOP_OPCODE)[2]
-                raise IncrementalDeserializeError(f"Unpickling error: {exc}", remaining_data=remainder) from exc
-            return (packet, data.read())
+        data.seek(0)
+        unpickler = self.get_unpickler(data)
+        try:
+            packet: _DT_co = unpickler.load()
+        except UnpicklingError as exc:
+            remainder = data.getvalue().partition(STOP_OPCODE)[2]
+            raise IncrementalDeserializeError(f"Unpickling error: {exc}", remaining_data=remainder) from exc
+        return (packet, data.read())
 
     def get_unpickler(self, buffer: _ReadableFileobj) -> Unpickler:
         return Unpickler(buffer, fix_imports=False, encoding="utf-8", errors="strict", buffers=None)

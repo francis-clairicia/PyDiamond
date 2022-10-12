@@ -148,7 +148,10 @@ class StateLessUDPNetworkServer(AbstractUDPNetworkServer[_RequestT, _ResponseT])
 
     @final
     def _process_request(self, request: _RequestT, client: ConnectedClient[_ResponseT]) -> None:
-        self.__request_handler_cls(request, client, self)
+        try:
+            self.__request_handler_cls(request, client, self)
+        finally:
+            client.close()
 
     @property
     @final

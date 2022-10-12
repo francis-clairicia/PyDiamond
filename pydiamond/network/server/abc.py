@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from selectors import EVENT_READ, EVENT_WRITE, BaseSelector, DefaultSelector as _Selector, SelectorKey
 from socket import SHUT_WR, SOCK_DGRAM, SOCK_STREAM, socket as Socket
 from threading import Event, RLock, current_thread
-from typing import TYPE_CHECKING, Any, Callable, Generic, Iterator, Sequence, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, Iterator, Sequence, TypeAlias, TypeVar, overload
 from weakref import WeakKeyDictionary
 
 from ...system.object import Object, final
@@ -38,14 +38,14 @@ _ResponseT = TypeVar("_ResponseT")
 
 
 class ConnectedClient(Generic[_ResponseT], Object):
-    __slots__ = ("__addr",)
+    __slots__ = ("__addr", "__weakref__")
 
     def __init__(self, address: SocketAddress) -> None:
         super().__init__()
         self.__addr: SocketAddress = address
 
     def __repr__(self) -> str:
-        return f"<connected client with address {self.__addr} at {id(self):#x}>"
+        return f"<connected client with address {self.__addr} at {id(self):#x}{' closed' if self.closed else ''}>"
 
     @abstractmethod
     def close(self) -> None:
@@ -59,6 +59,10 @@ class ConnectedClient(Generic[_ResponseT], Object):
         send_packet = self.send_packet
         for packet in packets:
             send_packet(packet)
+
+    @abstractmethod
+    def detach(self) -> Socket:
+        raise NotImplementedError
 
     @property
     @abstractmethod
@@ -207,6 +211,8 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
 
     @dsuppress(KeyboardInterrupt)
     def serve_forever(self, poll_interval: float = 0.5) -> None:
+        poll_interval = float(poll_interval)
+
         with self.__lock:
             self._check_closed()
             if self.running():
@@ -340,8 +346,13 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                         shutdown_client(socket)
 
         def shutdown_client(socket: Socket) -> None:
-            if (client := self.__clients.pop(socket, None)) and not client.closed:
-                client.close()
+            if (client := self.__clients.pop(socket, None)):
+                if not client.closed:
+                    client.close()
+                try:
+                    self._on_disconnect(client)
+                except Exception:
+                    self._handle_error(client)
             try:
                 key = selector.unregister(socket)
             except KeyError:
@@ -424,6 +435,9 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
     def _verify_new_client(self, client: TCPNetworkClient[_ResponseT, _RequestT], address: SocketAddress) -> bool:
         return True
 
+    def _on_disconnect(self, client: ConnectedClient[_ResponseT]) -> None:
+        pass
+
     @contextmanager
     def stop_listening(self) -> Iterator[None]:
         if not self.__loop:
@@ -452,6 +466,33 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                 with self.__lock:
                     selector.register(key.fileobj, key.events, key.data)
 
+    def new_protocol(self) -> StreamNetworkProtocol[_ResponseT, _RequestT]:
+        return self.__protocol_cls()
+
+    @overload
+    def getsockopt(self, __level: int, __optname: int, /) -> int:
+        ...
+
+    @overload
+    def getsockopt(self, __level: int, __optname: int, __buflen: int, /) -> bytes:
+        ...
+
+    def getsockopt(self, *args: int) -> int | bytes:
+        self._check_closed()
+        return self.__socket.getsockopt(*args)
+
+    @overload
+    def setsockopt(self, __level: int, __optname: int, __value: int | bytes, /) -> None:
+        ...
+
+    @overload
+    def setsockopt(self, __level: int, __optname: int, __value: None, __optlen: int, /) -> None:
+        ...
+
+    def setsockopt(self, *args: Any) -> None:
+        self._check_closed()
+        return self.__socket.setsockopt(*args)
+
     @final
     def _check_closed(self) -> None:
         if self.__closed:
@@ -468,7 +509,7 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
     def clients(self) -> Sequence[ConnectedClient[_ResponseT]]:
         self._check_closed()
         with self.__lock:
-            return tuple(self.__clients.values())
+            return tuple(filter(lambda client: not client.closed, self.__clients.values()))
 
 
 @dataclass(init=False)
@@ -479,47 +520,78 @@ class _SelectorKeyData(Generic[_RequestT, _ResponseT]):
     client: ConnectedClient[_ResponseT]
     extra_queue: deque[_RequestT]
 
-    def __init__(self, *, protocol: StreamNetworkProtocol[_ResponseT, _RequestT], socket: Socket, address: SocketAddress) -> None:
+    def __init__(
+        self,
+        *,
+        protocol: StreamNetworkProtocol[_ResponseT, _RequestT],
+        socket: Socket,
+        address: SocketAddress,
+    ) -> None:
         self.producer = StreamNetworkDataProducer(protocol)
         self.consumer = StreamNetworkDataConsumer(protocol)
         self.chunk_size = guess_best_buffer_size(socket)
-        self.client = self.__ConnectedClient(self.producer, address)
+        self.client = self.__ConnectedClient(self.producer, socket, address)
         self.extra_queue = deque()
 
     @final
     class __ConnectedClient(ConnectedClient[_ResponseT]):
-        def __init__(self, producer: StreamNetworkDataProducer[_ResponseT], address: SocketAddress) -> None:
+        __slots__ = ("__p", "__s", "__lock")
+
+        def __init__(
+            self,
+            producer: StreamNetworkDataProducer[_ResponseT],
+            socket: Socket,
+            address: SocketAddress,
+        ) -> None:
             super().__init__(address)
-            self.__closed: bool = False
-            self.__p = producer
+            self.__p: StreamNetworkDataProducer[_ResponseT] | None = producer
+            self.__s: Socket | None = socket
             self.__lock = RLock()
 
         def close(self) -> None:
             with self.__lock:
-                self.__closed = True
-                with suppress(AttributeError):
-                    del self.__p
+                self.__p = None
+                self.__s = None
 
         def send_packet(self, packet: _ResponseT) -> None:
             with self.__lock:
-                if self.__closed:
+                if self.__p is None:
                     raise RuntimeError("Closed client")
                 self.__p.queue(packet)
 
         def send_packets(self, *packets: _ResponseT) -> None:
             with self.__lock:
-                if self.__closed:
+                if self.__p is None:
                     raise RuntimeError("Closed client")
                 self.__p.queue(*packets)
 
+        def detach(self) -> Socket:
+            with self.__lock:
+                socket = self.__s
+                producer = self.__p
+                if socket is None or producer is None:
+                    raise RuntimeError("Closed client")
+                fd: int = socket.detach()
+                if fd < 0:
+                    raise OSError("Closed socket")
+                socket = Socket(fileno=fd)
+                self.close()
+                try:
+                    # Flush all buffer before return
+                    if data := producer.read():
+                        socket.sendall(data)
+                except BaseException:
+                    socket.close()
+                    raise
+                return socket
+
         @property
         def closed(self) -> bool:
-            return self.__closed
+            return self.__p is None
 
 
 class AbstractUDPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _ResponseT]):
     __slots__ = (
-        "__socket",
         "__server",
         "__addr",
         "__lock",
@@ -550,7 +622,6 @@ class AbstractUDPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
             reuse_port=reuse_port,
             dualstack_ipv6=False,
         )
-        self.__socket: Socket = socket
         self.__server: UDPNetworkClient[_ResponseT, _RequestT] = UDPNetworkClient(socket, protocol=protocol, give=True)
         self.__addr: SocketAddress = self.__server.getsockname()
         self.__lock: RLock = RLock()
@@ -563,6 +634,8 @@ class AbstractUDPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
 
     @dsuppress(KeyboardInterrupt)
     def serve_forever(self, poll_interval: float = 0.5) -> None:
+        poll_interval = float(poll_interval)
+
         with self.__lock:
             self._check_closed()
             if self.running():
@@ -570,31 +643,50 @@ class AbstractUDPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
             self.__is_shutdown.clear()
             self.__loop = True
 
-        socket: Socket = self.__socket
         server: UDPNetworkClient[_ResponseT, _RequestT] = self.__server
-        ConnectedClient = self.__ConnectedClient
-        protocol_cls = self.__protocol_cls
+        make_connected_client = self.__ConnectedClient
+
+        write_queue: deque[tuple[_ResponseT, SocketAddress]] = deque()
 
         def parse_requests() -> None:
-            flags: int = self.flags
+            flags: int = self.__flags
             for request, address in server.recv_packets(timeout=None, flags=flags):
-                with UDPNetworkClient(socket, protocol=protocol_cls(), give=False) as client:
-                    connected_client = ConnectedClient(client, address, flags)
-                    try:
-                        self._process_request(request, connected_client)
-                    except Exception:
-                        self._handle_error(connected_client)
+                connected_client = make_connected_client(write_queue, address)
+                try:
+                    self._process_request(request, connected_client)
+                except Exception:
+                    self._handle_error(connected_client)
+                finally:
+                    connected_client.close()
+
+        def send_a_response() -> None:
+            flags: int = self.__flags
+            try:
+                response, address = write_queue.popleft()
+            except IndexError:
+                return
+            try:
+                server.send_packet(address, response, flags=flags)
+            except Exception:
+                connected_client: ConnectedClient[_ResponseT] = make_connected_client(None, address)
+                self._handle_error(connected_client)
 
         with _Selector() as selector:
-            selector.register(server, EVENT_READ)
+            selector.register(server, EVENT_READ | EVENT_WRITE)
             try:
                 while self.__loop:
-                    ready: bool = len(selector.select(poll_interval)) > 0
+                    ready: int
+                    try:
+                        ready = selector.select(timeout=poll_interval)[0][1]
+                    except IndexError:
+                        ready = 0
                     if not self.__loop:
                         break  # type: ignore[unreachable]
                     with self.__lock:
-                        if ready:
+                        if ready & EVENT_READ:
                             parse_requests()
+                        if ready & EVENT_WRITE and write_queue:
+                            send_a_response()
                         self.service_actions()
             finally:
                 with self.__lock:
@@ -607,7 +699,6 @@ class AbstractUDPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                 raise RuntimeError("Cannot close running server. Use shutdown() first")
             if not self.__server.closed:
                 self.__server.close()
-                del self.__socket
 
     def service_actions(self) -> None:
         pass
@@ -625,6 +716,33 @@ class AbstractUDPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
             self.__loop = False
         self.__is_shutdown.wait()
 
+    def new_protocol(self) -> NetworkProtocol[_ResponseT, _RequestT]:
+        return self.__protocol_cls()
+
+    @overload
+    def getsockopt(self, __level: int, __optname: int, /) -> int:
+        ...
+
+    @overload
+    def getsockopt(self, __level: int, __optname: int, __buflen: int, /) -> bytes:
+        ...
+
+    def getsockopt(self, *args: int) -> int | bytes:
+        self._check_closed()
+        return self.__server.getsockopt(*args)
+
+    @overload
+    def setsockopt(self, __level: int, __optname: int, __value: int | bytes, /) -> None:
+        ...
+
+    @overload
+    def setsockopt(self, __level: int, __optname: int, __value: None, __optlen: int, /) -> None:
+        ...
+
+    def setsockopt(self, *args: Any) -> None:
+        self._check_closed()
+        return self.__server.setsockopt(*args)
+
     @final
     def _check_closed(self) -> None:
         if self.__server.closed:
@@ -636,33 +754,42 @@ class AbstractUDPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
         with self.__lock:
             return self.__addr
 
-    @property  # type: ignore[misc]
+    @property
     @final
     def flags(self) -> int:
         with self.__lock:
             return self.__flags
 
-    @flags.setter
-    def flags(self, value: int) -> None:
-        with self.__lock:
-            self.__flags = int(value)
-
     @final
     class __ConnectedClient(ConnectedClient[_ResponseT]):
-        def __init__(self, client: UDPNetworkClient[_ResponseT, Any], address: SocketAddress, flags: int) -> None:
+        __slots__ = ("__q", "__lock")
+
+        def __init__(self, queue: deque[tuple[_ResponseT, SocketAddress]] | None, address: SocketAddress) -> None:
             super().__init__(address)
-            self.__client: UDPNetworkClient[_ResponseT, Any] = client
-            self.__flags: int = flags
+            self.__q: deque[tuple[_ResponseT, SocketAddress]] | None = queue
+            self.__lock = RLock()
 
         def close(self) -> None:
-            return self.__client.close()
+            with self.__lock:
+                self.__q = None
 
         def send_packet(self, packet: _ResponseT) -> None:
-            return self.__client.send_packet(self.address, packet, flags=self.__flags)
+            with self.__lock:
+                if self.__q is None:
+                    raise RuntimeError("Closed client")
+                self.__q.append((packet, self.address))
 
         def send_packets(self, *packets: _ResponseT) -> None:
-            return self.__client.send_packets(self.address, *packets, flags=self.__flags)
+            if not packets:
+                return
+            with self.__lock:
+                if self.__q is None:
+                    raise RuntimeError("Closed client")
+                self.__q.extend((p, self.address) for p in packets)
+
+        def detach(self) -> Socket:
+            raise NotImplementedError("detach() not available")
 
         @property
         def closed(self) -> bool:
-            return self.__client.closed
+            return self.__q is None
