@@ -346,7 +346,7 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                         shutdown_client(socket)
 
         def shutdown_client(socket: Socket) -> None:
-            if (client := self.__clients.pop(socket, None)):
+            if client := self.__clients.pop(socket, None):
                 if not client.closed:
                     client.close()
                 try:
