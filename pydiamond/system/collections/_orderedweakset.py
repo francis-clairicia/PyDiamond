@@ -49,13 +49,8 @@ class OrderedWeakSet(WeakSet, Sequence):  # type: ignore[type-arg]
         if isinstance(index, slice):
             with _IterationGuard(self):
                 return self.__class__((item for itemref in self.data[index] if (item := itemref()) is not None))  # type: ignore[operator, union-attr]
-        try:
-            if isinstance(index, str):  # type: ignore[unreachable]
-                raise TypeError
-            index = int(index)
-        except TypeError:
-            msg = f"indices must be integers or slices, not {type(index).__name__}"
-            raise TypeError(msg) from None
+        if not isinstance(index, int):
+            raise TypeError(f"indices must be integers or slices, not {type(index).__name__}")
         if index >= 0:
             while (obj := self.data[index]()) is None:  # type: ignore[operator]
                 index += 1
