@@ -59,6 +59,10 @@ class AbstractNetworkClient(Object):
         raise NotImplementedError
 
     @abstractmethod
+    def dup(self) -> Socket:
+        raise NotImplementedError
+
+    @abstractmethod
     def detach(self) -> Socket:
         raise NotImplementedError
 
@@ -295,6 +299,11 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         if self.__closed:
             return -1
         return self.__socket.fileno()
+
+    def dup(self) -> Socket:
+        self._check_closed()
+        socket: Socket = self.__socket
+        return socket.dup()
 
     def detach(self) -> Socket:
         self._check_closed()
@@ -589,6 +598,11 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         if self.__closed:
             return -1
         return self.__socket.fileno()
+
+    def dup(self) -> Socket:
+        self._check_closed()
+        socket: Socket = self.__socket
+        return socket.dup()
 
     def detach(self) -> Socket:
         self._check_closed()

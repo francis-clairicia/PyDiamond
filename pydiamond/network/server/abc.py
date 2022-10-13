@@ -17,6 +17,7 @@ from abc import abstractmethod
 from collections import defaultdict, deque
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass
+from io import BytesIO
 from selectors import EVENT_READ, EVENT_WRITE, BaseSelector, DefaultSelector as _Selector, SelectorKey
 from socket import SHUT_WR, SOCK_DGRAM, SOCK_STREAM, socket as Socket
 from threading import Event, RLock, current_thread
@@ -61,7 +62,7 @@ class ConnectedClient(Generic[_ResponseT], Object):
             send_packet(packet)
 
     @abstractmethod
-    def detach(self) -> Socket:
+    def dup(self) -> Socket:
         raise NotImplementedError
 
     @property
@@ -222,6 +223,8 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
             self.__loop = True
 
         server_socket: Socket = self.__socket
+        select_lock = RLock()
+        client_close_requested: dict[Socket, BytesIO] = dict()
 
         def select() -> dict[int, deque[SelectorKey]]:
             ready: defaultdict[int, deque[SelectorKey]] = defaultdict(deque)
@@ -241,10 +244,21 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
             if not accepted:
                 socket.close()
                 return
+
+            def close_client(socket: Socket) -> None:
+                shutdown_client(socket, from_client=True)
+
+            def client_is_closed(socket: Socket) -> bool:
+                if socket in client_close_requested:
+                    return True
+                return socket not in self.__clients
+
             key_data = _SelectorKeyData(
                 protocol=protocol,
                 socket=socket,
                 address=address,
+                on_close=close_client,
+                is_closed=client_is_closed,
             )
             key_data.consumer.feed(client._get_buffer())
             key_data.extra_queue = client.flush_queue()
@@ -276,19 +290,15 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                 client = key_data.client
                 data: bytes
                 if client.closed:
-                    shutdown_client(socket)
                     continue
                 try:
                     data = socket.recv(key_data.chunk_size)
                 except Exception:
-                    try:
-                        client.close()
-                        self._handle_error(client)
-                    finally:
-                        shutdown_client(socket)
+                    shutdown_client(socket, from_client=False)
+                    self._handle_error(client)
                 else:
                     if not data:  # Closed connection (EOF)
-                        shutdown_client(socket)
+                        shutdown_client(socket, from_client=False)
                         continue
                     key_data.consumer.feed(data)
 
@@ -314,23 +324,32 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                     self._handle_error(client)
 
         def send_responses(ready: Sequence[SelectorKey]) -> None:
+            data: bytes
             for key in list(ready):
-                key_data: _SelectorKeyData[_RequestT, _ResponseT] = key.data
-                producer = key_data.producer
-                if not producer:  # There is nothing to send
-                    continue
                 socket: Socket = key.fileobj  # type: ignore[assignment]
+                key_data: _SelectorKeyData[_RequestT, _ResponseT] = key.data
                 client = key_data.client
-                data: bytes
-                if client.closed:
-                    with suppress(Exception):
-                        data = producer.read()
-                        if data:
+
+                if socket in client_close_requested:
+                    remaining_buffer: BytesIO = client_close_requested[socket]
+                    if data := remaining_buffer.read(key_data.chunk_size):
+                        try:
                             socket.sendall(data)
-                    shutdown_client(socket)
+                        except Exception:
+                            shutdown_client(socket, from_client=False)
+                            self._handle_error(client)
+                            continue
+                        remaining_buffer = BytesIO(remaining_buffer.read())
+                        if remaining_buffer.getvalue():
+                            client_close_requested[socket] = remaining_buffer
+                            continue
+                    shutdown_client(socket, from_client=False)
+                    continue
+
+                if client.closed:
                     continue
                 try:
-                    data = producer.read(key_data.chunk_size)
+                    data = key_data.producer.read(key_data.chunk_size)
                 except Exception:
                     self._handle_error(client)
                     continue
@@ -339,24 +358,39 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                 try:
                     socket.sendall(data)
                 except Exception:
-                    try:
-                        client.close()
-                        self._handle_error(client)
-                    finally:
-                        shutdown_client(socket)
-
-        def shutdown_client(socket: Socket) -> None:
-            if client := self.__clients.pop(socket, None):
-                if not client.closed:
-                    client.close()
-                try:
-                    self._on_disconnect(client)
-                except Exception:
+                    shutdown_client(socket, from_client=False)
                     self._handle_error(client)
-            try:
-                key = selector.unregister(socket)
-            except KeyError:
-                return
+
+        def shutdown_client(socket: Socket, *, from_client: bool) -> None:
+            self.__clients.pop(socket, None)
+            key_data: _SelectorKeyData[_RequestT, _ResponseT]
+            if from_client:
+                if socket in client_close_requested:
+                    return
+                with select_lock:
+                    try:
+                        key = selector.get_key(socket)
+                    except KeyError:
+                        return
+                    key_data = key.data
+                    client = key_data.client
+                    assert client.closed
+                    with suppress(Exception):
+                        data: bytes = key_data.producer.read()
+                        if data:
+                            selector.modify(socket, EVENT_WRITE, key_data)
+                            client_close_requested[socket] = BytesIO(data)
+                            return
+                    try:
+                        key = selector.unregister(socket)
+                    except KeyError:
+                        return
+            else:
+                client_close_requested.pop(socket, None)
+                try:
+                    key = selector.unregister(socket)
+                except KeyError:
+                    return
             for key_sequences in ready.values():
                 if key in key_sequences:
                     key_sequences.remove(key)
@@ -365,6 +399,14 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                     socket.shutdown(SHUT_WR)
                 finally:
                     socket.close()
+            key_data = key.data
+            client = key_data.client
+            try:
+                if not client.closed:
+                    client.close()
+                self._on_disconnect(client)
+            except Exception:
+                self._handle_error(client)
 
         def remove_closed_clients() -> None:
             for key in selector_client_keys():
@@ -372,29 +414,27 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                 try:
                     socket.getpeername()
                 except OSError:  # Broken connection
-                    shutdown_client(socket)
-                key_data: _SelectorKeyData[_RequestT, _ResponseT] = key.data
-                if key_data.client.closed:
-                    shutdown_client(socket)
+                    shutdown_client(socket, from_client=False)
 
         def destroy_all_clients() -> None:
             for key in selector_client_keys():
                 socket: Socket = key.fileobj  # type: ignore[assignment]
-                shutdown_client(socket)
+                shutdown_client(socket, from_client=False)
 
         try:
             with self.__selector as selector:
                 selector.register(server_socket, EVENT_READ)
                 try:
                     while self.__loop:
-                        ready = select()
+                        with select_lock:
+                            ready = select()
                         if not self.__loop:
                             break  # type: ignore[unreachable]
                         with self.__lock:
                             receive_requests(ready.get(EVENT_READ, ()))
                             process_requests(ready.get(EVENT_READ, ()))
-                            send_responses(ready.get(EVENT_WRITE, ()))
                             self.service_actions()
+                            send_responses(ready.get(EVENT_WRITE, ()))
                             remove_closed_clients()
                 finally:
                     with self.__lock:
@@ -526,68 +566,65 @@ class _SelectorKeyData(Generic[_RequestT, _ResponseT]):
         protocol: StreamNetworkProtocol[_ResponseT, _RequestT],
         socket: Socket,
         address: SocketAddress,
+        on_close: Callable[[Socket], Any],
+        is_closed: Callable[[Socket], bool],
     ) -> None:
         self.producer = StreamNetworkDataProducer(protocol)
         self.consumer = StreamNetworkDataConsumer(protocol)
         self.chunk_size = guess_best_buffer_size(socket)
-        self.client = self.__ConnectedClient(self.producer, socket, address)
+        self.client = self.__ConnectedClient(self.producer, socket, address, on_close, is_closed)
         self.extra_queue = deque()
 
     @final
     class __ConnectedClient(ConnectedClient[_ResponseT]):
-        __slots__ = ("__p", "__s", "__lock")
+        __slots__ = ("__p", "__s", "__lock", "__on_close", "__is_closed")
 
         def __init__(
             self,
             producer: StreamNetworkDataProducer[_ResponseT],
             socket: Socket,
             address: SocketAddress,
+            on_close: Callable[[Socket], Any],
+            is_closed: Callable[[Socket], bool],
         ) -> None:
             super().__init__(address)
-            self.__p: StreamNetworkDataProducer[_ResponseT] | None = producer
+            self.__p: StreamNetworkDataProducer[_ResponseT] = producer
             self.__s: Socket | None = socket
+            self.__on_close: Callable[[Socket], Any] = on_close
+            self.__is_closed: Callable[[Socket], bool] = is_closed
             self.__lock = RLock()
 
         def close(self) -> None:
             with self.__lock:
-                self.__p = None
+                socket = self.__s
                 self.__s = None
+                if socket is not None and not self.__is_closed(socket):
+                    self.__on_close(socket)
 
         def send_packet(self, packet: _ResponseT) -> None:
             with self.__lock:
-                if self.__p is None:
-                    raise RuntimeError("Closed client")
+                self.__check_closed()
                 self.__p.queue(packet)
 
         def send_packets(self, *packets: _ResponseT) -> None:
             with self.__lock:
-                if self.__p is None:
-                    raise RuntimeError("Closed client")
+                self.__check_closed()
                 self.__p.queue(*packets)
 
-        def detach(self) -> Socket:
+        def dup(self) -> Socket:
             with self.__lock:
-                socket = self.__s
-                producer = self.__p
-                if socket is None or producer is None:
-                    raise RuntimeError("Closed client")
-                fd: int = socket.detach()
-                if fd < 0:
-                    raise OSError("Closed socket")
-                socket = Socket(fileno=fd)
-                self.close()
-                try:
-                    # Flush all buffer before return
-                    if data := producer.read():
-                        socket.sendall(data)
-                except BaseException:
-                    socket.close()
-                    raise
-                return socket
+                socket = self.__check_closed()
+                return socket.dup()
+
+        def __check_closed(self) -> Socket:
+            socket = self.__s
+            if socket is None or self.__is_closed(socket):
+                raise RuntimeError("Closed client")
+            return socket
 
         @property
         def closed(self) -> bool:
-            return self.__p is None
+            return (socket := self.__s) is None or self.__is_closed(socket)
 
 
 class AbstractUDPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _ResponseT]):
@@ -651,7 +688,7 @@ class AbstractUDPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
         def parse_requests() -> None:
             flags: int = self.__flags
             for request, address in server.recv_packets(timeout=None, flags=flags):
-                connected_client = make_connected_client(write_queue, address)
+                connected_client = make_connected_client(write_queue, server, address)
                 try:
                     self._process_request(request, connected_client)
                 except Exception:
@@ -668,7 +705,7 @@ class AbstractUDPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
             try:
                 server.send_packet(address, response, flags=flags)
             except Exception:
-                connected_client: ConnectedClient[_ResponseT] = make_connected_client(None, address)
+                connected_client: ConnectedClient[_ResponseT] = make_connected_client(None, None, address)
                 self._handle_error(connected_client)
 
         with _Selector() as selector:
@@ -685,9 +722,9 @@ class AbstractUDPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                     with self.__lock:
                         if ready & EVENT_READ:
                             parse_requests()
+                        self.service_actions()
                         if ready & EVENT_WRITE and write_queue:
                             send_a_response()
-                        self.service_actions()
             finally:
                 with self.__lock:
                     self.__loop = False
@@ -762,16 +799,23 @@ class AbstractUDPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
 
     @final
     class __ConnectedClient(ConnectedClient[_ResponseT]):
-        __slots__ = ("__q", "__lock")
+        __slots__ = ("__q", "__s", "__lock")
 
-        def __init__(self, queue: deque[tuple[_ResponseT, SocketAddress]] | None, address: SocketAddress) -> None:
+        def __init__(
+            self,
+            queue: deque[tuple[_ResponseT, SocketAddress]] | None,
+            server: UDPNetworkClient[_ResponseT, Any] | None,
+            address: SocketAddress,
+        ) -> None:
             super().__init__(address)
             self.__q: deque[tuple[_ResponseT, SocketAddress]] | None = queue
+            self.__s: UDPNetworkClient[_ResponseT, Any] | None = server
             self.__lock = RLock()
 
         def close(self) -> None:
             with self.__lock:
                 self.__q = None
+                self.__s = None
 
         def send_packet(self, packet: _ResponseT) -> None:
             with self.__lock:
@@ -787,8 +831,12 @@ class AbstractUDPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                     raise RuntimeError("Closed client")
                 self.__q.extend((p, self.address) for p in packets)
 
-        def detach(self) -> Socket:
-            raise NotImplementedError("detach() not available")
+        def dup(self) -> Socket:
+            with self.__lock:
+                server: UDPNetworkClient[_ResponseT, Any] | None = self.__s
+                if server is None:
+                    raise RuntimeError("Closed client")
+                return server.dup()
 
         @property
         def closed(self) -> bool:
