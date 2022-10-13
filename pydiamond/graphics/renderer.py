@@ -21,6 +21,7 @@ from ..system.object import Object
 if TYPE_CHECKING:
     from pygame._common import _CanBeRect, _ColorValue, _Coordinate, _RectValue  # pyright: reportMissingModuleSource=false
 
+    from .font import Font
     from .surface import Surface
 
 
@@ -134,6 +135,20 @@ class AbstractRenderer(Object):
         for args in sequence:
             draw(*args)
         return None
+
+    @abstractmethod
+    def draw_text(
+        self,
+        text: str,
+        font: Font,
+        dest: _Coordinate | _CanBeRect,
+        fgcolor: _ColorValue,
+        bgcolor: _ColorValue | None = ...,
+        style: int = ...,
+        rotation: int = ...,
+        size: float = ...,
+    ) -> Rect:
+        raise NotImplementedError
 
     @abstractmethod
     def draw_rect(

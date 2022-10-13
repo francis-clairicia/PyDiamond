@@ -33,6 +33,7 @@ from pydiamond.graphics.color import (
     YELLOW,
     Color,
 )
+from pydiamond.graphics.font import FontFactory
 from pydiamond.graphics.gradients import (
     HorizontalGradientShape,
     HorizontalMultiColorShape,
@@ -459,6 +460,14 @@ class ResourceScene(MainScene):
         self.text.center = self.window.center
 
     def render(self) -> None:
+        self.window.renderer.draw_text(
+            "Direct text",
+            FontFactory.create_font((FontResources.cooperblack, 100)),
+            (10, 10),
+            WHITE,
+            RED,
+            rotation=45,
+        )
         self.window.draw(self.cactus, self.text)
 
 

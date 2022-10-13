@@ -110,6 +110,10 @@ class WidgetRendererView(AbstractRenderer):
     ) -> list[Rect] | None:
         return self.__target.draw_many_surfaces(sequence, doreturn)
 
+    @reflect_method_signature(AbstractRenderer.draw_text)
+    def draw_text(self, *args: Any, **kwargs: Any) -> Rect:
+        return self.__target.draw_text(*args, **kwargs)
+
     @reflect_method_signature(AbstractRenderer.draw_rect)
     def draw_rect(self, *args: Any, **kwargs: Any) -> Rect:
         return self.__target.draw_rect(*args, **kwargs)

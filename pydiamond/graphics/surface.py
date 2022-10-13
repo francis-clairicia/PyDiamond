@@ -40,6 +40,7 @@ from ._draw import (
     draw_rect as _draw_rect,
 )
 from .color import TRANSPARENT
+from .font import STYLE_DEFAULT, Font
 from .renderer import AbstractRenderer, BlendMode
 
 if TYPE_CHECKING:
@@ -178,6 +179,19 @@ class SurfaceRenderer(AbstractRenderer):
         doreturn: bool = True,
     ) -> list[Rect] | None:
         return self.__target.blits(sequence, doreturn)  # type: ignore[arg-type]
+
+    def draw_text(
+        self,
+        text: str,
+        font: Font,
+        dest: _Coordinate | _CanBeRect,
+        fgcolor: _ColorValue,
+        bgcolor: _ColorValue | None = None,
+        style: int = STYLE_DEFAULT,
+        rotation: int = 0,
+        size: float = 0,
+    ) -> Rect:
+        return font.render_to(self.__target, dest, text, fgcolor, bgcolor, style=style, rotation=rotation, size=size)
 
     def draw_rect(
         self,

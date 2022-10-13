@@ -8,23 +8,28 @@ from __future__ import annotations
 
 __all__ = [
     "Font",
+    "FontFactory",
     "SysFont",
 ]
 
+
+import os
+from copy import copy
 from enum import IntFlag, unique
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Iterable, NamedTuple
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Iterable, NamedTuple, TypeAlias
 
 import pygame.freetype as _pg_freetype
 import pygame.sysfont as _pg_sysfont
 
 from ..math.rect import Rect
-from ..math.vector2 import Vector2
 from ..system.configuration import ConfigurationTemplate, OptionAttribute
+from ..system.namespace import ClassNamespace
 from ..system.object import Object, final
-from .surface import Surface
 
 if TYPE_CHECKING:
-    from pygame._common import _ColorValue, _FileArg  # pyright: reportMissingModuleSource=false
+    from pygame._common import _CanBeRect, _ColorValue, _Coordinate, _FileArg  # pyright: reportMissingModuleSource=false
+
+    from .surface import Surface
 
 
 def get_fonts() -> list[str]:
@@ -268,19 +273,23 @@ class Font(Object):
         size: float = 0,
     ) -> tuple[Surface, Rect]:
         assert fgcolor is not None, "Give a foreground color"
-        return self.__ft.render(
-            text or "",
-            fgcolor=fgcolor,
-            bgcolor=bgcolor,
-            style=style,
-            rotation=rotation,
-            size=size,
-        )
+        try:
+            self.__ft.pad = rotation == 0
+            return self.__ft.render(
+                text or "",
+                fgcolor=fgcolor,
+                bgcolor=bgcolor,
+                style=style,
+                rotation=rotation,
+                size=size,
+            )
+        finally:
+            self.__ft.pad = True
 
     def render_to(
         self,
         surf: Surface,
-        dest: tuple[float, float] | Vector2 | Rect,
+        dest: _Coordinate | _CanBeRect,
         text: str,
         fgcolor: _ColorValue,
         bgcolor: _ColorValue | None = None,
@@ -289,16 +298,20 @@ class Font(Object):
         size: float = 0,
     ) -> Rect:
         assert fgcolor is not None, "Give a foreground color"
-        return self.__ft.render_to(
-            surf,
-            dest,  # type: ignore[arg-type]
-            text or "",
-            fgcolor=fgcolor,
-            bgcolor=bgcolor,
-            style=style,
-            rotation=rotation,
-            size=size,
-        )
+        try:
+            self.__ft.pad = rotation == 0
+            return self.__ft.render_to(
+                surf,
+                dest,  # type: ignore[arg-type]
+                text or "",
+                fgcolor=fgcolor,
+                bgcolor=bgcolor,
+                style=style,
+                rotation=rotation,
+                size=size,
+            )
+        finally:
+            self.__ft.pad = True
 
     config.use_descriptor("size", size)
 
@@ -346,3 +359,42 @@ class Font(Object):
         return setattr(self.__ft, option, value)
 
     del __get_property, __set_property
+
+
+_TupleFont: TypeAlias = tuple[str | None, int]
+_TextFont: TypeAlias = Font | _TupleFont
+
+
+@final
+class FontFactory(ClassNamespace, frozen=True):
+    @staticmethod
+    def create_font(
+        font: _TextFont | None,
+        bold: bool | None = None,
+        italic: bool | None = None,
+        underline: bool | None = None,
+    ) -> Font:
+        obj: Font
+        if font is None:
+            font = (None, 15)
+        if isinstance(font, (tuple, list)):
+            font_family, font_size = font
+            if font_family is None or os.path.isfile(font_family):
+                obj = Font(font_family, font_size)
+                if bold is not None:
+                    obj.wide = bold
+                if italic is not None:
+                    obj.oblique = italic
+            else:
+                obj = SysFont(font_family, font_size, bold=bool(bold), italic=bool(italic))
+        elif isinstance(font, Font):
+            obj = copy(font)
+            if bold is not None:
+                obj.wide = bold
+            if italic is not None:
+                obj.oblique = italic
+        else:
+            raise TypeError("Invalid arguments")
+        if underline is not None:
+            obj.underline = underline
+        return obj

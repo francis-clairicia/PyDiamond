@@ -8,10 +8,7 @@ from __future__ import annotations
 
 __all__ = ["Text", "TextImage"]
 
-import os.path
 from collections import deque
-from contextlib import suppress
-from copy import copy
 from enum import auto, unique
 from textwrap import wrap as textwrap
 from typing import Any, ClassVar, Final, Mapping, TypeAlias, overload
@@ -29,7 +26,7 @@ from ..system.validation import valid_float, valid_integer
 from ._transform import rotozoom2 as _surface_rotozoom2, scale_by as _surface_scale_by
 from .color import BLACK, Color
 from .drawable import Drawable
-from .font import Font, SysFont, get_default_font
+from .font import Font, FontFactory
 from .image import Image
 from .renderer import AbstractRenderer
 from .surface import Surface, SurfaceRenderer, create_surface
@@ -130,57 +127,6 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
     def clear(self) -> None:
         self.message = str()
 
-    @staticmethod
-    def create_font(
-        font: _TextFont | None,
-        bold: bool | None = None,
-        italic: bool | None = None,
-        underline: bool | None = None,
-    ) -> Font:
-        obj: Font
-        if font is None:
-            font = (None, 15)
-        if isinstance(font, (tuple, list)):
-            font_family, font_size = font
-            if font_family is None:
-                font_family = Text.get_default_font()
-            if os.path.isfile(font_family):
-                obj = Font(font_family, font_size)
-                if bold is not None:
-                    obj.wide = bold
-                if italic is not None:
-                    obj.oblique = italic
-            else:
-                obj = SysFont(font_family, font_size, bold=bool(bold), italic=bool(italic))
-        elif isinstance(font, Font):
-            obj = copy(font)
-            if bold is not None:
-                obj.wide = bold
-            if italic is not None:
-                obj.oblique = italic
-        else:
-            raise TypeError("Invalid arguments")
-        if underline is not None:
-            obj.underline = underline
-        obj.antialiased = True
-        return obj
-
-    @classmethod
-    def get_default_font(cls) -> str:
-        try:
-            font: str = getattr(cls, "__default_font__")
-        except AttributeError:
-            font = get_default_font()
-        return font
-
-    @classmethod
-    def set_default_font(cls, font: str | None) -> None:
-        if font is None:
-            with suppress(AttributeError):
-                delattr(cls, "__default_font__")
-        else:
-            setattr(cls, "__default_font__", str(font))
-
     def set_font(
         self,
         font: _TextFont | None,
@@ -188,7 +134,7 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
         italic: bool | None = None,
         underline: bool | None = None,
     ) -> None:
-        self.__font = self.create_font(font, bold=bold, italic=italic, underline=underline)
+        self.__font = FontFactory.create_font(font, bold=bold, italic=italic, underline=underline)
         self.config.update_section("font")
 
     def set_custom_line_font(
@@ -201,7 +147,7 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
     ) -> None:
         if index < 0:
             raise ValueError(f"Negative index: {index}")
-        self.__custom_font[index] = self.create_font(font, bold=bold, italic=italic, underline=underline)
+        self.__custom_font[index] = FontFactory.create_font(font, bold=bold, italic=italic, underline=underline)
         self.config.update_object()
 
     def remove_custom_line_font(self, index: int) -> None:
