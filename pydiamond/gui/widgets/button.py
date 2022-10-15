@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from ...graphics.renderer import AbstractRenderer
     from ...window.cursor import Cursor
 
-    _TupleFont: TypeAlias = tuple[str | None, int]
+    _TupleFont: TypeAlias = tuple[str | None, float]
     _TextFont: TypeAlias = Font | _TupleFont
 
 

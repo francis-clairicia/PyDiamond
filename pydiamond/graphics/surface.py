@@ -15,7 +15,7 @@ __all__ = [
 ]
 
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Iterable, Iterator, Literal, Sequence, overload
+from typing import TYPE_CHECKING, Iterable, Iterator, Literal, Sequence, TypeAlias, overload
 
 import pygame.image
 from pygame import encode_file_path
@@ -40,13 +40,16 @@ from ._draw import (
     draw_rect as _draw_rect,
 )
 from .color import TRANSPARENT
-from .font import STYLE_DEFAULT, Font
+from .font import STYLE_DEFAULT, Font, FontFactory
 from .renderer import AbstractRenderer, BlendMode
 
 if TYPE_CHECKING:
     from pygame._common import _CanBeRect, _ColorValue, _Coordinate, _RectValue  # pyright: reportMissingModuleSource=false
 
 del pygame
+
+_TupleFont: TypeAlias = tuple[str | None, float]
+_TextFont: TypeAlias = Font | _TupleFont
 
 
 def create_surface(size: tuple[float, float], *, convert_alpha: bool = True, default_color: _ColorValue = TRANSPARENT) -> Surface:
@@ -183,7 +186,7 @@ class SurfaceRenderer(AbstractRenderer):
     def draw_text(
         self,
         text: str,
-        font: Font,
+        font: _TextFont,
         dest: _Coordinate | _CanBeRect,
         fgcolor: _ColorValue,
         bgcolor: _ColorValue | None = None,
@@ -191,7 +194,9 @@ class SurfaceRenderer(AbstractRenderer):
         rotation: int = 0,
         size: float = 0,
     ) -> Rect:
-        return font.render_to(self.__target, dest, text, fgcolor, bgcolor, style=style, rotation=rotation, size=size)
+        if not isinstance(font, Font):
+            font = FontFactory.create_font(font)
+        return font.render_to(self.__target, dest, text, fgcolor, bgcolor=bgcolor, style=style, rotation=rotation, size=size)
 
     def draw_rect(
         self,

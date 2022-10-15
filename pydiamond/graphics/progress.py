@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from .font import Font
     from .renderer import AbstractRenderer
 
-    _TupleFont: TypeAlias = tuple[str | None, int]
+    _TupleFont: TypeAlias = tuple[str | None, float]
     _TextFont: TypeAlias = Font | _TupleFont
 
 

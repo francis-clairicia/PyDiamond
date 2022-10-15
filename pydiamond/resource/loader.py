@@ -15,7 +15,7 @@ from typing import Generic, TypeVar
 
 from ..audio.music import Music
 from ..audio.sound import Sound
-from ..graphics.font import Font
+from ..graphics.font import FontFactory
 from ..graphics.surface import Surface, load_image
 from ..system.object import Object
 from ..system.path import set_constant_file
@@ -43,11 +43,6 @@ class AbstractResourceLoader(Generic[_T], Object):
     def filepath(self) -> str:
         return self.__filepath
 
-    @property
-    @abstractmethod
-    def type(self) -> type[_T]:
-        raise NotImplementedError
-
 
 class ImageLoader(AbstractResourceLoader[Surface]):
 
@@ -55,10 +50,6 @@ class ImageLoader(AbstractResourceLoader[Surface]):
 
     def load(self) -> Surface:
         return load_image(self.filepath)
-
-    @property
-    def type(self) -> type[Surface]:
-        return Surface
 
 
 class SoundLoader(AbstractResourceLoader[Sound]):
@@ -68,22 +59,13 @@ class SoundLoader(AbstractResourceLoader[Sound]):
     def load(self) -> Sound:
         return Sound(file=self.filepath)
 
-    @property
-    def type(self) -> type[Sound]:
-        return Sound
 
-
-class FontLoader(AbstractResourceLoader[str]):
+class FontLoader(AbstractResourceLoader[FontFactory]):
 
     __slots__ = ()
 
-    def load(self) -> str:
-        Font(self.filepath, 10)
-        return self.filepath
-
-    @property
-    def type(self) -> type[str]:
-        return str
+    def load(self) -> FontFactory:
+        return FontFactory(self.filepath)
 
 
 class MusicLoader(AbstractResourceLoader[Music]):
@@ -92,7 +74,3 @@ class MusicLoader(AbstractResourceLoader[Music]):
 
     def load(self) -> Music:
         return Music(self.filepath)
-
-    @property
-    def type(self) -> type[Music]:
-        return Music

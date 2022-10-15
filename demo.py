@@ -239,7 +239,7 @@ class AnimationStateFullScene(MainScene, busy_loop=True):
         super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.rectangle = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
-        self.text = Text(font=(FontResources.cooperblack, 25), italic=True, color=WHITE, justify="center")
+        self.text = Text(font=FontResources.cooperblack(25), italic=True, color=WHITE, justify="center")
         self.use_interpolation = False
         self.event.bind_key_press(Key.K_UP, self.__increase_fixed_framerate)
         self.event.bind_key_press(Key.K_DOWN, self.__increase_fixed_framerate)
@@ -445,7 +445,7 @@ class ImagesResources(ResourceManager):
 
 
 class FontResources(ResourceManager):
-    cooperblack: str
+    cooperblack: FontFactory
     __resource_loader__ = FontLoader
     __resources_directory__ = "./demo_resources/fonts"
     __resources_files__ = {"cooperblack": "COOPBL.ttf"}
@@ -456,13 +456,13 @@ class ResourceScene(MainScene):
         super().awake(**kwargs)
         self.cactus = Sprite(image=ImagesResources.cactus)
         self.cactus.center = self.window.center
-        self.text = Text("I'm a text", font=(FontResources.cooperblack, 300), italic=True, color=WHITE, wrap=5, justify="center")
+        self.text = Text("I'm a text", font=FontResources.cooperblack(300), italic=True, color=WHITE, wrap=5, justify="center")
         self.text.center = self.window.center
 
     def render(self) -> None:
         self.window.renderer.draw_text(
             "Direct text",
-            FontFactory.create_font((FontResources.cooperblack, 100)),
+            FontResources.cooperblack(100),
             (10, 10),
             WHITE,
             RED,
@@ -771,7 +771,7 @@ class CheckBoxScene(MainScene):
 
         self.widgets = WidgetsManager(self)
 
-        self.text = Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
+        self.text = Text(font=FontResources.cooperblack(40), color=WHITE, shadow_x=3, shadow_y=3)
         self.box: CheckBox[int, int] = CheckBox(
             self.widgets, 50, 50, BLUE_LIGHT, off_value=0, on_value=10, callback=self.__set_text, callback_at_init=False
         )
@@ -839,7 +839,7 @@ class ScaleBarScene(MainScene):
         self.background_color = BLUE_DARK
         self.widgets = WidgetsManager(self)
 
-        self.text = text = Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
+        self.text = text = Text(font=FontResources.cooperblack(40), color=WHITE, shadow_x=3, shadow_y=3)
         self.scale = scale = ScaleBar(
             self.widgets,
             500,
@@ -854,7 +854,7 @@ class ScaleBarScene(MainScene):
         scale.resolution = 0
         scale.center = self.window.width / 4, self.window.centery
         text.midtop = scale.centerx, scale.bottom + 20
-        vscale.show_value("right", round_n=5, font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
+        vscale.show_value("right", round_n=5, font=FontResources.cooperblack(40), color=WHITE, shadow_x=3, shadow_y=3)
         vscale.center = self.window.width * 3 / 4, self.window.centery
 
     def on_start_loop_before_transition(self) -> None:
@@ -949,9 +949,7 @@ class TestGUIScene(GUIScene):
 
         Button.set_default_focus_on_hover(True)
 
-        self.text = WidgetWrapper(
-            self.widgets, Text(font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
-        ).ref
+        self.text = WidgetWrapper(self.widgets, Text(font=FontResources.cooperblack(40), color=WHITE, shadow_x=3, shadow_y=3)).ref
         self.first = Button(self.widgets, "First", callback=lambda: self.text.config.update(message="First"))
         self.second = Button(self.widgets, "Second", callback=lambda: self.text.config.update(message="Second"))
         self.third = Button(self.widgets, "Third", callback=lambda: self.text.config.update(message="Third"))
@@ -982,7 +980,7 @@ class GridScene(GUIScene):
 
         self.widgets = WidgetsManager(self)
 
-        self.text = Text("None", font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
+        self.text = Text("None", font=FontResources.cooperblack(40), color=WHITE, shadow_x=3, shadow_y=3)
         self.grid = Grid(self.widgets, bg_color=YELLOW)
 
         self.grid.default_padding.x = 20
@@ -1034,7 +1032,7 @@ class ScrollableGridScene(GUIScene):
 
         self.widgets = WidgetsManager(self)
 
-        self.text = Text("None", font=(FontResources.cooperblack, 40), color=WHITE, shadow_x=3, shadow_y=3)
+        self.text = Text("None", font=FontResources.cooperblack(40), color=WHITE, shadow_x=3, shadow_y=3)
         self.grid = ScrollableGrid(
             self.widgets,
             self.window.width // 2,
@@ -1102,8 +1100,8 @@ class FormScene(GUIScene):
     def __theme_init__(cls) -> None:
         super().__theme_init__()
 
-        Text.set_theme("text", {"font": (FontResources.cooperblack, 40), "color": WHITE, "shadow_x": 3, "shadow_y": 3})
-        Text.set_theme("response", {"font": (FontResources.cooperblack, 50)})
+        Text.set_theme("text", {"font": FontResources.cooperblack(40), "color": WHITE, "shadow_x": 3, "shadow_y": 3})
+        Text.set_theme("response", {"font": FontResources.cooperblack(50)})
 
         Entry.set_default_theme("default")
         Entry.set_theme("default", {"font": (None, 40), "highlight_color": YELLOW})
@@ -1146,7 +1144,7 @@ class WidgetsScene(GUIScene):
     def __theme_init__(cls) -> None:
         super().__theme_init__()
 
-        Text.set_theme("text", {"font": (FontResources.cooperblack, 40), "color": WHITE, "shadow_x": 3, "shadow_y": 3})
+        Text.set_theme("text", {"font": FontResources.cooperblack(40), "color": WHITE, "shadow_x": 3, "shadow_y": 3})
 
         Entry.set_default_theme("text")
         Entry.set_theme("text", {"fg": BLACK, "shadow_x": 0, "shadow_y": 0})
@@ -1224,7 +1222,7 @@ class AudioScene(MainScene):
     def __theme_init__(cls) -> None:
         super().__theme_init__()
         Text.set_default_theme("text")
-        Text.set_theme("text", {"font": (FontResources.cooperblack, 40), "color": WHITE, "shadow_x": 3, "shadow_y": 3})
+        Text.set_theme("text", {"font": FontResources.cooperblack(40), "color": WHITE, "shadow_x": 3, "shadow_y": 3})
         Button.set_theme("text", {"fg": BLACK})
 
     def awake(self, **kwargs: Any) -> None:
@@ -1274,7 +1272,7 @@ class GUIAudioScene(GUIScene, MainScene):
     def __theme_init__(cls) -> None:
         super().__theme_init__()
         Text.set_default_theme("text")
-        Text.set_theme("text", {"font": (FontResources.cooperblack, 40), "color": WHITE, "shadow_x": 3, "shadow_y": 3})
+        Text.set_theme("text", {"font": FontResources.cooperblack(40), "color": WHITE, "shadow_x": 3, "shadow_y": 3})
 
         Button.set_default_theme("button")
         Button.set_theme("text", {"fg": BLACK})
@@ -1345,7 +1343,7 @@ class MyDialog(PopupDialog, GUIScene):
     @classmethod
     def __theme_init__(cls) -> None:
         super().__theme_init__()
-        Text.set_theme("text", {"font": (FontResources.cooperblack, 40)})
+        Text.set_theme("text", {"font": FontResources.cooperblack(40)})
 
     def awake(self, **kwargs: Any) -> None:
         print(kwargs)
@@ -1494,10 +1492,8 @@ class MainWindow(SceneWindow):
         super().__window_init__()
         self.exit_stack.enter_context(Mixer.init())
 
-        # Text.set_default_font(FontResources.cooperblack)
-
         Button.set_default_theme("default")
-        Button.set_theme("default", {"font": (FontResources.cooperblack, 20), "border_radius": 5})
+        Button.set_theme("default", {"font": FontResources.cooperblack(20), "border_radius": 5})
 
         self.__framerate_update_clock: Clock = Clock(start=True)
         self.text_framerate: TextFramerate = TextFramerate()

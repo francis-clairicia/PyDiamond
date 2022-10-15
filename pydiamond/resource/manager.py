@@ -13,8 +13,9 @@ from os import PathLike
 from os.path import join
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Callable, Mapping, Sequence, TypeAlias
+from typing import Any, Callable, Mapping, NoReturn, Sequence, TypeAlias, final
 
+from ..system.object import ObjectMeta
 from ..system.path import set_constant_directory
 from .loader import AbstractResourceLoader
 
@@ -47,7 +48,7 @@ class _ResourceDescriptor:
     def __get__(self, obj: Any, objtype: type | None = None, /) -> Any:
         return self.load()
 
-    def __set__(self, obj: Any, value: Any, /) -> None:
+    def __set__(self, obj: Any, value: Any, /) -> NoReturn:
         raise AttributeError("can't set attribute")
 
     def __delete__(self, obj: Any, /) -> None:
@@ -91,7 +92,7 @@ class _ResourceDescriptor:
         return self.__nb_resources
 
 
-class ResourceManagerMeta(type):
+class ResourceManagerMeta(ObjectMeta):
     def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> ResourceManagerMeta:
         resources: dict[str, Any] = namespace.setdefault("__resources_files__", dict())
 
@@ -114,7 +115,10 @@ class ResourceManagerMeta(type):
         for resource_name, resource_path in resources.items():
             namespace[resource_name] = _ResourceDescriptor(resource_path, namespace["__resource_loader__"], directory)
 
-        return super().__new__(mcs, name, bases, namespace, **kwargs)
+        cls = super().__new__(mcs, name, bases, namespace, no_slots=True, **kwargs)
+        if resources:
+            cls = final(cls)
+        return cls
 
     def __init__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> None:
         super().__init__(name, bases, namespace, **kwargs)
@@ -134,7 +138,6 @@ class ResourceManagerMeta(type):
         else:
             if name in resources:
                 resources[name].__set__(None, value)
-                return
         super().__setattr__(name, value)
 
     def __delattr__(cls, name: str, /) -> None:

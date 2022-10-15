@@ -32,7 +32,7 @@ from .renderer import AbstractRenderer
 from .surface import Surface, SurfaceRenderer, create_surface
 from .transformable import Transformable
 
-_TupleFont: TypeAlias = tuple[str | None, int]
+_TupleFont: TypeAlias = tuple[str | None, float]
 _TextFont: TypeAlias = Font | _TupleFont
 
 

@@ -11,18 +11,22 @@ __all__ = ["AbstractRenderer"]
 from abc import abstractmethod
 from enum import IntEnum, unique
 from itertools import starmap
-from typing import TYPE_CHECKING, ContextManager, Iterable, Literal, Sequence, overload
+from typing import TYPE_CHECKING, ContextManager, Iterable, Literal, Sequence, TypeAlias, overload
 
 import pygame.constants as _pg_constants
 
 from ..math.rect import Rect
 from ..system.object import Object
+from ..system.utils.itertools import consume
 
 if TYPE_CHECKING:
     from pygame._common import _CanBeRect, _ColorValue, _Coordinate, _RectValue  # pyright: reportMissingModuleSource=false
 
     from .font import Font
     from .surface import Surface
+
+    _TupleFont: TypeAlias = tuple[str | None, float]
+    _TextFont: TypeAlias = Font | _TupleFont
 
 
 @unique
@@ -132,15 +136,14 @@ class AbstractRenderer(Object):
         draw = self.draw_surface
         if doreturn:
             return list(starmap(draw, sequence))
-        for args in sequence:
-            draw(*args)
+        consume(starmap(draw, sequence))
         return None
 
     @abstractmethod
     def draw_text(
         self,
         text: str,
-        font: Font,
+        font: _TextFont,
         dest: _Coordinate | _CanBeRect,
         fgcolor: _ColorValue,
         bgcolor: _ColorValue | None = ...,

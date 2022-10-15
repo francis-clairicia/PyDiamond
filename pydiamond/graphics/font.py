@@ -16,14 +16,13 @@ __all__ = [
 import os
 from copy import copy
 from enum import IntFlag, unique
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Iterable, NamedTuple, TypeAlias
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Iterable, NamedTuple, TypeAlias, overload
 
 import pygame.freetype as _pg_freetype
 import pygame.sysfont as _pg_sysfont
 
-from ..math.rect import Rect
+from ..math.rect import Rect, modify_rect_in_place
 from ..system.configuration import ConfigurationTemplate, OptionAttribute
-from ..system.namespace import ClassNamespace
 from ..system.object import Object, final
 
 if TYPE_CHECKING:
@@ -44,7 +43,7 @@ def match_font(name: str | bytes | Iterable[str | bytes], bold: bool = False, it
     return _pg_sysfont.match_font(name, bold=bold, italic=italic)  # type: ignore[no-untyped-call]
 
 
-def SysFont(name: str | bytes | Iterable[str | bytes], size: int, bold: bool = False, italic: bool = False) -> Font:
+def SysFont(name: str | bytes | Iterable[str | bytes], size: float, bold: bool = False, italic: bool = False) -> Font:
     """SysFont(name, size, bold=False, italic=False) -> Font
     Create a pygame Font from system font resources.
 
@@ -64,10 +63,9 @@ def SysFont(name: str | bytes | Iterable[str | bytes], size: int, bold: bool = F
     alternative may be used.
     """
 
-    def font_constructor(fontpath: str, size: int, bold: bool, italic: bool) -> Font:
+    def font_constructor(fontpath: str, size: float, bold: bool, italic: bool) -> Font:
         font: Font = Font(fontpath, size)
-        font.wide = bold
-        font.oblique = italic
+        font.config.update(wide=bold, oblique=italic)
         return font
 
     font: Font = _pg_sysfont.SysFont(name, size, bold=bold, italic=italic, constructor=font_constructor)  # type: ignore[no-untyped-call]
@@ -105,6 +103,8 @@ class FontSizeInfo(NamedTuple):
 
 @final
 class Font(Object):
+    __slots__ = ("__ft", "__weakref__")
+
     from pygame import encode_file_path as __encode_file_path  # type: ignore[misc]
 
     __factory = staticmethod(_pg_freetype.Font)
@@ -178,12 +178,8 @@ class Font(Object):
         cls = self.__class__
         copy_self = cls.__new__(cls)
         ft = self.__ft
-        try:
-            ft_size = float(ft.size)  # type: ignore[arg-type]
-        except ValueError:
-            ft_size = max(ft.size)  # type: ignore[arg-type]
-        copy_self.__ft = copy_ft = self.__factory(ft.path, size=ft_size, resolution=self.resolution)
-        for attr in {*self.config.info.options, "pad", "origin"}:
+        copy_self.__ft = copy_ft = self.__factory(ft.path, size=1, resolution=self.resolution)
+        for attr in {*self.config.info.options, "size", "pad", "origin"}:
             setattr(copy_ft, attr, getattr(ft, attr))
         return copy_self
 
@@ -205,12 +201,15 @@ class Font(Object):
         return self.__ft.resolution
 
     @property
-    def size(self) -> float | tuple[float, float]:
-        return self.__ft.size
+    def size(self) -> float:
+        size = self.__ft.size
+        if isinstance(size, tuple):
+            return max(size)
+        return size
 
     @size.setter
-    def size(self, value: float | tuple[float, float]) -> None:
-        self.__ft.size = value
+    def size(self, value: float) -> None:
+        self.__ft.size = float(value)
 
     @property
     def height(self) -> int:
@@ -236,14 +235,66 @@ class Font(Object):
     def scalable(self) -> bool:
         return self.__ft.scalable
 
+    def get_scale_size(self) -> tuple[float, float]:
+        size = self.__ft.size
+        if not isinstance(size, tuple):
+            return (size, size)
+        return size
+
+    def set_scale_size(self, size: tuple[float, float]) -> None:
+        w, h = size
+        self.__ft.size = (w, h)
+
+    @overload
+    def get_rect(
+        self,
+        text: str,
+        style: int = ...,
+        rotation: int = ...,
+        size: float = ...,
+    ) -> Rect:
+        ...
+
+    @overload
+    def get_rect(
+        self,
+        text: str,
+        style: int = ...,
+        rotation: int = ...,
+        size: float = ...,
+        *,
+        x: float = ...,
+        y: float = ...,
+        top: float = ...,
+        left: float = ...,
+        bottom: float = ...,
+        right: float = ...,
+        topleft: tuple[float, float] = ...,
+        bottomleft: tuple[float, float] = ...,
+        topright: tuple[float, float] = ...,
+        bottomright: tuple[float, float] = ...,
+        midtop: tuple[float, float] = ...,
+        midleft: tuple[float, float] = ...,
+        midbottom: tuple[float, float] = ...,
+        midright: tuple[float, float] = ...,
+        center: tuple[float, float] = ...,
+        centerx: float = ...,
+        centery: float = ...,
+    ) -> Rect:
+        ...
+
     def get_rect(
         self,
         text: str,
         style: int = STYLE_DEFAULT,
         rotation: int = 0,
         size: float = 0,
+        **kwargs: Any,
     ) -> Rect:
-        return self.__ft.get_rect(text or "", style=style, rotation=rotation, size=size)
+        r = self.__ft.get_rect(text or "", style=style, rotation=rotation, size=size)
+        if kwargs:
+            modify_rect_in_place(r, size=None, width=None, height=None, w=None, h=None, **kwargs)
+        return r
 
     def get_metrics(self, text: str, size: float = 0) -> list[GlyphMetrics]:
         return [GlyphMetrics._make(metrics) for metrics in self.__ft.get_metrics(text or "", size=size)]
@@ -361,12 +412,22 @@ class Font(Object):
     del __get_property, __set_property
 
 
-_TupleFont: TypeAlias = tuple[str | None, int]
+_TupleFont: TypeAlias = tuple[str | None, float]
 _TextFont: TypeAlias = Font | _TupleFont
 
 
 @final
-class FontFactory(ClassNamespace, frozen=True):
+class FontFactory(Object):
+    __slots__ = ("__name", "__weakref__")
+
+    def __init__(self, name: str | None) -> None:
+        super().__init__()
+        self.__name: str | None = name
+
+    def __call__(self, size: float, bold: bool | None = None, italic: bool | None = None, underline: bool | None = None) -> Font:
+        tuple_font = (self.__name, size)
+        return self.create_font(tuple_font, bold=bold, italic=italic, underline=underline)
+
     @staticmethod
     def create_font(
         font: _TextFont | None,
