@@ -1,5 +1,5 @@
 ############ Module declaration ############
-from __future__ import annotations
+# isort: dont-add-imports
 
 from typing import Final, Literal
 

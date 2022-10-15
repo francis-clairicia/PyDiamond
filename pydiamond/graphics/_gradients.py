@@ -50,16 +50,15 @@ class ColorInterpolator(object):
         returns the color at the position 0<=x<=d (actually not bound to this interval).
         '''
 ##        print "colorInterp x", x, self.rInterpolator.eval(x), self.gInterpolator.eval(x), self.bInterpolator.eval(x)
-        return [self.rInterpolator.eval(x), 
+        return (self.rInterpolator.eval(x), 
                 self.gInterpolator.eval(x), 
                 self.bInterpolator.eval(x), 
-                self.aInterpolator.eval(x)]
-            
+                self.aInterpolator.eval(x))
 
 
 class FunctionInterpolator(object):
     '''
-    FunctionINterpolator(startvalue, endvalue, trange, func)
+    FunctionInterpolator(startvalue, endvalue, trange, func)
     
     interpolates a function y=f(x) in the range trange with
     startvalue = f(0)
@@ -227,6 +226,10 @@ def vertical(size, startcolor, endcolor):
     Draws a vertical linear gradient filling the entire surface. Returns a
     surface filled with the gradient (numeric is only 2-3 times faster).
     """
+    if len(startcolor) != 4:
+        startcolor = (*startcolor, 255)
+    if len(endcolor) != 4:
+        endcolor = (*endcolor, 255)
     height = size[1]
     bigSurf = pygame.Surface((1,height)).convert_alpha()
     dd = 1.0/height
@@ -251,6 +254,10 @@ def horizontal(size, startcolor, endcolor):
     Draws a horizontal linear gradient filling the entire surface. Returns a
     surface filled with the gradient (numeric is only 2-3 times faster).
     """
+    if len(startcolor) != 4:
+        startcolor = (*startcolor, 255)
+    if len(endcolor) != 4:
+        endcolor = (*endcolor, 255)
     width = size[0]
     bigSurf = pygame.Surface((width, 1)).convert_alpha()
     dd = 1.0/width
@@ -275,6 +282,10 @@ def radial(radius, startcolor, endcolor):
     Draws a linear raidal gradient on a square sized surface and returns
     that surface.
     """
+    if len(startcolor) != 4:
+        startcolor = (*startcolor, 255)
+    if len(endcolor) != 4:
+        endcolor = (*endcolor, 255)
     bigSurf = pygame.Surface((2*radius, 2*radius)).convert_alpha()
     bigSurf.fill((0,0,0,0))
     dd = -1.0/radius
@@ -298,6 +309,10 @@ def squared(width, startcolor, endcolor):
     Draws a linear sqared gradient on a square sized surface and returns
     that surface.
     """
+    if len(startcolor) != 4:
+        startcolor = (*startcolor, 255)
+    if len(endcolor) != 4:
+        endcolor = (*endcolor, 255)
     bigSurf = pygame.Surface((width, width)).convert_alpha()
     bigSurf.fill((0,0,0,0))
     dd = -1.0/(width/2)

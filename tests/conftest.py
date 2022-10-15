@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Iterator
 import pytest
 
 if TYPE_CHECKING:
+    import pathlib
     from threading import ExceptHookArgs
 
     from pytest_mock import MockerFixture
@@ -57,7 +58,7 @@ def silently_ignore_systemexit_in_thread() -> Iterator[None]:
         setattr(threading, "excepthook", default_excepthook)
 
 
-################################## fixtures plugins ##################################
+################################## fixtures ##################################
 
 pytest_plugins = [
     # pygame modules plugins
@@ -70,6 +71,12 @@ pytest_plugins = [
     f"{__package__}.fixtures.monkeypatch",
     f"{__package__}.fixtures.sentinel",
 ]
+
+
+@pytest.fixture(scope="session")
+def pydiamond_rootdir(pytestconfig: pytest.Config) -> pathlib.Path:
+    return pytestconfig.rootpath / "pydiamond"
+
 
 ################################## Auto used fixtures for all session test ##################################
 

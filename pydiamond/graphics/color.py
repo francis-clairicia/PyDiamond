@@ -67,6 +67,9 @@ class Color(pygame.color.Color):
         H, S, _, A = self.hsva
         self.hsva = (H, S, value, A)
 
+    def to_tuple(self) -> tuple[int, int, int, int]:
+        return (self.r, self.g, self.b, self.a)
+
     def with_brightness(self, value: float) -> Color:
         c = Color(self)
         c.v = value

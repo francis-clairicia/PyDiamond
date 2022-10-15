@@ -23,7 +23,7 @@ from typing import Any, Callable, ClassVar, Sequence
 from pygame.transform import rotate as _surface_rotate, smoothscale as _surface_scale
 
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
-from ._gradients import (  # type: ignore[attr-defined]
+from ._gradients import (
     horizontal_func as _gradient_horizontal,
     radial_func as _gradient_radial,
     squared_func as _gradient_squared,
@@ -99,8 +99,8 @@ class HorizontalGradientShape(AbstractRectangleShape, GradientShape):
             return create_surface(size)
         surface: Surface = _gradient_horizontal(
             size,
-            tuple(self.first_color),  # type: ignore[arg-type]
-            tuple(self.second_color),  # type: ignore[arg-type]
+            self.first_color.to_tuple(),
+            self.second_color.to_tuple(),
             Rfunc=self.rfunc,
             Gfunc=self.gfunc,
             Bfunc=self.bfunc,
@@ -161,8 +161,8 @@ class VerticalGradientShape(AbstractRectangleShape, GradientShape):
             return create_surface(size)
         surface: Surface = _gradient_vertical(
             size,
-            tuple(self.first_color),  # type: ignore[arg-type]
-            tuple(self.second_color),  # type: ignore[arg-type]
+            self.first_color.to_tuple(),
+            self.second_color.to_tuple(),
             Rfunc=self.rfunc,
             Gfunc=self.gfunc,
             Bfunc=self.bfunc,
@@ -221,8 +221,8 @@ class SquaredGradientShape(AbstractSquareShape, GradientShape):
             return create_surface((0, 0))
         surface: Surface = _gradient_squared(
             size,
-            tuple(self.first_color),  # type: ignore[arg-type]
-            tuple(self.second_color),  # type: ignore[arg-type]
+            self.first_color.to_tuple(),
+            self.second_color.to_tuple(),
             Rfunc=self.rfunc,
             Gfunc=self.gfunc,
             Bfunc=self.bfunc,
@@ -279,8 +279,8 @@ class RadialGradientShape(AbstractCircleShape, GradientShape):
             return create_surface((0, 0))
         surface: Surface = _gradient_radial(
             radius,
-            tuple(self.first_color),  # type: ignore[arg-type]
-            tuple(self.second_color),  # type: ignore[arg-type]
+            self.first_color.to_tuple(),
+            self.second_color.to_tuple(),
             Rfunc=self.rfunc,
             Gfunc=self.gfunc,
             Bfunc=self.bfunc,
