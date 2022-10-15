@@ -42,7 +42,6 @@ __all__ = [
     "TextEvent",
     "TextInputEvent",
     "UnknownEventTypeError",
-    "UserEvent",
     "WindowEnterEvent",
     "WindowExposedEvent",
     "WindowFocusGainedEvent",
@@ -153,7 +152,14 @@ class EventMeta(ObjectMeta):
             except AttributeError:
                 pass
             else:
-                event_name_dispatch_table[event_type] = f"{event_cls.__qualname__}({_pg_event.event_name(event_type)})"
+                event_name = event_cls.__qualname__
+                try:
+                    original_pygame_event_name: Callable[[int], str] = getattr(_pg_event.event_name, "__wrapped__")
+                except AttributeError:
+                    pass
+                else:
+                    event_name = f"{event_name}({original_pygame_event_name(event_type)})"
+                event_name_dispatch_table[event_type] = event_name
         return cls
 
     def __call__(cls, *args: Any, **kwds: Any) -> Any:
@@ -222,6 +228,17 @@ class _BuiltinEventMeta(EventMeta):
 class Event(Object, metaclass=EventMeta):
     __slots__ = ()
 
+    def __repr__(self) -> str:
+        event_name: str
+        try:
+            pygame_type = EventFactory.get_pygame_event_type(self)
+        except KeyError:
+            event_name = type(self).__name__
+        else:
+            event_name = _pg_event.event_name(pygame_type)
+        event_dict = self.to_dict()
+        return f"{event_name}({', '.join(f'{k}={v!r}' for k, v in event_dict.items())})"
+
     @classmethod
     @abstractmethod
     def from_dict(cls: type[Self], event_dict: Mapping[str, Any]) -> Self:
@@ -252,7 +269,6 @@ class BuiltinEventType(IntEnum):
     JOYBUTTONDOWN = _pg_constants.JOYBUTTONDOWN
     JOYDEVICEADDED = _pg_constants.JOYDEVICEADDED
     JOYDEVICEREMOVED = _pg_constants.JOYDEVICEREMOVED
-    USEREVENT = _pg_constants.USEREVENT
     AUDIODEVICEADDED = _pg_constants.AUDIODEVICEADDED
     AUDIODEVICEREMOVED = _pg_constants.AUDIODEVICEREMOVED
     TEXTEDITING = _pg_constants.TEXTEDITING
@@ -473,46 +489,6 @@ TextEvent: TypeAlias = TextEditingEvent | TextInputEvent
 
 
 @final
-@dataclass(init=False)
-class UserEvent(BuiltinEvent, event_type=BuiltinEventType.USEREVENT):
-    __slots__ = ("__type", "__dict__", "__weakref__")
-
-    code: int = 0
-
-    def __init__(self, __type: int | None = None, /, *, code: int = 0, **kwargs: Any) -> None:
-        if __type is None:
-            __type = EventFactory.get_pygame_event_type(UserEvent)
-        self.type = __type
-        self.code = code
-        self.__dict__.update(kwargs)
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(type={self.type}, {', '.join(f'{k}={v!r}' for k, v in self.__dict__.items())})"
-
-    if TYPE_CHECKING:
-
-        def __getattr__(self, name: str, /) -> Any:  # Indicate dynamic attribute
-            ...
-
-    @classmethod
-    def from_dict(cls, event_dict: Mapping[str, Any], *, type: int | None = None) -> UserEvent:
-        return cls(type, **event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return self.__dict__ | super().to_dict()
-
-    @property
-    def type(self) -> int:
-        return self.__type
-
-    @type.setter
-    def type(self, type: int) -> None:
-        self.__type = int(type)
-        if not (BuiltinEventType.USEREVENT <= self.type < EventFactory.NUMEVENTS):
-            raise ValueError("Invalid event type range")
-
-
-@final
 @dataclass(kw_only=True)
 class DropBeginEvent(BuiltinEvent, event_type=BuiltinEventType.DROPBEGIN):
     pass
@@ -657,11 +633,18 @@ class UnknownEventTypeError(EventFactoryError):
     pass
 
 
+if TYPE_CHECKING:
+    _PygameEventType: TypeAlias = _pg_event.Event
+else:
+    from pygame.event import EventType as _PygameEventType
+
+
 @final
 class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
     associations: Final[Mapping[type[Event], int]] = MappingProxyType(ChainMap(_BUILTIN_ASSOCIATIONS, _ASSOCIATIONS))
     pygame_type: Final[Mapping[int, type[Event]]] = MappingProxyType(ChainMap(_BUILTIN_PYGAME_EVENT_TYPE, _PYGAME_EVENT_TYPE))
 
+    USEREVENT: Final[int] = _pg_constants.USEREVENT
     NUMEVENTS: Final[int] = _pg_constants.NUMEVENTS
     NON_BLOCKABLE_EVENTS: Final[frozenset[int]] = frozenset(map(int, getattr(_pg_event.set_blocked, "__forbidden_events__", ())))
 
@@ -678,32 +661,28 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
         return event not in EventFactory.NON_BLOCKABLE_EVENTS
 
     @staticmethod
-    def from_pygame_event(pygame_event: _pg_event.Event, *, handle_user_events: bool = True) -> Event:
-        try:
-            event_cls: type[Event] = EventFactory.pygame_type[pygame_event.type]
-        except KeyError as exc:
-            if not handle_user_events or not (BuiltinEventType.USEREVENT < pygame_event.type < EventFactory.NUMEVENTS):
-                raise UnknownEventTypeError(
-                    f"Unknown event with type {pygame_event.type} ({_pg_event.event_name(pygame_event.type)!r})"
-                ) from exc
-            return UserEvent.from_dict(pygame_event.__dict__, type=pygame_event.type)
-        match event_cls.from_dict(pygame_event.__dict__):
-            case UserEvent(type=BuiltinEventType.USEREVENT, code=BuiltinUserEventCode.DROPFILE, filename=filename):
+    def from_pygame_event(pygame_event: _pg_event.Event) -> Event:
+        event: Event
+        match pygame_event:
+            case _PygameEventType(type=EventFactory.USEREVENT, code=BuiltinUserEventCode.DROPFILE, filename=filename):
                 # cf.: https://www.pygame.org/docs/ref/event.html#:~:text=%3Dpygame.-,USEREVENT_DROPFILE,-%2C%20filename
-                return DropFileEvent(file=filename)
-            case event:
-                return event
+                event = DropFileEvent(file=filename)
+            case _:
+                try:
+                    event_cls: type[Event] = EventFactory.pygame_type[pygame_event.type]
+                except KeyError as exc:
+                    raise UnknownEventTypeError(
+                        f"Unknown event with type {pygame_event.type} ({_pg_event.event_name(pygame_event.type)!r})"
+                    ) from exc
+                event = event_cls.from_dict(MappingProxyType(pygame_event.__dict__))
+        return event
 
     @staticmethod
     def make_pygame_event(event: Event) -> _pg_event.Event:
         assert not event.__class__.is_model()  # Should not happen but who knows...?
         event_dict = event.to_dict()
         event_dict.pop("type", None)
-        match event:
-            case UserEvent(type=event_type):
-                pass
-            case _:
-                event_type = EventFactory.associations[event.__class__]
+        event_type = EventFactory.associations[event.__class__]
         return _pg_event.Event(event_type, event_dict)
 
 
