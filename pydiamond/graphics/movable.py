@@ -95,8 +95,8 @@ def __prepare_movable_namespace(mcs: Any, name: str, bases: tuple[type, ...], na
 
         return decorator
 
-    @wraps_method("_get_position")
-    def _get_position(self: Movable, anchor: str) -> float | tuple[float, float]:
+    @wraps_method("get_position")
+    def get_position(self: Movable, anchor: str) -> float | tuple[float, float]:
         try:
             fget = _positions_getter[anchor]
         except KeyError:
@@ -151,11 +151,11 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
         self.__y: float = 0
 
     @overload
-    def _get_position(self, anchor: Literal["x", "y", "left", "top", "right", "bottom", "centerx", "centery"]) -> float:
+    def get_position(self, anchor: Literal["x", "y", "left", "top", "right", "bottom", "centerx", "centery"]) -> float:
         ...
 
     @overload
-    def _get_position(
+    def get_position(
         self,
         anchor: Literal[
             "center",
@@ -172,11 +172,11 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
         ...
 
     @overload
-    def _get_position(self, anchor: str) -> float | tuple[float, float]:
+    def get_position(self, anchor: str) -> float | tuple[float, float]:
         ...
 
     @final
-    def _get_position(self, anchor: str) -> float | tuple[float, float]:
+    def get_position(self, anchor: str) -> float | tuple[float, float]:
         raise AssertionError("Should not be called")
 
     @final

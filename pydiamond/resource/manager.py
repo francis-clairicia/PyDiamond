@@ -13,9 +13,9 @@ from os import PathLike
 from os.path import join
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Callable, Mapping, NoReturn, Sequence, TypeAlias, final
+from typing import AbstractSet, Any, Callable, Mapping, NoReturn, Sequence, TypeAlias, final
 
-from ..system.object import ObjectMeta
+from ..system.namespace import ClassNamespace, ClassNamespaceMeta
 from ..system.path import set_constant_directory
 from .loader import AbstractResourceLoader
 
@@ -35,7 +35,7 @@ class _ResourceDescriptor:
                 resource_loader: AbstractResourceLoader[Any] = loader(path)
                 self.__nb_resources += 1
                 return resource_loader
-            if isinstance(path, (list, tuple, set, frozenset, Sequence)):
+            if isinstance(path, (list, tuple, set, frozenset, Sequence, AbstractSet)):
                 return tuple(get_resources_loader(p) for p in path)
             if isinstance(path, (dict, Mapping)):
                 return {key: get_resources_loader(value) for key, value in path.items()}
@@ -92,12 +92,11 @@ class _ResourceDescriptor:
         return self.__nb_resources
 
 
-class ResourceManagerMeta(ObjectMeta):
+class ResourceManagerMeta(ClassNamespaceMeta):
     def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> ResourceManagerMeta:
         resources: dict[str, Any] = namespace.setdefault("__resources_files__", dict())
 
-        annotations: dict[str, type | str] = namespace.setdefault("__annotations__", dict())
-        annotations = annotations.copy()
+        annotations: dict[str, type | str] = dict(namespace.get("__annotations__", dict()))
         for attr_name in ["__resources_files__", "__resources_directory__", "__resource_loader__"]:
             annotations.pop(attr_name, None)
         for attr_name in annotations:
@@ -115,34 +114,23 @@ class ResourceManagerMeta(ObjectMeta):
         for resource_name, resource_path in resources.items():
             namespace[resource_name] = _ResourceDescriptor(resource_path, namespace["__resource_loader__"], directory)
 
-        cls = super().__new__(mcs, name, bases, namespace, no_slots=True, **kwargs)
+        cls = super().__new__(mcs, name, bases, namespace, frozen=True, **kwargs)
         if resources:
             cls = final(cls)
         return cls
 
     def __init__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> None:
-        super().__init__(name, bases, namespace, **kwargs)
-
         cls.__resources_directory__: str | None
         cls.__resources_files__: dict[str, _ResourceDescriptor]
         cls.__resource_loader__: Callable[[str], AbstractResourceLoader[Any]]
         cls.__resources: dict[str, _ResourceDescriptor] = {
             name: value for name, value in vars(cls).items() if isinstance(value, _ResourceDescriptor)
         }
-
-    def __setattr__(cls, name: str, value: Any, /) -> None:
-        try:
-            resources: dict[str, _ResourceDescriptor] = cls.__resources
-        except AttributeError:
-            pass
-        else:
-            if name in resources:
-                resources[name].__set__(None, value)
-        super().__setattr__(name, value)
+        super().__init__(name, bases, namespace, frozen=True, **kwargs)
 
     def __delattr__(cls, name: str, /) -> None:
         if name in cls.__resources:
-            cls.__resources[name].__delete__(None)
+            cls.__resources[name].unload()
         else:
             super().__delattr__(name)
 
@@ -171,7 +159,7 @@ class ResourceManagerMeta(ObjectMeta):
             resource.unload()
 
 
-class ResourceManager(metaclass=ResourceManagerMeta):
+class ResourceManager(ClassNamespace, metaclass=ResourceManagerMeta):
     __resources_directory__: str | PathLike[str] | None = None
     __resources_files__: dict[str, _ResourcePath]
     __resource_loader__: Callable[[str | PathLike[str]], AbstractResourceLoader[Any]]

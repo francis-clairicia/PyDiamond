@@ -57,28 +57,23 @@ class ClassNamespaceMeta(ObjectMeta):
         raise TypeError(f"{cls.__module__}.{cls.__name__} cannot be instantiated")
 
     def __setattr__(cls, name: str, value: Any, /) -> None:
-        if name in ("__new__", "__init__"):
-            raise TypeError(f"{cls.__module__}.{cls.__name__} cannot be instantiated")
-        if getattr(cls, "_class_namespace_was_init_"):
-            if getattr(cls, "_frozen_class_namespace_", False):
-                raise AttributeError(f"{cls.__module__}.{cls.__name__}: Frozen class namespace")
-            if name in ("_frozen_class_namespace_", "_class_namespace_was_init_"):
-                raise AttributeError(f"{name!r} is read-only")
-        elif name in ("_frozen_class_namespace_"):
-            raise AttributeError(f"{name!r} is read-only")
+        cls.__check_name(name)
         return super().__setattr__(name, value)
 
     def __delattr__(cls, name: str, /) -> None:
+        cls.__check_name(name)
+        return super().__delattr__(name)
+
+    def __check_name(cls, name: str) -> None:
         if name in ("__new__", "__init__"):
             raise TypeError(f"{cls.__module__}.{cls.__name__} cannot be instantiated")
         if getattr(cls, "_class_namespace_was_init_"):
             if getattr(cls, "_frozen_class_namespace_", False):
                 raise AttributeError(f"{cls.__module__}.{cls.__name__}: Frozen class namespace")
-            if name in ("_frozen_class_namespace_", "_class_namespace_was_init_"):
+            if name in ["_frozen_class_namespace_", "_class_namespace_was_init_"]:
                 raise AttributeError(f"{name!r} is read-only")
-        elif name in ("_frozen_class_namespace_"):
+        elif name in ["_frozen_class_namespace_"]:
             raise AttributeError(f"{name!r} is read-only")
-        return super().__delattr__(name)
 
 
 class ClassNamespace(Object, metaclass=ClassNamespaceMeta):

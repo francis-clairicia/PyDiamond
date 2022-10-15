@@ -249,7 +249,7 @@ class AbstractWidget(Drawable, Movable, prepare_namespace=__prepare_abstract_wid
     def get_relative_position(self, anchor: str) -> float | tuple[float, float]:
         parent: AbstractWidget | None = self.__parent()
         if parent is None:
-            return self._get_position(anchor)
+            return self.get_position(anchor)
         if anchor in ("x", "left", "right", "centerx"):
             self_x = self._get_single_component_position(anchor)
             return self_x - parent.x

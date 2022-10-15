@@ -9,7 +9,7 @@ from __future__ import annotations
 __all__ = ["WidgetWrappedElement", "WidgetWrapper"]
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, runtime_checkable
+from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, TypeVar, runtime_checkable
 
 from ...graphics.drawable import SupportsDrawableGroups
 from .abc import AbstractWidget, WidgetsManager
@@ -23,6 +23,10 @@ if TYPE_CHECKING:
 class WidgetWrappedElement(SupportsDrawableGroups, Protocol):
     @abstractmethod
     def get_size(self) -> tuple[float, float]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_position(self, __anchor: Literal["x", "y"], /) -> float:
         raise NotImplementedError
 
     @abstractmethod
@@ -41,8 +45,9 @@ class WidgetWrapper(AbstractWidget, Generic[_E]):
 
     def draw_onto(self, target: AbstractRenderer) -> None:
         ref = self.__ref
-        x, y = self.topleft
-        ref.set_position(x=x, y=y)
+        x = ref.get_position("x")
+        y = ref.get_position("y")
+        self.topleft = (x, y)
         return ref.draw_onto(target)
 
     def get_size(self) -> tuple[float, float]:
