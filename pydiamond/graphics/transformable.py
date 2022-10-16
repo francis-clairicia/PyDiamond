@@ -14,7 +14,7 @@ from typing import Any, Literal, Mapping, overload
 from typing_extensions import assert_never
 
 from ..math import Rect, Vector2, compute_rect_from_vertices, compute_size_from_vertices, normalize_points, rotate_points
-from ..math.rect import modify_rect_in_place
+from ..math.rect import modify_rect_in_place, move_rect_in_place
 from ..system.object import final
 from ..system.utils.abc import concreteclass
 from .movable import Movable, MovableProxy
@@ -416,7 +416,7 @@ class Transformable(Movable):
 
         if kwargs:
             rect = Rect(compute_rect_from_vertices(vertices))
-            modify_rect_in_place(rect, size=None, width=None, height=None, w=None, h=None, **kwargs)
+            move_rect_in_place(rect, **kwargs)
             dx = rect.x
             dy = rect.y
 

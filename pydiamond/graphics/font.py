@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Final, Iterable, NamedTuple, Ty
 import pygame.freetype as _pg_freetype
 import pygame.sysfont as _pg_sysfont
 
-from ..math.rect import Rect, modify_rect_in_place
+from ..math.rect import Rect, move_rect_in_place
 from ..system.configuration import ConfigurationTemplate, OptionAttribute
 from ..system.object import Object, final
 
@@ -291,9 +291,13 @@ class Font(Object):
         size: float = 0,
         **kwargs: Any,
     ) -> Rect:
-        r = self.__ft.get_rect(text or "", style=style, rotation=rotation, size=size)
+        try:
+            self.__ft.pad = rotation == 0
+            r = self.__ft.get_rect(text or "", style=style, rotation=rotation, size=size)
+        finally:
+            self.__ft.pad = True
         if kwargs:
-            modify_rect_in_place(r, size=None, width=None, height=None, w=None, h=None, **kwargs)
+            move_rect_in_place(r, **kwargs)
         return r
 
     def get_metrics(self, text: str, size: float = 0) -> list[GlyphMetrics]:

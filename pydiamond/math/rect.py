@@ -59,13 +59,14 @@ class ImmutableRect(Rect):
 
 
 @overload
-def modify_rect(r: Rect) -> Rect:
+def modify_rect(r: Rect, /) -> Rect:
     ...
 
 
 @overload
 def modify_rect(
     r: Rect,
+    /,
     *,
     x: float | None = ...,
     y: float | None = ...,
@@ -93,7 +94,7 @@ def modify_rect(
     ...
 
 
-def modify_rect(r: Rect, **kwargs: float | tuple[float, float] | None) -> Rect:
+def modify_rect(r: Rect, /, **kwargs: float | tuple[float, float] | None) -> Rect:
     r_copy = Rect(r.topleft, r.size)
     r_copy_setattr = r_copy.__setattr__
     for name, value in kwargs.items():
@@ -104,13 +105,14 @@ def modify_rect(r: Rect, **kwargs: float | tuple[float, float] | None) -> Rect:
 
 
 @overload
-def modify_rect_in_place(r: Rect) -> None:
+def modify_rect_in_place(r: Rect, /) -> None:
     ...
 
 
 @overload
 def modify_rect_in_place(
     r: Rect,
+    /,
     *,
     x: float | None = ...,
     y: float | None = ...,
@@ -138,9 +140,79 @@ def modify_rect_in_place(
     ...
 
 
-def modify_rect_in_place(r: Rect, **kwargs: float | tuple[float, float] | None) -> None:
+def modify_rect_in_place(r: Rect, /, **kwargs: float | tuple[float, float] | None) -> None:
     r_setattr = r.__setattr__
     for name, value in kwargs.items():
         if value is None:
             continue
         r_setattr(name, value)
+
+
+@overload
+def move_rect(r: Rect, /) -> Rect:
+    ...
+
+
+@overload
+def move_rect(
+    r: Rect,
+    /,
+    *,
+    x: float | None = ...,
+    y: float | None = ...,
+    top: float | None = ...,
+    left: float | None = ...,
+    bottom: float | None = ...,
+    right: float | None = ...,
+    topleft: tuple[float, float] | None = ...,
+    bottomleft: tuple[float, float] | None = ...,
+    topright: tuple[float, float] | None = ...,
+    bottomright: tuple[float, float] | None = ...,
+    midtop: tuple[float, float] | None = ...,
+    midleft: tuple[float, float] | None = ...,
+    midbottom: tuple[float, float] | None = ...,
+    midright: tuple[float, float] | None = ...,
+    center: tuple[float, float] | None = ...,
+    centerx: float | None = ...,
+    centery: float | None = ...,
+) -> Rect:
+    ...
+
+
+def move_rect(r: Rect, /, **kwargs: Any) -> Rect:
+    return modify_rect(r, size=None, width=None, height=None, w=None, h=None, **kwargs)
+
+
+@overload
+def move_rect_in_place(r: Rect, /) -> None:
+    ...
+
+
+@overload
+def move_rect_in_place(
+    r: Rect,
+    /,
+    *,
+    x: float | None = ...,
+    y: float | None = ...,
+    top: float | None = ...,
+    left: float | None = ...,
+    bottom: float | None = ...,
+    right: float | None = ...,
+    topleft: tuple[float, float] | None = ...,
+    bottomleft: tuple[float, float] | None = ...,
+    topright: tuple[float, float] | None = ...,
+    bottomright: tuple[float, float] | None = ...,
+    midtop: tuple[float, float] | None = ...,
+    midleft: tuple[float, float] | None = ...,
+    midbottom: tuple[float, float] | None = ...,
+    midright: tuple[float, float] | None = ...,
+    center: tuple[float, float] | None = ...,
+    centerx: float | None = ...,
+    centery: float | None = ...,
+) -> None:
+    ...
+
+
+def move_rect_in_place(r: Rect, /, **kwargs: Any) -> None:
+    modify_rect_in_place(r, size=None, width=None, height=None, w=None, h=None, **kwargs)
