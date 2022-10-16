@@ -212,7 +212,7 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
         # 1- Retrieve all line rects
         line_top: int = 0
         for index, line in enumerate(text.splitlines()):
-            font = custom_font.get(index, default_font) if custom_font is not None else default_font
+            font = custom_font.get(index, default_font)
             line_rect = font.get_rect(line)
 
             line_rect.top = line_top

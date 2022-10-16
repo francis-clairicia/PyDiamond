@@ -258,19 +258,38 @@ class ConfigurationTemplate(Object):
 
         self.__info = template.build(owner)
 
-        # TODO: FIX THIS
-        # default_init_subclass = owner.__init_subclass__
+        def override_existing_configuration(cls: type) -> None:
+            config: ConfigurationTemplate = getattr(cls, name)
+            if config.__bound_class is not cls:
+                subclass_config = ConfigurationTemplate(parent=list(filter(None, map(retrieve_config_or_none, cls.__bases__))))
+                setattr(cls, name, subclass_config)
+                subclass_config.__set_name__(cls, name)
 
-        # @wraps(default_init_subclass)
-        # def __init_subclass__(cls: type, **kwargs: Any) -> None:
-        #     config: ConfigurationTemplate = getattr(cls, name)
-        #     if config.__bound_class is not cls:
-        #         subclass_config = ConfigurationTemplate(parent=list(filter(None, map(retrieve_config_or_none, cls.__bases__))))
-        #         setattr(cls, name, subclass_config)
-        #         subclass_config.__set_name__(cls, name)
-        #     return default_init_subclass(**kwargs)
+        _classmethod: Callable[[Any], Any]
+        try:
+            default_init_subclass: classmethod[None] = vars(owner)["__init_subclass__"]
+        except KeyError:
 
-        # owner.__init_subclass__ = classmethod(__init_subclass__)  # type: ignore[assignment]
+            def __init_subclass__(cls: type, **kwargs: Any) -> None:
+                override_existing_configuration(cls)
+                return super(owner, cls).__init_subclass__(**kwargs)  # type: ignore[arg-type]
+
+            _classmethod = classmethod
+
+            __init_subclass__.__qualname__ = f"{owner.__qualname__}.{__init_subclass__.__name__}"
+            __init_subclass__.__module__ = owner.__module__
+
+        else:
+
+            @wraps(default_init_subclass.__func__)
+            def __init_subclass__(cls: type, **kwargs: Any) -> None:
+                override_existing_configuration(cls)
+                init_subclass = default_init_subclass.__get__(None, cls)
+                return init_subclass(**kwargs)
+
+            _classmethod = type(default_init_subclass)
+
+        type.__setattr__(owner, "__init_subclass__", _classmethod(__init_subclass__))
 
     @overload
     def __get__(self, obj: None, objtype: type, /) -> ConfigurationTemplate:
@@ -2718,6 +2737,40 @@ class Configuration(NonCopyable, Generic[_T]):
                 section_config = info.get_section(section).config(self)
                 section_config.update(**section_kwargs[section])
 
+    def delete_many(self, *options: str) -> None:
+        obj: _T = self.__self__
+
+        nb_options = len(options)
+        if nb_options < 1:
+            return
+
+        option: str
+        if nb_options == 1:
+            option = options[0]
+            return self.delete(option)
+
+        # TODO (3.11): Exception groups
+        options = tuple(map(self._parse_option_without_split, set(options)))
+        if sorted(options) != sorted(set(options)):
+            raise TypeError("Multiple aliases to the same option given")
+
+        from collections import defaultdict
+
+        section_options: defaultdict[str, set[str]] = defaultdict(set)
+
+        with self.__updating_many_options(obj, *options, info=self.__info, sections=self.__sections):
+            delete = self.delete
+            for option in options:
+                section, option = self._parse_option(option)
+                if section:
+                    section_options[section].add(option)
+                    continue
+                delete(option)
+            info: ConfigurationInfo[_T] = self.__info
+            for section in section_options:
+                section_config = info.get_section(section).config(self)
+                section_config.delete_many(*section_options[section])
+
     def reset(self, option: str) -> None:
         obj: _T = self.__self__
         info: ConfigurationInfo[_T] = self.__info
@@ -2822,6 +2875,35 @@ class Configuration(NonCopyable, Generic[_T]):
                     option_updater(obj)
                 for main_updater in info.main_object_update_hooks:
                     main_updater(obj)
+
+    @contextmanager
+    def temporary_options(self, **kwargs: Any) -> Iterator[MappingProxyType[str, Any]]:
+        obj: _T = self.__self__
+
+        if not kwargs:
+            yield MappingProxyType({})
+            return
+
+        # TODO (3.11): Exception groups
+        options = list(map(self._parse_option_without_split, kwargs))
+        if sorted(options) != sorted(set(options)):
+            raise TypeError("Multiple aliases to the same option given")
+
+        with self.__lazy_lock(obj):
+            get = self.get
+            null = object()
+            former_values: dict[str, Any] = {opt: value for opt in kwargs if (value := get(opt, null)) is not null}
+            del null, get
+            self.update(**kwargs)
+        to_delete = {k for k in kwargs if k not in former_values}
+        try:
+            yield MappingProxyType(former_values)
+        finally:
+            with self.__updating_many_options(obj, *options, info=self.__info, sections=self.__sections):
+                try:
+                    self.update(**former_values)
+                finally:
+                    self.delete_many(*to_delete)
 
     @final
     def has_initialization_context(self) -> bool:
@@ -3506,7 +3588,7 @@ class _ConfigInfoTemplate:
     ) -> None:
         for key, value in d2.items():
             if key in d1:
-                if d1[key] == value or on_conflict == "skip":
+                if d1[key] is value or d1[key] == value or on_conflict == "skip":
                     continue
                 if on_conflict == "raise":
                     raise ConfigurationError(f"Conflict of setting {setting!r} for {key!r} key")
@@ -3757,6 +3839,14 @@ class _ConfigProperty(property):
         def deleter(self, __fdel: Callable[[Any], None]) -> _ConfigProperty:
             ...
 
+    def __eq__(self, __o: object) -> bool:
+        if not isinstance(__o, _ConfigProperty):
+            return NotImplemented
+        return all(getattr(self, func) == getattr(__o, func) for func in ("fget", "fset", "fdel"))
+
+    def __hash__(self) -> int:
+        return hash((type(self), self.fget, self.fset, self.fdel))
+
 
 class _PrivateAttributeOptionProperty:
     def __set_name__(self, owner: type, name: str, /) -> None:
@@ -3772,6 +3862,14 @@ class _PrivateAttributeOptionProperty:
 
     def __delete__(self, obj: object, /) -> None:
         return delattr(obj, self.__attribute)
+
+    def __eq__(self, __o: object) -> bool:
+        if not isinstance(__o, _PrivateAttributeOptionProperty):
+            return NotImplemented
+        return self.__attribute == __o.__attribute
+
+    def __hash__(self) -> int:
+        return hash((type(self), self.__attribute))
 
 
 class _ReadOnlyOptionBuildPayload:
@@ -3790,6 +3888,14 @@ class _ReadOnlyOptionBuildPayload:
 
     def get_descriptor(self) -> _Descriptor | None:
         return self.__descriptor()
+
+    def __eq__(self, __o: object) -> bool:
+        if not isinstance(__o, _ReadOnlyOptionBuildPayload):
+            return NotImplemented
+        return self.__descriptor() == __o.__descriptor()
+
+    def __hash__(self) -> int:
+        return hash((type(self), self.__descriptor()))
 
 
 @dataclass(eq=True, unsafe_hash=True)

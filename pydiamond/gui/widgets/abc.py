@@ -102,9 +102,9 @@ class AbstractWidget(Drawable, Movable, prepare_namespace=__prepare_abstract_wid
 
             if (parent := self.__parent()) is not None:
                 if not parent.__drawing:
-                    raise TypeError("drawing asked outside parent widget")
+                    raise TypeError(f"{self!r}: drawing asked outside parent widget")
             elif not weakref_unwrap(self.__manager)._draw_requested:
-                raise TypeError("drawing asked outside manager")
+                raise TypeError(f"{self!r}: drawing asked outside manager")
             if self.is_shown():
                 target = WidgetRendererView(self, target)
                 self.__drawing = True
@@ -931,6 +931,11 @@ class WidgetsManager(Object):
     @final
     def window(self) -> SceneWindow:
         return self.__window
+
+    @property
+    @final
+    def children(self) -> tuple[AbstractWidget, ...]:
+        return tuple(self.__widgets)
 
     @property
     @final
