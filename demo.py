@@ -9,7 +9,7 @@ import os
 import weakref
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterator, Literal, Mapping, Sequence
+from typing import Any, Callable, ClassVar, Final, Iterator, Literal, Mapping, Sequence
 
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 
@@ -67,7 +67,6 @@ from pydiamond.system.clock import Clock
 from pydiamond.system.time import Time
 from pydiamond.window.display import Window, WindowCallback
 from pydiamond.window.event import (
-    Event,
     KeyDownEvent,
     KeyUpEvent,
     MouseButtonDownEvent,
@@ -75,15 +74,13 @@ from pydiamond.window.event import (
     MouseButtonUpEvent,
     MouseMotionEvent,
     MusicEndEvent,
+    NamespaceEventModel,
     ScreenshotEvent,
 )
 from pydiamond.window.keyboard import Key, Keyboard
 from pydiamond.window.mouse import Mouse, MouseButton
 from pydiamond.window.scene import MainScene, Scene, SceneTransition, SceneWindow
 from pydiamond.window.scene.dialog import PopupDialog
-
-if TYPE_CHECKING:
-    from _typeshed import Self
 
 
 class ShapeScene(MainScene, busy_loop=True):
@@ -628,17 +625,10 @@ class SpriteGroupCollisionScene(MainScene, framerate=60, fixed_framerate=50):
         self.window.draw(self.cacti, self.widgets)
 
 
-class MyCustomEvent(Event):
+class MyCustomEvent(NamespaceEventModel):
     def __init__(self, message: str) -> None:
         super().__init__()
         self.message: str = message
-
-    @classmethod
-    def from_dict(cls: type[Self], event_dict: Mapping[str, Any]) -> Self:
-        return cls(**event_dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return dict(self.__dict__)
 
 
 class EventScene(MainScene):

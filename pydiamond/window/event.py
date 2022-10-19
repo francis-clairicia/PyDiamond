@@ -37,6 +37,8 @@ __all__ = [
     "MouseMotionEvent",
     "MouseWheelEvent",
     "MusicEndEvent",
+    "NamespaceEventModel",
+    "NoDataEventModel",
     "ScreenshotEvent",
     "TextEditingEvent",
     "TextEvent",
@@ -124,6 +126,7 @@ class EventMeta(ObjectMeta):
         **kwargs: Any,
     ) -> __Self:
         model = bool(model)
+        is_model = EventMeta.is_model
         try:
             Event
         except NameError:
@@ -131,12 +134,12 @@ class EventMeta(ObjectMeta):
         else:
             if not any(issubclass(b, Event) for b in bases):
                 raise TypeError(f"{name!r} must inherit from Event")
-            if concrete_events := [b for b in bases if issubclass(b, Event) and not b.is_model()]:
+            if concrete_events := [b for b in bases if issubclass(b, Event) and not is_model(b)]:
                 concrete_events_qualnames = ", ".join(b.__qualname__ for b in concrete_events)
                 raise TypeError(f"{name!r}: Events which are not model classes caught: {concrete_events_qualnames}")
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
         setattr(cls, "_model_", model or isabstractclass(cls))
-        if not cls.is_model() and not issubclass(cls, BuiltinEvent):
+        if not is_model(cls) and not issubclass(cls, BuiltinEvent):
             cls = final(cls)
             event_type: int = int(_pg_event.custom_type())
             if event_type in EventFactory.pygame_type:  # Should not happen
@@ -145,14 +148,14 @@ class EventMeta(ObjectMeta):
                     f"Event with type {_pg_event.event_name(event_type)!r} ({event_type}) already exists: {event_cls}"
                 )
             event_cls = cast(type[Event], cls)
-            mcs.__associations[event_cls] = event_type
-            mcs.__type[event_type] = event_cls
+            EventMeta.__associations[event_cls] = event_type
+            EventMeta.__type[event_type] = event_cls
             try:
                 event_name_dispatch_table: dict[int, str] = getattr(_pg_event.event_name, "__event_name_dispatch_table__")
             except AttributeError:
                 pass
             else:
-                event_name = event_cls.__qualname__
+                event_name = f"{event_cls.__module__}.{event_cls.__qualname__}"
                 try:
                     original_pygame_event_name: Callable[[int], str] = getattr(_pg_event.event_name, "__wrapped__")
                 except AttributeError:
@@ -162,6 +165,7 @@ class EventMeta(ObjectMeta):
                 event_name_dispatch_table[event_type] = event_name
         return cls
 
+    @final
     def __call__(cls, *args: Any, **kwds: Any) -> Any:
         if cls.is_model():
             raise TypeError("Event models are not instanciable")
@@ -177,6 +181,7 @@ class EventMeta(ObjectMeta):
             raise AttributeError("Read-only attribute")
         return super().__delattr__(__name)
 
+    @final
     def is_model(cls) -> bool:
         return bool(isabstractclass(cls) or getattr(cls, "_model_"))
 
@@ -187,9 +192,6 @@ _BUILTIN_ASSOCIATIONS: dict[type[Event], int] = {}
 
 @final
 class _BuiltinEventMeta(EventMeta):
-    __associations: Final[dict[type[Event], int]] = _BUILTIN_ASSOCIATIONS  # type: ignore[misc]
-    __type: Final[dict[int, type[Event]]] = _BUILTIN_PYGAME_EVENT_TYPE  # type: ignore[misc]
-
     def __new__(
         mcs,
         name: str,
@@ -205,16 +207,19 @@ class _BuiltinEventMeta(EventMeta):
         except NameError:
             return super().__new__(mcs, name, bases, namespace, **kwargs)
 
-        if all(event_type in mcs.__type for event_type in BuiltinEventType):
+        dict_associations: Final[dict[type[Event], int]] = _BUILTIN_ASSOCIATIONS  # noqa: F821
+        dict_type: Final[dict[int, type[Event]]] = _BUILTIN_PYGAME_EVENT_TYPE  # noqa: F821
+
+        if all(event_type in dict_type for event_type in BuiltinEventType):
             raise TypeError("Trying to create custom event from BuiltinEvent class")
         assert len(bases) == 1 and issubclass(bases[0], BuiltinEvent)
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
         assert not cls.is_model()
         assert isinstance(event_type, BuiltinEventType), f"Got {event_type!r}"
-        assert event_type not in mcs.__type, f"{event_type!r} event already taken"
+        assert event_type not in dict_type, f"{event_type!r} event already taken"
         event_cls = cast(type[BuiltinEvent], cls)
-        mcs.__associations[event_cls] = int(event_type)
-        mcs.__type[int(event_type)] = event_cls
+        dict_associations[event_cls] = int(event_type)
+        dict_type[int(event_type)] = event_cls
         if event_name:
             try:
                 event_name_dispatch_table: dict[int, str] = getattr(_pg_event.event_name, "__event_name_dispatch_table__")
@@ -226,7 +231,15 @@ class _BuiltinEventMeta(EventMeta):
 
 
 class Event(Object, metaclass=EventMeta):
-    __slots__ = ()
+    __slots__ = ("__weakref__",)
+
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="Event")
+
+    def __new__(cls: type[__Self], *args: Any, **kwargs: Any) -> __Self:
+        if cls.is_model():
+            raise TypeError("Event models are not instanciable")
+        return super().__new__(cls)
 
     def __repr__(self) -> str:
         event_name: str
@@ -240,6 +253,14 @@ class Event(Object, metaclass=EventMeta):
         return f"{event_name}({', '.join(f'{k}={v!r}' for k, v in event_dict.items())})"
 
     @classmethod
+    @final
+    def get_name(cls) -> str:
+        if cls.is_model():
+            raise TypeError("Event models do not have a name")
+        pg_type = EventFactory.get_pygame_event_type(cls)
+        return _pg_event.event_name(pg_type)
+
+    @classmethod
     @abstractmethod
     def from_dict(cls: type[Self], event_dict: Mapping[str, Any]) -> Self:
         raise NotImplementedError
@@ -247,6 +268,40 @@ class Event(Object, metaclass=EventMeta):
     @abstractmethod
     def to_dict(self) -> dict[str, Any]:
         raise NotImplementedError
+
+
+class NoDataEventModel(Event, model=True):
+    __slots__ = ()
+
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="NoDataEventModel")
+
+    @classmethod
+    @final
+    def from_dict(cls: type[__Self], event_dict: Mapping[str, Any]) -> __Self:
+        if event_dict:
+            raise TypeError(f"{cls.get_name()} does not take data")
+        return cls()
+
+    @final
+    def to_dict(self) -> dict[str, Any]:
+        return {}
+
+
+class NamespaceEventModel(Event, model=True, no_slots=True):
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="NamespaceEventModel")
+
+    @classmethod
+    @final
+    def from_dict(cls: type[__Self], event_dict: Mapping[str, Any]) -> __Self:
+        self = cls.__new__(cls)
+        self.__dict__.update(event_dict)
+        return self
+
+    @final
+    def to_dict(self) -> dict[str, Any]:
+        return self.__dict__.copy()
 
 
 @unique
@@ -314,6 +369,13 @@ class BuiltinUserEventCode(IntEnum):
 # TODO (3.11) dataclass_transform (PEP-681)
 class BuiltinEvent(Event, metaclass=_BuiltinEventMeta, model=True):
     __slots__ = ()
+
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="BuiltinEvent")
+
+    @final
+    def __new__(cls: type[__Self], *args: Any, **kwargs: Any) -> __Self:
+        return object.__new__(cls)
 
     @classmethod
     def from_dict(cls: type[Self], event_dict: Mapping[str, Any]) -> Self:
@@ -681,7 +743,8 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
     def make_pygame_event(event: Event) -> _pg_event.Event:
         assert not event.__class__.is_model()  # Should not happen but who knows...?
         event_dict = event.to_dict()
-        event_dict.pop("type", None)
+        if "type" in event_dict:
+            raise EventFactoryError("Invalid key 'type' caught in event.to_dict() output")
         event_type = EventFactory.associations[event.__class__]
         return _pg_event.Event(event_type, event_dict)
 
