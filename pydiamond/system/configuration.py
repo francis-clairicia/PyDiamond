@@ -165,7 +165,8 @@ _ALLOWED_ALIASES_PATTERN = _ALLOWED_OPTIONS_PATTERN
 _ALLOWED_SECTIONS_PATTERN = _ALLOWED_OPTIONS_PATTERN
 _OPTIONS_IN_SECTION_FMT = "{section}.{option}"
 _OPTIONS_IN_SECTION_PATTERN = re.compile(r"^(?P<section>\w+)\.(?P<option>(?:\w+\.)*\w+)$")
-_EXCLUDE_SECTION_PATTERN = re.compile(r"^(?P<section>\w+)\.(?P<subsection>(?:\w+\.)*\*)$")
+_EXCLUDE_OPTION_IN_SECTION_PATTERN = re.compile(r"^(?P<section>\w+)\.(?P<option>(?:\w+\.)*(?:\w+|\*))$")
+_INCLUDE_OPTION_IN_SECTION_PATTERN = _EXCLUDE_OPTION_IN_SECTION_PATTERN
 _NO_DEFAULT: Any = object()
 
 
@@ -399,7 +400,7 @@ class ConfigurationTemplate(Object):
                 raise ValueError("Option must not be empty")
             if not any(
                 pattern.match(option)
-                for pattern in (_ALLOWED_OPTIONS_PATTERN, _OPTIONS_IN_SECTION_PATTERN, _EXCLUDE_SECTION_PATTERN)
+                for pattern in (_ALLOWED_OPTIONS_PATTERN, _INCLUDE_OPTION_IN_SECTION_PATTERN, _EXCLUDE_OPTION_IN_SECTION_PATTERN)
             ):
                 raise ValueError(f"{option!r}: Forbidden option format")
 
@@ -2314,10 +2315,13 @@ class ConfigurationInfo(Object, Generic[_T]):
     def filter(
         self,
         *,
-        include_options: Set[str] | None = None,
-        exclude_options: Set[str] | None = None,
+        include_options: Set[str] = frozenset(),
+        exclude_options: Set[str] = frozenset(),
     ) -> ConfigurationInfo[_T]:
         from dataclasses import replace
+
+        include_options = frozenset(include_options)
+        exclude_options = frozenset(exclude_options)
 
         if not include_options and not exclude_options:
             return replace(self)
@@ -2327,41 +2331,35 @@ class ConfigurationInfo(Object, Generic[_T]):
         new_options: set[str] = set()
         new_section_include_options: defaultdict[str, set[str]] = defaultdict(set)
         new_section_exclude_options: defaultdict[str, set[str]] = defaultdict(set)
-        exclude_sections: set[str] = set()
-
-        if include_options is None:
-            include_options = set()
-        if exclude_options is None:
-            exclude_options = set()
-
-        for section in self.sections:
-            new_section_include_options[section.name].update(section.include_options)
-            new_section_exclude_options[section.name].update(section.exclude_options)
 
         if not include_options:
             new_options.update(self.options)
-
-        for option in include_options:
-            if m := _OPTIONS_IN_SECTION_PATTERN.match(option):
-                section_name, option = m.group("section", "option")
-                self.check_section_validity(section_name)
-                new_section_include_options[section_name].add(option)
-            else:
-                self.check_option_validity(option)
-                new_options.add(option)
+            for section in self.sections:
+                new_section_include_options[section.name].update(section.include_options)
+                new_section_exclude_options[section.name].update(section.exclude_options)
+        else:
+            for option in include_options:
+                if m := _INCLUDE_OPTION_IN_SECTION_PATTERN.match(option):
+                    section = self.get_section(m.group("section"))
+                    option = m.group("option")
+                    if option == "*":
+                        new_section_include_options[section.name].update(section.include_options)
+                        new_section_exclude_options[section.name].update(section.exclude_options)
+                    else:
+                        new_section_include_options[section.name].add(option)
+                else:
+                    self.check_option_validity(option)
+                    new_options.add(option)
 
         for option in exclude_options:
-            if m := _OPTIONS_IN_SECTION_PATTERN.match(option):
+            if m := _EXCLUDE_OPTION_IN_SECTION_PATTERN.match(option):
                 section_name, option = m.group("section", "option")
                 self.check_section_validity(section_name)
-                new_section_exclude_options[section_name].add(option)
-            elif m := _EXCLUDE_SECTION_PATTERN.match(option):
-                section_name = m.group("section")
-                self.check_section_validity(section_name)
-                if m.group("subsection") == "*":
-                    exclude_sections.add(section_name)
+                if option == "*":
+                    new_section_include_options.pop(section_name, None)
+                    new_section_exclude_options.pop(section_name, None)
                 else:
-                    new_section_exclude_options[section_name].add(m.group("subsection"))
+                    new_section_exclude_options[section_name].add(option)
             else:
                 self.check_option_validity(option)
                 new_options.discard(option)
@@ -2372,11 +2370,11 @@ class ConfigurationInfo(Object, Generic[_T]):
             sections=tuple(
                 replace(
                     section,
-                    include_options=frozenset(new_section_include_options[section.name]),
-                    exclude_options=frozenset(new_section_exclude_options[section.name]),
+                    include_options=frozenset(new_section_include_options.get(section.name, ())),
+                    exclude_options=frozenset(new_section_exclude_options.get(section.name, ())),
                 )
                 for section in self.sections
-                if section.name not in exclude_sections
+                if section.name not in new_section_include_options and section.name not in new_section_exclude_options
             ),
         )
 
