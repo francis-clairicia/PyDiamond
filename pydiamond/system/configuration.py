@@ -2735,6 +2735,41 @@ class Configuration(NonCopyable, Generic[_T]):
                 section_config = info.get_section(section).config(self)
                 section_config.update(**section_kwargs[section])
 
+    def only_update(self, **kwargs: Any) -> None:
+        obj: _T = self.__self__
+
+        nb_options = len(kwargs)
+        if nb_options < 1:
+            return
+
+        option: str
+        value: Any
+        if nb_options == 1:
+            option, value = next(iter(kwargs.items()))
+            return self.only_set(option, value)
+
+        # TODO (3.11): Exception groups
+        options = list(map(self._parse_option_without_split, kwargs))
+        if sorted(options) != sorted(set(options)):
+            raise TypeError("Multiple aliases to the same option given")
+
+        from collections import defaultdict
+
+        section_kwargs: defaultdict[str, dict[str, Any]] = defaultdict(dict)
+
+        with self.__lazy_lock(obj):
+            set_value = self.only_set
+            for option, value in kwargs.items():
+                section, option = self._parse_option(option)
+                if section:
+                    section_kwargs[section][option] = value
+                    continue
+                set_value(option, value)
+            info: ConfigurationInfo[_T] = self.__info
+            for section in section_kwargs:
+                section_config = info.get_section(section).config(self)
+                section_config.only_update(**section_kwargs[section])
+
     def delete_many(self, *options: str) -> None:
         obj: _T = self.__self__
 
@@ -2768,6 +2803,40 @@ class Configuration(NonCopyable, Generic[_T]):
             for section in section_options:
                 section_config = info.get_section(section).config(self)
                 section_config.delete_many(*section_options[section])
+
+    def only_delete_many(self, *options: str) -> None:
+        obj: _T = self.__self__
+
+        nb_options = len(options)
+        if nb_options < 1:
+            return
+
+        option: str
+        if nb_options == 1:
+            option = options[0]
+            return self.only_delete(option)
+
+        # TODO (3.11): Exception groups
+        options = tuple(map(self._parse_option_without_split, set(options)))
+        if sorted(options) != sorted(set(options)):
+            raise TypeError("Multiple aliases to the same option given")
+
+        from collections import defaultdict
+
+        section_options: defaultdict[str, set[str]] = defaultdict(set)
+
+        with self.__lazy_lock(obj):
+            delete = self.only_delete
+            for option in options:
+                section, option = self._parse_option(option)
+                if section:
+                    section_options[section].add(option)
+                    continue
+                delete(option)
+            info: ConfigurationInfo[_T] = self.__info
+            for section in section_options:
+                section_config = info.get_section(section).config(self)
+                section_config.only_delete(*section_options[section])
 
     def reset(self, option: str) -> None:
         obj: _T = self.__self__
