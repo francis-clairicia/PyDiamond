@@ -456,11 +456,11 @@ class ConfigurationTemplate(Object):
                 if underlying_descriptor is None:
                     raise OptionError(option, "There is no parent ownership")
                 if isinstance(actual_descriptor, _PrivateAttributeOptionProperty):
-                    template.value_descriptor[option] = _ReadOnlyOptionBuildPayload(_PrivateAttributeOptionProperty())
+                    template.value_descriptor[option] = _ReadOnlyOptionBuildPayload(None)
                     return
                 actual_descriptor = underlying_descriptor
             raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
-        template.value_descriptor[option] = _PrivateAttributeOptionProperty()
+        del template.value_descriptor[option]
 
     @overload
     def getter(self, option: str, /, *, use_override: bool = True, readonly: bool = False) -> Callable[[_GetterVar], _GetterVar]:
