@@ -596,6 +596,14 @@ class Window(Object, no_slots=True):
         return self.set_size((width, height))
 
     @final
+    def event_grabbed(self) -> bool:
+        return bool(_pg_event.get_grab())
+
+    @final
+    def set_event_grab(self, state: bool) -> None:
+        _pg_event.set_grab(bool(state))
+
+    @final
     def event_is_allowed(self, event_type: type[Event]) -> bool:
         return not _pg_event.get_blocked(EventFactory.get_pygame_event_type(event_type))
 
