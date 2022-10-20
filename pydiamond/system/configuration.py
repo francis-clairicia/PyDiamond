@@ -460,7 +460,7 @@ class ConfigurationTemplate(Object):
                     return
                 actual_descriptor = underlying_descriptor
             raise OptionError(option, f"Already bound to a descriptor: {type(actual_descriptor).__name__}")
-        del template.value_descriptor[option]
+        template.value_descriptor[option] = _PrivateAttributeOptionProperty()
 
     @overload
     def getter(self, option: str, /, *, use_override: bool = True, readonly: bool = False) -> Callable[[_GetterVar], _GetterVar]:
@@ -2516,12 +2516,12 @@ class Configuration(NonCopyable, Generic[_T]):
         weakref_callback: Callable[[weakref[_S]], Any] | None = None,
     ) -> Configuration[_S]:
 
-        parent.info.check_section_validity(section.name)
+        parent.__info.check_section_validity(section.name)
 
         section_config: Configuration[_S] = section.original_config(parent.__self__)
 
         section_obj = section_config.__self__
-        section_info = section_config.info
+        section_info = section_config.__info
 
         self = Configuration(
             weakref(section_obj, weakref_callback),
@@ -2537,8 +2537,13 @@ class Configuration(NonCopyable, Generic[_T]):
         option_dict = self.as_dict(sorted_keys=True)
         return f"{type(self).__name__}({self.__self__!r}, {', '.join(f'{k}={v!r}' for k, v in option_dict.items())})"
 
-    def known_options(self) -> frozenset[str]:
+    def known_options(self, include_section_options: bool = True) -> frozenset[str]:
+        if not include_section_options:
+            return frozenset(self.__info.options)
         return self.__info.get_all_options(self)
+
+    def known_aliases(self) -> frozenset[str]:
+        return frozenset(self.__info.aliases)
 
     @overload
     def get(self, option: str) -> Any:
@@ -3019,11 +3024,6 @@ class Configuration(NonCopyable, Generic[_T]):
 
     def has_weakref(self) -> bool:
         return isinstance(self.__obj, weakref)
-
-    @property
-    @final
-    def info(self) -> ConfigurationInfo[_T]:
-        return self.__info
 
     @property
     @final
@@ -3987,8 +3987,6 @@ class _SectionBuildPayload:
         changes: dict[str, Any] = {}
 
         for name in ["include_options", "exclude_options"]:
-            if getattr(self, name) is None and getattr(other, name) is None:
-                continue
             changes[name] = tuple(chain(getattr(self, name), getattr(other, name)))
 
         for name in ["func"]:

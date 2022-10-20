@@ -179,7 +179,7 @@ class Font(Object):
         copy_self = cls.__new__(cls)
         ft = self.__ft
         copy_self.__ft = copy_ft = self.__factory(ft.path, size=1, resolution=self.resolution)
-        for attr in {*self.config.info.options, "size", "pad", "origin"}:
+        for attr in {*self.config.known_options(include_section_options=False), "size", "pad", "origin"}:
             setattr(copy_ft, attr, getattr(ft, attr))
         return copy_self
 

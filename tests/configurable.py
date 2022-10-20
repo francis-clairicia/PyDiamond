@@ -232,7 +232,7 @@ def main() -> None:
         c.config.update(a=6, b=5, c=-9)
         print("Close")
         c.config.update(a=6, b=5, c=-5)
-        print(c.config.info.options)
+        print(c.config.known_options())
         print(c.config["a"])
         c.config.set("a", 6)
         c.config.update(a=6, b=5, c=-12)
