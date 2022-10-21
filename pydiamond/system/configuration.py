@@ -2350,6 +2350,8 @@ class ConfigurationInfo(Object, Generic[_T]):
                 else:
                     self.check_option_validity(option)
                     new_options.add(option)
+            for section_name in new_section_include_options:
+                new_section_exclude_options[section_name].update(self._sections_map[section_name].exclude_options)
 
         for option in exclude_options:
             if m := _EXCLUDE_OPTION_IN_SECTION_PATTERN.match(option):
