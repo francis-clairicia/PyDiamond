@@ -37,7 +37,7 @@ class PygamePatch(RequiredPatch):
         return super().teardown()
 
     def run(self) -> None:
-        from pygame.constants import QUIT, VIDEORESIZE
+        from pygame.constants import QUIT
 
         if not self._music_set_endevent_patched():
             self.music.set_endevent(self.event.custom_type())
@@ -47,10 +47,10 @@ class PygamePatch(RequiredPatch):
             setattr(self.event, "event_name", self._make_event_name_wrapper())
 
         if not self._event_set_blocked_patched():
-            setattr(self.event, "set_blocked", self._make_event_set_blocked_wrapper(QUIT, VIDEORESIZE, self.music.get_endevent()))
+            setattr(self.event, "set_blocked", self._make_event_set_blocked_wrapper(QUIT, self.music.get_endevent()))
 
         if not self._event_post_patched():
-            setattr(self.event, "post", self._make_event_post_wrapper(self.music.get_endevent()))
+            setattr(self.event, "post", self._make_event_post_wrapper(QUIT, self.music.get_endevent()))
 
     def _event_set_blocked_patched(self) -> bool:
         return bool(getattr(self.event.set_blocked, "__set_blocked_wrapper__", False))

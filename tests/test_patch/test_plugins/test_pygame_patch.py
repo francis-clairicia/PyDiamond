@@ -177,7 +177,7 @@ class TestPygamePatch:
         mock_pygame_mixer_music_set_endevent.side_effect = lambda event_type: mock_pygame_mixer_music_get_endevent.configure_mock(
             return_value=event_type
         )
-        expected_forbidden_events = (pygame.QUIT, pygame.VIDEORESIZE, sentinel_event_type)
+        expected_forbidden_events = (pygame.QUIT, sentinel_event_type)
 
         # Act
         patch.run()
@@ -196,10 +196,6 @@ class TestPygamePatch:
             pygame.event.set_blocked(pygame.QUIT)
         mock_pygame_event_set_blocked.assert_not_called()
         mock_pygame_event_event_name.assert_called_with(pygame.QUIT)
-        with pytest.raises(ValueError, match=r"VideoResize must always be allowed"):
-            pygame.event.set_blocked(pygame.VIDEORESIZE)
-        mock_pygame_event_set_blocked.assert_not_called()
-        mock_pygame_event_event_name.assert_called_with(pygame.VIDEORESIZE)
         with pytest.raises(ValueError, match=r"MusicEnd must always be allowed"):
             pygame.event.set_blocked(sentinel_event_type)
         mock_pygame_event_set_blocked.assert_not_called()
@@ -212,13 +208,13 @@ class TestPygamePatch:
         mock_pygame_event_set_blocked.assert_called_with((pygame.KEYDOWN, pygame.KEYUP))  # implicitly converted to tuple
 
         mock_pygame_event_set_blocked.reset_mock()  # needed to use assert_not_called() later
-        with pytest.raises(ValueError, match=r"Quit, VideoResize must always be allowed"):
-            pygame.event.set_blocked([pygame.KEYDOWN, pygame.QUIT, pygame.KEYUP, pygame.VIDEORESIZE])
+        with pytest.raises(ValueError, match=r"Quit, MusicEnd must always be allowed"):
+            pygame.event.set_blocked([pygame.KEYDOWN, pygame.QUIT, pygame.KEYUP, pygame.mixer.music.get_endevent()])
         mock_pygame_event_set_blocked.assert_not_called()
 
         ## 'None' (which means all events)
         mock_pygame_event_set_blocked.reset_mock()  # needed to use assert_not_called() later
-        with pytest.raises(ValueError, match=r"Quit, VideoResize, MusicEnd must always be allowed"):
+        with pytest.raises(ValueError, match=r"Quit, MusicEnd must always be allowed"):
             pygame.event.set_blocked(None)
         mock_pygame_event_set_blocked.assert_not_called()
 
@@ -257,7 +253,7 @@ class TestPygamePatch:
         mock_pygame_mixer_music_set_endevent.side_effect = lambda event_type: mock_pygame_mixer_music_get_endevent.configure_mock(
             return_value=event_type
         )
-        expected_forbidden_events = (music_end_event,)
+        expected_forbidden_events = (pygame.QUIT, music_end_event)
 
         # Act
         patch.run()

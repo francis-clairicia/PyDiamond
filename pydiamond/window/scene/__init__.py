@@ -55,6 +55,7 @@ from ...system.utils._mangling import getattr_pv, mangle_private_attribute, seta
 from ...system.utils.abc import concreteclassmethod, isconcreteclass
 from ...system.utils.contextlib import ExitStackView
 from ...system.utils.functools import wraps
+from ...system.utils.itertools import consume
 from ..display import Window, WindowCallback, WindowError, _WindowCallbackList
 from ..event import Event, EventManager
 
@@ -681,6 +682,10 @@ class SceneWindow(Window):
         if issubclass(__scene, Dialog):
             raise TypeError("start_scene() does not accept Dialogs")
         self.__scenes.go_to(__scene, transition=transition, remove_actual=remove_actual, awake_kwargs=awake_kwargs)
+
+    @final
+    def handle_events(self) -> None:
+        consume(self.process_events())
 
     def _process_callbacks(self) -> None:
         super()._process_callbacks()

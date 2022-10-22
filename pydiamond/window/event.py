@@ -39,6 +39,7 @@ __all__ = [
     "MusicEndEvent",
     "NamespaceEventModel",
     "NoDataEventModel",
+    "PygameEventConversionError",
     "ScreenshotEvent",
     "TextEditingEvent",
     "TextEvent",
@@ -243,10 +244,11 @@ class Event(Object, metaclass=EventMeta):
 
     def __repr__(self) -> str:
         event_name: str
+        event_type = self.__class__
         try:
-            pygame_type = EventFactory.get_pygame_event_type(self)
+            pygame_type = EventFactory.get_pygame_event_type(event_type)
         except KeyError:
-            event_name = type(self).__name__
+            event_name = event_type.__name__
         else:
             event_name = _pg_event.event_name(pygame_type)
         event_dict = self.to_dict()
@@ -348,7 +350,7 @@ class BuiltinEventType(IntEnum):
     WINDOWTAKEFOCUS = _pg_constants.WINDOWTAKEFOCUS
 
     # PyDiamond's events
-    MUSICEND = _pg_music.get_endevent()
+    MUSICEND = auto()
     SCREENSHOT = auto()
 
     def __repr__(self) -> str:
@@ -695,6 +697,10 @@ class UnknownEventTypeError(EventFactoryError):
     pass
 
 
+class PygameEventConversionError(EventFactoryError):
+    pass
+
+
 if TYPE_CHECKING:
     _PygameEventType: TypeAlias = _pg_event.Event
 else:
@@ -711,9 +717,7 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
     NON_BLOCKABLE_EVENTS: Final[frozenset[int]] = frozenset(map(int, getattr(_pg_event.set_blocked, "__forbidden_events__", ())))
 
     @staticmethod
-    def get_pygame_event_type(event: Event | type[Event]) -> int:
-        if not isinstance(event, type):
-            event = event.__class__
+    def get_pygame_event_type(event: type[Event]) -> int:
         return EventFactory.associations[event]
 
     @staticmethod
@@ -724,20 +728,14 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
 
     @staticmethod
     def from_pygame_event(pygame_event: _pg_event.Event) -> Event:
-        event: Event
-        match pygame_event:
-            case _PygameEventType(type=EventFactory.USEREVENT, code=BuiltinUserEventCode.DROPFILE, filename=filename):
-                # cf.: https://www.pygame.org/docs/ref/event.html#:~:text=%3Dpygame.-,USEREVENT_DROPFILE,-%2C%20filename
-                event = DropFileEvent(file=filename)
-            case _:
-                try:
-                    event_cls: type[Event] = EventFactory.pygame_type[pygame_event.type]
-                except KeyError as exc:
-                    raise UnknownEventTypeError(
-                        f"Unknown event with type {pygame_event.type} ({_pg_event.event_name(pygame_event.type)!r})"
-                    ) from exc
-                event = event_cls.from_dict(MappingProxyType(pygame_event.__dict__))
-        return event
+        pygame_event = EventFactory.convert_pygame_event(pygame_event)
+        try:
+            event_cls: type[Event] = EventFactory.pygame_type[pygame_event.type]
+        except KeyError as exc:
+            raise UnknownEventTypeError(
+                f"Unknown event with type {pygame_event.type} ({_pg_event.event_name(pygame_event.type)!r})"
+            ) from exc
+        return event_cls.from_dict(MappingProxyType(pygame_event.__dict__))
 
     @staticmethod
     def make_pygame_event(event: Event) -> _pg_event.Event:
@@ -747,6 +745,19 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
             raise EventFactoryError("Invalid key 'type' caught in event.to_dict() output")
         event_type = EventFactory.associations[event.__class__]
         return _pg_event.Event(event_type, event_dict)
+
+    @staticmethod
+    def convert_pygame_event(event: _pg_event.Event) -> _pg_event.Event:
+        match event:
+            case _PygameEventType(type=EventFactory.USEREVENT, code=BuiltinUserEventCode.DROPFILE):
+                # cf.: https://www.pygame.org/docs/ref/event.html#:~:text=%3Dpygame.-,USEREVENT_DROPFILE,-%2C%20filename
+                try:
+                    event = _pg_event.Event(int(BuiltinEventType.DROPFILE), file=event.filename)
+                except AttributeError as exc:
+                    raise PygameEventConversionError(f"Cannot convert {event}") from exc
+            case _ if event.type == _pg_music.get_endevent():
+                event = _pg_event.Event(int(BuiltinEventType.MUSICEND), event.__dict__)
+        return event
 
 
 _EventCallback: TypeAlias = Callable[[Event], bool]
@@ -1986,5 +1997,5 @@ class BoundEventManager(Generic[_T]):
         return weakref_unwrap(self.__ref)
 
 
-del _pg_constants, _pg_music, _BuiltinEventMeta
+del _pg_constants, _BuiltinEventMeta
 del _ASSOCIATIONS, _PYGAME_EVENT_TYPE, _BUILTIN_ASSOCIATIONS, _BUILTIN_PYGAME_EVENT_TYPE

@@ -524,11 +524,6 @@ class TestPygameMixerMusicModuleAlteration:
         assert pygame.mixer.music.get_endevent() != pygame.NOEVENT
         assert pygame.USEREVENT < pygame.mixer.music.get_endevent() < pygame.NUMEVENTS
 
-        # Just to be sure...
-        from pydiamond.window.event import BuiltinEventType
-
-        assert pygame.mixer.music.get_endevent() == BuiltinEventType.MUSICEND
-
     def test__set_endevent__cannot_be_called_anymore(self) -> None:
         with pytest.raises(TypeError, match=r"Call to function [\w\.]+ is forbidden"):
             pygame.mixer.music.set_endevent(pygame.NOEVENT)

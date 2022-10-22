@@ -21,18 +21,13 @@ __all__ = ["Music", "MusicStream"]
 
 from collections import deque
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Final
+from typing import Final
 from weakref import WeakValueDictionary
 
 import pygame.mixer as _pg_mixer
 from pygame import encode_file_path
 from pygame.event import Event as _PygameEvent
 from pygame.mixer import music as _pg_music
-
-if TYPE_CHECKING:
-    _PygameEventType = _PygameEvent
-else:
-    from pygame.event import EventType as _PygameEventType
 
 from ..system.namespace import ClassNamespace
 from ..system.non_copyable import NonCopyable
@@ -275,9 +270,8 @@ class MusicStream(ClassNamespace, frozen=True):
 
     @staticmethod
     def _handle_event(event: _PygameEvent) -> bool:
-        match event:
-            case _PygameEventType(type=event_type) if event_type == _pg_music.get_endevent():
-                return MusicStream.__update(event)
+        if event.type == _pg_music.get_endevent():
+            return MusicStream.__update(event)
         return True
 
     @staticmethod

@@ -46,7 +46,6 @@ from pygame.constants import (
     MOUSEWHEEL as _PG_MOUSEWHEEL,
     QUIT as _PG_QUIT,
     RESIZABLE as _PG_RESIZABLE,
-    VIDEORESIZE as _PG_VIDEORESIZE,
 )
 from pygame.version import SDL as _SDL_VERSION
 
@@ -64,9 +63,8 @@ from ..system.time import Time
 from ..system.utils._mangling import setattr_pv
 from ..system.utils.contextlib import ExitStackView
 from ..system.utils.functools import wraps
-from ..system.utils.itertools import consume
 from .cursor import Cursor
-from .event import Event, EventFactory, ScreenshotEvent, UnknownEventTypeError
+from .event import Event, EventFactory, EventFactoryError, ScreenshotEvent, UnknownEventTypeError
 from .keyboard import Keyboard
 from .mouse import Mouse
 
@@ -144,6 +142,7 @@ class Window(Object, no_slots=True):
         self.__size: tuple[int, int] = size
         self.__vsync: bool = bool(vsync)
 
+        self.__close_on_next_frame: bool = True
         self.__display_renderer: _WindowRenderer | None = None
         self.__rect: ImmutableRect = ImmutableRect(0, 0, 0, 0)
         self.__main_clock: _FramerateManager = _FramerateManager()
@@ -230,6 +229,7 @@ class Window(Object, no_slots=True):
             self.__event_queue.clear()
             self.__main_clock.tick()
             self._last_tick_time = -1
+            self.__close_on_next_frame = False
             yield
 
         gc.collect()  # Run a full collection at the window close
@@ -251,7 +251,6 @@ class Window(Object, no_slots=True):
         screenshot_threads = self.__screenshot_threads
         while screenshot_threads:
             screenshot_threads.pop(0).join(timeout=1, terminate_on_timeout=True)
-        self.__display_renderer = None
         raise WindowExit
 
     @final
@@ -260,10 +259,15 @@ class Window(Object, no_slots=True):
 
     @final
     def loop(self) -> Literal[True]:
-        self._last_tick_time = self._handle_framerate()
-
-        if _pg_display.get_surface() is None or (renderer := self.__display_renderer) is None:
+        if self.__close_on_next_frame:
             self.close()
+
+        screen: Surface | None = _pg_display.get_surface()
+
+        if screen is None or (renderer := self.__display_renderer) is None:
+            self.close()
+
+        self._last_tick_time = self._handle_framerate()
 
         event_queue = self.__event_queue
         event_queue.clear()
@@ -292,6 +296,10 @@ class Window(Object, no_slots=True):
                 _pg_mouse.set_cursor(context_cursor.replaced_cursor)
                 self.__context_cursor = None
 
+        if screen.get_size() != self.__rect.size:
+            renderer._resize()
+            self.__rect = ImmutableRect.convert(screen.get_rect())
+
         if self.__process_callbacks:
             self._process_callbacks()
 
@@ -301,12 +309,8 @@ class Window(Object, no_slots=True):
                 try:
                     self._handle_close_event()
                 except WindowExit:
-                    self.__display_renderer = None
-                    raise
-                continue
-            if event.type == _PG_VIDEORESIZE:
-                renderer._resize_event()
-                self.__rect = ImmutableRect.convert(renderer.screen.get_rect())
+                    self.__close_on_next_frame = True
+                    break
                 continue
             if not handle_music_event(event):  # If it's a music event which is not expected
                 continue
@@ -395,10 +399,6 @@ class Window(Object, no_slots=True):
 
     def get_screenshot_directory(self) -> str:
         return os.path.join(os.path.dirname(get_executable_path()), "screenshots")
-
-    @final
-    def handle_events(self) -> None:
-        consume(self.process_events())
 
     @final
     @contextmanager
@@ -508,6 +508,7 @@ class Window(Object, no_slots=True):
         poll_event = self.__event_queue.popleft
         process_event = self._process_event
         make_event = EventFactory.from_pygame_event
+        get_pygame_event_type = EventFactory.associations.__getitem__
         while True:
             try:
                 pg_event = poll_event()
@@ -529,6 +530,10 @@ class Window(Object, no_slots=True):
                     _pg_event.set_blocked(pg_event.type)
                 except ValueError:
                     pass
+                continue
+            except EventFactoryError:
+                continue
+            if _pg_event.get_blocked(get_pygame_event_type(event.__class__)):
                 continue
             if not process_event(event):
                 yield event
@@ -572,8 +577,6 @@ class Window(Object, no_slots=True):
             raise ValueError("Invalid window size")
         if not self.is_open():
             raise WindowError("Trying to resize not open window")
-        if not self.resizable:
-            raise WindowError("Trying to resize not resizable window")
         size = (width, height)
         renderer = self.__display_renderer
         assert renderer is not None, "No active renderer"
@@ -934,6 +937,17 @@ class AbstractWindowRenderer(AbstractRenderer):
 
 
 class _FramerateManager:
+    __slots__ = (
+        "Time",
+        "get_ticks",
+        "delay",
+        "wait",
+        "__fps",
+        "__fps_count",
+        "__fps_tick",
+        "__last_tick",
+    )
+
     def __init__(self) -> None:
         self.Time = Time
         self.get_ticks = Time.get_ticks
@@ -1035,15 +1049,16 @@ class _WindowRenderer(SurfaceRenderer, AbstractWindowRenderer):
         self.__system_surface_cache: Surface = create_surface(screen.get_size())
         super().__init__(screen)
 
-    def _resize_event(self) -> None:
-        if self.__capture_queue:
-            return
-        if (system_surface := self.__system_surface) and self.surface is system_surface:
+    def _resize(self) -> None:
+        new_surface = self.screen
+        if system_surface := self.__system_surface:
             self.__system_surface_cache = self.__system_surface = new_system_surface = create_surface(self.screen.get_size())
             new_system_surface.blit(system_surface, (0, 0))
-            super().__init__(new_system_surface)
+            if self.surface is system_surface:
+                new_surface = new_system_surface
+        if self.__capture_queue:
             return
-        super().__init__(self.screen)
+        super().__init__(new_surface)
 
     def present(self) -> None:
         screen = self.screen

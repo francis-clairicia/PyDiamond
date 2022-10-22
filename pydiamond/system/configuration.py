@@ -328,11 +328,17 @@ class ConfigurationTemplate(Object):
 
     def __delete__(self, obj: Any) -> None:
         with self.__cache_lock:
-            self.__cache.pop(obj, None)
+            config_dict = self.__cache.pop(obj, None)
+            if config_dict is not None:
+                for config in config_dict.values():
+                    config.invalidate_cache()
 
     def invalidate_cache(self) -> None:
         with self.__cache_lock:
-            self.__cache.clear()
+            cache, self.__cache = self.__cache, WeakKeyDictionary()
+            for config_dict in cache.values():
+                for config in config_dict.values():
+                    config.invalidate_cache()
 
     def known_options(self) -> frozenset[str]:
         return self.__template.options
