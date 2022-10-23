@@ -8,7 +8,7 @@ from __future__ import annotations
 
 __all__ = ["WidgetRendererView"]
 
-from typing import TYPE_CHECKING, Any, ContextManager, Iterable, Literal, Sequence, final, overload
+from typing import TYPE_CHECKING, Any, ContextManager, Iterable, Literal, final, overload
 
 from ...graphics.renderer import AbstractRenderer
 from ...math.rect import Rect
@@ -37,7 +37,7 @@ class WidgetRendererView(AbstractRenderer):
             rect = Rect(*rect)
         return rect.clip(self.__rect)
 
-    def get_rect(self, **kwargs: float | Sequence[float]) -> Rect:
+    def get_rect(self, **kwargs: Any) -> Rect:
         return self.__target.get_rect(**kwargs)
 
     def get_size(self) -> tuple[float, float]:

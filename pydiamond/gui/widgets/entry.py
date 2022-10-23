@@ -13,14 +13,12 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Literal, Sequence, Ty
 from weakref import WeakMethod
 
 from ...graphics.color import BLACK, BLUE, TRANSPARENT, WHITE, Color
+from ...graphics.font import Font, FontFactory
 from ...graphics.shape import RectangleShape
-from ...graphics.surface import Surface
-from ...graphics.text import Text
-from ...graphics.transformable import Transformable
 from ...system.clock import Clock
-from ...system.configuration import Configuration, ConfigurationTemplate, OptionAttribute, initializer
-from ...system.theme import NoTheme, ThemedObjectMeta, ThemeType
-from ...system.validation import valid_integer, valid_optional_float, valid_optional_integer
+from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
+from ...system.theme import ThemedObjectMeta, ThemeType
+from ...system.validation import valid_integer, valid_optional_float
 from ...window.cursor import Cursor, SystemCursor
 from ...window.event import KeyDownEvent, MouseButtonDownEvent, TextInputEvent
 from ...window.keyboard import Key, Keyboard
@@ -29,27 +27,20 @@ from .abc import AbstractWidget, Widget, WidgetsManager
 
 if TYPE_CHECKING:
     from ...audio.sound import Sound
-    from ...graphics.font import Font
     from ...graphics.renderer import AbstractRenderer
 
     _TupleFont: TypeAlias = tuple[str | None, float]
     _TextFont: TypeAlias = Font | _TupleFont
 
 
-@Text.register_themed_subclass
-class Entry(Widget, Transformable, metaclass=ThemedObjectMeta):
+class Entry(Widget, metaclass=ThemedObjectMeta):
     __theme_ignore__: ClassVar[Sequence[str]] = ("on_validate",)
-    __theme_associations__: ClassVar[dict[type, dict[str, str]]] = {
-        Text: {
-            "color": "fg",
-        },
-    }
 
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "cursor",
         "interval",
-        "bg",
-        "fg",
+        "background_color",
+        "foreground_color",
         "shadow_x",
         "shadow_y",
         "shadow",
@@ -69,15 +60,13 @@ class Entry(Widget, Transformable, metaclass=ThemedObjectMeta):
         "border_bottom_right_radius",
         parent=Widget.config,
     )
+    config.set_alias("background_color", "bg")
+    config.set_alias("foreground_color", "fg")
 
     cursor: OptionAttribute[int] = OptionAttribute()
     interval: OptionAttribute[int] = OptionAttribute()
     bg: OptionAttribute[Color] = OptionAttribute()
     fg: OptionAttribute[Color] = OptionAttribute()
-
-    @config.section_property
-    def font(self) -> Configuration[Font]:
-        return self.__text.font
 
     shadow_x: OptionAttribute[float] = OptionAttribute()
     shadow_y: OptionAttribute[float] = OptionAttribute()
@@ -109,12 +98,6 @@ class Entry(Widget, Transformable, metaclass=ThemedObjectMeta):
         max_nb_chars: int = 10,
         width: float | None = None,
         font: _TextFont | None = None,
-        bold: bool | None = None,
-        italic: bool | None = None,
-        underline: bool | None = None,
-        shadow_x: float = 0,
-        shadow_y: float = 0,
-        shadow_color: Color = BLACK,
         bg: Color = WHITE,
         fg: Color = BLACK,
         outline: int = 2,
@@ -150,17 +133,9 @@ class Entry(Widget, Transformable, metaclass=ThemedObjectMeta):
             focus_on_hover=focus_on_hover,
             **kwargs,
         )
-        self.__text: _TextEntry = _TextEntry(
-            font=font,
-            bold=bold,
-            italic=italic,
-            underline=underline,
-            color=fg,
-            shadow_x=shadow_x,
-            shadow_y=shadow_y,
-            shadow_color=shadow_color,
-            theme=NoTheme,
-        )
+        self.fg = fg
+        self.__text: str = ""
+        self.__font: Font = FontFactory.create_font(font)
         max_nb_chars = max(int(max_nb_chars), 0)
         width = max(float(width), 0) if width is not None else None
         self.__on_validate: Callable[[], None] = on_validate if callable(on_validate) else lambda: None
@@ -169,7 +144,7 @@ class Entry(Widget, Transformable, metaclass=ThemedObjectMeta):
         self.__cursor_width_offset: float = 15
         self.__cursor_height_offset: float = 10
         height: float
-        entry_size: tuple[int, int] = _get_entry_size(self.__text.font.__self__, max_nb_chars or 10)
+        entry_size: tuple[int, int] = _get_entry_size(self.__font, max_nb_chars or 10)
         if width is None:
             width = entry_size[0] + self.__cursor_width_offset
         height = entry_size[1] + self.__cursor_height_offset
@@ -211,23 +186,21 @@ class Entry(Widget, Transformable, metaclass=ThemedObjectMeta):
         self.event.bind(KeyDownEvent, WeakMethod(self.__key_press))
         self.event.bind(TextInputEvent, WeakMethod(self.__key_press))
 
-    def get_local_size(self) -> tuple[float, float]:
-        return self.__shape.get_local_size()
-
     def get_size(self) -> tuple[float, float]:
         return self.__shape.get_size()
 
     def draw_onto(self, target: AbstractRenderer) -> None:
         shape: RectangleShape = self.__shape
         outline_shape: RectangleShape = self.__outline_shape
-        text: Text = self.__text
+        font: Font = self.__font
+        text: str = self.__text
         cursor: int = self.__cursor
 
         outline_shape.center = shape.center = self.center
         shape.draw_onto(target)
 
-        text.midleft = (self.left + self.__cursor_width_offset, self.centery)
-        text.draw_onto(target)
+        text_rect = font.get_rect(text, midleft=(self.left + self.__cursor_width_offset, self.centery))
+        target.draw_text(text, font, text_rect, fgcolor=self.fg)
 
         show_cursor: bool
         if self.__edit():
@@ -237,36 +210,34 @@ class Entry(Widget, Transformable, metaclass=ThemedObjectMeta):
         else:
             self.__show_cursor = show_cursor = False
         if show_cursor:
-            width: float = text.font.__self__.get_rect(text.message[:cursor]).width + 1
+            width: float = font.get_rect(text[:cursor]).width + 1
             height: float = self.height - self.__cursor_height_offset
-            if not self.__insert_mode or self.cursor == len(text.message):
-                cursor_start: tuple[float, float] = (text.left + width, text.centery - height // 2)
-                cursor_end: tuple[float, float] = (text.left + width, text.centery + height // 2)
-                target.draw_line(text.color, cursor_start, cursor_end, width=2)
+            if not self.__insert_mode or self.cursor == len(text):
+                cursor_start: tuple[float, float] = (text_rect.left + width, text_rect.centery - height // 2)
+                cursor_end: tuple[float, float] = (text_rect.left + width, text_rect.centery + height // 2)
+                target.draw_line(self.fg, cursor_start, cursor_end, width=2)
             else:
-                char_rect = text.font.__self__.get_rect(text.message[cursor])
-                char_rect.left = int(text.left + width)
-                char_rect.centery = int(text.centery)
-                target.draw_rect(text.color, char_rect)
+                char_rect = font.get_rect(text[cursor])
+                char_rect.left = int(text_rect.left + width)
+                char_rect.centery = int(text_rect.centery)
+                target.draw_rect(self.fg, char_rect)
 
         outline_shape.draw_onto(target)
 
     def get(self) -> str:
-        return self.__text.message
+        return self.__text
 
     def clear(self) -> None:
-        self.__text.clear()
+        self.__text = ""
 
     def start_edit(self) -> None:
         Keyboard.IME.start_text_input()
         self.__start_edit = True
         self.__show_cursor = True
-        self.__insert_mode = False
 
     def stop_edit(self) -> None:
         Keyboard.IME.stop_text_input()
         self.__start_edit = False
-        self.__insert_mode = False
 
     def invoke(self) -> None:
         if self.focus.get_mode() in {FocusMode.MOUSE, FocusMode.NONE}:
@@ -285,18 +256,6 @@ class Entry(Widget, Transformable, metaclass=ThemedObjectMeta):
         self.stop_edit()
         self.__update_shape_outline()
 
-    def _apply_both_rotation_and_scale(self) -> None:
-        raise NotImplementedError
-
-    def _apply_only_rotation(self) -> None:
-        raise NotImplementedError
-
-    def _apply_only_scale(self) -> None:
-        scale: tuple[float, float] = self.scale
-        self.__outline_shape.scale = self.__shape.scale = self.__text.scale = scale
-        self.__cursor_width_offset = 15 * scale[0]
-        self.__cursor_height_offset = 10 * scale[1]
-
     def __edit(self) -> bool:
         if not self.__start_edit:
             return False
@@ -312,9 +271,9 @@ class Entry(Widget, Transformable, metaclass=ThemedObjectMeta):
             return False
         self.__show_cursor = True
         self.__cursor_animation_clock.restart()
-        text: Text = self.__text
+        text: str = self.__text
         match event:
-            case KeyDownEvent(key=Key.K_RETURN | Key.K_KP_ENTER) if text.message:
+            case KeyDownEvent(key=Key.K_RETURN | Key.K_KP_ENTER) if text:
                 self.__on_validate()
                 return True
             case KeyDownEvent(key=Key.K_INSERT):
@@ -325,11 +284,11 @@ class Entry(Widget, Transformable, metaclass=ThemedObjectMeta):
                 return True
             case KeyDownEvent(key=Key.K_BACKSPACE):
                 if self.cursor > 0:
-                    text.message = text.message[: self.cursor - 1] + text.message[self.cursor :]
+                    self.__text = text[: self.cursor - 1] + text[self.cursor :]
                     self.cursor -= 1
                 return True
             case KeyDownEvent(key=Key.K_DELETE):
-                text.message = text.message[: self.cursor] + text.message[self.cursor + 1 :]
+                self.__text = text[: self.cursor] + text[self.cursor + 1 :]
                 return True
             case KeyDownEvent(key=Key.K_LEFT):
                 self.cursor -= 1
@@ -341,16 +300,16 @@ class Entry(Widget, Transformable, metaclass=ThemedObjectMeta):
                 self.cursor = 0
                 return True
             case KeyDownEvent(key=Key.K_END):
-                self.cursor = len(text.message)
+                self.cursor = len(text)
                 return True
             case TextInputEvent(text=entered_text):
                 new_text: str
                 if not self.__insert_mode:
-                    new_text = text.message[: self.cursor] + entered_text + text.message[self.cursor :]
+                    new_text = text[: self.cursor] + entered_text + text[self.cursor :]
                 else:
-                    new_text = text.message[: self.cursor] + entered_text + text.message[self.cursor + len(entered_text) :]
+                    new_text = text[: self.cursor] + entered_text + text[self.cursor + len(entered_text) :]
                 if (max_nb_char := self.__nb_chars) == 0 or len(new_text) <= max_nb_char:
-                    text.message = new_text
+                    self.__text = new_text
                     self.cursor += len(entered_text)
                 return True
         return False
@@ -374,23 +333,7 @@ class Entry(Widget, Transformable, metaclass=ThemedObjectMeta):
     config.add_value_converter_on_set_static("interval", valid_integer(min_value=0))
     config.add_value_converter_on_set_static("fixed_width", valid_optional_float(min_value=0))
 
-    @config.getter_with_key("fg", use_key="color")
-    @config.getter_with_key("shadow_x")
-    @config.getter_with_key("shadow_y")
-    @config.getter_with_key("shadow")
-    @config.getter_with_key("shadow_color")
-    def __get_text_option(self, option: str) -> Any:
-        return self.__text.config.get(option)
-
-    @config.setter_with_key("fg", use_key="color")
-    @config.setter_with_key("shadow_x")
-    @config.setter_with_key("shadow_y")
-    @config.setter_with_key("shadow")
-    @config.setter_with_key("shadow_color")
-    def __set_text_option(self, option: str, value: Any) -> None:
-        return self.__text.config.set(option, value)
-
-    @config.getter_with_key("bg", use_key="color")
+    @config.getter_with_key("background_color", use_key="color")
     @config.getter_with_key("local_width", readonly=True)
     @config.getter_with_key("local_height", readonly=True)
     @config.getter_with_key("local_size", readonly=True)
@@ -402,7 +345,7 @@ class Entry(Widget, Transformable, metaclass=ThemedObjectMeta):
     def __get_shape_option(self, option: str) -> Any:
         return self.__shape.config.get(option)
 
-    @config.setter_with_key("bg", use_key="color")
+    @config.setter_with_key("background_color", use_key="color")
     @config.setter_with_key("border_radius")
     @config.setter_with_key("border_top_left_radius")
     @config.setter_with_key("border_top_right_radius")
@@ -413,12 +356,11 @@ class Entry(Widget, Transformable, metaclass=ThemedObjectMeta):
         if option != "color":
             self.__outline_shape.config.set(option, value)
 
-    # @config.on_update("font")
     @config.on_update("fixed_width")
     def __update_shape_using_font(self) -> None:
         max_nb_chars: int = self.__nb_chars
         fixed_width: float | None = self.__fixed_width
-        entry_size: tuple[int, int] = _get_entry_size(self.__text.font.__self__, max_nb_chars or 10)
+        entry_size: tuple[int, int] = _get_entry_size(self.__font, max_nb_chars or 10)
         width: float
         if fixed_width is not None:
             width = fixed_width
@@ -440,47 +382,3 @@ class Entry(Widget, Transformable, metaclass=ThemedObjectMeta):
 
 def _get_entry_size(font: Font, nb_chars: int) -> tuple[int, int]:
     return font.get_rect(max(ASCII_PRINTABLE, key=lambda char: font.get_rect(char).size) * nb_chars).size
-
-
-class _TextEntry(Text):
-    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate("max_width", parent=Text.config)
-
-    max_width: OptionAttribute[int | None] = OptionAttribute()
-
-    @initializer
-    def __init__(
-        self,
-        message: str = "",
-        *,
-        font: _TextFont | None,
-        bold: bool | None = None,
-        italic: bool | None = None,
-        underline: bool | None = None,
-        color: Color,
-        shadow_x: float,
-        shadow_y: float,
-        shadow_color: Color,
-        theme: ThemeType | None = None,
-    ) -> None:
-        super().__init__(
-            message=message,
-            font=font,
-            bold=bold,
-            italic=italic,
-            underline=underline,
-            color=color,
-            shadow_x=shadow_x,
-            shadow_y=shadow_y,
-            shadow_color=shadow_color,
-            theme=theme,
-        )
-        self.max_width = None
-
-    def _render(self) -> Surface:
-        # max_width: int | None = self.max_width
-        text: Surface = super()._render()
-        # if max_width is not None:
-        #     return text.subsurface(0, 0, max_width, text.get_height()).copy()
-        return text
-
-    config.add_value_converter_on_set_static("max_width", valid_optional_integer(min_value=0))

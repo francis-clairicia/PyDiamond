@@ -15,7 +15,7 @@ __all__ = [
 ]
 
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Iterable, Iterator, Literal, Sequence, TypeAlias, overload
+from typing import TYPE_CHECKING, Any, Iterable, Iterator, Literal, Sequence, TypeAlias, overload
 
 import pygame.image as _pg_image
 from pygame import encode_file_path
@@ -90,7 +90,7 @@ class SurfaceRenderer(AbstractRenderer):
         else:
             self.__target = create_surface((w, h), convert_alpha=convert_alpha)
 
-    def get_rect(self, **kwargs: float | Sequence[float]) -> Rect:
+    def get_rect(self, **kwargs: Any) -> Rect:
         return self.__target.get_rect(**kwargs)
 
     def get_size(self) -> tuple[int, int]:
@@ -128,7 +128,7 @@ class SurfaceRenderer(AbstractRenderer):
         anchor: RendererAnchor = "topleft",
     ) -> Rect:
         if anchor != "topleft":
-            raise NotImplementedError("anchor other than topleft is not supported yet")
+            dest = surface.get_rect(**{anchor: dest})  # type: ignore[misc]
         return self.__target.blit(surface, dest, area, special_flags)
 
     @overload
@@ -190,10 +190,10 @@ class SurfaceRenderer(AbstractRenderer):
         size: float = 0,
         anchor: RendererAnchor = "topleft",
     ) -> Rect:
-        if anchor != "topleft":
-            raise NotImplementedError("anchor other than topleft is not supported yet")
         if not isinstance(font, Font):
             font = FontFactory.create_font(font)
+        if anchor != "topleft":
+            dest = font.get_rect(text, style=style, rotation=rotation, size=size, **{anchor: dest})
         return font.render_to(self.__target, dest, text, fgcolor, bgcolor=bgcolor, style=style, rotation=rotation, size=size)
 
     def draw_rect(

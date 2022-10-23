@@ -405,6 +405,18 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
         pass
 
     @property
+    def size(self) -> tuple[float, float]:
+        return self.get_size()
+
+    @property
+    def width(self) -> float:
+        return self.get_size()[0]
+
+    @property
+    def height(self) -> float:
+        return self.get_size()[1]
+
+    @property
     def x(self) -> float:
         return self.__x
 

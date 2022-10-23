@@ -11,7 +11,7 @@ __all__ = ["AbstractRenderer"]
 from abc import abstractmethod
 from enum import IntEnum, unique
 from itertools import starmap
-from typing import TYPE_CHECKING, ContextManager, Iterable, Literal, Sequence, TypeAlias, overload
+from typing import TYPE_CHECKING, Any, ContextManager, Iterable, Literal, Sequence, TypeAlias, overload
 
 import pygame.constants as _pg_constants
 
@@ -64,7 +64,7 @@ class AbstractRenderer(Object):
     __slots__ = ()
 
     @abstractmethod
-    def get_rect(self, **kwargs: float | Sequence[float]) -> Rect:
+    def get_rect(self, **kwargs: Any) -> Rect:
         raise NotImplementedError
 
     @abstractmethod
