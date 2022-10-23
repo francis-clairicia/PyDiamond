@@ -195,13 +195,21 @@ class ProxyType(object):
             if name not in ProxyType.__special_names_returning_self:
 
                 def method(self: object, *args: Any, **kwargs: Any) -> Any:
-                    return getattr(object.__getattribute__(self, "_obj"), name)(*args, **kwargs)
+                    obj = object.__getattribute__(self, "_obj")
+                    value = getattr(obj, name)(*args, **kwargs)
+                    if value is obj:
+                        return self
+                    return value
 
             else:
 
                 def method(self: object, *args: Any, **kwargs: Any) -> Any:
                     proxy_cls: type[Any] = type(self)
-                    return proxy_cls(getattr(object.__getattribute__(self, "_obj"), name)(*args, **kwargs))
+                    obj = object.__getattribute__(self, "_obj")
+                    value = getattr(obj, name)(*args, **kwargs)
+                    if value is obj:
+                        return self
+                    return proxy_cls(value)
 
             return method
 
