@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-__all__ = ["ExitStackView"]
+__all__ = ["ExitStackView", "dsuppress"]
 
 import contextlib
 from types import TracebackType
@@ -16,7 +16,7 @@ _CM_EF = TypeVar("_CM_EF", bound=contextlib.AbstractAsyncContextManager[Any] | _
 
 
 class ExitStackView:
-    __slots__ = ("__s",)
+    __slots__ = ("__s", "__weakref__")
 
     def __init__(self, stack: contextlib.ExitStack) -> None:
         self.__s = stack
@@ -27,5 +27,9 @@ class ExitStackView:
     def push(self, exit: _CM_EF) -> _CM_EF:
         return self.__s.push(exit)  # type: ignore[type-var]
 
-    def callback(self, __callback: Callable[_P, _T], *args: _P.args, **kwds: _P.kwargs) -> Callable[_P, _T]:
+    def callback(self, __callback: Callable[_P, _T], /, *args: _P.args, **kwds: _P.kwargs) -> Callable[_P, _T]:
         return self.__s.callback(__callback, *args, **kwds)
+
+
+class dsuppress(contextlib.suppress, contextlib.ContextDecorator):
+    pass

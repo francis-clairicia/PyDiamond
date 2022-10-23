@@ -9,7 +9,6 @@ from __future__ import annotations
 __all__ = [
     "cache",
     "classmethodonly",
-    "dsuppress",
     "forbidden_call",
     "lru_cache",
     "setdefaultattr",
@@ -17,7 +16,6 @@ __all__ = [
     "wraps",
 ]
 
-from contextlib import ContextDecorator, suppress
 from functools import lru_cache as _lru_cache, wraps
 from typing import TYPE_CHECKING, Any, Callable, ParamSpec, TypeGuard, TypeVar, overload
 
@@ -155,7 +153,3 @@ def forbidden_call(func: Callable[_P, _R]) -> Callable[_P, _R]:
 
     setattr(not_callable, "__forbidden_call__", True)
     return not_callable
-
-
-class dsuppress(suppress, ContextDecorator):
-    pass

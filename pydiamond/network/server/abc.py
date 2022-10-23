@@ -26,7 +26,7 @@ from weakref import WeakKeyDictionary
 
 from ...system.object import Object, final
 from ...system.threading import Thread, thread_factory
-from ...system.utils.functools import dsuppress
+from ...system.utils.contextlib import dsuppress
 from ..client import TCPNetworkClient, UDPNetworkClient
 from ..protocol.abc import NetworkProtocol
 from ..protocol.pickle import PickleNetworkProtocol
