@@ -64,6 +64,8 @@ from .object import Object, final
 from .utils._mangling import mangle_private_attribute as _private_attribute
 from .utils.itertools import prepend
 
+# from .proxy import ProxyType
+
 _Func: TypeAlias = Callable[..., Any]
 _Updater: TypeAlias = Callable[[Any], None]
 _KeyUpdater: TypeAlias = Callable[[Any, Any], None]
@@ -2306,6 +2308,9 @@ class ConfigurationInfo(Object, Generic[_T]):
         setattr(self, "_sections_map", MappingProxyType({s.name: s for s in self.sections}))
         if len(self._sections_map) != len(self.sections):
             raise ConfigurationError("Section name duplicate")
+        section_name_conflict: set[str] = set(self.options).intersection(self._sections_map)
+        if section_name_conflict:
+            raise ConfigurationError(f"Section name conflict with options for the following: {', '.join(section_name_conflict)}")
 
     def get_owner_class(self, default_objtype: type) -> type:
         if (owner := self.owner_cls) is not None:
@@ -2382,7 +2387,7 @@ class ConfigurationInfo(Object, Generic[_T]):
                     exclude_options=frozenset(new_section_exclude_options.get(section.name, ())),
                 )
                 for section in self.sections
-                if section.name not in new_section_include_options and section.name not in new_section_exclude_options
+                if section.name in new_section_include_options or section.name in new_section_exclude_options
             ),
         )
 
@@ -2462,7 +2467,7 @@ del _default_mapping
 
 
 @final
-@dataclass(frozen=True, eq=False, slots=True, kw_only=True)
+@dataclass(frozen=True, eq=True, slots=True, kw_only=True)
 class _BoundSection(Generic[_T], Object):
     name: str
     parent: Configuration[_T]
@@ -2527,6 +2532,8 @@ class Configuration(NonCopyable, Generic[_T]):
         parent.__info.check_section_validity(section.name)
 
         section_config: Configuration[_S] = section.original_config(parent.__self__)
+        # if isinstance(section_config, _SectionConfigurationProxy):  # type: ignore[unreachable]
+        #     section_config = object.__getattribute__(section_config, "_obj")  # type: ignore[unreachable]
 
         section_obj = section_config.__self__
         section_info = section_config.__info
@@ -2538,6 +2545,7 @@ class Configuration(NonCopyable, Generic[_T]):
         )
         self.__sections = tuple(prepend(_BoundSection(name=section.name, parent=parent), section_config.__sections))
 
+        # return _SectionConfigurationProxy(self, section, parent)  # type: ignore[return-value]
         return self
 
     @reprlib.recursive_repr()
@@ -2957,8 +2965,15 @@ class Configuration(NonCopyable, Generic[_T]):
                     main_updater(obj)
 
     @contextmanager
-    def temporary_options(self, **kwargs: Any) -> Iterator[MappingProxyType[str, Any]]:
+    def temporary_options(self, __with_updaters: bool = True, /, **kwargs: Any) -> Iterator[MappingProxyType[str, Any]]:
         obj: _T = self.__self__
+
+        if __with_updaters:
+            update = self.update
+            delete_many = self.delete_many
+        else:
+            update = self.only_update
+            delete_many = self.only_delete_many
 
         if not kwargs:
             yield MappingProxyType({})
@@ -2974,16 +2989,16 @@ class Configuration(NonCopyable, Generic[_T]):
             null = object()
             former_values: dict[str, Any] = {opt: value for opt in kwargs if (value := get(opt, null)) is not null}
             del null, get
-            self.update(**kwargs)
+            update(**kwargs)
         to_delete = {k for k in kwargs if k not in former_values}
         try:
             yield MappingProxyType(former_values)
         finally:
-            with self.__updating_many_options(obj, *options, info=self.__info, sections=self.__sections):
+            with self.__lazy_lock(obj):
                 try:
-                    self.update(**former_values)
+                    delete_many(*to_delete)
                 finally:
-                    self.delete_many(*to_delete)
+                    update(**former_values)
 
     @final
     def has_initialization_context(self) -> bool:
@@ -3727,6 +3742,7 @@ class _ConfigInfoTemplate:
             return func
 
         def build_wrapper_within_descriptor(descriptor: _Descriptor) -> _Descriptor:
+            _default_descriptor = descriptor
             if isinstance(descriptor, _ConfigProperty):
                 if descriptor.fget is not None:
                     descriptor = descriptor.getter(build_wrapper_if_needed(descriptor.fget))
@@ -3739,6 +3755,8 @@ class _ConfigInfoTemplate:
                     underlying_descriptor = build_wrapper_within_descriptor(underlying_descriptor)
                     if underlying_descriptor is not descriptor.get_descriptor():
                         descriptor = _ReadOnlyOptionBuildPayload(underlying_descriptor)
+            if descriptor == _default_descriptor:
+                return _default_descriptor
             return descriptor
 
         def build_update_hooks_wrappers(attr_name: str) -> None:
@@ -3920,7 +3938,7 @@ class _ConfigProperty(property):
         return all(getattr(self, func) == getattr(__o, func) for func in ("fget", "fset", "fdel"))
 
     def __hash__(self) -> int:
-        return hash((type(self), self.fget, self.fset, self.fdel))
+        return hash((_ConfigProperty, self.fget, self.fset, self.fdel))
 
 
 class _PrivateAttributeOptionProperty:
@@ -3944,7 +3962,7 @@ class _PrivateAttributeOptionProperty:
         return self.__attribute == __o.__attribute
 
     def __hash__(self) -> int:
-        return hash((type(self), self.__attribute))
+        return hash((_PrivateAttributeOptionProperty, self.__attribute))
 
 
 class _ReadOnlyOptionBuildPayload:
@@ -3970,7 +3988,7 @@ class _ReadOnlyOptionBuildPayload:
         return self.__descriptor() == __o.__descriptor()
 
     def __hash__(self) -> int:
-        return hash((type(self), self.__descriptor()))
+        return hash((_ReadOnlyOptionBuildPayload, self.__descriptor()))
 
 
 @dataclass(eq=True, unsafe_hash=True)
@@ -4002,3 +4020,60 @@ class _SectionBuildPayload:
                 raise ConfigurationError("config getters are different")
 
         return replace(self, **changes)
+
+
+# class _SectionObjectProxy(ProxyType):
+#     __slots__ = (
+#         "_parent_config",
+#         "_section",
+#     )
+
+#     def __init__(self, obj: Any, section: Section[Any, Any], parent: Configuration[Any], /) -> None:
+#         super().__init__(obj)
+#         object.__setattr__(self, "_section", section)
+#         object.__setattr__(self, "_parent_config", parent)
+
+#     def __getattribute__(self, name: str, /) -> Any:
+#         value: Any = super().__getattribute__(name)
+#         parent: Configuration[Any] = object.__getattribute__(self, "_parent_config")
+#         section: Section[Any, Any] = object.__getattribute__(self, "_section")
+
+#         if value is section.original_config(parent.__self__):
+#             return section.config(parent)
+#         if isinstance(value, _SectionObjectProxy):
+#             subsection: Section[Any, Any] = object.__getattribute__(value, "_section")
+#             try:
+#                 subsection_config = section.config(parent).section(subsection.name)
+#             except UnknownSectionError:
+#                 pass
+#             else:
+#                 subsection_obj = subsection_config.__self__
+#                 if object.__getattribute__(value, "_obj") is object.__getattribute__(subsection_obj, "_obj"):
+#                     return subsection_obj
+#         return value
+
+#     def __setattr__(self, name: str, value: Any, /) -> None:
+#         return super().__setattr__(name, value)
+
+#     def __delattr__(self, name: str, /) -> None:
+#         return super().__delattr__(name)
+
+
+# class _SectionConfigurationProxy(ProxyType):
+#     __slots__ = (
+#         "_parent_config",
+#         "_section",
+#     )
+
+#     def __init__(self, obj: Any, section: Section[Any, Any], parent: Configuration[Any], /) -> None:
+#         super().__init__(obj)
+#         object.__setattr__(self, "_section", section)
+#         object.__setattr__(self, "_parent_config", parent)
+
+#     def __getattribute__(self, name: str, /) -> Any:
+#         value: Any = super().__getattribute__(name)
+#         parent: Configuration[Any] = object.__getattribute__(self, "_parent_config")
+#         section: Section[Any, Any] = object.__getattribute__(self, "_section")
+#         if name == "__self__":
+#             value = _SectionObjectProxy(value, section, parent)
+#         return value

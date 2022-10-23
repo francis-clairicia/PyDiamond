@@ -128,6 +128,7 @@ class Font(Object):
         "ucs4",
     )
 
+    size: OptionAttribute[float] = OptionAttribute()
     style: OptionAttribute[FontStyle] = OptionAttribute()
     underline: OptionAttribute[bool] = OptionAttribute()
     strong: OptionAttribute[bool] = OptionAttribute()
@@ -199,17 +200,6 @@ class Font(Object):
     @property
     def resolution(self) -> int:
         return self.__ft.resolution
-
-    @property
-    def size(self) -> float:
-        size = self.__ft.size
-        if isinstance(size, tuple):
-            return max(size)
-        return size
-
-    @size.setter
-    def size(self, value: float) -> None:
-        self.__ft.size = float(value)
 
     @property
     def height(self) -> int:
@@ -368,9 +358,8 @@ class Font(Object):
         finally:
             self.__ft.pad = True
 
-    config.use_descriptor("size", size)
-
     config.add_enum_converter("style", FontStyle, store_value=True)
+    config.add_value_converter_on_set_static("size", float)
     config.add_value_converter_on_set_static("underline", bool)
     config.add_value_converter_on_set_static("strong", bool)
     config.add_value_converter_on_set_static("oblique", bool)
@@ -383,6 +372,7 @@ class Font(Object):
     # config.add_value_converter_static("vertical", bool)
     config.add_value_converter_on_set_static("ucs4", bool)
 
+    @config.getter_with_key("size", use_override=False)
     @config.getter_with_key("style", use_override=False)
     @config.getter_with_key("underline", use_override=False)
     @config.getter_with_key("strong", use_override=False)
@@ -398,6 +388,7 @@ class Font(Object):
     def __get_property(self, option: str) -> Any:
         return getattr(self.__ft, option)
 
+    @config.setter_with_key("size", use_override=False)
     @config.setter_with_key("style", use_override=False)
     @config.setter_with_key("underline", use_override=False)
     @config.setter_with_key("strong", use_override=False)

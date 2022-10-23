@@ -6,25 +6,27 @@
 
 from __future__ import annotations
 
-__all__ = ["ScaleBar"]
+__all__ = ["ScaleBar", "ScaleBarOrient", "ScaleBarTextSide"]
 
 import sys
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Sequence
 
 from ...graphics.color import BLACK, BLUE, GRAY, WHITE, Color
-from ...graphics.progress import ProgressBar
+from ...graphics.progress import ProgressBar, ProgressBarOrient as ScaleBarOrient, ProgressBarTextSide as ScaleBarTextSide
 from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
+from ...system.theme import ThemedObjectMeta
 from ...system.validation import valid_integer
 from ...window.event import Event, KeyDownEvent, KeyEvent, KeyUpEvent, MouseButtonDownEvent, MouseMotionEvent
 from .abc import AbstractWidget, Widget, WidgetsManager
 
 if TYPE_CHECKING:
     from ...audio.sound import Sound
+    from ...graphics.renderer import AbstractRenderer
     from ...system.theme import ThemeType
     from ...window.cursor import Cursor
 
 
-class ScaleBar(ProgressBar, Widget):
+class ScaleBar(ProgressBar, Widget, metaclass=ThemedObjectMeta):
     __theme_ignore__: ClassVar[Sequence[str]] = (
         "from_",
         "to",
@@ -71,13 +73,8 @@ class ScaleBar(ProgressBar, Widget):
         cursor_thickness: int = 2,
         outline: int = 2,
         outline_color: Color = BLACK,
-        border_radius: int = 0,
-        border_top_left_radius: int = -1,
-        border_top_right_radius: int = -1,
-        border_bottom_left_radius: int = -1,
-        border_bottom_right_radius: int = -1,
-        value_display_offset: float = 10,
-        label_offset: float = 10,
+        value_display_offset: tuple[float, float] = (0, 0),
+        label_offset: tuple[float, float] = (0, 0),
         highlight_color: Color = BLUE,
         highlight_thickness: int = 2,
         theme: ThemeType | None = None,
@@ -101,14 +98,8 @@ class ScaleBar(ProgressBar, Widget):
             cursor_thickness=cursor_thickness,
             outline=outline,
             outline_color=outline_color,
-            border_radius=border_radius,
-            border_top_left_radius=border_top_left_radius,
-            border_top_right_radius=border_top_right_radius,
-            border_bottom_left_radius=border_bottom_left_radius,
-            border_bottom_right_radius=border_bottom_right_radius,
             value_display_offset=value_display_offset,
             label_offset=label_offset,
-            theme=theme,
             # Widget
             master=master,
             state=state,
@@ -134,6 +125,14 @@ class ScaleBar(ProgressBar, Widget):
         callback = self.__percent_callback
         if callable(callback):
             callback(self.percent)
+
+    def _after_widget_render(self, target: AbstractRenderer) -> None:
+        super()._after_widget_render(target)
+        if self.focus.has():
+            highlight_color = self.highlight_color
+            outline: int = self.shape.get("outline")
+            highlight_tickness = max(outline, self.highlight_thickness) * max(self.scale)
+            target.draw_rect(highlight_color, self.get_rect(), width=int(highlight_tickness))
 
     def _should_ignore_event(self, event: Event) -> bool:
         return super()._should_ignore_event(event) or (
@@ -162,28 +161,8 @@ class ScaleBar(ProgressBar, Widget):
     def _apply_only_scale(self) -> None:
         super()._apply_only_scale()
 
-    def _on_focus_set(self) -> None:
-        self.__update_shape_outline()
-        return super()._on_focus_set()
-
-    def _on_focus_leave(self) -> None:
-        self.__update_shape_outline()
-        return super()._on_focus_leave()
-
-    def __update_shape_outline(self) -> None:
-        outline_color: Color
-        outline: int
-        if self.focus.has():
-            outline_color = self.highlight_color
-            outline = max(self.highlight_thickness, self.outline)
-        else:
-            outline_color = self.outline_color
-            outline = self.outline
-        super().config.only_set("outline", outline)
-        super().config.only_set("outline_color", outline_color)
-
     def __compute_scale_percent_by_mouse_pos(self, mouse_pos: tuple[float, float]) -> None:
-        if self.orient == ScaleBar.Orient.HORIZONTAL:
+        if self.orient == ScaleBarOrient.HORIZONTAL:
             self.percent = (mouse_pos[0] - self.left) / self.width
         else:
             self.percent = (mouse_pos[1] - self.top) / self.height
@@ -215,16 +194,8 @@ class ScaleBar(ProgressBar, Widget):
         percent = (value - start) / (end - start)
         return percent
 
-    config.reset_getter_setter_deleter("outline")
-    config.reset_getter_setter_deleter("outline_color")
-
     config.add_value_validator_static("highlight_color", Color)
     config.add_value_converter_on_set_static("highlight_thickness", valid_integer(min_value=0))
-
-    config.on_update("outline", __update_shape_outline)
-    config.on_update("outline_color", __update_shape_outline)
-    config.on_update("highlight_color", __update_shape_outline)
-    config.on_update("highlight_thickness", __update_shape_outline)
 
     config.on_update("value", invoke)
     config.on_update("percent", invoke)

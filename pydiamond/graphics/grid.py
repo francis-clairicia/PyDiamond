@@ -6,13 +6,12 @@
 
 from __future__ import annotations
 
-from itertools import takewhile
-
 __all__ = ["Grid", "GridElement", "GridJustify"]
 
 from abc import abstractmethod
 from dataclasses import dataclass
 from enum import auto, unique
+from itertools import takewhile
 from typing import Any, ClassVar, Container, Iterator, Protocol, Sequence, TypeVar, final, overload, runtime_checkable
 from weakref import ref as weakref
 

@@ -470,6 +470,13 @@ class ThemedObjectMeta(ObjectMeta):
         namespace["_no_use_of_themes_"] = bool(no_theme)
 
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
+
+        type.__setattr__(
+            cls,
+            "__theme_ignore__",
+            tuple(set(chain.from_iterable(b.__theme_ignore__ for b in cls.__mro__ if isinstance(b, ThemedObjectMeta)))),
+        )
+
         setattr(cls, "_is_abstract_theme_class_", isabstractclass(cls))
         if not use_parent_theme:
             mcs.__CLASSES_NOT_USING_PARENT_THEMES.add(cls)

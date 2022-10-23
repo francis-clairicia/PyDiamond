@@ -793,10 +793,10 @@ class ProgressScene(MainScene):
             callback=self.__restart,
         )
 
-        hprogress.show_label("Loading...", "top", font=(None, 60), color=WHITE)
+        hprogress.show_label("Loading...", "top", offset=(0, -10), font=(None, 60), color=WHITE)
         hprogress.show_percent("inside", font=(None, 60))
         hprogress.center = self.window.width / 4, self.window.centery
-        vprogress.show_label("Loading...", "right", font=(None, 60), color=WHITE)
+        vprogress.show_label("Loading...", "right", offset=(10, 0), font=(None, 60), color=WHITE)
         vprogress.show_percent("inside", font=(None, 60))
         vprogress.center = self.window.width * 3 / 4, self.window.centery
         restart.midtop = self.window.centerx, self.window.height * 3 / 4

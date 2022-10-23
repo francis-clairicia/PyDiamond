@@ -11,11 +11,14 @@ __all__ = [
     "valid_integer",
     "valid_optional_float",
     "valid_optional_integer",
+    "valid_sequence",
 ]
 
-from typing import Any, Callable, TypeAlias, overload
+from typing import Any, Callable, Sequence, TypeAlias, TypeVar, overload
 
 from .utils.functools import cache
+
+_T = TypeVar("_T")
 
 _MISSING: Any = object()
 
@@ -238,3 +241,45 @@ def __valid_number(value_type: type[_Number], optional: bool, /, **kwargs: Any) 
     else:
         raise TypeError("Invalid arguments")
     return valid_number
+
+
+@overload
+def valid_sequence(*, length: int = ...) -> Callable[[Any], Sequence[Any]]:
+    ...
+
+
+@overload
+def valid_sequence(*, validator: Callable[[Any], _T], length: int = ...) -> Callable[[Any], Sequence[_T]]:
+    ...
+
+
+@overload
+def valid_sequence(*, value: Any, length: int = ...) -> Sequence[Any]:
+    ...
+
+
+@overload
+def valid_sequence(*, value: Any, validator: Callable[[Any], _T], length: int = ...) -> Sequence[_T]:
+    ...
+
+
+def valid_sequence(*, value: Any = _MISSING, validator: Callable[[Any], Any] | None = None, length: int = -1) -> Any:
+    decorator: Callable[[Any], Sequence[Any]] = __valid_sequence(length=length, validator=validator)
+    if value is not _MISSING:
+        return decorator(value)
+    return decorator
+
+
+@cache
+def __valid_sequence(*, length: int, validator: Callable[[Any], Any] | None) -> Callable[[Any], Sequence[Any]]:
+    def valid_sequence(val: Any) -> Sequence[Any]:
+        if validator is None:
+            val = tuple(val)
+        else:
+            val = tuple(map(validator, val))
+        if length >= 0:
+            if (val_length := len(val)) != length:
+                raise ValueError(f"Invalid sequence length: expected {length}, got {val_length}")
+        return val
+
+    return valid_sequence

@@ -6,8 +6,6 @@
 
 from __future__ import annotations
 
-from itertools import takewhile
-
 __all__ = [
     "AbstractWidget",
     "Widget",
@@ -16,6 +14,7 @@ __all__ = [
 
 from abc import abstractmethod
 from enum import auto, unique
+from itertools import takewhile
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterator, Literal, TypeGuard, TypeVar, cast, final, overload
 from weakref import WeakMethod, WeakSet, WeakValueDictionary, ref as weakref
@@ -80,23 +79,23 @@ class AbstractWidget(Drawable, Movable, prepare_namespace=__prepare_abstract_wid
         super().__init_subclass__(**kwargs)
         draw_method: Callable[[AbstractWidget, AbstractRenderer], None] = getattr(cls, "draw_onto")
         if not getattr(draw_method, "__draw_onto_decorator__", False) and not isabstractmethod(draw_method):
-            type.__setattr__(cls, "draw_onto", AbstractWidget.__draw_decorator(draw_method, cls))
+            type.__setattr__(cls, "draw_onto", cls._draw_decorator(draw_method))
 
     @classmethod
     @final
     def take_children(cls) -> bool:
         return cls.__take_children
 
-    @staticmethod
+    @classmethod
     @final
-    def __draw_decorator(
-        func: Callable[[AbstractWidget, AbstractRenderer], None],
-        cls: type,
-    ) -> Callable[[Widget, AbstractRenderer], None]:
+    def _draw_decorator(
+        cls: type[__Self],
+        func: Callable[[__Self, AbstractRenderer], None],
+    ) -> Callable[[__Self, AbstractRenderer], None]:
         from ._renderer import WidgetRendererView
 
         @wraps(func)
-        def wrapper(self: AbstractWidget, /, target: AbstractRenderer) -> None:
+        def wrapper(self: AbstractWidget.__Self, /, target: AbstractRenderer) -> None:
             if self.__drawing:  # super().draw_onto() used
                 return func(self, target)
 
@@ -110,11 +109,14 @@ class AbstractWidget(Drawable, Movable, prepare_namespace=__prepare_abstract_wid
                 self.__drawing = True
                 try:
                     with target.using_clip(None):
+                        self._before_widget_render(target)
                         func(self, target)
+                        self._after_widget_render(target)
                 finally:
                     self.__drawing = False
 
         wrapper.__qualname__ = f"{cls.__qualname__}.{wrapper.__name__}"
+        wrapper.__module__ = cls.__module__
         setattr(wrapper, "__draw_onto_decorator__", True)
         return wrapper
 
@@ -172,7 +174,13 @@ class AbstractWidget(Drawable, Movable, prepare_namespace=__prepare_abstract_wid
         if child in self.__children:
             raise ValueError("child was not removed ?")
 
+    def _before_widget_render(self, target: AbstractRenderer) -> None:
+        pass
+
     def _update_widget(self) -> None:
+        pass
+
+    def _after_widget_render(self, target: AbstractRenderer) -> None:
         pass
 
     @final
@@ -209,7 +217,7 @@ class AbstractWidget(Drawable, Movable, prepare_namespace=__prepare_abstract_wid
     @final
     def get_visible_rect(self) -> Rect:
         parent: AbstractWidget | None = self.__parent()
-        self_rect = Rect(self.topleft, self.get_size())
+        self_rect = self.get_clip().clip(Rect(self.topleft, self.get_size()))
         master_rect: Rect
         if parent is None:
             master_rect = weakref_unwrap(self.__manager).window.rect
@@ -437,6 +445,9 @@ class Widget(AbstractWidget, children=False):
         }
     )
 
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="Widget")
+
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "state",
         "hover_sound",
@@ -457,17 +468,18 @@ class Widget(AbstractWidget, children=False):
         super().__init_subclass__(**kwargs)
         invoke_method: Callable[[Widget], None] = getattr(cls, "invoke")
         if not getattr(invoke_method, "__invoke_decorator__", False) and not isabstractmethod(invoke_method):
-            type.__setattr__(cls, "invoke", Widget.__invoke_decorator(invoke_method, cls))
+            type.__setattr__(cls, "invoke", cls._invoke_decorator(invoke_method))
 
-    @staticmethod
+    @classmethod
     @final
-    def __invoke_decorator(func: Callable[[Widget], None], cls: type) -> Callable[[Widget], None]:
+    def _invoke_decorator(cls, func: Callable[[Widget], None]) -> Callable[[Widget], None]:
         @wraps(func)
         def wrapper(self: Widget) -> None:
             if self.__state != WidgetState.DISABLED:
                 func(self)
 
         wrapper.__qualname__ = f"{cls.__qualname__}.{wrapper.__name__}"
+        wrapper.__module__ = cls.__module__
         setattr(wrapper, "__invoke_decorator__", True)
         return wrapper
 

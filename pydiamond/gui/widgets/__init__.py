@@ -18,6 +18,8 @@ __all__ = [
     "GridJustify",
     "ImageButton",
     "ScaleBar",
+    "ScaleBarOrient",
+    "ScaleBarTextSide",
     "ScrollBar",
     "ScrollingContainer",
     "WidgetWrappedElement",

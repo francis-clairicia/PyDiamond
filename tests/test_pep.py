@@ -13,6 +13,44 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.functional
+class TestPEP008:
+    def test__import__no_import_between_future_import_and_dunder_all_declaration(self, pydiamond_rootdir: Path) -> None:
+        # Arrange
+        import ast
+
+        invalid_files: set[str] = set()
+
+        # Act
+        for root, _, files in os.walk(pydiamond_rootdir):
+            for file in files:
+                if not file.endswith(".py"):
+                    continue
+                file = os.path.join(root, file)
+                with open(file, "r") as file_fp:
+                    source: str = file_fp.read()
+                tree = ast.parse(source, file)
+                future_import_found: bool = False
+                other_import_than_future_found: bool = False
+                for node in tree.body:
+                    match node:
+                        case ast.ImportFrom(module="__future__"):
+                            future_import_found = True
+                            continue
+                        case ast.Import() | ast.ImportFrom():
+                            other_import_than_future_found = True
+                            continue
+                        case ast.Assign(targets=[ast.Name(id="__all__")]) | ast.AnnAssign(target=ast.Name(id="__all__")):
+                            if future_import_found and other_import_than_future_found:
+                                invalid_files.add(os.path.relpath(file, str(pydiamond_rootdir.parent)))
+                                break
+                        case _:
+                            continue
+
+        # Assert
+        assert not invalid_files
+
+
+@pytest.mark.functional
 class TestPEP484:
     def test__stubs__check_future_annotations_imports_not_present(self, pydiamond_rootdir: Path) -> None:
         # Arrange

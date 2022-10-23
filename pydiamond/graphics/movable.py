@@ -6,11 +6,10 @@
 
 from __future__ import annotations
 
-from contextlib import contextmanager
-
 __all__ = ["Movable", "MovableProxy"]
 
 from abc import abstractmethod
+from contextlib import contextmanager
 from typing import Any, Callable, Iterator, Literal, overload
 
 from ..math import Rect, Vector2
@@ -385,8 +384,7 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
 
     @final
     def get_rect_relative_to(self, point: tuple[float, float] | Vector2) -> Rect:
-        r: Rect = Rect((self.__x - point[0], self.__y - point[1]), self.get_size())
-        return r
+        return Rect((self.__x - point[0], self.__y - point[1]), self.get_size())
 
     @final
     @contextmanager

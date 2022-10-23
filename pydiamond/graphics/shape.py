@@ -8,8 +8,8 @@ from __future__ import annotations
 
 __all__ = [
     "AbstractCircleShape",
-    "AbstractCrossShape",
     "AbstractRectangleShape",
+    "AbstractRoundedEdgeObject",
     "AbstractShape",
     "CircleShape",
     "DiagonalCrossShape",
@@ -23,14 +23,15 @@ __all__ = [
 from abc import abstractmethod
 from math import radians, sin, tan
 from types import MappingProxyType
-from typing import Any, ClassVar, Mapping, Sequence, TypeAlias, final
+from typing import TYPE_CHECKING, Any, ClassVar, Mapping, Sequence, TypeAlias, final
 
 from pygame.transform import rotozoom as _surface_rotozoom, smoothscale as _surface_scale
 
 from ..math import Rect, Vector2, compute_rect_from_vertices, compute_size_from_vertices, get_vertices_center, normalize_points
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, UnregisteredOptionError, initializer
+from ..system.object import Object
 from ..system.utils.abc import concreteclass
-from ..system.validation import valid_float, valid_integer
+from ..system.validation import valid_float, valid_integer, valid_sequence
 from .color import BLACK, Color
 from .drawable import Drawable
 from .renderer import AbstractRenderer
@@ -104,6 +105,8 @@ class AbstractShape(Drawable, Transformable):
     ) -> Sequence[Vector2]:
         angle: float = self.angle
         scale_x, scale_y = self.scale
+        if scale_x <= 0 or scale_y <= 0:
+            return []
         all_points: Sequence[_FPoint] = self.get_local_vertices()
         if len(all_points) < 2 or (not apply_rotation and not apply_scale):
             return [Vector2(point) for point in all_points]
@@ -122,18 +125,15 @@ class AbstractShape(Drawable, Transformable):
         for point in all_points:
             offset: Vector2 = Vector2(point) - local_center
             if apply_scale:
-                if scale_x > 0 and scale_y > 0:
-                    offset.x *= scale_x
-                    offset.y *= scale_y
-                else:
-                    offset = Vector2(0, 0)
+                offset.x *= scale_x
+                offset.y *= scale_y
             if apply_rotation:
                 offset.rotate_ip(-angle)
             vertices.append(center + offset)
 
         return vertices
 
-    @config.add_main_update
+    @config.add_main_update(use_override=False)
     def __update_shape(self) -> None:
         if self.config.has_initialization_context():
             self.update_transform()
@@ -141,6 +141,8 @@ class AbstractShape(Drawable, Transformable):
             center: tuple[float, float] = self.center
             self.update_transform()
             self.center = center
+
+    del __update_shape
 
 
 class SingleColorShape(AbstractShape):
@@ -282,13 +284,24 @@ class AbstractRectangleShape(AbstractShape):
         bottom = h - 1
         return ((0, 0), (right, 0), (right, bottom), (0, bottom))
 
+    if TYPE_CHECKING:
+
+        def get_vertices(
+            self,
+            *,
+            center: Vector2 | _FPoint | None = ...,
+            apply_rotation: bool = ...,
+            apply_scale: bool = ...,
+        ) -> tuple[()] | tuple[Vector2, Vector2, Vector2, Vector2]:
+            ...
+
     @final
     def get_local_size(self) -> tuple[float, float]:
         return self.local_size
 
     config.add_value_converter_on_set_static("local_width", valid_float(min_value=0))
     config.add_value_converter_on_set_static("local_height", valid_float(min_value=0))
-    config.add_value_converter_on_set_static("local_size", tuple)
+    config.add_value_converter_on_set_static("local_size", valid_sequence(length=2))
 
     config.getter("local_size", lambda self: (self.local_width, self.local_height), use_override=False)
     config.setter(
@@ -317,6 +330,17 @@ class AbstractSquareShape(AbstractShape):
         right = bottom = size - 1
         return ((0, 0), (right, 0), (right, bottom), (0, bottom))
 
+    if TYPE_CHECKING:
+
+        def get_vertices(
+            self,
+            *,
+            center: Vector2 | _FPoint | None = ...,
+            apply_rotation: bool = ...,
+            apply_scale: bool = ...,
+        ) -> tuple[()] | tuple[Vector2, Vector2, Vector2, Vector2]:
+            ...
+
     @final
     def get_local_size(self) -> tuple[float, float]:
         size = self.local_size
@@ -325,22 +349,77 @@ class AbstractSquareShape(AbstractShape):
     config.add_value_converter_on_set_static("local_size", valid_float(min_value=0))
 
 
-@concreteclass
-class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape):
+class AbstractRoundedEdgeObject(Object):
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "border_radius",
         "border_top_left_radius",
         "border_top_right_radius",
         "border_bottom_left_radius",
         "border_bottom_right_radius",
-        parent=[AbstractRectangleShape.config, OutlinedShape.config, SingleColorShape.config],
     )
+
+    @initializer
+    def __init__(
+        self,
+        *,
+        border_radius: int = -1,
+        border_top_left_radius: int = -1,
+        border_top_right_radius: int = -1,
+        border_bottom_left_radius: int = -1,
+        border_bottom_right_radius: int = -1,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.__border_params: dict[str, int] = dict()
+        self.border_radius = border_radius
+        self.border_top_left_radius = border_top_left_radius
+        self.border_top_right_radius = border_top_right_radius
+        self.border_bottom_left_radius = border_bottom_left_radius
+        self.border_bottom_right_radius = border_bottom_right_radius
 
     border_radius: OptionAttribute[int] = OptionAttribute()
     border_top_left_radius: OptionAttribute[int] = OptionAttribute()
     border_top_right_radius: OptionAttribute[int] = OptionAttribute()
     border_bottom_left_radius: OptionAttribute[int] = OptionAttribute()
     border_bottom_right_radius: OptionAttribute[int] = OptionAttribute()
+
+    config.add_value_converter_on_set_static("border_radius", valid_integer(min_value=-1))
+    config.add_value_converter_on_set_static("border_top_left_radius", valid_integer(min_value=-1))
+    config.add_value_converter_on_set_static("border_top_right_radius", valid_integer(min_value=-1))
+    config.add_value_converter_on_set_static("border_bottom_left_radius", valid_integer(min_value=-1))
+    config.add_value_converter_on_set_static("border_bottom_right_radius", valid_integer(min_value=-1))
+
+    @config.getter_with_key("border_radius", use_override=False)
+    @config.getter_with_key("border_top_left_radius", use_override=False)
+    @config.getter_with_key("border_top_right_radius", use_override=False)
+    @config.getter_with_key("border_bottom_left_radius", use_override=False)
+    @config.getter_with_key("border_bottom_right_radius", use_override=False)
+    def __get_border_radius(self, border: str) -> int:
+        try:
+            return self.__border_params[border]
+        except KeyError as exc:
+            raise UnregisteredOptionError(border) from exc
+
+    @config.setter_with_key("border_radius", use_override=False)
+    @config.setter_with_key("border_top_left_radius", use_override=False)
+    @config.setter_with_key("border_top_right_radius", use_override=False)
+    @config.setter_with_key("border_bottom_left_radius", use_override=False)
+    @config.setter_with_key("border_bottom_right_radius", use_override=False)
+    def __set_border_radius(self, border: str, radius: int) -> None:
+        self.__border_params[border] = radius
+
+    del __get_border_radius, __set_border_radius
+
+    @property
+    def border_params(self) -> MappingProxyType[str, int]:
+        return MappingProxyType(self.__border_params)
+
+
+@concreteclass
+class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape, AbstractRoundedEdgeObject):
+    config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
+        parent=[AbstractRectangleShape.config, OutlinedShape.config, SingleColorShape.config, AbstractRoundedEdgeObject.config],
+    )
 
     @initializer
     def __init__(
@@ -364,19 +443,18 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape):
             color=color,
             outline=outline,
             outline_color=outline_color,
+            border_radius=border_radius,
+            border_top_left_radius=border_top_left_radius,
+            border_top_right_radius=border_top_right_radius,
+            border_bottom_left_radius=border_bottom_left_radius,
+            border_bottom_right_radius=border_bottom_right_radius,
             **kwargs,
         )
-        self.__draw_params: dict[str, int] = dict()
-        self.border_radius = border_radius
-        self.border_top_left_radius = border_top_left_radius
-        self.border_top_right_radius = border_top_right_radius
-        self.border_bottom_left_radius = border_bottom_left_radius
-        self.border_bottom_right_radius = border_bottom_right_radius
 
     def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
         outline: int = self.outline
-        w, h = self.get_local_size()
-        draw_params = self.__draw_params
+        w, h = self.local_size
+        draw_params = dict(self.border_params)
         if apply_scale:
             scale_x, scale_y = self.scale
             outline = int(outline * max(scale_x, scale_y))
@@ -385,7 +463,7 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape):
             draw_params = {
                 param: round(value * max(scale_x, scale_y)) if value > 0 else value for param, value in draw_params.items()
             }
-        image: SurfaceRenderer = SurfaceRenderer((w, h))
+        image: SurfaceRenderer = SurfaceRenderer((w + 1, h + 1))
         rect: Rect = image.get_rect()
         image.draw_rect(self.color, rect, **draw_params)
         if outline > 0:
@@ -395,35 +473,6 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape):
         if apply_rotation and (angle := self.angle) != 0:
             surface = _surface_rotozoom(surface, angle, 1)
         return surface
-
-    config.add_value_converter_on_set_static("border_radius", valid_integer(min_value=-1))
-    config.add_value_converter_on_set_static("border_top_left_radius", valid_integer(min_value=-1))
-    config.add_value_converter_on_set_static("border_top_right_radius", valid_integer(min_value=-1))
-    config.add_value_converter_on_set_static("border_bottom_left_radius", valid_integer(min_value=-1))
-    config.add_value_converter_on_set_static("border_bottom_right_radius", valid_integer(min_value=-1))
-
-    @config.getter_with_key("border_radius")
-    @config.getter_with_key("border_top_left_radius")
-    @config.getter_with_key("border_top_right_radius")
-    @config.getter_with_key("border_bottom_left_radius")
-    @config.getter_with_key("border_bottom_right_radius")
-    def __get_border_radius(self, border: str) -> int:
-        try:
-            return self.__draw_params[border]
-        except KeyError as exc:
-            raise UnregisteredOptionError(border) from exc
-
-    @config.setter_with_key("border_radius")
-    @config.setter_with_key("border_top_left_radius")
-    @config.setter_with_key("border_top_right_radius")
-    @config.setter_with_key("border_bottom_left_radius")
-    @config.setter_with_key("border_bottom_right_radius")
-    def __set_border_radius(self, border: str, radius: int) -> None:
-        self.__draw_params[border] = radius
-
-    @property
-    def params(self) -> MappingProxyType[str, int]:
-        return MappingProxyType(self.__draw_params)
 
 
 class AbstractCircleShape(AbstractShape):
@@ -574,7 +623,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape):
         return MappingProxyType(self.__draw_params)
 
 
-class AbstractCrossShape(OutlinedShape, SingleColorShape):
+class _AbstractCrossShape(OutlinedShape, SingleColorShape):
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "local_width",
         "local_height",
@@ -659,7 +708,7 @@ class AbstractCrossShape(OutlinedShape, SingleColorShape):
 
 
 @concreteclass
-class DiagonalCrossShape(AbstractCrossShape):
+class DiagonalCrossShape(_AbstractCrossShape):
     @staticmethod
     @final
     def get_cross_points(local_size: tuple[float, float], line_width: float) -> tuple[Vector2, ...]:
@@ -712,7 +761,7 @@ class DiagonalCrossShape(AbstractCrossShape):
 
 
 @concreteclass
-class PlusCrossShape(AbstractCrossShape):
+class PlusCrossShape(_AbstractCrossShape):
     @staticmethod
     @final
     def get_cross_points(local_size: tuple[float, float], line_width: float) -> tuple[Vector2, ...]:
