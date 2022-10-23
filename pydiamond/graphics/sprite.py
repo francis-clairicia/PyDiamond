@@ -22,7 +22,7 @@ from ..system.object import Object, final
 from ..system.utils.itertools import prepend
 from ._transform import rotozoom2 as _surface_rotozoom2, scale_by as _surface_scale_by
 from .animation import TransformAnimation
-from .drawable import BaseDrawableGroup, BaseLayeredDrawableGroup, Drawable
+from .drawable import Drawable, DrawableGroup, LayeredDrawableGroup
 from .renderer import AbstractRenderer, BlendMode
 from .surface import Surface
 from .transformable import Transformable
@@ -275,7 +275,7 @@ class Sprite(Drawable, Transformable):
 _S = TypeVar("_S", bound=Sprite)
 
 
-class BaseSpriteGroup(BaseDrawableGroup[_S]):
+class SpriteGroup(DrawableGroup[_S]):
     __slots__ = ()
 
     def draw_onto(self, target: AbstractRenderer) -> None:
@@ -293,7 +293,7 @@ class BaseSpriteGroup(BaseDrawableGroup[_S]):
         for s in self:
             s.update(**kwargs)
 
-    def sprite_collide(self, sprite: _S, dokill: bool) -> Iterator[_S]:
+    def lazy_sprite_collide(self, sprite: _S, dokill: bool) -> Iterator[_S]:
         collide_sprite = sprite.is_colliding
         if dokill:
             for s in (s for s in tuple(self) if collide_sprite(s)):
@@ -303,8 +303,11 @@ class BaseSpriteGroup(BaseDrawableGroup[_S]):
 
         return (yield from (s for s in self if collide_sprite(s)))
 
-    def group_collide(self, other: BaseSpriteGroup[_S], dokill_self: bool, dokill_other: bool) -> dict[_S, list[_S]]:
-        other_sprite_collide = other.sprite_collide
+    def sprite_collide(self, sprite: _S, dokill: bool) -> list[_S]:
+        return list(self.lazy_sprite_collide(sprite, dokill))
+
+    def group_collide(self, other: SpriteGroup[_S], dokill_self: bool, dokill_other: bool) -> dict[_S, list[_S]]:
+        other_sprite_collide = other.lazy_sprite_collide
         if dokill_self:
             crashed: dict[_S, list[_S]] = {}
 
@@ -340,17 +343,13 @@ class BaseSpriteGroup(BaseDrawableGroup[_S]):
         return list(crashed)
 
 
-class SpriteGroup(BaseSpriteGroup[Sprite], Drawable):
-    __slots__ = ()
-
-
-class BaseLayeredSpriteGroup(BaseLayeredDrawableGroup[_S], BaseSpriteGroup[_S]):
+class LayeredSpriteGroup(LayeredDrawableGroup[_S], SpriteGroup[_S]):
     __slots__ = ()
 
     def __init__(self, *objects: _S, default_layer: int = 0, **kwargs: Any) -> None:
         super().__init__(*objects, default_layer=default_layer, **kwargs)
 
-    def sprite_collide(self, sprite: _S, dokill: bool, *, layer: int | None = None) -> Iterator[_S]:
+    def lazy_sprite_collide(self, sprite: _S, dokill: bool, *, layer: int | None = None) -> Iterator[_S]:
         sprites: Iterable[_S]
 
         collide_sprite = sprite.is_colliding
@@ -366,7 +365,7 @@ class BaseLayeredSpriteGroup(BaseLayeredDrawableGroup[_S], BaseSpriteGroup[_S]):
 
     def group_collide(
         self,
-        other: BaseSpriteGroup[_S],
+        other: SpriteGroup[_S],
         dokill_self: bool,
         dokill_other: bool,
         *,
@@ -374,7 +373,7 @@ class BaseLayeredSpriteGroup(BaseLayeredDrawableGroup[_S], BaseSpriteGroup[_S]):
     ) -> dict[_S, list[_S]]:
         sprites: Iterable[_S]
 
-        other_sprite_collide = other.sprite_collide
+        other_sprite_collide = other.lazy_sprite_collide
         if dokill_self:
             crashed: dict[_S, list[_S]] = {}
             sprites = tuple(self) if layer is None else self.get_from_layer(layer)
@@ -412,7 +411,3 @@ class BaseLayeredSpriteGroup(BaseLayeredDrawableGroup[_S], BaseSpriteGroup[_S]):
                 crashed.extend((s1, s2))
 
         return list(crashed)
-
-
-class LayeredSpriteGroup(BaseLayeredSpriteGroup[Sprite], Drawable):
-    __slots__ = ()

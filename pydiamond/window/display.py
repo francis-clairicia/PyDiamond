@@ -514,15 +514,13 @@ class Window(Object, no_slots=True):
                 pg_event = poll_event()
             except IndexError:
                 break
-            if _SDL_VERSION < (2, 0, 20):
-
-                if pg_event.type == _PG_MOUSEWHEEL and (
-                    (_SDL_VERSION == (2, 0, 16) and _pg_display.get_driver() in ("x11", "wayland"))
-                    or (_SDL_VERSION > (2, 0, 16) and _pg_display.get_driver() == "wayland")
-                ):
-                    # Inverted x value returned by the SDL
-                    # See https://github.com/libsdl-org/SDL/issues/5202
-                    pg_event.__dict__["x"] *= -1
+            if pg_event.type == _PG_MOUSEWHEEL and (
+                (_SDL_VERSION == (2, 0, 16) and _pg_display.get_driver() in ("x11", "wayland"))
+                or (_SDL_VERSION < (2, 0, 20) and _pg_display.get_driver() == "wayland")
+            ):
+                # Inverted x value returned by the SDL
+                # See https://github.com/libsdl-org/SDL/issues/5202
+                pg_event.__dict__["x"] *= -1
             try:
                 event = make_event(pg_event)
             except UnknownEventTypeError:

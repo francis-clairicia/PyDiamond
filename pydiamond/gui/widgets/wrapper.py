@@ -15,7 +15,7 @@ from ...graphics.drawable import SupportsDrawableGroups
 from .abc import AbstractWidget, WidgetsManager
 
 if TYPE_CHECKING:
-    from ...graphics.drawable import BaseDrawableGroup
+    from ...graphics.drawable import DrawableGroup
     from ...graphics.renderer import AbstractRenderer
 
 
@@ -53,16 +53,16 @@ class WidgetWrapper(AbstractWidget, Generic[_E]):
     def get_size(self) -> tuple[float, float]:
         return self.__ref.get_size()
 
-    def add_to_group(self, *groups: BaseDrawableGroup[Any]) -> None:
+    def add_to_group(self, *groups: DrawableGroup[Any]) -> None:
         return self.__ref.add_to_group(*groups)
 
-    def remove_from_group(self, *groups: BaseDrawableGroup[Any]) -> None:
+    def remove_from_group(self, *groups: DrawableGroup[Any]) -> None:
         return self.__ref.remove_from_group(*groups)
 
-    def has_group(self, group: BaseDrawableGroup[Any]) -> bool:
+    def has_group(self, group: DrawableGroup[Any]) -> bool:
         return self.__ref.has_group(group)
 
-    def get_groups(self) -> frozenset[BaseDrawableGroup[Any]]:
+    def get_groups(self) -> frozenset[DrawableGroup[Any]]:
         return self.__ref.get_groups()
 
     def _on_move(self) -> None:

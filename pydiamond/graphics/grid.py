@@ -25,7 +25,7 @@ from ..system.utils.itertools import flatten
 from ..system.utils.weakref import weakref_unwrap
 from ..system.validation import valid_integer
 from .color import BLACK, TRANSPARENT, Color
-from .drawable import BaseDrawableGroup, Drawable, SupportsDrawableGroups
+from .drawable import Drawable, DrawableGroup, SupportsDrawableGroups
 from .movable import Movable
 from .renderer import AbstractRenderer
 from .shape import RectangleShape
@@ -781,7 +781,7 @@ class _GridCell(Drawable, Movable):
         return weakref_unwrap(self.__column).column
 
 
-class _GridGroup(BaseDrawableGroup[GridElement]):
+class _GridGroup(DrawableGroup[GridElement]):
     def __init__(self, grid: Grid) -> None:
         self.__grid: weakref[Grid] = weakref(grid)
         super().__init__()

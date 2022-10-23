@@ -7,8 +7,6 @@
 from __future__ import annotations
 
 __all__ = [
-    "BaseDrawableGroup",
-    "BaseLayeredDrawableGroup",
     "Drawable",
     "DrawableGroup",
     "LayeredDrawableGroup",
@@ -41,14 +39,14 @@ class SupportsDrawing(Protocol):
 class Drawable(Object):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.__groups: WeakSet[BaseDrawableGroup[Any]] = WeakSet()
+        self.__groups: WeakSet[DrawableGroup[Any]] = WeakSet()
 
     @abstractmethod
     def draw_onto(self, target: AbstractRenderer) -> None:
         raise NotImplementedError
 
-    def add_to_group(self, *groups: BaseDrawableGroup[Any]) -> None:
-        actual_groups: WeakSet[BaseDrawableGroup[Any]] = self.__groups
+    def add_to_group(self, *groups: DrawableGroup[Any]) -> None:
+        actual_groups: WeakSet[DrawableGroup[Any]] = self.__groups
         for g in filterfalse(actual_groups.__contains__, groups):
             actual_groups.add(g)
             if self not in g:
@@ -58,10 +56,10 @@ class Drawable(Object):
                     actual_groups.remove(g)
                     raise
 
-    def remove_from_group(self, *groups: BaseDrawableGroup[Any]) -> None:
+    def remove_from_group(self, *groups: DrawableGroup[Any]) -> None:
         if not groups:
             return
-        actual_groups: WeakSet[BaseDrawableGroup[Any]] = self.__groups
+        actual_groups: WeakSet[DrawableGroup[Any]] = self.__groups
         for g in groups:
             if g not in actual_groups:
                 raise ValueError(f"drawable not in {g!r}")
@@ -70,11 +68,11 @@ class Drawable(Object):
             if self in g:
                 g.remove(self)
 
-    def has_group(self, group: BaseDrawableGroup[Any]) -> bool:
+    def has_group(self, group: DrawableGroup[Any]) -> bool:
         return group in self.__groups
 
     def kill(self) -> None:
-        actual_groups: WeakSet[BaseDrawableGroup[Any]] = self.__groups
+        actual_groups: WeakSet[DrawableGroup[Any]] = self.__groups
         self.__groups = WeakSet()
         for g in actual_groups:
             if self in g:
@@ -84,33 +82,33 @@ class Drawable(Object):
     def is_alive(self) -> bool:
         return len(self.__groups) > 0
 
-    def get_groups(self) -> frozenset[BaseDrawableGroup[Any]]:
+    def get_groups(self) -> frozenset[DrawableGroup[Any]]:
         return frozenset(self.__groups)
 
 
 @runtime_checkable
 class SupportsDrawableGroups(SupportsDrawing, Protocol):
     @abstractmethod
-    def add_to_group(self, *groups: BaseDrawableGroup[Any]) -> None:
+    def add_to_group(self, *groups: DrawableGroup[Any]) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def remove_from_group(self, *groups: BaseDrawableGroup[Any]) -> None:
+    def remove_from_group(self, *groups: DrawableGroup[Any]) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def has_group(self, group: BaseDrawableGroup[Any]) -> bool:
+    def has_group(self, group: DrawableGroup[Any]) -> bool:
         raise NotImplementedError
 
     @abstractmethod
-    def get_groups(self) -> frozenset[BaseDrawableGroup[Any]]:
+    def get_groups(self) -> frozenset[DrawableGroup[Any]]:
         raise NotImplementedError
 
 
 _D = TypeVar("_D", bound=SupportsDrawableGroups)
 
 
-class BaseDrawableGroup(Sequence[_D]):
+class DrawableGroup(Sequence[_D]):
 
     __slots__ = ("_list", "__weakref__")
 
@@ -190,11 +188,7 @@ class BaseDrawableGroup(Sequence[_D]):
         return (obj for obj in self if isinstance(obj, objtype))
 
 
-class DrawableGroup(BaseDrawableGroup[Drawable], Drawable):
-    __slots__ = ()
-
-
-class BaseLayeredDrawableGroup(BaseDrawableGroup[_D]):
+class LayeredDrawableGroup(DrawableGroup[_D]):
 
     __slots__ = ("__default_layer", "__layer_dict")
 
@@ -306,7 +300,3 @@ class BaseLayeredDrawableGroup(BaseDrawableGroup[_D]):
     @property
     def layers(self) -> Sequence[int]:
         return sorted(set(self.__layer_dict.values()) | {self.default_layer})
-
-
-class LayeredDrawableGroup(BaseLayeredDrawableGroup[Drawable], Drawable):
-    __slots__ = ()

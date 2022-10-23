@@ -587,7 +587,7 @@ class SpriteGroupCollisionScene(MainScene, framerate=60, fixed_framerate=50):
         self.widgets = WidgetsManager(self)
 
         self.car = DraggableSprite(self.widgets, ImagesResources.car[0])
-        self.cacti = SpriteGroup()
+        self.cacti: SpriteGroup[Sprite] = SpriteGroup()
 
     def on_start_loop_before_transition(self) -> None:
         self.car.center = self.window.center
@@ -617,7 +617,7 @@ class SpriteGroupCollisionScene(MainScene, framerate=60, fixed_framerate=50):
     def update(self) -> None:
         super().update()
 
-        del list(self.cacti.sprite_collide(self.car, True))[:]
+        self.cacti.sprite_collide(self.car, True)
 
         self.window.set_title(f"{len(self.cacti)} {'cacti' if len(self.cacti) > 1 else 'cactus'}")
 
