@@ -29,6 +29,19 @@ if TYPE_CHECKING:
     _TextFont: TypeAlias = Font | _TupleFont
 
 
+RendererAnchor: TypeAlias = Literal[
+    "topleft",
+    "topright",
+    "bottomleft",
+    "bottomright",
+    "midleft",
+    "midright",
+    "midtop",
+    "midbottom",
+    "center",
+]
+
+
 @unique
 class BlendMode(IntEnum):
     NONE = 0
@@ -85,6 +98,7 @@ class AbstractRenderer(Object):
         dest: _Coordinate | _CanBeRect,
         area: _CanBeRect | None = ...,
         special_flags: int = ...,
+        anchor: RendererAnchor = ...,
     ) -> Rect:
         raise NotImplementedError
 
@@ -150,6 +164,7 @@ class AbstractRenderer(Object):
         style: int = ...,
         rotation: int = ...,
         size: float = ...,
+        anchor: RendererAnchor = ...,
     ) -> Rect:
         raise NotImplementedError
 

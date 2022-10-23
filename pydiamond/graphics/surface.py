@@ -41,7 +41,7 @@ from ._draw import (
 )
 from .color import TRANSPARENT
 from .font import STYLE_DEFAULT, Font, FontFactory
-from .renderer import AbstractRenderer, BlendMode
+from .renderer import AbstractRenderer, BlendMode, RendererAnchor
 
 if TYPE_CHECKING:
     from pygame._common import _CanBeRect, _ColorValue, _Coordinate, _RectValue  # pyright: reportMissingModuleSource=false
@@ -133,7 +133,10 @@ class SurfaceRenderer(AbstractRenderer):
         dest: _Coordinate | _CanBeRect,
         area: _CanBeRect | None = None,
         special_flags: int = BlendMode.NONE,
+        anchor: RendererAnchor = "topleft",
     ) -> Rect:
+        if anchor != "topleft":
+            raise NotImplementedError("anchor other than topleft is not supported yet")
         return self.__target.blit(surface, dest, area, special_flags)
 
     @overload
@@ -193,7 +196,10 @@ class SurfaceRenderer(AbstractRenderer):
         style: int = STYLE_DEFAULT,
         rotation: int = 0,
         size: float = 0,
+        anchor: RendererAnchor = "topleft",
     ) -> Rect:
+        if anchor != "topleft":
+            raise NotImplementedError("anchor other than topleft is not supported yet")
         if not isinstance(font, Font):
             font = FontFactory.create_font(font)
         return font.render_to(self.__target, dest, text, fgcolor, bgcolor=bgcolor, style=style, rotation=rotation, size=size)
