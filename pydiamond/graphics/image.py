@@ -17,7 +17,7 @@ from ..math.rect import Rect
 from ._transform import rotozoom2 as _surface_rotozoom2, scale_by as _surface_scale_by
 from .color import Color
 from .drawable import Drawable
-from .surface import Surface, create_surface, load_image, save_image
+from .surface import Surface, create_surface, save_image
 from .transformable import Transformable
 
 if TYPE_CHECKING:
@@ -25,47 +25,21 @@ if TYPE_CHECKING:
 
 
 class Image(Drawable, Transformable):
-
     __slots__ = (
         "__default_image",
         "__image",
         "__smooth_scale",
     )
 
-    @overload
     def __init__(
         self,
-        image: Surface,
-        *,
-        copy: bool = ...,
-        width: float | None = ...,
-        height: float | None = ...,
-        **kwargs: Any,
-    ) -> None:
-        ...
-
-    @overload
-    def __init__(
-        self,
-        image: str | None = ...,
-        *,
-        width: float | None = ...,
-        height: float | None = ...,
-        **kwargs: Any,
-    ) -> None:
-        ...
-
-    def __init__(
-        self,
-        image: Surface | str | None = None,
+        image: Surface | None = None,
         *,
         width: float | None = None,
         height: float | None = None,
+        copy: bool = True,
         **kwargs: Any,
     ) -> None:
-        copy: bool = True
-        if isinstance(image, Surface):
-            copy = kwargs.pop("copy", copy)
         super().__init__(**kwargs)
 
         self.__default_image: Surface
@@ -77,8 +51,6 @@ class Image(Drawable, Transformable):
             case Surface():
                 if copy:
                     image = image.copy()
-            case str():
-                image = load_image(image)
             case _:
                 assert_never(image)
 
@@ -130,14 +102,8 @@ class Image(Drawable, Transformable):
         self.__default_image.blit(mask, rect or (0, 0))
         self.update_transform()
 
-    def load(self, file: str) -> None:
-        center: tuple[float, float] = self.center
-        self.__default_image = load_image(file)
-        self.update_transform()
-        self.center = center
-
-    def save(self, file: str) -> None:
-        save_image(self.__image, file)
+    def save(self, filepath: str) -> None:
+        save_image(self.__image, filepath)
 
     def get_local_size(self) -> tuple[float, float]:
         return self.__default_image.get_size()

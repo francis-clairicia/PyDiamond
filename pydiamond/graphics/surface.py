@@ -17,14 +17,8 @@ __all__ = [
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Iterable, Iterator, Literal, Sequence, TypeAlias, overload
 
-import pygame.image
+import pygame.image as _pg_image
 from pygame import encode_file_path
-
-if pygame.image.get_extended():  # Should be true as we explicitly query for SDL_image at package initialization
-    from pygame.image import load_extended as _pg_image_load, save_extended as _pg_image_save
-else:
-    from pygame.image import load as _pg_image_load, save as _pg_image_save
-
 from pygame.draw import aaline as _draw_antialiased_line, aalines as _draw_multiple_antialiased_lines
 from pygame.surface import Surface
 
@@ -46,8 +40,6 @@ from .renderer import AbstractRenderer, BlendMode, RendererAnchor
 if TYPE_CHECKING:
     from pygame._common import _CanBeRect, _ColorValue, _Coordinate, _RectValue  # pyright: reportMissingModuleSource=false
 
-del pygame
-
 _TupleFont: TypeAlias = tuple[str | None, float]
 _TextFont: TypeAlias = Font | _TupleFont
 
@@ -64,14 +56,14 @@ def create_surface(size: tuple[float, float], *, convert_alpha: bool = True, def
 
 
 def load_image(file: str, convert: bool = True) -> Surface:
-    image: Surface = _pg_image_load(encode_file_path(file))
+    image: Surface = _pg_image.load(encode_file_path(file))
     if convert:
         return image.convert_alpha()
     return image
 
 
 def save_image(image: Surface, file: str) -> None:
-    return _pg_image_save(image, encode_file_path(file))
+    return _pg_image.save(image, encode_file_path(file))
 
 
 @concreteclass

@@ -8,7 +8,7 @@ from typing import Any
 
 from pydiamond.system.threading import Thread, thread_factory, thread_factory_method
 
-from ..conftest import silently_ignore_systemexit_in_thread
+from ..fixtures.threading import silently_ignore_systemexit_in_thread
 
 
 def test_thread_decorator() -> None:

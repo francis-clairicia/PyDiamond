@@ -78,10 +78,11 @@ class PygamePatch(RequiredPatch):
     def _make_event_name_wrapper(self) -> Callable[[int], str]:
         _orig_pg_event_name = self.event.event_name
 
+        dispatch_table: dict[int, str] = {}
+
         @wraps(_orig_pg_event_name)
         def patch_event_name(type: int) -> str:
             type = int(type)
-            dispatch_table: dict[int, str] = getattr(patch_event_name, "__event_name_dispatch_table__")
             try:
                 name: str = dispatch_table[type]
             except KeyError:
@@ -90,7 +91,7 @@ class PygamePatch(RequiredPatch):
                 name = _orig_pg_event_name(type)
             return name
 
-        setattr(patch_event_name, "__event_name_dispatch_table__", {})
+        setattr(patch_event_name, "__event_name_dispatch_table__", dispatch_table)
         return patch_event_name
 
     def _make_event_set_blocked_wrapper(self, *forbidden_events: int) -> Callable[[_EventTypes | None], None]:

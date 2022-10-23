@@ -108,38 +108,6 @@ class TestGlobalImport:
 
             del pydiamond
 
-    # def test__import__raise_warning_if_pygame_is_already_imported(self) -> None:
-    #     import pygame
-
-    #     expected_message = (
-    #         r"'pygame' module already imported, this can cause unwanted behavior\. Consider importing pydiamond first\."
-    #     )
-    #     with pytest.warns(UserWarning, match=expected_message):
-    #         import pydiamond
-
-    #         del pydiamond
-
-    #     del pygame
-
-    # def test__import__do_not_raise_warning_if_environment_variable_is_set(
-    #     self,
-    #     monkeypatch: MonkeyPatch,
-    # ) -> None:
-    #     import warnings
-
-    #     import pygame
-
-    #     monkeypatch.setenv("PYDIAMOND_IMPORT_WARNINGS", "0")
-
-    #     with warnings.catch_warnings():
-    #         warnings.simplefilter("error", category=UserWarning)
-
-    #         import pydiamond
-
-    #         del pydiamond
-
-    #     del pygame
-
     def test__import__raise_error_for_incompatible_python_version(self, mocker: MockerFixture) -> None:
         mocker.patch("sys.version_info", MockVersionInfo(3, 9, 5, "final", 0))
 

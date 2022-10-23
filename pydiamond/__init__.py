@@ -44,9 +44,6 @@ if sys.version_info < (3, 10):
         path=__file__,
     )
 
-if os.environ.get("PYDIAMOND_IMPORT_WARNINGS", "1") not in ("0", "1"):
-    raise ValueError(f"Invalid value for 'PYDIAMOND_IMPORT_WARNINGS', got {os.environ['PYDIAMOND_IMPORT_WARNINGS']!r}")
-
 ############ Package initialization ############
 #### Apply various patch that must be run before importing the main modules
 from ._patch import PatchContext, collector

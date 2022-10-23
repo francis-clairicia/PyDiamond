@@ -16,7 +16,7 @@ __all__ = [
 import os
 from copy import copy
 from enum import IntFlag, unique
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Iterable, NamedTuple, TypeAlias, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Iterable, NamedTuple, TypeAlias, TypeVar, overload
 
 import pygame.freetype as _pg_freetype
 import pygame.sysfont as _pg_sysfont
@@ -105,6 +105,9 @@ class FontSizeInfo(NamedTuple):
 class Font(Object):
     __slots__ = ("__ft", "__weakref__")
 
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="Font")
+
     from pygame import encode_file_path as __encode_file_path  # type: ignore[misc]
 
     __factory = staticmethod(_pg_freetype.Font)
@@ -175,7 +178,7 @@ class Font(Object):
 
         super().__init__()
 
-    def copy(self) -> Font:
+    def copy(self: __Self) -> __Self:
         cls = self.__class__
         copy_self = cls.__new__(cls)
         ft = self.__ft
@@ -186,7 +189,7 @@ class Font(Object):
 
     __copy__ = copy
 
-    def __deepcopy__(self, memo: dict[int, Any] | None = None) -> Font:  # allow 'deep' copy
+    def __deepcopy__(self: __Self, memo: dict[int, Any] | None = None) -> __Self:  # allow 'deep' copy
         return self.__copy__()
 
     @property
@@ -318,6 +321,7 @@ class Font(Object):
         size: float = 0,
     ) -> tuple[Surface, Rect]:
         assert fgcolor is not None, "Give a foreground color"
+        rotation %= 360
         try:
             self.__ft.pad = rotation == 0
             return self.__ft.render(
@@ -343,6 +347,7 @@ class Font(Object):
         size: float = 0,
     ) -> Rect:
         assert fgcolor is not None, "Give a foreground color"
+        rotation %= 360
         try:
             self.__ft.pad = rotation == 0
             return self.__ft.render_to(
