@@ -11,8 +11,8 @@ __all__ = ["Grid", "GridElement", "GridJustify"]
 from typing import TYPE_CHECKING, Any, Callable, Container, TypeVar, final
 
 from ...graphics.color import BLACK, TRANSPARENT, Color
-from .._grid import AbstractGUIGrid as _BaseGrid, AbstractGUIScrollableGrid as _BaseScrollableGrid, GridElement, GridJustify
 from ..scene import GUIScene
+from ..tools._grid import AbstractGUIGrid as _BaseGrid, AbstractGUIScrollableGrid as _BaseScrollableGrid, GridElement, GridJustify
 from .abc import AbstractWidget, WidgetsManager
 from .scroll import AbstractScrollableWidget
 

@@ -14,19 +14,19 @@ from functools import reduce
 from itertools import starmap
 from typing import TYPE_CHECKING, Any, Callable, Literal, Sequence, TypeVar
 
-from ..graphics.grid import Grid as _Grid, GridElement, GridJustify
-from ..math.rect import Rect
-from ..system.collections import SortedDict
-from .focus import supports_focus
-from .scene import GUIScene
-from .tools.view import AbstractScrollableView
+from ...graphics.grid import Grid as _Grid, GridElement, GridJustify
+from ...math.rect import Rect
+from ...system.collections import SortedDict
+from ..focus import supports_focus
+from ..scene import GUIScene
+from .view import AbstractScrollableView
 
 if TYPE_CHECKING:
     from weakref import WeakMethod
 
-    from ..graphics.color import Color
-    from ..graphics.grid import _GridCell
-    from .focus import SupportsFocus
+    from ...graphics.color import Color
+    from ...graphics.grid import _GridCell
+    from ..focus import SupportsFocus
 
 
 _E = TypeVar("_E", bound=GridElement)

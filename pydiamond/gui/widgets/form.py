@@ -17,8 +17,8 @@ from ...graphics.renderer import AbstractRenderer
 from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ...system.theme import ThemedObjectMeta, ThemeType
 from ...system.validation import valid_integer
-from .._grid import AbstractGUIGrid as _BaseGrid, GridElement, GridJustify as FormJustify
 from ..scene import GUIScene
+from ..tools._grid import AbstractGUIGrid as _BaseGrid, GridElement, GridJustify as FormJustify
 from .abc import AbstractWidget, WidgetsManager
 from .entry import Entry
 
