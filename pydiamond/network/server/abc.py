@@ -240,7 +240,13 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
         def verify_client(socket: Socket, address: SocketAddress) -> None:
             protocol = self.__protocol_cls()
             with TCPNetworkClient(socket, protocol=protocol, give=False) as client:
-                accepted = self._verify_new_client(client, address)
+                try:
+                    accepted = self._verify_new_client(client, address)
+                except Exception:
+                    import traceback
+
+                    traceback.print_exc()
+                    return
             if not accepted:
                 socket.close()
                 return
