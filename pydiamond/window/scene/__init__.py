@@ -694,13 +694,14 @@ class SceneWindow(Window):
         if window_callback_list:
             window_callback_list.process()
 
-    def _process_event(self, event: Event) -> bool:
-        if self.__event._process_event(event) or super()._process_event(event):
-            return True
+    def process_events(self) -> Generator[Event, None, None]:
         actual_scene: Scene | None = self.__scenes.top()
-        if actual_scene is None:
-            return False
-        return actual_scene.handle_event(event)
+        for event in super().process_events():
+            if self.__event._process_event(event):
+                continue
+            if actual_scene is not None and actual_scene.handle_event(event):
+                continue
+            yield event
 
     def _handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
         self.__event._handle_mouse_position(mouse_pos)

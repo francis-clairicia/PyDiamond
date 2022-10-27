@@ -501,12 +501,10 @@ class Window(Object, no_slots=True):
     def _process_callbacks(self) -> None:
         self.__callback_after.process()
 
-    @final
     def process_events(self) -> Generator[Event, None, None]:
         if self.__handle_mouse_position:
             self._handle_mouse_position(Mouse.get_pos())
         poll_event = self.__event_queue.popleft
-        process_event = self._process_event
         make_event = EventFactory.from_pygame_event
         get_pygame_event_type = EventFactory.associations.__getitem__
         while True:
@@ -524,20 +522,14 @@ class Window(Object, no_slots=True):
             try:
                 event = make_event(pg_event)
             except UnknownEventTypeError:
-                try:
+                if EventFactory.NOEVENT < pg_event.type < EventFactory.USEREVENT:  # pygame's built-in event
                     _pg_event.set_blocked(pg_event.type)
-                except ValueError:
-                    pass
                 continue
             except EventFactoryError:
                 continue
-            if _pg_event.get_blocked(get_pygame_event_type(event.__class__)):
+            if (event_type := get_pygame_event_type(event.__class__)) != pg_event.type and _pg_event.get_blocked(event_type):
                 continue
-            if not process_event(event):
-                yield event
-
-    def _process_event(self, event: Event) -> bool:
-        return False
+            yield event
 
     def _handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
         pass

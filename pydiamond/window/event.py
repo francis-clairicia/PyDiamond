@@ -716,6 +716,7 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
     associations: Final[Mapping[type[Event], int]] = MappingProxyType(ChainMap(_BUILTIN_ASSOCIATIONS, _ASSOCIATIONS))
     pygame_type: Final[Mapping[int, type[Event]]] = MappingProxyType(ChainMap(_BUILTIN_PYGAME_EVENT_TYPE, _PYGAME_EVENT_TYPE))
 
+    NOEVENT: Final[int] = _pg_constants.NOEVENT
     USEREVENT: Final[int] = _pg_constants.USEREVENT
     NUMEVENTS: Final[int] = _pg_constants.NUMEVENTS
     NON_BLOCKABLE_EVENTS: Final[frozenset[int]] = frozenset(map(int, getattr(_pg_event.set_blocked, "__forbidden_events__", ())))
