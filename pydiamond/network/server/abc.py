@@ -368,7 +368,6 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                         return
                     key_data = key.data
                     client = key_data.client
-                    assert client.closed
                     with suppress(Exception):
                         data: bytes = key_data.producer.read()
                         if data:

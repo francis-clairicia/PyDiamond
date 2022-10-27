@@ -154,7 +154,7 @@ class AutoSeparatedPacketDeserializer(_BaseAutoSeparatedPacket, NetworkPacketInc
                 f"Error when deserializing data: {exc}",
                 remaining_data=buffer,
                 data_with_error=data,
-            )
+            ) from exc
         return (packet, buffer)
 
 
