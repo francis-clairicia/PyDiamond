@@ -37,6 +37,7 @@ class _BaseStructPacket(_BaseFixedPacketSize):
         self.__s: Struct = struct
 
     @property
+    @final
     def struct(self) -> Struct:
         return self.__s
 

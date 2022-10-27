@@ -12,14 +12,14 @@ __all__ = [
     "ZlibCompressorNetworkProtocol",
 ]
 
-import bz2
-import gzip
-import zlib
+# import bz2
+# import gzip
+# import zlib
 from typing import Any, Generic, TypeVar
 
 from ....system.object import ProtocolObjectMeta, final
 from ....system.utils.abc import concreteclass
-from ..abc import NetworkProtocol, ValidationError
+from ..abc import NetworkProtocol
 from ..stream import AutoParsedStreamNetworkProtocol
 from .generic import GenericNetworkProtocolWrapper
 
@@ -32,8 +32,8 @@ _DT_co = TypeVar("_DT_co", covariant=True)
 
 class _BaseCompressor(metaclass=ProtocolObjectMeta):
     def __init__(self, *, compresslevel: int, **kwargs: Any) -> None:
-        self.__compresslevel: int = compresslevel
-        super().__init__(**kwargs)
+        self.__compresslevel: int
+        raise NotImplementedError
 
     @property
     @final
@@ -53,17 +53,11 @@ class BZ2CompressorNetworkProtocol(
 
     @final
     def serialize(self, packet: _ST_contra) -> bytes:
-        data: bytes = self.protocol.serialize(packet)
-        return bz2.compress(data, compresslevel=self.compresslevel)
+        raise NotImplementedError
 
     @final
     def deserialize(self, data: bytes) -> _DT_co:
-        try:
-            data = bz2.decompress(data)
-        except Exception as exc:  # TODO: Find the appropriate exceptions
-            raise ValidationError("Unrelated exception occurred") from exc
-        packet: _DT_co = self.protocol.deserialize(data)
-        return packet
+        raise NotImplementedError
 
 
 @concreteclass
@@ -73,22 +67,16 @@ class GzipCompressorNetworkProtocol(
     AutoParsedStreamNetworkProtocol[_ST_contra, _DT_co],
     Generic[_ST_contra, _DT_co],
 ):
-    def __init__(self, protocol: NetworkProtocol[_ST_contra, _DT_co], *, compresslevel: int = zlib.Z_BEST_COMPRESSION) -> None:
+    def __init__(self, protocol: NetworkProtocol[_ST_contra, _DT_co], *, compresslevel: int = 9) -> None:
         super().__init__(protocol=protocol, compresslevel=compresslevel)
 
     @final
     def serialize(self, packet: _ST_contra) -> bytes:
-        data: bytes = self.protocol.serialize(packet)
-        return gzip.compress(data, compresslevel=self.compresslevel)
+        raise NotImplementedError
 
     @final
     def deserialize(self, data: bytes) -> _DT_co:
-        try:
-            data = gzip.decompress(data)
-        except Exception as exc:  # TODO: Find the appropriate exceptions
-            raise ValidationError("Unrelated exception occurred") from exc
-        packet: _DT_co = self.protocol.deserialize(data)
-        return packet
+        raise NotImplementedError
 
 
 @concreteclass
@@ -98,19 +86,13 @@ class ZlibCompressorNetworkProtocol(
     AutoParsedStreamNetworkProtocol[_ST_contra, _DT_co],
     Generic[_ST_contra, _DT_co],
 ):
-    def __init__(self, protocol: NetworkProtocol[_ST_contra, _DT_co], *, compresslevel: int = zlib.Z_BEST_COMPRESSION) -> None:
+    def __init__(self, protocol: NetworkProtocol[_ST_contra, _DT_co], *, compresslevel: int = 9) -> None:
         super().__init__(protocol=protocol, compresslevel=compresslevel)
 
     @final
     def serialize(self, packet: _ST_contra) -> bytes:
-        data: bytes = self.protocol.serialize(packet)
-        return zlib.compress(data, level=self.compresslevel)
+        raise NotImplementedError
 
     @final
     def deserialize(self, data: bytes) -> _DT_co:
-        try:
-            data = zlib.decompress(data)
-        except zlib.error as exc:
-            raise ValidationError("zlib.error occurred") from exc
-        packet: _DT_co = self.protocol.deserialize(data)
-        return packet
+        raise NotImplementedError

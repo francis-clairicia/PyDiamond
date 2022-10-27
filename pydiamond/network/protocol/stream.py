@@ -26,7 +26,7 @@ from abc import abstractmethod
 from hmac import compare_digest
 from io import BytesIO, IOBase
 from struct import Struct, error as StructError
-from typing import IO, Any, Final, Generator, Generic, Protocol, TypeVar, runtime_checkable
+from typing import IO, Any, Generator, Generic, Protocol, TypeVar, runtime_checkable
 
 from ...system.object import ProtocolObjectMeta, final
 from ...system.utils.itertools import consumer_start, send_return
@@ -168,11 +168,32 @@ class AutoSeparatedStreamNetworkProtocol(
 
 
 class _BaseAutoParsedPacket(metaclass=ProtocolObjectMeta):
-    MAGIC: Final[bytes] = b"\x7f\x1b\xea\xff"
-    header: Final[Struct] = Struct("!4sI")
+    def __init__(self, magic: bytes, *, checksum: str = "md5", **kwargs: Any) -> None:
+        import math
 
-    def __init__(self, **kwargs: Any) -> None:
+        assert isinstance(magic, bytes)
+        if not magic or not math.log2(len(magic)).is_integer():
+            raise ValueError("Magic bytes length must be a power of 2")
+        if checksum not in hashlib.algorithms_available:
+            raise ValueError(f"Unknown hashlib algorithm {checksum!r}")
         super().__init__(**kwargs)
+        self.__magic: bytes = magic
+        self.__algorithm: str = checksum
+
+    @property
+    @final
+    def magic(self) -> bytes:
+        return self.__magic
+
+    @property
+    @final
+    def checksum_algorithm(self) -> str:
+        return self.__algorithm
+
+    @property
+    @final
+    def header(self) -> Struct:
+        return Struct(f"!{len(self.__magic)}sQ")
 
 
 class AutoParsedPacketSerializer(_BaseAutoParsedPacket, NetworkPacketIncrementalSerializer[_ST_contra]):
@@ -183,10 +204,10 @@ class AutoParsedPacketSerializer(_BaseAutoParsedPacket, NetworkPacketIncremental
     @final
     def incremental_serialize(self, packet: _ST_contra) -> Generator[bytes, None, None]:
         data: bytes = self.serialize(packet)
-        header: bytes = self.header.pack(self.__class__.MAGIC, len(data))
+        header: bytes = self.header.pack(self.magic, len(data))
         yield header
         yield data
-        checksum = hashlib.md5(usedforsecurity=False)
+        checksum = hashlib.new(self.checksum_algorithm, usedforsecurity=False)
         checksum.update(header)
         checksum.update(data)
         yield checksum.digest()
@@ -215,14 +236,14 @@ class AutoParsedPacketDeserializer(_BaseAutoParsedPacket, NetworkPacketIncrement
                 magic: bytes
                 body_length: int
                 magic, body_length = header_struct.unpack(header)
-                if magic != self.__class__.MAGIC:
+                if magic != self.magic:
                     raise StructError
             except StructError:
                 # data may be corrupted
                 # Shift by 1 received data
                 header = header[1:] + buffer.read()
             else:
-                checksum = hashlib.md5(usedforsecurity=False)
+                checksum = hashlib.new(self.checksum_algorithm, usedforsecurity=False)
                 checksum.update(header)
                 body_struct = Struct(f"{body_length}s{checksum.digest_size}s")
                 while len(buffer.getvalue()) < body_struct.size:
@@ -236,7 +257,7 @@ class AutoParsedPacketDeserializer(_BaseAutoParsedPacket, NetworkPacketIncrement
                     body, checksum_digest = body_struct.unpack(data)
                     checksum.update(body)
                     if not compare_digest(checksum.digest(), checksum_digest):  # Data really corrupted
-                        raise StructError
+                        raise StructError("Invalid checksum")
                 except StructError as exc:
                     raise IncrementalDeserializeError(
                         f"Data corrupted: {exc}",

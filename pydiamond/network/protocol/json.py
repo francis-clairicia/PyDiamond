@@ -93,59 +93,58 @@ class JSONPacketDeserializer(NetworkPacketIncrementalDeserializer[_DT_co]):
         encoding: str = "utf-8"
         enclosure_counter: Counter[bytes] = Counter()
         partial_document: bytes = b""
-        while True:
-            complete_document: bytes = b""
-            while not complete_document:
-                if not partial_document:
-                    enclosure_counter.clear()
-                chunk: bytes = yield
-                char: bytes
-                for nb_chars, char in enumerate(struct.unpack(f"{len(chunk)}c", chunk), start=1):
-                    match char:
-                        case b'"' if not escaped(partial_document):
-                            enclosure_counter[b'"'] = 0 if enclosure_counter[b'"'] == 1 else 1
-                        case _ if enclosure_counter[b'"'] > 0:
-                            partial_document += char
-                            continue
-                        case b"{" | b"[":
-                            enclosure_counter[char] += 1
-                        case b"}":
-                            enclosure_counter[b"{"] -= 1
-                        case b"]":
-                            enclosure_counter[b"["] -= 1
-                        case b" " | b"\t" | b"\n" | b"\r":  # Optimization: Skip spaces
-                            continue
-                        case _ if not enclosure_counter:  # No enclosure, only value
-                            # Directly refused because we can't known when data is valid
-                            raise IncrementalDeserializeError(
-                                "Do not received beginning of a string/array/object",
-                                data_with_error=chunk,
-                                remaining_data=partial_document,
-                            )
-                    partial_document += char
-                    if enclosure_counter[next(iter(enclosure_counter))] <= 0:  # 1st found is closed
-                        complete_document = partial_document
-                        partial_document = chunk[nb_chars:]
-                        break
-            decoder = self.get_decoder()
-            packet: _DT_co
-            try:
-                document: str = complete_document.decode(encoding)
-            except UnicodeDecodeError as exc:
-                raise IncrementalDeserializeError(
-                    f"Unicode decode error: {exc}",
-                    data_with_error=complete_document,
-                    remaining_data=partial_document,
-                ) from exc
-            try:
-                packet, end = decoder.raw_decode(document)
-            except JSONDecodeError as exc:
-                raise IncrementalDeserializeError(
-                    f"JSON decode error: {exc}",
-                    data_with_error=complete_document,
-                    remaining_data=partial_document,
-                ) from exc
-            return packet, (document[end:].encode(encoding) + partial_document).lstrip(b" \t\n\r")
+        complete_document: bytes = b""
+        while not complete_document:
+            if not partial_document:
+                enclosure_counter.clear()
+            chunk: bytes = yield
+            char: bytes
+            for nb_chars, char in enumerate(struct.unpack(f"{len(chunk)}c", chunk), start=1):
+                match char:
+                    case b'"' if not escaped(partial_document):
+                        enclosure_counter[b'"'] = 0 if enclosure_counter[b'"'] == 1 else 1
+                    case _ if enclosure_counter[b'"'] > 0:
+                        partial_document += char
+                        continue
+                    case b"{" | b"[":
+                        enclosure_counter[char] += 1
+                    case b"}":
+                        enclosure_counter[b"{"] -= 1
+                    case b"]":
+                        enclosure_counter[b"["] -= 1
+                    case b" " | b"\t" | b"\n" | b"\r":  # Optimization: Skip spaces
+                        continue
+                    case _ if not enclosure_counter:  # No enclosure, only value
+                        # Directly refused because we can't known when data is valid
+                        raise IncrementalDeserializeError(
+                            "Do not received beginning of a string/array/object",
+                            data_with_error=chunk,
+                            remaining_data=partial_document,
+                        )
+                partial_document += char
+                if enclosure_counter[next(iter(enclosure_counter))] <= 0:  # 1st found is closed
+                    complete_document = partial_document
+                    partial_document = chunk[nb_chars:]
+                    break
+        decoder = self.get_decoder()
+        packet: _DT_co
+        try:
+            document: str = complete_document.decode(encoding)
+        except UnicodeDecodeError as exc:
+            raise IncrementalDeserializeError(
+                f"Unicode decode error: {exc}",
+                data_with_error=complete_document,
+                remaining_data=partial_document,
+            ) from exc
+        try:
+            packet, end = decoder.raw_decode(document)
+        except JSONDecodeError as exc:
+            raise IncrementalDeserializeError(
+                f"JSON decode error: {exc}",
+                data_with_error=complete_document,
+                remaining_data=partial_document,
+            ) from exc
+        return packet, (document[end:].encode(encoding) + partial_document).lstrip(b" \t\n\r")
 
     def get_decoder(self) -> JSONDecoder:
         return JSONDecoder(object_hook=None, object_pairs_hook=None, strict=True)
