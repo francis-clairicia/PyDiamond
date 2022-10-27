@@ -100,8 +100,12 @@ class PicklePacketDeserializer(NetworkPacketIncrementalDeserializer[_DT_co], Obj
         try:
             packet: _DT_co = unpickler.load()
         except UnpicklingError as exc:
-            remainder = data.getvalue().partition(STOP_OPCODE)[2]
-            raise IncrementalDeserializeError(f"Unpickling error: {exc}", remaining_data=remainder) from exc
+            data_with_error, _, remainder = data.getvalue().partition(STOP_OPCODE)
+            raise IncrementalDeserializeError(
+                f"Unpickling error: {exc}",
+                remaining_data=remainder,
+                data_with_error=data_with_error,
+            ) from exc
         return (packet, data.read())
 
     def get_unpickler(self, buffer: _ReadableFileobj) -> Unpickler:
@@ -124,11 +128,11 @@ class SafePickleNetworkProtocol(EncryptorNetworkProtocol[_ST_contra, _DT_co], Ge
         self.__monkeypatch_protocol("get_pickler")
         self.__monkeypatch_protocol("get_unpickler")
 
-    def get_pickler(self, buffer: IO[bytes]) -> Pickler:
+    def get_pickler(self, buffer: _WritableFileobj) -> Pickler:
         protocol: PickleNetworkProtocol[Any, Any] = self.protocol
         return protocol.__class__.get_pickler(protocol, buffer)
 
-    def get_unpickler(self, buffer: IO[bytes]) -> Unpickler:
+    def get_unpickler(self, buffer: _ReadableFileobj) -> Unpickler:
         protocol: PickleNetworkProtocol[Any, Any] = self.protocol
         return protocol.__class__.get_unpickler(protocol, buffer)
 
