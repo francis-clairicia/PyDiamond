@@ -392,7 +392,7 @@ class Window(Object, no_slots=True):
         except ConstantFileNotFoundError as exc:
             file = str(exc.filename)
         save_image(screen, file)
-        self.post_event(ScreenshotEvent(filepath=file, screen=screen))
+        self.post_event(ScreenshotEvent(filepath=file))
 
     def get_screenshot_filename_format(self) -> str:
         return "Screenshot_%Y-%m-%d_%H-%M-%S"

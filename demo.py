@@ -1538,8 +1538,9 @@ class MainWindow(SceneWindow):
     def __show_screenshot(self, event: ScreenshotEvent) -> bool:
         if self.screenshot_callback is not None:
             self.screenshot_callback.kill()
-        SurfaceRenderer(event.screen).draw_rect(WHITE, event.screen.get_rect(), width=3)
-        self.screenshot_image = img = Image(event.screen, width=self.width * 0.2, height=self.height * 0.2)
+        screen = event.get_image()
+        SurfaceRenderer(screen).draw_rect(WHITE, screen.get_rect(), width=3)
+        self.screenshot_image = img = Image(screen, width=self.width * 0.2, height=self.height * 0.2)
         img.topright = (self.right - 20, self.top + 20)
 
         @self.after(3000)

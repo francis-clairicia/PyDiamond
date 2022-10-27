@@ -674,7 +674,11 @@ class MusicEndEvent(BuiltinEvent, event_type=BuiltinEventType.MUSICEND, event_na
 @dataclass(kw_only=True)
 class ScreenshotEvent(BuiltinEvent, event_type=BuiltinEventType.SCREENSHOT, event_name="Screenshot"):
     filepath: str
-    screen: Surface
+
+    def get_image(self) -> Surface:
+        from ..graphics.surface import load_image
+
+        return load_image(self.filepath)
 
 
 def __check_event_types_association() -> None:
