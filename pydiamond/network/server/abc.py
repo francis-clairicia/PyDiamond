@@ -261,7 +261,6 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                 is_closed=client_is_closed,
             )
             key_data.consumer.feed(client._get_buffer())
-            key_data.extra_queue = client.flush_queue()
             del client
             with self.__lock:
                 self.__clients[socket] = key_data.client
@@ -302,22 +301,17 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                         continue
                     key_data.consumer.feed(data)
 
-        def process_requests(ready: Sequence[SelectorKey]) -> None:
+        def process_requests() -> None:
             for key in selector_client_keys():
                 key_data: _SelectorKeyData[_RequestT, _ResponseT] = key.data
                 client = key_data.client
                 if client.closed:
                     continue
                 request: _RequestT
-                if key_data.extra_queue:
-                    request = key_data.extra_queue.popleft()
-                else:
-                    if key not in ready:
-                        continue
-                    try:
-                        request = next(key_data.consumer)
-                    except StopIteration:  # Not enough data
-                        continue
+                try:
+                    request = next(key_data.consumer)
+                except StopIteration:  # Not enough data
+                    continue
                 try:
                     self._process_request(request, client)
                 except Exception:
@@ -432,7 +426,7 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                             break  # type: ignore[unreachable]
                         with self.__lock:
                             receive_requests(ready.get(EVENT_READ, ()))
-                            process_requests(ready.get(EVENT_READ, ()))
+                            process_requests()
                             self.service_actions()
                             send_responses(ready.get(EVENT_WRITE, ()))
                             remove_closed_clients()
@@ -558,7 +552,6 @@ class _SelectorKeyData(Generic[_RequestT, _ResponseT]):
     consumer: StreamNetworkDataConsumer[_RequestT]
     chunk_size: int
     client: ConnectedClient[_ResponseT]
-    extra_queue: deque[_RequestT]
 
     def __init__(
         self,
@@ -573,7 +566,6 @@ class _SelectorKeyData(Generic[_RequestT, _ResponseT]):
         self.consumer = StreamNetworkDataConsumer(protocol)
         self.chunk_size = guess_best_buffer_size(socket)
         self.client = self.__ConnectedClient(self.producer, socket, address, on_close, is_closed)
-        self.extra_queue = deque()
 
     @final
     class __ConnectedClient(ConnectedClient[_ResponseT]):

@@ -67,10 +67,6 @@ class AbstractNetworkClient(Object):
         raise NotImplementedError
 
 
-class NoValidPacket(ValueError):
-    pass
-
-
 @concreteclass
 class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPacketT]):
     __slots__ = (
@@ -78,7 +74,6 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         "__owner",
         "__closed",
         "__buffer_recv",
-        "__queue",
         "__lock",
         "__chunk_size",
         "__writer",
@@ -145,7 +140,6 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         self.__peer: tuple[Any, ...] = socket.getpeername()
         self.__closed: bool = False
         self.__socket: Socket = socket
-        self.__queue: deque[_ReceivedPacketT] = deque()
         self.__lock: RLock = RLock()
         self.__chunk_size: int = guess_best_buffer_size(socket)
         self.__writer: StreamNetworkPacketWriter[_SentPacketT] = StreamNetworkPacketWriter(
@@ -191,17 +185,15 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
                 send(packet)
             self.__writer.flush()
 
-    def recv_packet(self, *, retry_on_fail: bool = True) -> _ReceivedPacketT:
+    def recv_packet(self) -> _ReceivedPacketT:
         self._check_closed()
         with self.__lock:
-            queue: deque[_ReceivedPacketT] = self.__queue
-            while not queue:
-                queue.extend(self.__recv_packets(timeout=None))
-                if not retry_on_fail:
-                    break
-            if not queue:
-                raise NoValidPacket
-            return queue.popleft()
+            while True:
+                try:
+                    return next(self.__consumer)
+                except StopIteration:
+                    pass
+                self.__read_socket(timeout=None)
 
     @overload
     def recv_packet_no_block(self, *, default: None = ..., timeout: int = ...) -> _ReceivedPacketT | None:
@@ -212,68 +204,35 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         ...
 
     def recv_packet_no_block(self, *, default: Any = None, timeout: int = 0) -> Any:
-        self._check_closed()
         timeout = int(timeout)
+        self._check_closed()
         with self.__lock:
-            queue: deque[_ReceivedPacketT] = self.__queue
-            if not queue:
-                queue.extend(self.__recv_packets(timeout=timeout))
-                if not queue:
-                    return default
-            return queue.popleft()
+            self.__read_socket(timeout=timeout)
+            return next(self.__consumer, default)
 
     def recv_packets(self, *, timeout: int | None = None) -> Generator[_ReceivedPacketT, None, None]:
         self._check_closed()
         with self.__lock:
-            queue: deque[_ReceivedPacketT] = self.__queue
-            if not queue:
-                queue.extend(self.__recv_packets(timeout=timeout))
-            while queue:
-                yield queue.popleft()
-
-    def __recv_packets(self, *, timeout: int | None) -> Generator[_ReceivedPacketT, None, None]:
-        chunk_reader: Generator[bytes, None, None] = self.__read_socket(self.__socket, self.__chunk_size, timeout=timeout)
-        try:
-            while (chunk := next(chunk_reader, None)) is not None:
-                self.__consumer.feed(chunk)
+            self.__read_socket(timeout=timeout)
             yield from self.__consumer
-        finally:
-            chunk_reader.close()
 
-    @staticmethod
-    @final
-    def __read_socket(
-        socket: Socket,
-        chunk_size: int,
-        *,
-        timeout: int | None = None,
-    ) -> Generator[bytes, None, None]:
-        if chunk_size <= 0:
-            return
+    def __read_socket(self, *, timeout: int | None) -> None:
+        socket: Socket = self.__socket
+        chunk_size: int = self.__chunk_size
+        if timeout is None and self.__consumer.get_buffer():
+            timeout = 0
         with _Selector() as selector, _remove_timeout(socket):
             selector.register(socket, EVENT_READ)
-            if not selector.select(timeout=timeout):
-                return
-            data: bytes = socket.recv(chunk_size)
-            if (length := len(data)) == 0:
-                raise EOFError
-            yield data
-            while length >= chunk_size and selector.select(timeout=0):
-                data = socket.recv(chunk_size)
-                if (length := len(data)) == 0:
-                    break
-                yield data
-
-    def has_saved_packets(self) -> bool:
-        self._check_closed()
-        with self.__lock:
-            return True if self.__queue else False
-
-    def flush_queue(self) -> deque[_ReceivedPacketT]:
-        with self.__lock:
-            q = self.__queue.copy()
-            self.__queue.clear()
-            return q
+            while selector.select(timeout=timeout):
+                timeout = 0  # Future select() must exit quickly
+                chunk: bytes = socket.recv(chunk_size)
+                if not chunk:
+                    if self.__consumer.get_buffer():
+                        # consumer.feed() has been called
+                        # The next read_socket() will raise an EOFError
+                        return
+                    raise EOFError("Closed connection")
+                self.__consumer.feed(chunk)
 
     def getsockname(self) -> SocketAddress:
         self._check_closed()
@@ -354,12 +313,12 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         else:
             return
         address: tuple[Any, ...] = self.__peer
+        former_timeout = socket.gettimeout()
+        socket.settimeout(timeout)
         try:
-            socket.settimeout(timeout)
             socket.connect(address)
         finally:
-            if timeout is not None:
-                socket.settimeout(None)
+            socket.settimeout(former_timeout)
 
     def try_reconnect(self, timeout: float | None = None) -> bool:
         try:
@@ -370,7 +329,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
 
     @final
     def _get_buffer(self) -> bytes:
-        return self.__consumer.get_buffer()
+        return self.__consumer.get_unconsumed_data()
 
     @final
     def _check_closed(self) -> None:
@@ -494,16 +453,12 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
             for data in map(self.__protocol.serialize, packets):
                 sendto(data, flags, address)
 
-    def recv_packet(self, *, flags: int = 0, retry_on_fail: bool = True) -> tuple[_ReceivedPacketT, SocketAddress]:
+    def recv_packet(self, *, flags: int = 0) -> tuple[_ReceivedPacketT, SocketAddress]:
         self._check_closed()
         with self.__lock:
             queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = self.__queue
             while not queue:
-                queue.extend(self.__recv_packets(flags=flags, timeout=None))
-                if not retry_on_fail:
-                    break
-            if not queue:
-                raise NoValidPacket
+                self.__recv_packets(flags=flags, timeout=None)
             return queue.popleft()
 
     @overload
@@ -523,10 +478,9 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         timeout = int(timeout)
         with self.__lock:
             queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = self.__queue
+            self.__recv_packets(flags=flags, timeout=timeout)
             if not queue:
-                queue.extend(self.__recv_packets(flags=flags, timeout=timeout))
-                if not queue:
-                    return default
+                return default
             return queue.popleft()
 
     def recv_packets(
@@ -538,57 +492,30 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         self._check_closed()
         with self.__lock:
             queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = self.__queue
-            if not queue:
-                queue.extend(self.__recv_packets(flags=flags, timeout=timeout))
+            self.__recv_packets(flags=flags, timeout=timeout)
             while queue:
                 yield queue.popleft()
 
-    def __recv_packets(self, flags: int, timeout: int | None) -> Generator[tuple[_ReceivedPacketT, SocketAddress], None, None]:
+    def __recv_packets(self, flags: int, timeout: int | None) -> None:
+        socket: Socket = self.__socket
+        bufsize: int = self.__max_packet_size
         deserialize = self.__protocol.deserialize
+        queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = self.__queue
 
-        chunk_generator = self.__read_socket(self.__socket, self.__max_packet_size, timeout=timeout, flags=flags)
-
-        for data, sender in chunk_generator:
-            try:
+        if timeout is None and queue:
+            timeout = 0
+        with _Selector() as selector, _remove_timeout(socket):
+            selector.register(socket, EVENT_READ)
+            while selector.select(timeout=timeout):
+                timeout = 0  # Future select() must exit quickly
+                data, sender = socket.recvfrom(bufsize, flags)
+                if not data:
+                    continue
                 try:
                     packet: _ReceivedPacketT = deserialize(data)
                 except ValidationError:
                     continue
-                yield (packet, sender)
-            except BaseException:
-                chunk_generator.close()
-                raise
-
-    @staticmethod
-    @final
-    def __read_socket(
-        socket: Socket,
-        bufsize: int,
-        *,
-        timeout: int | None = None,
-        flags: int = 0,
-    ) -> Generator[tuple[bytes, SocketAddress], None, None]:
-        def convert(recv: tuple[bytes, tuple[Any, ...]]) -> tuple[bytes, SocketAddress]:
-            return recv[0], new_socket_address(recv[1], socket.family)
-
-        with _Selector() as selector, _remove_timeout(socket):
-            selector.register(socket, EVENT_READ)
-            if timeout is not None and not selector.select(timeout=0):
-                return
-            yield convert(socket.recvfrom(bufsize, flags))
-            while selector.select(timeout=0):
-                yield convert(socket.recvfrom(bufsize, flags))
-
-    def has_saved_packets(self) -> bool:
-        self._check_closed()
-        with self.__lock:
-            return True if self.__queue else False
-
-    def flush_queue(self) -> deque[tuple[_ReceivedPacketT, SocketAddress]]:
-        with self.__lock:
-            q = self.__queue.copy()
-            self.__queue.clear()
-            return q
+                queue.append((packet, new_socket_address(sender, socket.family)))
 
     def getsockname(self) -> SocketAddress:
         self._check_closed()

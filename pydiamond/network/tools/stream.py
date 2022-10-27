@@ -120,7 +120,7 @@ class StreamNetworkPacketWriter(Generic[_ST_contra], Object):
 
 @final
 class StreamNetworkDataConsumer(Iterator[_DT_co], Generic[_DT_co], Object):
-    __slots__ = ("__d", "__b", "__c", "__lock")
+    __slots__ = ("__d", "__b", "__c", "__u", "__lock")
 
     def __init__(self, deserializer: NetworkPacketIncrementalDeserializer[_DT_co], *, lock: RLock | None = None) -> None:
         super().__init__()
@@ -128,6 +128,7 @@ class StreamNetworkDataConsumer(Iterator[_DT_co], Generic[_DT_co], Object):
         self.__d: NetworkPacketIncrementalDeserializer[_DT_co] = deserializer
         self.__c: Generator[None, bytes, tuple[_DT_co, bytes]] | None = None
         self.__b: bytes = b""
+        self.__u: bytes = b""
         self.__lock: RLock = lock or RLock()
 
     def __next__(self) -> _DT_co:
@@ -142,10 +143,13 @@ class StreamNetworkDataConsumer(Iterator[_DT_co], Generic[_DT_co], Object):
                 try:
                     packet, chunk = send_return(consumer, chunk)
                 except IncrementalDeserializeError as exc:
+                    self.__u = b""
                     self.__b = exc.remaining_data + self.__b
                 except StopIteration:
+                    self.__u += chunk
                     self.__c = consumer
                 else:
+                    self.__u = b""
                     self.__b = chunk + self.__b
                     return packet
             raise StopIteration
@@ -164,3 +168,7 @@ class StreamNetworkDataConsumer(Iterator[_DT_co], Generic[_DT_co], Object):
     def get_buffer(self) -> bytes:
         with self.__lock:
             return self.__b
+
+    def get_unconsumed_data(self) -> bytes:
+        with self.__lock:
+            return self.__u + self.__b
