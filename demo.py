@@ -422,7 +422,7 @@ class TextScene(Scene):
         self.window.draw(self.text)
 
 
-class ImagesResources(ResourceManager):
+class ImagesResources(ResourceManager, autoload=True):
     cactus: Surface
     car: Sequence[Surface]
     cross: Mapping[str, Surface]
@@ -441,7 +441,7 @@ class ImagesResources(ResourceManager):
     }
 
 
-class FontResources(ResourceManager):
+class FontResources(ResourceManager, autoload=True):
     cooperblack: FontFactory
     __resource_loader__ = FontLoader
     __resources_directory__ = "./demo_resources/fonts"
@@ -1137,7 +1137,7 @@ class WidgetsScene(GUIScene):
         Text.set_theme("text", {"font": FontResources.cooperblack(40), "color": WHITE, "shadow_x": 3, "shadow_y": 3})
 
         Entry.set_default_theme("text")
-        Entry.set_theme("text", {"fg": BLACK, "shadow_x": 0, "shadow_y": 0})
+        Entry.set_theme("text", {"fg": BLACK})
 
         CheckBox.set_default_theme("default")
         CheckBox.set_theme("default", {"highlight_color": YELLOW})
@@ -1168,7 +1168,7 @@ class WidgetsScene(GUIScene):
         self.window.draw(self.widgets)
 
 
-class MusicManager(ResourceManager):
+class MusicManager(ResourceManager, autoload=True):
     menu: Music
     garage: Music
     gameplay: Music
@@ -1177,7 +1177,7 @@ class MusicManager(ResourceManager):
     __resources_files__ = {"menu": "menu.wav", "garage": "garage.wav", "gameplay": "gameplay.wav"}
 
 
-class SoundManager(ResourceManager):
+class SoundManager(ResourceManager, autoload=True):
     select: Sound
     validate: Sound
     block: Sound

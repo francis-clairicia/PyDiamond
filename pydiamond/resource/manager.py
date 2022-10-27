@@ -9,9 +9,8 @@ from __future__ import annotations
 __all__ = ["ResourceManager", "ResourceManagerMeta"]
 
 from contextlib import suppress
-from os import PathLike
+from os import PathLike, fspath
 from os.path import join
-from pathlib import Path
 from types import MappingProxyType
 from typing import AbstractSet, Any, Callable, Mapping, NoReturn, Sequence, TypeAlias, final
 
@@ -29,7 +28,7 @@ class _ResourceDescriptor:
     ) -> None:
         def get_resources_loader(path: _ResourcePath) -> _ResourceLoader:
             if isinstance(path, (str, PathLike)):
-                path = str(Path(path))
+                path = fspath(path)
                 if isinstance(directory, str):
                     path = join(directory, path)
                 resource_loader: AbstractResourceLoader[Any] = loader(path)
@@ -46,7 +45,10 @@ class _ResourceDescriptor:
         self.__resource: Any
 
     def __get__(self, obj: Any, objtype: type | None = None, /) -> Any:
-        return self.load()
+        try:
+            return self.__resource
+        except AttributeError:
+            raise AttributeError("Resource not loaded") from None
 
     def __set__(self, obj: Any, value: Any, /) -> NoReturn:
         raise AttributeError("can't set attribute")
@@ -54,15 +56,10 @@ class _ResourceDescriptor:
     def __delete__(self, obj: Any, /) -> None:
         self.unload()
 
-    def load(self) -> Any:
-        try:
-            return self.__resource
-        except AttributeError:
-            pass
+    def load(self) -> None:
         load_all_resources = _ResourceDescriptor.__load_all_resources
         resource: Any = load_all_resources(self.__loader)
         self.__resource = resource
-        return resource
 
     @staticmethod
     def __load_all_resources(resource_loader: _ResourceLoader) -> Any:
@@ -92,8 +89,25 @@ class _ResourceDescriptor:
         return self.__nb_resources
 
 
+class _LazyAutoLoadResourceDescriptor(_ResourceDescriptor):
+    def __get__(self, obj: Any, objtype: type | None = None, /) -> Any:
+        try:
+            return super().__get__(obj, objtype)
+        except AttributeError:
+            self.load()
+            return super().__get__(obj, objtype)
+
+
 class ResourceManagerMeta(ClassNamespaceMeta):
-    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> ResourceManagerMeta:
+    def __new__(
+        mcs,
+        name: str,
+        bases: tuple[type, ...],
+        namespace: dict[str, Any],
+        *,
+        autoload: bool = False,
+        **kwargs: Any,
+    ) -> ResourceManagerMeta:
         resources: dict[str, Any] = namespace.setdefault("__resources_files__", dict())
 
         annotations: dict[str, type | str] = dict(namespace.get("__annotations__", dict()))
@@ -108,11 +122,15 @@ class ResourceManagerMeta(ClassNamespaceMeta):
 
         directory: str | PathLike[str] | None = namespace.get("__resources_directory__")
         if directory is not None:
-            directory = set_constant_directory(str(Path(directory)), error_msg="Resource directory not found")
+            directory = set_constant_directory(fspath(directory), error_msg="Resource directory not found")
         namespace["__resources_directory__"] = directory
 
         for resource_name, resource_path in resources.items():
-            namespace[resource_name] = _ResourceDescriptor(resource_path, namespace["__resource_loader__"], directory)
+            resource_loader: Callable[[str], AbstractResourceLoader[Any]] = namespace["__resource_loader__"]
+            if autoload:
+                namespace[resource_name] = _LazyAutoLoadResourceDescriptor(resource_path, resource_loader, directory)
+            else:
+                namespace[resource_name] = _ResourceDescriptor(resource_path, resource_loader, directory)
 
         cls = super().__new__(mcs, name, bases, namespace, frozen=True, **kwargs)
         if resources:
