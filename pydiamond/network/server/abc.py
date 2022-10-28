@@ -553,7 +553,7 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
             return tuple(filter(lambda client: not client.closed, self.__clients.values()))
 
 
-@dataclass(init=False)
+@dataclass(init=False, slots=True)
 class _SelectorKeyData(Generic[_RequestT, _ResponseT]):
     producer: StreamNetworkDataProducer[_ResponseT]
     consumer: StreamNetworkDataConsumer[_RequestT]

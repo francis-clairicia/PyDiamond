@@ -151,13 +151,16 @@ class StreamNetworkDataConsumer(Iterator[_DT_co], Generic[_DT_co], Object):
                     packet, chunk = send_return(consumer, chunk)
                 except IncrementalDeserializeError as exc:
                     self.__u = b""
-                    self.__b = exc.remaining_data + self.__b
+                    self.__b = exc.remaining_data
                 except StopIteration:
                     self.__u += chunk
                     self.__c = consumer
+                except BaseException:
+                    self.__u = b""
+                    raise
                 else:
                     self.__u = b""
-                    self.__b = chunk + self.__b
+                    self.__b = chunk
                     return packet
             raise StopIteration
 
