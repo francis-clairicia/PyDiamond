@@ -145,12 +145,8 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         self.__writer: StreamNetworkPacketWriter[_SentPacketT] = StreamNetworkPacketWriter(
             socket.makefile("wb", buffering=self.__chunk_size),  # type: ignore[arg-type]
             protocol,
-            lock=self.__lock,
         )
-        self.__consumer: StreamNetworkDataConsumer[_ReceivedPacketT] = StreamNetworkDataConsumer(
-            protocol,
-            lock=self.__lock,
-        )
+        self.__consumer: StreamNetworkDataConsumer[_ReceivedPacketT] = StreamNetworkDataConsumer(protocol)
         super().__init__()
 
     def close(self) -> None:
@@ -200,6 +196,10 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         timeout = int(timeout)
         self._check_not_closed()
         with self.__lock:
+            try:
+                return next(self.__consumer)
+            except StopIteration:
+                pass
             self.__read_socket(timeout=timeout)
             return next(self.__consumer, default)
 
@@ -212,7 +212,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
     def __read_socket(self, *, timeout: int | None) -> None:
         socket: Socket = self.__socket
         chunk_size: int = self.__chunk_size
-        if timeout is None and self.__consumer.get_buffer():
+        if self.__consumer.get_buffer():
             timeout = 0
         with _Selector() as selector, _remove_timeout(socket):
             selector.register(socket, EVENT_READ)
@@ -471,9 +471,10 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         timeout = int(timeout)
         with self.__lock:
             queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = self.__queue
-            self.__recv_packets(flags=flags, timeout=timeout)
             if not queue:
-                return default
+                self.__recv_packets(flags=flags, timeout=timeout)
+                if not queue:
+                    return default
             return queue.popleft()
 
     def recv_packets(
@@ -495,7 +496,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         deserialize = self.__protocol.deserialize
         queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = self.__queue
 
-        if timeout is None and queue:
+        if queue:
             timeout = 0
         with _Selector() as selector, _remove_timeout(socket):
             selector.register(socket, EVENT_READ)
@@ -577,9 +578,6 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
 @contextmanager
 def _remove_timeout(socket: Socket) -> Iterator[None]:
     timeout: float | None = socket.gettimeout()
-    if timeout is None:
-        yield
-        return
     socket.settimeout(None)
     try:
         yield
