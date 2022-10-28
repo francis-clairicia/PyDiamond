@@ -189,6 +189,7 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
     ) -> None:
         if not callable(protocol_cls):
             raise TypeError("Invalid arguments")
+        super().__init__()
         self.__socket: Socket = create_server(
             address,
             family=family,
@@ -208,7 +209,6 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
         self.__clients: WeakKeyDictionary[Socket, ConnectedClient[_ResponseT]] = WeakKeyDictionary()
         self.__selector: BaseSelector
         self.__verify_in_thread: bool = bool(verify_client_in_thread)
-        super().__init__()
 
     @dsuppress(KeyboardInterrupt)
     def serve_forever(self, poll_interval: float = 0.5) -> None:
@@ -330,18 +330,16 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                 key_data: _SelectorKeyData[_RequestT, _ResponseT] = key.data
                 client = key_data.client
 
-                # TODO: Do not use sendall()
-                # Infinite loop occurs when the remote closes the connection
                 if socket in client_close_requested:
                     remaining_buffer: BytesIO = client_close_requested[socket]
                     if data := remaining_buffer.read(key_data.chunk_size):
                         try:
-                            socket.sendall(data)
+                            nb_bytes_sent = socket.send(data)
                         except Exception:
                             shutdown_client(socket, from_client=False)
                             self._handle_error(client)
                             continue
-                        remaining_buffer = BytesIO(remaining_buffer.read())
+                        remaining_buffer = BytesIO(data[nb_bytes_sent:] + remaining_buffer.read())
                         if remaining_buffer.getvalue():
                             client_close_requested[socket] = remaining_buffer
                             continue
@@ -351,17 +349,19 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                 if client.closed:
                     continue
                 try:
-                    data = key_data.producer.read(key_data.chunk_size)
+                    data = key_data.pop_data_to_send(read_all=False)
                 except Exception:
                     self._handle_error(client)
                     continue
                 if not data:
                     continue
                 try:
-                    socket.sendall(data)
+                    nb_bytes_sent = socket.send(data)
                 except Exception:
                     shutdown_client(socket, from_client=False)
                     self._handle_error(client)
+                else:
+                    key_data.unsent_data = data[nb_bytes_sent:]
 
         def shutdown_client(socket: Socket, *, from_client: bool) -> None:
             self.__clients.pop(socket, None)
@@ -377,7 +377,7 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                     key_data = key.data
                     client = key_data.client
                     with suppress(Exception):
-                        data: bytes = key_data.producer.read()
+                        data: bytes = key_data.pop_data_to_send(read_all=True)
                         if data:
                             selector.modify(socket, EVENT_WRITE, key_data)
                             client_close_requested[socket] = BytesIO(data)
@@ -559,6 +559,7 @@ class _SelectorKeyData(Generic[_RequestT, _ResponseT]):
     consumer: StreamNetworkDataConsumer[_RequestT]
     chunk_size: int
     client: ConnectedClient[_ResponseT]
+    unsent_data: bytes
 
     def __init__(
         self,
@@ -573,6 +574,17 @@ class _SelectorKeyData(Generic[_RequestT, _ResponseT]):
         self.consumer = StreamNetworkDataConsumer(protocol)
         self.chunk_size = guess_best_buffer_size(socket)
         self.client = self.__ConnectedClient(self.producer, socket, address, on_close, is_closed)
+        self.unsent_data = b""
+
+    def pop_data_to_send(self, *, read_all: bool) -> bytes:
+        data, self.unsent_data = self.unsent_data, b""
+        if read_all:
+            data += self.producer.read(-1)
+        elif (chunk_size_to_produce := self.chunk_size - len(data)) > 0:
+            data += self.producer.read(chunk_size_to_produce)
+        elif chunk_size_to_produce < 0:
+            data, self.unsent_data = data[: self.chunk_size], data[self.chunk_size :]
+        return data
 
     @final
     class __ConnectedClient(ConnectedClient[_ResponseT]):
