@@ -13,7 +13,7 @@ __all__ = [
 ]
 
 from collections import deque
-from io import IOBase
+from io import UnsupportedOperation
 from threading import RLock
 from typing import IO, Generator, Generic, Iterator, TypeVar
 
@@ -94,24 +94,31 @@ class StreamNetworkPacketWriter(Generic[_ST_contra], Object):
 
     def __init__(
         self,
-        file: IOBase | IO[bytes],
+        file: IO[bytes],
         serializer: NetworkPacketIncrementalSerializer[_ST_contra],
         *,
         lock: RLock | None = None,
     ) -> None:
         super().__init__()
         assert isinstance(serializer, NetworkPacketIncrementalSerializer)
-        self.__f: IOBase | IO[bytes] = file
+        self.__f: IO[bytes] = file
         self.__s: NetworkPacketIncrementalSerializer[_ST_contra] = serializer
         self.__lock: RLock = lock or RLock()
 
-    def write(self, packet: _ST_contra) -> None:
+    def write(self, *packets: _ST_contra) -> None:
+        if not packets:
+            return
         with self.__lock:
-            return self.__s.incremental_serialize_to(self.__f, packet)
-
-    def flush(self) -> None:
-        with self.__lock:
-            self.__f.flush()
+            incremental_serialize_to = self.__s.incremental_serialize_to
+            file = self.__f
+            try:
+                for packet in packets:
+                    incremental_serialize_to(file, packet)
+            finally:
+                try:
+                    file.flush()
+                except UnsupportedOperation:
+                    pass
 
     def close(self) -> None:
         with self.__lock:

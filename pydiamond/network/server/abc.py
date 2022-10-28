@@ -215,7 +215,7 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
         poll_interval = float(poll_interval)
 
         with self.__lock:
-            self._check_closed()
+            self._check_not_closed()
             if self.running():
                 raise RuntimeError("Server already running")
             self.__is_shutdown.clear()
@@ -330,6 +330,8 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                 key_data: _SelectorKeyData[_RequestT, _ResponseT] = key.data
                 client = key_data.client
 
+                # TODO: Do not use sendall()
+                # Infinite loop occurs when the remote closes the connection
                 if socket in client_close_requested:
                     remaining_buffer: BytesIO = client_close_requested[socket]
                     if data := remaining_buffer.read(key_data.chunk_size):
@@ -466,7 +468,7 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
             del self.__socket
 
     def shutdown(self) -> None:
-        self._check_closed()
+        self._check_not_closed()
         with self.__lock:
             self.__loop = False
         self.__is_shutdown.wait()
@@ -517,7 +519,7 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
         ...
 
     def getsockopt(self, *args: int) -> int | bytes:
-        self._check_closed()
+        self._check_not_closed()
         return self.__socket.getsockopt(*args)
 
     @overload
@@ -529,24 +531,24 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
         ...
 
     def setsockopt(self, *args: Any) -> None:
-        self._check_closed()
+        self._check_not_closed()
         return self.__socket.setsockopt(*args)
 
     @final
-    def _check_closed(self) -> None:
+    def _check_not_closed(self) -> None:
         if self.__closed:
             raise RuntimeError("Closed server")
 
     @property
     @final
     def address(self) -> SocketAddress:
-        self._check_closed()
+        self._check_not_closed()
         return self.__addr
 
     @property
     @final
     def clients(self) -> Sequence[ConnectedClient[_ResponseT]]:
-        self._check_closed()
+        self._check_not_closed()
         with self.__lock:
             return tuple(filter(lambda client: not client.closed, self.__clients.values()))
 
@@ -600,20 +602,20 @@ class _SelectorKeyData(Generic[_RequestT, _ResponseT]):
 
         def send_packet(self, packet: _ResponseT) -> None:
             with self.__lock:
-                self.__check_closed()
+                self.__check_not_closed()
                 self.__p.queue(packet)
 
         def send_packets(self, *packets: _ResponseT) -> None:
             with self.__lock:
-                self.__check_closed()
+                self.__check_not_closed()
                 self.__p.queue(*packets)
 
         def dup(self) -> Socket:
             with self.__lock:
-                socket = self.__check_closed()
+                socket = self.__check_not_closed()
                 return socket.dup()
 
-        def __check_closed(self) -> Socket:
+        def __check_not_closed(self) -> Socket:
             socket = self.__s
             if socket is None or self.__is_closed(socket):
                 raise RuntimeError("Closed client")
@@ -671,7 +673,7 @@ class AbstractUDPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
         poll_interval = float(poll_interval)
 
         with self.__lock:
-            self._check_closed()
+            self._check_not_closed()
             if self.running():
                 raise RuntimeError("Server already running")
             self.__is_shutdown.clear()
@@ -762,7 +764,7 @@ class AbstractUDPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
         ...
 
     def getsockopt(self, *args: int) -> int | bytes:
-        self._check_closed()
+        self._check_not_closed()
         return self.__server.getsockopt(*args)
 
     @overload
@@ -774,11 +776,11 @@ class AbstractUDPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
         ...
 
     def setsockopt(self, *args: Any) -> None:
-        self._check_closed()
+        self._check_not_closed()
         return self.__server.setsockopt(*args)
 
     @final
-    def _check_closed(self) -> None:
+    def _check_not_closed(self) -> None:
         if self.__server.closed:
             raise RuntimeError("Closed server")
 

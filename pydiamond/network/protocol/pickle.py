@@ -13,7 +13,7 @@ __all__ = [
     "SafePickleNetworkProtocol",
 ]
 
-from io import BytesIO, IOBase
+from io import BytesIO
 from pickle import DEFAULT_PROTOCOL, STOP as STOP_OPCODE, Pickler, Unpickler, UnpicklingError
 from pickletools import optimize as pickletools_optimize
 from typing import IO, TYPE_CHECKING, Any, Callable, Generator, Generic, TypeVar
@@ -55,7 +55,7 @@ class PicklePacketSerializer(NetworkPacketIncrementalSerializer[_ST_contra], Obj
         yield self.serialize(packet)  # 'incremental' :)
 
     @final
-    def incremental_serialize_to(self, file: IOBase | IO[bytes], packet: _ST_contra) -> None:
+    def incremental_serialize_to(self, file: IO[bytes], packet: _ST_contra) -> None:
         assert file.writable()
         pickler = self.get_pickler(file)
         try:

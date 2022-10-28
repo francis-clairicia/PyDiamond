@@ -143,7 +143,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         self.__lock: RLock = RLock()
         self.__chunk_size: int = guess_best_buffer_size(socket)
         self.__writer: StreamNetworkPacketWriter[_SentPacketT] = StreamNetworkPacketWriter(
-            socket.makefile("wb", buffering=self.__chunk_size),
+            socket.makefile("wb", buffering=self.__chunk_size),  # type: ignore[arg-type]
             protocol,
             lock=self.__lock,
         )
@@ -171,22 +171,15 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
                 socket.close()
 
     def send_packet(self, packet: _SentPacketT) -> None:
-        self._check_closed()
+        self._check_not_closed()
         self.__writer.write(packet)
-        self.__writer.flush()
 
     def send_packets(self, *packets: _SentPacketT) -> None:
-        self._check_closed()
-        if not packets:
-            return
-        with self.__lock:
-            send = self.__writer.write
-            for packet in packets:
-                send(packet)
-            self.__writer.flush()
+        self._check_not_closed()
+        self.__writer.write(*packets)
 
     def recv_packet(self) -> _ReceivedPacketT:
-        self._check_closed()
+        self._check_not_closed()
         with self.__lock:
             while True:
                 try:
@@ -205,13 +198,13 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
 
     def recv_packet_no_block(self, *, default: Any = None, timeout: int = 0) -> Any:
         timeout = int(timeout)
-        self._check_closed()
+        self._check_not_closed()
         with self.__lock:
             self.__read_socket(timeout=timeout)
             return next(self.__consumer, default)
 
     def recv_packets(self, *, timeout: int | None = None) -> Generator[_ReceivedPacketT, None, None]:
-        self._check_closed()
+        self._check_not_closed()
         with self.__lock:
             self.__read_socket(timeout=timeout)
             yield from self.__consumer
@@ -235,11 +228,11 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
                 self.__consumer.feed(chunk)
 
     def getsockname(self) -> SocketAddress:
-        self._check_closed()
+        self._check_not_closed()
         return new_socket_address(self.__socket.getsockname(), self.__socket.family)
 
     def getpeername(self) -> SocketAddress | None:
-        self._check_closed()
+        self._check_not_closed()
         try:
             return new_socket_address(self.__socket.getpeername(), self.__socket.family)
         except OSError:
@@ -260,12 +253,12 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         return self.__socket.fileno()
 
     def dup(self) -> Socket:
-        self._check_closed()
+        self._check_not_closed()
         socket: Socket = self.__socket
         return socket.dup()
 
     def detach(self) -> Socket:
-        self._check_closed()
+        self._check_not_closed()
         socket: Socket = self.__socket
         fd: int = socket.detach()
         if fd < 0:
@@ -288,7 +281,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         ...
 
     def getsockopt(self, *args: int) -> int | bytes:
-        self._check_closed()
+        self._check_not_closed()
         return self.__socket.getsockopt(*args)
 
     @overload
@@ -300,11 +293,11 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         ...
 
     def setsockopt(self, *args: Any) -> None:
-        self._check_closed()
+        self._check_not_closed()
         return self.__socket.setsockopt(*args)
 
     def reconnect(self, timeout: float | None = None) -> None:
-        self._check_closed()
+        self._check_not_closed()
         socket: Socket = self.__socket
         try:
             socket.getpeername()
@@ -332,7 +325,7 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         return self.__consumer.get_unconsumed_data()
 
     @final
-    def _check_closed(self) -> None:
+    def _check_not_closed(self) -> None:
         if self.__closed:
             raise RuntimeError("Closed client")
 
@@ -440,12 +433,12 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
             socket.close()
 
     def send_packet(self, address: _Address, packet: _SentPacketT, *, flags: int = 0) -> None:
-        self._check_closed()
+        self._check_not_closed()
         with self.__lock:
             self.__socket.sendto(self.__protocol.serialize(packet), flags, address)
 
     def send_packets(self, address: _Address, *packets: _SentPacketT, flags: int = 0) -> None:
-        self._check_closed()
+        self._check_not_closed()
         if not packets:
             return
         with self.__lock:
@@ -454,7 +447,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
                 sendto(data, flags, address)
 
     def recv_packet(self, *, flags: int = 0) -> tuple[_ReceivedPacketT, SocketAddress]:
-        self._check_closed()
+        self._check_not_closed()
         with self.__lock:
             queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = self.__queue
             while not queue:
@@ -474,7 +467,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         ...
 
     def recv_packet_no_block(self, *, flags: int = 0, default: Any = None, timeout: int = 0) -> Any:
-        self._check_closed()
+        self._check_not_closed()
         timeout = int(timeout)
         with self.__lock:
             queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = self.__queue
@@ -489,7 +482,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         flags: int = 0,
         timeout: int | None = None,
     ) -> Generator[tuple[_ReceivedPacketT, SocketAddress], None, None]:
-        self._check_closed()
+        self._check_not_closed()
         with self.__lock:
             queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = self.__queue
             self.__recv_packets(flags=flags, timeout=timeout)
@@ -518,7 +511,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
                 queue.append((packet, new_socket_address(sender, socket.family)))
 
     def getsockname(self) -> SocketAddress:
-        self._check_closed()
+        self._check_not_closed()
         return new_socket_address(self.__socket.getsockname(), self.__socket.family)
 
     def fileno(self) -> int:
@@ -527,12 +520,12 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         return self.__socket.fileno()
 
     def dup(self) -> Socket:
-        self._check_closed()
+        self._check_not_closed()
         socket: Socket = self.__socket
         return socket.dup()
 
     def detach(self) -> Socket:
-        self._check_closed()
+        self._check_not_closed()
         socket: Socket = self.__socket
         fd: int = socket.detach()
         if fd < 0:
@@ -555,7 +548,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         ...
 
     def getsockopt(self, *args: int) -> int | bytes:
-        self._check_closed()
+        self._check_not_closed()
         return self.__socket.getsockopt(*args)
 
     @overload
@@ -567,11 +560,11 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         ...
 
     def setsockopt(self, *args: Any) -> None:
-        self._check_closed()
+        self._check_not_closed()
         return self.__socket.setsockopt(*args)
 
     @final
-    def _check_closed(self) -> None:
+    def _check_not_closed(self) -> None:
         if self.__closed:
             raise RuntimeError("Closed client")
 

@@ -24,7 +24,7 @@ __all__ = [
 import hashlib
 from abc import abstractmethod
 from hmac import compare_digest
-from io import BytesIO, IOBase
+from io import BytesIO
 from struct import Struct, error as StructError
 from typing import IO, Any, Generator, Generic, Protocol, TypeVar, runtime_checkable
 
@@ -38,10 +38,9 @@ _DT_co = TypeVar("_DT_co", covariant=True)
 
 class IncrementalDeserializeError(ValidationError):
     def __init__(self, message: str, *, remaining_data: bytes, data_with_error: bytes = b"") -> None:
-        if data_with_error:
-            message = f"Error when parsing {data_with_error!r}: {message}"
         super().__init__(message)
         self.remaining_data = remaining_data
+        self.data_with_error = data_with_error
 
 
 @runtime_checkable
@@ -55,7 +54,7 @@ class NetworkPacketIncrementalSerializer(NetworkPacketSerializer[_ST_contra], Pr
     def incremental_serialize(self, packet: _ST_contra) -> Generator[bytes, None, None]:
         raise NotImplementedError
 
-    def incremental_serialize_to(self, file: IOBase | IO[bytes], packet: _ST_contra) -> None:
+    def incremental_serialize_to(self, file: IO[bytes], packet: _ST_contra) -> None:
         assert file.writable()
         write = file.write
         for chunk in self.incremental_serialize(packet):
@@ -128,7 +127,7 @@ class AutoSeparatedPacketSerializer(_BaseAutoSeparatedPacket, NetworkPacketIncre
         yield data + separator
 
     @final
-    def incremental_serialize_to(self, file: IOBase | IO[bytes], packet: _ST_contra) -> None:
+    def incremental_serialize_to(self, file: IO[bytes], packet: _ST_contra) -> None:
         return NetworkPacketIncrementalSerializer.incremental_serialize_to(self, file, packet)
 
 
@@ -213,7 +212,7 @@ class AutoParsedPacketSerializer(_BaseAutoParsedPacket, NetworkPacketIncremental
         yield checksum.digest()
 
     @final
-    def incremental_serialize_to(self, file: IOBase | IO[bytes], packet: _ST_contra) -> None:
+    def incremental_serialize_to(self, file: IO[bytes], packet: _ST_contra) -> None:
         return NetworkPacketIncrementalSerializer.incremental_serialize_to(self, file, packet)
 
 
