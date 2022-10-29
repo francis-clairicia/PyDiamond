@@ -147,8 +147,11 @@ class _AbstractNetworkServerImpl(AbstractNetworkServer):
     __slots__ = ()
 
     def _handle_error(self, client: ConnectedClient[_ResponseT]) -> None:
-        from sys import stderr
+        from sys import exc_info, stderr
         from traceback import print_exc
+
+        if exc_info() == (None, None, None):
+            return
 
         print("-" * 40, file=stderr)
         print(f"Exception occurred during processing of request from {client.address}", file=stderr)
@@ -361,7 +364,8 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
                     shutdown_client(socket, from_client=False)
                     self._handle_error(client)
                 else:
-                    key_data.unsent_data = data[nb_bytes_sent:]
+                    if nb_bytes_sent < len(data):
+                        key_data.unsent_data = data[nb_bytes_sent:]
 
         def shutdown_client(socket: Socket, *, from_client: bool) -> None:
             self.__clients.pop(socket, None)
@@ -403,8 +407,6 @@ class AbstractTCPNetworkServer(_AbstractNetworkServerImpl, Generic[_RequestT, _R
             key_data = key.data
             client = key_data.client
             try:
-                if not client.closed:
-                    client.close()
                 self._on_disconnect(client)
             except Exception:
                 self._handle_error(client)
@@ -630,6 +632,7 @@ class _SelectorKeyData(Generic[_RequestT, _ResponseT]):
         def __check_not_closed(self) -> Socket:
             socket = self.__s
             if socket is None or self.__is_closed(socket):
+                self.__s = None
                 raise RuntimeError("Closed client")
             return socket
 

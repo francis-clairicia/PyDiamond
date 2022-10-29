@@ -14,7 +14,7 @@ __all__ = [
 
 from collections import Counter
 from json import JSONDecodeError, JSONDecoder, JSONEncoder
-from typing import IO, Generator, Generic, TypeVar
+from typing import Generator, Generic, TypeVar
 
 from ...system.object import final
 from ...system.utils.abc import concreteclass
@@ -47,10 +47,6 @@ class JSONPacketSerializer(NetworkPacketIncrementalSerializer[_ST_contra]):
         encoding: str = "ascii" if encoder.ensure_ascii else "utf-8"
         for chunk in encoder.iterencode(packet):
             yield chunk.encode(encoding)
-
-    @final
-    def incremental_serialize_to(self, file: IO[bytes], packet: _ST_contra) -> None:
-        return NetworkPacketIncrementalSerializer.incremental_serialize_to(self, file, packet)
 
     def get_encoder(self) -> JSONEncoder:
         return JSONEncoder(

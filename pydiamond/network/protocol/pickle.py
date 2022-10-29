@@ -16,7 +16,7 @@ __all__ = [
 from io import BytesIO
 from pickle import DEFAULT_PROTOCOL, STOP as STOP_OPCODE, Pickler, Unpickler, UnpicklingError
 from pickletools import optimize as pickletools_optimize
-from typing import IO, TYPE_CHECKING, Any, Callable, Generator, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generator, Generic, TypeVar
 from weakref import ref as weakref
 
 if TYPE_CHECKING:
@@ -47,25 +47,13 @@ class PicklePacketSerializer(NetworkPacketIncrementalSerializer[_ST_contra], Obj
     @final
     def serialize(self, packet: _ST_contra) -> bytes:
         buffer = BytesIO()
-        self.incremental_serialize_to(buffer, packet)
+        pickler = self.get_pickler(buffer)
+        pickler.dump(packet)
         return pickletools_optimize(buffer.getvalue())
 
     @final
     def incremental_serialize(self, packet: _ST_contra) -> Generator[bytes, None, None]:
         yield self.serialize(packet)  # 'incremental' :)
-
-    @final
-    def incremental_serialize_to(self, file: IO[bytes], packet: _ST_contra) -> None:
-        assert file.writable()
-        pickler = self.get_pickler(file)
-        try:
-            pickler.dump(packet)
-        except BaseException:
-            try:
-                file.write(STOP_OPCODE)  # Ensure there is a stop opcode, so the receiver can quickly ignore it
-            except Exception:
-                pass
-            raise
 
     def get_pickler(self, buffer: _WritableFileobj) -> Pickler:
         return Pickler(buffer, protocol=DEFAULT_PROTOCOL, fix_imports=False, buffer_callback=None)
@@ -123,8 +111,8 @@ class PickleNetworkProtocol(
 
 
 class SafePickleNetworkProtocol(EncryptorNetworkProtocol[_ST_contra, _DT_co], Generic[_ST_contra, _DT_co]):
-    def __init__(self, key: str | bytes | Fernet | MultiFernet) -> None:
-        super().__init__(PickleNetworkProtocol(), key)
+    def __init__(self, key: str | bytes | Fernet | MultiFernet, ttl: int | None = None) -> None:
+        super().__init__(PickleNetworkProtocol(), key, ttl)
         self.__monkeypatch_protocol("get_pickler")
         self.__monkeypatch_protocol("get_unpickler")
 

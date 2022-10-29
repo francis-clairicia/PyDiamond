@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from io import BytesIO
 from typing import Any
 
 from pydiamond.network.protocol.json import JSONPacketDeserializer, JSONPacketSerializer
@@ -81,17 +80,6 @@ class TestJSONPacketSerializer:
         # Assert
         assert isinstance(output, bytes)
         assert output == expected_output
-
-    @pytest.mark.parametrize(["data", "expected_output"], SERIALIZE_PARAMS)
-    def test__incremental_serialize_to(self, protocol: JSONPacketSerializer[Any], data: Any, expected_output: bytes) -> None:
-        # Arrange
-        file = BytesIO()
-
-        # Act
-        protocol.incremental_serialize_to(file, data)
-
-        # Assert
-        assert file.getvalue() == expected_output
 
 
 class TestJSONPacketDeserializer(BaseTestStreamPacketIncrementalDeserializer):

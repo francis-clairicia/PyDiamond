@@ -26,7 +26,7 @@ from abc import abstractmethod
 from hmac import compare_digest
 from io import BytesIO
 from struct import Struct, error as StructError
-from typing import IO, Any, Generator, Generic, Protocol, TypeVar, runtime_checkable
+from typing import Any, Generator, Generic, Protocol, TypeVar, runtime_checkable
 
 from ...system.object import ProtocolObjectMeta, final
 from ...system.utils.itertools import consumer_start, send_return
@@ -53,12 +53,6 @@ class NetworkPacketIncrementalSerializer(NetworkPacketSerializer[_ST_contra], Pr
     @abstractmethod
     def incremental_serialize(self, packet: _ST_contra) -> Generator[bytes, None, None]:
         raise NotImplementedError
-
-    def incremental_serialize_to(self, file: IO[bytes], packet: _ST_contra) -> None:
-        assert file.writable()
-        write = file.write
-        for chunk in self.incremental_serialize(packet):
-            write(chunk)
 
 
 @runtime_checkable
@@ -125,10 +119,6 @@ class AutoSeparatedPacketSerializer(_BaseAutoSeparatedPacket, NetworkPacketIncre
         if separator in data:
             raise ValueError(f"{separator!r} separator found in serialized packet {packet!r} and is not at the end")
         yield data + separator
-
-    @final
-    def incremental_serialize_to(self, file: IO[bytes], packet: _ST_contra) -> None:
-        return NetworkPacketIncrementalSerializer.incremental_serialize_to(self, file, packet)
 
 
 class AutoSeparatedPacketDeserializer(_BaseAutoSeparatedPacket, NetworkPacketIncrementalDeserializer[_DT_co]):
@@ -210,10 +200,6 @@ class AutoParsedPacketSerializer(_BaseAutoParsedPacket, NetworkPacketIncremental
         checksum.update(header)
         checksum.update(data)
         yield checksum.digest()
-
-    @final
-    def incremental_serialize_to(self, file: IO[bytes], packet: _ST_contra) -> None:
-        return NetworkPacketIncrementalSerializer.incremental_serialize_to(self, file, packet)
 
 
 class AutoParsedPacketDeserializer(_BaseAutoParsedPacket, NetworkPacketIncrementalDeserializer[_DT_co]):

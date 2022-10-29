@@ -9,13 +9,11 @@ from __future__ import annotations
 __all__ = [
     "StreamNetworkDataConsumer",
     "StreamNetworkDataProducer",
-    "StreamNetworkPacketWriter",
 ]
 
 from collections import deque
-from io import UnsupportedOperation
 from threading import RLock
-from typing import IO, Generator, Generic, Iterator, TypeVar
+from typing import Generator, Generic, Iterator, TypeVar
 
 from ...system.object import Object, final
 from ...system.utils.itertools import consumer_start, send_return
@@ -86,43 +84,6 @@ class StreamNetworkDataProducer(Generic[_ST_contra], Object):
             return
         with self.__lock:
             self.__q.extend(map(self.__s.incremental_serialize, packets))
-
-
-@final
-class StreamNetworkPacketWriter(Generic[_ST_contra], Object):
-    __slots__ = ("__s", "__f", "__lock")
-
-    def __init__(
-        self,
-        file: IO[bytes],
-        serializer: NetworkPacketIncrementalSerializer[_ST_contra],
-        *,
-        lock: RLock | None = None,
-    ) -> None:
-        super().__init__()
-        assert isinstance(serializer, NetworkPacketIncrementalSerializer)
-        self.__f: IO[bytes] = file
-        self.__s: NetworkPacketIncrementalSerializer[_ST_contra] = serializer
-        self.__lock: RLock = lock or RLock()
-
-    def write(self, *packets: _ST_contra) -> None:
-        if not packets:
-            return
-        with self.__lock:
-            incremental_serialize_to = self.__s.incremental_serialize_to
-            file = self.__f
-            try:
-                for packet in packets:
-                    incremental_serialize_to(file, packet)
-            finally:
-                try:
-                    file.flush()
-                except UnsupportedOperation:
-                    pass
-
-    def close(self) -> None:
-        with self.__lock:
-            self.__f.close()
 
 
 @final

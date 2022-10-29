@@ -25,7 +25,7 @@ def test_default(tcp_server: tuple[str, int]) -> None:
         assert client.recv_packet() == {"data": [5, 2]}
         client.send_packet("Hello")
         assert client.recv_packet() == "Hello"
-        assert len(list(client.recv_packets(timeout=0))) == 0
+        assert len(client.recv_packets(timeout=0)) == 0
         assert client.recv_packet_no_block() is None
 
 
@@ -65,11 +65,11 @@ class StringNetworkProtocol(StreamNetworkProtocol[str, str]):
 def test_multiple_requests(tcp_server: tuple[str, int]) -> None:
     with TCPNetworkClient(tcp_server, protocol=StringNetworkProtocol()) as client:
         client.send_packet("A\nB\nC\nD\n")
-        assert list(client.recv_packets()) == ["A", "B", "C", "D"]
+        assert client.recv_packets() == ["A", "B", "C", "D"]
         client.send_packet("E\nF\nG\nH\nI")
         assert client.recv_packet() == "E"
         assert client.recv_packet() == "F"
-        assert list(client.recv_packets()) == ["G", "H"]
+        assert client.recv_packets() == ["G", "H"]
         client.send_packet("J\n")
         assert client.recv_packet() == "IJ"
 

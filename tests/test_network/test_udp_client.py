@@ -17,7 +17,7 @@ def test_default(udp_server: tuple[str, int]) -> None:
         assert client.recv_packet()[0] == {"data": [5, 2]}
         client.send_packet(udp_server, "Hello")
         assert client.recv_packet()[0] == "Hello"
-        assert len(list(client.recv_packets(timeout=0))) == 0
+        assert len(client.recv_packets(timeout=0)) == 0
         assert client.recv_packet_no_block() is None
 
 

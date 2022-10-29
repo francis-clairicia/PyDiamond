@@ -24,7 +24,8 @@ _DT_co = TypeVar("_DT_co", covariant=True)
 
 
 class _BaseEncryptor(_BaseAutoSeparatedPacket):
-    def __init__(self, key: str | bytes | Fernet | MultiFernet, **kwargs: Any) -> None:
+    def __init__(self, key: str | bytes | Fernet | MultiFernet, ttl: int | None, **kwargs: Any) -> None:
+        super().__init__(separator=b"\r\n", keepends=False, **kwargs)
         self.__key: MultiFernet
         match key:
             case MultiFernet():
@@ -35,12 +36,17 @@ class _BaseEncryptor(_BaseAutoSeparatedPacket):
                 self.__key = MultiFernet([Fernet(key)])
             case _:
                 assert_never(key)
-        super().__init__(separator=b"\r\n", keepends=False, **kwargs)
+        self.__ttl: int | None = ttl
 
     @property
     @final
     def key(self) -> MultiFernet:
         return self.__key
+
+    @property
+    @final
+    def ttl(self) -> int | None:
+        return self.__ttl
 
 
 @concreteclass
@@ -50,8 +56,13 @@ class EncryptorNetworkProtocol(
     AutoSeparatedStreamNetworkProtocol[_ST_contra, _DT_co],
     Generic[_ST_contra, _DT_co],
 ):
-    def __init__(self, protocol: NetworkProtocol[_ST_contra, _DT_co], key: str | bytes | Fernet | MultiFernet) -> None:
-        super().__init__(protocol=protocol, key=key)
+    def __init__(
+        self,
+        protocol: NetworkProtocol[_ST_contra, _DT_co],
+        key: str | bytes | Fernet | MultiFernet,
+        ttl: int | None = None,
+    ) -> None:
+        super().__init__(protocol=protocol, key=key, ttl=ttl)
 
     @final
     def serialize(self, packet: _ST_contra) -> bytes:
@@ -60,7 +71,7 @@ class EncryptorNetworkProtocol(
     @final
     def deserialize(self, data: bytes) -> _DT_co:
         try:
-            data = self.key.decrypt(data)
+            data = self.key.decrypt(data, self.ttl)
         except InvalidToken as exc:
             raise ValidationError("Invalid token") from exc
         packet: _DT_co = self.protocol.deserialize(data)
