@@ -12,9 +12,9 @@ __all__ = [
 ]
 
 from io import BytesIO
-from pickle import DEFAULT_PROTOCOL, STOP as STOP_OPCODE, Pickler, Unpickler, UnpicklingError
+from pickle import DEFAULT_PROTOCOL, Pickler, Unpickler
 from pickletools import optimize as pickletools_optimize
-from typing import TYPE_CHECKING, Any, Callable, Generator, TypeVar
+from typing import TYPE_CHECKING, Any, Generator, TypeVar
 from weakref import ref as weakref
 
 if TYPE_CHECKING:
@@ -23,7 +23,6 @@ if TYPE_CHECKING:
 
 from ...system.object import Object, ProtocolObjectMeta, final
 from ...system.utils.abc import concreteclass
-from ...system.utils.weakref import weakref_unwrap
 from .abc import ValidationError
 from .stream.abc import IncrementalDeserializeError, StreamNetworkProtocol
 from .wrapper.encryptor import EncryptorNetworkProtocol
@@ -52,14 +51,14 @@ class PickleNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co], Object, m
 
     @final
     def deserialize(self, data: bytes) -> _DT_co:
-        if STOP_OPCODE not in data:
-            raise ValidationError("Missing 'STOP' pickle opcode in data")
         buffer = BytesIO(data)
         unpickler = self.get_unpickler(buffer)
         try:
             packet: _DT_co = unpickler.load()
-        except UnpicklingError as exc:
-            raise ValidationError("Unpickling error") from exc
+        except EOFError as exc:
+            raise ValidationError("Missing data to create packet") from exc
+        except Exception as exc:  # pickle.Unpickler do not only raise UnpicklingError... :)
+            raise ValidationError(f"Unpickling error: {exc}") from exc
         if data := buffer.read():  # There is still data after pickling
             raise ValidationError("Extra data caught")
         return packet
@@ -67,59 +66,67 @@ class PickleNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co], Object, m
     @final
     def incremental_deserialize(self) -> Generator[None, bytes, tuple[_DT_co, bytes]]:
         data = BytesIO()
-        while STOP_OPCODE not in data.getvalue():
-            data.write((yield))
-        data.seek(0)
         unpickler = self.get_unpickler(data)
-        try:
-            packet: _DT_co = unpickler.load()
-        except UnpicklingError as exc:
-            data_with_error, _, remainder = data.getvalue().partition(STOP_OPCODE)
-            raise IncrementalDeserializeError(
-                f"Unpickling error: {exc}",
-                remaining_data=remainder,
-                data_with_error=data_with_error,
-            ) from exc
-        return (packet, data.read())
+
+        while True:
+            while not (chunk := (yield)):  # Skip empty bytes
+                continue
+            data.write(chunk)
+            data.seek(0)
+            try:
+                packet: _DT_co = unpickler.load()
+            except EOFError:
+                continue
+            except Exception as exc:  # pickle.Unpickler do not only raise UnpicklingError... :)
+                data_with_error = data.getvalue()[: data.tell()]
+                remaining_data: bytes = data.read()
+                if not remaining_data:  # Possibly an EOF error, give it a chance
+                    continue
+                raise IncrementalDeserializeError(
+                    f"Unpickling error: {exc}",
+                    remaining_data=remaining_data,
+                    data_with_error=data_with_error,
+                ) from exc
+            else:
+                return (packet, data.read())
 
     def get_unpickler(self, buffer: _ReadableFileobj) -> Unpickler:
         return Unpickler(buffer, fix_imports=False, encoding="utf-8", errors="strict", buffers=None)
 
 
 class SafePickleNetworkProtocol(EncryptorNetworkProtocol[_ST_contra, _DT_co]):
-    class __ProtocolClass(PickleNetworkProtocol[Any, Any]):  # Subclass to add __dict__ and __weakref__ slots
-        pass
+    __slots__ = ("__weakref__",)
+
+    @final
+    class __PickleNetworkProtocolClassImpl(PickleNetworkProtocol[Any, Any]):
+        __slots__ = ("__parent",)
+
+        def __init__(self, parent: SafePickleNetworkProtocol[_ST_contra, _DT_co]) -> None:
+            super().__init__()
+            self.__parent: weakref[SafePickleNetworkProtocol[_ST_contra, _DT_co]] = weakref(parent)
+
+        def get_pickler(self, buffer: _WritableFileobj) -> Pickler:
+            parent = self.__parent()
+            if parent is None:
+                return super().get_pickler(buffer)
+            return parent.get_pickler(buffer)
+
+        def get_unpickler(self, buffer: _ReadableFileobj) -> Unpickler:
+            parent = self.__parent()
+            if parent is None:
+                return super().get_unpickler(buffer)
+            return parent.get_unpickler(buffer)
 
     def __init__(self, key: str | bytes | Fernet | MultiFernet, ttl: int | None = None) -> None:
-        super().__init__(self.__ProtocolClass(), key, ttl)
-        self.__monkeypatch_protocol("get_pickler")
-        self.__monkeypatch_protocol("get_unpickler")
+        super().__init__(SafePickleNetworkProtocol.__PickleNetworkProtocolClassImpl(self), key, ttl)
 
     def get_pickler(self, buffer: _WritableFileobj) -> Pickler:
-        protocol: PickleNetworkProtocol[Any, Any] = self.protocol
-        return protocol.__class__.get_pickler(protocol, buffer)
+        protocol: SafePickleNetworkProtocol.__PickleNetworkProtocolClassImpl = self.protocol  # type: ignore[assignment]
+        return super(protocol.__class__, protocol).get_pickler(buffer)
 
     def get_unpickler(self, buffer: _ReadableFileobj) -> Unpickler:
-        protocol: PickleNetworkProtocol[Any, Any] = self.protocol
-        return protocol.__class__.get_unpickler(protocol, buffer)
-
-    def __monkeypatch_protocol(self, method_name: str) -> None:
-        def unset_patch(_: Any, _protocol_ref: weakref[Any] = weakref(self.protocol)) -> None:
-            protocol: Any | None = _protocol_ref()
-            if protocol is not None:
-                try:
-                    delattr(protocol, method_name)
-                except AttributeError:
-                    pass
-
-        selfref = weakref(self, unset_patch)
-
-        def patch(*args: Any, **kwargs: Any) -> Any:
-            self = weakref_unwrap(selfref)
-            method: Callable[..., Any] = getattr(self, method_name)
-            return method(*args, **kwargs)
-
-        setattr(self.protocol, method_name, patch)
+        protocol: SafePickleNetworkProtocol.__PickleNetworkProtocolClassImpl = self.protocol  # type: ignore[assignment]
+        return super(protocol.__class__, protocol).get_unpickler(buffer)
 
     if TYPE_CHECKING:
 

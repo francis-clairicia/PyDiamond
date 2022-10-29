@@ -31,13 +31,11 @@ class NetworkProtocolComposite(NetworkProtocol[_ST_contra, _DT_co], Object, meta
 
     @final
     def serialize(self, packet: _ST_contra) -> bytes:
-        s = self.__s
-        return s.serialize(packet)
+        return self.__s.serialize(packet)
 
     @final
     def deserialize(self, data: bytes) -> _DT_co:
-        d = self.__d
-        return d.deserialize(data)
+        return self.__d.deserialize(data)
 
     def get_serializer(self) -> NetworkPacketSerializer[_ST_contra]:
         return self.__s

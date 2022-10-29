@@ -53,7 +53,7 @@ class EncryptorNetworkProtocol(AutoSeparatedStreamNetworkProtocol[_ST_contra, _D
     @final
     def deserialize(self, data: bytes) -> _DT_co:
         try:
-            data = self.__key.decrypt(data, self.ttl)
+            data = self.__key.decrypt(data, self.__ttl)
         except InvalidToken as exc:
             raise ValidationError("Invalid token") from exc
         return self.__protocol.deserialize(data)
