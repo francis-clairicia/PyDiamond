@@ -2,6 +2,7 @@
 # Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine
 #
 #
+# mypy: no-warn-unused-ignores
 """Network client module"""
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ from threading import RLock
 from typing import TYPE_CHECKING, Any, Generic, Iterator, TypeAlias, TypeVar, overload
 
 try:
-    from selectors import PollSelector as _Selector  # mypy: no-warn-unused-ignores  # type: ignore[import]
+    from selectors import PollSelector as _Selector  # type: ignore[attr-defined]
 except ImportError:
     from selectors import SelectSelector as _Selector  # type: ignore[misc]
 
