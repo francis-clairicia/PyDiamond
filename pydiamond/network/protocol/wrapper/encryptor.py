@@ -8,7 +8,7 @@ from __future__ import annotations
 
 __all__ = ["EncryptorNetworkProtocol"]
 
-from typing import Any, Generic, TypeVar
+from typing import TypeVar
 
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 from typing_extensions import assert_never
@@ -16,16 +16,24 @@ from typing_extensions import assert_never
 from ....system.object import final
 from ....system.utils.abc import concreteclass
 from ..abc import NetworkProtocol, ValidationError
-from ..stream import AutoSeparatedStreamNetworkProtocol, _BaseAutoSeparatedPacket
-from .generic import GenericNetworkProtocolWrapper
+from ..stream.abc import AutoSeparatedStreamNetworkProtocol
 
 _ST_contra = TypeVar("_ST_contra", contravariant=True)
 _DT_co = TypeVar("_DT_co", covariant=True)
 
 
-class _BaseEncryptor(_BaseAutoSeparatedPacket):
-    def __init__(self, key: str | bytes | Fernet | MultiFernet, ttl: int | None, **kwargs: Any) -> None:
-        super().__init__(separator=b"\r\n", keepends=False, **kwargs)
+@concreteclass
+class EncryptorNetworkProtocol(AutoSeparatedStreamNetworkProtocol[_ST_contra, _DT_co]):
+    __slots__ = ("__key", "__ttl", "__protocol")
+
+    def __init__(
+        self,
+        protocol: NetworkProtocol[_ST_contra, _DT_co],
+        key: str | bytes | Fernet | MultiFernet,
+        ttl: int | None = None,
+    ) -> None:
+        super().__init__(separator=b"\r\n", keepends=False)
+        self.__protocol: NetworkProtocol[_ST_contra, _DT_co] = protocol
         self.__key: MultiFernet
         match key:
             case MultiFernet():
@@ -38,6 +46,18 @@ class _BaseEncryptor(_BaseAutoSeparatedPacket):
                 assert_never(key)
         self.__ttl: int | None = ttl
 
+    @final
+    def serialize(self, packet: _ST_contra) -> bytes:
+        return self.__key.encrypt(self.__protocol.serialize(packet))
+
+    @final
+    def deserialize(self, data: bytes) -> _DT_co:
+        try:
+            data = self.__key.decrypt(data, self.ttl)
+        except InvalidToken as exc:
+            raise ValidationError("Invalid token") from exc
+        return self.__protocol.deserialize(data)
+
     @property
     @final
     def key(self) -> MultiFernet:
@@ -48,31 +68,6 @@ class _BaseEncryptor(_BaseAutoSeparatedPacket):
     def ttl(self) -> int | None:
         return self.__ttl
 
-
-@concreteclass
-class EncryptorNetworkProtocol(
-    _BaseEncryptor,
-    GenericNetworkProtocolWrapper[_ST_contra, _DT_co],
-    AutoSeparatedStreamNetworkProtocol[_ST_contra, _DT_co],
-    Generic[_ST_contra, _DT_co],
-):
-    def __init__(
-        self,
-        protocol: NetworkProtocol[_ST_contra, _DT_co],
-        key: str | bytes | Fernet | MultiFernet,
-        ttl: int | None = None,
-    ) -> None:
-        super().__init__(protocol=protocol, key=key, ttl=ttl)
-
-    @final
-    def serialize(self, packet: _ST_contra) -> bytes:
-        return self.key.encrypt(self.protocol.serialize(packet))
-
-    @final
-    def deserialize(self, data: bytes) -> _DT_co:
-        try:
-            data = self.key.decrypt(data, self.ttl)
-        except InvalidToken as exc:
-            raise ValidationError("Invalid token") from exc
-        packet: _DT_co = self.protocol.deserialize(data)
-        return packet
+    @property
+    def protocol(self) -> NetworkProtocol[_ST_contra, _DT_co]:
+        return self.__protocol

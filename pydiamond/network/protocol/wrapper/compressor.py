@@ -20,8 +20,7 @@ from typing import Any, Generic, TypeVar
 from ....system.object import ProtocolObjectMeta, final
 from ....system.utils.abc import concreteclass
 from ..abc import NetworkProtocol
-from ..stream import AutoParsedStreamNetworkProtocol
-from .generic import GenericNetworkProtocolWrapper
+from ..stream.abc import AutoParsedStreamNetworkProtocol
 
 _ST_contra = TypeVar("_ST_contra", contravariant=True)
 _DT_co = TypeVar("_DT_co", covariant=True)
@@ -44,7 +43,6 @@ class _BaseCompressor(metaclass=ProtocolObjectMeta):
 @concreteclass
 class BZ2CompressorNetworkProtocol(
     _BaseCompressor,
-    GenericNetworkProtocolWrapper[_ST_contra, _DT_co],
     AutoParsedStreamNetworkProtocol[_ST_contra, _DT_co],
     Generic[_ST_contra, _DT_co],
 ):
@@ -63,7 +61,6 @@ class BZ2CompressorNetworkProtocol(
 @concreteclass
 class GzipCompressorNetworkProtocol(
     _BaseCompressor,
-    GenericNetworkProtocolWrapper[_ST_contra, _DT_co],
     AutoParsedStreamNetworkProtocol[_ST_contra, _DT_co],
     Generic[_ST_contra, _DT_co],
 ):
@@ -82,7 +79,6 @@ class GzipCompressorNetworkProtocol(
 @concreteclass
 class ZlibCompressorNetworkProtocol(
     _BaseCompressor,
-    GenericNetworkProtocolWrapper[_ST_contra, _DT_co],
     AutoParsedStreamNetworkProtocol[_ST_contra, _DT_co],
     Generic[_ST_contra, _DT_co],
 ):

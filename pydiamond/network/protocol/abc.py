@@ -27,6 +27,8 @@ _DT_co = TypeVar("_DT_co", covariant=True)
 
 @runtime_checkable
 class NetworkPacketSerializer(Protocol[_ST_contra]):
+    __slots__ = ()
+
     @abstractmethod
     def serialize(self, packet: _ST_contra) -> bytes:
         raise NotImplementedError
@@ -34,6 +36,8 @@ class NetworkPacketSerializer(Protocol[_ST_contra]):
 
 @runtime_checkable
 class NetworkPacketDeserializer(Protocol[_DT_co]):
+    __slots__ = ()
+
     @abstractmethod
     def deserialize(self, data: bytes) -> _DT_co:
         raise NotImplementedError
@@ -41,4 +45,4 @@ class NetworkPacketDeserializer(Protocol[_DT_co]):
 
 @runtime_checkable
 class NetworkProtocol(NetworkPacketSerializer[_ST_contra], NetworkPacketDeserializer[_DT_co], Protocol[_ST_contra, _DT_co]):
-    pass
+    __slots__ = ()

@@ -8,34 +8,24 @@ from __future__ import annotations
 
 __all__ = [
     "AbstractStructNetworkProtocol",
-    "AbstractStructPacketDeserializer",
-    "AbstractStructPacketSerializer",
-    "AutoParsedPacketDeserializer",
-    "AutoParsedPacketSerializer",
     "AutoParsedStreamNetworkProtocol",
-    "AutoSeparatedPacketDeserializer",
-    "AutoSeparatedPacketSerializer",
     "AutoSeparatedStreamNetworkProtocol",
     "BZ2CompressorNetworkProtocol",
     "EncryptorNetworkProtocol",
-    "FixedPacketSizeDeserializer",
-    "FixedPacketSizeSerializer",
     "FixedPacketSizeStreamNetworkProtocol",
-    "GenericNetworkProtocolWrapper",
     "GzipCompressorNetworkProtocol",
     "JSONNetworkProtocol",
-    "JSONPacketDeserializer",
-    "JSONPacketSerializer",
+    "NamedTupleNetworkProtocol",
     "NetworkPacketDeserializer",
     "NetworkPacketIncrementalDeserializer",
     "NetworkPacketIncrementalSerializer",
     "NetworkPacketSerializer",
     "NetworkProtocol",
+    "NetworkProtocolComposite",
     "PickleNetworkProtocol",
-    "PicklePacketDeserializer",
-    "PicklePacketSerializer",
     "SafePickleNetworkProtocol",
     "StreamNetworkProtocol",
+    "StreamNetworkProtocolComposite",
     "ValidationError",
     "ZlibCompressorNetworkProtocol",
 ]
@@ -43,6 +33,7 @@ __all__ = [
 
 ############ Package initialization ############
 from .abc import *
+from .composite import *
 from .json import *
 from .pickle import *
 from .stream import *

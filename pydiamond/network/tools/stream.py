@@ -17,7 +17,7 @@ from typing import Generator, Generic, Iterator, TypeVar
 
 from ...system.object import Object, final
 from ...system.utils.itertools import consumer_start, send_return
-from ..protocol.stream import (
+from ..protocol.stream.abc import (
     IncrementalDeserializeError,
     NetworkPacketIncrementalDeserializer,
     NetworkPacketIncrementalSerializer,

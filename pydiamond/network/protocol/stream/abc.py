@@ -7,14 +7,8 @@
 from __future__ import annotations
 
 __all__ = [
-    "AutoParsedPacketDeserializer",
-    "AutoParsedPacketSerializer",
     "AutoParsedStreamNetworkProtocol",
-    "AutoSeparatedPacketDeserializer",
-    "AutoSeparatedPacketSerializer",
     "AutoSeparatedStreamNetworkProtocol",
-    "FixedPacketSizeDeserializer",
-    "FixedPacketSizeSerializer",
     "FixedPacketSizeStreamNetworkProtocol",
     "NetworkPacketIncrementalDeserializer",
     "NetworkPacketIncrementalSerializer",
@@ -26,11 +20,11 @@ from abc import abstractmethod
 from hmac import compare_digest
 from io import BytesIO
 from struct import Struct, error as StructError
-from typing import Any, Generator, Generic, Protocol, TypeVar, runtime_checkable
+from typing import Any, Generator, Protocol, TypeVar, runtime_checkable
 
-from ...system.object import ProtocolObjectMeta, final
-from ...system.utils.itertools import consumer_start, send_return
-from .abc import NetworkPacketDeserializer, NetworkPacketSerializer, NetworkProtocol, ValidationError
+from ....system.object import Object, ProtocolObjectMeta, final
+from ....system.utils.itertools import consumer_start, send_return
+from ..abc import NetworkPacketDeserializer, NetworkPacketSerializer, NetworkProtocol, ValidationError
 
 _ST_contra = TypeVar("_ST_contra", contravariant=True)
 _DT_co = TypeVar("_DT_co", covariant=True)
@@ -45,6 +39,8 @@ class IncrementalDeserializeError(ValidationError):
 
 @runtime_checkable
 class NetworkPacketIncrementalSerializer(NetworkPacketSerializer[_ST_contra], Protocol[_ST_contra]):
+    __slots__ = ()
+
     def serialize(self, packet: _ST_contra) -> bytes:
         # The list call should be roughly
         # equivalent to the PySequence_Fast that ''.join() would do.
@@ -57,6 +53,8 @@ class NetworkPacketIncrementalSerializer(NetworkPacketSerializer[_ST_contra], Pr
 
 @runtime_checkable
 class NetworkPacketIncrementalDeserializer(NetworkPacketDeserializer[_DT_co], Protocol[_DT_co]):
+    __slots__ = ()
+
     def deserialize(self, data: bytes) -> _DT_co:
         consumer: Generator[None, bytes, tuple[_DT_co, bytes]] = self.incremental_deserialize()
         consumer_start(consumer)
@@ -83,10 +81,12 @@ class StreamNetworkProtocol(
     NetworkProtocol[_ST_contra, _DT_co],
     Protocol[_ST_contra, _DT_co],
 ):
-    pass
+    __slots__ = ()
 
 
-class _BaseAutoSeparatedPacket(metaclass=ProtocolObjectMeta):
+class AutoSeparatedStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co], Object, metaclass=ProtocolObjectMeta):
+    __slots__ = ("__separator", "__keepends")
+
     def __init__(self, separator: bytes, *, keepends: bool = False, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         assert isinstance(separator, bytes)
@@ -95,18 +95,6 @@ class _BaseAutoSeparatedPacket(metaclass=ProtocolObjectMeta):
         self.__separator: bytes = separator
         self.__keepends: bool = bool(keepends)
 
-    @property
-    @final
-    def separator(self) -> bytes:
-        return self.__separator
-
-    @property
-    @final
-    def keepends(self) -> bool:
-        return self.__keepends
-
-
-class AutoSeparatedPacketSerializer(_BaseAutoSeparatedPacket, NetworkPacketIncrementalSerializer[_ST_contra]):
     @abstractmethod
     def serialize(self, packet: _ST_contra) -> bytes:
         raise NotImplementedError
@@ -114,14 +102,12 @@ class AutoSeparatedPacketSerializer(_BaseAutoSeparatedPacket, NetworkPacketIncre
     @final
     def incremental_serialize(self, packet: _ST_contra) -> Generator[bytes, None, None]:
         data: bytes = self.serialize(packet)
-        separator: bytes = self.separator
+        separator: bytes = self.__separator
         data = data.rstrip(separator)
         if separator in data:
             raise ValueError(f"{separator!r} separator found in serialized packet {packet!r} and is not at the end")
         yield data + separator
 
-
-class AutoSeparatedPacketDeserializer(_BaseAutoSeparatedPacket, NetworkPacketIncrementalDeserializer[_DT_co]):
     @abstractmethod
     def deserialize(self, data: bytes) -> _DT_co:
         raise NotImplementedError
@@ -129,8 +115,8 @@ class AutoSeparatedPacketDeserializer(_BaseAutoSeparatedPacket, NetworkPacketInc
     @final
     def incremental_deserialize(self) -> Generator[None, bytes, tuple[_DT_co, bytes]]:
         buffer: bytes = b""
-        separator: bytes = self.separator
-        keepends: bool = self.keepends
+        separator: bytes = self.__separator
+        keepends: bool = self.__keepends
         while separator not in buffer:
             buffer += yield
         data, _, buffer = buffer.partition(separator)
@@ -146,17 +132,20 @@ class AutoSeparatedPacketDeserializer(_BaseAutoSeparatedPacket, NetworkPacketInc
             ) from exc
         return (packet, buffer)
 
+    @property
+    @final
+    def separator(self) -> bytes:
+        return self.__separator
 
-class AutoSeparatedStreamNetworkProtocol(
-    AutoSeparatedPacketSerializer[_ST_contra],
-    AutoSeparatedPacketDeserializer[_DT_co],
-    StreamNetworkProtocol[_ST_contra, _DT_co],
-    Generic[_ST_contra, _DT_co],
-):
-    pass
+    @property
+    @final
+    def keepends(self) -> bool:
+        return self.__keepends
 
 
-class _BaseAutoParsedPacket(metaclass=ProtocolObjectMeta):
+class AutoParsedStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co], Object, metaclass=ProtocolObjectMeta):
+    __slots__ = ("__magic", "__algorithm", "__header")
+
     def __init__(self, magic: bytes, *, checksum: str = "md5", **kwargs: Any) -> None:
         import math
 
@@ -168,24 +157,8 @@ class _BaseAutoParsedPacket(metaclass=ProtocolObjectMeta):
         super().__init__(**kwargs)
         self.__magic: bytes = magic
         self.__algorithm: str = checksum
+        self.__header: Struct = Struct(f"!{len(self.__magic)}sQ")
 
-    @property
-    @final
-    def magic(self) -> bytes:
-        return self.__magic
-
-    @property
-    @final
-    def checksum_algorithm(self) -> str:
-        return self.__algorithm
-
-    @property
-    @final
-    def header(self) -> Struct:
-        return Struct(f"!{len(self.__magic)}sQ")
-
-
-class AutoParsedPacketSerializer(_BaseAutoParsedPacket, NetworkPacketIncrementalSerializer[_ST_contra]):
     @abstractmethod
     def serialize(self, packet: _ST_contra) -> bytes:
         raise NotImplementedError
@@ -193,24 +166,24 @@ class AutoParsedPacketSerializer(_BaseAutoParsedPacket, NetworkPacketIncremental
     @final
     def incremental_serialize(self, packet: _ST_contra) -> Generator[bytes, None, None]:
         data: bytes = self.serialize(packet)
-        header: bytes = self.header.pack(self.magic, len(data))
+        header: bytes = self.__header.pack(self.__magic, len(data))
         yield header
         yield data
-        checksum = hashlib.new(self.checksum_algorithm, usedforsecurity=False)
+        checksum = hashlib.new(self.__algorithm, usedforsecurity=False)
         checksum.update(header)
         checksum.update(data)
         yield checksum.digest()
 
-
-class AutoParsedPacketDeserializer(_BaseAutoParsedPacket, NetworkPacketIncrementalDeserializer[_DT_co]):
     @abstractmethod
     def deserialize(self, data: bytes) -> _DT_co:
         raise NotImplementedError
 
     @final
     def incremental_deserialize(self) -> Generator[None, bytes, tuple[_DT_co, bytes]]:
-        header_struct: Struct = self.header
-        header: bytes = yield
+        header_struct: Struct = self.__header
+        expected_magic: bytes = self.__magic
+        checksum_algorithm: str = self.__algorithm
+        header: bytes = b""
         while True:
             while len(header) < header_struct.size:
                 header += yield
@@ -221,14 +194,14 @@ class AutoParsedPacketDeserializer(_BaseAutoParsedPacket, NetworkPacketIncrement
                 magic: bytes
                 body_length: int
                 magic, body_length = header_struct.unpack(header)
-                if magic != self.magic:
+                if magic != expected_magic:
                     raise StructError
             except StructError:
                 # data may be corrupted
                 # Shift by 1 received data
                 header = header[1:] + buffer.read()
             else:
-                checksum = hashlib.new(self.checksum_algorithm, usedforsecurity=False)
+                checksum = hashlib.new(checksum_algorithm, usedforsecurity=False)
                 checksum.update(header)
                 body_struct = Struct(f"{body_length}s{checksum.digest_size}s")
                 while len(buffer.getvalue()) < body_struct.size:
@@ -261,17 +234,25 @@ class AutoParsedPacketDeserializer(_BaseAutoParsedPacket, NetworkPacketIncrement
             finally:
                 del buffer
 
+    @property
+    @final
+    def magic(self) -> bytes:
+        return self.__magic
 
-class AutoParsedStreamNetworkProtocol(
-    AutoParsedPacketSerializer[_ST_contra],
-    AutoParsedPacketDeserializer[_DT_co],
-    StreamNetworkProtocol[_ST_contra, _DT_co],
-    Generic[_ST_contra, _DT_co],
-):
-    pass
+    @property
+    @final
+    def checksum_algorithm(self) -> str:
+        return self.__algorithm
+
+    @property
+    @final
+    def header(self) -> Struct:
+        return self.__header
 
 
-class _BaseFixedPacketSize(metaclass=ProtocolObjectMeta):
+class FixedPacketSizeStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co], Object, metaclass=ProtocolObjectMeta):
+    __slots__ = ("__size",)
+
     def __init__(self, size: int, **kwargs: Any) -> None:
         size = int(size)
         if size <= 0:
@@ -279,13 +260,6 @@ class _BaseFixedPacketSize(metaclass=ProtocolObjectMeta):
         super().__init__(**kwargs)
         self.__size: int = size
 
-    @property
-    @final
-    def packet_size(self) -> int:
-        return self.__size
-
-
-class FixedPacketSizeSerializer(_BaseFixedPacketSize, NetworkPacketIncrementalSerializer[_ST_contra]):
     @abstractmethod
     def serialize(self, packet: _ST_contra) -> bytes:
         raise NotImplementedError
@@ -293,12 +267,10 @@ class FixedPacketSizeSerializer(_BaseFixedPacketSize, NetworkPacketIncrementalSe
     @final
     def incremental_serialize(self, packet: _ST_contra) -> Generator[bytes, None, None]:
         data = self.serialize(packet)
-        if len(data) != self.packet_size:
+        if len(data) != self.__size:
             raise ValueError("serialized data size does not meet expectation")
         yield data
 
-
-class FixedPacketSizeDeserializer(_BaseFixedPacketSize, NetworkPacketIncrementalDeserializer[_DT_co]):
     @abstractmethod
     def deserialize(self, data: bytes) -> _DT_co:
         raise NotImplementedError
@@ -306,7 +278,7 @@ class FixedPacketSizeDeserializer(_BaseFixedPacketSize, NetworkPacketIncremental
     @final
     def incremental_deserialize(self) -> Generator[None, bytes, tuple[_DT_co, bytes]]:
         buffer: bytes = b""
-        packet_size: int = self.packet_size
+        packet_size: int = self.__size
         while len(buffer) < packet_size:
             buffer += yield
         data, buffer = buffer[:packet_size], buffer[packet_size:]
@@ -320,11 +292,7 @@ class FixedPacketSizeDeserializer(_BaseFixedPacketSize, NetworkPacketIncremental
             ) from exc
         return (packet, buffer)
 
-
-class FixedPacketSizeStreamNetworkProtocol(
-    FixedPacketSizeSerializer[_ST_contra],
-    FixedPacketSizeDeserializer[_DT_co],
-    StreamNetworkProtocol[_ST_contra, _DT_co],
-    Generic[_ST_contra, _DT_co],
-):
-    pass
+    @property
+    @final
+    def packet_size(self) -> int:
+        return self.__size

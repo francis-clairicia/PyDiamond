@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydiamond.network.protocol.json import JSONPacketDeserializer, JSONPacketSerializer
+from pydiamond.network.protocol.json import JSONNetworkProtocol
 
 import pytest
 
@@ -53,14 +53,14 @@ DESERIALIZE_PARAMS: list[tuple[bytes, Any]] = [
 ]
 
 
-class TestJSONPacketSerializer:
-    @pytest.fixture
-    @staticmethod
-    def protocol() -> JSONPacketSerializer[Any]:
-        return JSONPacketSerializer()
+@pytest.fixture
+def protocol() -> JSONNetworkProtocol[Any, Any]:
+    return JSONNetworkProtocol()
 
+
+class TestJSONPacketSerializer:
     @pytest.mark.parametrize(["data", "expected_output"], SERIALIZE_PARAMS)
-    def test__serialize(self, protocol: JSONPacketSerializer[Any], data: Any, expected_output: bytes) -> None:
+    def test__serialize(self, protocol: JSONNetworkProtocol[Any, Any], data: Any, expected_output: bytes) -> None:
         # Arrange
 
         # Act
@@ -71,7 +71,7 @@ class TestJSONPacketSerializer:
         assert output == expected_output
 
     @pytest.mark.parametrize(["data", "expected_output"], SERIALIZE_PARAMS)
-    def test__incremental_serialize(self, protocol: JSONPacketSerializer[Any], data: Any, expected_output: bytes) -> None:
+    def test__incremental_serialize(self, protocol: JSONNetworkProtocol[Any, Any], data: Any, expected_output: bytes) -> None:
         # Arrange
 
         # Act
@@ -85,18 +85,13 @@ class TestJSONPacketSerializer:
 class TestJSONPacketDeserializer(BaseTestStreamPacketIncrementalDeserializer):
     @pytest.fixture
     @staticmethod
-    def protocol() -> JSONPacketDeserializer[Any]:
-        return JSONPacketDeserializer()
-
-    @pytest.fixture
-    @staticmethod
-    def consumer(protocol: JSONPacketDeserializer[Any]) -> DeserializerConsumer[Any]:
+    def consumer(protocol: JSONNetworkProtocol[Any, Any]) -> DeserializerConsumer[Any]:
         consumer = protocol.incremental_deserialize()
         next(consumer)
         return consumer
 
     @pytest.mark.parametrize(["data", "expected_output"], DESERIALIZE_PARAMS)
-    def test__deserialize(self, protocol: JSONPacketDeserializer[Any], data: bytes, expected_output: Any) -> None:
+    def test__deserialize(self, protocol: JSONNetworkProtocol[Any, Any], data: bytes, expected_output: Any) -> None:
         # Arrange
 
         # Act

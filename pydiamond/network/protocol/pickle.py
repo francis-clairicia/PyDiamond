@@ -8,15 +8,13 @@ from __future__ import annotations
 
 __all__ = [
     "PickleNetworkProtocol",
-    "PicklePacketDeserializer",
-    "PicklePacketSerializer",
     "SafePickleNetworkProtocol",
 ]
 
 from io import BytesIO
 from pickle import DEFAULT_PROTOCOL, STOP as STOP_OPCODE, Pickler, Unpickler, UnpicklingError
 from pickletools import optimize as pickletools_optimize
-from typing import TYPE_CHECKING, Any, Callable, Generator, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generator, TypeVar
 from weakref import ref as weakref
 
 if TYPE_CHECKING:
@@ -27,12 +25,7 @@ from ...system.object import Object, ProtocolObjectMeta, final
 from ...system.utils.abc import concreteclass
 from ...system.utils.weakref import weakref_unwrap
 from .abc import ValidationError
-from .stream import (
-    IncrementalDeserializeError,
-    NetworkPacketIncrementalDeserializer,
-    NetworkPacketIncrementalSerializer,
-    StreamNetworkProtocol,
-)
+from .stream.abc import IncrementalDeserializeError, StreamNetworkProtocol
 from .wrapper.encryptor import EncryptorNetworkProtocol
 
 _ST_contra = TypeVar("_ST_contra", contravariant=True)
@@ -40,9 +33,8 @@ _DT_co = TypeVar("_DT_co", covariant=True)
 
 
 @concreteclass
-class PicklePacketSerializer(NetworkPacketIncrementalSerializer[_ST_contra], Object, metaclass=ProtocolObjectMeta):
-    def __init__(self) -> None:
-        super().__init__()
+class PickleNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co], Object, metaclass=ProtocolObjectMeta):
+    __slots__ = ()
 
     @final
     def serialize(self, packet: _ST_contra) -> bytes:
@@ -57,12 +49,6 @@ class PicklePacketSerializer(NetworkPacketIncrementalSerializer[_ST_contra], Obj
 
     def get_pickler(self, buffer: _WritableFileobj) -> Pickler:
         return Pickler(buffer, protocol=DEFAULT_PROTOCOL, fix_imports=False, buffer_callback=None)
-
-
-@concreteclass
-class PicklePacketDeserializer(NetworkPacketIncrementalDeserializer[_DT_co], Object, metaclass=ProtocolObjectMeta):
-    def __init__(self) -> None:
-        super().__init__()
 
     @final
     def deserialize(self, data: bytes) -> _DT_co:
@@ -100,19 +86,12 @@ class PicklePacketDeserializer(NetworkPacketIncrementalDeserializer[_DT_co], Obj
         return Unpickler(buffer, fix_imports=False, encoding="utf-8", errors="strict", buffers=None)
 
 
-@concreteclass
-class PickleNetworkProtocol(
-    PicklePacketSerializer[_ST_contra],
-    PicklePacketDeserializer[_DT_co],
-    StreamNetworkProtocol[_ST_contra, _DT_co],
-    Generic[_ST_contra, _DT_co],
-):
-    pass
+class SafePickleNetworkProtocol(EncryptorNetworkProtocol[_ST_contra, _DT_co]):
+    class __ProtocolClass(PickleNetworkProtocol[Any, Any]):  # Subclass to add __dict__ and __weakref__ slots
+        pass
 
-
-class SafePickleNetworkProtocol(EncryptorNetworkProtocol[_ST_contra, _DT_co], Generic[_ST_contra, _DT_co]):
     def __init__(self, key: str | bytes | Fernet | MultiFernet, ttl: int | None = None) -> None:
-        super().__init__(PickleNetworkProtocol(), key, ttl)
+        super().__init__(self.__ProtocolClass(), key, ttl)
         self.__monkeypatch_protocol("get_pickler")
         self.__monkeypatch_protocol("get_unpickler")
 

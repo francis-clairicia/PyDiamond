@@ -6,64 +6,70 @@
 
 from __future__ import annotations
 
-__all__ = [
-    "JSONNetworkProtocol",
-    "JSONPacketDeserializer",
-    "JSONPacketSerializer",
-]
+__all__ = ["JSONNetworkProtocol"]
 
 from collections import Counter
 from json import JSONDecodeError, JSONDecoder, JSONEncoder
-from typing import Generator, Generic, TypeVar
+from typing import Generator, TypeVar
 
-from ...system.object import final
+from typing_extensions import assert_never
+
+from ...system.object import Object, ProtocolObjectMeta, final
 from ...system.utils.abc import concreteclass
 from .abc import ValidationError
-from .stream import (
-    IncrementalDeserializeError,
-    NetworkPacketIncrementalDeserializer,
-    NetworkPacketIncrementalSerializer,
-    StreamNetworkProtocol,
-)
+from .stream.abc import IncrementalDeserializeError, StreamNetworkProtocol
 
 _ST_contra = TypeVar("_ST_contra", contravariant=True)
 _DT_co = TypeVar("_DT_co", covariant=True)
 
 
 @concreteclass
-class JSONPacketSerializer(NetworkPacketIncrementalSerializer[_ST_contra]):
-    def __init__(self) -> None:
+class JSONNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co], Object, metaclass=ProtocolObjectMeta):
+    __slots__ = ("__e", "__d")
+
+    def __init__(self, *, encoder: JSONEncoder | None = None, decoder: JSONDecoder | None = None) -> None:
         super().__init__()
+        self.__e: JSONEncoder
+        self.__d: JSONDecoder
+        match encoder:
+            case None:
+                self.__e = JSONEncoder(
+                    skipkeys=False,
+                    ensure_ascii=False,  # Unicode are accepted
+                    check_circular=True,
+                    allow_nan=True,
+                    indent=None,
+                    separators=(",", ":"),  # Compact JSON (w/o whitespaces)
+                    default=None,
+                )
+            case JSONEncoder():
+                self.__e = encoder
+            case _:
+                assert_never(encoder)
+
+        match decoder:
+            case None:
+                self.__d = JSONDecoder(object_hook=None, object_pairs_hook=None, strict=True)
+            case JSONDecoder():
+                self.__d = decoder
+            case _:
+                assert_never(encoder)
 
     @final
     def serialize(self, packet: _ST_contra) -> bytes:
-        encoder = self.get_encoder()
+        encoder = self.__e
         encoding: str = "ascii" if encoder.ensure_ascii else "utf-8"
         return encoder.encode(packet).encode(encoding)
 
     @final
     def incremental_serialize(self, packet: _ST_contra) -> Generator[bytes, None, None]:
-        encoder = self.get_encoder()
+        encoder = self.__e
         encoding: str = "ascii" if encoder.ensure_ascii else "utf-8"
         for chunk in encoder.iterencode(packet):
             yield chunk.encode(encoding)
 
     def get_encoder(self) -> JSONEncoder:
-        return JSONEncoder(
-            skipkeys=False,
-            ensure_ascii=False,  # Unicode are accepted
-            check_circular=True,
-            allow_nan=True,
-            indent=None,
-            separators=(",", ":"),  # Compact JSON (w/o whitespaces)
-            default=None,
-        )
-
-
-@concreteclass
-class JSONPacketDeserializer(NetworkPacketIncrementalDeserializer[_DT_co]):
-    def __init__(self) -> None:
-        super().__init__()
+        return self.__e
 
     @final
     def deserialize(self, data: bytes) -> _DT_co:
@@ -71,7 +77,7 @@ class JSONPacketDeserializer(NetworkPacketIncrementalDeserializer[_DT_co]):
             document: str = data.decode(encoding="utf-8")
         except UnicodeDecodeError as exc:
             raise ValidationError("Unicode decode error") from exc
-        decoder = self.get_decoder()
+        decoder = self.__d
         try:
             packet: _DT_co = decoder.decode(document)
         except JSONDecodeError as exc:
@@ -121,7 +127,7 @@ class JSONPacketDeserializer(NetworkPacketIncrementalDeserializer[_DT_co]):
                     complete_document = partial_document
                     partial_document = chunk[nb_chars:]
                     break
-        decoder = self.get_decoder()
+        decoder = self.__d
         packet: _DT_co
         try:
             document: str = complete_document.decode(encoding)
@@ -142,14 +148,4 @@ class JSONPacketDeserializer(NetworkPacketIncrementalDeserializer[_DT_co]):
         return packet, (document[end:].encode(encoding) + partial_document).lstrip(b" \t\n\r")
 
     def get_decoder(self) -> JSONDecoder:
-        return JSONDecoder(object_hook=None, object_pairs_hook=None, strict=True)
-
-
-@concreteclass
-class JSONNetworkProtocol(
-    JSONPacketSerializer[_ST_contra],
-    JSONPacketDeserializer[_DT_co],
-    StreamNetworkProtocol[_ST_contra, _DT_co],
-    Generic[_ST_contra, _DT_co],
-):
-    pass
+        return self.__d

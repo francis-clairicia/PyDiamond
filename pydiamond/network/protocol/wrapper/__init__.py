@@ -9,11 +9,9 @@ from __future__ import annotations
 __all__ = [
     "BZ2CompressorNetworkProtocol",
     "EncryptorNetworkProtocol",
-    "GenericNetworkProtocolWrapper",
     "GzipCompressorNetworkProtocol",
     "ZlibCompressorNetworkProtocol",
 ]
 
 from .compressor import *
 from .encryptor import *
-from .generic import *
