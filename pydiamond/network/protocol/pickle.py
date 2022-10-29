@@ -66,13 +66,13 @@ class PickleNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co], Object, m
     @final
     def incremental_deserialize(self) -> Generator[None, bytes, tuple[_DT_co, bytes]]:
         data = BytesIO()
-        unpickler = self.get_unpickler(data)
 
         while True:
             while not (chunk := (yield)):  # Skip empty bytes
                 continue
             data.write(chunk)
             data.seek(0)
+            unpickler = self.get_unpickler(data)
             try:
                 packet: _DT_co = unpickler.load()
             except EOFError:
