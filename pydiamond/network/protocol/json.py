@@ -65,7 +65,15 @@ class JSONNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co], Object, met
     def incremental_serialize(self, packet: _ST_contra) -> Generator[bytes, None, None]:
         encoder = self.__e
         encoding: str = "ascii" if encoder.ensure_ascii else "utf-8"
-        for chunk in encoder.iterencode(packet):
+        encode_iterator = encoder.iterencode(packet)
+        try:
+            chunk = next(encode_iterator)
+        except StopIteration:
+            return
+        if chunk[0] not in {"{", "[", '"'}:
+            raise ValueError("Plain values (except strings) forbidden in incremental context")
+        yield chunk.encode(encoding)
+        for chunk in encode_iterator:
             yield chunk.encode(encoding)
 
     def get_encoder(self) -> JSONEncoder:

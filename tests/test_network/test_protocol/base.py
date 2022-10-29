@@ -15,7 +15,7 @@ DeserializerConsumer: TypeAlias = Generator[None, bytes, tuple[_T_co, bytes]]
 
 class BaseTestStreamPacketIncrementalDeserializer:
     @staticmethod
-    def deserialize(gen: Generator[None, bytes, tuple[_T_co, bytes]], chunk: bytes, /) -> tuple[_T_co, bytes]:
+    def deserialize_for_test(gen: Generator[None, bytes, tuple[_T_co, bytes]], chunk: bytes, /) -> tuple[_T_co, bytes]:
         try:
             return send_return(gen, chunk)
         except StopIteration:

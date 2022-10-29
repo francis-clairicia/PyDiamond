@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from pydiamond.network.protocol.json import JSONNetworkProtocol
@@ -31,9 +32,13 @@ SERIALIZE_PARAMS: list[tuple[Any, bytes]] = [
     ({"k": "v", "k2": "v2"}, b'{"k":"v","k2":"v2"}'),  # No whitespaces by default
 ]
 
-DESERIALIZE_PARAMS: list[tuple[bytes, Any]] = [
-    (output, data) for data, output in SERIALIZE_PARAMS if isinstance(data, (str, list, dict))
-] + [
+INCREMENTAL_SERIALIZE_PARAMS: list[tuple[Any, bytes]] = [
+    (data, output) for data, output in SERIALIZE_PARAMS if isinstance(data, (str, list, dict))
+]
+
+DESERIALIZE_PARAMS: list[tuple[bytes, Any]] = [(output, data) for data, output in SERIALIZE_PARAMS]
+
+INCREMENTAL_DESERIALIZE_PARAMS: list[tuple[bytes, Any]] = [(output, data) for data, output in INCREMENTAL_SERIALIZE_PARAMS] + [
     (
         b'[{"value": "a"}, {"value": 3.14}, {"value": true}, {"value": {"other": [Infinity]}}]',
         [{"value": "a"}, {"value": 3.14}, {"value": True}, {"value": {"other": [float("+inf")]}}],
@@ -70,7 +75,7 @@ class TestJSONPacketSerializer:
         assert isinstance(output, bytes)
         assert output == expected_output
 
-    @pytest.mark.parametrize(["data", "expected_output"], SERIALIZE_PARAMS)
+    @pytest.mark.parametrize(["data", "expected_output"], INCREMENTAL_SERIALIZE_PARAMS)
     def test__incremental_serialize(self, protocol: JSONNetworkProtocol[Any, Any], data: Any, expected_output: bytes) -> None:
         # Arrange
 
@@ -99,9 +104,12 @@ class TestJSONPacketDeserializer(BaseTestStreamPacketIncrementalDeserializer):
 
         # Assert
         assert type(output) is type(expected_output)
-        assert output == expected_output
+        if isinstance(expected_output, float) and math.isnan(expected_output):
+            assert math.isnan(output)
+        else:
+            assert output == expected_output
 
-    @pytest.mark.parametrize(["data", "expected_output"], DESERIALIZE_PARAMS)
+    @pytest.mark.parametrize(["data", "expected_output"], INCREMENTAL_DESERIALIZE_PARAMS)
     def test__incremental_deserialize__oneshot_valid_packet(
         self,
         consumer: DeserializerConsumer[Any],
@@ -111,7 +119,7 @@ class TestJSONPacketDeserializer(BaseTestStreamPacketIncrementalDeserializer):
         # Arrange
 
         # Act
-        output, remainder = self.deserialize(consumer, data)
+        output, remainder = self.deserialize_for_test(consumer, data)
 
         # Assert
         assert not remainder
@@ -136,14 +144,14 @@ class TestJSONPacketDeserializer(BaseTestStreamPacketIncrementalDeserializer):
         # Arrange
 
         # Act
-        output, remainder = self.deserialize(consumer, data)
+        output, remainder = self.deserialize_for_test(consumer, data)
 
         # Assert
         assert output == expected_output
         assert remainder == expected_remainder
 
-    @pytest.mark.parametrize(["data", "expected_output"], DESERIALIZE_PARAMS)
-    @pytest.mark.parametrize("expected_remainder", list(map(lambda v: v[0], DESERIALIZE_PARAMS)))
+    @pytest.mark.parametrize(["data", "expected_output"], INCREMENTAL_DESERIALIZE_PARAMS)
+    @pytest.mark.parametrize("expected_remainder", list(map(lambda v: v[0], INCREMENTAL_DESERIALIZE_PARAMS)))
     def test__incremental_deserialize__chunk_with_remainder(
         self,
         consumer: DeserializerConsumer[Any],
@@ -155,13 +163,13 @@ class TestJSONPacketDeserializer(BaseTestStreamPacketIncrementalDeserializer):
         data += expected_remainder
 
         # Act
-        output, remainder = self.deserialize(consumer, data)
+        output, remainder = self.deserialize_for_test(consumer, data)
 
         # Assert
         assert output == expected_output
         assert remainder == expected_remainder
 
-    @pytest.mark.parametrize(["data", "expected_output"], DESERIALIZE_PARAMS)
+    @pytest.mark.parametrize(["data", "expected_output"], INCREMENTAL_DESERIALIZE_PARAMS)
     def test__incremental_deserialize__handle_partial_document(
         self,
         consumer: DeserializerConsumer[Any],
@@ -176,8 +184,8 @@ class TestJSONPacketDeserializer(BaseTestStreamPacketIncrementalDeserializer):
         # Act
         for chunk in bytes_sequence[:-1]:
             with pytest.raises(EOFError):
-                _ = self.deserialize(consumer, chunk)
-        output, remainder = self.deserialize(consumer, bytes_sequence[-1])
+                _ = self.deserialize_for_test(consumer, chunk)
+        output, remainder = self.deserialize_for_test(consumer, bytes_sequence[-1])
 
         # Assert
         assert not remainder
