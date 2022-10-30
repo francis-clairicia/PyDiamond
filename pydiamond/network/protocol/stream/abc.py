@@ -20,9 +20,9 @@ from abc import abstractmethod
 from hmac import compare_digest
 from io import BytesIO
 from struct import Struct, error as StructError
-from typing import Any, Generator, Protocol, TypeVar, runtime_checkable
+from typing import Any, Generator, TypeVar
 
-from ....system.object import Object, ProtocolObjectMeta, final
+from ....system.object import final
 from ....system.utils.itertools import consumer_start, send_return
 from ..abc import NetworkPacketDeserializer, NetworkPacketSerializer, NetworkProtocol, ValidationError
 
@@ -37,8 +37,7 @@ class IncrementalDeserializeError(ValidationError):
         self.data_with_error = data_with_error
 
 
-@runtime_checkable
-class NetworkPacketIncrementalSerializer(NetworkPacketSerializer[_ST_contra], Protocol[_ST_contra]):
+class NetworkPacketIncrementalSerializer(NetworkPacketSerializer[_ST_contra]):
     __slots__ = ()
 
     def serialize(self, packet: _ST_contra) -> bytes:
@@ -51,8 +50,7 @@ class NetworkPacketIncrementalSerializer(NetworkPacketSerializer[_ST_contra], Pr
         raise NotImplementedError
 
 
-@runtime_checkable
-class NetworkPacketIncrementalDeserializer(NetworkPacketDeserializer[_DT_co], Protocol[_DT_co]):
+class NetworkPacketIncrementalDeserializer(NetworkPacketDeserializer[_DT_co]):
     __slots__ = ()
 
     def deserialize(self, data: bytes) -> _DT_co:
@@ -74,17 +72,15 @@ class NetworkPacketIncrementalDeserializer(NetworkPacketDeserializer[_DT_co], Pr
         raise NotImplementedError
 
 
-@runtime_checkable
 class StreamNetworkProtocol(
     NetworkPacketIncrementalSerializer[_ST_contra],
     NetworkPacketIncrementalDeserializer[_DT_co],
     NetworkProtocol[_ST_contra, _DT_co],
-    Protocol[_ST_contra, _DT_co],
 ):
     __slots__ = ()
 
 
-class AutoSeparatedStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co], Object, metaclass=ProtocolObjectMeta):
+class AutoSeparatedStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
     __slots__ = ("__separator", "__keepends")
 
     def __init__(self, separator: bytes, *, keepends: bool = False, **kwargs: Any) -> None:
@@ -143,7 +139,7 @@ class AutoSeparatedStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_c
         return self.__keepends
 
 
-class AutoParsedStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co], Object, metaclass=ProtocolObjectMeta):
+class AutoParsedStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
     __slots__ = ("__magic", "__algorithm", "__header")
 
     def __init__(self, magic: bytes, *, checksum: str = "md5", **kwargs: Any) -> None:
@@ -250,7 +246,7 @@ class AutoParsedStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co],
         return self.__header
 
 
-class FixedPacketSizeStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co], Object, metaclass=ProtocolObjectMeta):
+class FixedPacketSizeStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
     __slots__ = ("__size",)
 
     def __init__(self, size: int, **kwargs: Any) -> None:

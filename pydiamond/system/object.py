@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Object", "ObjectMeta", "ProtocolObjectMeta", "final", "mro", "override"]
+__all__ = ["Object", "ObjectMeta", "final", "mro", "override"]
 
 from abc import ABCMeta
 from functools import cached_property, partialmethod
@@ -172,16 +172,6 @@ class ObjectMeta(ABCMeta):
 
 class Object(metaclass=ObjectMeta):
     __slots__ = ()
-
-
-from typing import _ProtocolMeta
-
-
-class ProtocolObjectMeta(_ProtocolMeta, ObjectMeta):
-    pass
-
-
-del _ProtocolMeta
 
 
 @overload

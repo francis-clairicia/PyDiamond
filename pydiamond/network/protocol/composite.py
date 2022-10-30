@@ -10,7 +10,6 @@ __all__ = ["NetworkProtocolComposite"]
 
 from typing import TypeVar, final
 
-from ...system.object import Object, ProtocolObjectMeta
 from ...system.utils.abc import concreteclass
 from .abc import NetworkPacketDeserializer, NetworkPacketSerializer, NetworkProtocol
 
@@ -19,7 +18,7 @@ _DT_co = TypeVar("_DT_co", covariant=True)
 
 
 @concreteclass
-class NetworkProtocolComposite(NetworkProtocol[_ST_contra, _DT_co], Object, metaclass=ProtocolObjectMeta):
+class NetworkProtocolComposite(NetworkProtocol[_ST_contra, _DT_co]):
     __slots__ = ("__s", "__d")
 
     def __init__(self, serializer: NetworkPacketSerializer[_ST_contra], deserializer: NetworkPacketDeserializer[_DT_co]) -> None:

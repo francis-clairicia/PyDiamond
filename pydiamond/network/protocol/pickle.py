@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from cryptography.fernet import Fernet, MultiFernet
     from pickle import _WritableFileobj, _ReadableFileobj
 
-from ...system.object import Object, ProtocolObjectMeta, final
+from ...system.object import final
 from ...system.utils.abc import concreteclass
 from .abc import ValidationError
 from .stream.abc import IncrementalDeserializeError, StreamNetworkProtocol
@@ -32,7 +32,7 @@ _DT_co = TypeVar("_DT_co", covariant=True)
 
 
 @concreteclass
-class PickleNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co], Object, metaclass=ProtocolObjectMeta):
+class PickleNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
     __slots__ = ()
 
     @final

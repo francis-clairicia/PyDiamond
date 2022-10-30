@@ -14,7 +14,9 @@ __all__ = [
 ]
 
 from abc import abstractmethod
-from typing import Protocol, TypeVar, runtime_checkable
+from typing import Generic, TypeVar
+
+from ...system.object import Object
 
 
 class ValidationError(Exception):
@@ -25,8 +27,7 @@ _ST_contra = TypeVar("_ST_contra", contravariant=True)
 _DT_co = TypeVar("_DT_co", covariant=True)
 
 
-@runtime_checkable
-class NetworkPacketSerializer(Protocol[_ST_contra]):
+class NetworkPacketSerializer(Generic[_ST_contra], Object):
     __slots__ = ()
 
     @abstractmethod
@@ -34,8 +35,7 @@ class NetworkPacketSerializer(Protocol[_ST_contra]):
         raise NotImplementedError
 
 
-@runtime_checkable
-class NetworkPacketDeserializer(Protocol[_DT_co]):
+class NetworkPacketDeserializer(Generic[_DT_co], Object):
     __slots__ = ()
 
     @abstractmethod
@@ -43,6 +43,5 @@ class NetworkPacketDeserializer(Protocol[_DT_co]):
         raise NotImplementedError
 
 
-@runtime_checkable
-class NetworkProtocol(NetworkPacketSerializer[_ST_contra], NetworkPacketDeserializer[_DT_co], Protocol[_ST_contra, _DT_co]):
+class NetworkProtocol(NetworkPacketSerializer[_ST_contra], NetworkPacketDeserializer[_DT_co], Generic[_ST_contra, _DT_co]):
     __slots__ = ()

@@ -17,7 +17,7 @@ __all__ = [
 # import zlib
 from typing import Any, Generic, TypeVar
 
-from ....system.object import ProtocolObjectMeta, final
+from ....system.object import final
 from ....system.utils.abc import concreteclass
 from ..abc import NetworkProtocol
 from ..stream.abc import AutoParsedStreamNetworkProtocol
@@ -29,7 +29,7 @@ _DT_co = TypeVar("_DT_co", covariant=True)
 # TODO: Do not use AutoParsedStreamNetworkProtocol
 
 
-class _BaseCompressor(metaclass=ProtocolObjectMeta):
+class _BaseCompressor:
     def __init__(self, *, compresslevel: int, **kwargs: Any) -> None:
         self.__compresslevel: int
         raise NotImplementedError

@@ -14,7 +14,7 @@ from typing import Generator, TypeVar
 
 from typing_extensions import assert_never
 
-from ...system.object import Object, ProtocolObjectMeta, final
+from ...system.object import final
 from ...system.utils.abc import concreteclass
 from .abc import ValidationError
 from .stream.abc import IncrementalDeserializeError, StreamNetworkProtocol
@@ -24,7 +24,7 @@ _DT_co = TypeVar("_DT_co", covariant=True)
 
 
 @concreteclass
-class JSONNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co], Object, metaclass=ProtocolObjectMeta):
+class JSONNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
     __slots__ = ("__e", "__d")
 
     def __init__(self, *, encoder: JSONEncoder | None = None, decoder: JSONDecoder | None = None) -> None:
