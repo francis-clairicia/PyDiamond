@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from copy import copy, deepcopy
+from io import IOBase
 from typing import TYPE_CHECKING, Any, Callable, Iterator
 
 from pydiamond.audio.music import Music, MusicStream
@@ -18,16 +19,6 @@ if TYPE_CHECKING:
 
     from ..mock.pygame.event import MockEventModule
     from ..mock.pygame.mixer import MockMixerModule, MockMixerMusicModule
-
-
-@pytest.fixture(scope="module", autouse=True)
-def do_not_encode_filepaths(module_mocker: MockerFixture) -> None:
-    """Filepaths are manually encoded via pygame.encode_file_path in order not to have UnicodeEncodeError
-    when calling pygame functions
-
-    We do not need it for this test suite
-    """
-    module_mocker.patch("pydiamond.audio.music.encode_file_path", lambda f: f)
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -52,6 +43,21 @@ def music_factory(music_filepath_factory: Callable[[str], str]) -> Callable[[str
         return Music(music_filepath_factory(music_path))
 
     return factory
+
+
+class MockMusicOpenIO(IOBase):
+    def __init__(self, filepath: str) -> None:
+        super().__init__()
+        self.__filepath: str = filepath
+
+    def __eq__(self, __o: object) -> bool:
+        if not isinstance(__o, MockMusicOpenIO):
+            return NotImplemented
+        return __o.__filepath == self.__filepath
+
+    @property
+    def name(self) -> str:
+        return self.__filepath
 
 
 class TestMusicObject:
@@ -158,6 +164,16 @@ class TestMusicObject:
 
 @pytest.mark.usefixtures("mock_pygame_mixer_music_module")
 class TestMusicStream:
+    @pytest.fixture(scope="class", autouse=True)
+    @staticmethod
+    def mock_music_open(monkeypatch_class: pytest.MonkeyPatch) -> None:
+        from contextlib import nullcontext
+
+        def mock_open(self: Music) -> Any:
+            return nullcontext(MockMusicOpenIO(self.filepath))
+
+        monkeypatch_class.setattr(Music, "open", mock_open)
+
     @pytest.fixture(autouse=True)
     @staticmethod
     def call_musicstream_stop_at_end(mock_pygame_event_module: Any) -> Iterator[None]:
@@ -177,7 +193,7 @@ class TestMusicStream:
         MusicStream.play(music_wav, repeat=10, fade_ms=30)
 
         # Assert
-        mock_pygame_mixer_music_module.load.assert_called_once_with(music_wav.filepath)
+        mock_pygame_mixer_music_module.load.assert_called_once_with(MockMusicOpenIO(music_wav.filepath), music_wav.namehint)
         mock_pygame_mixer_music_module.play.assert_called_once_with(loops=10, fade_ms=30)
 
     def test__play__ensure_to_stop_playback_before(
@@ -288,7 +304,11 @@ class TestMusicStream:
         MusicStream.queue(music2_wav, repeat=123)
 
         # Assert
-        mock_pygame_mixer_music_module.queue.assert_called_once_with(music2_wav.filepath, loops=123)
+        mock_pygame_mixer_music_module.queue.assert_called_once_with(
+            MockMusicOpenIO(music2_wav.filepath),
+            music2_wav.namehint,
+            loops=123,
+        )
 
     def test__queue__calls_MusicStream_play_if_not_busy(
         self,
@@ -343,6 +363,16 @@ class TestMusicStream:
 @pytest.mark.functional
 @pytest.mark.usefixtures("mock_pygame_event_module", "mock_pygame_mixer_module")
 class TestMusicStreamFunctional:
+    @pytest.fixture(scope="class", autouse=True)
+    @staticmethod
+    def mock_music_open(monkeypatch_class: pytest.MonkeyPatch) -> None:
+        from contextlib import nullcontext
+
+        def mock_open(self: Music) -> Any:
+            return nullcontext(MockMusicOpenIO(self.filepath))
+
+        monkeypatch_class.setattr(Music, "open", mock_open)
+
     @pytest.fixture(autouse=True)
     @staticmethod
     def call_musicstream_stop_at_end(
@@ -454,7 +484,11 @@ class TestMusicStreamFunctional:
         music2_wav.queue(repeat=2)
         music3_wav.queue(repeat=4)
         music4_wav.queue()  # repeat == 0
-        mock_pygame_mixer_music_module.queue.assert_called_once_with(music2_wav.filepath, loops=2)
+        mock_pygame_mixer_music_module.queue.assert_called_once_with(
+            MockMusicOpenIO(music2_wav.filepath),
+            music2_wav.namehint,
+            loops=2,
+        )
 
         assert MusicStream.get_music() is music1_wav
         assert MusicStream.get_queue() == [music2_wav, music3_wav, music4_wav]
@@ -470,7 +504,11 @@ class TestMusicStreamFunctional:
         # this event will be caught by Window and sent to MusicStream...
         assert MusicStream._handle_event(mixer_music_endevent)
         # We can then queue the next song in the mixer.music stream
-        mock_pygame_mixer_music_module.queue.assert_called_once_with(music3_wav.filepath, loops=4)
+        mock_pygame_mixer_music_module.queue.assert_called_once_with(
+            MockMusicOpenIO(music3_wav.filepath),
+            music3_wav.namehint,
+            loops=4,
+        )
         assert mixer_music_endevent.finished is music1_wav
         assert mixer_music_endevent.next is music2_wav
         # Load/play the next is performed by pygame.mixer.music module, so there is no need to call load and play
@@ -484,7 +522,11 @@ class TestMusicStreamFunctional:
 
         # music2_wav ends playing, same scenario:
         assert MusicStream._handle_event(mixer_music_endevent)
-        mock_pygame_mixer_music_module.queue.assert_called_once_with(music4_wav.filepath, loops=0)
+        mock_pygame_mixer_music_module.queue.assert_called_once_with(
+            MockMusicOpenIO(music4_wav.filepath),
+            music4_wav.namehint,
+            loops=0,
+        )
         assert mixer_music_endevent.finished is music2_wav
         assert mixer_music_endevent.next is music3_wav
         mock_pygame_mixer_music_module.load.assert_not_called()

@@ -56,7 +56,9 @@ class SoundLoader(AbstractResourceLoader[Sound]):
     __slots__ = ()
 
     def load(self) -> Sound:
-        return Sound(file=self.filepath)
+        from pygame import encode_file_path
+
+        return Sound(file=encode_file_path(self.filepath))
 
 
 class FontLoader(AbstractResourceLoader[FontFactory]):

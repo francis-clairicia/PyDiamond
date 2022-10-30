@@ -20,12 +20,13 @@ from __future__ import annotations
 __all__ = ["Music", "MusicStream"]
 
 from collections import deque
+from contextlib import ExitStack
 from dataclasses import dataclass, field
-from typing import Final
+from os.path import basename
+from typing import BinaryIO, ContextManager, Final
 from weakref import WeakValueDictionary
 
 import pygame.mixer as _pg_mixer
-from pygame import encode_file_path
 from pygame.event import Event as _PygameEvent
 from pygame.mixer import music as _pg_music
 
@@ -57,7 +58,8 @@ class Music(NonCopyable):
         return self
 
     def __repr__(self) -> str:
-        return f"<{type(self).__name__} {self.filepath!r}>"
+        self.__f: str
+        return f"<{type(self).__name__} {self.__f!r}>"
 
     def play(self, *, repeat: int = 0, fade_ms: int = 0) -> None:
         """Start the playback of the music stream
@@ -73,11 +75,18 @@ class Music(NonCopyable):
         """
         MusicStream.queue(self, repeat=repeat)
 
+    def open(self) -> ContextManager[BinaryIO]:
+        return open(self.__f, "rb")
+
     @property
     def filepath(self, /) -> str:
         """Absolute path to the music file"""
-        self.__f: str
         return self.__f
+
+    @property
+    def namehint(self) -> str:
+        """Music filename"""
+        return basename(self.__f)
 
 
 @final
@@ -97,6 +106,7 @@ class MusicStream(ClassNamespace, frozen=True):
 
     __queue: deque[_MusicPayload] = deque()
     __playing: _PlayingMusic = _PlayingMusic()
+    __fp: dict[Music, ExitStack] = {}
 
     @staticmethod
     def play(music: Music, *, repeat: int = 0, fade_ms: int = 0) -> None:
@@ -124,8 +134,10 @@ class MusicStream(ClassNamespace, frozen=True):
                 played_music.repeat = repeat
             return
         MusicStream.__playing.payload = None
-        MusicStream.stop()
-        _pg_music.load(encode_file_path(music.filepath))
+        MusicStream.stop(unload=True)
+        with ExitStack() as exit_stack:
+            _pg_music.load(exit_stack.enter_context(music.open()), music.namehint)
+            MusicStream.__fp[music] = exit_stack.pop_all()
         _pg_music.play(loops=repeat, fade_ms=fade_ms)
         MusicStream.__playing.payload = _MusicPayload(music, repeat=repeat)
 
@@ -136,8 +148,6 @@ class MusicStream(ClassNamespace, frozen=True):
         Stops the music playback if it is currently playing. MUSICEND event will NOT be triggered.
         It will not unload the music unless 'unload' argument is True.
         """
-        queue: deque[_MusicPayload] = MusicStream.__queue
-        queue.clear()
         played_music: _MusicPayload | None = MusicStream.__playing.payload
         if played_music is not None:
             played_music.repeat = 0
@@ -146,10 +156,16 @@ class MusicStream(ClassNamespace, frozen=True):
         if unload:
             MusicStream.__playing.stopped = None
         MusicStream.__playing.fadeout = False
-        if _pg_mixer.get_init():
-            _pg_music.stop()
+        try:
+            if _pg_mixer.get_init():
+                _pg_music.stop()
+                if unload:
+                    _pg_music.unload()
+        finally:
             if unload:
-                _pg_music.unload()
+                MusicStream.__clear_all_resources()
+            else:
+                MusicStream.__clear_queue()
 
     @staticmethod
     def get_music() -> Music | None:
@@ -218,10 +234,11 @@ class MusicStream(ClassNamespace, frozen=True):
         no effect during this time.
         MUSICEND event will be triggered after the music has faded.
         """
-        queue: deque[_MusicPayload] = MusicStream.__queue
-        queue.clear()
         MusicStream.__playing.fadeout = True
-        return _pg_music.fadeout(milliseconds)
+        try:
+            return _pg_music.fadeout(milliseconds)
+        finally:
+            MusicStream.__clear_queue()
 
     @staticmethod
     def get_volume() -> float:
@@ -265,7 +282,7 @@ class MusicStream(ClassNamespace, frozen=True):
             raise ValueError("The playing music loops infinitely, queued musics will not be set")
         queue: deque[_MusicPayload] = MusicStream.__queue
         if not queue:
-            _pg_music.queue(encode_file_path(music.filepath), loops=repeat)
+            MusicStream.__set_pygame_music_queue(music, repeat)
         queue.append(_MusicPayload(music, repeat=repeat))
 
     @staticmethod
@@ -279,6 +296,7 @@ class MusicStream(ClassNamespace, frozen=True):
         played_music: _MusicPayload | None = MusicStream.__playing.payload
         if played_music is None:
             return False
+        MusicStream.__free_up_resource(played_music.music)
         next_music: Music | None
         if MusicStream.__playing.fadeout:
             MusicStream.__playing.fadeout = False
@@ -296,13 +314,58 @@ class MusicStream(ClassNamespace, frozen=True):
                 MusicStream.__playing.payload = payload = queue.popleft()
                 next_music = payload.music
                 if queue:
-                    _pg_music.queue(encode_file_path(queue[0].music.filepath), loops=queue[0].repeat)
+                    MusicStream.__set_pygame_music_queue(queue[0].music, queue[0].repeat)
         setattr(event, "finished", played_music.music)
         setattr(event, "next", next_music)
         return True
+
+    @staticmethod
+    def __set_pygame_music_queue(music: Music, repeat: int) -> None:
+        with ExitStack() as exit_stack:
+            _pg_music.queue(exit_stack.enter_context(music.open()), music.namehint, loops=repeat)
+            MusicStream.__fp[music] = exit_stack.pop_all()
+
+    @staticmethod
+    def __free_up_resource(music: Music) -> None:
+        try:
+            stack = MusicStream.__fp.pop(music)
+        except KeyError:
+            pass
+        else:
+            stack.close()
+
+    @staticmethod
+    def __clear_queue() -> None:
+        queue: deque[_MusicPayload] = MusicStream.__queue
+        fp_dict = MusicStream.__fp
+        with ExitStack() as stack:
+            stack.callback(queue.clear)
+            for fp_stack in filter(None, map(lambda p: fp_dict.pop(p.music, None), queue)):
+                stack.enter_context(fp_stack)
+
+    @staticmethod
+    def __clear_all_resources() -> None:
+        queue: deque[_MusicPayload] = MusicStream.__queue
+        fp_dict = MusicStream.__fp
+        with ExitStack() as stack:
+            stack.callback(queue.clear)
+            for music, fp_stack in fp_dict.items():
+                stack.callback(fp_dict.__delitem__, music)
+                stack.enter_context(fp_stack)
 
 
 @dataclass
 class _MusicPayload:
     music: Music
     repeat: int = field(kw_only=True)
+
+
+import atexit
+from functools import partial
+
+from ..system.utils.os import register_at_fork_if_applicable
+
+atexit.register(MusicStream.stop, unload=True)
+register_at_fork_if_applicable(after_in_child=partial(MusicStream.stop, unload=True))
+
+del atexit, register_at_fork_if_applicable, partial
