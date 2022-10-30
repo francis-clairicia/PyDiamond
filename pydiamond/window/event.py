@@ -216,11 +216,12 @@ class _BuiltinEventMeta(EventMeta):
         except NameError:
             return super().__new__(mcs, name, bases, namespace, **kwargs)
 
-        dict_associations: Final[dict[type[Event], int]] = _BUILTIN_ASSOCIATIONS  # noqa: F821
-        dict_type: Final[dict[int, type[Event]]] = _BUILTIN_PYGAME_EVENT_TYPE  # noqa: F821
+        try:
+            dict_associations: Final[dict[type[Event], int]] = _BUILTIN_ASSOCIATIONS  # noqa: F821
+            dict_type: Final[dict[int, type[Event]]] = _BUILTIN_PYGAME_EVENT_TYPE  # noqa: F821
+        except NameError:
+            raise TypeError("Trying to create custom event from BuiltinEvent class") from None
 
-        if all(event_type in dict_type for event_type in BuiltinEventType):
-            raise TypeError("Trying to create custom event from BuiltinEvent class")
         assert len(bases) == 1 and issubclass(bases[0], BuiltinEvent)
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
         assert not cls.is_model()
@@ -328,6 +329,10 @@ class BuiltinEventType(IntEnum):
     JOYDEVICEREMOVED = _pg_constants.JOYDEVICEREMOVED
     AUDIODEVICEADDED = _pg_constants.AUDIODEVICEADDED
     AUDIODEVICEREMOVED = _pg_constants.AUDIODEVICEREMOVED
+    FINGERMOTION = _pg_constants.FINGERMOTION
+    FINGERUP = _pg_constants.FINGERUP
+    FINGERDOWN = _pg_constants.FINGERDOWN
+    MULTIGESTURE = _pg_constants.MULTIGESTURE
     TEXTEDITING = _pg_constants.TEXTEDITING
     TEXTINPUT = _pg_constants.TEXTINPUT
     DROPBEGIN = _pg_constants.DROPBEGIN
@@ -347,7 +352,9 @@ class BuiltinEventType(IntEnum):
     WINDOWLEAVE = _pg_constants.WINDOWLEAVE
     WINDOWFOCUSGAINED = _pg_constants.WINDOWFOCUSGAINED
     WINDOWFOCUSLOST = _pg_constants.WINDOWFOCUSLOST
+    WINDOWCLOSE = _pg_constants.WINDOWCLOSE
     WINDOWTAKEFOCUS = _pg_constants.WINDOWTAKEFOCUS
+    WINDOWHITTEST = _pg_constants.WINDOWHITTEST
 
     # PyDiamond's events
     MUSICEND = auto()
@@ -403,6 +410,8 @@ class KeyDownEvent(BuiltinEvent, event_type=BuiltinEventType.KEYDOWN):
 class KeyUpEvent(BuiltinEvent, event_type=BuiltinEventType.KEYUP):
     key: int
     mod: int
+    unicode: str
+    scancode: int
 
 
 KeyEvent: TypeAlias = KeyDownEvent | KeyUpEvent
@@ -413,6 +422,7 @@ KeyEvent: TypeAlias = KeyDownEvent | KeyUpEvent
 class MouseButtonDownEvent(BuiltinEvent, event_type=BuiltinEventType.MOUSEBUTTONDOWN):
     pos: tuple[int, int]
     button: int
+    touch: bool
 
 
 @final
@@ -420,6 +430,7 @@ class MouseButtonDownEvent(BuiltinEvent, event_type=BuiltinEventType.MOUSEBUTTON
 class MouseButtonUpEvent(BuiltinEvent, event_type=BuiltinEventType.MOUSEBUTTONUP):
     pos: tuple[int, int]
     button: int
+    touch: bool
 
 
 MouseButtonEvent: TypeAlias = MouseButtonDownEvent | MouseButtonUpEvent
@@ -431,6 +442,7 @@ class MouseMotionEvent(BuiltinEvent, event_type=BuiltinEventType.MOUSEMOTION):
     pos: tuple[int, int]
     rel: tuple[int, int]
     buttons: tuple[bool, bool, bool]
+    touch: bool
 
     def __post_init__(self) -> None:
         setattr(self, "buttons", tuple(map(bool, self.buttons)))
@@ -442,6 +454,7 @@ class MouseWheelEvent(BuiltinEvent, event_type=BuiltinEventType.MOUSEWHEEL):
     flipped: bool
     x: int
     y: int
+    touch: bool
 
     def __post_init__(self) -> None:
         self.flipped = bool(self.flipped)
@@ -533,6 +546,50 @@ class AudioDeviceRemovedEvent(BuiltinEvent, event_type=BuiltinEventType.AUDIODEV
 
     def __post_init__(self) -> None:
         self.iscapture = bool(self.iscapture)
+
+
+@final
+@dataclass(kw_only=True)
+class FingerMotionEvent(BuiltinEvent, event_type=BuiltinEventType.FINGERMOTION):
+    touch_id: int
+    finger_id: int
+    x: float
+    y: float
+    dx: float
+    dy: float
+
+
+@final
+@dataclass(kw_only=True)
+class FingerUpEvent(BuiltinEvent, event_type=BuiltinEventType.FINGERUP):
+    touch_id: int
+    finger_id: int
+    x: float
+    y: float
+    dx: float
+    dy: float
+
+
+@final
+@dataclass(kw_only=True)
+class FingerDownEvent(BuiltinEvent, event_type=BuiltinEventType.FINGERDOWN):
+    touch_id: int
+    finger_id: int
+    x: float
+    y: float
+    dx: float
+    dy: float
+
+
+@final
+@dataclass(kw_only=True)
+class MultiGestureEvent(BuiltinEvent, event_type=BuiltinEventType.MULTIGESTURE):
+    touch_id: int
+    x: float
+    y: float
+    pinched: bool
+    rotated: bool
+    num_fingers: int
 
 
 @final
@@ -659,7 +716,19 @@ class WindowFocusLostEvent(BuiltinEvent, event_type=BuiltinEventType.WINDOWFOCUS
 
 @final
 @dataclass(kw_only=True)
+class WindowCloseEvent(BuiltinEvent, event_type=BuiltinEventType.WINDOWCLOSE):
+    pass
+
+
+@final
+@dataclass(kw_only=True)
 class WindowTakeFocusEvent(BuiltinEvent, event_type=BuiltinEventType.WINDOWTAKEFOCUS):
+    pass
+
+
+@final
+@dataclass(kw_only=True)
+class WindowHitTestEvent(BuiltinEvent, event_type=BuiltinEventType.WINDOWHITTEST):
     pass
 
 
