@@ -8,7 +8,7 @@ from __future__ import annotations
 
 __all__ = ["Label"]
 
-from typing import TYPE_CHECKING, Any, Literal, TypeAlias
+from typing import TYPE_CHECKING, Any, Literal
 
 from ...graphics.color import BLACK
 from ...graphics.text import TextImage as _TextImage
@@ -17,14 +17,11 @@ from .abc import Widget
 if TYPE_CHECKING:
     from ...audio.sound import Sound
     from ...graphics.color import Color
-    from ...graphics.font import Font
+    from ...graphics.font import _TextFont
     from ...graphics.surface import Surface
     from ...system.theme import ThemeType
     from ...window.cursor import Cursor
     from .abc import AbstractWidget, WidgetsManager
-
-    _TupleFont: TypeAlias = tuple[str | None, float]
-    _TextFont: TypeAlias = Font | _TupleFont
 
 
 class Label(Widget, _TextImage):

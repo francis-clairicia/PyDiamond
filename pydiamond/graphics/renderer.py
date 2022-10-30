@@ -24,11 +24,8 @@ from ..system.utils.typing import reflect_method_signature
 if TYPE_CHECKING:
     from pygame._common import _CanBeRect, _ColorValue, _Coordinate, _RectValue  # pyright: reportMissingModuleSource=false
 
-    from .font import Font
+    from .font import _TextFont
     from .surface import Surface
-
-    _TupleFont: TypeAlias = tuple[str | None, float]
-    _TextFont: TypeAlias = Font | _TupleFont
 
 
 RendererAnchor: TypeAlias = Literal[

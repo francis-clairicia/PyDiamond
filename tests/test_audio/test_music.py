@@ -7,6 +7,8 @@ from io import IOBase
 from typing import TYPE_CHECKING, Any, Callable, Iterator
 
 from pydiamond.audio.music import Music, MusicStream
+from pydiamond.resources.abc import Resource
+from pydiamond.resources.file import FileResource
 
 import pygame
 import pytest
@@ -46,18 +48,18 @@ def music_factory(music_filepath_factory: Callable[[str], str]) -> Callable[[str
 
 
 class MockMusicOpenIO(IOBase):
-    def __init__(self, filepath: str) -> None:
+    def __init__(self, resource: Resource) -> None:
         super().__init__()
-        self.__filepath: str = filepath
+        self.__resource: Resource = resource
 
     def __eq__(self, __o: object) -> bool:
         if not isinstance(__o, MockMusicOpenIO):
             return NotImplemented
-        return __o.__filepath == self.__filepath
+        return __o.__resource == self.__resource
 
     @property
     def name(self) -> str:
-        return self.__filepath
+        return self.__resource.name
 
 
 class TestMusicObject:
@@ -74,7 +76,7 @@ class TestMusicObject:
         music = Music(expected_filepath)
 
         # Assert
-        assert music.filepath == expected_filepath
+        assert music.resource == FileResource(expected_filepath)
 
     def test__init__relative_filepath(
         self,
@@ -93,7 +95,7 @@ class TestMusicObject:
         music = Music(relative_filepath)
 
         # Assert
-        assert music.filepath == expected_filepath
+        assert music.resource == FileResource(expected_filepath)
 
     def test__play__calls_MusicStream_play_method(
         self,
@@ -170,7 +172,7 @@ class TestMusicStream:
         from contextlib import nullcontext
 
         def mock_open(self: Music) -> Any:
-            return nullcontext(MockMusicOpenIO(self.filepath))
+            return nullcontext(MockMusicOpenIO(self.resource))
 
         monkeypatch_class.setattr(Music, "open", mock_open)
 
@@ -193,7 +195,7 @@ class TestMusicStream:
         MusicStream.play(music_wav, repeat=10, fade_ms=30)
 
         # Assert
-        mock_pygame_mixer_music_module.load.assert_called_once_with(MockMusicOpenIO(music_wav.filepath), music_wav.namehint)
+        mock_pygame_mixer_music_module.load.assert_called_once_with(MockMusicOpenIO(music_wav.resource), music_wav.name)
         mock_pygame_mixer_music_module.play.assert_called_once_with(loops=10, fade_ms=30)
 
     def test__play__ensure_to_stop_playback_before(
@@ -305,8 +307,8 @@ class TestMusicStream:
 
         # Assert
         mock_pygame_mixer_music_module.queue.assert_called_once_with(
-            MockMusicOpenIO(music2_wav.filepath),
-            music2_wav.namehint,
+            MockMusicOpenIO(music2_wav.resource),
+            music2_wav.name,
             loops=123,
         )
 
@@ -369,7 +371,7 @@ class TestMusicStreamFunctional:
         from contextlib import nullcontext
 
         def mock_open(self: Music) -> Any:
-            return nullcontext(MockMusicOpenIO(self.filepath))
+            return nullcontext(MockMusicOpenIO(self.resource))
 
         monkeypatch_class.setattr(Music, "open", mock_open)
 
@@ -485,8 +487,8 @@ class TestMusicStreamFunctional:
         music3_wav.queue(repeat=4)
         music4_wav.queue()  # repeat == 0
         mock_pygame_mixer_music_module.queue.assert_called_once_with(
-            MockMusicOpenIO(music2_wav.filepath),
-            music2_wav.namehint,
+            MockMusicOpenIO(music2_wav.resource),
+            music2_wav.name,
             loops=2,
         )
 
@@ -505,8 +507,8 @@ class TestMusicStreamFunctional:
         assert MusicStream._handle_event(mixer_music_endevent)
         # We can then queue the next song in the mixer.music stream
         mock_pygame_mixer_music_module.queue.assert_called_once_with(
-            MockMusicOpenIO(music3_wav.filepath),
-            music3_wav.namehint,
+            MockMusicOpenIO(music3_wav.resource),
+            music3_wav.name,
             loops=4,
         )
         assert mixer_music_endevent.finished is music1_wav
@@ -523,8 +525,8 @@ class TestMusicStreamFunctional:
         # music2_wav ends playing, same scenario:
         assert MusicStream._handle_event(mixer_music_endevent)
         mock_pygame_mixer_music_module.queue.assert_called_once_with(
-            MockMusicOpenIO(music4_wav.filepath),
-            music4_wav.namehint,
+            MockMusicOpenIO(music4_wav.resource),
+            music4_wav.name,
             loops=0,
         )
         assert mixer_music_endevent.finished is music2_wav

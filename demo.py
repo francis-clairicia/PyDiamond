@@ -60,8 +60,9 @@ from pydiamond.gui.widgets.image import Image as ImageWidget
 from pydiamond.gui.widgets.label import Label
 from pydiamond.gui.widgets.scale import ScaleBar
 from pydiamond.gui.widgets.scroll import ScrollBar, ScrollingContainer
-from pydiamond.resource.loader import FontLoader, ImageLoader, MusicLoader, SoundLoader
-from pydiamond.resource.manager import ResourceManager
+from pydiamond.resources.loader import FontLoader, ImageLoader, MusicLoader, SoundLoader
+from pydiamond.resources.manager import ResourceManager
+from pydiamond.resources.package import ResourcesPackage
 from pydiamond.system.clock import Clock
 from pydiamond.system.time import Time
 from pydiamond.window.display import Window, WindowCallback
@@ -427,8 +428,9 @@ class ImagesResources(ResourceManager, autoload=True):
     cross: Mapping[str, Surface]
     autumn_tree: Surface
     __resource_loader__ = ImageLoader
-    # __resources_directory__ = "./demo_resources/img"
-    __resources_directory__ = Path(".") / "demo_resources" / "img"
+    # __resources_location__ = "./demo_resources/img"
+    # __resources_location__ = Path(".") / "demo_resources" / "img"
+    __resources_location__ = ResourcesPackage("demo_resources.img")
     __resources_files__ = {
         "cactus": Path("cactus.png"),
         "car": [f"gameplay/voiture_7/{i + 1}.png" for i in range(10)],
@@ -443,7 +445,7 @@ class ImagesResources(ResourceManager, autoload=True):
 class FontResources(ResourceManager, autoload=True):
     cooperblack: FontFactory
     __resource_loader__ = FontLoader
-    __resources_directory__ = "./demo_resources/fonts"
+    __resources_location__ = "./demo_resources/fonts"
     __resources_files__ = {"cooperblack": "COOPBL.ttf"}
 
 
@@ -1186,7 +1188,8 @@ class MusicManager(ResourceManager, autoload=True):
     garage: Music
     gameplay: Music
     __resource_loader__ = MusicLoader
-    __resources_directory__ = "./demo_resources/sounds"
+    # __resources_location__ = "./demo_resources/sounds"
+    __resources_location__ = ResourcesPackage("demo_resources.sounds")
     __resources_files__ = {"menu": "menu.wav", "garage": "garage.wav", "gameplay": "gameplay.wav"}
 
 
@@ -1195,7 +1198,7 @@ class SoundManager(ResourceManager, autoload=True):
     validate: Sound
     block: Sound
     __resource_loader__ = SoundLoader
-    __resources_directory__ = "./demo_resources/sounds"
+    __resources_location__ = "./demo_resources/sounds"
     __resources_files__ = {"select": "sfx-menu-select.wav", "validate": "sfx-menu-validate.wav", "block": "sfx-menu-block.wav"}
 
 

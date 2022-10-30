@@ -27,12 +27,9 @@ from .abc import AbstractWidget, Widget, WidgetsManager, WidgetState
 
 if TYPE_CHECKING:
     from ...audio.sound import Sound
-    from ...graphics.font import Font
+    from ...graphics.font import _TextFont
     from ...graphics.renderer import AbstractRenderer
     from ...window.cursor import Cursor
-
-    _TupleFont: TypeAlias = tuple[str | None, float]
-    _TextFont: TypeAlias = Font | _TupleFont
 
 
 @TextImage.register_themed_subclass

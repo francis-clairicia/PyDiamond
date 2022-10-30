@@ -9,7 +9,7 @@ from __future__ import annotations
 __all__ = ["Entry"]
 
 from string import printable as ASCII_PRINTABLE
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Literal, Sequence, TypeAlias
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Literal, Sequence
 from weakref import WeakMethod
 
 from ...graphics.color import BLACK, BLUE, TRANSPARENT, WHITE, Color
@@ -27,10 +27,8 @@ from .abc import AbstractWidget, Widget, WidgetsManager
 
 if TYPE_CHECKING:
     from ...audio.sound import Sound
+    from ...graphics.font import _TextFont
     from ...graphics.renderer import AbstractRenderer
-
-    _TupleFont: TypeAlias = tuple[str | None, float]
-    _TextFont: TypeAlias = Font | _TupleFont
 
 
 class Entry(Widget, metaclass=ThemedObjectMeta):

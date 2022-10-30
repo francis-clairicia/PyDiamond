@@ -10,7 +10,7 @@ __all__ = ["ProgressBar", "ProgressBarOrient", "ProgressBarTextSide"]
 
 from dataclasses import dataclass
 from enum import auto, unique
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeAlias
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from pygame.transform import rotozoom as _surface_rotozoom
 from typing_extensions import assert_never
@@ -28,11 +28,8 @@ from .text import Text
 from .transformable import Transformable
 
 if TYPE_CHECKING:
-    from .font import Font
+    from .font import _TextFont
     from .renderer import AbstractRenderer
-
-    _TupleFont: TypeAlias = tuple[str | None, float]
-    _TextFont: TypeAlias = Font | _TupleFont
 
 
 _NO_DEFAULT: Any = object()

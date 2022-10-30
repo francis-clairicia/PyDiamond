@@ -11,11 +11,12 @@ __all__ = [
     "SurfaceRenderer",
     "create_surface",
     "load_image",
+    "load_image_resource",
     "save_image",
 ]
 
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Iterable, Iterator, Literal, Sequence, TypeAlias, overload
+from typing import TYPE_CHECKING, Any, Iterable, Iterator, Literal, Sequence, overload
 
 import pygame.image as _pg_image
 from pygame import encode_file_path
@@ -40,8 +41,8 @@ from .renderer import AbstractRenderer, BlendMode, RendererAnchor
 if TYPE_CHECKING:
     from pygame._common import _CanBeRect, _ColorValue, _Coordinate, _RectValue  # pyright: reportMissingModuleSource=false
 
-_TupleFont: TypeAlias = tuple[str | None, float]
-_TextFont: TypeAlias = Font | _TupleFont
+    from ..resources.abc import Resource
+    from .font import _TextFont
 
 
 def create_surface(size: tuple[float, float], *, convert_alpha: bool = True, default_color: _ColorValue = TRANSPARENT) -> Surface:
@@ -57,6 +58,14 @@ def create_surface(size: tuple[float, float], *, convert_alpha: bool = True, def
 
 def load_image(file: str, convert: bool = True) -> Surface:
     image: Surface = _pg_image.load(encode_file_path(file))
+    if convert:
+        return image.convert_alpha()
+    return image
+
+
+def load_image_resource(resource: Resource, convert: bool = True) -> Surface:
+    with resource.open() as fp:
+        image: Surface = _pg_image.load(fp, resource.name)
     if convert:
         return image.convert_alpha()
     return image

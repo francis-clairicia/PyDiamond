@@ -11,7 +11,7 @@ __all__ = ["Text", "TextImage"]
 from collections import deque
 from enum import auto, unique
 from textwrap import wrap as textwrap
-from typing import Any, ClassVar, Final, Mapping, TypeAlias, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Mapping, overload
 from weakref import proxy as weakproxy
 
 from pygame.transform import rotozoom as _surface_rotozoom
@@ -32,8 +32,8 @@ from .renderer import AbstractRenderer
 from .surface import Surface, SurfaceRenderer, create_surface
 from .transformable import Transformable
 
-_TupleFont: TypeAlias = tuple[str | None, float]
-_TextFont: TypeAlias = Font | _TupleFont
+if TYPE_CHECKING:
+    from .font import _TextFont
 
 
 class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):

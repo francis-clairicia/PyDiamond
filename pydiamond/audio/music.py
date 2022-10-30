@@ -22,7 +22,7 @@ __all__ = ["Music", "MusicStream"]
 from collections import deque
 from contextlib import ExitStack
 from dataclasses import dataclass, field
-from os.path import basename
+from os import PathLike
 from typing import BinaryIO, ContextManager, Final
 from weakref import WeakValueDictionary
 
@@ -30,10 +30,11 @@ import pygame.mixer as _pg_mixer
 from pygame.event import Event as _PygameEvent
 from pygame.mixer import music as _pg_music
 
+from ..resources.abc import Resource
+from ..resources.file import FileResource
 from ..system.namespace import ClassNamespace
 from ..system.non_copyable import NonCopyable
 from ..system.object import final
-from ..system.path import set_constant_file
 from ..system.utils.itertools import prepend
 
 
@@ -45,21 +46,22 @@ class Music(NonCopyable):
     There is only one attribute :filepath: which is the absolute path to the music file
     """
 
-    __slots__ = ("__f", "__weakref__")
-    __cache: Final[WeakValueDictionary[str, Music]] = WeakValueDictionary()
+    __slots__ = ("__resource", "__weakref__")
+    __cache: Final[WeakValueDictionary[Resource, Music]] = WeakValueDictionary()
 
-    def __new__(cls, filepath: str) -> Music:
-        filepath = set_constant_file(filepath, relative_to_cwd=True)
+    def __new__(cls, resource: str | bytes | PathLike[str] | PathLike[bytes] | Resource) -> Music:
+        if not isinstance(resource, Resource):
+            resource = FileResource(resource)
         try:
-            self = cls.__cache[filepath]
+            self = cls.__cache[resource]
         except KeyError:
-            cls.__cache[filepath] = self = super().__new__(cls)
-            self.__f = filepath
+            cls.__cache[resource] = self = super().__new__(cls)
+            self.__resource = resource
         return self
 
     def __repr__(self) -> str:
-        self.__f: str
-        return f"<{type(self).__name__} {self.__f!r}>"
+        self.__resource: Resource
+        return f"<{type(self).__name__} {self.__resource!r}>"
 
     def play(self, *, repeat: int = 0, fade_ms: int = 0) -> None:
         """Start the playback of the music stream
@@ -76,17 +78,17 @@ class Music(NonCopyable):
         MusicStream.queue(self, repeat=repeat)
 
     def open(self) -> ContextManager[BinaryIO]:
-        return open(self.__f, "rb")
+        return self.__resource.open()
 
     @property
-    def filepath(self, /) -> str:
-        """Absolute path to the music file"""
-        return self.__f
+    def resource(self, /) -> Resource:
+        """Resource object representing music file"""
+        return self.__resource
 
     @property
-    def namehint(self) -> str:
-        """Music filename"""
-        return basename(self.__f)
+    def name(self) -> str:
+        """Music name"""
+        return self.__resource.name
 
 
 @final
@@ -136,7 +138,7 @@ class MusicStream(ClassNamespace, frozen=True):
         MusicStream.__playing.payload = None
         MusicStream.stop(unload=True)
         with ExitStack() as exit_stack:
-            _pg_music.load(exit_stack.enter_context(music.open()), music.namehint)
+            _pg_music.load(exit_stack.enter_context(music.open()), music.name)
             MusicStream.__fp[music] = exit_stack.pop_all()
         _pg_music.play(loops=repeat, fade_ms=fade_ms)
         MusicStream.__playing.payload = _MusicPayload(music, repeat=repeat)
@@ -322,7 +324,7 @@ class MusicStream(ClassNamespace, frozen=True):
     @staticmethod
     def __set_pygame_music_queue(music: Music, repeat: int) -> None:
         with ExitStack() as exit_stack:
-            _pg_music.queue(exit_stack.enter_context(music.open()), music.namehint, loops=repeat)
+            _pg_music.queue(exit_stack.enter_context(music.open()), music.name, loops=repeat)
             MusicStream.__fp[music] = exit_stack.pop_all()
 
     @staticmethod

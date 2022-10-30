@@ -8,14 +8,16 @@ from __future__ import annotations
 
 __all__ = ["ResourceManager", "ResourceManagerMeta"]
 
+from collections import ChainMap
 from contextlib import suppress
 from os import PathLike, fspath
-from os.path import join
 from types import MappingProxyType
 from typing import AbstractSet, Any, Callable, Mapping, NoReturn, Sequence, TypeAlias, final
 
 from ..system.namespace import ClassNamespace, ClassNamespaceMeta
-from ..system.path import set_constant_directory
+from ..system.object import mro
+from .abc import Resource, ResourcesLocation
+from .file import ResourcesDirectory
 from .loader import AbstractResourceLoader
 
 _ResourcePath: TypeAlias = str | PathLike[str] | Sequence["_ResourcePath"] | Mapping[Any, "_ResourcePath"]  # type: ignore[misc]
@@ -24,14 +26,15 @@ _ResourceLoader: TypeAlias = AbstractResourceLoader[Any] | tuple["_ResourceLoade
 
 class _ResourceDescriptor:
     def __init__(
-        self, path: _ResourcePath, loader: Callable[[str], AbstractResourceLoader[Any]], directory: str | None = None
+        self,
+        path: _ResourcePath,
+        loader: Callable[[Resource], AbstractResourceLoader[Any]],
+        location: ResourcesLocation,
     ) -> None:
         def get_resources_loader(path: _ResourcePath) -> _ResourceLoader:
             if isinstance(path, (str, PathLike)):
                 path = fspath(path)
-                if isinstance(directory, str):
-                    path = join(directory, path)
-                resource_loader: AbstractResourceLoader[Any] = loader(path)
+                resource_loader: AbstractResourceLoader[Any] = loader(location.get_resource(path))
                 self.__nb_resources += 1
                 return resource_loader
             if isinstance(path, (list, tuple, set, frozenset, Sequence, AbstractSet)):
@@ -108,10 +111,12 @@ class ResourceManagerMeta(ClassNamespaceMeta):
         autoload: bool = False,
         **kwargs: Any,
     ) -> ResourceManagerMeta:
-        resources: dict[str, Any] = namespace.setdefault("__resources_files__", dict())
+        namespace_including_bases: ChainMap[str, Any] = ChainMap(namespace, *map(vars, mro(*bases)))
 
-        annotations: dict[str, type | str] = dict(namespace.get("__annotations__", dict()))
-        for attr_name in ["__resources_files__", "__resources_directory__", "__resource_loader__"]:
+        resources: dict[str, Any] = namespace_including_bases.setdefault("__resources_files__", dict())
+
+        annotations: dict[str, type | str] = dict(namespace_including_bases.get("__annotations__", dict()))
+        for attr_name in ["__resources_files__", "__resources_location__", "__resource_loader__"]:
             annotations.pop(attr_name, None)
         for attr_name in annotations:
             if attr_name not in resources:
@@ -120,17 +125,19 @@ class ResourceManagerMeta(ClassNamespaceMeta):
             if attr_name not in annotations:
                 raise KeyError(f"Missing {attr_name!r} annotation")
 
-        directory: str | PathLike[str] | None = namespace.get("__resources_directory__")
-        if directory is not None:
-            directory = set_constant_directory(fspath(directory), error_msg="Resource directory not found")
-        namespace["__resources_directory__"] = directory
+        location: str | PathLike[str] | ResourcesLocation | None = namespace_including_bases.get("__resources_location__")
+        if location is None:
+            location = ResourcesDirectory(".", relative_to_cwd=False)
+        elif not isinstance(location, ResourcesLocation):
+            location = ResourcesDirectory(location, relative_to_cwd=False)
+        namespace["__resources_location__"] = location
 
         for resource_name, resource_path in resources.items():
-            resource_loader: Callable[[str], AbstractResourceLoader[Any]] = namespace["__resource_loader__"]
+            resource_loader: Callable[[Resource], AbstractResourceLoader[Any]] = namespace_including_bases["__resource_loader__"]
             if autoload:
-                namespace[resource_name] = _LazyAutoLoadResourceDescriptor(resource_path, resource_loader, directory)
+                namespace[resource_name] = _LazyAutoLoadResourceDescriptor(resource_path, resource_loader, location)
             else:
-                namespace[resource_name] = _ResourceDescriptor(resource_path, resource_loader, directory)
+                namespace[resource_name] = _ResourceDescriptor(resource_path, resource_loader, location)
 
         cls = super().__new__(mcs, name, bases, namespace, frozen=True, **kwargs)
         if resources:
@@ -138,7 +145,7 @@ class ResourceManagerMeta(ClassNamespaceMeta):
         return cls
 
     def __init__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> None:
-        cls.__resources_directory__: str | None
+        cls.__resources_location__: str | None
         cls.__resources_files__: dict[str, _ResourceDescriptor]
         cls.__resource_loader__: Callable[[str], AbstractResourceLoader[Any]]
         cls.__resources: dict[str, _ResourceDescriptor] = {
@@ -152,6 +159,9 @@ class ResourceManagerMeta(ClassNamespaceMeta):
         else:
             super().__delattr__(name)
 
+    def get_resource_names(self) -> list[str]:
+        return list(self.__resources)
+
     def get_total_nb_resources(cls) -> int:
         return sum(resource.nb_resources for resource in cls.__resources.values())
 
@@ -159,18 +169,31 @@ class ResourceManagerMeta(ClassNamespaceMeta):
         return sum(resource.nb_loaded_resources for resource in cls.__resources.values())
 
     def load(cls, *resources: str) -> None:
-        descriptors: dict[str, _ResourceDescriptor] = cls.__resources
+        resources_dict: dict[str, _ResourceDescriptor] = cls.__resources
+        if len(resources) != len(set(resources)):
+            raise ValueError("Resource name duplicate")
         for name in resources:
-            descriptors[name].load()
+            resources_dict[name].load()
+
+    def load_and_get(cls, resource: str) -> Any:
+        resources_dict: dict[str, _ResourceDescriptor] = cls.__resources
+        resource_obj = resources_dict[resource]
+        try:
+            return resource_obj.__get__(None)
+        except AttributeError:
+            resource_obj.load()
+            return resource_obj.__get__(None)
 
     def load_all_resources(cls) -> None:
         for resource in cls.__resources.values():
             resource.load()
 
     def unload(cls, *resources: str) -> None:
-        descriptors: dict[str, _ResourceDescriptor] = cls.__resources
+        resources_dict: dict[str, _ResourceDescriptor] = cls.__resources
+        if len(resources) != len(set(resources)):
+            raise ValueError("Resource name duplicate")
         for name in resources:
-            descriptors[name].unload()
+            resources_dict[name].unload()
 
     def unload_all_resources(cls) -> None:
         for resource in cls.__resources.values():
@@ -178,6 +201,6 @@ class ResourceManagerMeta(ClassNamespaceMeta):
 
 
 class ResourceManager(ClassNamespace, metaclass=ResourceManagerMeta):
-    __resources_directory__: str | PathLike[str] | None = None
+    __resources_location__: str | PathLike[str] | ResourcesLocation | None = None
     __resources_files__: dict[str, _ResourcePath]
-    __resource_loader__: Callable[[str | PathLike[str]], AbstractResourceLoader[Any]]
+    __resource_loader__: Callable[[Resource], AbstractResourceLoader[Any]]

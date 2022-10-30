@@ -14,7 +14,6 @@ __all__ = [
 
 
 import os
-from copy import copy
 from enum import IntFlag, unique
 from typing import TYPE_CHECKING, Any, ClassVar, Final, Iterable, NamedTuple, TypeAlias, TypeVar, overload
 
@@ -22,6 +21,8 @@ import pygame.freetype as _pg_freetype
 import pygame.sysfont as _pg_sysfont
 
 from ..math.rect import Rect, move_rect_in_place
+from ..resources.abc import Resource
+from ..resources.file import FileResource
 from ..system.configuration import ConfigurationTemplate, OptionAttribute
 from ..system.object import Object, final
 
@@ -178,26 +179,12 @@ class Font(Object):
 
         super().__init__()
 
-    def copy(self: __Self) -> __Self:
-        cls = self.__class__
-        copy_self = cls.__new__(cls)
-        ft = self.__ft
-        copy_self.__ft = copy_ft = self.__factory(ft.path, size=1, resolution=self.resolution)
-        for attr in {*self.config.known_options(include_section_options=False), "size", "pad", "origin"}:
-            setattr(copy_ft, attr, getattr(ft, attr))
-        return copy_self
-
-    __copy__ = copy
-
-    def __deepcopy__(self: __Self, memo: dict[int, Any] | None = None) -> __Self:  # allow 'deep' copy
-        return self.__copy__()
-
     @property
     def name(self) -> str:
         return self.__ft.name
 
     @property
-    def path(self) -> str:
+    def path(self) -> str | None:
         return self.__ft.path
 
     @property
@@ -412,7 +399,8 @@ class Font(Object):
     del __get_property, __set_property
 
 
-_TupleFont: TypeAlias = tuple[str | None, float]
+_Path: TypeAlias = str | bytes | os.PathLike[str] | os.PathLike[bytes]
+_TupleFont: TypeAlias = tuple[str | _Path | None, float]
 _TextFont: TypeAlias = Font | _TupleFont
 
 
@@ -420,13 +408,30 @@ _TextFont: TypeAlias = Font | _TupleFont
 class FontFactory(Object):
     __slots__ = ("__name", "__weakref__")
 
-    def __init__(self, name: str | None) -> None:
+    def __init__(self, name: _Path | Resource | None) -> None:
         super().__init__()
-        self.__name: str | None = name
+        if name is not None and not isinstance(name, (str, bytes, os.PathLike, Resource)):
+            raise TypeError("Invalid argument")
+        if isinstance(name, FileResource):
+            name = name.path
+        self.__name: _Path | Resource | None = name
 
     def __call__(self, size: float, bold: bool | None = None, italic: bool | None = None, underline: bool | None = None) -> Font:
-        tuple_font = (self.__name, size)
-        return self.create_font(tuple_font, bold=bold, italic=italic, underline=underline)
+        name = self.__name
+        if name is not None and isinstance(name, Resource):
+            from io import BytesIO
+
+            with name.open() as fp:
+                font: Font = Font(BytesIO(fp.read()), size)
+            if bold is not None:
+                font.wide = bold
+            if italic is not None:
+                font.oblique = italic
+            if underline is not None:
+                font.underline = underline
+            return font
+
+        return self.create_font((name, size), bold=bold, italic=italic, underline=underline)
 
     @staticmethod
     def create_font(
@@ -436,10 +441,14 @@ class FontFactory(Object):
         underline: bool | None = None,
     ) -> Font:
         obj: Font
-        if font is None:
+        if isinstance(font, Font):
+            return font
+        elif font is None:
             font = (None, 15)
         if isinstance(font, (tuple, list)):
             font_family, font_size = font
+            if font_family is not None:
+                font_family = os.fsdecode(font_family)
             if font_family is None or os.path.isfile(font_family):
                 obj = Font(font_family, font_size)
                 if bold is not None:
@@ -448,12 +457,6 @@ class FontFactory(Object):
                     obj.oblique = italic
             else:
                 obj = SysFont(font_family, font_size, bold=bool(bold), italic=bool(italic))
-        elif isinstance(font, Font):
-            obj = copy(font)
-            if bold is not None:
-                obj.wide = bold
-            if italic is not None:
-                obj.oblique = italic
         else:
             raise TypeError("Invalid arguments")
         if underline is not None:
