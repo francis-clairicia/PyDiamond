@@ -16,14 +16,13 @@ __all__ = [
     "Grid",
     "GridElement",
     "GridJustify",
+    "Image",
     "ImageButton",
     "ScaleBar",
     "ScaleBarOrient",
     "ScaleBarTextSide",
     "ScrollBar",
     "ScrollingContainer",
-    "WidgetWrappedElement",
-    "WidgetWrapper",
 ]
 
 ############ Package initialization ############
@@ -32,6 +31,6 @@ from .checkbox import *
 from .entry import *
 from .form import *
 from .grid import *
+from .image import *
 from .scale import *
 from .scroll import *
-from .wrapper import *

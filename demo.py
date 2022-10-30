@@ -56,11 +56,10 @@ from pydiamond.gui.widgets.checkbox import CheckBox
 from pydiamond.gui.widgets.entry import Entry
 from pydiamond.gui.widgets.form import Form
 from pydiamond.gui.widgets.grid import Grid, ScrollableGrid
+from pydiamond.gui.widgets.image import Image as ImageWidget
+from pydiamond.gui.widgets.label import Label
 from pydiamond.gui.widgets.scale import ScaleBar
-
-# from pydiamond.gui.widgets.scroll import ScrollableView, ScrollBar
 from pydiamond.gui.widgets.scroll import ScrollBar, ScrollingContainer
-from pydiamond.gui.widgets.wrapper import WidgetWrapper
 from pydiamond.resource.loader import FontLoader, ImageLoader, MusicLoader, SoundLoader
 from pydiamond.resource.manager import ResourceManager
 from pydiamond.system.clock import Clock
@@ -779,6 +778,20 @@ class CheckBoxScene(MainScene):
         self.text.midtop = (self.box.centerx, self.box.bottom + 10)
 
 
+class ImageWidgetScene(MainScene):
+    def awake(self, **kwargs: Any) -> None:
+        super().awake(**kwargs)
+        self.background_color = BLUE_DARK
+        self.widgets = WidgetsManager(self)
+        self.image = ImageWidget(self.widgets, ImagesResources.autumn_tree)
+
+    def on_start_loop_before_transition(self) -> None:
+        self.image.center = self.window.center
+
+    def render(self) -> None:
+        self.window.draw(self.widgets)
+
+
 class ProgressScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
         super().awake(**kwargs)
@@ -912,7 +925,7 @@ class ScrollBarScene(MainScene):
         self.area.set_xscrollcommand(weakref.WeakMethod(self.hscroll.set))
         self.area.set_yscrollcommand(weakref.WeakMethod(self.vscroll.set))
 
-        WidgetWrapper(self.area, Text(LOREM_IPSUM, font=(None, 100), wrap=50, line_spacing=10))
+        Label(self.area, LOREM_IPSUM, font=(None, 100), wrap=50, line_spacing=10)
 
     def render(self) -> None:
         self.window.draw(self.widgets)
@@ -939,7 +952,7 @@ class TestGUIScene(GUIScene):
 
         Button.set_default_focus_on_hover(True)
 
-        self.text = WidgetWrapper(self.widgets, Text(font=FontResources.cooperblack(40), color=WHITE, shadow_x=3, shadow_y=3)).ref
+        self.text = Label(self.widgets, font=FontResources.cooperblack(40), color=WHITE, shadow_x=3, shadow_y=3)
         self.first = Button(self.widgets, "First", callback=lambda: self.text.config.update(message="First"))
         self.second = Button(self.widgets, "Second", callback=lambda: self.text.config.update(message="Second"))
         self.third = Button(self.widgets, "Third", callback=lambda: self.text.config.update(message="Third"))
@@ -1460,6 +1473,7 @@ class MainWindow(SceneWindow):
         TextImageScene,
         ButtonScene,
         CheckBoxScene,
+        ImageWidgetScene,
         ProgressScene,
         ScaleBarScene,
         EntryScene,

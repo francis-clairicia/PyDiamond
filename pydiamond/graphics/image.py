@@ -25,12 +25,6 @@ if TYPE_CHECKING:
 
 
 class Image(Drawable, Transformable):
-    __slots__ = (
-        "__default_image",
-        "__image",
-        "__smooth_scale",
-    )
-
     def __init__(
         self,
         image: Surface | None = None,
