@@ -126,18 +126,21 @@ class ResourceManagerMeta(ClassNamespaceMeta):
                 raise KeyError(f"Missing {attr_name!r} annotation")
 
         location: str | PathLike[str] | ResourcesLocation | None = namespace_including_bases.get("__resources_location__")
-        if location is None:
-            location = ResourcesDirectory(".", relative_to_cwd=False)
-        elif not isinstance(location, ResourcesLocation):
+        if location is not None and not isinstance(location, ResourcesLocation):
             location = ResourcesDirectory(location, relative_to_cwd=False)
-        namespace["__resources_location__"] = location
+            namespace["__resources_location__"] = location
 
-        for resource_name, resource_path in resources.items():
-            resource_loader: Callable[[Resource], AbstractResourceLoader[Any]] = namespace_including_bases["__resource_loader__"]
-            if autoload:
-                namespace[resource_name] = _LazyAutoLoadResourceDescriptor(resource_path, resource_loader, location)
-            else:
-                namespace[resource_name] = _ResourceDescriptor(resource_path, resource_loader, location)
+        if resources:
+            if location is None:
+                location = ResourcesDirectory(".", relative_to_cwd=False)
+
+            resource_loader: Callable[[Resource], AbstractResourceLoader[Any]]
+            for resource_name, resource_path in resources.items():
+                resource_loader = namespace_including_bases["__resource_loader__"]
+                if autoload:
+                    namespace[resource_name] = _LazyAutoLoadResourceDescriptor(resource_path, resource_loader, location)
+                else:
+                    namespace[resource_name] = _ResourceDescriptor(resource_path, resource_loader, location)
 
         cls = super().__new__(mcs, name, bases, namespace, frozen=True, **kwargs)
         if resources:
