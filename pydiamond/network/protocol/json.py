@@ -53,7 +53,7 @@ class JSONNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
             case JSONDecoder():
                 self.__d = decoder
             case _:
-                assert_never(encoder)
+                assert_never(decoder)
 
     @final
     def serialize(self, packet: _ST_contra) -> bytes:
@@ -70,7 +70,7 @@ class JSONNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
             chunk = next(encode_iterator)
         except StopIteration:
             return
-        if chunk[0] not in {"{", "[", '"'}:
+        if chunk[0] not in ("{", "[", '"'):
             raise ValueError("Plain values (except strings) forbidden in incremental context")
         yield chunk.encode(encoding)
         for chunk in encode_iterator:
@@ -106,7 +106,8 @@ class JSONNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
         while not complete_document:
             if not partial_document:
                 enclosure_counter.clear()
-            chunk: bytes = yield
+            while not (chunk := (yield)):  # Skip empty bytes
+                continue
             char: bytes
             for nb_chars, char in enumerate(struct.unpack(f"{len(chunk)}c", chunk), start=1):
                 match char:
@@ -124,7 +125,7 @@ class JSONNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
                     case b" " | b"\t" | b"\n" | b"\r":  # Optimization: Skip spaces
                         continue
                     case _ if not enclosure_counter:  # No enclosure, only value
-                        # Directly refused because we can't known when data is valid
+                        # Directly refused because we cannot know when data is valid
                         raise IncrementalDeserializeError(
                             "Do not received beginning of a string/array/object",
                             data_with_error=chunk,
