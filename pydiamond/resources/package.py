@@ -25,7 +25,7 @@ from .abc import Resource, ResourcesLocation
 
 @Resource.register
 class PackageResource(Object):
-    __slots__ = ("__f", "__h")
+    __slots__ = ("__f", "__h", "__weakref__")
 
     def __init__(self, package: PackageType, resource: str) -> None:
         traversable = _importlib_resources.files(package).joinpath(resource)
@@ -67,7 +67,7 @@ class PackageResource(Object):
 
 @ResourcesLocation.register
 class ResourcesPackage(Object):
-    __slots__ = ("__p", "__h")
+    __slots__ = ("__p", "__h", "__weakref__")
 
     def __init__(self, package: PackageType) -> None:
         if not isinstance(package, ModuleType):

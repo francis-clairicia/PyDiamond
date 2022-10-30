@@ -60,6 +60,12 @@ class _ResourceDescriptor:
         self.unload()
 
     def load(self) -> None:
+        try:
+            self.__resource
+        except AttributeError:
+            pass
+        else:
+            return
         load_all_resources = _ResourceDescriptor.__load_all_resources
         resource: Any = load_all_resources(self.__loader)
         self.__resource = resource
@@ -94,11 +100,12 @@ class _ResourceDescriptor:
 
 class _LazyAutoLoadResourceDescriptor(_ResourceDescriptor):
     def __get__(self, obj: Any, objtype: type | None = None, /) -> Any:
+        get_resource = super().__get__
         try:
-            return super().__get__(obj, objtype)
+            return get_resource(obj, objtype)
         except AttributeError:
             self.load()
-            return super().__get__(obj, objtype)
+            return get_resource(obj, objtype)
 
 
 class ResourceManagerMeta(ClassNamespaceMeta):
@@ -125,12 +132,19 @@ class ResourceManagerMeta(ClassNamespaceMeta):
             if attr_name not in annotations:
                 raise KeyError(f"Missing {attr_name!r} annotation")
 
-        location: str | PathLike[str] | ResourcesLocation | None = namespace_including_bases.get("__resources_location__")
-        if location is not None and not isinstance(location, ResourcesLocation):
-            location = ResourcesDirectory(location, relative_to_cwd=False)
-            namespace["__resources_location__"] = location
+        try:
+            cls_defined_location: str | PathLike[str] | ResourcesLocation | None = namespace["__resources_location__"]
+        except KeyError:
+            pass
+        else:
+            if cls_defined_location is None:
+                namespace.pop("__resources_location__")
+            elif not isinstance(cls_defined_location, ResourcesLocation):
+                cls_defined_location = ResourcesDirectory(cls_defined_location, relative_to_cwd=False)
+                namespace["__resources_location__"] = cls_defined_location
 
         if resources:
+            location: ResourcesLocation | None = namespace_including_bases.get("__resources_location__")
             if location is None:
                 location = ResourcesDirectory(".", relative_to_cwd=False)
 
@@ -148,13 +162,21 @@ class ResourceManagerMeta(ClassNamespaceMeta):
         return cls
 
     def __init__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> None:
-        cls.__resources_location__: str | None
+        cls.__resources_location__: ResourcesLocation | None
         cls.__resources_files__: dict[str, _ResourceDescriptor]
         cls.__resource_loader__: Callable[[str], AbstractResourceLoader[Any]]
         cls.__resources: dict[str, _ResourceDescriptor] = {
             name: value for name, value in vars(cls).items() if isinstance(value, _ResourceDescriptor)
         }
         super().__init__(name, bases, namespace, frozen=True, **kwargs)
+
+    def __getattribute__(self, __name: str) -> Any:
+        if __name == "__resource_location__":
+            try:
+                return super().__getattribute__(__name)
+            except AttributeError:
+                return None
+        return super().__getattribute__(__name)
 
     def __delattr__(cls, name: str, /) -> None:
         if name in cls.__resources:
@@ -204,6 +226,6 @@ class ResourceManagerMeta(ClassNamespaceMeta):
 
 
 class ResourceManager(ClassNamespace, metaclass=ResourceManagerMeta):
-    __resources_location__: str | PathLike[str] | ResourcesLocation | None = None
+    __resources_location__: str | PathLike[str] | ResourcesLocation | None
     __resources_files__: dict[str, _ResourcePath]
     __resource_loader__: Callable[[Resource], AbstractResourceLoader[Any]]

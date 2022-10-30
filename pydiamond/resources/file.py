@@ -23,7 +23,7 @@ from .abc import Resource, ResourcesLocation
 
 @Resource.register
 class FileResource(Object):
-    __slots__ = ("__f", "__h")
+    __slots__ = ("__f", "__h", "__weakref__")
 
     def __init__(self, filepath: str | bytes | PathLike[str] | PathLike[bytes]) -> None:
         filepath = set_constant_file(fsdecode(filepath), relative_to_cwd=True)
@@ -67,7 +67,7 @@ class FileResource(Object):
 
 @ResourcesLocation.register
 class ResourcesDirectory(Object):
-    __slots__ = ("__d", "__h")
+    __slots__ = ("__d", "__h", "__weakref__")
 
     def __init__(self, directory: str | bytes | PathLike[str] | PathLike[bytes], *, relative_to_cwd: bool = False) -> None:
         directory = fsdecode(directory)
