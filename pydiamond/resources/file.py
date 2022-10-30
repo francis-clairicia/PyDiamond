@@ -93,7 +93,7 @@ class ResourcesDirectory(Object):
             self.__h = h = hash((type(self), self.__d))
             return h
 
-    def get_resource(self, resource: str) -> Resource:
+    def get_resource(self, resource: str) -> FileResource:
         path = self.__d
         return FileResource(path / resource)
 

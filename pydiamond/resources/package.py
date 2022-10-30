@@ -87,10 +87,6 @@ class ResourcesPackage(Object):
     def __ne__(self, __o: object) -> bool:
         return not (self == __o)
 
-    def get_resource(self, resource: str) -> Resource:
-        package = self.__p
-        return PackageResource(package, resource)
-
     def __hash__(self) -> int:
         self.__h: int
         try:
@@ -98,3 +94,7 @@ class ResourcesPackage(Object):
         except AttributeError:
             self.__h = h = hash((type(self), self.__p))
             return h
+
+    def get_resource(self, resource: str) -> PackageResource:
+        package = self.__p
+        return PackageResource(package, resource)
