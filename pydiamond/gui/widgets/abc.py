@@ -445,9 +445,6 @@ class Widget(AbstractWidget, children=False):
         }
     )
 
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="Widget")
-
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "state",
         "hover_sound",
