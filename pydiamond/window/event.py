@@ -39,6 +39,7 @@ __all__ = [
     "MusicEndEvent",
     "NamespaceEventModel",
     "NoDataEventModel",
+    "PygameConvertedEventBlocked",
     "PygameEventConversionError",
     "ScreenshotEvent",
     "TextEditingEvent",
@@ -186,6 +187,13 @@ class EventMeta(ObjectMeta):
     def is_model(cls) -> bool:
         return bool(isabstractclass(cls) or getattr(cls, "_model_"))
 
+    @final
+    def get_name(cls) -> str:
+        if cls.is_model():
+            raise TypeError("Event models do not have a name")
+        pg_type = EventFactory.get_pygame_event_type(cls)  # type: ignore[arg-type]
+        return _pg_event.event_name(pg_type)
+
 
 _BUILTIN_PYGAME_EVENT_TYPE: dict[int, type[Event]] = {}
 _BUILTIN_ASSOCIATIONS: dict[type[Event], int] = {}
@@ -253,14 +261,6 @@ class Event(Object, metaclass=EventMeta):
             event_name = _pg_event.event_name(pygame_type)
         event_dict = self.to_dict()
         return f"{event_name}({', '.join(f'{k}={v!r}' for k, v in event_dict.items())})"
-
-    @classmethod
-    @final
-    def get_name(cls) -> str:
-        if cls.is_model():
-            raise TypeError("Event models do not have a name")
-        pg_type = EventFactory.get_pygame_event_type(cls)
-        return _pg_event.event_name(pg_type)
 
     @classmethod
     @abstractmethod
@@ -705,6 +705,10 @@ class PygameEventConversionError(EventFactoryError):
     pass
 
 
+class PygameConvertedEventBlocked(PygameEventConversionError):
+    pass
+
+
 if TYPE_CHECKING:
     _PygameEventType: TypeAlias = _pg_event.Event
 else:
@@ -732,8 +736,11 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
         return event not in EventFactory.NON_BLOCKABLE_EVENTS
 
     @staticmethod
-    def from_pygame_event(pygame_event: _pg_event.Event) -> Event:
+    def from_pygame_event(pygame_event: _pg_event.Event, raise_if_blocked: bool = False) -> Event:
+        actual_event_type: int = pygame_event.type
         pygame_event = EventFactory.convert_pygame_event(pygame_event)
+        if raise_if_blocked and actual_event_type != pygame_event.type and _pg_event.get_blocked(pygame_event.type):
+            raise PygameConvertedEventBlocked(pygame_event.type)
         try:
             event_cls: type[Event] = EventFactory.pygame_type[pygame_event.type]
         except KeyError as exc:

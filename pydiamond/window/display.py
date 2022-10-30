@@ -143,7 +143,7 @@ class Window(Object, no_slots=True):
         self.__vsync: bool = bool(vsync)
 
         self.__close_on_next_frame: bool = True
-        self.__display_renderer: _WindowRenderer | None = None
+        self.__display_renderer: _WindowRendererImpl | None = None
         self.__rect: ImmutableRect = ImmutableRect(0, 0, 0, 0)
         self.__main_clock: _FramerateManager = _FramerateManager()
         self.__event_queue: deque[_pg_event.Event] = deque()
@@ -191,7 +191,7 @@ class Window(Object, no_slots=True):
             vsync: bool = self.__vsync
             _pg_display.set_mode(size, flags=flags, vsync=vsync).fill((0, 0, 0))
             _pg_display.flip()
-            self.__display_renderer = _WindowRenderer()
+            self.__display_renderer = _WindowRendererImpl()
             self.__rect = ImmutableRect.convert(self.__display_renderer.get_rect())
 
             @stack.callback
@@ -321,7 +321,7 @@ class Window(Object, no_slots=True):
     def clear(self, color: _ColorValue = BLACK, *, blend_alpha: bool = False) -> None:
         screen = self.__display_renderer
         if screen is None:
-            return
+            raise WindowError("No active renderer")
         if blend_alpha and (color := Color(color)).a < 255:
             fake_screen: Surface = create_surface(screen.get_size(), default_color=color)
             screen.draw_surface(fake_screen, (0, 0))
@@ -357,13 +357,13 @@ class Window(Object, no_slots=True):
     def refresh(self) -> None:
         screen = self.__display_renderer
         if screen is None:
-            return
+            raise WindowError("No active renderer")
         screen.present()
 
     def draw(self, *targets: SupportsDrawing) -> None:
         renderer = self.__display_renderer
         if renderer is None:
-            return
+            raise WindowError("No active renderer")
         for target in targets:
             target.draw_onto(renderer)
 
@@ -372,11 +372,17 @@ class Window(Object, no_slots=True):
 
     @thread_factory_method(global_lock=True, shared_lock=True)
     def __screenshot_thread(self) -> None:
-        screen: Surface = self.renderer.get_screen_copy()
+        renderer = self.__display_renderer
+        if renderer is None:
+            raise WindowError("No active renderer")
+        screen: Surface = renderer.get_screen_copy()
         filename_fmt: str = self.get_screenshot_filename_format()
         extension: str = ".png"
 
-        if any(c in filename_fmt for c in {"/", "\\", os.path.sep}):
+        import ntpath
+        import posixpath
+
+        if any(c in filename_fmt for c in {posixpath.sep, ntpath.sep}):
             raise ValueError("filename format contains invalid characters")
 
         screenshot_dir: str = os.path.abspath(os.path.realpath(self.get_screenshot_directory()))
@@ -506,7 +512,6 @@ class Window(Object, no_slots=True):
             self._handle_mouse_position(Mouse.get_pos())
         poll_event = self.__event_queue.popleft
         make_event = EventFactory.from_pygame_event
-        get_pygame_event_type = EventFactory.associations.__getitem__
         while True:
             try:
                 pg_event = poll_event()
@@ -520,14 +525,12 @@ class Window(Object, no_slots=True):
                 # See https://github.com/libsdl-org/SDL/issues/5202
                 pg_event.__dict__["x"] *= -1
             try:
-                event = make_event(pg_event)
+                event = make_event(pg_event, raise_if_blocked=True)
             except UnknownEventTypeError:
                 if EventFactory.NOEVENT < pg_event.type < EventFactory.USEREVENT:  # pygame's built-in event
                     _pg_event.set_blocked(pg_event.type)
                 continue
             except EventFactoryError:
-                continue
-            if (event_type := get_pygame_event_type(event.__class__)) != pg_event.type and _pg_event.get_blocked(event_type):
                 continue
             yield event
 
@@ -569,7 +572,8 @@ class Window(Object, no_slots=True):
             raise WindowError("Trying to resize not open window")
         size = (width, height)
         renderer = self.__display_renderer
-        assert renderer is not None, "No active renderer"
+        if renderer is None:
+            raise WindowError("No active renderer")
         screen: Surface = renderer.screen
         if size == screen.get_size():
             return
@@ -580,13 +584,17 @@ class Window(Object, no_slots=True):
 
     @final
     def set_width(self, width: int) -> None:
-        height = int(self.renderer.get_height())
-        return self.set_size((width, height))
+        renderer = self.__display_renderer
+        if renderer is None:
+            raise WindowError("No active renderer")
+        return self.set_size((width, renderer.screen.get_height()))
 
     @final
     def set_height(self, height: int) -> None:
-        width = int(self.renderer.get_width())
-        return self.set_size((width, height))
+        renderer = self.__display_renderer
+        if renderer is None:
+            raise WindowError("No active renderer")
+        return self.set_size((renderer.screen.get_width(), height))
 
     @final
     def event_grabbed(self) -> bool:
@@ -783,7 +791,8 @@ class Window(Object, no_slots=True):
     @final
     def renderer(self) -> AbstractWindowRenderer:
         renderer = self.__display_renderer
-        assert renderer is not None, "No active renderer"
+        if renderer is None:
+            raise WindowError("No active renderer")
         return renderer
 
     @property
@@ -1026,23 +1035,32 @@ class _WindowCallbackList(list[WindowCallback]):
 
 
 @final
-class _WindowRenderer(SurfaceRenderer, AbstractWindowRenderer):
-    __slots__ = ("__capture_queue", "__last_frame", "__system_surface", "__system_surface_cache")
+class _WindowRendererImpl(SurfaceRenderer, AbstractWindowRenderer):
+    __slots__ = (
+        "__capture_queue",
+        "__last_frame",
+        "__system_surface",
+        "__system_surface_cache",
+        "__get_screen",
+        "__update_window",
+    )
 
     def __init__(self) -> None:
         screen: Surface | None = _pg_display.get_surface()
         if screen is None:
             raise _pg_error("No display mode configured")
+        self.__get_screen = _pg_display.get_surface
         self.__capture_queue: deque[Surface] = deque()
         self.__last_frame: Surface | None = None
         self.__system_surface: Surface | None = None
         self.__system_surface_cache: Surface = create_surface(screen.get_size())
+        self.__update_window = _pg_display.flip
         super().__init__(screen)
 
     def _resize(self) -> None:
-        new_surface = self.screen
+        new_surface = screen = self.screen
         if system_surface := self.__system_surface:
-            self.__system_surface_cache = self.__system_surface = new_system_surface = create_surface(self.screen.get_size())
+            self.__system_surface_cache = self.__system_surface = new_system_surface = create_surface(screen.get_size())
             new_system_surface.blit(system_surface, (0, 0))
             if self.surface is system_surface:
                 new_surface = new_system_surface
@@ -1064,7 +1082,7 @@ class _WindowRenderer(SurfaceRenderer, AbstractWindowRenderer):
             self.__system_surface = None
         else:
             self.__last_frame = None
-        _pg_display.flip()
+        self.__update_window()
 
     def get_screen_copy(self) -> Surface:
         return (self.__last_frame or self.screen).copy()
@@ -1079,8 +1097,8 @@ class _WindowRenderer(SurfaceRenderer, AbstractWindowRenderer):
 
         captured_surface = self.surface.copy()
         fset(self, captured_surface)
+        capture_queue.append(captured_surface)
         try:
-            capture_queue.append(captured_surface)
             yield captured_surface
         finally:
             capture_queue.pop()
@@ -1115,7 +1133,7 @@ class _WindowRenderer(SurfaceRenderer, AbstractWindowRenderer):
 
     @property
     def screen(self) -> Surface:
-        screen: Surface | None = _pg_display.get_surface()
+        screen: Surface | None = self.__get_screen()
         assert screen is not None, "No display mode configured"
         return screen
 
