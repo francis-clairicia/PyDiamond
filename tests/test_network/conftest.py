@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from selectors import EVENT_READ, DefaultSelector
-from socket import AF_INET, SOCK_DGRAM, SOCK_STREAM, socket as Socket
+from socket import AF_INET, IPPROTO_TCP, IPPROTO_UDP, SOCK_DGRAM, SOCK_STREAM, socket as Socket
 from threading import Event
 from typing import TYPE_CHECKING, Iterator
 
@@ -26,7 +26,7 @@ def _tcp_client_loop(socket: Socket, shutdown_requested: Event) -> None:
             if selector.select(0.1):
                 if not (data := socket.recv(8192)):
                     break
-                socket.send(data)
+                socket.sendall(data)
 
 
 @thread_factory(daemon=True)
@@ -95,6 +95,7 @@ def mock_tcp_socket(mocker: MockerFixture) -> MagicMock:
     mock_socket = mocker.MagicMock(spec=Socket())
     mock_socket.family = AF_INET
     mock_socket.type = SOCK_STREAM
+    mock_socket.proto = IPPROTO_TCP
     return mock_socket
 
 
@@ -103,4 +104,5 @@ def mock_udp_socket(mocker: MockerFixture) -> MagicMock:
     mock_socket = mocker.MagicMock(spec=Socket())
     mock_socket.family = AF_INET
     mock_socket.type = SOCK_DGRAM
+    mock_socket.proto = IPPROTO_UDP
     return mock_socket

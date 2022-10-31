@@ -60,7 +60,7 @@ except ModuleNotFoundError as exc:
     raise ModuleNotFoundError(
         "'pygame' package must be installed in order to use the PyDiamond engine",
         name=exc.name,
-        path=exc.path,
+        path=__file__,
     ) from exc
 
 collector.run_patches(PatchContext.AFTER_IMPORTING_PYGAME)
