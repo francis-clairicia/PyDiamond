@@ -42,8 +42,6 @@ from ..system.utils.itertools import prepend
 class Music(NonCopyable):
     """
     Simple object which can be used to play or queue a music into the MusicStream.
-
-    There is only one attribute :filepath: which is the absolute path to the music file
     """
 
     __slots__ = ("__resource", "__weakref__")
@@ -114,7 +112,7 @@ class MusicStream(ClassNamespace, frozen=True):
     def play(music: Music, *, repeat: int = 0, fade_ms: int = 0) -> None:
         """Start the playback of the music stream
 
-        This will load and play the music filename. If the music is already playing it will be restarted.
+        This will load and play the music file. If the music is already playing it will be restarted.
 
         repeat is an optional integer argument, which is 0 by default, which indicates how many times to repeat the music.
         The music repeats indefinitely if this argument is set to -1.
@@ -363,11 +361,11 @@ class _MusicPayload:
 
 
 import atexit
-from functools import partial
+import functools
 
-from ..system.utils.os import register_at_fork_if_applicable
+from ..system.utils.os import register_at_fork_if_supported
 
 atexit.register(MusicStream.stop, unload=True)
-register_at_fork_if_applicable(after_in_child=partial(MusicStream.stop, unload=True))
+register_at_fork_if_supported(after_in_child=functools.partial(MusicStream.stop, unload=True))
 
-del atexit, register_at_fork_if_applicable, partial
+del atexit, functools, register_at_fork_if_supported

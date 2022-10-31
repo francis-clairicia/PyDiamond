@@ -2,32 +2,34 @@
 # Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine
 #
 #
-# mypy: no-warn-unused-ignores
 """os utility module"""
 
 from __future__ import annotations
 
-__all__ = ["HAS_FORK", "fork", "register_at_fork_if_applicable"]
+__all__ = ["has_fork", "fork", "register_at_fork_if_supported"]
 
+import os
 from typing import Any, Callable, overload
-
-try:
-    from os import fork  # type: ignore[attr-defined]
-except ImportError:
-
-    def fork() -> int:
-        raise NotImplementedError("Not supported on this platform")
-
-    HAS_FORK = False
-else:
-    HAS_FORK = True
-
 
 _NO_DEFAULT: Any = object()
 
 
+def fork() -> int:
+    try:
+        fork: Callable[[], int] = getattr(os, "fork")
+    except AttributeError:
+        pass
+    else:
+        return fork()
+    raise NotImplementedError("Not supported on this platform")
+
+
+def has_fork() -> bool:
+    return hasattr(os, "fork")
+
+
 @overload
-def register_at_fork_if_applicable(
+def register_at_fork_if_supported(
     *,
     before: Callable[[], Any],
     after_in_parent: Callable[[], Any] = ...,
@@ -37,7 +39,7 @@ def register_at_fork_if_applicable(
 
 
 @overload
-def register_at_fork_if_applicable(
+def register_at_fork_if_supported(
     *,
     after_in_parent: Callable[[], Any],
     before: Callable[[], Any] = ...,
@@ -47,7 +49,7 @@ def register_at_fork_if_applicable(
 
 
 @overload
-def register_at_fork_if_applicable(
+def register_at_fork_if_supported(
     *,
     after_in_child: Callable[[], Any],
     before: Callable[[], Any] = ...,
@@ -56,7 +58,7 @@ def register_at_fork_if_applicable(
     ...
 
 
-def register_at_fork_if_applicable(
+def register_at_fork_if_supported(
     *,
     before: Callable[[], Any] = _NO_DEFAULT,
     after_in_parent: Callable[[], Any] = _NO_DEFAULT,
@@ -71,8 +73,12 @@ def register_at_fork_if_applicable(
         kwargs["after_in_child"] = after_in_child
     if not kwargs:
         raise TypeError("At least one argument is required")
+    for param, argument in kwargs.items():
+        if not callable(argument):
+            msg = f"{param}: Expected callable, not {object.__repr__(argument)}"
+            raise TypeError(msg)
     try:
-        from os import register_at_fork  # type: ignore[attr-defined]
-    except ImportError:
+        register_at_fork: Callable[..., None] = getattr(os, "register_at_fork")
+    except AttributeError:
         return
     return register_at_fork(**kwargs)

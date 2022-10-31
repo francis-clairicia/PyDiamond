@@ -32,9 +32,13 @@ def __set_path(
     relative_to_cwd: bool = False,
 ) -> str:
     all_path = os_path.join(*paths)
-    if not relative_to_cwd and not os_path.isabs(all_path):
-        all_path = os_path.join(os_path.abspath(os_path.dirname(get_executable_path())), all_path)
-    all_path = os_path.realpath(all_path)
+    if not relative_to_cwd:
+        if not os_path.isabs(all_path):
+            all_path = os_path.abspath(os_path.join(os_path.dirname(get_executable_path()), all_path))
+        else:
+            all_path = os_path.normpath(all_path)
+    else:
+        all_path = os_path.abspath(all_path)
     if raise_error and not os_path.exists(all_path):
         raise ConstantFileNotFoundError(all_path, message=error_msg)
     return all_path

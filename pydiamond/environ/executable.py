@@ -15,8 +15,8 @@ __all__ = [
     "is_frozen_executable",
 ]
 
-import os.path
 import sys
+from os.path import abspath
 
 
 def get_main_script_path() -> str:
@@ -31,13 +31,13 @@ def get_main_script_path() -> str:
 
     spec = main_module.__spec__
     path: str
-    if spec and spec.origin:
-        path = os.path.realpath(spec.origin)
+    if spec is not None and spec.origin is not None:
+        path = spec.origin
     else:
-        path = getattr(main_module, "__file__", None) or (os.path.realpath(sys.argv[0]) if sys.argv and sys.argv[0] else "")
-        if not path:
-            return ""
-    return os.path.abspath(path)
+        path = getattr(main_module, "__file__", None) or (sys.argv[0] if sys.argv else "")
+    if not path:
+        return ""
+    return abspath(path)
 
 
 def get_executable_path() -> str:

@@ -75,7 +75,7 @@ def test__get_main_script_path__fallback_to_argv(mock_main_module: MagicMock, mo
     assert returned_path == expected_path
 
 
-def test__get_main_script__returns_empty_string_if_undefined(mock_main_module: MagicMock, mocker: MockerFixture) -> None:
+def test__get_main_script_path__returns_empty_string_if_undefined(mock_main_module: MagicMock, mocker: MockerFixture) -> None:
     # Arrange
     mock_main_module.__spec__ = None
     mock_main_module.__file__ = None

@@ -72,7 +72,7 @@ class ResourcesPackage(Object):
     def __init__(self, package: PackageType) -> None:
         if not isinstance(package, ModuleType):
             package = import_module(package)
-        if package.__spec__ is None or not package.__spec__.submodule_search_locations:
+        if package.__spec__ is None or package.__spec__.submodule_search_locations is None:
             raise ValueError("Invalid package")
         self.__p: ModuleType = package
 

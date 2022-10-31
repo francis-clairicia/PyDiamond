@@ -12,7 +12,6 @@ __all__ = [
 ]
 
 from os import PathLike, fsdecode
-from os.path import basename
 from pathlib import Path
 from typing import BinaryIO, ContextManager
 
@@ -27,7 +26,7 @@ class FileResource(Object):
 
     def __init__(self, filepath: str | bytes | PathLike[str] | PathLike[bytes]) -> None:
         filepath = set_constant_file(fsdecode(filepath), relative_to_cwd=True)
-        self.__f: str = filepath
+        self.__f: Path = Path(filepath)
 
     def __repr__(self) -> str:
         return f"<{type(self).__name__}({self.__f!r})>"
@@ -51,18 +50,18 @@ class FileResource(Object):
     def as_file(self) -> ContextManager[Path]:
         from contextlib import nullcontext
 
-        return nullcontext(Path(self.__f))
+        return nullcontext(self.__f)
 
     def open(self) -> BinaryIO:
-        return open(self.__f, "rb")
+        return self.__f.open("rb")
 
     @property
-    def path(self) -> str:
+    def path(self) -> Path:
         return self.__f
 
     @property
     def name(self) -> str:
-        return basename(self.__f)
+        return self.__f.name
 
 
 @ResourcesLocation.register
