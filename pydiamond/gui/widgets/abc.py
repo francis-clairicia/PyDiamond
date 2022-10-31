@@ -869,16 +869,15 @@ class WidgetsManager(Object):
         self.__widgets: OrderedSet[AbstractWidget] = OrderedSet()
         self.__drawing: bool = False
 
-        event_callback = self.__event._process_event  # TODO: weak method
-        mouse_callback = self.__event._handle_mouse_position
+        event_callback: WeakMethod[Callable[..., Any]] = WeakMethod(self.__event._process_event)  # TODO: Fix type hinting
+        mouse_callback: WeakMethod[Callable[..., Any]] = WeakMethod(self.__event._handle_mouse_position)  # TODO: Fix type hinting
 
         match master:
             case WidgetsManager():
                 self.__scene = master.__scene
                 self.__window = master.__window
-                master_event_manager = self.__scene.event if self.__scene is not None else self.__window.event
-                master_event_manager.bind(None, event_callback)
-                master_event_manager.bind_mouse_position(mouse_callback)
+                master.__event.static.bind(None, event_callback)
+                master.__event.static.bind_mouse_position(mouse_callback)
             case Scene():
                 master.event.bind(None, event_callback)
                 master.event.bind_mouse_position(mouse_callback)
