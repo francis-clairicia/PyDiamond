@@ -43,7 +43,6 @@ __all__ = [
     "PygameEventConversionError",
     "ScreenshotEvent",
     "TextEditingEvent",
-    "TextEvent",
     "TextInputEvent",
     "UnknownEventTypeError",
     "WindowEnterEvent",
@@ -97,8 +96,6 @@ from ..system.utils.abc import isabstractclass
 from ..system.utils.weakref import weakref_unwrap
 
 if TYPE_CHECKING:
-    from _typeshed import Self
-
     from ..audio.music import Music
     from ..graphics.surface import Surface
 
@@ -214,7 +211,7 @@ class _BuiltinEventMeta(EventMeta):
         try:
             BuiltinEvent
         except NameError:
-            return super().__new__(mcs, name, bases, namespace, **kwargs)
+            return super().__new__(mcs, name, bases, namespace, model=event_type is None, **kwargs)
 
         try:
             dict_associations: Final[dict[type[Event], int]] = _BUILTIN_ASSOCIATIONS  # noqa: F821
@@ -223,8 +220,11 @@ class _BuiltinEventMeta(EventMeta):
             raise TypeError("Trying to create custom event from BuiltinEvent class") from None
 
         assert len(bases) == 1 and issubclass(bases[0], BuiltinEvent)
-        cls = super().__new__(mcs, name, bases, namespace, **kwargs)
-        assert not cls.is_model()
+        cls = super().__new__(mcs, name, bases, namespace, model=event_type is None, **kwargs)
+        if cls.is_model():
+            assert event_type is None, f"Got {event_type!r}"
+            assert event_name is None, f"Got {event_name!r}"
+            return cls
         assert isinstance(event_type, BuiltinEventType), f"Got {event_type!r}"
         assert event_type not in dict_type, f"{event_type!r} event already taken"
         event_cls = cast(type[BuiltinEvent], cls)
@@ -246,11 +246,6 @@ class Event(Object, metaclass=EventMeta):
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="Event")
 
-    def __new__(cls: type[__Self], *args: Any, **kwargs: Any) -> __Self:
-        if cls.is_model():
-            raise TypeError("Event models are not instanciable")
-        return super().__new__(cls)
-
     def __repr__(self) -> str:
         event_name: str
         event_type = self.__class__
@@ -265,7 +260,7 @@ class Event(Object, metaclass=EventMeta):
 
     @classmethod
     @abstractmethod
-    def from_dict(cls: type[Self], event_dict: Mapping[str, Any]) -> Self:
+    def from_dict(cls: type[__Self], event_dict: Mapping[str, Any]) -> __Self:
         raise NotImplementedError
 
     @abstractmethod
@@ -376,18 +371,14 @@ class BuiltinUserEventCode(IntEnum):
 
 
 # TODO (3.11) dataclass_transform (PEP-681)
-class BuiltinEvent(Event, metaclass=_BuiltinEventMeta, model=True):
+class BuiltinEvent(Event, metaclass=_BuiltinEventMeta):
     __slots__ = ()
 
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="BuiltinEvent")
 
-    @final
-    def __new__(cls: type[__Self], *args: Any, **kwargs: Any) -> __Self:
-        return object.__new__(cls)
-
     @classmethod
-    def from_dict(cls: type[Self], event_dict: Mapping[str, Any]) -> Self:
+    def from_dict(cls: type[__Self], event_dict: Mapping[str, Any]) -> __Self:
         event_fields: Sequence[str] = tuple(f.name for f in fields(cls))
         kwargs: dict[str, Any] = {k: event_dict[k] for k in filter(event_fields.__contains__, event_dict)}
         return cls(**kwargs)
@@ -396,9 +387,8 @@ class BuiltinEvent(Event, metaclass=_BuiltinEventMeta, model=True):
         return {field.name: getattr(self, field.name) for field in fields(self.__class__)}
 
 
-@final
 @dataclass(kw_only=True)
-class KeyDownEvent(BuiltinEvent, event_type=BuiltinEventType.KEYDOWN):
+class KeyEvent(BuiltinEvent):
     key: int
     mod: int
     unicode: str
@@ -407,42 +397,45 @@ class KeyDownEvent(BuiltinEvent, event_type=BuiltinEventType.KEYDOWN):
 
 @final
 @dataclass(kw_only=True)
-class KeyUpEvent(BuiltinEvent, event_type=BuiltinEventType.KEYUP):
-    key: int
-    mod: int
-    unicode: str
-    scancode: int
-
-
-KeyEvent: TypeAlias = KeyDownEvent | KeyUpEvent
+class KeyDownEvent(KeyEvent, event_type=BuiltinEventType.KEYDOWN):
+    pass
 
 
 @final
 @dataclass(kw_only=True)
-class MouseButtonDownEvent(BuiltinEvent, event_type=BuiltinEventType.MOUSEBUTTONDOWN):
-    pos: tuple[int, int]
-    button: int
+class KeyUpEvent(KeyEvent, event_type=BuiltinEventType.KEYUP):
+    pass
+
+
+@dataclass(kw_only=True)
+class MouseEvent(BuiltinEvent):
     touch: bool
 
 
-@final
 @dataclass(kw_only=True)
-class MouseButtonUpEvent(BuiltinEvent, event_type=BuiltinEventType.MOUSEBUTTONUP):
+class MouseButtonEvent(MouseEvent):
     pos: tuple[int, int]
     button: int
-    touch: bool
-
-
-MouseButtonEvent: TypeAlias = MouseButtonDownEvent | MouseButtonUpEvent
 
 
 @final
 @dataclass(kw_only=True)
-class MouseMotionEvent(BuiltinEvent, event_type=BuiltinEventType.MOUSEMOTION):
+class MouseButtonDownEvent(MouseButtonEvent, event_type=BuiltinEventType.MOUSEBUTTONDOWN):
+    pass
+
+
+@final
+@dataclass(kw_only=True)
+class MouseButtonUpEvent(MouseButtonEvent, event_type=BuiltinEventType.MOUSEBUTTONUP):
+    pass
+
+
+@final
+@dataclass(kw_only=True)
+class MouseMotionEvent(MouseEvent, event_type=BuiltinEventType.MOUSEMOTION):
     pos: tuple[int, int]
     rel: tuple[int, int]
     buttons: tuple[bool, bool, bool]
-    touch: bool
 
     def __post_init__(self) -> None:
         setattr(self, "buttons", tuple(map(bool, self.buttons)))
@@ -450,11 +443,10 @@ class MouseMotionEvent(BuiltinEvent, event_type=BuiltinEventType.MOUSEMOTION):
 
 @final
 @dataclass(kw_only=True)
-class MouseWheelEvent(BuiltinEvent, event_type=BuiltinEventType.MOUSEWHEEL):
+class MouseWheelEvent(MouseEvent, event_type=BuiltinEventType.MOUSEWHEEL):
     flipped: bool
     x: int
     y: int
-    touch: bool
 
     def __post_init__(self) -> None:
         self.flipped = bool(self.flipped)
@@ -472,48 +464,47 @@ class MouseWheelEvent(BuiltinEvent, event_type=BuiltinEventType.MOUSEWHEEL):
         return -offset
 
 
-MouseEvent: TypeAlias = MouseButtonEvent | MouseWheelEvent | MouseMotionEvent
+@dataclass(kw_only=True)
+class JoyEvent(BuiltinEvent):
+    instance_id: int
 
 
 @final
 @dataclass(kw_only=True)
-class JoyAxisMotionEvent(BuiltinEvent, event_type=BuiltinEventType.JOYAXISMOTION):
-    instance_id: int
+class JoyAxisMotionEvent(JoyEvent, event_type=BuiltinEventType.JOYAXISMOTION):
     axis: int
     value: float
 
 
 @final
 @dataclass(kw_only=True)
-class JoyBallMotionEvent(BuiltinEvent, event_type=BuiltinEventType.JOYBALLMOTION):
-    instance_id: int
+class JoyBallMotionEvent(JoyEvent, event_type=BuiltinEventType.JOYBALLMOTION):
     ball: int
     rel: float
 
 
 @final
 @dataclass(kw_only=True)
-class JoyHatMotionEvent(BuiltinEvent, event_type=BuiltinEventType.JOYHATMOTION):
-    instance_id: int
+class JoyHatMotionEvent(JoyEvent, event_type=BuiltinEventType.JOYHATMOTION):
     hat: int
     value: tuple[int, int]
 
 
-@final
 @dataclass(kw_only=True)
-class JoyButtonDownEvent(BuiltinEvent, event_type=BuiltinEventType.JOYBUTTONDOWN):
-    instance_id: int
+class JoyButtonEvent(JoyEvent):
     button: int
 
 
 @final
 @dataclass(kw_only=True)
-class JoyButtonUpEvent(BuiltinEvent, event_type=BuiltinEventType.JOYBUTTONUP):
-    instance_id: int
-    button: int
+class JoyButtonDownEvent(JoyButtonEvent, event_type=BuiltinEventType.JOYBUTTONDOWN):
+    pass
 
 
-JoyButtonEvent: TypeAlias = JoyButtonDownEvent | JoyButtonUpEvent
+@final
+@dataclass(kw_only=True)
+class JoyButtonUpEvent(JoyButtonEvent, event_type=BuiltinEventType.JOYBUTTONUP):
+    pass
 
 
 @final
@@ -548,10 +539,13 @@ class AudioDeviceRemovedEvent(BuiltinEvent, event_type=BuiltinEventType.AUDIODEV
         self.iscapture = bool(self.iscapture)
 
 
-@final
 @dataclass(kw_only=True)
-class FingerMotionEvent(BuiltinEvent, event_type=BuiltinEventType.FINGERMOTION):
+class TouchEvent(BuiltinEvent):
     touch_id: int
+
+
+@dataclass(kw_only=True)
+class TouchFingerEvent(TouchEvent):
     finger_id: int
     x: float
     y: float
@@ -561,29 +555,25 @@ class FingerMotionEvent(BuiltinEvent, event_type=BuiltinEventType.FINGERMOTION):
 
 @final
 @dataclass(kw_only=True)
-class FingerUpEvent(BuiltinEvent, event_type=BuiltinEventType.FINGERUP):
-    touch_id: int
-    finger_id: int
-    x: float
-    y: float
-    dx: float
-    dy: float
+class FingerMotionEvent(TouchFingerEvent, event_type=BuiltinEventType.FINGERMOTION):
+    pass
 
 
 @final
 @dataclass(kw_only=True)
-class FingerDownEvent(BuiltinEvent, event_type=BuiltinEventType.FINGERDOWN):
-    touch_id: int
-    finger_id: int
-    x: float
-    y: float
-    dx: float
-    dy: float
+class FingerUpEvent(TouchFingerEvent, event_type=BuiltinEventType.FINGERUP):
+    pass
 
 
 @final
 @dataclass(kw_only=True)
-class MultiGestureEvent(BuiltinEvent, event_type=BuiltinEventType.MULTIGESTURE):
+class FingerDownEvent(TouchFingerEvent, event_type=BuiltinEventType.FINGERDOWN):
+    pass
+
+
+@final
+@dataclass(kw_only=True)
+class MultiGestureEvent(TouchEvent, event_type=BuiltinEventType.MULTIGESTURE):
     touch_id: int
     x: float
     y: float
@@ -604,9 +594,6 @@ class TextEditingEvent(BuiltinEvent, event_type=BuiltinEventType.TEXTEDITING):
 @dataclass(kw_only=True)
 class TextInputEvent(BuiltinEvent, event_type=BuiltinEventType.TEXTINPUT):
     text: str
-
-
-TextEvent: TypeAlias = TextEditingEvent | TextInputEvent
 
 
 @final
@@ -633,102 +620,107 @@ class DropTextEvent(BuiltinEvent, event_type=BuiltinEventType.DROPTEXT):
     text: str
 
 
-@final
 @dataclass(kw_only=True)
-class WindowShownEvent(BuiltinEvent, event_type=BuiltinEventType.WINDOWSHOWN):
+class WindowEvent(BuiltinEvent):
     pass
 
 
 @final
 @dataclass(kw_only=True)
-class WindowHiddenEvent(BuiltinEvent, event_type=BuiltinEventType.WINDOWHIDDEN):
+class WindowShownEvent(WindowEvent, event_type=BuiltinEventType.WINDOWSHOWN):
     pass
 
 
 @final
 @dataclass(kw_only=True)
-class WindowExposedEvent(BuiltinEvent, event_type=BuiltinEventType.WINDOWEXPOSED):
+class WindowHiddenEvent(WindowEvent, event_type=BuiltinEventType.WINDOWHIDDEN):
     pass
 
 
 @final
 @dataclass(kw_only=True)
-class WindowMovedEvent(BuiltinEvent, event_type=BuiltinEventType.WINDOWMOVED):
+class WindowExposedEvent(WindowEvent, event_type=BuiltinEventType.WINDOWEXPOSED):
+    pass
+
+
+@final
+@dataclass(kw_only=True)
+class WindowMovedEvent(WindowEvent, event_type=BuiltinEventType.WINDOWMOVED):
     x: int
     y: int
 
 
 @final
 @dataclass(kw_only=True)
-class WindowResizedEvent(BuiltinEvent, event_type=BuiltinEventType.WINDOWRESIZED):
+class WindowResizedEvent(WindowEvent, event_type=BuiltinEventType.WINDOWRESIZED):
     x: int
     y: int
 
 
 @final
 @dataclass(kw_only=True)
-class WindowSizeChangedEvent(BuiltinEvent, event_type=BuiltinEventType.WINDOWSIZECHANGED):
+class WindowSizeChangedEvent(WindowEvent, event_type=BuiltinEventType.WINDOWSIZECHANGED):
     x: int
     y: int
 
 
 @final
 @dataclass(kw_only=True)
-class WindowMinimizedEvent(BuiltinEvent, event_type=BuiltinEventType.WINDOWMINIMIZED):
+class WindowMinimizedEvent(WindowEvent, event_type=BuiltinEventType.WINDOWMINIMIZED):
     pass
 
 
 @final
 @dataclass(kw_only=True)
-class WindowMaximizedEvent(BuiltinEvent, event_type=BuiltinEventType.WINDOWMAXIMIZED):
+class WindowMaximizedEvent(WindowEvent, event_type=BuiltinEventType.WINDOWMAXIMIZED):
     pass
 
 
 @final
 @dataclass(kw_only=True)
-class WindowRestoredEvent(BuiltinEvent, event_type=BuiltinEventType.WINDOWRESTORED):
+class WindowRestoredEvent(WindowEvent, event_type=BuiltinEventType.WINDOWRESTORED):
     pass
 
 
 @final
 @dataclass(kw_only=True)
-class WindowEnterEvent(BuiltinEvent, event_type=BuiltinEventType.WINDOWENTER):
+class WindowEnterEvent(WindowEvent, event_type=BuiltinEventType.WINDOWENTER):
     pass
 
 
 @final
 @dataclass(kw_only=True)
-class WindowLeaveEvent(BuiltinEvent, event_type=BuiltinEventType.WINDOWLEAVE):
+class WindowLeaveEvent(WindowEvent, event_type=BuiltinEventType.WINDOWLEAVE):
     pass
 
 
 @final
 @dataclass(kw_only=True)
-class WindowFocusGainedEvent(BuiltinEvent, event_type=BuiltinEventType.WINDOWFOCUSGAINED):
+class WindowFocusGainedEvent(WindowEvent, event_type=BuiltinEventType.WINDOWFOCUSGAINED):
     pass
 
 
 @final
 @dataclass(kw_only=True)
-class WindowFocusLostEvent(BuiltinEvent, event_type=BuiltinEventType.WINDOWFOCUSLOST):
+class WindowFocusLostEvent(WindowEvent, event_type=BuiltinEventType.WINDOWFOCUSLOST):
     pass
 
 
 @final
 @dataclass(kw_only=True)
-class WindowCloseEvent(BuiltinEvent, event_type=BuiltinEventType.WINDOWCLOSE):
+class WindowCloseEvent(WindowEvent, event_type=BuiltinEventType.WINDOWCLOSE):
     pass
 
 
 @final
 @dataclass(kw_only=True)
-class WindowTakeFocusEvent(BuiltinEvent, event_type=BuiltinEventType.WINDOWTAKEFOCUS):
+class WindowTakeFocusEvent(WindowEvent, event_type=BuiltinEventType.WINDOWTAKEFOCUS):
     pass
 
 
 @final
 @dataclass(kw_only=True)
-class WindowHitTestEvent(BuiltinEvent, event_type=BuiltinEventType.WINDOWHITTEST):
+class WindowHitTestEvent(WindowEvent, event_type=BuiltinEventType.WINDOWHITTEST):
     pass
 
 
@@ -755,6 +747,13 @@ def __check_event_types_association() -> None:
         raise AssertionError(
             f"The following events do not have an associated BuiltinEvent class: {', '.join(e.name for e in unbound_types)}"
         )
+
+    def __init_subclass__(cls: type[BuiltinEvent], **kwargs: Any) -> None:
+        msg = f"Trying to create custom event from {cls.__base__.__qualname__} class"
+        raise TypeError(msg)
+
+    __init_subclass__.__qualname__ = f"{BuiltinEvent.__qualname__}.{__init_subclass__.__name__}"
+    setattr(BuiltinEvent, "__init_subclass__", classmethod(__init_subclass__))
 
 
 __check_event_types_association()
@@ -1463,12 +1462,11 @@ class EventManager:
                     return True
                 del priority_callback_dict[event_type]
 
-        # mypy does not handle isinstance() with TypeAlias of UnionTypes yet
-        if isinstance(event, KeyEvent):  # type: ignore[arg-type,misc]
-            if self.__handle_key_event(event, priority_callback):  # type: ignore[arg-type]
+        if isinstance(event, KeyEvent):
+            if self.__handle_key_event(event, priority_callback):
                 return True
-        elif isinstance(event, MouseButtonEvent):  # type: ignore[arg-type,misc]
-            if self.__handle_mouse_event(event, priority_callback):  # type: ignore[arg-type]
+        elif isinstance(event, MouseButtonEvent):
+            if self.__handle_mouse_event(event, priority_callback):
                 return True
 
         for callback in chain(self.__event_handler_dict.get(event_type, ()), self.__other_event_handlers_list):
