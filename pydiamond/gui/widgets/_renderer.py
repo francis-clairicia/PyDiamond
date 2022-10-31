@@ -21,18 +21,19 @@ if TYPE_CHECKING:
 
 @final
 class WidgetRendererView(RendererView):
-    __slots__ = ("__rect",)
+    __slots__ = ("__widget",)
 
     def __init__(self, widget: AbstractWidget, target: AbstractRenderer) -> None:
-        self.__rect: Rect = widget.get_visible_rect()
+        self.__widget: AbstractWidget = widget
         super().__init__(target)
 
     def __clip_rect(self, rect: _CanBeRect | None) -> Rect:
+        widget_clip = self.__widget.get_visible_rect()
         if rect is None:
-            return self.__rect.copy()
+            return widget_clip.copy()
         if not isinstance(rect, Rect):
             rect = Rect(*rect)
-        return rect.clip(self.__rect)
+        return rect.clip(widget_clip)
 
     def using_clip(self, rect: _CanBeRect | None) -> ContextManager[None]:
         return super().using_clip(self.__clip_rect(rect))
