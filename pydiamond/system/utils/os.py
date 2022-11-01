@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["has_fork", "fork", "register_at_fork_if_supported"]
+__all__ = ["fork", "has_fork", "register_at_fork_if_supported"]
 
 import os
 from typing import Any, Callable, overload

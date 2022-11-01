@@ -8,8 +8,12 @@ from __future__ import annotations
 
 __all__ = [
     "AbstractRequestHandler",
+    "ForkingStateLessTCPNetworkServer",
+    "ForkingStateLessUDPNetworkServer",
     "StateLessTCPNetworkServer",
     "StateLessUDPNetworkServer",
+    "ThreadingStateLessTCPNetworkServer",
+    "ThreadingStateLessUDPNetworkServer",
 ]
 
 from abc import abstractmethod
@@ -27,6 +31,7 @@ from .abc import (
     NetworkProtocolFactory,
     StreamNetworkProtocolFactory,
 )
+from .concurrency import ForkingMixIn, ThreadingMixIn
 
 _RequestT = TypeVar("_RequestT")
 _ResponseT = TypeVar("_ResponseT")
@@ -35,10 +40,15 @@ _ResponseT = TypeVar("_ResponseT")
 class AbstractRequestHandler(Generic[_RequestT, _ResponseT], Object):
     request: _RequestT
     client: ConnectedClient[_ResponseT]
-    server: AbstractNetworkServer
+    server: AbstractNetworkServer[_RequestT, _ResponseT]
 
     @final
-    def __init__(self, request: _RequestT, client: ConnectedClient[_ResponseT], server: AbstractNetworkServer) -> None:
+    def __init__(
+        self,
+        request: _RequestT,
+        client: ConnectedClient[_ResponseT],
+        server: AbstractNetworkServer[_RequestT, _ResponseT],
+    ) -> None:
         self.request = request
         self.client = client
         self.server = server
@@ -102,10 +112,7 @@ class StateLessTCPNetworkServer(AbstractTCPNetworkServer[_RequestT, _ResponseT])
 
     @final
     def process_request(self, request: _RequestT, client: ConnectedClient[_ResponseT]) -> None:
-        try:
-            self.__request_handler_cls(request, client, self)
-        finally:
-            client.close()
+        self.__request_handler_cls(request, client, self)
 
     @final
     def _verify_new_client(self, client: TCPNetworkClient[_ResponseT, _RequestT], address: SocketAddress) -> bool:
@@ -162,12 +169,25 @@ class StateLessUDPNetworkServer(AbstractUDPNetworkServer[_RequestT, _ResponseT])
 
     @final
     def process_request(self, request: _RequestT, client: ConnectedClient[_ResponseT]) -> None:
-        try:
-            self.__request_handler_cls(request, client, self)
-        finally:
-            client.close()
+        self.__request_handler_cls(request, client, self)
 
     @property
     @final
     def request_handler_cls(self) -> type[AbstractRequestHandler[_RequestT, _ResponseT]]:
         return self.__request_handler_cls
+
+
+class ThreadingStateLessTCPNetworkServer(ThreadingMixIn, StateLessTCPNetworkServer[_RequestT, _ResponseT]):
+    pass
+
+
+class ThreadingStateLessUDPNetworkServer(ThreadingMixIn, StateLessUDPNetworkServer[_RequestT, _ResponseT]):
+    pass
+
+
+class ForkingStateLessTCPNetworkServer(ForkingMixIn, StateLessTCPNetworkServer[_RequestT, _ResponseT]):
+    pass
+
+
+class ForkingStateLessUDPNetworkServer(ForkingMixIn, StateLessUDPNetworkServer[_RequestT, _ResponseT]):
+    pass

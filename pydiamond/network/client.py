@@ -40,6 +40,9 @@ _Address: TypeAlias = tuple[str, int] | tuple[str, int, int, int]  # type: ignor
 # False positive, see https://github.com/python/mypy/issues/11098
 
 
+_NO_DEFAULT: Any = object()
+
+
 class AbstractNetworkClient(Object):
     __slots__ = ()
 
@@ -235,14 +238,14 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
                 self.__read_socket(timeout=None, flags=flags)
 
     @overload
-    def recv_packet_no_block(self, *, default: None = ..., timeout: float = ..., flags: int = ...) -> _ReceivedPacketT | None:
+    def recv_packet_no_block(self, *, timeout: float = ..., flags: int = ...) -> _ReceivedPacketT:
         ...
 
     @overload
     def recv_packet_no_block(self, *, default: _T, timeout: float = ..., flags: int = ...) -> _ReceivedPacketT | _T:
         ...
 
-    def recv_packet_no_block(self, *, default: Any = None, timeout: float = 0, flags: int = 0) -> Any:
+    def recv_packet_no_block(self, *, default: Any = _NO_DEFAULT, timeout: float = 0, flags: int = 0) -> Any:
         timeout = float(timeout)
         self._check_not_closed()
         with self.__lock:
@@ -251,7 +254,13 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
             except StopIteration:
                 pass
             self.__read_socket(timeout=timeout, flags=flags)
-            return next(self.__consumer, default)
+            try:
+                return next(self.__consumer)
+            except StopIteration:
+                pass
+            if default is not _NO_DEFAULT:
+                return default
+            raise TimeoutError("recv_packet() timed out")
 
     def recv_packets(self, *, timeout: float | None = 0, flags: int = 0) -> list[_ReceivedPacketT]:
         self._check_not_closed()
@@ -541,9 +550,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
             return queue.popleft()
 
     @overload
-    def recv_packet_no_block(
-        self, *, flags: int = 0, default: None = ..., timeout: float = ...
-    ) -> tuple[_ReceivedPacketT, SocketAddress] | None:
+    def recv_packet_no_block(self, *, flags: int = 0, timeout: float = ...) -> tuple[_ReceivedPacketT, SocketAddress]:
         ...
 
     @overload
@@ -552,7 +559,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
     ) -> tuple[_ReceivedPacketT, SocketAddress] | _T:
         ...
 
-    def recv_packet_no_block(self, *, flags: int = 0, default: Any = None, timeout: float = 0) -> Any:
+    def recv_packet_no_block(self, *, flags: int = 0, default: Any = _NO_DEFAULT, timeout: float = 0) -> Any:
         self._check_not_closed()
         timeout = float(timeout)
         with self.__lock:
@@ -560,7 +567,9 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
             if not queue:
                 self.__recv_packets(flags=flags, timeout=timeout)
                 if not queue:
-                    return default
+                    if default is not _NO_DEFAULT:
+                        return default
+                    raise TimeoutError("recv_packet() timed out")
             return queue.popleft()
 
     def recv_packets(

@@ -129,7 +129,7 @@ class TestStarImports:
             for imported_module in imported_module_list
         ),
     )
-    def test__all__values_from_imported_module_retrieved_in_main_module(
+    def test__dunder_all__values_from_imported_module_retrieved_in_main_module(
         self,
         module_name: str,
         imported_module_name: str,
@@ -138,8 +138,14 @@ class TestStarImports:
         module = import_module(module_name)
         imported_module = import_module(imported_module_name, package=module_name)
         module_namespace = vars(module)
-        __all_module__: list[str] = module.__all__
-        __all_submodule__: list[str] = imported_module.__all__
+        try:
+            __all_module__: list[str] = module.__all__
+        except AttributeError:
+            pytest.fail(f"{module_name!r} does not define __all__ variable")
+        try:
+            __all_submodule__: list[str] = imported_module.__all__
+        except AttributeError:
+            pytest.fail(f"{imported_module.__name__!r} does not define __all__ variable")
 
         # Act
         missing_names_in_declaration = set(__all_submodule__) - set(__all_module__)
@@ -150,7 +156,7 @@ class TestStarImports:
         assert not missing_names_in_declaration
 
     @pytest.mark.parametrize("module_name", ALL_PYDIAMOND_MODULES)
-    def test__all__values_declared_exists_in_namespace(self, module_name: str) -> None:
+    def test__dunder_all__is_conform(self, module_name: str) -> None:
         # Arrange
         module = import_module(module_name)
         module_namespace = vars(module)
@@ -168,7 +174,7 @@ class TestStarImports:
         assert not unknown_names
 
     @pytest.mark.parametrize("module_name", sorted(AUTO_IMPORTED_MODULES))
-    def test__all__no_conflict_between_submodules(self, module_name: str) -> None:
+    def test__dunder_all__no_conflict_between_submodules(self, module_name: str) -> None:
         # Arrange
 
         # Act & Assert

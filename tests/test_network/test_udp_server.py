@@ -6,8 +6,16 @@ from time import sleep
 from typing import Any
 
 from pydiamond.network.client import UDPNetworkClient
-from pydiamond.network.server.stateless import AbstractRequestHandler, StateLessUDPNetworkServer
+from pydiamond.network.server.stateless import (
+    AbstractRequestHandler,
+    ForkingStateLessUDPNetworkServer,
+    StateLessUDPNetworkServer,
+    ThreadingStateLessUDPNetworkServer,
+)
 from pydiamond.system.threading import Thread
+from pydiamond.system.utils.os import has_fork
+
+import pytest
 
 
 class _MirrorRequestHandler(AbstractRequestHandler[Any, Any]):
@@ -90,3 +98,42 @@ def test_request_handling() -> None:
             assert client_1.recv_packet()[0] == 350
             assert client_2.recv_packet()[0] == -634
             assert client_3.recv_packet()[0] == 0
+
+
+class _ThreadingServerRequestHandler(AbstractRequestHandler[Any, Any]):
+    def handle(self) -> None:
+        import threading
+
+        self.client.send_packet((self.request, threading.current_thread() is not threading.main_thread()))
+
+
+def test_threading_server() -> None:
+    with ThreadingStateLessUDPNetworkServer(_RANDOM_HOST_PORT, _ThreadingServerRequestHandler) as server:
+        server.serve_forever_in_thread(poll_interval=0)
+        with UDPNetworkClient[Any, Any]() as client:
+            packet = {"data": 1}
+            client.send_packet(server.address, packet)
+            response: tuple[Any, bool] = client.recv_packet()[0]
+            assert response[0] == packet
+            assert response[1] is True
+
+
+class _ForkingServerRequestHandler(AbstractRequestHandler[Any, Any]):
+    def handle(self) -> None:
+        from os import getpid
+
+        self.client.send_packet((self.request, getpid()))
+
+
+@pytest.mark.skipif(not has_fork(), reason="fork() not supported on this platform")
+def test_forking_server() -> None:
+    from os import getpid
+
+    with ForkingStateLessUDPNetworkServer(_RANDOM_HOST_PORT, _ForkingServerRequestHandler) as server:
+        server.serve_forever_in_thread(poll_interval=0)
+        with UDPNetworkClient[Any, Any]() as client:
+            packet = {"data": 1}
+            client.send_packet(server.address, packet)
+            response: tuple[Any, int] = client.recv_packet()[0]
+            assert response[0] == packet
+            assert response[1] != getpid()

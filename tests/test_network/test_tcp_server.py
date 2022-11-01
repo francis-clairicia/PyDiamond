@@ -8,8 +8,13 @@ from typing import Any, ClassVar, Generator
 from pydiamond.network.client import TCPNetworkClient
 from pydiamond.network.protocol import StreamNetworkProtocol, ValidationError
 from pydiamond.network.server.abc import AbstractTCPNetworkServer, ConnectedClient
+from pydiamond.network.server.concurrency import AbstractForkingTCPNetworkServer, AbstractThreadingTCPNetworkServer
+from pydiamond.network.server.stateless import AbstractRequestHandler, ForkingStateLessTCPNetworkServer
 from pydiamond.network.socket import SocketAddress
 from pydiamond.system.threading import Thread
+from pydiamond.system.utils.os import has_fork
+
+import pytest
 
 
 class _TestServer(AbstractTCPNetworkServer[Any, Any]):
@@ -152,17 +157,20 @@ def test_request_handling() -> None:
             sleep(0.3)
             assert client_2.recv_packet() == 350
             assert client_3.recv_packet() == 350
-            assert client_1.recv_packet_no_block() is None
+            with pytest.raises(TimeoutError):
+                client_1.recv_packet_no_block()
             client_2.send_packet(-634)
             sleep(0.3)
             assert client_1.recv_packet() == -634
             assert client_3.recv_packet() == -634
-            assert client_2.recv_packet_no_block() is None
+            with pytest.raises(TimeoutError):
+                client_2.recv_packet_no_block()
             client_3.send_packet(0)
             sleep(0.3)
             assert client_1.recv_packet() == 0
             assert client_2.recv_packet() == 0
-            assert client_3.recv_packet_no_block() is None
+            with pytest.raises(TimeoutError):
+                client_3.recv_packet_no_block()
             client_1.send_packet(350)
             sleep(0.1)
             client_2.send_packet(-634)
@@ -172,3 +180,73 @@ def test_request_handling() -> None:
             assert client_1.recv_packets() == [-634, 0]
             assert client_2.recv_packets() == [350, 0]
             assert client_3.recv_packets() == [350, -634]
+
+
+class _TestThreadingServer(AbstractThreadingTCPNetworkServer[Any, Any]):
+    def process_request(self, request: Any, client: ConnectedClient[Any]) -> None:
+        import threading
+
+        client.send_packet((request, threading.current_thread() is not threading.main_thread()))
+
+
+def test_threading_server() -> None:
+    with _TestThreadingServer(_RANDOM_HOST_PORT) as server:
+        server.serve_forever_in_thread(poll_interval=0)
+        with TCPNetworkClient[Any, Any](server.address.for_connection()) as client:
+            packet = {"data": 1}
+            client.send_packet(packet)
+            response: tuple[Any, bool] = client.recv_packet()
+            assert response[0] == packet
+            assert response[1] is True
+
+
+class _TestForkingServer(AbstractForkingTCPNetworkServer[Any, Any]):
+    def process_request(self, request: Any, client: ConnectedClient[Any]) -> None:
+        from os import getpid
+
+        client.send_packet((request, getpid()))
+
+
+@pytest.mark.skipif(not has_fork(), reason="fork() not supported on this platform")
+def test_forking_server() -> None:
+    from os import getpid
+
+    with _TestForkingServer(_RANDOM_HOST_PORT) as server:
+        server.serve_forever_in_thread(poll_interval=0)
+        with TCPNetworkClient[Any, Any](server.address.for_connection()) as client:
+            packet = {"data": 1}
+            client.send_packet(packet)
+            response: tuple[Any, int] = client.recv_packet()
+            assert response[0] == packet
+            assert response[1] != getpid()
+            sleep(0.1)
+            with pytest.raises(EOFError):
+                _ = client.recv_packet()
+
+
+class _TestStatelessForkingServer(ForkingStateLessTCPNetworkServer[Any, Any]):
+    pass
+
+
+class _ForkingServerRequestHandler(AbstractRequestHandler[Any, Any]):
+    def handle(self) -> None:
+        from os import getpid
+
+        self.client.send_packet((self.request, getpid()))
+
+
+@pytest.mark.skipif(not has_fork(), reason="fork() not supported on this platform")
+def test_forking_stateless_server() -> None:
+    from os import getpid
+
+    with _TestStatelessForkingServer(_RANDOM_HOST_PORT, _ForkingServerRequestHandler) as server:
+        server.serve_forever_in_thread(poll_interval=0)
+        with TCPNetworkClient[Any, Any](server.address.for_connection()) as client:
+            packet = {"data": 1}
+            client.send_packet(packet)
+            response: tuple[Any, int] = client.recv_packet()
+            assert response[0] == packet
+            assert response[1] != getpid()
+            sleep(0.1)
+            with pytest.raises(EOFError):
+                _ = client.recv_packet()

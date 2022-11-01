@@ -8,6 +8,7 @@ from typing import Any
 from pydiamond.network.client import UDPNetworkClient
 from pydiamond.network.protocol import PickleNetworkProtocol, SafePickleNetworkProtocol
 
+import pytest
 from cryptography.fernet import Fernet
 
 
@@ -18,7 +19,9 @@ def test_default(udp_server: tuple[str, int]) -> None:
         client.send_packet(udp_server, "Hello")
         assert client.recv_packet()[0] == "Hello"
         assert len(client.recv_packets(timeout=0)) == 0
-        assert client.recv_packet_no_block() is None
+        with pytest.raises(TimeoutError):
+            client.recv_packet_no_block()
+        assert client.recv_packet_no_block(default=None) is None
 
 
 def test_custom_socket(udp_server: tuple[str, int]) -> None:

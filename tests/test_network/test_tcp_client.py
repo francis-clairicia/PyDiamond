@@ -26,7 +26,9 @@ def test_default(tcp_server: tuple[str, int]) -> None:
         client.send_packet("Hello")
         assert client.recv_packet() == "Hello"
         assert len(client.recv_packets(timeout=0)) == 0
-        assert client.recv_packet_no_block() is None
+        with pytest.raises(TimeoutError):
+            client.recv_packet_no_block()
+        assert client.recv_packet_no_block(default=None) is None
 
 
 def test_custom_socket(tcp_server: tuple[str, int]) -> None:
