@@ -101,7 +101,7 @@ class AutoSeparatedStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_c
         separator: bytes = self.__separator
         data = data.rstrip(separator)
         if separator in data:
-            raise ValueError(f"{separator!r} separator found in serialized packet {packet!r} and is not at the end")
+            raise ValueError(f"{separator!r} separator found in serialized packet {packet!r} which was not at the end")
         yield data + separator
 
     @abstractmethod
@@ -283,7 +283,7 @@ class FixedPacketSizeStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT
         except ValidationError as exc:
             raise IncrementalDeserializeError(
                 f"Error when deserializing data: {exc}",
-                remaining_data=buffer,
+                remaining_data=data[1:] + buffer,
                 data_with_error=data,
             ) from exc
         return (packet, buffer)

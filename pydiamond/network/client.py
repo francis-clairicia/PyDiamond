@@ -200,8 +200,11 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
             self.__write_on_socket(timeout=timeout, flags=flags)
 
     def __write_on_socket(self, *, timeout: float | None, flags: int) -> None:
-        if timeout == 0:
-            raise ValueError("non-blocking sockets are not supported")
+        if timeout is not None:
+            if timeout < 0:
+                raise ValueError("Timeout out of range")
+            if timeout == 0:
+                raise ValueError("non-blocking sockets are not supported")
 
         flags |= self.__default_send_flags
 
@@ -274,6 +277,8 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
 
     def __read_socket(self, *, timeout: float | None, flags: int) -> None:
         flags |= self.__default_recv_flags
+        if timeout is not None and timeout < 0:
+            raise ValueError("Timeout out of range")
 
         socket: Socket = self.__socket
         socket_recv = socket.recv
@@ -592,6 +597,8 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
 
     def __recv_packets(self, *, flags: int, timeout: float | None) -> None:
         flags |= self.__default_recv_flags
+        if timeout is not None and timeout < 0:
+            raise ValueError("Timeout out of range")
 
         socket: Socket = self.__socket
         bufsize: int = self.__max_packet_size

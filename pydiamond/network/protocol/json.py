@@ -128,8 +128,8 @@ class JSONNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
                         # Directly refused because we cannot know when data is valid
                         raise IncrementalDeserializeError(
                             "Do not received beginning of a string/array/object",
-                            data_with_error=chunk,
-                            remaining_data=partial_document,
+                            data_with_error=partial_document + char,
+                            remaining_data=chunk[nb_chars:],
                         )
                 partial_document += char
                 if enclosure_counter[next(iter(enclosure_counter))] <= 0:  # 1st found is closed
