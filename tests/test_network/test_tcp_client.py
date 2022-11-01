@@ -65,7 +65,7 @@ class StringNetworkProtocol(StreamNetworkProtocol[str, str]):
 def test_multiple_requests(tcp_server: tuple[str, int]) -> None:
     with TCPNetworkClient(tcp_server, protocol=StringNetworkProtocol()) as client:
         client.send_packet("A\nB\nC\nD\n")
-        assert client.recv_packets() == ["A", "B", "C", "D"]
+        assert client.recv_packets(timeout=None) == ["A", "B", "C", "D"]
         client.send_packet("E\nF\nG\nH\nI")
         assert client.recv_packet() == "E"
         assert client.recv_packet() == "F"

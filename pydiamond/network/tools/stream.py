@@ -39,9 +39,6 @@ class StreamNetworkDataProducer(Generic[_ST_contra], Object):
         self.__b: bytes = b""
         self.__lock: RLock = lock or RLock()
 
-    def __bool__(self) -> bool:
-        return bool(self.__b) or bool(self.__q)
-
     def read(self, bufsize: int = -1) -> bytes:
         if bufsize == 0:
             return b""

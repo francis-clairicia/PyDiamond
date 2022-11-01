@@ -13,7 +13,7 @@ from pydiamond.system.threading import Thread
 
 
 class _TestServer(AbstractTCPNetworkServer[Any, Any]):
-    def _process_request(self, request: Any, client: ConnectedClient[Any]) -> None:
+    def process_request(self, request: Any, client: ConnectedClient[Any]) -> None:
         for c in filter(lambda c: c is not client, self.clients):
             c.send_packet(request)
 

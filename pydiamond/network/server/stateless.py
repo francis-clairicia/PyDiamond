@@ -66,6 +66,9 @@ class StateLessTCPNetworkServer(AbstractTCPNetworkServer[_RequestT, _ResponseT])
         self,
         address: tuple[str, int] | tuple[str, int, int, int],
         request_handler_cls: type[AbstractRequestHandler[_RequestT, _ResponseT]],
+        *,
+        send_flags: int = ...,
+        recv_flags: int = ...,
     ) -> None:
         ...
 
@@ -80,6 +83,8 @@ class StateLessTCPNetworkServer(AbstractTCPNetworkServer[_RequestT, _ResponseT])
         reuse_port: bool = ...,
         dualstack_ipv6: bool = ...,
         protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT] = ...,
+        send_flags: int = ...,
+        recv_flags: int = ...,
     ) -> None:
         ...
 
@@ -96,7 +101,7 @@ class StateLessTCPNetworkServer(AbstractTCPNetworkServer[_RequestT, _ResponseT])
         super().__init__(address, verify_client_in_thread=False, **kwargs)
 
     @final
-    def _process_request(self, request: _RequestT, client: ConnectedClient[_ResponseT]) -> None:
+    def process_request(self, request: _RequestT, client: ConnectedClient[_ResponseT]) -> None:
         try:
             self.__request_handler_cls(request, client, self)
         finally:
@@ -105,6 +110,10 @@ class StateLessTCPNetworkServer(AbstractTCPNetworkServer[_RequestT, _ResponseT])
     @final
     def _verify_new_client(self, client: TCPNetworkClient[_ResponseT, _RequestT], address: SocketAddress) -> bool:
         return True
+
+    @final
+    def _on_disconnect(self, client: ConnectedClient[_ResponseT]) -> None:
+        pass
 
     @property
     @final
@@ -119,6 +128,9 @@ class StateLessUDPNetworkServer(AbstractUDPNetworkServer[_RequestT, _ResponseT])
         self,
         address: tuple[str, int] | tuple[str, int, int, int],
         request_handler_cls: type[AbstractRequestHandler[_RequestT, _ResponseT]],
+        *,
+        send_flags: int = ...,
+        recv_flags: int = ...,
     ) -> None:
         ...
 
@@ -131,6 +143,8 @@ class StateLessUDPNetworkServer(AbstractUDPNetworkServer[_RequestT, _ResponseT])
         family: int = ...,
         reuse_port: bool = ...,
         protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT] = ...,
+        send_flags: int = ...,
+        recv_flags: int = ...,
     ) -> None:
         ...
 
@@ -147,7 +161,7 @@ class StateLessUDPNetworkServer(AbstractUDPNetworkServer[_RequestT, _ResponseT])
         super().__init__(address, **kwargs)
 
     @final
-    def _process_request(self, request: _RequestT, client: ConnectedClient[_ResponseT]) -> None:
+    def process_request(self, request: _RequestT, client: ConnectedClient[_ResponseT]) -> None:
         try:
             self.__request_handler_cls(request, client, self)
         finally:
