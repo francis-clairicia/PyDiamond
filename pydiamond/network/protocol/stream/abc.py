@@ -73,9 +73,9 @@ class NetworkPacketIncrementalDeserializer(NetworkPacketDeserializer[_DT_co]):
 
 
 class StreamNetworkProtocol(
+    NetworkProtocol[_ST_contra, _DT_co],
     NetworkPacketIncrementalSerializer[_ST_contra],
     NetworkPacketIncrementalDeserializer[_DT_co],
-    NetworkProtocol[_ST_contra, _DT_co],
 ):
     __slots__ = ()
 
