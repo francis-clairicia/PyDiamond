@@ -69,7 +69,7 @@ from .keyboard import Keyboard
 from .mouse import Mouse
 
 if TYPE_CHECKING:
-    from pygame._common import _ColorValue  # pyright: reportMissingModuleSource=false
+    from pygame._common import _ColorValue
 
     from ..graphics.drawable import SupportsDrawing
 

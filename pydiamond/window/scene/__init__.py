@@ -52,7 +52,7 @@ from ...system.object import Object, final
 from ...system.theme import ClassWithThemeNamespaceMeta, no_theme_decorator
 from ...system.time import Time
 from ...system.utils._mangling import getattr_pv, mangle_private_attribute, setattr_pv
-from ...system.utils.abc import concreteclassmethod, isconcreteclass
+from ...system.utils.abc import concreteclassmethod, isabstractclass
 from ...system.utils.contextlib import ExitStackView
 from ...system.utils.functools import wraps
 from ...system.utils.itertools import consume
@@ -89,7 +89,7 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
             raise TypeError("Multiple inheritance with other class than Scene is not supported")
 
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
-        if isconcreteclass(cls):
+        if not isabstractclass(cls):
             cls.__framerate = max(int(framerate), 0)
             cls.__fixed_framerate = max(int(fixed_framerate), 0)
             cls.__busy_loop = bool(busy_loop)
@@ -489,7 +489,7 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
 class MainScene(Scene):
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        if isconcreteclass(cls):
+        if not isabstractclass(cls):
             cls.set_closed_theme_namespace()
 
 
@@ -932,7 +932,7 @@ class _SceneManager:
         remove_actual: bool = False,
         awake_kwargs: dict[str, Any] | None = None,
     ) -> NoReturn:
-        if not isconcreteclass(scene_cls):
+        if isabstractclass(scene_cls):
             raise TypeError(f"{scene_cls.__name__} is an abstract class")
         if issubclass(scene_cls, Dialog):
             raise TypeError(f"{scene_cls.__name__} must be open with open_dialog()")
@@ -991,7 +991,7 @@ class _SceneManager:
         *,
         awake_kwargs: dict[str, Any] | None = None,
     ) -> None:
-        if not isconcreteclass(dialog_cls):
+        if isabstractclass(dialog_cls):
             raise TypeError(f"{dialog_cls.__name__} is an abstract class")
         if not issubclass(dialog_cls, Dialog):
             raise TypeError(f"{dialog_cls.__name__} must be open with go_to()")

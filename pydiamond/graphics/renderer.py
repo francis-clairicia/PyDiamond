@@ -22,7 +22,7 @@ from ..system.utils.itertools import consume
 from ..system.utils.typing import reflect_method_signature
 
 if TYPE_CHECKING:
-    from pygame._common import _CanBeRect, _ColorValue, _Coordinate, _RectValue  # pyright: reportMissingModuleSource=false
+    from pygame._common import _CanBeRect, _ColorValue, _Coordinate, _RectValue
 
     from .font import _TextFont
     from .surface import Surface

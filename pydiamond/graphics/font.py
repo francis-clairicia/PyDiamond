@@ -27,7 +27,7 @@ from ..system.configuration import ConfigurationTemplate, OptionAttribute
 from ..system.object import Object, final
 
 if TYPE_CHECKING:
-    from pygame._common import _CanBeRect, _ColorValue, _Coordinate, _FileArg  # pyright: reportMissingModuleSource=false
+    from pygame._common import _CanBeRect, _ColorValue, _Coordinate, _FileArg
 
     from .surface import Surface
 

@@ -9,7 +9,6 @@ from pydiamond.network.client import TCPNetworkClient
 from pydiamond.network.protocol import StreamNetworkProtocol, ValidationError
 from pydiamond.network.server.abc import AbstractTCPNetworkServer, ConnectedClient
 from pydiamond.network.server.concurrency import AbstractForkingTCPNetworkServer, AbstractThreadingTCPNetworkServer
-from pydiamond.network.server.stateless import AbstractRequestHandler, ForkingStateLessTCPNetworkServer
 from pydiamond.network.socket import SocketAddress
 from pydiamond.system.threading import Thread
 from pydiamond.system.utils.os import has_fork
@@ -212,34 +211,6 @@ def test_forking_server() -> None:
     from os import getpid
 
     with _TestForkingServer(_RANDOM_HOST_PORT) as server:
-        server.serve_forever_in_thread(poll_interval=0)
-        with TCPNetworkClient[Any, Any](server.address.for_connection()) as client:
-            packet = {"data": 1}
-            client.send_packet(packet)
-            response: tuple[Any, int] = client.recv_packet()
-            assert response[0] == packet
-            assert response[1] != getpid()
-            sleep(0.1)
-            with pytest.raises(EOFError):
-                _ = client.recv_packet()
-
-
-class _TestStatelessForkingServer(ForkingStateLessTCPNetworkServer[Any, Any]):
-    pass
-
-
-class _ForkingServerRequestHandler(AbstractRequestHandler[Any, Any]):
-    def handle(self) -> None:
-        from os import getpid
-
-        self.client.send_packet((self.request, getpid()))
-
-
-@pytest.mark.skipif(not has_fork(), reason="fork() not supported on this platform")
-def test_forking_stateless_server() -> None:
-    from os import getpid
-
-    with _TestStatelessForkingServer(_RANDOM_HOST_PORT, _ForkingServerRequestHandler) as server:
         server.serve_forever_in_thread(poll_interval=0)
         with TCPNetworkClient[Any, Any](server.address.for_connection()) as client:
             packet = {"data": 1}

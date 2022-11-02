@@ -14,7 +14,7 @@ from ...graphics.renderer import AbstractRenderer, RendererView
 from ...math.rect import Rect
 
 if TYPE_CHECKING:
-    from pygame._common import _CanBeRect  # pyright: reportMissingModuleSource=false
+    from pygame._common import _CanBeRect
 
     from .abc import AbstractWidget
 

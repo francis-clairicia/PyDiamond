@@ -39,7 +39,7 @@ from .font import STYLE_DEFAULT, Font, FontFactory
 from .renderer import AbstractRenderer, BlendMode, RendererAnchor
 
 if TYPE_CHECKING:
-    from pygame._common import _CanBeRect, _ColorValue, _Coordinate, _RectValue  # pyright: reportMissingModuleSource=false
+    from pygame._common import _CanBeRect, _ColorValue, _Coordinate, _RectValue
 
     from ..resources.abc import Resource
     from .font import _TextFont
