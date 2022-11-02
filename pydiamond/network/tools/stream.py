@@ -16,7 +16,7 @@ from threading import RLock
 from typing import Generator, Generic, Iterator, TypeVar
 
 from ...system.object import Object, final
-from ...system.utils.itertools import consumer_start, send_return
+from ...system.utils.itertools import NoStopIteration, consumer_start, send_return
 from ..protocol.stream.abc import (
     IncrementalDeserializeError,
     NetworkPacketIncrementalDeserializer,
@@ -110,7 +110,7 @@ class StreamNetworkDataConsumer(Iterator[_DT_co], Generic[_DT_co], Object):
                 except IncrementalDeserializeError as exc:
                     self.__u = b""
                     self.__b = exc.remaining_data
-                except StopIteration:
+                except NoStopIteration:
                     self.__u += chunk
                     self.__c = consumer
                 except BaseException:

@@ -23,7 +23,7 @@ from struct import Struct, error as StructError
 from typing import Any, Generator, TypeVar
 
 from ....system.object import final
-from ....system.utils.itertools import consumer_start, send_return
+from ....system.utils.itertools import NoStopIteration, consumer_start, send_return
 from ..abc import NetworkPacketDeserializer, NetworkPacketSerializer, NetworkProtocol, ValidationError
 
 _ST_contra = TypeVar("_ST_contra", contravariant=True)
@@ -60,7 +60,7 @@ class NetworkPacketIncrementalDeserializer(NetworkPacketDeserializer[_DT_co]):
         remaining: bytes
         try:
             packet, remaining = send_return(consumer, data)
-        except StopIteration:
+        except NoStopIteration:
             consumer.close()
             raise ValidationError("Missing data to create packet") from None
         if remaining:
