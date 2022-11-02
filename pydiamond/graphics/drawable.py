@@ -290,7 +290,7 @@ class LayeredDrawableGroup(DrawableGroup[_D]):
         change_layer = self.change_layer
         drawable_list_layer1: Sequence[_D] = self.remove_from_layer(layer1)
         for d in self.get_from_layer(layer2):
-            change_layer(d, layer2, top_of_layer=True)
+            change_layer(d, layer1, top_of_layer=True)
         self.add(*drawable_list_layer1, layer=layer2)
 
     @property
