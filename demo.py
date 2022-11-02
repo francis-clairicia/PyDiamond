@@ -5,13 +5,10 @@
 from __future__ import annotations
 
 import gc
-import os
 import weakref
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Any, Callable, ClassVar, Final, Iterator, Literal, Mapping, Sequence
-
-os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 
 from pydiamond.audio.mixer import Mixer
 from pydiamond.audio.music import Music, MusicStream
