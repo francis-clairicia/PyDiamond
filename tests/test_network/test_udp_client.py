@@ -13,7 +13,7 @@ from cryptography.fernet import Fernet
 
 
 def test_default(udp_server: tuple[str, int]) -> None:
-    with UDPNetworkClient[Any, Any]() as client:
+    with UDPNetworkClient[Any, Any](PickleNetworkProtocol()) as client:
         client.send_packet(udp_server, {"data": [5, 2]})
         assert client.recv_packet()[0] == {"data": [5, 2]}
         client.send_packet(udp_server, "Hello")
@@ -27,7 +27,7 @@ def test_default(udp_server: tuple[str, int]) -> None:
 def test_custom_socket(udp_server: tuple[str, int]) -> None:
     with Socket(AF_INET, SOCK_DGRAM) as socket:
         socket.bind(("", 0))
-        client: UDPNetworkClient[Any, Any] = UDPNetworkClient(socket)
+        client: UDPNetworkClient[Any, Any] = UDPNetworkClient(PickleNetworkProtocol(), socket=socket)
         client.send_packet(udp_server, {"data": [5, 2]})
         assert client.recv_packet()[0] == {"data": [5, 2]}
         client.send_packet(udp_server, "Hello")

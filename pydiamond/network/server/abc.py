@@ -28,8 +28,7 @@ from ...system.threading import Thread, thread_factory
 from ...system.utils.contextlib import dsuppress
 from ..client import TCPNetworkClient, UDPNetworkClient
 from ..protocol.abc import NetworkProtocol
-from ..protocol.pickle import PickleNetworkProtocol
-from ..protocol.stream import StreamNetworkProtocol
+from ..protocol.stream.abc import StreamNetworkProtocol
 from ..socket import AF_INET, SocketAddress, create_server, guess_best_buffer_size, new_socket_address
 from ..tools.stream import StreamNetworkDataConsumer, StreamNetworkDataProducer
 
@@ -202,12 +201,12 @@ class AbstractTCPNetworkServer(AbstractNetworkServer[_RequestT, _ResponseT], Gen
     def __init__(
         self,
         address: tuple[str, int] | tuple[str, int, int, int],
+        protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT],
         *,
         family: int = AF_INET,
         backlog: int | None = None,
         reuse_port: bool = False,
         dualstack_ipv6: bool = False,
-        protocol_cls: StreamNetworkProtocolFactory[_ResponseT, _RequestT] = PickleNetworkProtocol,
         verify_client_in_thread: bool = False,
         send_flags: int = 0,
         recv_flags: int = 0,
@@ -526,7 +525,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer[_RequestT, _ResponseT], Gen
                 with self.__lock:
                     selector.register(key.fileobj, key.events, key.data)
 
-    def new_protocol(self) -> StreamNetworkProtocol[_ResponseT, _RequestT]:
+    def protocol(self) -> StreamNetworkProtocol[_ResponseT, _RequestT]:
         return self.__protocol_cls()
 
     @overload
@@ -707,10 +706,10 @@ class AbstractUDPNetworkServer(AbstractNetworkServer[_RequestT, _ResponseT], Gen
     def __init__(
         self,
         address: tuple[str, int] | tuple[str, int, int, int],
+        protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT],
         *,
         family: int = AF_INET,
         reuse_port: bool = False,
-        protocol_cls: NetworkProtocolFactory[_ResponseT, _RequestT] = PickleNetworkProtocol,
         send_flags: int = 0,
         recv_flags: int = 0,
     ) -> None:
@@ -728,8 +727,8 @@ class AbstractUDPNetworkServer(AbstractNetworkServer[_RequestT, _ResponseT], Gen
             dualstack_ipv6=False,
         )
         self.__server: UDPNetworkClient[_ResponseT, _RequestT] = UDPNetworkClient(
-            socket,
             protocol=protocol,
+            socket=socket,
             give=True,
             send_flags=send_flags,
             recv_flags=recv_flags,
@@ -813,7 +812,7 @@ class AbstractUDPNetworkServer(AbstractNetworkServer[_RequestT, _ResponseT], Gen
         self._check_not_closed()
         self.__server.send_packet(address, *packets)
 
-    def new_protocol(self) -> NetworkProtocol[_ResponseT, _RequestT]:
+    def protocol(self) -> NetworkProtocol[_ResponseT, _RequestT]:
         return self.__protocol_cls()
 
     @overload

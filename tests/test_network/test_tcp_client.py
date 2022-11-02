@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 
 
 def test_default(tcp_server: tuple[str, int]) -> None:
-    with TCPNetworkClient[Any, Any](tcp_server) as client:
+    with TCPNetworkClient[Any, Any](tcp_server, PickleNetworkProtocol()) as client:
         client.send_packet({"data": [5, 2]})
         assert client.recv_packet() == {"data": [5, 2]}
         client.send_packet("Hello")
@@ -34,7 +34,7 @@ def test_default(tcp_server: tuple[str, int]) -> None:
 def test_custom_socket(tcp_server: tuple[str, int]) -> None:
     with Socket(AF_INET, SOCK_STREAM) as s:
         s.connect(tcp_server)
-        client: TCPNetworkClient[Any, Any] = TCPNetworkClient(s)
+        client: TCPNetworkClient[Any, Any] = TCPNetworkClient(s, PickleNetworkProtocol())
         client.send_packet({"data": [5, 2]})
         assert client.recv_packet() == {"data": [5, 2]}
         client.send_packet("Hello")

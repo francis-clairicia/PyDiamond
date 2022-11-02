@@ -26,7 +26,6 @@ except ImportError:
 from ..system.object import Object, final
 from ..system.utils.abc import concreteclass
 from .protocol.abc import NetworkProtocol, ValidationError
-from .protocol.pickle import PickleNetworkProtocol
 from .protocol.stream.abc import StreamNetworkProtocol
 from .socket import SHUT_WR, AddressFamily, SocketAddress, create_connection, guess_best_buffer_size, new_socket_address
 from .tools.stream import StreamNetworkDataConsumer, StreamNetworkDataProducer
@@ -97,11 +96,11 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         self,
         address: tuple[str, int],
         /,
+        protocol: StreamNetworkProtocol[_SentPacketT, _ReceivedPacketT],
         *,
         timeout: float | None = ...,
         family: int | None = ...,
         source_address: tuple[bytearray | bytes | str, int] | None = ...,
-        protocol: StreamNetworkProtocol[_SentPacketT, _ReceivedPacketT] = ...,
         send_flags: int = ...,
         recv_flags: int = ...,
     ) -> None:
@@ -112,8 +111,8 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         self,
         socket: Socket,
         /,
+        protocol: StreamNetworkProtocol[_SentPacketT, _ReceivedPacketT],
         *,
-        protocol: StreamNetworkProtocol[_SentPacketT, _ReceivedPacketT] = ...,
         give: bool = ...,
         send_flags: int = ...,
         recv_flags: int = ...,
@@ -122,17 +121,15 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
 
     def __init__(
         self,
-        arg: Socket | tuple[str, int],
+        __arg: Socket | tuple[str, int],
         /,
+        protocol: StreamNetworkProtocol[_SentPacketT, _ReceivedPacketT],
         *,
-        protocol: StreamNetworkProtocol[_SentPacketT, _ReceivedPacketT] | None = None,
         send_flags: int = 0,
         recv_flags: int = 0,
         **kwargs: Any,
     ) -> None:
-        if protocol is None:
-            protocol = PickleNetworkProtocol[_SentPacketT, _ReceivedPacketT]()
-        elif not isinstance(protocol, StreamNetworkProtocol):
+        if not isinstance(protocol, StreamNetworkProtocol):
             raise TypeError("Invalid argument")
         send_flags = int(send_flags)
         recv_flags = int(recv_flags)
@@ -141,14 +138,14 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         super().__init__()
 
         self.__owner: bool
-        if isinstance(arg, Socket):
+        if isinstance(__arg, Socket):
             give: bool = kwargs.pop("give", False)
             if kwargs:
                 raise TypeError("Invalid arguments")
-            socket = arg
+            socket = __arg
             self.__owner = bool(give)
-        elif isinstance(arg, tuple):
-            address: tuple[str, int] = arg
+        elif isinstance(__arg, tuple):
+            address: tuple[str, int] = __arg
             socket = create_connection(address, **kwargs)
             self.__owner = True
         else:
@@ -437,10 +434,10 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
     def __init__(
         self,
         /,
+        protocol: NetworkProtocol[_SentPacketT, _ReceivedPacketT],
         *,
         family: int = ...,
         source_address: tuple[bytearray | bytes | str, int] | None = ...,
-        protocol: NetworkProtocol[_SentPacketT, _ReceivedPacketT] = ...,
         max_packet_size: int | None = ...,
         send_flags: int = ...,
         recv_flags: int = ...,
@@ -450,10 +447,10 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
     @overload
     def __init__(
         self,
-        socket: Socket,
         /,
+        protocol: NetworkProtocol[_SentPacketT, _ReceivedPacketT],
         *,
-        protocol: NetworkProtocol[_SentPacketT, _ReceivedPacketT] = ...,
+        socket: Socket,
         give: bool = ...,
         max_packet_size: int | None = ...,
         send_flags: int = ...,
@@ -463,10 +460,9 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
 
     def __init__(
         self,
-        socket: Socket | None = None,
         /,
+        protocol: NetworkProtocol[_SentPacketT, _ReceivedPacketT],
         *,
-        protocol: NetworkProtocol[_SentPacketT, _ReceivedPacketT] | None = None,
         max_packet_size: int | None = None,
         send_flags: int = 0,
         recv_flags: int = 0,
@@ -475,9 +471,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         send_flags = int(send_flags)
         recv_flags = int(recv_flags)
 
-        if protocol is None:
-            protocol = PickleNetworkProtocol[_SentPacketT, _ReceivedPacketT]()
-        elif not isinstance(protocol, NetworkProtocol):
+        if not isinstance(protocol, NetworkProtocol):
             raise TypeError("Invalid argument")
 
         super().__init__()
@@ -486,12 +480,16 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
 
         from socket import AF_INET, SOCK_DGRAM
 
-        if isinstance(socket, Socket):
+        socket: Socket
+        if "socket" in kwargs:
+            socket = kwargs.pop("socket")
+            if not isinstance(socket, Socket):
+                raise TypeError("Invalid arguments")
             give: bool = kwargs.pop("give", False)
             if kwargs:
                 raise TypeError("Invalid arguments")
             self.__owner = bool(give)
-        elif socket is None:
+        else:
             family = AddressFamily(kwargs.pop("family", AF_INET))
             source_address: tuple[bytearray | bytes | str, int] | None = kwargs.pop("source_address", None)
             if kwargs:
@@ -502,8 +500,6 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
             else:
                 socket.bind(source_address)
             self.__owner = True
-        else:
-            raise TypeError("Invalid arguments")
 
         if socket.type != SOCK_DGRAM:
             raise ValueError("Invalid socket type")

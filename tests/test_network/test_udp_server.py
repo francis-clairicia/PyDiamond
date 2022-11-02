@@ -6,6 +6,7 @@ from time import sleep
 from typing import Any
 
 from pydiamond.network.client import UDPNetworkClient
+from pydiamond.network.protocol import PickleNetworkProtocol
 from pydiamond.network.server.abc import AbstractUDPNetworkServer, ConnectedClient
 from pydiamond.network.server.concurrency import AbstractForkingUDPNetworkServer, AbstractThreadingUDPNetworkServer
 from pydiamond.system.threading import Thread
@@ -23,7 +24,7 @@ _RANDOM_HOST_PORT = ("localhost", 0)
 
 
 def test_serve_forever_default() -> None:
-    with _TestServer(_RANDOM_HOST_PORT) as server:
+    with _TestServer(_RANDOM_HOST_PORT, PickleNetworkProtocol) as server:
         assert not server.running()
         t: Thread = Thread(target=server.serve_forever, args=(0.1,))
         t.start()
@@ -35,7 +36,7 @@ def test_serve_forever_default() -> None:
 
 
 def test_serve_forever_context_shut_down() -> None:
-    with _TestServer(_RANDOM_HOST_PORT) as server:
+    with _TestServer(_RANDOM_HOST_PORT, PickleNetworkProtocol) as server:
         t: Thread = Thread(target=server.serve_forever, args=(0.1,))
         t.start()
         sleep(0.15)
@@ -44,7 +45,7 @@ def test_serve_forever_context_shut_down() -> None:
 
 
 def test_serve_forever_in_thread_default() -> None:
-    with _TestServer(_RANDOM_HOST_PORT) as server:
+    with _TestServer(_RANDOM_HOST_PORT, PickleNetworkProtocol) as server:
         t: Thread = server.serve_forever_in_thread(poll_interval=0.1)
         sleep(0.15)
         assert server.running()
@@ -54,7 +55,7 @@ def test_serve_forever_in_thread_default() -> None:
 
 
 def test_serve_forver_in_thread_context_shut_down() -> None:
-    with _TestServer(_RANDOM_HOST_PORT) as server:
+    with _TestServer(_RANDOM_HOST_PORT, PickleNetworkProtocol) as server:
         t: Thread = server.serve_forever_in_thread(poll_interval=0.1)
         sleep(0.15)
         assert server.running()
@@ -69,7 +70,7 @@ class _TestServiceActionServer(_TestServer):
 
 
 def test_service_actions() -> None:
-    with _TestServiceActionServer(_RANDOM_HOST_PORT) as server:
+    with _TestServiceActionServer(_RANDOM_HOST_PORT, PickleNetworkProtocol) as server:
         server.serve_forever_in_thread(poll_interval=0.1)
         sleep(0.3)
     assert getattr(server, "service_actions_called", False)
@@ -104,9 +105,9 @@ class _TestThreadingServer(AbstractThreadingUDPNetworkServer[Any, Any]):
 
 
 def test_threading_server() -> None:
-    with _TestThreadingServer(_RANDOM_HOST_PORT) as server:
+    with _TestThreadingServer(_RANDOM_HOST_PORT, PickleNetworkProtocol) as server:
         server.serve_forever_in_thread(poll_interval=0)
-        with UDPNetworkClient[Any, Any]() as client:
+        with UDPNetworkClient[Any, Any](server.protocol()) as client:
             packet = {"data": 1}
             client.send_packet(server.address, packet)
             response: tuple[Any, bool] = client.recv_packet()[0]
@@ -125,9 +126,9 @@ class _TestForkingServer(AbstractForkingUDPNetworkServer[Any, Any]):
 def test_forking_server() -> None:
     from os import getpid
 
-    with _TestForkingServer(_RANDOM_HOST_PORT) as server:
+    with _TestForkingServer(_RANDOM_HOST_PORT, PickleNetworkProtocol) as server:
         server.serve_forever_in_thread(poll_interval=0)
-        with UDPNetworkClient[Any, Any]() as client:
+        with UDPNetworkClient[Any, Any](server.protocol()) as client:
             packet = {"data": 1}
             client.send_packet(server.address, packet)
             response: tuple[Any, int] = client.recv_packet()[0]
