@@ -25,8 +25,6 @@ class Cursor(_pg_cursors.Cursor, Object, no_slots=True):
     if TYPE_CHECKING:
         __slots__: Final[tuple[str, ...]] = ("__dict__",)
 
-    __hash__ = _pg_cursors.Cursor.__hash__
-
     @no_type_check  # mypy crash when parsing match/case statement
     def __new__(cls, *args: Any) -> Cursor:
         if len(args) == 1:
@@ -35,7 +33,7 @@ class Cursor(_pg_cursors.Cursor, Object, no_slots=True):
                     return SystemCursor(constant)
         return super().__new__(cls)
 
-    type: str
+    type: Literal["system", "color", "bitmap"]
     data: tuple[Any, ...]  # type: ignore[assignment]
 
     @overload

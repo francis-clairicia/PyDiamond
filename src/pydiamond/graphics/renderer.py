@@ -22,7 +22,7 @@ from ..system.utils.itertools import consume
 from ..system.utils.typing import reflect_method_signature
 
 if TYPE_CHECKING:
-    from pygame._common import _CanBeRect, _ColorValue, _Coordinate, _RectValue
+    from pygame._common import ColorValue, Coordinate, RectValue, _CanBeRect
 
     from .font import _TextFont
     from .surface import Surface
@@ -84,7 +84,7 @@ class AbstractRenderer(Object):
         raise NotImplementedError
 
     @abstractmethod
-    def fill(self, color: _ColorValue, rect: _CanBeRect | None = ...) -> Rect:
+    def fill(self, color: ColorValue, rect: _CanBeRect | None = ...) -> Rect:
         raise NotImplementedError
 
     @abstractmethod
@@ -103,7 +103,7 @@ class AbstractRenderer(Object):
     def draw_surface(
         self,
         surface: Surface,
-        dest: _Coordinate | _CanBeRect,
+        dest: Coordinate | _CanBeRect,
         area: _CanBeRect | None = ...,
         special_flags: int = ...,
         anchor: RendererAnchor = ...,
@@ -114,9 +114,9 @@ class AbstractRenderer(Object):
     def draw_many_surfaces(
         self,
         sequence: Iterable[
-            tuple[Surface, _Coordinate | _CanBeRect]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
+            tuple[Surface, Coordinate | _CanBeRect]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None, int]
         ],
         doreturn: Literal[True] = ...,
     ) -> list[Rect]:
@@ -126,9 +126,9 @@ class AbstractRenderer(Object):
     def draw_many_surfaces(
         self,
         sequence: Iterable[
-            tuple[Surface, _Coordinate | _CanBeRect]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
+            tuple[Surface, Coordinate | _CanBeRect]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None, int]
         ],
         doreturn: Literal[False],
     ) -> None:
@@ -138,9 +138,9 @@ class AbstractRenderer(Object):
     def draw_many_surfaces(
         self,
         sequence: Iterable[
-            tuple[Surface, _Coordinate | _CanBeRect]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
+            tuple[Surface, Coordinate | _CanBeRect]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None, int]
         ],
         doreturn: bool,
     ) -> list[Rect] | None:
@@ -149,9 +149,9 @@ class AbstractRenderer(Object):
     def draw_many_surfaces(
         self,
         sequence: Iterable[
-            tuple[Surface, _Coordinate | _CanBeRect]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
+            tuple[Surface, Coordinate | _CanBeRect]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None, int]
         ],
         doreturn: bool = True,
     ) -> list[Rect] | None:
@@ -166,9 +166,9 @@ class AbstractRenderer(Object):
         self,
         text: str,
         font: _TextFont,
-        dest: _Coordinate | _CanBeRect,
-        fgcolor: _ColorValue,
-        bgcolor: _ColorValue | None = ...,
+        dest: Coordinate | _CanBeRect,
+        fgcolor: ColorValue,
+        bgcolor: ColorValue | None = ...,
         style: int = ...,
         rotation: int = ...,
         size: float = ...,
@@ -179,8 +179,8 @@ class AbstractRenderer(Object):
     @abstractmethod
     def draw_rect(
         self,
-        color: _ColorValue,
-        rect: _RectValue,
+        color: ColorValue,
+        rect: RectValue,
         width: int = ...,
         border_radius: int = ...,
         border_top_left_radius: int = ...,
@@ -193,8 +193,8 @@ class AbstractRenderer(Object):
     @abstractmethod
     def draw_polygon(
         self,
-        color: _ColorValue,
-        points: Sequence[_Coordinate],
+        color: ColorValue,
+        points: Sequence[Coordinate],
         width: int = ...,
     ) -> Rect:
         raise NotImplementedError
@@ -202,8 +202,8 @@ class AbstractRenderer(Object):
     @abstractmethod
     def draw_circle(
         self,
-        color: _ColorValue,
-        center: _Coordinate,
+        color: ColorValue,
+        center: Coordinate,
         radius: float,
         width: int = ...,
         draw_top_right: bool = ...,
@@ -214,14 +214,14 @@ class AbstractRenderer(Object):
         raise NotImplementedError
 
     @abstractmethod
-    def draw_ellipse(self, color: _ColorValue, rect: _RectValue, width: int = ...) -> Rect:
+    def draw_ellipse(self, color: ColorValue, rect: RectValue, width: int = ...) -> Rect:
         raise NotImplementedError
 
     @abstractmethod
     def draw_arc(
         self,
-        color: _ColorValue,
-        rect: _RectValue,
+        color: ColorValue,
+        rect: RectValue,
         start_angle: float,
         stop_angle: float,
         width: int = ...,
@@ -231,9 +231,9 @@ class AbstractRenderer(Object):
     @abstractmethod
     def draw_line(
         self,
-        color: _ColorValue,
-        start_pos: _Coordinate,
-        end_pos: _Coordinate,
+        color: ColorValue,
+        start_pos: Coordinate,
+        end_pos: Coordinate,
         width: int = ...,
     ) -> Rect:
         raise NotImplementedError
@@ -241,9 +241,9 @@ class AbstractRenderer(Object):
     @abstractmethod
     def draw_lines(
         self,
-        color: _ColorValue,
+        color: ColorValue,
         closed: bool,
-        points: Sequence[_Coordinate],
+        points: Sequence[Coordinate],
         width: int = ...,
     ) -> Rect:
         raise NotImplementedError
@@ -251,18 +251,18 @@ class AbstractRenderer(Object):
     @abstractmethod
     def draw_aaline(
         self,
-        color: _ColorValue,
-        start_pos: _Coordinate,
-        end_pos: _Coordinate,
+        color: ColorValue,
+        start_pos: Coordinate,
+        end_pos: Coordinate,
     ) -> Rect:
         raise NotImplementedError
 
     @abstractmethod
     def draw_aalines(
         self,
-        color: _ColorValue,
+        color: ColorValue,
         closed: bool,
-        points: Sequence[_Coordinate],
+        points: Sequence[Coordinate],
     ) -> Rect:
         raise NotImplementedError
 
@@ -287,7 +287,7 @@ class RendererView(AbstractRenderer):
     def get_height(self) -> float:
         return self.__target.get_height()
 
-    def fill(self, color: _ColorValue, rect: _CanBeRect | None = None) -> Rect:
+    def fill(self, color: ColorValue, rect: _CanBeRect | None = None) -> Rect:
         return self.__target.fill(color, rect=rect)
 
     def get_clip(self) -> Rect:
@@ -308,9 +308,9 @@ class RendererView(AbstractRenderer):
     def draw_many_surfaces(
         self,
         sequence: Iterable[
-            tuple[Surface, _Coordinate | _CanBeRect]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
+            tuple[Surface, Coordinate | _CanBeRect]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None, int]
         ],
         doreturn: Literal[True] = ...,
     ) -> list[Rect]:
@@ -320,9 +320,9 @@ class RendererView(AbstractRenderer):
     def draw_many_surfaces(
         self,
         sequence: Iterable[
-            tuple[Surface, _Coordinate | _CanBeRect]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
+            tuple[Surface, Coordinate | _CanBeRect]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None, int]
         ],
         doreturn: Literal[False],
     ) -> None:
@@ -332,9 +332,9 @@ class RendererView(AbstractRenderer):
     def draw_many_surfaces(
         self,
         sequence: Iterable[
-            tuple[Surface, _Coordinate | _CanBeRect]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
+            tuple[Surface, Coordinate | _CanBeRect]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None, int]
         ],
         doreturn: bool,
     ) -> list[Rect] | None:
@@ -343,9 +343,9 @@ class RendererView(AbstractRenderer):
     def draw_many_surfaces(
         self,
         sequence: Iterable[
-            tuple[Surface, _Coordinate | _CanBeRect]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
+            tuple[Surface, Coordinate | _CanBeRect]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None, int]
         ],
         doreturn: bool = True,
     ) -> list[Rect] | None:

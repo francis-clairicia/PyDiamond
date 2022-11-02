@@ -75,7 +75,7 @@ from .keyboard import Keyboard
 from .mouse import Mouse
 
 if TYPE_CHECKING:
-    from pygame._common import _ColorValue
+    from pygame._common import ColorValue
 
     from ..graphics.drawable import SupportsDrawing
 
@@ -206,8 +206,7 @@ class Window(Object, no_slots=True):
             size: tuple[int, int] = self.__size
             flags: int = self.__flags
             vsync: bool = self.__vsync
-            _pg_display.set_mode(size, flags=flags, vsync=vsync).fill((0, 0, 0))
-            _pg_display.flip()
+            _pg_display.set_mode(size, flags=flags, vsync=vsync)
             self.__display_renderer = _WindowRendererImpl()
             self.__rect = ImmutableRect.convert(self.__display_renderer.get_rect())
 
@@ -379,7 +378,7 @@ class Window(Object, no_slots=True):
             raise TypeError("must be a callable object")
         self.__loop_callbacks.add(callback)
 
-    def clear(self, color: _ColorValue = BLACK, *, blend_alpha: bool = False) -> None:
+    def clear(self, color: ColorValue = BLACK, *, blend_alpha: bool = False) -> None:
         screen = self.__display_renderer
         if screen is None:
             raise WindowError("No active renderer")

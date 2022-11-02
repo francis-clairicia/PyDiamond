@@ -171,7 +171,7 @@ class Grid(Drawable, Movable, Container[GridElement]):
 
     @final
     def get_cell_relative_rect(self, row: int, column: int) -> Rect:
-        return Rect(self.__compute_cell_rect(row, column, relative=True))
+        return Rect(*self.__compute_cell_rect(row, column, relative=True))
 
     @overload
     def get_cell_rect_from_object(self, obj: GridElement) -> Rect:
@@ -218,7 +218,7 @@ class Grid(Drawable, Movable, Container[GridElement]):
     @final
     def get_cell_relative_rect_from_object(self, obj: _GridCell) -> Rect:
         cell = self.__find_cell(obj)
-        return Rect(self.__compute_cell_rect(cell.row, cell.column, relative=True))
+        return Rect(*self.__compute_cell_rect(cell.row, cell.column, relative=True))
 
     def draw_onto(self, target: AbstractRenderer) -> None:
         if any(row.grid_must_be_updated() for row in self.__rows.values()):
