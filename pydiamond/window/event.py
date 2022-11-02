@@ -9,7 +9,6 @@ from __future__ import annotations
 __all__ = [
     "BuiltinEvent",
     "BuiltinEventType",
-    "BuiltinUserEventCode",
     "DropBeginEvent",
     "DropCompleteEvent",
     "DropFileEvent",
@@ -361,13 +360,6 @@ class BuiltinEventType(IntEnum):
     @property
     def pygame_name(self) -> str:
         return _pg_event.event_name(self)
-
-
-class BuiltinUserEventCode(IntEnum):
-    DROPFILE = _pg_constants.USEREVENT_DROPFILE
-
-    def __repr__(self) -> str:
-        return f"<{self.name}: {self.value}>"
 
 
 # TODO (3.11) dataclass_transform (PEP-681)
@@ -828,8 +820,10 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
 
     @staticmethod
     def convert_pygame_event(event: _pg_event.Event) -> _pg_event.Event:
+        import pygame.constants as _pg_constants
+
         match event:
-            case _PygameEventType(type=EventFactory.USEREVENT, code=BuiltinUserEventCode.DROPFILE):
+            case _PygameEventType(type=EventFactory.USEREVENT, code=_pg_constants.USEREVENT_DROPFILE):
                 # cf.: https://www.pygame.org/docs/ref/event.html#:~:text=%3Dpygame.-,USEREVENT_DROPFILE,-%2C%20filename
                 try:
                     event = _pg_event.Event(int(BuiltinEventType.DROPFILE), file=event.filename)
