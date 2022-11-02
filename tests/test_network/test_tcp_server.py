@@ -181,6 +181,18 @@ def test_request_handling() -> None:
             assert client_3.recv_packets() == [350, -634]
 
 
+def test_disable_nagle_algorithm() -> None:
+    with _TestServer(_RANDOM_HOST_PORT, PickleNetworkProtocol, buffered_write=True, disable_nagle_algorithm=True) as server:
+        server.serve_forever_in_thread(poll_interval=0)
+        with (
+            TCPNetworkClient(server.address.for_connection(), protocol=server.protocol()) as client_1,
+            TCPNetworkClient(server.address.for_connection(), protocol=server.protocol()) as client_2,
+        ):
+            packet = {"data": 1}
+            client_1.send_packet(packet)
+            assert client_2.recv_packet() == packet
+
+
 class _TestThreadingServer(AbstractThreadingTCPNetworkServer[Any, Any]):
     def process_request(self, request: Any, client: ConnectedClient[Any]) -> None:
         import threading
@@ -207,10 +219,13 @@ class _TestForkingServer(AbstractForkingTCPNetworkServer[Any, Any]):
 
 
 @pytest.mark.skipif(not has_fork(), reason="fork() not supported on this platform")
-def test_forking_server() -> None:
+@pytest.mark.parametrize(
+    "buffered_write", [pytest.param(False, id="buffered_write==False"), pytest.param(True, id="buffered_write==True")]
+)
+def test_forking_server(buffered_write: bool) -> None:
     from os import getpid
 
-    with _TestForkingServer(_RANDOM_HOST_PORT, PickleNetworkProtocol) as server:
+    with _TestForkingServer(_RANDOM_HOST_PORT, PickleNetworkProtocol, buffered_write=buffered_write) as server:
         server.serve_forever_in_thread(poll_interval=0)
         with TCPNetworkClient[Any, Any](server.address.for_connection(), server.protocol()) as client:
             packet = {"data": 1}

@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from selectors import EVENT_READ, EVENT_WRITE, BaseSelector, DefaultSelector as _Selector, SelectorKey
 from socket import SHUT_WR, SOCK_DGRAM, SOCK_STREAM, socket as Socket
 from threading import Event, RLock, current_thread
-from typing import TYPE_CHECKING, Any, Callable, Generic, Iterator, Sequence, TypeAlias, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Callable, Final, Generic, Iterator, Sequence, TypeAlias, TypeVar, overload
 from weakref import WeakKeyDictionary
 
 from ...system.object import Object, final
@@ -194,6 +194,8 @@ class AbstractTCPNetworkServer(AbstractNetworkServer[_RequestT, _ResponseT], Gen
         "__selector",
         "__default_backlog",
         "__verify_in_thread",
+        "__tcp_no_delay",
+        "__buffered_write",
         "__send_flags",
         "__recv_flags",
     )
@@ -210,6 +212,8 @@ class AbstractTCPNetworkServer(AbstractNetworkServer[_RequestT, _ResponseT], Gen
         verify_client_in_thread: bool = False,
         send_flags: int = 0,
         recv_flags: int = 0,
+        buffered_write: bool = False,
+        disable_nagle_algorithm: bool = False,
     ) -> None:
         if not callable(protocol_cls):
             raise TypeError("Invalid arguments")
@@ -237,6 +241,8 @@ class AbstractTCPNetworkServer(AbstractNetworkServer[_RequestT, _ResponseT], Gen
         self.__verify_in_thread: bool = bool(verify_client_in_thread)
         self.__send_flags: int = send_flags
         self.__recv_flags: int = recv_flags
+        self.__tcp_no_delay: bool = bool(disable_nagle_algorithm)
+        self.__buffered_write: bool = bool(buffered_write)
 
     @dsuppress(KeyboardInterrupt)
     def serve_forever(self, poll_interval: float = 0.5) -> None:
@@ -250,8 +256,11 @@ class AbstractTCPNetworkServer(AbstractNetworkServer[_RequestT, _ResponseT], Gen
             self.__selector = _Selector()
             self.__loop = True
 
-        server_socket: Socket = self.__socket
-        select_lock = RLock()
+        tcp_no_delay: Final[bool] = self.__tcp_no_delay
+        buffered_write: Final[bool] = self.__buffered_write
+
+        server_socket: Final[Socket] = self.__socket
+        select_lock: Final[RLock] = RLock()
 
         def select() -> dict[int, deque[SelectorKey]]:
             ready: defaultdict[int, deque[SelectorKey]] = defaultdict(deque)
@@ -296,12 +305,16 @@ class AbstractTCPNetworkServer(AbstractNetworkServer[_RequestT, _ResponseT], Gen
                 flush=flush_client_data,
                 on_close=close_client,
                 is_closed=client_is_closed,
+                flush_on_send=not buffered_write,
             )
             key_data.consumer.feed(client._get_buffer())
             del client
+            selector_event_mask: int = EVENT_READ
+            if buffered_write:
+                selector_event_mask |= EVENT_WRITE
             with self.__lock:
                 self.__clients[socket] = key_data.client
-                selector.register(socket, EVENT_READ | EVENT_WRITE, key_data)
+                selector.register(socket, selector_event_mask, key_data)
 
         verify_client_in_thread = thread_factory(daemon=True, auto_start=True)(verify_client)
 
@@ -311,6 +324,10 @@ class AbstractTCPNetworkServer(AbstractNetworkServer[_RequestT, _ResponseT], Gen
                 client_socket.settimeout(None)
             except OSError:
                 return
+            if tcp_no_delay:
+                from socket import IPPROTO_TCP, TCP_NODELAY
+
+                client_socket.setsockopt(IPPROTO_TCP, TCP_NODELAY, True)
             address = new_socket_address(address, client_socket.family)
             if self.__verify_in_thread:
                 verify_client_in_thread(client_socket, address)
@@ -397,7 +414,8 @@ class AbstractTCPNetworkServer(AbstractNetworkServer[_RequestT, _ResponseT], Gen
                 return
             with key_data.send_lock:
                 data: bytes = key_data.pop_data_to_send(read_all=True)
-                return socket.sendall(data, self.__send_flags)
+                if data:
+                    return socket.sendall(data, self.__send_flags)
 
         def shutdown_client(socket: Socket, *, from_client: bool) -> None:
             self.__clients.pop(socket, None)
@@ -598,6 +616,7 @@ class _SelectorKeyData(Generic[_RequestT, _ResponseT]):
         flush: Callable[[Socket], None],
         on_close: Callable[[Socket], None],
         is_closed: Callable[[Socket], bool],
+        flush_on_send: bool,
     ) -> None:
         self.producer = StreamNetworkDataProducer(protocol)
         self.consumer = StreamNetworkDataConsumer(protocol)
@@ -609,6 +628,7 @@ class _SelectorKeyData(Generic[_RequestT, _ResponseT]):
             flush=flush,
             on_close=on_close,
             is_closed=is_closed,
+            flush_on_send=flush_on_send,
         )
         self.unsent_data = b""
         self.send_lock = RLock()
@@ -625,7 +645,7 @@ class _SelectorKeyData(Generic[_RequestT, _ResponseT]):
 
     @final
     class __ConnectedTCPClient(ConnectedClient[_ResponseT]):
-        __slots__ = ("__p", "__s", "__flush", "__on_close", "__is_closed")
+        __slots__ = ("__p", "__s", "__flush", "__flush_on_send", "__on_close", "__is_closed")
 
         def __init__(
             self,
@@ -636,6 +656,7 @@ class _SelectorKeyData(Generic[_RequestT, _ResponseT]):
             flush: Callable[[Socket], None],
             on_close: Callable[[Socket], None],
             is_closed: Callable[[Socket], bool],
+            flush_on_send: bool,
         ) -> None:
             super().__init__(address)
             self.__p: StreamNetworkDataProducer[_ResponseT] = producer
@@ -643,6 +664,7 @@ class _SelectorKeyData(Generic[_RequestT, _ResponseT]):
             self.__flush: Callable[[Socket], None] = flush
             self.__on_close: Callable[[Socket], None] = on_close
             self.__is_closed: Callable[[Socket], bool] = is_closed
+            self.__flush_on_send: bool = flush_on_send
 
         def close(self) -> None:
             with self.transaction():
@@ -668,13 +690,17 @@ class _SelectorKeyData(Generic[_RequestT, _ResponseT]):
 
         def send_packet(self, packet: _ResponseT) -> None:
             with self.transaction():
-                self.__check_not_closed()
+                socket = self.__check_not_closed()
                 self.__p.queue(packet)
+                if self.__flush_on_send:
+                    self.__flush(socket)
 
         def send_packets(self, *packets: _ResponseT) -> None:
             with self.transaction():
-                self.__check_not_closed()
+                socket = self.__check_not_closed()
                 self.__p.queue(*packets)
+                if self.__flush_on_send:
+                    self.__flush(socket)
 
         def flush(self) -> None:
             with self.transaction():

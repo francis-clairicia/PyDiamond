@@ -81,7 +81,6 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         "__socket",
         "__owner",
         "__closed",
-        "__buffer_recv",
         "__lock",
         "__chunk_size",
         "__producer",
@@ -205,27 +204,12 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
 
         flags |= self.__default_send_flags
 
-        producer_read = self.__producer.read
+        data: bytes = self.__producer.read(-1)
+        if not data:
+            return
         socket: Socket = self.__socket
-        socket_send = socket.send
-        bufsize: int = self.__chunk_size
         with _use_timeout(socket, timeout):
-            while data := producer_read(bufsize):
-                while True:
-                    try:
-                        sent = socket_send(data, flags)
-                    except BlockingIOError as exc:
-                        try:
-                            character_written: int = exc.characters_written
-                        except AttributeError:
-                            continue
-                        if character_written > 0:
-                            data = data[character_written:]
-                        continue
-                    if sent < len(data):
-                        data = data[sent:]
-                    else:
-                        break
+            socket.sendall(data, flags)
 
     def recv_packet(self, *, flags: int = 0) -> _ReceivedPacketT:
         self._check_not_closed()
