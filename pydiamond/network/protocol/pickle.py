@@ -95,7 +95,7 @@ class PickleNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
 
 
 class SafePickleNetworkProtocol(EncryptorNetworkProtocol[_ST_contra, _DT_co]):
-    __slots__ = ("__weakref__",)
+    __slots__ = ()
 
     @final
     class __PickleNetworkProtocolClassImpl(PickleNetworkProtocol[Any, Any]):

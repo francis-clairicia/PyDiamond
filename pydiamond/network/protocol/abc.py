@@ -28,7 +28,7 @@ _DT_co = TypeVar("_DT_co", covariant=True)
 
 
 class NetworkPacketSerializer(Generic[_ST_contra], Object):
-    __slots__ = ()
+    __slots__ = ("__weakref__",)
 
     @abstractmethod
     def serialize(self, packet: _ST_contra) -> bytes:
@@ -36,7 +36,7 @@ class NetworkPacketSerializer(Generic[_ST_contra], Object):
 
 
 class NetworkPacketDeserializer(Generic[_DT_co], Object):
-    __slots__ = ()
+    __slots__ = ("__weakref__",)
 
     @abstractmethod
     def deserialize(self, data: bytes) -> _DT_co:
