@@ -11,6 +11,7 @@ __all__ = [
     "AutoParsedStreamNetworkProtocol",
     "AutoSeparatedStreamNetworkProtocol",
     "BZ2CompressorNetworkProtocol",
+    "DeserializeError",
     "EncryptorNetworkProtocol",
     "FixedPacketSizeStreamNetworkProtocol",
     "JSONNetworkProtocol",
@@ -25,7 +26,6 @@ __all__ = [
     "SafePickleNetworkProtocol",
     "StreamNetworkProtocol",
     "StreamNetworkProtocolComposite",
-    "ValidationError",
     "ZlibCompressorNetworkProtocol",
 ]
 
@@ -33,6 +33,7 @@ __all__ = [
 ############ Package initialization ############
 from .abc import *
 from .composite import *
+from .exceptions import *
 from .json import *
 from .pickle import *
 from .stream import *

@@ -6,7 +6,7 @@ from time import sleep
 from typing import Any, ClassVar, Generator
 
 from pydiamond.network.client import TCPNetworkClient
-from pydiamond.network.protocol import PickleNetworkProtocol, StreamNetworkProtocol, ValidationError
+from pydiamond.network.protocol import PickleNetworkProtocol, StreamNetworkProtocol
 from pydiamond.network.server.abc import AbstractTCPNetworkServer, ConnectedClient
 from pydiamond.network.server.concurrency import AbstractForkingTCPNetworkServer, AbstractThreadingTCPNetworkServer
 from pydiamond.network.socket import SocketAddress
@@ -124,11 +124,6 @@ def test_multiple_connections() -> None:
 class _IntegerNetworkProtocol(StreamNetworkProtocol[int, int]):
     BYTES_LENGTH: ClassVar[int] = 8
 
-    def deserialize(self, data: bytes) -> int:
-        if len(data) != self.BYTES_LENGTH:
-            raise ValidationError("Invalid data length")
-        return int.from_bytes(data, byteorder="big", signed=True)
-
     def incremental_serialize(self, packet: int) -> Generator[bytes, None, None]:
         yield packet.to_bytes(self.BYTES_LENGTH, byteorder="big", signed=True)
 
@@ -137,7 +132,7 @@ class _IntegerNetworkProtocol(StreamNetworkProtocol[int, int]):
         while True:
             data += yield
             if len(data) >= self.BYTES_LENGTH:
-                packet = self.deserialize(data[: self.BYTES_LENGTH])
+                packet = int.from_bytes(data[: self.BYTES_LENGTH], byteorder="big", signed=True)
                 return packet, data[self.BYTES_LENGTH :]
 
 

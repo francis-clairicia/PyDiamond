@@ -10,18 +10,12 @@ __all__ = [
     "NetworkPacketDeserializer",
     "NetworkPacketSerializer",
     "NetworkProtocol",
-    "ValidationError",
 ]
 
 from abc import abstractmethod
 from typing import Generic, TypeVar
 
 from ...system.object import Object
-
-
-class ValidationError(Exception):
-    pass
-
 
 _ST_contra = TypeVar("_ST_contra", contravariant=True)
 _DT_co = TypeVar("_DT_co", covariant=True)

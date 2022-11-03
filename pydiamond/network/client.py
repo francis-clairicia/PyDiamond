@@ -25,7 +25,8 @@ except ImportError:
 
 from ..system.object import Object, final
 from ..system.utils.abc import concreteclass
-from .protocol.abc import NetworkProtocol, ValidationError
+from .protocol.abc import NetworkProtocol
+from .protocol.exceptions import DeserializeError
 from .protocol.stream.abc import StreamNetworkProtocol
 from .socket import SHUT_WR, AddressFamily, SocketAddress, create_connection, guess_best_buffer_size, new_socket_address
 from .tools.stream import StreamNetworkDataConsumer, StreamNetworkDataProducer
@@ -596,7 +597,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
                     continue
                 try:
                     packet: _ReceivedPacketT = deserialize(data)
-                except ValidationError:
+                except DeserializeError:
                     continue
                 queue.append((packet, new_socket_address(sender, socket.family)))
 

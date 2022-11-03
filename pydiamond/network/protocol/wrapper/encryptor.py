@@ -15,7 +15,8 @@ from typing_extensions import assert_never
 
 from ....system.object import final
 from ....system.utils.abc import concreteclass
-from ..abc import NetworkProtocol, ValidationError
+from ..abc import NetworkProtocol
+from ..exceptions import DeserializeError
 from ..stream.abc import AutoSeparatedStreamNetworkProtocol
 
 _ST_contra = TypeVar("_ST_contra", contravariant=True)
@@ -55,7 +56,7 @@ class EncryptorNetworkProtocol(AutoSeparatedStreamNetworkProtocol[_ST_contra, _D
         try:
             data = self.__key.decrypt(data, self.__ttl)
         except InvalidToken as exc:
-            raise ValidationError("Invalid token") from exc
+            raise DeserializeError("Invalid token") from exc
         return self.__protocol.deserialize(data)
 
     @property

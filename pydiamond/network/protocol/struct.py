@@ -14,7 +14,7 @@ from typing import Any, NamedTuple, TypeVar, final
 
 from ...system.utils.abc import concreteclass
 from ...system.utils.collections import is_namedtuple_class
-from .abc import ValidationError
+from .exceptions import DeserializeError
 from .stream.abc import FixedPacketSizeStreamNetworkProtocol
 
 _ST_contra = TypeVar("_ST_contra", contravariant=True)
@@ -48,10 +48,12 @@ class AbstractStructNetworkProtocol(FixedPacketSizeStreamNetworkProtocol[_ST_con
     @final
     def deserialize(self, data: bytes) -> _DT_co:
         struct = self.__s
+        if len(data) != struct.size:
+            raise DeserializeError("Invalid data size")
         try:
             packet_tuple: tuple[Any, ...] = struct.unpack(data)
         except StructError as exc:
-            raise ValidationError("Invalid value") from exc
+            raise DeserializeError(f"Invalid value: {exc}") from exc
         return self.from_tuple(packet_tuple)
 
     @property

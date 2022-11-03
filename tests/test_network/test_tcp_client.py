@@ -12,7 +12,6 @@ from pydiamond.network.protocol import (
     PickleNetworkProtocol,
     SafePickleNetworkProtocol,
     StreamNetworkProtocol,
-    ValidationError,
 )
 
 import pytest
@@ -52,7 +51,7 @@ def test_custom_protocol(tcp_server: tuple[str, int]) -> None:
 class StringNetworkProtocol(StreamNetworkProtocol[str, str]):
     def incremental_serialize(self, packet: str) -> Generator[bytes, None, None]:
         if not isinstance(packet, str):
-            raise ValidationError("Invalid string")
+            raise ValueError("Invalid string")
         yield from map(partial(str.encode, encoding="ascii"), packet.splitlines(True))
 
     def incremental_deserialize(self) -> Generator[None, bytes, tuple[str, bytes]]:
@@ -75,7 +74,7 @@ def test_multiple_requests(tcp_server: tuple[str, int]) -> None:
         client.send_packet("J\n")
         assert client.recv_packet() == "IJ"
 
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValueError):
             client.send_packet(5)  # type: ignore[arg-type]
 
 

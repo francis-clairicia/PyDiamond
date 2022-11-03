@@ -18,8 +18,10 @@ from typing import Generator, Protocol, TypeVar
 
 from ....system.object import final
 from ....system.utils.abc import concreteclass
-from ..abc import NetworkProtocol, ValidationError
-from ..stream.abc import IncrementalDeserializeError, StreamNetworkProtocol
+from ..abc import NetworkProtocol
+from ..exceptions import DeserializeError
+from ..stream.abc import StreamNetworkProtocol
+from ..stream.exceptions import IncrementalDeserializeError
 
 _ST_contra = TypeVar("_ST_contra", contravariant=True)
 _DT_co = TypeVar("_DT_co", covariant=True)
@@ -91,16 +93,16 @@ class AbstractCompressorNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co
     @final
     def deserialize(self, data: bytes) -> _DT_co:
         if not data:
-            raise ValidationError("Empty bytes")
+            raise DeserializeError("Empty bytes")
         decompressor = self.get_decompressor()
         try:
             data = decompressor.decompress(data)
         except self.__trailing_error as exc:
-            raise ValidationError("Trailing data error") from exc
+            raise DeserializeError("Trailing data error") from exc
         if not decompressor.eof:
-            raise ValidationError("Compressed data ended before the end-of-stream marker was reached")
+            raise DeserializeError("Compressed data ended before the end-of-stream marker was reached")
         if decompressor.unused_data:
-            raise ValidationError("Trailing data error")
+            raise DeserializeError("Trailing data error")
         return self.__protocol.deserialize(data)
 
     @final
@@ -160,11 +162,10 @@ class AbstractCompressorNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co
                 data: bytes = b"".join(_results)
                 try:
                     packet = protocol.deserialize(data)
-                except ValidationError as exc:
+                except DeserializeError as exc:
                     raise IncrementalDeserializeError(
                         f"Error while deserializing decompressed data: {exc}",
                         remaining_data=unused_data,
-                        data_with_error=data,
                     ) from exc
                 return packet, unused_data
 

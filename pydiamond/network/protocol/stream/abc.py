@@ -24,17 +24,12 @@ from typing import Any, Generator, TypeVar
 
 from ....system.object import final
 from ....system.utils.itertools import NoStopIteration, consumer_start, send_return
-from ..abc import NetworkPacketDeserializer, NetworkPacketSerializer, NetworkProtocol, ValidationError
+from ..abc import NetworkPacketDeserializer, NetworkPacketSerializer, NetworkProtocol
+from ..exceptions import DeserializeError
+from .exceptions import IncrementalDeserializeError
 
 _ST_contra = TypeVar("_ST_contra", contravariant=True)
 _DT_co = TypeVar("_DT_co", covariant=True)
-
-
-class IncrementalDeserializeError(ValidationError):
-    def __init__(self, message: str, *, remaining_data: bytes, data_with_error: bytes = b"") -> None:
-        super().__init__(message)
-        self.remaining_data = remaining_data
-        self.data_with_error = data_with_error
 
 
 class NetworkPacketIncrementalSerializer(NetworkPacketSerializer[_ST_contra]):
@@ -62,9 +57,9 @@ class NetworkPacketIncrementalDeserializer(NetworkPacketDeserializer[_DT_co]):
             packet, remaining = send_return(consumer, data)
         except NoStopIteration:
             consumer.close()
-            raise ValidationError("Missing data to create packet") from None
+            raise DeserializeError("Missing data to create packet") from None
         if remaining:
-            raise ValidationError("Extra data caught")
+            raise DeserializeError("Extra data caught")
         return packet
 
     @abstractmethod
@@ -120,11 +115,10 @@ class AutoSeparatedStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_c
             data += separator
         try:
             packet = self.deserialize(data)
-        except ValidationError as exc:
+        except DeserializeError as exc:
             raise IncrementalDeserializeError(
                 f"Error when deserializing data: {exc}",
                 remaining_data=buffer,
-                data_with_error=data,
             ) from exc
         return (packet, buffer)
 
@@ -216,15 +210,13 @@ class AutoParsedStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co])
                     raise IncrementalDeserializeError(
                         f"Data corrupted: {exc}",
                         remaining_data=buffer.read(),
-                        data_with_error=data,
                     ) from exc
                 try:
                     packet: _DT_co = self.deserialize(body)
-                except ValidationError as exc:
+                except DeserializeError as exc:
                     raise IncrementalDeserializeError(
                         f"Error when deserializing data: {exc}",
                         remaining_data=buffer.read(),
-                        data_with_error=data,
                     ) from exc
                 return (packet, buffer.read())
             finally:
@@ -280,11 +272,10 @@ class FixedPacketSizeStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT
         data, buffer = buffer[:packet_size], buffer[packet_size:]
         try:
             packet = self.deserialize(data)
-        except ValidationError as exc:
+        except DeserializeError as exc:
             raise IncrementalDeserializeError(
                 f"Error when deserializing data: {exc}",
                 remaining_data=data[1:] + buffer,
-                data_with_error=data,
             ) from exc
         return (packet, buffer)
 

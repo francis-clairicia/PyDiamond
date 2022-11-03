@@ -17,11 +17,9 @@ from typing import Generator, Generic, Iterator, TypeVar
 
 from ...system.object import Object, final
 from ...system.utils.itertools import NoStopIteration, consumer_start, send_return
-from ..protocol.stream.abc import (
-    IncrementalDeserializeError,
-    NetworkPacketIncrementalDeserializer,
-    NetworkPacketIncrementalSerializer,
-)
+from ..protocol.exceptions import DeserializeError
+from ..protocol.stream.abc import NetworkPacketIncrementalDeserializer, NetworkPacketIncrementalSerializer
+from ..protocol.stream.exceptions import IncrementalDeserializeError
 
 _ST_contra = TypeVar("_ST_contra", contravariant=True)
 _DT_co = TypeVar("_DT_co", covariant=True)
@@ -110,6 +108,8 @@ class StreamNetworkDataConsumer(Iterator[_DT_co], Generic[_DT_co], Object):
                 except IncrementalDeserializeError as exc:
                     self.__u = b""
                     self.__b = exc.remaining_data
+                except DeserializeError:
+                    self.__u = b""
                 except NoStopIteration:
                     self.__u += chunk
                     self.__c = consumer

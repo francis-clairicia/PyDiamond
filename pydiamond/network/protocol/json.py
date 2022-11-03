@@ -16,8 +16,9 @@ from typing_extensions import assert_never
 
 from ...system.object import final
 from ...system.utils.abc import concreteclass
-from .abc import ValidationError
-from .stream.abc import IncrementalDeserializeError, StreamNetworkProtocol
+from .exceptions import DeserializeError
+from .stream.abc import StreamNetworkProtocol
+from .stream.exceptions import IncrementalDeserializeError
 
 _ST_contra = TypeVar("_ST_contra", contravariant=True)
 _DT_co = TypeVar("_DT_co", covariant=True)
@@ -81,15 +82,18 @@ class JSONNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
 
     @final
     def deserialize(self, data: bytes) -> _DT_co:
+        data = data.strip(b" \t\n\r")
+        if not data:
+            raise DeserializeError("Empty bytes after stripping whitespaces")
         try:
             document: str = data.decode(encoding="utf-8")
         except UnicodeDecodeError as exc:
-            raise ValidationError("Unicode decode error") from exc
+            raise DeserializeError(f"Unicode decode error: {exc}") from exc
         decoder = self.__d
         try:
             packet: _DT_co = decoder.decode(document)
         except JSONDecodeError as exc:
-            raise ValidationError("JSON decode error") from exc
+            raise DeserializeError(f"JSON decode error: {exc}") from exc
         return packet
 
     @final
@@ -128,7 +132,6 @@ class JSONNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
                         # Directly refused because we cannot know when data is valid
                         raise IncrementalDeserializeError(
                             "Do not received beginning of a string/array/object",
-                            data_with_error=partial_document + char,
                             remaining_data=chunk[nb_chars:],
                         )
                 partial_document += char
@@ -143,7 +146,6 @@ class JSONNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
         except UnicodeDecodeError as exc:
             raise IncrementalDeserializeError(
                 f"Unicode decode error: {exc}",
-                data_with_error=complete_document,
                 remaining_data=partial_document,
             ) from exc
         try:
@@ -151,7 +153,6 @@ class JSONNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
         except JSONDecodeError as exc:
             raise IncrementalDeserializeError(
                 f"JSON decode error: {exc}",
-                data_with_error=complete_document,
                 remaining_data=partial_document,
             ) from exc
         return packet, (document[end:].encode(encoding) + partial_document).lstrip(b" \t\n\r")

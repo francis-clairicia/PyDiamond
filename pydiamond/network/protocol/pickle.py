@@ -23,8 +23,9 @@ if TYPE_CHECKING:
 
 from ...system.object import final
 from ...system.utils.abc import concreteclass
-from .abc import ValidationError
-from .stream.abc import IncrementalDeserializeError, StreamNetworkProtocol
+from .exceptions import DeserializeError
+from .stream.abc import StreamNetworkProtocol
+from .stream.exceptions import IncrementalDeserializeError
 from .wrapper.encryptor import EncryptorNetworkProtocol
 
 _ST_contra = TypeVar("_ST_contra", contravariant=True)
@@ -52,17 +53,19 @@ class PickleNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
 
     @final
     def deserialize(self, data: bytes) -> _DT_co:
+        if not data:
+            raise DeserializeError("Empty bytes")
         buffer = BytesIO(data)
         unpickler = self.get_unpickler(buffer)
         assert isinstance(unpickler, Unpickler)
         try:
             packet: _DT_co = unpickler.load()
         except EOFError as exc:
-            raise ValidationError("Missing data to create packet") from exc
+            raise DeserializeError("Missing data to create packet") from exc
         except Exception as exc:  # pickle.Unpickler do not only raise UnpicklingError... :)
-            raise ValidationError(f"Unpickling error: {exc}") from exc
-        if data := buffer.read():  # There is still data after pickling
-            raise ValidationError("Extra data caught")
+            raise DeserializeError(f"Unpickling error: {exc}") from exc
+        if buffer.read():  # There is still data after pickling
+            raise DeserializeError("Extra data caught")
         return packet
 
     @final
@@ -81,14 +84,12 @@ class PickleNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
             except EOFError:
                 continue
             except Exception as exc:  # pickle.Unpickler do not only raise UnpicklingError... :)
-                data_with_error = data.getvalue()[: data.tell()]
                 remaining_data: bytes = data.read()
                 if not remaining_data:  # Possibly an EOF error, give it a chance
                     continue
                 raise IncrementalDeserializeError(
                     f"Unpickling error: {exc}",
                     remaining_data=remaining_data,
-                    data_with_error=data_with_error,
                 ) from exc
             else:
                 return (packet, data.read())
