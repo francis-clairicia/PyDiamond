@@ -106,7 +106,6 @@ class AbstractCompressorNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co
     @final
     def incremental_deserialize(self) -> Generator[None, bytes, tuple[_DT_co, bytes]]:
         protocol = self.__protocol
-        decompressor = self.get_decompressor()
 
         if isinstance(protocol, StreamNetworkProtocol):
             from ....system.utils.itertools import NoStopIteration, consumer_start, send_return
@@ -122,6 +121,11 @@ class AbstractCompressorNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co
                 if _last_chunk is not None:
                     try:
                         _consumer.send(_last_chunk)
+                    except IncrementalDeserializeError as exc:
+                        raise IncrementalDeserializeError(
+                            f"Error while deserializing decompressed chunk: {exc}",
+                            remaining_data=b"",
+                        ) from exc
                     except StopIteration as exc:
                         raise IncrementalDeserializeError(
                             "Unexpected StopIteration",
@@ -134,6 +138,11 @@ class AbstractCompressorNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co
                     if _last_chunk is None:
                         raise NoStopIteration
                     packet, remaining = send_return(_consumer, _last_chunk)
+                except IncrementalDeserializeError as exc:
+                    raise IncrementalDeserializeError(
+                        f"Error while deserializing decompressed chunk: {exc}",
+                        remaining_data=unused_data,
+                    ) from exc
                 except NoStopIteration as exc:
                     raise IncrementalDeserializeError(
                         "Missing data to create packet from compressed data stream",
@@ -159,6 +168,7 @@ class AbstractCompressorNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co
                     ) from exc
                 return packet, unused_data
 
+        decompressor = self.get_decompressor()
         while not decompressor.eof:
             while not (chunk := (yield)):
                 continue
