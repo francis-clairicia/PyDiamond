@@ -91,7 +91,7 @@ class ForkingMixIn:
             if self._active_children is None:
                 self._active_children = set()
             self._active_children.add(pid)
-            client.close()  # TODO: Not necessarily close at every request ?
+            client.close()
             return
 
         # Child process.
