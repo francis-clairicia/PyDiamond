@@ -9,7 +9,6 @@ from __future__ import annotations
 __all__ = [
     "BZ2CompressorNetworkProtocol",
     "EncryptorNetworkProtocol",
-    "GzipCompressorNetworkProtocol",
     "ZlibCompressorNetworkProtocol",
 ]
 

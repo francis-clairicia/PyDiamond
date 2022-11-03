@@ -39,6 +39,7 @@ class PickleNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
     def serialize(self, packet: _ST_contra) -> bytes:
         buffer = BytesIO()
         pickler = self.get_pickler(buffer)
+        assert isinstance(pickler, Pickler)
         pickler.dump(packet)
         return pickletools_optimize(buffer.getvalue())
 
@@ -53,6 +54,7 @@ class PickleNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
     def deserialize(self, data: bytes) -> _DT_co:
         buffer = BytesIO(data)
         unpickler = self.get_unpickler(buffer)
+        assert isinstance(unpickler, Unpickler)
         try:
             packet: _DT_co = unpickler.load()
         except EOFError as exc:
@@ -73,6 +75,7 @@ class PickleNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
             data.write(chunk)
             data.seek(0)
             unpickler = self.get_unpickler(data)
+            assert isinstance(unpickler, Unpickler)
             try:
                 packet: _DT_co = unpickler.load()
             except EOFError:

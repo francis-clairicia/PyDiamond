@@ -13,7 +13,6 @@ __all__ = [
     "BZ2CompressorNetworkProtocol",
     "EncryptorNetworkProtocol",
     "FixedPacketSizeStreamNetworkProtocol",
-    "GzipCompressorNetworkProtocol",
     "JSONNetworkProtocol",
     "NamedTupleNetworkProtocol",
     "NetworkPacketDeserializer",

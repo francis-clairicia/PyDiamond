@@ -56,6 +56,8 @@ def next_return(gen: Generator[Any, None, Any], default: Any = _NO_DEFAULT, /) -
         value = next(gen)
     except StopIteration as exc:
         return exc.value
+    except NoStopIteration:
+        raise RuntimeError("generator raises NoStopIteration") from None
     if default is not _NO_DEFAULT:
         return default
     raise NoStopIteration(value)
@@ -68,6 +70,8 @@ def send_return(gen: Generator[Any, _T_contra, _V_co], value: _T_contra, /) -> _
         send_value = gen.send(value)
     except StopIteration as exc:
         return exc.value
+    except NoStopIteration:
+        raise RuntimeError("generator raises NoStopIteration") from None
     raise NoStopIteration(send_value)
 
 
