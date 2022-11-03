@@ -12,7 +12,6 @@ __all__ = ["AbstractNetworkClient", "TCPNetworkClient", "UDPNetworkClient"]
 from abc import abstractmethod
 from collections import deque
 from contextlib import contextmanager
-from io import DEFAULT_BUFFER_SIZE
 from selectors import EVENT_READ
 from socket import socket as Socket
 from threading import RLock
@@ -423,7 +422,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         *,
         family: int = ...,
         source_address: tuple[bytearray | bytes | str, int] | None = ...,
-        max_packet_size: int | None = ...,
+        max_packet_size: int = ...,
         send_flags: int = ...,
         recv_flags: int = ...,
     ) -> None:
@@ -437,7 +436,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         *,
         socket: Socket,
         give: bool = ...,
-        max_packet_size: int | None = ...,
+        max_packet_size: int = ...,
         send_flags: int = ...,
         recv_flags: int = ...,
     ) -> None:
@@ -448,7 +447,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         /,
         protocol: NetworkProtocol[_SentPacketT, _ReceivedPacketT],
         *,
-        max_packet_size: int | None = None,
+        max_packet_size: int = 0,
         send_flags: int = 0,
         recv_flags: int = 0,
         **kwargs: Any,
@@ -489,8 +488,8 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         if socket.type != SOCK_DGRAM:
             raise ValueError("Invalid socket type")
 
-        if max_packet_size is None:
-            max_packet_size = DEFAULT_BUFFER_SIZE
+        if max_packet_size <= 0:
+            max_packet_size = 8192
 
         self.__closed: bool = False
         self.__socket: Socket = socket

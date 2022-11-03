@@ -62,7 +62,7 @@ class PickleNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
             packet: _DT_co = unpickler.load()
         except EOFError as exc:
             raise DeserializeError("Missing data to create packet") from exc
-        except Exception as exc:  # pickle.Unpickler do not only raise UnpicklingError... :)
+        except Exception as exc:  # pickle.Unpickler does not only raise UnpicklingError... :)
             raise DeserializeError(f"Unpickling error: {exc}") from exc
         if buffer.read():  # There is still data after pickling
             raise DeserializeError("Extra data caught")
@@ -83,7 +83,7 @@ class PickleNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
                 packet: _DT_co = unpickler.load()
             except EOFError:
                 continue
-            except Exception as exc:  # pickle.Unpickler do not only raise UnpicklingError... :)
+            except Exception as exc:  # pickle.Unpickler does not only raise UnpicklingError... :)
                 remaining_data: bytes = data.read()
                 if not remaining_data:  # Possibly an EOF error, give it a chance
                     continue

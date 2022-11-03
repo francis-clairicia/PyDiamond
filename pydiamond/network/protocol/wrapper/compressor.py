@@ -123,7 +123,7 @@ class AbstractCompressorNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co
                 if _last_chunk is not None:
                     try:
                         _consumer.send(_last_chunk)
-                    except IncrementalDeserializeError as exc:
+                    except DeserializeError as exc:
                         raise IncrementalDeserializeError(
                             f"Error while deserializing decompressed chunk: {exc}",
                             remaining_data=b"",
@@ -140,7 +140,7 @@ class AbstractCompressorNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co
                     if _last_chunk is None:
                         raise NoStopIteration
                     packet, remaining = send_return(_consumer, _last_chunk)
-                except IncrementalDeserializeError as exc:
+                except DeserializeError as exc:
                     raise IncrementalDeserializeError(
                         f"Error while deserializing decompressed chunk: {exc}",
                         remaining_data=unused_data,

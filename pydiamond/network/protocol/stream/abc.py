@@ -174,53 +174,53 @@ class AutoParsedStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co])
         expected_magic: bytes = self.__magic
         checksum_algorithm: str = self.__algorithm
         header: bytes = b""
-        while True:
-            while len(header) < header_struct.size:
-                header += yield
+        while len(header) < header_struct.size:
+            header += yield
 
-            buffer = BytesIO(header[header_struct.size :])
-            header = header[: header_struct.size]
-            try:
-                magic: bytes
-                body_length: int
-                magic, body_length = header_struct.unpack(header)
-                if magic != expected_magic:
-                    raise StructError
-            except StructError:
-                # data may be corrupted
-                # Shift by 1 received data
-                header = header[1:] + buffer.read()
-            else:
-                checksum = hashlib.new(checksum_algorithm, usedforsecurity=False)
-                checksum.update(header)
-                body_struct = Struct(f"{body_length}s{checksum.digest_size}s")
-                while len(buffer.getvalue()) < body_struct.size:
-                    buffer.write((yield))
+        buffer = BytesIO(header[header_struct.size :])
+        header = header[: header_struct.size]
+        try:
+            magic: bytes
+            body_length: int
+            magic, body_length = header_struct.unpack(header)
+            if magic != expected_magic:
+                raise StructError("Invalid magic number")
+        except StructError as exc:
+            # data may be corrupted
+            # Shift by 1 received data
+            raise IncrementalDeserializeError(
+                "Invalid header",
+                remaining_data=header[1:] + buffer.read(),
+            ) from exc
 
-                buffer.seek(0)
-                data = buffer.read(body_struct.size)
-                try:
-                    body: bytes
-                    checksum_digest: bytes
-                    body, checksum_digest = body_struct.unpack(data)
-                    checksum.update(body)
-                    if not compare_digest(checksum.digest(), checksum_digest):  # Data really corrupted
-                        raise StructError("Invalid checksum")
-                except StructError as exc:
-                    raise IncrementalDeserializeError(
-                        f"Data corrupted: {exc}",
-                        remaining_data=buffer.read(),
-                    ) from exc
-                try:
-                    packet: _DT_co = self.deserialize(body)
-                except DeserializeError as exc:
-                    raise IncrementalDeserializeError(
-                        f"Error when deserializing data: {exc}",
-                        remaining_data=buffer.read(),
-                    ) from exc
-                return (packet, buffer.read())
-            finally:
-                del buffer
+        checksum = hashlib.new(checksum_algorithm, usedforsecurity=False)
+        checksum.update(header)
+        body_struct = Struct(f"{body_length}s{checksum.digest_size}s")
+        while len(buffer.getvalue()) < body_struct.size:
+            buffer.write((yield))
+
+        buffer.seek(0)
+        data = buffer.read(body_struct.size)
+        try:
+            body: bytes
+            checksum_digest: bytes
+            body, checksum_digest = body_struct.unpack(data)
+            checksum.update(body)
+            if not compare_digest(checksum.digest(), checksum_digest):  # Data really corrupted
+                raise StructError("Invalid checksum")
+        except StructError as exc:
+            raise IncrementalDeserializeError(
+                f"Data corrupted: {exc}",
+                remaining_data=buffer.read(),
+            ) from exc
+        try:
+            packet: _DT_co = self.deserialize(body)
+        except DeserializeError as exc:
+            raise IncrementalDeserializeError(
+                f"Error when deserializing data: {exc}",
+                remaining_data=buffer.read(),
+            ) from exc
+        return (packet, buffer.read())
 
     @property
     @final
