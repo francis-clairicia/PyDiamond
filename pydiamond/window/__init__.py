@@ -7,11 +7,11 @@
 from __future__ import annotations
 
 __all__ = [
-    "AbstractWindowRenderer",
     "Window",
     "WindowCallback",
     "WindowError",
     "WindowExit",
+    "WindowRenderer",
 ]
 
 import pygame

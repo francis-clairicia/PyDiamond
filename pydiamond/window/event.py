@@ -566,7 +566,6 @@ class FingerDownEvent(TouchFingerEvent, event_type=BuiltinEventType.FINGERDOWN):
 @final
 @dataclass(kw_only=True)
 class MultiGestureEvent(TouchEvent, event_type=BuiltinEventType.MULTIGESTURE):
-    touch_id: int
     x: float
     y: float
     pinched: bool
@@ -588,27 +587,32 @@ class TextInputEvent(BuiltinEvent, event_type=BuiltinEventType.TEXTINPUT):
     text: str
 
 
-@final
 @dataclass(kw_only=True)
-class DropBeginEvent(BuiltinEvent, event_type=BuiltinEventType.DROPBEGIN):
+class DropEvent(BuiltinEvent):
     pass
 
 
 @final
 @dataclass(kw_only=True)
-class DropCompleteEvent(BuiltinEvent, event_type=BuiltinEventType.DROPCOMPLETE):
+class DropBeginEvent(DropEvent, event_type=BuiltinEventType.DROPBEGIN):
     pass
 
 
 @final
 @dataclass(kw_only=True)
-class DropFileEvent(BuiltinEvent, event_type=BuiltinEventType.DROPFILE):
+class DropCompleteEvent(DropEvent, event_type=BuiltinEventType.DROPCOMPLETE):
+    pass
+
+
+@final
+@dataclass(kw_only=True)
+class DropFileEvent(DropEvent, event_type=BuiltinEventType.DROPFILE):
     file: str
 
 
 @final
 @dataclass(kw_only=True)
-class DropTextEvent(BuiltinEvent, event_type=BuiltinEventType.DROPTEXT):
+class DropTextEvent(DropEvent, event_type=BuiltinEventType.DROPTEXT):
     text: str
 
 
@@ -741,7 +745,7 @@ def __check_event_types_association() -> None:
         )
 
     def __init_subclass__(cls: type[BuiltinEvent], **kwargs: Any) -> None:
-        msg = f"Trying to create custom event from {cls.__base__.__qualname__} class"
+        msg = f"Trying to create custom event from {BuiltinEvent.__qualname__} class"
         raise TypeError(msg)
 
     __init_subclass__.__qualname__ = f"{BuiltinEvent.__qualname__}.{__init_subclass__.__name__}"
@@ -785,9 +789,15 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
     NUMEVENTS: Final[int] = _pg_constants.NUMEVENTS
     NON_BLOCKABLE_EVENTS: Final[frozenset[int]] = frozenset(map(int, getattr(_pg_event.set_blocked, "__forbidden_events__", ())))
 
-    @staticmethod
-    def get_pygame_event_type(event: type[Event]) -> int:
-        return EventFactory.associations[event]
+    if __debug__:
+
+        @staticmethod
+        def get_pygame_event_type(event: type[Event]) -> int:
+            return EventFactory.associations[event]
+
+    else:
+
+        get_pygame_event_type = staticmethod(associations.__getitem__)
 
     @staticmethod
     def is_blockable(event: type[Event] | int) -> bool:

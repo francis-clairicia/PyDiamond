@@ -33,7 +33,7 @@ class Mouse(ClassNamespace, frozen=True):
     def is_pressed(button: MouseButton) -> bool:
         button = MouseButton(button)
         try:
-            return bool(Mouse._MOUSE_BUTTON_STATE[button.value - 1])
+            return bool(Mouse._MOUSE_BUTTON_STATE[button - 1])
         except IndexError:
             return False
 

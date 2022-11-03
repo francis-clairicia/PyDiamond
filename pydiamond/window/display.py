@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["AbstractWindowRenderer", "Window", "WindowCallback", "WindowError", "WindowExit"]
+__all__ = ["Window", "WindowCallback", "WindowError", "WindowExit", "WindowRenderer"]
 
 import gc
 import os
@@ -789,7 +789,7 @@ class Window(Object, no_slots=True):
 
     @property
     @final
-    def renderer(self) -> AbstractWindowRenderer:
+    def renderer(self) -> WindowRenderer:
         renderer = self.__display_renderer
         if renderer is None:
             raise WindowError("No active renderer")
@@ -915,7 +915,7 @@ class Window(Object, no_slots=True):
         return self.__rect.midright
 
 
-class AbstractWindowRenderer(AbstractRenderer):
+class WindowRenderer(AbstractRenderer):
     __slots__ = ()
 
     @abstractmethod
@@ -1018,12 +1018,12 @@ class WindowCallback:
 
     def kill(self) -> None:
         try:
-            self.__master
+            master = self.__master
         except AttributeError:
             return
-        self.__master._remove_window_callback(self)
         with suppress(AttributeError):
             del self.__master, self.__args, self.__kwargs, self.__callback, self.__clock
+        master._remove_window_callback(self)
 
 
 class _WindowCallbackList(list[WindowCallback]):
@@ -1035,7 +1035,7 @@ class _WindowCallbackList(list[WindowCallback]):
 
 
 @final
-class _WindowRendererImpl(SurfaceRenderer, AbstractWindowRenderer):
+class _WindowRendererImpl(SurfaceRenderer, WindowRenderer):
     __slots__ = (
         "__capture_queue",
         "__last_frame",
