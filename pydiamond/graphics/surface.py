@@ -242,10 +242,10 @@ class SurfaceRenderer(AbstractRenderer):
         center: _Coordinate,
         radius: float,
         width: int = 0,
-        draw_top_right: bool | None = None,
-        draw_top_left: bool | None = None,
-        draw_bottom_left: bool | None = None,
-        draw_bottom_right: bool | None = None,
+        draw_top_right: bool = True,
+        draw_top_left: bool = True,
+        draw_bottom_left: bool = True,
+        draw_bottom_right: bool = True,
     ) -> Rect:
         return _draw_circle(
             surface=self.__target,

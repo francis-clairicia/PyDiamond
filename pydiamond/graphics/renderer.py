@@ -197,10 +197,10 @@ class AbstractRenderer(Object):
         center: _Coordinate,
         radius: float,
         width: int = ...,
-        draw_top_right: bool | None = ...,
-        draw_top_left: bool | None = ...,
-        draw_bottom_left: bool | None = ...,
-        draw_bottom_right: bool | None = ...,
+        draw_top_right: bool = ...,
+        draw_top_left: bool = ...,
+        draw_bottom_left: bool = ...,
+        draw_bottom_right: bool = ...,
     ) -> Rect:
         raise NotImplementedError
 
