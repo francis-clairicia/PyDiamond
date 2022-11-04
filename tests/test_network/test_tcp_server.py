@@ -92,7 +92,7 @@ def test_client_connection() -> None:
 
 
 class _TestWelcomeServer(_TestServer):
-    def _verify_new_client(self, client: TCPNetworkClient[Any, Any], address: SocketAddress) -> bool:
+    def verify_new_client(self, client: TCPNetworkClient[Any, Any], address: SocketAddress) -> bool:
         client.send_packet("Welcome !")
         return True
 

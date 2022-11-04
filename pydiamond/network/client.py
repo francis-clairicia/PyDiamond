@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-__all__ = ["AbstractNetworkClient", "TCPNetworkClient", "UDPNetworkClient"]
+__all__ = ["AbstractNetworkClient", "TCPInvalidPacket", "TCPNetworkClient", "UDPInvalidPacket", "UDPNetworkClient"]
 
 from abc import abstractmethod
 from collections import deque
@@ -15,7 +15,7 @@ from contextlib import contextmanager
 from selectors import EVENT_READ
 from socket import socket as Socket
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Generic, Iterator, TypeAlias, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Generic, Iterator, Literal, TypeAlias, TypeVar, overload
 
 try:
     from selectors import PollSelector as _Selector  # type: ignore[attr-defined]
@@ -40,6 +40,19 @@ _Address: TypeAlias = tuple[str, int] | tuple[str, int, int, int]  # type: ignor
 
 
 _NO_DEFAULT: Any = object()
+
+
+class TCPInvalidPacket(ValueError):
+    def __init__(self, already_deserialized_packets: list[Any] | None = None) -> None:
+        super().__init__("Received invalid data to deserialize")
+        self.already_deserialized_packets: list[Any] = already_deserialized_packets or []
+
+
+class UDPInvalidPacket(ValueError):
+    def __init__(self, sender: SocketAddress, already_deserialized_packets: list[Any] | None = None) -> None:
+        super().__init__("Received invalid data to deserialize")
+        self.already_deserialized_packets: list[Any] = already_deserialized_packets or []
+        self.sender: SocketAddress = sender
 
 
 class AbstractNetworkClient(Object):
@@ -211,48 +224,86 @@ class TCPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
         with _use_timeout(socket, timeout):
             socket.sendall(data, flags)
 
-    def recv_packet(self, *, flags: int = 0) -> _ReceivedPacketT:
+    def recv_packet(self, *, flags: int = 0, on_error: Literal["raise", "ignore"] = "raise") -> _ReceivedPacketT:
         self._check_not_closed()
         with self.__lock:
             while True:
                 try:
-                    return next(self.__consumer)
+                    return self.__consumer.next(on_error=on_error)
+                except DeserializeError as exc:
+                    raise TCPInvalidPacket from exc
                 except StopIteration:
                     pass
                 self.__read_socket(timeout=None, flags=flags)
 
     @overload
-    def recv_packet_no_block(self, *, timeout: float = ..., flags: int = ...) -> _ReceivedPacketT:
+    def recv_packet_no_block(
+        self, *, timeout: float = ..., flags: int = ..., on_error: Literal["raise", "ignore"] = ...
+    ) -> _ReceivedPacketT:
         ...
 
     @overload
-    def recv_packet_no_block(self, *, default: _T, timeout: float = ..., flags: int = ...) -> _ReceivedPacketT | _T:
+    def recv_packet_no_block(
+        self, *, default: _T, timeout: float = ..., flags: int = ..., on_error: Literal["raise", "ignore"] = ...
+    ) -> _ReceivedPacketT | _T:
         ...
 
-    def recv_packet_no_block(self, *, default: Any = _NO_DEFAULT, timeout: float = 0, flags: int = 0) -> Any:
+    def recv_packet_no_block(
+        self,
+        *,
+        default: Any = _NO_DEFAULT,
+        timeout: float = 0,
+        flags: int = 0,
+        on_error: Literal["raise", "ignore"] = "raise",
+    ) -> Any:
         timeout = float(timeout)
         self._check_not_closed()
         with self.__lock:
             try:
-                return next(self.__consumer)
+                return self.__consumer.next(on_error=on_error)
+            except DeserializeError as exc:
+                raise TCPInvalidPacket from exc
             except StopIteration:
                 pass
             self.__read_socket(timeout=timeout, flags=flags)
             try:
-                return next(self.__consumer)
+                return self.__consumer.next(on_error=on_error)
+            except DeserializeError as exc:
+                raise TCPInvalidPacket from exc
             except StopIteration:
                 pass
             if default is not _NO_DEFAULT:
                 return default
             raise TimeoutError("recv_packet() timed out")
 
-    def recv_packets(self, *, timeout: float | None = 0, flags: int = 0) -> list[_ReceivedPacketT]:
+    def recv_packets(
+        self,
+        *,
+        timeout: float | None = 0,
+        flags: int = 0,
+        on_error: Literal["raise", "ignore"] = "raise",
+    ) -> list[_ReceivedPacketT]:
         self._check_not_closed()
+
+        consumer: StreamNetworkDataConsumer[_ReceivedPacketT] = self.__consumer
+
+        def generate_packets() -> list[_ReceivedPacketT]:
+            packets: list[_ReceivedPacketT] = []
+            while True:
+                try:
+                    next_packet = consumer.next(on_error=on_error)
+                except DeserializeError as exc:
+                    raise TCPInvalidPacket(already_deserialized_packets=packets) from exc
+                except StopIteration:
+                    break
+                packets.append(next_packet)
+            return packets
+
         with self.__lock:
             if timeout is not None:
                 self.__read_socket(timeout=timeout, flags=flags)
-                return self.__consumer.oneshot()
-            while not (packets := self.__consumer.oneshot()):
+                return generate_packets()
+            while not (packets := generate_packets()):
                 self.__read_socket(timeout=None, flags=flags)
             return packets
 
@@ -493,7 +544,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
 
         self.__closed: bool = False
         self.__socket: Socket = socket
-        self.__queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = deque()
+        self.__queue: deque[tuple[bytes, SocketAddress]] = deque()
         self.__lock: RLock = RLock()
         self.__max_packet_size: int = max_packet_size
         self.__default_send_flags: int = send_flags
@@ -526,53 +577,84 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
             for data in map(self.__protocol.serialize, packets):
                 sendto(data, flags, address)
 
-    def recv_packet(self, *, flags: int = 0) -> tuple[_ReceivedPacketT, SocketAddress]:
+    def recv_packet(
+        self,
+        *,
+        flags: int = 0,
+        on_error: Literal["raise", "ignore"] = "raise",
+    ) -> tuple[_ReceivedPacketT, SocketAddress]:
         self._check_not_closed()
         with self.__lock:
-            queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = self.__queue
-            while not queue:
+            while True:
+                packet = self.__next_packet(on_error=on_error)
+                if packet is not None:
+                    return packet
                 self.__recv_packets(flags=flags, timeout=None)
-            return queue.popleft()
 
     @overload
-    def recv_packet_no_block(self, *, flags: int = 0, timeout: float = ...) -> tuple[_ReceivedPacketT, SocketAddress]:
+    def recv_packet_no_block(
+        self, *, flags: int = 0, timeout: float = ..., on_error: Literal["raise", "ignore"] = ...
+    ) -> tuple[_ReceivedPacketT, SocketAddress]:
         ...
 
     @overload
     def recv_packet_no_block(
-        self, *, flags: int = 0, default: _T, timeout: float = ...
+        self, *, flags: int = 0, default: _T, timeout: float = ..., on_error: Literal["raise", "ignore"] = ...
     ) -> tuple[_ReceivedPacketT, SocketAddress] | _T:
         ...
 
-    def recv_packet_no_block(self, *, flags: int = 0, default: Any = _NO_DEFAULT, timeout: float = 0) -> Any:
+    def recv_packet_no_block(
+        self,
+        *,
+        flags: int = 0,
+        default: Any = _NO_DEFAULT,
+        timeout: float = 0,
+        on_error: Literal["raise", "ignore"] = "raise",
+    ) -> Any:
         self._check_not_closed()
         timeout = float(timeout)
         with self.__lock:
-            queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = self.__queue
-            if not queue:
-                self.__recv_packets(flags=flags, timeout=timeout)
-                if not queue:
-                    if default is not _NO_DEFAULT:
-                        return default
-                    raise TimeoutError("recv_packet() timed out")
-            return queue.popleft()
+            packet = self.__next_packet(on_error=on_error)
+            if packet is not None:
+                return packet
+            self.__recv_packets(flags=flags, timeout=timeout)
+            packet = self.__next_packet(on_error=on_error)
+            if packet is not None:
+                return packet
+            if default is not _NO_DEFAULT:
+                return default
+            raise TimeoutError("recv_packet() timed out")
 
     def recv_packets(
         self,
         *,
         flags: int = 0,
         timeout: float | None = 0,
+        on_error: Literal["raise", "ignore"] = "raise",
     ) -> list[tuple[_ReceivedPacketT, SocketAddress]]:
         self._check_not_closed()
+
+        get_next_packet = self.__next_packet
+
+        def generate_packets() -> list[tuple[_ReceivedPacketT, SocketAddress]]:
+            packets: list[tuple[_ReceivedPacketT, SocketAddress]] = []
+            while True:
+                try:
+                    next_packet = get_next_packet(on_error=on_error)
+                except UDPInvalidPacket as exc:
+                    exc.already_deserialized_packets = packets
+                    raise
+                if next_packet is None:
+                    break
+                packets.append(next_packet)
+            return packets
+
         with self.__lock:
-            queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = self.__queue
             if timeout is not None:
                 self.__recv_packets(flags=flags, timeout=timeout)
-            else:
-                while not queue:
-                    self.__recv_packets(flags=flags, timeout=None)
-            packets = list(queue)
-            queue.clear()
+                return generate_packets()
+            while not (packets := generate_packets()):
+                self.__recv_packets(flags=flags, timeout=None)
             return packets
 
     def __recv_packets(self, *, flags: int, timeout: float | None) -> None:
@@ -582,8 +664,7 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
 
         socket: Socket = self.__socket
         bufsize: int = self.__max_packet_size
-        deserialize = self.__protocol.deserialize
-        queue: deque[tuple[_ReceivedPacketT, SocketAddress]] = self.__queue
+        queue: deque[tuple[bytes, SocketAddress]] = self.__queue
 
         if queue:
             timeout = 0
@@ -594,11 +675,23 @@ class UDPNetworkClient(AbstractNetworkClient, Generic[_SentPacketT, _ReceivedPac
                 data, sender = socket.recvfrom(bufsize, flags)
                 if not data:
                     continue
-                try:
-                    packet: _ReceivedPacketT = deserialize(data)
-                except DeserializeError:
-                    continue
-                queue.append((packet, new_socket_address(sender, socket.family)))
+                queue.append((data, new_socket_address(sender, socket.family)))
+
+    def __next_packet(self, *, on_error: Literal["raise", "ignore"]) -> tuple[_ReceivedPacketT, SocketAddress] | None:
+        if on_error not in ("raise", "ignore"):
+            raise ValueError("Invalid on_error value")
+        queue: deque[tuple[bytes, SocketAddress]] = self.__queue
+        deserialize = self.__protocol.deserialize
+        while queue:
+            data, sender = queue.popleft()
+            try:
+                packet = deserialize(data)
+            except DeserializeError as exc:
+                if on_error == "raise":
+                    raise UDPInvalidPacket(sender) from exc
+                continue
+            return packet, sender
+        return None
 
     def getsockname(self) -> SocketAddress:
         self._check_not_closed()

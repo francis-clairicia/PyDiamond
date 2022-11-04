@@ -17,8 +17,10 @@ __all__ = [
     "AbstractUDPNetworkServer",
     "ConnectedClient",
     "ForkingMixIn",
+    "TCPInvalidPacket",
     "TCPNetworkClient",
     "ThreadingMixIn",
+    "UDPInvalidPacket",
     "UDPNetworkClient",
 ]
 

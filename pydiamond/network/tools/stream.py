@@ -13,7 +13,7 @@ __all__ = [
 
 from collections import deque
 from threading import RLock
-from typing import Generator, Generic, Iterator, TypeVar
+from typing import Generator, Generic, Literal, TypeVar
 
 from ...system.object import Object, final
 from ...system.utils.itertools import NoStopIteration, consumer_start, send_return
@@ -82,7 +82,7 @@ class StreamNetworkDataProducer(Generic[_ST_contra], Object):
 
 
 @final
-class StreamNetworkDataConsumer(Iterator[_DT_co], Generic[_DT_co], Object):
+class StreamNetworkDataConsumer(Generic[_DT_co], Object):
     __slots__ = ("__d", "__b", "__c", "__u", "__lock")
 
     def __init__(self, deserializer: NetworkPacketIncrementalDeserializer[_DT_co], *, lock: RLock | None = None) -> None:
@@ -94,7 +94,9 @@ class StreamNetworkDataConsumer(Iterator[_DT_co], Generic[_DT_co], Object):
         self.__u: bytes = b""
         self.__lock: RLock = lock or RLock()
 
-    def __next__(self) -> _DT_co:
+    def next(self, *, on_error: Literal["raise", "ignore"] = "raise") -> _DT_co:
+        if on_error not in ("raise", "ignore"):
+            raise ValueError("Invalid on_error value")
         with self.__lock:
             chunk, self.__b = self.__b, b""
             if chunk:
@@ -108,8 +110,12 @@ class StreamNetworkDataConsumer(Iterator[_DT_co], Generic[_DT_co], Object):
                 except IncrementalDeserializeError as exc:
                     self.__u = b""
                     self.__b = exc.remaining_data
+                    if on_error == "raise":
+                        raise DeserializeError(str(exc)) from exc
                 except DeserializeError:
                     self.__u = b""
+                    if on_error == "raise":
+                        raise
                 except NoStopIteration:
                     self.__u += chunk
                     self.__c = consumer
@@ -121,10 +127,6 @@ class StreamNetworkDataConsumer(Iterator[_DT_co], Generic[_DT_co], Object):
                     self.__b = chunk
                     return packet
             raise StopIteration
-
-    def oneshot(self) -> list[_DT_co]:
-        with self.__lock:
-            return list(self)
 
     def feed(self, chunk: bytes) -> None:
         assert isinstance(chunk, bytes)
