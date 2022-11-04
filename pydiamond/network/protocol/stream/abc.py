@@ -134,20 +134,17 @@ class AutoSeparatedStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_c
 
 
 class AutoParsedStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
-    __slots__ = ("__magic", "__algorithm", "__header")
+    __slots__ = ("__magic", "__algorithm")
 
     def __init__(self, magic: bytes, *, checksum: str = "md5", **kwargs: Any) -> None:
-        import math
-
         assert isinstance(magic, bytes)
-        if not magic or not math.log2(len(magic)).is_integer():
-            raise ValueError("Magic bytes length must be a power of 2")
+        if len(magic) != 4:
+            raise ValueError("Magic bytes must be 4-byte length")
         if checksum not in hashlib.algorithms_available:
             raise ValueError(f"Unknown hashlib algorithm {checksum!r}")
         super().__init__(**kwargs)
         self.__magic: bytes = magic
         self.__algorithm: str = checksum
-        self.__header: Struct = Struct(f"!{len(self.__magic)}sQ")
 
     @abstractmethod
     def serialize(self, packet: _ST_contra) -> bytes:
@@ -156,7 +153,7 @@ class AutoParsedStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co])
     @final
     def incremental_serialize(self, packet: _ST_contra) -> Generator[bytes, None, None]:
         data: bytes = self.serialize(packet)
-        header: bytes = self.__header.pack(self.__magic, len(data))
+        header: bytes = Struct("!4sH").pack(self.__magic, len(data))
         yield header
         yield data
         checksum = hashlib.new(self.__algorithm, usedforsecurity=False)
@@ -170,7 +167,7 @@ class AutoParsedStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co])
 
     @final
     def incremental_deserialize(self) -> Generator[None, bytes, tuple[_DT_co, bytes]]:
-        header_struct: Struct = self.__header
+        header_struct: Struct = Struct("!4sH")
         expected_magic: bytes = self.__magic
         checksum_algorithm: str = self.__algorithm
         header: bytes = b""
@@ -231,11 +228,6 @@ class AutoParsedStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co])
     @final
     def checksum_algorithm(self) -> str:
         return self.__algorithm
-
-    @property
-    @final
-    def header(self) -> Struct:
-        return self.__header
 
 
 class FixedPacketSizeStreamNetworkProtocol(StreamNetworkProtocol[_ST_contra, _DT_co]):
