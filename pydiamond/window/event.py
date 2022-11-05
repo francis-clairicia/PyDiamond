@@ -304,55 +304,55 @@ class NamespaceEventModel(Event, model=True, no_slots=True):
 @unique
 class BuiltinEventType(IntEnum):
     @staticmethod
-    def _generate_next_value_(name: str, start: int, count: int, last_values: list[Any]) -> Any:
-        return _pg_event.custom_type()
+    def _generate_next_value_(name: str, start: int, count: int, last_values: list[int]) -> int:
+        return getattr(_pg_constants, name)  # noqa: F821
 
     # pygame's built-in events
-    KEYDOWN = _pg_constants.KEYDOWN
-    KEYUP = _pg_constants.KEYUP
-    MOUSEMOTION = _pg_constants.MOUSEMOTION
-    MOUSEBUTTONUP = _pg_constants.MOUSEBUTTONUP
-    MOUSEBUTTONDOWN = _pg_constants.MOUSEBUTTONDOWN
-    MOUSEWHEEL = _pg_constants.MOUSEWHEEL
-    JOYAXISMOTION = _pg_constants.JOYAXISMOTION
-    JOYBALLMOTION = _pg_constants.JOYBALLMOTION
-    JOYHATMOTION = _pg_constants.JOYHATMOTION
-    JOYBUTTONUP = _pg_constants.JOYBUTTONUP
-    JOYBUTTONDOWN = _pg_constants.JOYBUTTONDOWN
-    JOYDEVICEADDED = _pg_constants.JOYDEVICEADDED
-    JOYDEVICEREMOVED = _pg_constants.JOYDEVICEREMOVED
-    AUDIODEVICEADDED = _pg_constants.AUDIODEVICEADDED
-    AUDIODEVICEREMOVED = _pg_constants.AUDIODEVICEREMOVED
-    FINGERMOTION = _pg_constants.FINGERMOTION
-    FINGERUP = _pg_constants.FINGERUP
-    FINGERDOWN = _pg_constants.FINGERDOWN
-    MULTIGESTURE = _pg_constants.MULTIGESTURE
-    TEXTEDITING = _pg_constants.TEXTEDITING
-    TEXTINPUT = _pg_constants.TEXTINPUT
-    DROPBEGIN = _pg_constants.DROPBEGIN
-    DROPCOMPLETE = _pg_constants.DROPCOMPLETE
-    DROPFILE = _pg_constants.DROPFILE
-    DROPTEXT = _pg_constants.DROPTEXT
-    WINDOWSHOWN = _pg_constants.WINDOWSHOWN
-    WINDOWHIDDEN = _pg_constants.WINDOWHIDDEN
-    WINDOWEXPOSED = _pg_constants.WINDOWEXPOSED
-    WINDOWMOVED = _pg_constants.WINDOWMOVED
-    WINDOWRESIZED = _pg_constants.WINDOWRESIZED
-    WINDOWSIZECHANGED = _pg_constants.WINDOWSIZECHANGED
-    WINDOWMINIMIZED = _pg_constants.WINDOWMINIMIZED
-    WINDOWMAXIMIZED = _pg_constants.WINDOWMAXIMIZED
-    WINDOWRESTORED = _pg_constants.WINDOWRESTORED
-    WINDOWENTER = _pg_constants.WINDOWENTER
-    WINDOWLEAVE = _pg_constants.WINDOWLEAVE
-    WINDOWFOCUSGAINED = _pg_constants.WINDOWFOCUSGAINED
-    WINDOWFOCUSLOST = _pg_constants.WINDOWFOCUSLOST
-    WINDOWCLOSE = _pg_constants.WINDOWCLOSE
-    WINDOWTAKEFOCUS = _pg_constants.WINDOWTAKEFOCUS
-    WINDOWHITTEST = _pg_constants.WINDOWHITTEST
+    KEYDOWN = auto()
+    KEYUP = auto()
+    MOUSEMOTION = auto()
+    MOUSEBUTTONUP = auto()
+    MOUSEBUTTONDOWN = auto()
+    MOUSEWHEEL = auto()
+    JOYAXISMOTION = auto()
+    JOYBALLMOTION = auto()
+    JOYHATMOTION = auto()
+    JOYBUTTONUP = auto()
+    JOYBUTTONDOWN = auto()
+    JOYDEVICEADDED = auto()
+    JOYDEVICEREMOVED = auto()
+    AUDIODEVICEADDED = auto()
+    AUDIODEVICEREMOVED = auto()
+    FINGERMOTION = auto()
+    FINGERUP = auto()
+    FINGERDOWN = auto()
+    MULTIGESTURE = auto()
+    TEXTEDITING = auto()
+    TEXTINPUT = auto()
+    DROPBEGIN = auto()
+    DROPCOMPLETE = auto()
+    DROPFILE = auto()
+    DROPTEXT = auto()
+    WINDOWSHOWN = auto()
+    WINDOWHIDDEN = auto()
+    WINDOWEXPOSED = auto()
+    WINDOWMOVED = auto()
+    WINDOWRESIZED = auto()
+    WINDOWSIZECHANGED = auto()
+    WINDOWMINIMIZED = auto()
+    WINDOWMAXIMIZED = auto()
+    WINDOWRESTORED = auto()
+    WINDOWENTER = auto()
+    WINDOWLEAVE = auto()
+    WINDOWFOCUSGAINED = auto()
+    WINDOWFOCUSLOST = auto()
+    WINDOWCLOSE = auto()
+    WINDOWTAKEFOCUS = auto()
+    WINDOWHITTEST = auto()
 
     # PyDiamond's events
-    MUSICEND = auto()
-    SCREENSHOT = auto()
+    MUSICEND = _pg_event.custom_type()
+    SCREENSHOT = _pg_event.custom_type()
 
     def __repr__(self) -> str:
         return f"<{self.name} ({self.pygame_name}): {self.value}>"

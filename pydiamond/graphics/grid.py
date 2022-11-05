@@ -20,7 +20,7 @@ from typing_extensions import assert_never
 from ..math.rect import Rect, modify_rect_in_place
 from ..system.collections import SortedDict
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, initializer
-from ..system.enum import AutoLowerNameEnum
+from ..system.utils.enum import AutoLowerNameEnum
 from ..system.utils.itertools import flatten
 from ..system.utils.weakref import weakref_unwrap
 from ..system.validation import valid_integer

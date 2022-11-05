@@ -8,14 +8,14 @@ from __future__ import annotations
 
 __all__ = ["Cursor", "SystemCursor"]
 
-from enum import Enum, unique
+from enum import Enum, auto, unique
 from typing import TYPE_CHECKING, Any, Final, Literal, Sequence, no_type_check, overload
 
 import pygame.constants as _pg_constants
 import pygame.cursors as _pg_cursors
 
-from ..system.enum import EnumObjectMeta
 from ..system.object import Object
+from ..system.utils.enum import EnumObjectMeta
 
 if TYPE_CHECKING:
     from ..graphics.surface import Surface
@@ -102,6 +102,11 @@ class SystemCursor(Cursor, Enum, metaclass=EnumObjectMeta):
 
     __hash__ = Cursor.__hash__
 
+    @staticmethod
+    def _generate_next_value_(name: str, start: int, count: int, last_values: list[int]) -> int:
+        constant_name = f"SYSTEM_CURSOR_{name}"
+        return getattr(_pg_constants, constant_name)  # noqa: F821
+
     def __new__(cls, value: int | SystemCursor) -> SystemCursor:
         self = _pg_cursors.Cursor.__new__(cls)
         self._value_ = value
@@ -112,18 +117,18 @@ class SystemCursor(Cursor, Enum, metaclass=EnumObjectMeta):
         def __init__(self, value: int | SystemCursor) -> None:
             ...
 
-    ARROW = _pg_constants.SYSTEM_CURSOR_ARROW
-    IBEAM = _pg_constants.SYSTEM_CURSOR_IBEAM
-    WAIT = _pg_constants.SYSTEM_CURSOR_WAIT
-    CROSSHAIR = _pg_constants.SYSTEM_CURSOR_CROSSHAIR
-    WAITARROW = _pg_constants.SYSTEM_CURSOR_WAITARROW
-    SIZENWSE = _pg_constants.SYSTEM_CURSOR_SIZENWSE
-    SIZENESW = _pg_constants.SYSTEM_CURSOR_SIZENESW
-    SIZEWE = _pg_constants.SYSTEM_CURSOR_SIZEWE
-    SIZENS = _pg_constants.SYSTEM_CURSOR_SIZENS
-    SIZEALL = _pg_constants.SYSTEM_CURSOR_SIZEALL
-    NO = _pg_constants.SYSTEM_CURSOR_NO
-    HAND = _pg_constants.SYSTEM_CURSOR_HAND
+    ARROW = auto()
+    IBEAM = auto()
+    WAIT = auto()
+    CROSSHAIR = auto()
+    WAITARROW = auto()
+    SIZENWSE = auto()
+    SIZENESW = auto()
+    SIZEWE = auto()
+    SIZENS = auto()
+    SIZEALL = auto()
+    NO = auto()
+    HAND = auto()
 
     if TYPE_CHECKING:
 

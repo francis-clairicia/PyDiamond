@@ -28,9 +28,9 @@ from ...graphics.renderer import AbstractRenderer
 from ...math.rect import Rect
 from ...system.collections import OrderedSet, OrderedWeakSet
 from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
-from ...system.enum import AutoLowerNameEnum
 from ...system.object import Object
 from ...system.utils.abc import isabstractmethod
+from ...system.utils.enum import AutoLowerNameEnum
 from ...system.utils.functools import wraps
 from ...system.utils.weakref import weakref_unwrap
 from ...window.cursor import Cursor, SystemCursor

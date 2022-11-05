@@ -12,7 +12,7 @@ import enum
 import sys
 from typing import TYPE_CHECKING, Any
 
-from .object import ObjectMeta
+from ..object import ObjectMeta
 
 if sys.version_info < (3, 11):
     if TYPE_CHECKING:

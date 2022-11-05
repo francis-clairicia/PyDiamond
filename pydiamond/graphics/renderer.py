@@ -9,7 +9,7 @@ from __future__ import annotations
 __all__ = ["AbstractRenderer", "RendererView"]
 
 from abc import abstractmethod
-from enum import IntEnum, unique
+from enum import IntEnum, auto, unique
 from itertools import starmap
 from typing import TYPE_CHECKING, Any, ContextManager, Iterable, Literal, Sequence, TypeAlias, overload
 
@@ -43,19 +43,24 @@ RendererAnchor: TypeAlias = Literal[
 
 @unique
 class BlendMode(IntEnum):
+    @staticmethod
+    def _generate_next_value_(name: str, start: int, count: int, last_values: list[int]) -> int:
+        constant_name = f"BLEND_{name}"
+        return getattr(_pg_constants, constant_name)  # noqa: F821
+
     NONE = 0
-    ADD = _pg_constants.BLEND_RGB_ADD
-    SUB = _pg_constants.BLEND_RGB_SUB
-    MULT = _pg_constants.BLEND_RGB_MULT
-    MIN = _pg_constants.BLEND_RGB_MIN
-    MAX = _pg_constants.BLEND_RGB_MAX
-    RGBA_ADD = _pg_constants.BLEND_RGBA_ADD
-    RGBA_SUB = _pg_constants.BLEND_RGBA_SUB
-    RGBA_MULT = _pg_constants.BLEND_RGBA_MULT
-    RGBA_MIN = _pg_constants.BLEND_RGBA_MIN
-    RGBA_MAX = _pg_constants.BLEND_RGBA_MAX
-    PREMULTIPLIED = _pg_constants.BLEND_PREMULTIPLIED
-    ALPHA_SDL2 = _pg_constants.BLEND_ALPHA_SDL2
+    RGB_ADD = auto()
+    RGB_SUB = auto()
+    RGB_MULT = auto()
+    RGB_MIN = auto()
+    RGB_MAX = auto()
+    RGBA_ADD = auto()
+    RGBA_SUB = auto()
+    RGBA_MULT = auto()
+    RGBA_MIN = auto()
+    RGBA_MAX = auto()
+    PREMULTIPLIED = auto()
+    ALPHA_SDL2 = auto()
 
 
 class AbstractRenderer(Object):

@@ -14,7 +14,7 @@ from __future__ import annotations
 __all__ = ["AllowedAudioChanges", "AudioFormat", "Mixer", "MixerParams"]
 
 from contextlib import ExitStack, contextmanager
-from enum import IntEnum, IntFlag
+from enum import IntEnum, IntFlag, auto
 from typing import TYPE_CHECKING, Any, Iterator, Literal, NamedTuple, overload
 
 import pygame.constants as _pg_constants
@@ -34,10 +34,15 @@ class AllowedAudioChanges(IntFlag):
     Enumerates the possible flags for the 'allowedchange' parameter of Mixer.init()
     """
 
-    FREQUENCY = _pg_constants.AUDIO_ALLOW_FREQUENCY_CHANGE
-    FORMAT = _pg_constants.AUDIO_ALLOW_FORMAT_CHANGE
-    CHANNELS = _pg_constants.AUDIO_ALLOW_CHANNELS_CHANGE
-    ANY = _pg_constants.AUDIO_ALLOW_ANY_CHANGE
+    @staticmethod
+    def _generate_next_value_(name: str, start: int, count: int, last_values: list[int]) -> int:
+        constant_name = f"AUDIO_ALLOW_{name}_CHANGE"
+        return getattr(_pg_constants, constant_name)  # noqa: F821
+
+    FREQUENCY = auto()
+    FORMAT = auto()
+    CHANNELS = auto()
+    ANY = auto()
 
 
 class AudioFormat(IntEnum):
@@ -45,24 +50,28 @@ class AudioFormat(IntEnum):
     Enumerates the possible audio format used by SDL_mixer
     """
 
-    AUDIO_U8 = _pg_constants.AUDIO_U8
-    AUDIO_S8 = _pg_constants.AUDIO_S8
-    AUDIO_U16 = _pg_constants.AUDIO_U16
-    AUDIO_S16 = _pg_constants.AUDIO_S16
-    AUDIO_U16SYS = _pg_constants.AUDIO_U16SYS
-    AUDIO_U16LSB = _pg_constants.AUDIO_U16LSB
-    AUDIO_U16MSB = _pg_constants.AUDIO_U16MSB
-    AUDIO_S16SYS = _pg_constants.AUDIO_S16SYS
-    AUDIO_S16LSB = _pg_constants.AUDIO_S16LSB
-    AUDIO_S16MSB = _pg_constants.AUDIO_S16MSB
+    @staticmethod
+    def _generate_next_value_(name: str, start: int, count: int, last_values: list[int]) -> int:
+        return getattr(_pg_constants, name)  # noqa: F821
+
+    AUDIO_U8 = auto()
+    AUDIO_S8 = auto()
+    AUDIO_U16 = auto()
+    AUDIO_S16 = auto()
+    AUDIO_U16SYS = auto()
+    AUDIO_U16LSB = auto()
+    AUDIO_U16MSB = auto()
+    AUDIO_S16SYS = auto()
+    AUDIO_S16LSB = auto()
+    AUDIO_S16MSB = auto()
 
     # Constants which will exist someday
-    # AUDIO_S32SYS = _pg_constants.AUDIO_S32SYS
-    # AUDIO_S32LSB = _pg_constants.AUDIO_S32LSB
-    # AUDIO_S32MSB = _pg_constants.AUDIO_S32MSB
-    # AUDIO_F32LSB = _pg_constants.AUDIO_F32LSB
-    # AUDIO_F32MSB = _pg_constants.AUDIO_F32MSB
-    # AUDIO_F32SYS = _pg_constants.AUDIO_F32SYS
+    # AUDIO_S32SYS = auto()
+    # AUDIO_S32LSB = auto()
+    # AUDIO_S32MSB = auto()
+    # AUDIO_F32LSB = auto()
+    # AUDIO_F32MSB = auto()
+    # AUDIO_F32SYS = auto()
 
 
 class MixerParams(NamedTuple):

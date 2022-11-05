@@ -14,7 +14,7 @@ __all__ = [
 
 
 import os
-from enum import IntFlag, unique
+from enum import IntFlag, auto, unique
 from typing import TYPE_CHECKING, Any, ClassVar, Final, Iterable, NamedTuple, TypeAlias, TypeVar, overload
 
 import pygame.freetype as _pg_freetype
@@ -84,11 +84,16 @@ class GlyphMetrics(NamedTuple):
 
 @unique
 class FontStyle(IntFlag):
-    NORMAL = _pg_freetype.STYLE_NORMAL
-    OBLIQUE = _pg_freetype.STYLE_OBLIQUE
-    STRONG = _pg_freetype.STYLE_STRONG
-    UNDERLINE = _pg_freetype.STYLE_UNDERLINE
-    WIDE = _pg_freetype.STYLE_WIDE
+    @staticmethod
+    def _generate_next_value_(name: str, start: int, count: int, last_values: list[int]) -> int:
+        constant_name = f"STYLE_{name}"
+        return getattr(_pg_freetype, constant_name)
+
+    NORMAL = auto()
+    OBLIQUE = auto()
+    STRONG = auto()
+    UNDERLINE = auto()
+    WIDE = auto()
 
 
 STYLE_DEFAULT: Final[int] = _pg_freetype.STYLE_DEFAULT

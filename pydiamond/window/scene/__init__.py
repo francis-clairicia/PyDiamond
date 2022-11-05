@@ -47,13 +47,13 @@ from weakref import WeakKeyDictionary, WeakSet, ref as weakref
 from ...graphics.color import Color
 from ...graphics.renderer import AbstractRenderer
 from ...graphics.surface import Surface, SurfaceRenderer
-from ...system.enum import AutoLowerNameEnum
 from ...system.object import Object, final
 from ...system.theme import ClassWithThemeNamespaceMeta, no_theme_decorator
 from ...system.time import Time
 from ...system.utils._mangling import getattr_pv, mangle_private_attribute, setattr_pv
 from ...system.utils.abc import concreteclassmethod, isabstractclass
 from ...system.utils.contextlib import ExitStackView
+from ...system.utils.enum import AutoLowerNameEnum
 from ...system.utils.functools import wraps
 from ...system.utils.itertools import consume
 from ..display import Window, WindowCallback, WindowError, _WindowCallbackList

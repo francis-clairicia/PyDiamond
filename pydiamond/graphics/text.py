@@ -19,8 +19,8 @@ from typing_extensions import assert_never
 
 from ..math.rect import Rect
 from ..system.configuration import Configuration, ConfigurationTemplate, OptionAttribute, initializer
-from ..system.enum import AutoLowerNameEnum
 from ..system.theme import ThemedObjectMeta, ThemeType
+from ..system.utils.enum import AutoLowerNameEnum
 from ..system.utils.typing import reflect_method_signature
 from ..system.validation import valid_float, valid_integer
 from ._transform import rotozoom2 as _surface_rotozoom2, scale_by as _surface_scale_by

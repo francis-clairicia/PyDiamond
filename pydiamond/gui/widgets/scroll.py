@@ -20,8 +20,8 @@ from ...graphics.shape import RectangleShape
 from ...graphics.transformable import Transformable
 from ...math.rect import Rect
 from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
-from ...system.enum import AutoLowerNameEnum
 from ...system.theme import ThemedObjectMeta, ThemeType
+from ...system.utils.enum import AutoLowerNameEnum
 from ...window.event import MouseButtonDownEvent, MouseButtonUpEvent, MouseMotionEvent, MouseWheelEvent
 from ..tools.view import AbstractScrollableView
 from .abc import AbstractWidget, Widget, WidgetsManager

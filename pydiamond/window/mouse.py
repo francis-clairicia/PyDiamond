@@ -8,7 +8,7 @@ from __future__ import annotations
 
 __all__ = ["Mouse", "MouseButton"]
 
-from enum import IntEnum
+from enum import IntEnum, auto
 from typing import final
 
 import pygame.constants as _pg_constants
@@ -59,11 +59,16 @@ class Mouse(ClassNamespace, frozen=True):
 
 
 class MouseButton(IntEnum):
-    LEFT = _pg_constants.BUTTON_LEFT
-    RIGHT = _pg_constants.BUTTON_RIGHT
-    MIDDLE = _pg_constants.BUTTON_MIDDLE
-    WHEELUP = _pg_constants.BUTTON_WHEELUP
-    WHEELDOWN = _pg_constants.BUTTON_WHEELDOWN
+    @staticmethod
+    def _generate_next_value_(name: str, start: int, count: int, last_values: list[int]) -> int:
+        constant_name = f"BUTTON_{name}"
+        return getattr(_pg_constants, constant_name)  # noqa: F821
+
+    LEFT = auto()
+    RIGHT = auto()
+    MIDDLE = auto()
+    WHEELUP = auto()
+    WHEELDOWN = auto()
 
 
 del _pg_constants

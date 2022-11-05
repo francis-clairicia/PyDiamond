@@ -14,9 +14,9 @@ from types import MappingProxyType
 from typing import Any, Callable, ClassVar, Final, Iterator, Literal, Mapping, Sequence, overload
 
 from ..system.collections import OrderedWeakSet
-from ..system.enum import AutoLowerNameEnum
 from ..system.object import final
 from ..system.theme import no_theme_decorator
+from ..system.utils.enum import AutoLowerNameEnum
 from ..system.utils.weakref import weakref_unwrap
 from ..window.event import (
     Event,
