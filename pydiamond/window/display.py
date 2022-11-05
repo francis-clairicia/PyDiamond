@@ -159,6 +159,22 @@ class Window(Object, no_slots=True):
         self.__handle_mouse_button: bool | None = False
         self.__handle_keyboard: bool | None = False
 
+        self.__mouse_position_callbacks: set[Callable[[tuple[int, int]], Any]] = set()
+        self.__loop_callbacks: set[Callable[[], Any]] = set()
+
+        def make_window_callback_list_handler(self: Window) -> Callable[[], None]:
+            selfref = weakref(self)
+
+            def process_window_callbacks() -> None:
+                self = selfref()
+                if self is None:
+                    return
+                self.__callback_after.process()
+
+            return process_window_callbacks
+
+        self.__loop_callbacks.add(make_window_callback_list_handler(self))
+
         self.__stack = ExitStack()
 
         self.__screenshot_threads: list[Thread] = []
@@ -248,9 +264,6 @@ class Window(Object, no_slots=True):
 
     @final
     def close(self) -> NoReturn:
-        screenshot_threads = self.__screenshot_threads
-        while screenshot_threads:
-            screenshot_threads.pop(0).join(timeout=1, terminate_on_timeout=True)
         raise WindowExit
 
     @final
@@ -260,12 +273,12 @@ class Window(Object, no_slots=True):
     @final
     def loop(self) -> Literal[True]:
         if self.__close_on_next_frame:
-            self.close()
+            raise WindowExit
 
         screen: Surface | None = _pg_display.get_surface()
 
         if screen is None or (renderer := self.__display_renderer) is None:
-            self.close()
+            raise WindowExit
 
         self._last_tick_time = self._handle_framerate()
 
@@ -301,22 +314,29 @@ class Window(Object, no_slots=True):
             self.__rect = ImmutableRect.convert(screen.get_rect())
 
         if self.__process_callbacks:
-            self._process_callbacks()
+            for loop_callback in list(self.__loop_callbacks):
+                loop_callback()
 
         handle_music_event = MusicStream._handle_event
         for event in _pg_event.get():
             if event.type == _PG_QUIT:
-                try:
-                    self._handle_close_event()
-                except WindowExit:
-                    self.__close_on_next_frame = True
-                    break
-                continue
+                self.__close_on_next_frame = True
+                break
             if not handle_music_event(event):  # If it's a music event which is not expected
                 continue
             add_event(event)
 
+        if self.__handle_mouse_position:
+            mouse_pos: tuple[int, int] = Mouse.get_pos()
+            for mouse_pos_callback in list(self.__mouse_position_callbacks):
+                mouse_pos_callback(mouse_pos)
+
         return True
+
+    def register_loop_callback(self, callback: Callable[[], Any]) -> None:
+        if not callable(callback):
+            raise TypeError("must be a callable object")
+        self.__loop_callbacks.add(callback)
 
     def clear(self, color: _ColorValue = BLACK, *, blend_alpha: bool = False) -> None:
         screen = self.__display_renderer
@@ -504,12 +524,7 @@ class Window(Object, no_slots=True):
         ):
             yield
 
-    def _process_callbacks(self) -> None:
-        self.__callback_after.process()
-
     def process_events(self) -> Generator[Event, None, None]:
-        if self.__handle_mouse_position:
-            self._handle_mouse_position(Mouse.get_pos())
         poll_event = self.__event_queue.popleft
         make_event = EventFactory.from_pygame_event
         while True:
@@ -534,15 +549,14 @@ class Window(Object, no_slots=True):
                 continue
             yield event
 
-    def _handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
-        pass
-
     @final
     def post_event(self, event: Event) -> bool:
         return _pg_event.post(EventFactory.make_pygame_event(event))
 
-    def _handle_close_event(self) -> None:
-        self.close()
+    def register_mouse_position_callback(self, callback: Callable[[tuple[int, int]], Any]) -> None:
+        if not callable(callback):
+            raise TypeError("must be a callable object")
+        self.__mouse_position_callbacks.add(callback)
 
     @final
     def get_cursor(self) -> Cursor:

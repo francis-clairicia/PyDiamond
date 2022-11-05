@@ -42,7 +42,7 @@ from typing import (
     overload,
     runtime_checkable,
 )
-from weakref import WeakKeyDictionary, WeakSet
+from weakref import WeakKeyDictionary, WeakSet, ref as weakref
 
 from ...graphics.color import Color
 from ...graphics.renderer import AbstractRenderer
@@ -514,6 +514,37 @@ class SceneWindow(Window):
         self.__running: bool = False
         self.__event = EventManager()
 
+        def make_window_callback_list_handler(self: SceneWindow) -> Callable[[], None]:
+            selfref = weakref(self)
+
+            def process_scene_window_callbacks() -> None:
+                self = selfref()
+                if self is None:
+                    return
+                actual_scene = self.__scenes.top()
+                window_callback_list = self.__callback_after_scenes.get(actual_scene) if actual_scene is not None else None
+                if window_callback_list:
+                    window_callback_list.process()
+
+            return process_scene_window_callbacks
+
+        def make_mouse_position_handler(self: SceneWindow) -> Callable[[tuple[int, int]], None]:
+            selfref = weakref(self)
+
+            def handle_mouse_position(mouse_pos: tuple[int, int], /) -> None:
+                self = selfref()
+                if self is None:
+                    return
+                self.__event._handle_mouse_position(mouse_pos)
+                actual_scene: Scene | None = self.__scenes.top()
+                if actual_scene is not None:
+                    actual_scene.handle_mouse_position(mouse_pos)
+
+            return handle_mouse_position
+
+        Window.register_loop_callback(self, make_window_callback_list_handler(self))
+        Window.register_mouse_position_callback(self, make_mouse_position_handler(self))
+
     @contextmanager
     def open(self) -> Iterator[None]:
         with ExitStack() as stack_before_open:
@@ -687,28 +718,14 @@ class SceneWindow(Window):
     def handle_events(self) -> None:
         consume(self.process_events())
 
-    def _process_callbacks(self) -> None:
-        super()._process_callbacks()
-        actual_scene = self.__scenes.top()
-        window_callback_list = self.__callback_after_scenes.get(actual_scene) if actual_scene else None
-        if window_callback_list:
-            window_callback_list.process()
-
     def process_events(self) -> Generator[Event, None, None]:
         actual_scene: Scene | None = self.__scenes.top()
+        process_scene_window_event = self.__event._process_event
+        scene_handle_event = actual_scene.handle_event if actual_scene is not None else lambda _: False
         for event in super().process_events():
-            if self.__event._process_event(event):
-                continue
-            if actual_scene is not None and actual_scene.handle_event(event):
+            if process_scene_window_event(event) or scene_handle_event(event):
                 continue
             yield event
-
-    def _handle_mouse_position(self, mouse_pos: tuple[float, float]) -> None:
-        self.__event._handle_mouse_position(mouse_pos)
-        super()._handle_mouse_position(mouse_pos)
-        actual_scene: Scene | None = self.__scenes.top()
-        if actual_scene is not None:
-            actual_scene.handle_mouse_position(mouse_pos)
 
     def used_framerate(self) -> int:
         for scene in self.__scenes.from_top_to_bottom():
