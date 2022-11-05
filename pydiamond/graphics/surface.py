@@ -16,7 +16,7 @@ __all__ = [
 ]
 
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Iterable, Iterator, Literal, Sequence, overload
+from typing import TYPE_CHECKING, Any, Iterable, Iterator, Literal, Sequence, TypeVar, overload
 
 import pygame.image as _pg_image
 from pygame import encode_file_path
@@ -80,24 +80,17 @@ class SurfaceRenderer(AbstractRenderer):
 
     __slots__ = ("__target",)
 
-    @overload
-    def __init__(self, size: tuple[float, float], /, *, convert_alpha: bool = True) -> None:
-        ...
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="SurfaceRenderer")
 
-    @overload
-    def __init__(self, target: Surface, /) -> None:
-        ...
+    def __init__(self, target: Surface) -> None:
+        assert isinstance(target, Surface), "target must be a regular surface"
+        self.__target: Surface = target
 
-    def __init__(self, arg: Surface | tuple[float, float], /, *, convert_alpha: bool = True) -> None:
-        self.__target: Surface
-        try:
-            w: float
-            h: float
-            w, h = arg  # type: ignore[misc]
-        except TypeError:
-            self.__target = arg  # type: ignore[assignment]
-        else:
-            self.__target = create_surface((w, h), convert_alpha=convert_alpha)
+    @classmethod
+    def from_size(cls: type[__Self], size: tuple[float, float], *, convert_alpha: bool = True) -> __Self:
+        target = create_surface(size, convert_alpha=convert_alpha)
+        return cls(target)
 
     def get_rect(self, **kwargs: Any) -> Rect:
         return self.__target.get_rect(**kwargs)

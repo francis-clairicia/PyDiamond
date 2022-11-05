@@ -216,7 +216,7 @@ class PolygonShape(OutlinedShape, SingleColorShape):
 
         if nb_points == 2 and outline < 1:
             return create_surface((w, h))
-        image: SurfaceRenderer = SurfaceRenderer((w + outline * 2, h + outline * 2))
+        image: SurfaceRenderer = SurfaceRenderer.from_size((w + outline * 2, h + outline * 2))
 
         for p in all_points:
             p.x += outline
@@ -463,7 +463,7 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape, Ab
             draw_params = {
                 param: round(value * max(scale_x, scale_y)) if value > 0 else value for param, value in draw_params.items()
             }
-        image: SurfaceRenderer = SurfaceRenderer((w + 1, h + 1))
+        image: SurfaceRenderer = SurfaceRenderer.from_size((w + 1, h + 1))
         rect: Rect = image.get_rect()
         image.draw_rect(self.color, rect, **draw_params)
         if outline > 0:
@@ -550,7 +550,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape):
             radius *= scale
             width *= scale
             height *= scale
-        image: SurfaceRenderer = SurfaceRenderer((width, height))
+        image: SurfaceRenderer = SurfaceRenderer.from_size((width, height))
         width, height = image.get_size()
         center: tuple[float, float] = (width / 2, height / 2)
         draw_params = self.__draw_params
@@ -664,7 +664,7 @@ class _AbstractCrossShape(OutlinedShape, SingleColorShape):
 
         w, h = normalize_points(all_points)
 
-        image: SurfaceRenderer = SurfaceRenderer((w + outline * 2, h + outline * 2))
+        image: SurfaceRenderer = SurfaceRenderer.from_size((w + outline * 2, h + outline * 2))
 
         for p in all_points:
             p.x += outline

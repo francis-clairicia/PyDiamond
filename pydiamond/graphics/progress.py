@@ -296,7 +296,7 @@ class ProgressBar(Drawable, Transformable):
         with shape.config.temporary_options(False, color=TRANSPARENT):
             outline_shape_surface = shape._make(apply_rotation=False, apply_scale=False)
 
-        shape_renderer = SurfaceRenderer(outline_shape_surface.get_size())
+        shape_renderer = SurfaceRenderer.from_size(outline_shape_surface.get_size())
         shape_renderer.draw_surface(shape_surface, shape_surface.get_rect(center=outline_shape_surface.get_rect().center))
         shape_renderer.draw_surface(outline_shape_surface, (0, 0))
 
@@ -348,7 +348,7 @@ class ProgressBar(Drawable, Transformable):
         if text_label is None and text_value is None:
             return shape_renderer.surface
 
-        whole_area = SurfaceRenderer(whole_rect.size)
+        whole_area = SurfaceRenderer.from_size(whole_rect.size)
         whole_area.draw_surface(shape_renderer.surface, (-whole_rect.x, -whole_rect.y))
 
         text_object: Text

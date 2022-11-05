@@ -332,7 +332,7 @@ class HorizontalMultiColorShape(AbstractRectangleShape, MultiColorShape):
 
     def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
         width, height = self.local_size
-        renderer: SurfaceRenderer = SurfaceRenderer((width, height))
+        renderer: SurfaceRenderer = SurfaceRenderer.from_size((width, height))
         for i, gradient in enumerate(self.__shapes):
             gradient.topleft = (gradient.width * i, 0)
             gradient.draw_onto(renderer)
@@ -373,7 +373,7 @@ class VerticalMultiColorShape(AbstractRectangleShape, MultiColorShape):
 
     def _make(self, *, apply_rotation: bool, apply_scale: bool) -> Surface:
         width, height = self.local_size
-        renderer: SurfaceRenderer = SurfaceRenderer((width, height))
+        renderer: SurfaceRenderer = SurfaceRenderer.from_size((width, height))
         for i, gradient in enumerate(self.__shapes):
             gradient.topleft = (0, gradient.height * i)
             gradient.draw_onto(renderer)
