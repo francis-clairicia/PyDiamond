@@ -128,6 +128,22 @@ class SurfaceRenderer(AbstractRenderer):
         finally:
             set_clip(former_rect)
 
+    def to_surface(self, surface: Surface | None = None, area: _CanBeRect | None = None) -> Surface:
+        target: Surface = self.__target
+        match surface:
+            case None:
+                surface = target
+                if area is not None:
+                    surface = surface.subsurface(area)
+                surface = surface.copy()
+            case Surface() if surface.get_width() >= target.get_width() and surface.get_height() >= target.get_height():
+                surface.blit(target, (0, 0), area)
+            case Surface():
+                raise ValueError("Too small surface")
+            case _:
+                raise TypeError("'surface' must be a regular Surface or None")
+        return surface
+
     def draw_surface(
         self,
         surface: Surface,

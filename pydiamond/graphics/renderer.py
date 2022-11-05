@@ -91,6 +91,10 @@ class AbstractRenderer(Object):
         raise NotImplementedError
 
     @abstractmethod
+    def to_surface(self, surface: Surface | None = ..., area: _CanBeRect | None = ...) -> Surface:
+        raise NotImplementedError
+
+    @abstractmethod
     def draw_surface(
         self,
         surface: Surface,
@@ -286,6 +290,10 @@ class RendererView(AbstractRenderer):
 
     def using_clip(self, rect: _CanBeRect | None) -> ContextManager[None]:
         return self.__target.using_clip(rect)
+
+    @reflect_method_signature(AbstractRenderer.to_surface)
+    def to_surface(self, *args: Any, **kwargs: Any) -> Surface:
+        return self.__target.to_surface(*args, **kwargs)
 
     @reflect_method_signature(AbstractRenderer.draw_surface)
     def draw_surface(self, *args: Any, **kwargs: Any) -> Rect:
