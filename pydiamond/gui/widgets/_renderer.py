@@ -30,7 +30,7 @@ class WidgetRendererView(RendererView):
     def __clip_rect(self, rect: _CanBeRect | None) -> Rect:
         widget_clip = self.__widget.get_visible_rect()
         if rect is None:
-            return widget_clip.copy()
+            return widget_clip
         if not isinstance(rect, Rect):
             rect = Rect(*rect)
         return rect.clip(widget_clip)
