@@ -121,6 +121,7 @@ class EventMeta(ObjectMeta):
         namespace: dict[str, Any],
         *,
         model: bool = False,
+        non_blockable: bool = False,
         **kwargs: Any,
     ) -> __Self:
         model = bool(model)
@@ -145,22 +146,17 @@ class EventMeta(ObjectMeta):
                 raise AssertionError(
                     f"Event with type {_pg_event.event_name(event_type)!r} ({event_type}) already exists: {event_cls}"
                 )
+            if non_blockable:
+                EventFactory.add_non_blockable_events(event_type)
             event_cls = cast(type[Event], cls)
             EventMeta.__associations[event_cls] = event_type
             EventMeta.__type[event_type] = event_cls
-            try:
-                event_name_dispatch_table: dict[int, str] = getattr(_pg_event.event_name, "__event_name_dispatch_table__")
-            except AttributeError:
-                pass
-            else:
-                event_name = f"{event_cls.__module__}.{event_cls.__qualname__}"
-                try:
-                    original_pygame_event_name: Callable[[int], str] = getattr(_pg_event.event_name, "__wrapped__")
-                except AttributeError:
-                    pass
-                else:
-                    event_name = f"{event_name}({original_pygame_event_name(event_type)})"
-                event_name_dispatch_table[event_type] = event_name
+            event_name_dispatch_table: dict[int, str] = getattr(_pg_event.event_name, "__event_name_dispatch_table__")
+            original_pygame_event_name: Callable[[int], str] = getattr(_pg_event.event_name, "__wrapped__")
+            event_name = f"{event_cls.__module__}.{event_cls.__qualname__}({original_pygame_event_name(event_type)})"
+            event_name_dispatch_table[event_type] = event_name
+        elif non_blockable:
+            raise ValueError("'non_blockable' cannot be set for event models")
         return cls
 
     @final
@@ -205,6 +201,7 @@ class _BuiltinEventMeta(EventMeta):
         *,
         event_type: BuiltinEventType | None = None,
         event_name: str | None = None,
+        non_blockable: bool = False,
         **kwargs: Any,
     ) -> _BuiltinEventMeta:  # noqa: F821
         try:
@@ -229,13 +226,12 @@ class _BuiltinEventMeta(EventMeta):
         event_cls = cast(type[BuiltinEvent], cls)
         dict_associations[event_cls] = int(event_type)
         dict_type[int(event_type)] = event_cls
+        if non_blockable:
+            add_non_blockable_event: Callable[..., Any] = getattr(_pg_event.set_blocked, "__add_forbidden_events__")
+            add_non_blockable_event(int(event_type))
         if event_name:
-            try:
-                event_name_dispatch_table: dict[int, str] = getattr(_pg_event.event_name, "__event_name_dispatch_table__")
-            except AttributeError:
-                pass
-            else:
-                event_name_dispatch_table[int(event_type)] = event_name
+            event_name_dispatch_table: dict[int, str] = getattr(_pg_event.event_name, "__event_name_dispatch_table__")
+            event_name_dispatch_table[int(event_type)] = event_name
         return cls
 
 
@@ -351,7 +347,7 @@ class BuiltinEventType(IntEnum):
     WINDOWHITTEST = auto()
 
     # PyDiamond's events
-    MUSICEND = _pg_event.custom_type()
+    MUSICEND = _pg_music.get_endevent()
     SCREENSHOT = _pg_event.custom_type()
 
     def __repr__(self) -> str:
@@ -501,19 +497,19 @@ class JoyButtonUpEvent(JoyButtonEvent, event_type=BuiltinEventType.JOYBUTTONUP):
 
 @final
 @dataclass(kw_only=True)
-class JoyDeviceAddedEvent(BuiltinEvent, event_type=BuiltinEventType.JOYDEVICEADDED):
+class JoyDeviceAddedEvent(BuiltinEvent, event_type=BuiltinEventType.JOYDEVICEADDED, non_blockable=True):
     device_index: int
 
 
 @final
 @dataclass(kw_only=True)
-class JoyDeviceRemovedEvent(BuiltinEvent, event_type=BuiltinEventType.JOYDEVICEREMOVED):
+class JoyDeviceRemovedEvent(BuiltinEvent, event_type=BuiltinEventType.JOYDEVICEREMOVED, non_blockable=True):
     instance_id: int
 
 
 @final
 @dataclass(kw_only=True)
-class AudioDeviceAddedEvent(BuiltinEvent, event_type=BuiltinEventType.AUDIODEVICEADDED):
+class AudioDeviceAddedEvent(BuiltinEvent, event_type=BuiltinEventType.AUDIODEVICEADDED, non_blockable=True):
     which: int
     iscapture: bool
 
@@ -523,7 +519,7 @@ class AudioDeviceAddedEvent(BuiltinEvent, event_type=BuiltinEventType.AUDIODEVIC
 
 @final
 @dataclass(kw_only=True)
-class AudioDeviceRemovedEvent(BuiltinEvent, event_type=BuiltinEventType.AUDIODEVICEREMOVED):
+class AudioDeviceRemovedEvent(BuiltinEvent, event_type=BuiltinEventType.AUDIODEVICEREMOVED, non_blockable=True):
     which: int
     iscapture: bool
 
@@ -704,7 +700,7 @@ class WindowFocusLostEvent(WindowEvent, event_type=BuiltinEventType.WINDOWFOCUSL
 
 @final
 @dataclass(kw_only=True)
-class WindowCloseEvent(WindowEvent, event_type=BuiltinEventType.WINDOWCLOSE):
+class WindowCloseEvent(WindowEvent, event_type=BuiltinEventType.WINDOWCLOSE, non_blockable=True):
     pass
 
 
@@ -722,7 +718,7 @@ class WindowHitTestEvent(WindowEvent, event_type=BuiltinEventType.WINDOWHITTEST)
 
 @final
 @dataclass(kw_only=True)
-class MusicEndEvent(BuiltinEvent, event_type=BuiltinEventType.MUSICEND, event_name="MusicEnd"):
+class MusicEndEvent(BuiltinEvent, event_type=BuiltinEventType.MUSICEND, event_name="MusicEnd", non_blockable=True):
     finished: Music
     next: Music | None = None
 
@@ -787,7 +783,6 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
     NOEVENT: Final[int] = _pg_constants.NOEVENT
     USEREVENT: Final[int] = _pg_constants.USEREVENT
     NUMEVENTS: Final[int] = _pg_constants.NUMEVENTS
-    NON_BLOCKABLE_EVENTS: Final[frozenset[int]] = frozenset(map(int, getattr(_pg_event.set_blocked, "__forbidden_events__", ())))
 
     if __debug__:
 
@@ -803,7 +798,18 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
     def is_blockable(event: type[Event] | int) -> bool:
         if not isinstance(event, int):
             event = EventFactory.associations[event]
-        return event not in EventFactory.NON_BLOCKABLE_EVENTS
+        return event not in EventFactory.get_non_blockable_events()
+
+    @staticmethod
+    def get_non_blockable_events() -> frozenset[int]:
+        get_events: Callable[[], tuple[int, ...]] = getattr(_pg_event.set_blocked, "__get_forbidden_events__")
+        return frozenset(get_events())
+
+    @staticmethod
+    def add_non_blockable_events(*events: int) -> None:
+        events = tuple(map(int, events))
+        add_events: Callable[..., Any] = getattr(_pg_event.set_blocked, "__add_forbidden_events__")
+        add_events(*events)
 
     @staticmethod
     def from_pygame_event(pygame_event: _pg_event.Event, raise_if_blocked: bool = False) -> Event:
@@ -839,8 +845,6 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
                     event = _pg_event.Event(int(BuiltinEventType.DROPFILE), file=event.filename)
                 except AttributeError as exc:
                     raise PygameEventConversionError(f"Cannot convert {event}") from exc
-            case _ if event.type == _pg_music.get_endevent():
-                event = _pg_event.Event(int(BuiltinEventType.MUSICEND), event.__dict__)
         return event
 
 

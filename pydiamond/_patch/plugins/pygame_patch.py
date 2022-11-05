@@ -25,9 +25,10 @@ class PygamePatch(RequiredPatch):
     def setup(self) -> None:
         super().setup()
 
-        from pygame import event
+        from pygame import display, event
         from pygame.mixer import music
 
+        self.display = display
         self.event = event
         self.music = music
 
@@ -95,11 +96,9 @@ class PygamePatch(RequiredPatch):
         return patch_event_name
 
     def _make_event_set_blocked_wrapper(self, *forbidden_events: int) -> Callable[[_EventTypes | None], None]:
+        _pg_display = self.display
         _pg_event = self.event
         _orig_pg_event_set_blocked = self.event.set_blocked
-
-        if not forbidden_events:
-            return _orig_pg_event_set_blocked
 
         @wraps(_orig_pg_event_set_blocked)
         def patch_set_blocked(type: _EventTypes | None) -> None:
@@ -121,8 +120,24 @@ class PygamePatch(RequiredPatch):
                 raise ValueError(f"{', '.join(map(_pg_event.event_name, caught_events))} must always be allowed")
             return _orig_pg_event_set_blocked(type)
 
+        def get_forbidden_events() -> tuple[int, ...]:
+            nonlocal forbidden_events
+
+            return forbidden_events
+
+        def add_forbidden_events(*events: int) -> None:
+            nonlocal forbidden_events
+
+            if not events:
+                return
+
+            forbidden_events = tuple(set(forbidden_events).union(map(int, events)))
+            if _pg_display.get_init():
+                _pg_event.set_allowed(forbidden_events)
+
         setattr(patch_set_blocked, "__set_blocked_wrapper__", True)
-        setattr(patch_set_blocked, "__forbidden_events__", forbidden_events)
+        setattr(patch_set_blocked, "__get_forbidden_events__", get_forbidden_events)
+        setattr(patch_set_blocked, "__add_forbidden_events__", add_forbidden_events)
         return patch_set_blocked
 
     def _make_event_post_wrapper(self, *forbidden_events: int) -> Callable[[_Event], bool]:

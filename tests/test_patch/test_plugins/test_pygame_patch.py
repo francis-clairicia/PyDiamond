@@ -183,7 +183,7 @@ class TestPygamePatch:
         patch.run()
 
         # Assert
-        assert getattr(pygame.event.set_blocked, "__forbidden_events__") == expected_forbidden_events
+        assert getattr(pygame.event.set_blocked, "__get_forbidden_events__")() == expected_forbidden_events
 
         ## Single event type
         pygame.event.set_blocked(pygame.KEYDOWN)
