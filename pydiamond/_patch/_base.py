@@ -36,10 +36,22 @@ class PatchContext(IntEnum):
         return f"{type(self).__name__}.{self.name}"
 
 
-class BasePatch(metaclass=ABCMeta):
-    DISABLED_PATCHES: typing.ClassVar[set[str]] = set()
-    DISABLED_CONTEXTS: typing.ClassVar[set[PatchContext]] = set()
-    ENABLE_PATCH: typing.ClassVar[bool] = True
+class PatchMeta(ABCMeta):
+    def __setattr__(cls, name: str, value: typing.Any, /) -> None:
+        if name in ("DISABLED_PATCHES", "DISABLED_CONTEXTS", "ENABLE_PATCH"):
+            raise AttributeError("Read-only property")
+        super().__setattr__(name, value)
+
+    def __delattr__(self, name: str, /) -> None:
+        if name in ("DISABLED_PATCHES", "DISABLED_CONTEXTS", "ENABLE_PATCH"):
+            raise AttributeError("Read-only property")
+        super().__delattr__(name)
+
+
+class BasePatch(metaclass=PatchMeta):
+    DISABLED_PATCHES: typing.Final[frozenset[str]] = frozenset()
+    DISABLED_CONTEXTS: typing.Final[frozenset[PatchContext]] = frozenset()
+    ENABLE_PATCH: typing.Final[bool] = True
 
     @classmethod
     def get_name(cls) -> str:
@@ -78,9 +90,13 @@ class RequiredPatch(BasePatch):
 def __read_environment() -> None:
     patch_disable_value: str = os.environ.get("PYDIAMOND_PATCH_DISABLE", "")
     if patch_disable_value.lower() == "all":
-        BasePatch.ENABLE_PATCH = False
+        type.__setattr__(BasePatch, "ENABLE_PATCH", False)
         return
+
     invalid_patches: dict[str, str] = dict()
+    disabled_contexts: set[PatchContext] = set()
+    disabled_patches: set[str] = set()
+
     for patch_path in set(filter(None, (name.strip() for name in patch_disable_value.split(":")))):
         if match := re.match(r"context\[\s*(?P<contexts>\w+(?:\s*,\s*\w+)*)\s*\]", patch_path):
             contexts: set[str] = set(filter(None, (name.strip().upper() for name in match.group("contexts").split(","))))
@@ -88,7 +104,7 @@ def __read_environment() -> None:
             if unknown_contexts := contexts - valid_contexts:
                 for context in unknown_contexts:
                     invalid_patches[f"context[{context!r}]"] = "Unknown patch context"
-            BasePatch.DISABLED_CONTEXTS.update(PatchContext[name] for name in valid_contexts)
+            disabled_contexts.update(PatchContext[name] for name in valid_contexts)
             continue
         patch_module_path, _, patch_name = patch_path.rpartition(".")
         if patch_module_path:
@@ -117,7 +133,9 @@ def __read_environment() -> None:
         if RequiredPatch in patch_cls.__bases__:
             invalid_patches[patch_path] = "It is a required patch and cannot be disabled"
             continue
-        BasePatch.DISABLED_PATCHES.add(patch_name)
+        disabled_patches.add(patch_name)
+    type.__setattr__(BasePatch, "DISABLED_CONTEXTS", frozenset(disabled_contexts))
+    type.__setattr__(BasePatch, "DISABLED_PATCHES", frozenset(disabled_patches))
     if invalid_patches:
         msg = "Invalid instructions from environment:\n"
         msg += "\n".join(f"- {p}: {m}" for p, m in invalid_patches.items())
