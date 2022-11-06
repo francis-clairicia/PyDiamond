@@ -14,7 +14,7 @@ __email__: Final[str]
 __license__: Final[str]
 __maintainer__: Final[str]
 __status__: Final[str]
-__version__: Final[Literal["1.0.0.dev2"]]
+__version__: Final[Literal["1.0.0.dev3"]]
 
 from .version import version_info as version_info
 
