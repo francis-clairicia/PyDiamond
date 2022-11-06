@@ -9,6 +9,7 @@ from __future__ import annotations
 __all__ = []  # type: list[str]
 
 from functools import wraps
+from types import BuiltinFunctionType
 from typing import TYPE_CHECKING, Callable
 
 from .._base import PatchContext, RequiredPatch
@@ -25,15 +26,18 @@ class PygamePatch(RequiredPatch):
     def setup(self) -> None:
         super().setup()
 
-        from pygame import display, event
+        import pygame._sdl2.controller as controller
+        import pygame.display as display
+        import pygame.event as event
         from pygame.mixer import music
 
         self.display = display
         self.event = event
         self.music = music
+        self.controller = controller
 
     def teardown(self) -> None:
-        del self.event, self.music
+        del self.event, self.music, self.display, self.controller
 
         return super().teardown()
 
@@ -53,17 +57,37 @@ class PygamePatch(RequiredPatch):
         if not self._event_post_patched():
             setattr(self.event, "post", self._make_event_post_wrapper(QUIT, self.music.get_endevent()))
 
+        if not self._controller_patched():
+            from ..controller import Controller as PatchedController
+
+            setattr(self.controller, "Controller", PatchedController)
+
     def _event_set_blocked_patched(self) -> bool:
-        return bool(getattr(self.event.set_blocked, "__set_blocked_wrapper__", False))
+        return bool(
+            not isinstance(self.event.set_blocked, BuiltinFunctionType)
+            and getattr(self.event.set_blocked, "__set_blocked_wrapper__", False)
+        )
 
     def _music_set_endevent_patched(self) -> bool:
-        return bool(getattr(self.music.set_endevent, "__set_endevent_wrapper__", False))
+        return bool(
+            not isinstance(self.music.set_endevent, BuiltinFunctionType)
+            and getattr(self.music.set_endevent, "__set_endevent_wrapper__", False)
+        )
 
     def _event_name_patched(self) -> bool:
-        return isinstance(getattr(self.event.event_name, "__event_name_dispatch_table__", None), dict)
+        return isinstance(
+            not isinstance(self.event.event_name, BuiltinFunctionType)
+            and getattr(self.event.event_name, "__event_name_dispatch_table__", None),
+            dict,
+        )
 
     def _event_post_patched(self) -> bool:
-        return bool(getattr(self.event.post, "__post_wrapper__", False))
+        return bool(not isinstance(self.event.post, BuiltinFunctionType) and getattr(self.event.post, "__post_wrapper__", False))
+
+    def _controller_patched(self) -> bool:
+        from ..controller import Controller as PatchedController
+
+        return self.controller.Controller is PatchedController
 
     def _make_music_set_endevent_wrapper(self) -> Callable[[int], None]:
         _orig_pg_music_set_endevent = self.music.set_endevent

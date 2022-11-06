@@ -62,6 +62,7 @@ from pydiamond.resources.manager import ResourceManager
 from pydiamond.resources.package import ResourcesPackage
 from pydiamond.system.clock import Clock
 from pydiamond.system.time import Time
+from pydiamond.window.controller import Controller, ControllerAxis, ControllerButton, get_all_controllers
 from pydiamond.window.display import Window, WindowCallback
 from pydiamond.window.event import (
     KeyDownEvent,
@@ -1403,6 +1404,205 @@ class TestDialogScene(GUIScene):
         print("Dialog ended")
 
 
+class ControllerSceneResources(ResourceManager, autoload=True):
+    xbox_front: Surface
+    xbox_triggers: Surface
+    xbox_front_button_layers: Mapping[ControllerButton, Surface]
+    xbox_triggers_button_layers: Mapping[ControllerButton, Surface]
+    xbox_triggers_axis_layers: Mapping[ControllerAxis, Surface]
+
+    __resources_location__ = ResourcesPackage("demo_resources.img.joystick")
+    __resource_loader__ = ImageLoader
+    __resources_files__ = {
+        "xbox_front": "xbox-1.png",
+        "xbox_triggers": "xbox-2.png",
+        "xbox_front_button_layers": {
+            button: f"xbox-1-{name}.png"
+            for button, name in {
+                ControllerButton.BUTTON_A: "A",
+                ControllerButton.BUTTON_B: "B",
+                ControllerButton.BUTTON_X: "X",
+                ControllerButton.BUTTON_Y: "Y",
+                ControllerButton.BUTTON_GUIDE: "GUIDE",
+                ControllerButton.BUTTON_START: "START",
+                ControllerButton.BUTTON_BACK: "BACK",
+                ControllerButton.DPAD_UP: "dpad-up",
+                ControllerButton.DPAD_DOWN: "dpad-down",
+                ControllerButton.DPAD_LEFT: "dpad-left",
+                ControllerButton.DPAD_RIGHT: "dpad-right",
+            }.items()
+        },
+        "xbox_triggers_button_layers": {
+            button: f"xbox-2-{name}.png"
+            for button, name in {
+                ControllerButton.BUTTON_LEFTSHOULDER: "L1",
+                ControllerButton.BUTTON_RIGHTSHOULDER: "R1",
+            }.items()
+        },
+        "xbox_triggers_axis_layers": {
+            axis: f"xbox-2-{name}.png"
+            for axis, name in {
+                ControllerAxis.TRIGGERLEFT: "L2",
+                ControllerAxis.TRIGGERRIGHT: "R2",
+            }.items()
+        },
+    }
+
+
+class ControllerScene(MainScene, framerate=60, fixed_framerate=50):
+    window: MainWindow
+
+    def awake(self, **kwargs: Any) -> None:
+        super().awake(**kwargs)
+        self.background_color = WHITE
+
+        self.controller: Controller | None = None
+        self.connected_controller_names: list[str] = []
+        self.rumble_callback: WindowCallback | None = None
+
+        self.event.bind_key_press(Key.K_F2, lambda _: self._enable_rumble())
+        self.event.bind_key_press(Key.K_F3, lambda _: self._disable_rumble())
+
+    def on_start_loop_before_transition(self) -> None:
+        self._update_controllers()
+
+    def on_start_loop(self) -> None:
+        self.on_quit_exit_stack.callback(self.window.text_framerate.config.update, color=self.window.text_framerate.color)
+        self.window.text_framerate.color = BLACK
+
+    def update(self) -> None:
+        self._update_controllers()
+
+    def _update_controllers(self) -> None:
+        controllers = get_all_controllers()
+
+        self.connected_controller_names = [c.name for c in controllers]
+
+        if not controllers:
+            self.controller = None
+            self._disable_rumble()
+            return
+
+        if self.controller is None:
+            self.controller = controllers[0]
+
+    def render(self) -> None:
+        self._render_gamepad()
+
+        window = self.window
+        renderer = window.renderer
+        controller = self.controller
+
+        last_line_rect = renderer.draw_text(
+            "Connected controllers", (None, 30), (window.prev_button.left, window.prev_button.bottom + 20), BLACK
+        )
+        controller_index = controller.device_index if controller else -1
+        for index, controller_name in enumerate(self.connected_controller_names):
+            last_line_rect = renderer.draw_text(
+                f"{'>' if controller_index == index else ' '} {controller_name}", (None, 30), last_line_rect.bottomleft, BLACK
+            )
+
+        last_line_rect = renderer.draw_text(
+            "F2: Enable periodic rumble",
+            (None, 30),
+            (window.next_button.right, window.next_button.bottom + 20),
+            BLACK,
+            anchor="topright",
+        )
+        renderer.draw_text("F3: Disable rumble", (None, 30), last_line_rect.bottomright, BLACK, anchor="topright")
+
+    def _render_gamepad(self) -> None:
+        from math import sqrt
+
+        window = self.window
+        renderer = window.renderer
+        controller = self.controller
+
+        if controller is None:
+            renderer.draw_text("Please plug a controller", (None, 40), window.center, BLACK, anchor="center")
+            return
+
+        # Draw gamepad front side
+        xbox_front_rect = renderer.draw_surface(
+            ControllerSceneResources.xbox_front, (window.centerx, window.centery + 10), anchor="midtop"
+        )
+        for button, button_layer_image in ControllerSceneResources.xbox_front_button_layers.items():
+            if controller.get_button(button):
+                renderer.draw_surface(button_layer_image, xbox_front_rect)
+
+        ### Draw gamepad axis
+        xbox_front_width, xbox_front_height = xbox_front_rect.size
+
+        axis_pos_dict = {
+            "LEFT": {
+                "x": 0.255 * xbox_front_width,
+                "y": 0.306 * xbox_front_height,
+            },
+            "RIGHT": {
+                "x": 0.631 * xbox_front_width,
+                "y": 0.528 * xbox_front_height,
+            },
+        }
+        axis_center = {"LEFT": (0.0, 0.0), "RIGHT": (0.0, 0.0)}
+
+        circle_size = 0.151 * xbox_front_width
+        circle_radius = 0.151 * xbox_front_width / 2
+
+        rayon_joystick = 0.70 * circle_size / 2
+        r = circle_radius - (rayon_joystick / 2)
+
+        for side in axis_pos_dict:
+            h = axis_pos_dict[side]["x"]
+            k = axis_pos_dict[side]["y"]
+            x = a = controller.get_axis(ControllerAxis[f"{side}_X"], how="percent") * r + h
+            y = b = controller.get_axis(ControllerAxis[f"{side}_Y"], how="percent") * r + k
+            if (a - h) ** 2 + (b - k) ** 2 > r**2:
+                x = h + (r * (a - h)) / sqrt((a - h) ** 2 + (b - k) ** 2)
+                y = k + (r * (b - k)) / sqrt((a - h) ** 2 + (b - k) ** 2)
+
+            axis_center[side] = x + xbox_front_rect.x, y + xbox_front_rect.y
+
+        for side, button in (("LEFT", ControllerButton.BUTTON_LEFTSTICK), ("RIGHT", ControllerButton.BUTTON_RIGHTSTICK)):
+            x, y = axis_center[side]
+            renderer.draw_circle(WHITE, (x, y), rayon_joystick)
+            renderer.draw_circle(BLACK, (x, y), rayon_joystick, width=1)
+            renderer.draw_circle(BLACK, (x, y), 0.704 * rayon_joystick, width=0 if controller.get_button(button) else 1)
+
+        # Draw gamepad triggers
+        xbox_triggers_rect = renderer.draw_surface(
+            ControllerSceneResources.xbox_triggers, (xbox_front_rect.centerx, xbox_front_rect.top - 20), anchor="midbottom"
+        )
+        for button, button_layer_image in ControllerSceneResources.xbox_triggers_button_layers.items():
+            if controller.get_button(button):
+                renderer.draw_surface(button_layer_image, xbox_triggers_rect)
+        for axis, axis_layer_image in ControllerSceneResources.xbox_triggers_axis_layers.items():
+            axis_layer_image = axis_layer_image.copy()
+            axis_layer_image.set_alpha(round(controller.get_axis(axis, how="percent") * 255))
+            renderer.draw_surface(axis_layer_image, xbox_triggers_rect)
+
+    def _enable_rumble(self) -> None:
+        if self.rumble_callback is not None:
+            return
+        if self.controller is None:
+            return
+
+        def rumble() -> None:
+            controller = self.controller
+            if controller is not None:
+                controller.rumble(0, 0.5, 500)
+            else:
+                self._disable_rumble()
+
+        self.rumble_callback = self.every(1000, rumble)
+
+    def _disable_rumble(self) -> None:
+        if self.rumble_callback is not None:
+            self.rumble_callback.kill()
+            self.rumble_callback = None
+        if (controller := self.controller) is not None:
+            controller.stop_rumble()
+
+
 class SceneTransitionTranslation(SceneTransition):
     def __init__(self, side: Literal["left", "right"]) -> None:
         super().__init__()
@@ -1486,11 +1686,12 @@ class MainWindow(SceneWindow):
         AudioScene,
         GUIAudioScene,
         TestDialogScene,
+        ControllerScene,
     ]
 
     def __init__(self) -> None:
         # super().__init__("my window", (0, 0))
-        super().__init__("my window", (1366, 768), resizable=True)
+        super().__init__("my window", (1366, 768))
 
     def __window_init__(self) -> None:
         super().__window_init__()

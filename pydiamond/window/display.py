@@ -42,6 +42,8 @@ import pygame.key as _pg_key
 import pygame.mouse as _pg_mouse
 from pygame import error as _pg_error
 from pygame.constants import (
+    CONTROLLERDEVICEADDED as _PG_CONTROLLERDEVICEADDED,
+    CONTROLLERDEVICEREMOVED as _PG_CONTROLLERDEVICEREMOVED,
     FULLSCREEN as _PG_FULLSCREEN,
     MOUSEWHEEL as _PG_MOUSEWHEEL,
     QUIT as _PG_QUIT,
@@ -63,6 +65,7 @@ from ..system.time import Time
 from ..system.utils._mangling import setattr_pv
 from ..system.utils.contextlib import ExitStackView
 from ..system.utils.functools import wraps
+from .controller import Controller
 from .cursor import Cursor
 from .event import Event, EventFactory, EventFactoryError, ScreenshotEvent, UnknownEventTypeError
 from .keyboard import Keyboard
@@ -195,12 +198,16 @@ class Window(Object, no_slots=True):
             _pg_display.init()
             stack.callback(_pg_display.quit)
 
+            import pygame._sdl2.controller as _pg_controller
             import pygame.freetype as _pg_freetype
 
             if not _pg_freetype.get_init():
                 _pg_freetype.init()
                 stack.callback(_pg_freetype.quit)
-            del _pg_freetype
+            if not _pg_controller.get_init():
+                _pg_controller.init()
+                stack.callback(_pg_controller.quit)
+            del _pg_freetype, _pg_controller
 
             size: tuple[int, int] = self.__size
             flags: int = self.__flags
@@ -235,6 +242,12 @@ class Window(Object, no_slots=True):
                 screenshot_threads = self.__screenshot_threads
                 while screenshot_threads:
                     screenshot_threads.pop(0).join(timeout=1, terminate_on_timeout=True)
+
+            @stack.callback
+            def _() -> None:
+                with ExitStack() as stack:
+                    for controller in list(Controller._ALL_CONTROLLERS.values()):
+                        stack.callback(controller.quit)
 
             del _
 
@@ -322,9 +335,21 @@ class Window(Object, no_slots=True):
             if event.type == _PG_QUIT:
                 self.__close_on_next_frame = True
                 break
-            if not handle_music_event(event):  # If it's a music event which is not expected
+            if event.type == _PG_CONTROLLERDEVICEADDED:
+                Controller(event.device_index)
+            elif event.type == _PG_CONTROLLERDEVICEREMOVED:
+                try:
+                    _controller = Controller._ALL_CONTROLLERS[event.instance_id]
+                except KeyError:
+                    pass
+                else:
+                    _controller.quit()
+            elif not handle_music_event(event):  # If it's a music event which is not expected
                 continue
             add_event(event)
+
+        for controller in filter(lambda c: not c.attached(), list(Controller._ALL_CONTROLLERS.values())):
+            controller.quit()
 
         if self.__handle_mouse_position:
             mouse_pos: tuple[int, int] = Mouse.get_pos()
@@ -1015,6 +1040,8 @@ class WindowCallback:
         self.__kwargs: dict[str, Any] = kwargs or {}
         self.__clock = Clock(start=True)
         self.__loop: bool = bool(loop)
+        if self.__loop:
+            callback(*args, **(kwargs or {}))  # At least a 1st call
 
     def __call__(self) -> None:
         try:

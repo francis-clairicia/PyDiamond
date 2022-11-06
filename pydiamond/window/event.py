@@ -345,6 +345,12 @@ class BuiltinEventType(IntEnum):
     WINDOWCLOSE = auto()
     WINDOWTAKEFOCUS = auto()
     WINDOWHITTEST = auto()
+    CONTROLLERAXISMOTION = auto()
+    CONTROLLERBUTTONDOWN = auto()
+    CONTROLLERBUTTONUP = auto()
+    CONTROLLERDEVICEADDED = auto()
+    CONTROLLERDEVICEREMOVED = auto()
+    CONTROLLERDEVICEREMAPPED = auto()
 
     # PyDiamond's events
     MUSICEND = _pg_music.get_endevent()
@@ -499,6 +505,7 @@ class JoyButtonUpEvent(JoyButtonEvent, event_type=BuiltinEventType.JOYBUTTONUP):
 @dataclass(kw_only=True)
 class JoyDeviceAddedEvent(BuiltinEvent, event_type=BuiltinEventType.JOYDEVICEADDED, non_blockable=True):
     device_index: int
+    guid: str
 
 
 @final
@@ -714,6 +721,97 @@ class WindowTakeFocusEvent(WindowEvent, event_type=BuiltinEventType.WINDOWTAKEFO
 @dataclass(kw_only=True)
 class WindowHitTestEvent(WindowEvent, event_type=BuiltinEventType.WINDOWHITTEST):
     pass
+
+
+@dataclass(kw_only=True)
+class ControllerEvent(BuiltinEvent):
+    instance_id: int
+
+
+@final
+@dataclass(kw_only=True, repr=False)
+class ControllerAxisMotionEvent(
+    ControllerEvent,
+    event_type=BuiltinEventType.CONTROLLERAXISMOTION,
+    event_name="ControllerAxisMotion",
+):
+    axis: int
+    value: int
+
+    def __post_init__(self) -> None:
+        from .controller import ControllerAxis
+
+        self.axis = ControllerAxis(self.axis)
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(instance_id={self.instance_id!r}, axis={self.axis!r}, value={self.value!r}, percent={self.percent:.3f})"
+
+    @property
+    def percent(self) -> float:
+        return self.value / (2**15 - (self.axis >= 0))
+
+
+@dataclass(kw_only=True)
+class ControllerButtonEvent(ControllerEvent):
+    button: int
+
+    def __post_init__(self) -> None:
+        from .controller import ControllerButton
+
+        self.button = ControllerButton(self.button)
+
+
+@final
+@dataclass(kw_only=True)
+class ControllerButtonDownEvent(
+    ControllerButtonEvent,
+    event_type=BuiltinEventType.CONTROLLERBUTTONDOWN,
+    event_name="ControllerButtonDown",
+):
+    pass
+
+
+@final
+@dataclass(kw_only=True)
+class ControllerButtonUpEvent(
+    ControllerButtonEvent,
+    event_type=BuiltinEventType.CONTROLLERBUTTONUP,
+    event_name="ControllerButtonUp",
+):
+    pass
+
+
+@final
+@dataclass(kw_only=True)
+class ControllerDeviceAddedEvent(
+    BuiltinEvent,
+    event_type=BuiltinEventType.CONTROLLERDEVICEADDED,
+    event_name="ControllerDeviceAdded",
+    non_blockable=True,
+):
+    device_index: int
+    guid: str
+
+
+@final
+@dataclass(kw_only=True)
+class ControllerDeviceRemovedEvent(
+    BuiltinEvent,
+    event_type=BuiltinEventType.CONTROLLERDEVICEREMOVED,
+    event_name="ControllerDeviceRemoved",
+    non_blockable=True,
+):
+    instance_id: int
+
+
+@final
+@dataclass(kw_only=True)
+class ControllerDeviceRemappedEvent(
+    BuiltinEvent,
+    event_type=BuiltinEventType.CONTROLLERDEVICEREMAPPED,
+    event_name="ControllerDeviceMapped",
+):
+    instance_id: int
 
 
 @final

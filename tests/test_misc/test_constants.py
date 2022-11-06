@@ -9,6 +9,7 @@ from pydiamond.audio.mixer import AllowedAudioChanges, AudioFormat
 from pydiamond.graphics.font import FontStyle
 from pydiamond.graphics.renderer import BlendMode
 from pydiamond.network.socket import AddressFamily, ShutdownFlag
+from pydiamond.window.controller import ControllerAxis, ControllerButton
 from pydiamond.window.cursor import SystemCursor
 from pydiamond.window.event import BuiltinEventType
 from pydiamond.window.keyboard import Key, KeyModifiers
@@ -66,6 +67,8 @@ def enum_sample(
         *enum_sample(AddressFamily, module="socket"),
         *enum_sample(ShutdownFlag, module="socket"),
         # pydiamond.window
+        *enum_sample(ControllerAxis, constant_name=lambda name: f"CONTROLLER_AXIS_{name.replace('_', '')}"),
+        *enum_sample(ControllerButton, constant_name=lambda name: f"CONTROLLER_BUTTON_{name.removeprefix('BUTTON_')}"),
         *enum_sample(SystemCursor, constant_name=lambda name: f"SYSTEM_CURSOR_{name}"),
         *enum_sample(BuiltinEventType, predicate=lambda sample: NOEVENT < sample.value < USEREVENT),
         *enum_sample(Key),
