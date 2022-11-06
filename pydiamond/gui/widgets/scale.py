@@ -174,7 +174,7 @@ class ScaleBar(ProgressBar, Widget, metaclass=ThemedObjectMeta):
     def __valid_resolution(value: int) -> None:
         max_float_digits = sys.float_info.dig
         if not (0 <= value <= max_float_digits):
-            raise ValueError(f"resolution must be between 0 and sys.float_info.dig (actually: {max_float_digits}) included")
+            raise ValueError(f"resolution must be between 0 and sys.float_info.dig (currently: {max_float_digits}) included")
 
     @config.on_update("resolution")
     def __on_update_resolution(self) -> None:

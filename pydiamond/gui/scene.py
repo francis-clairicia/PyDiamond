@@ -18,15 +18,8 @@ from ..system.object import final
 from ..system.theme import no_theme_decorator
 from ..system.utils.enum import AutoLowerNameEnum
 from ..system.utils.weakref import weakref_unwrap
-from ..window.event import (
-    Event,
-    KeyDownEvent,
-    KeyUpEvent,
-    MouseButtonDownEvent,
-    MouseButtonUpEvent,
-    MouseMotionEvent,
-    MouseWheelEvent,
-)
+from ..window.controller import ControllerButton
+from ..window.event import ControllerButtonDownEvent, ControllerEvent, Event, KeyDownEvent, KeyEvent, MouseEvent
 from ..window.keyboard import Key, KeyModifiers
 from ..window.scene import Scene
 
@@ -36,6 +29,7 @@ class FocusMode(AutoLowerNameEnum):
     NONE = str()
     KEY = auto()
     MOUSE = auto()
+    JOY = auto()
 
 
 class GUIScene(Scene):
@@ -52,15 +46,18 @@ class GUIScene(Scene):
 
     def handle_event(self, event: Event) -> bool:
         match event:
-            case KeyDownEvent() | KeyUpEvent():
+            case KeyEvent():
                 GUIScene.__mode = FocusMode.KEY
-            case MouseButtonDownEvent() | MouseButtonUpEvent() | MouseMotionEvent() | MouseWheelEvent():
+            case MouseEvent():
                 GUIScene.__mode = FocusMode.MOUSE
+            case ControllerEvent():
+                GUIScene.__mode = FocusMode.JOY
 
         return (
             ((obj := self.focus_get()) is not None and obj._focus_handle_event(event))
             or super().handle_event(event)
             or (isinstance(event, KeyDownEvent) and self.__handle_key_event(event))  # Must be handled after event manager
+            or (isinstance(event, ControllerButtonDownEvent) and self.__handle_controller_button_event(event))
         )
 
     @staticmethod
@@ -197,6 +194,17 @@ class GUIScene(Scene):
         return False
 
     @no_theme_decorator
+    def get_side_with_controller_button_event(self) -> Mapping[int, BoundFocusSide]:
+        return _SIDE_WITH_CONTROLLER_BUTTON_EVENT
+
+    @no_theme_decorator
+    def __handle_controller_button_event(self, event: ControllerButtonDownEvent) -> bool:
+        if (button := event.button) in (side_with_controller_event := self.get_side_with_controller_button_event()):
+            self.__focus_obj_on_side(side_with_controller_event[button])
+            return True
+        return False
+
+    @no_theme_decorator
     def __focus_obj_on_side(self, side: BoundFocusSide) -> None:
         if not self.looping():
             return
@@ -223,6 +231,15 @@ _SIDE_WITH_KEY_EVENT: Final[MappingProxyType[int, BoundFocusSide]] = MappingProx
         Key.K_RIGHT: BoundFocusSide.ON_RIGHT,
         Key.K_UP: BoundFocusSide.ON_TOP,
         Key.K_DOWN: BoundFocusSide.ON_BOTTOM,
+    }
+)
+
+_SIDE_WITH_CONTROLLER_BUTTON_EVENT: Final[MappingProxyType[int, BoundFocusSide]] = MappingProxyType(
+    {
+        ControllerButton.DPAD_LEFT: BoundFocusSide.ON_LEFT,
+        ControllerButton.DPAD_RIGHT: BoundFocusSide.ON_RIGHT,
+        ControllerButton.DPAD_UP: BoundFocusSide.ON_TOP,
+        ControllerButton.DPAD_DOWN: BoundFocusSide.ON_BOTTOM,
     }
 )
 

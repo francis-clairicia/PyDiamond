@@ -33,9 +33,13 @@ from ...system.utils.abc import isabstractmethod
 from ...system.utils.enum import AutoLowerNameEnum
 from ...system.utils.functools import wraps
 from ...system.utils.weakref import weakref_unwrap
+from ...window.controller import ControllerButton
 from ...window.cursor import Cursor, SystemCursor
 from ...window.event import (
     BoundEventManager,
+    ControllerButtonDownEvent,
+    ControllerButtonEvent,
+    ControllerButtonUpEvent,
     Event,
     KeyDownEvent,
     KeyEvent,
@@ -529,8 +533,10 @@ class Widget(AbstractWidget, children=False):
         self.event.bind(MouseButtonDownEvent, WeakMethod(self.__handle_click_event))
         self.event.bind(MouseButtonUpEvent, WeakMethod(self.__handle_click_event))
         self.event.bind(MouseMotionEvent, WeakMethod(self.__handle_mouse_motion))
-        self.event.bind(KeyDownEvent, lambda self, event: self.__handle_key_press_event(event, focus_handle_event=False))
-        self.event.bind(KeyUpEvent, lambda self, event: self.__handle_key_press_event(event, focus_handle_event=False))
+        self.event.bind(KeyDownEvent, lambda self, event: self.__handle_press_event(event, focus_handle_event=False))
+        self.event.bind(KeyUpEvent, lambda self, event: self.__handle_press_event(event, focus_handle_event=False))
+        self.event.bind(ControllerButtonDownEvent, lambda self, event: self.__handle_press_event(event, focus_handle_event=False))
+        self.event.bind(ControllerButtonUpEvent, lambda self, event: self.__handle_press_event(event, focus_handle_event=False))
         self.event.bind_mouse_position(WeakMethod(self.__handle_mouse_position))
 
     @abstractmethod
@@ -641,18 +647,18 @@ class Widget(AbstractWidget, children=False):
             self.active = self.hover = False
             return
 
-        if self.focus.get_mode() == FocusMode.KEY or self._should_ignore_mouse_position(mouse_pos):
+        if self.focus.get_mode() not in (FocusMode.MOUSE, FocusMode.NONE) or self._should_ignore_mouse_position(mouse_pos):
             return
 
         if self.hover or (not self.__active_only_on_hover and self.active):
             window: SceneWindow = self.window
             window.set_cursor(self.__hover_cursor[self.__state], nb_frames=1)
 
-    def __handle_key_press_event(self, event: KeyEvent, focus_handle_event: bool) -> bool:
+    def __handle_press_event(self, event: KeyEvent | ControllerButtonEvent, focus_handle_event: bool) -> bool:
         if self.focus.get_mode() == FocusMode.NONE or self._should_ignore_event(event):
             return False
 
-        if event.key in (
+        if isinstance(event, KeyEvent) and event.key in (
             Key.K_NUMLOCK,
             Key.K_CAPSLOCK,
             Key.K_SCROLLOCK,
@@ -679,18 +685,27 @@ class Widget(AbstractWidget, children=False):
                 self.active = self.hover = False
             return False
 
-        valid_key: bool = bool(self._valid_key(event.key)) and self.hover
+        valid_key: bool
+        match event:
+            case KeyEvent():
+                valid_key = self._valid_key(event.key)
+            case ControllerButtonEvent():
+                valid_key = self._valid_controller_button(event.button)
+            case _:
+                assert_never(event)
+
+        valid_key = bool(valid_key and self.hover)
 
         match event:
-            case KeyDownEvent() if valid_key:
+            case KeyDownEvent() | ControllerButtonDownEvent() if valid_key:
                 self.active = True
                 self._on_press_down(event)
                 return True
-            case KeyDownEvent():
+            case KeyDownEvent() | ControllerButtonDownEvent():
                 self.active = False
                 self._on_press_out(event)
                 return False
-            case KeyUpEvent() if self.active:
+            case KeyUpEvent() | ControllerButtonUpEvent() if self.active:
                 self.active = False
                 self._on_press_up(event)
                 if not valid_key:
@@ -702,7 +717,7 @@ class Widget(AbstractWidget, children=False):
                 self._on_hover()
                 self.invoke()
                 return True
-            case KeyUpEvent():
+            case KeyUpEvent() | ControllerButtonUpEvent():
                 self.active = False
                 return False
         return False
@@ -719,14 +734,17 @@ class Widget(AbstractWidget, children=False):
     def _valid_key(self, key: int) -> bool:
         return key in (Key.K_RETURN, Key.K_KP_ENTER)
 
+    def _valid_controller_button(self, button: int) -> bool:
+        return button == ControllerButton.BUTTON_A
+
     def _focus_handle_event(self, event: Event) -> bool:
-        if isinstance(event, (KeyUpEvent, KeyDownEvent)) and self.__handle_key_press_event(event, focus_handle_event=True):
+        if isinstance(event, (KeyEvent, ControllerButtonEvent)) and self.__handle_press_event(event, focus_handle_event=True):
             return True
         return self.event._process_event(event)
 
     def _focus_update(self) -> None:
         match self.focus.get_mode():
-            case FocusMode.KEY:
+            case FocusMode.KEY | FocusMode.JOY:
                 self.hover = self.focus.has()
             case FocusMode.MOUSE if self.__focus_on_hover and self.hover and not self.focus.has():
                 self.focus.set()
@@ -755,16 +773,16 @@ class Widget(AbstractWidget, children=False):
     def _on_active_set(self) -> None:
         pass
 
-    def _on_press_down(self, event: KeyDownEvent) -> None:
+    def _on_press_down(self, event: KeyDownEvent | ControllerButtonDownEvent) -> None:
         pass
 
-    def _on_press_up(self, event: KeyUpEvent) -> None:
+    def _on_press_up(self, event: KeyUpEvent | ControllerButtonUpEvent) -> None:
         pass
 
-    def _on_press_out(self, event: KeyDownEvent) -> None:
+    def _on_press_out(self, event: KeyDownEvent | ControllerButtonDownEvent) -> None:
         pass
 
-    def _on_valid_click(self, event: KeyUpEvent | MouseButtonUpEvent) -> None:
+    def _on_valid_click(self, event: KeyUpEvent | ControllerButtonUpEvent | MouseButtonUpEvent) -> None:
         pass
 
     def _on_focus_set(self) -> None:
