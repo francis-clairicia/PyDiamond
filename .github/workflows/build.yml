@@ -38,6 +38,11 @@ on:
         required: true
         default: 'pydiamond-dist'
         type: string
+      run-tests:
+        description: 'Run tests'
+        required: false
+        default: true
+        type: boolean
   workflow_call:
     inputs:
       SOURCE_DATE_EPOCH:
@@ -48,6 +53,11 @@ on:
         description: 'Artifact name'
         required: true
         type: string
+      run-tests:
+        description: 'Run tests'
+        required: false
+        default: true
+        type: boolean
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
@@ -55,7 +65,7 @@ concurrency:
 
 jobs:
   test:
-    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Bump version:')
+    if: (github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Bump version:')) && (!startsWith(github.event_name, 'workflow_') || inputs.run-tests != false)
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -76,7 +86,7 @@ jobs:
         run: tox
 
   build:
-    needs: test
+    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Bump version:')
     runs-on: ubuntu-latest
     env:
       SOURCE_DATE_EPOCH: ${{ inputs.SOURCE_DATE_EPOCH }}
