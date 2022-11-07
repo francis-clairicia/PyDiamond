@@ -64,11 +64,13 @@ jobs:
       - name: Verify minor/major release
         id: check
         run: |
+          import os
           import re
           version = "${{ github.ref_name }}"
           if re.match(r"^v\d+\.\d+\.0$", version):
               print("This is a minor/major release")
-              print("::set-output name=minor_major_release::true")
+              with open(os.environ["GITHUB_OUTPUT"], "a") as fp:
+                  print("minor_major_release=true", file=fp)
           else:
               print("This is not a minor/major release")
         shell: python
