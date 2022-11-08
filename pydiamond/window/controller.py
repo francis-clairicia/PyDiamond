@@ -325,26 +325,32 @@ class Controller(Object):
 
     @property
     def name(self) -> str:
-        controller: _pg_controller.Controller = self.__check_valid_controller()
+        try:
+            controller: _pg_controller.Controller = self.__check_valid_controller()
+        except _pg_error:
+            return ""
         return getattr(controller, "name")
 
     @property
     def guid(self) -> str:
-        controller: _pg_controller.Controller = self.__check_valid_controller()
+        try:
+            controller: _pg_controller.Controller = self.__check_valid_controller()
+        except _pg_error:
+            return ""
         joystick = controller.as_joystick()
         return joystick.get_guid()
 
     @property
     def device_index(self) -> int:
-        controller: _pg_controller.Controller = self.__check_valid_controller()
+        try:
+            controller: _pg_controller.Controller = self.__check_valid_controller()
+        except _pg_error:
+            return -1
         return controller.id  # type: ignore[attr-defined]
 
     @property
     def instance_id(self) -> int:
-        instance_id: int = self.__id
-        if instance_id < 0:
-            raise _pg_error("Controller closed") from None
-        return instance_id
+        return self.__id
 
     @property
     def mapping(self) -> ControllerMapping:

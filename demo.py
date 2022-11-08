@@ -1462,6 +1462,8 @@ class ControllerScene(MainScene, framerate=60, fixed_framerate=50):
 
         self.event.bind_key_press(Key.K_F2, lambda _: self._enable_rumble())
         self.event.bind_key_press(Key.K_F3, lambda _: self._disable_rumble())
+        self.event.bind_key_press(Key.K_UP, lambda _: self._switch_gamepad("up"))
+        self.event.bind_key_press(Key.K_DOWN, lambda _: self._switch_gamepad("down"))
 
     def on_start_loop_before_transition(self) -> None:
         self._update_controllers()
@@ -1483,7 +1485,7 @@ class ControllerScene(MainScene, framerate=60, fixed_framerate=50):
             self._disable_rumble()
             return
 
-        if self.controller is None:
+        if self.controller is None or not self.controller.attached():
             self.controller = controllers[0]
 
     def render(self) -> None:
@@ -1509,7 +1511,15 @@ class ControllerScene(MainScene, framerate=60, fixed_framerate=50):
             BLACK,
             anchor="topright",
         )
-        renderer.draw_text("F3: Disable rumble", (None, 30), last_line_rect.bottomright, BLACK, anchor="topright")
+        last_line_rect = renderer.draw_text(
+            "F3: Disable rumble",
+            (None, 30),
+            last_line_rect.bottomright,
+            BLACK,
+            anchor="topright",
+        )
+        if self.rumble_callback is not None:
+            renderer.draw_text("Rumble callback is running", (None, 30), last_line_rect.bottomright, BLACK, anchor="topright")
 
     def _render_gamepad(self) -> None:
         from math import sqrt
@@ -1520,6 +1530,9 @@ class ControllerScene(MainScene, framerate=60, fixed_framerate=50):
 
         if controller is None:
             renderer.draw_text("Please plug a controller", (None, 40), window.center, BLACK, anchor="center")
+            return
+        if not controller.attached():
+            renderer.draw_text("Controller disconnected", (None, 40), window.center, BLACK, anchor="center")
             return
 
         # Draw gamepad front side
@@ -1579,6 +1592,24 @@ class ControllerScene(MainScene, framerate=60, fixed_framerate=50):
             axis_layer_image = axis_layer_image.copy()
             axis_layer_image.set_alpha(round(controller.get_axis(axis, how="percent") * 255))
             renderer.draw_surface(axis_layer_image, xbox_triggers_rect)
+
+    def _switch_gamepad(self, side: Literal["up", "down"]) -> None:
+        controllers = get_all_controllers()
+        if not controllers:
+            return
+
+        if self.controller is None:
+            self.controller = controllers[0]
+        else:
+            actual_controller = self.controller
+            match side:
+                case "up":
+                    new_controller = controllers[(actual_controller.device_index - 1) % len(controllers)]
+                case "down":
+                    new_controller = controllers[(actual_controller.device_index + 1) % len(controllers)]
+            if new_controller is not actual_controller:
+                self._disable_rumble()
+            self.controller = new_controller
 
     def _enable_rumble(self) -> None:
         if self.rumble_callback is not None:
