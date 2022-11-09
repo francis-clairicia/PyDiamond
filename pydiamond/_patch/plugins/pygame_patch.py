@@ -10,11 +10,12 @@ __all__ = []  # type: list[str]
 
 from functools import wraps
 from types import BuiltinFunctionType
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, no_type_check
 
 from .._base import PatchContext, RequiredPatch
 
 if TYPE_CHECKING:
+    from pygame._sdl2.controller import Controller as _Controller
     from pygame.event import Event as _Event, _EventTypes
 
 
@@ -58,9 +59,7 @@ class PygamePatch(RequiredPatch):
             setattr(self.event, "post", self._make_event_post_wrapper(QUIT, self.music.get_endevent()))
 
         if not self._controller_patched():
-            from ..controller import Controller as PatchedController
-
-            setattr(self.controller, "Controller", PatchedController)
+            setattr(self.controller, "Controller", self._make_controller_subclass())
 
     def _event_set_blocked_patched(self) -> bool:
         return bool(
@@ -85,9 +84,7 @@ class PygamePatch(RequiredPatch):
         return bool(not isinstance(self.event.post, BuiltinFunctionType) and getattr(self.event.post, "__post_wrapper__", False))
 
     def _controller_patched(self) -> bool:
-        from ..controller import Controller as PatchedController
-
-        return self.controller.Controller is PatchedController
+        return bool(getattr(self.controller.Controller, "__pydiamond_patch__", False))
 
     def _make_music_set_endevent_wrapper(self) -> Callable[[int], None]:
         _orig_pg_music_set_endevent = self.music.set_endevent
@@ -180,3 +177,52 @@ class PygamePatch(RequiredPatch):
         setattr(patch_post, "__post_wrapper__", True)
         setattr(patch_post, "__forbidden_events__", forbidden_events)
         return patch_post
+
+    def _make_controller_subclass(self) -> type[_Controller]:
+        _pg_controller = self.controller
+
+        from typing_extensions import final
+
+        @final
+        @no_type_check
+        class Controller(_pg_controller.Controller):  # type: ignore[name-defined, misc]
+            __qualname__ = _pg_controller.Controller.__qualname__
+            __module__ = _pg_controller.Controller.__module__
+
+            __pydiamond_patch__ = True
+
+            @wraps(_pg_controller.Controller.__init_subclass__)
+            def __init_subclass__(cls) -> None:
+                raise TypeError(f"{cls.__module__}.{cls.__qualname__} cannot be subclassed")
+
+            @wraps(_pg_controller.Controller.__new__)
+            def __new__(cls, index: int) -> Controller:
+                controllers: list[Controller] = getattr(_pg_controller.Controller, "_controllers")
+                try:
+                    return next(c for c in controllers if c.id == index)
+                except StopIteration:
+                    return super().__new__(cls)
+
+            @wraps(_pg_controller.Controller.__init__)
+            def __init__(self, index: int) -> None:
+                if index != self.id or not self.get_init():
+                    super().__init__(index)
+
+            def __eq__(self, other: object, /) -> bool:
+                if not isinstance(other, self.__class__):
+                    return NotImplemented
+                return self.id == other.id
+
+            def __ne__(self, other: object, /) -> bool:
+                return not (self == other)
+
+            def __hash__(self) -> int:
+                return hash((self.__class__, self.id))
+
+            if TYPE_CHECKING:
+
+                @property
+                def id(self) -> int:
+                    ...
+
+        return Controller

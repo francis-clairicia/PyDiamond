@@ -93,6 +93,7 @@ from ..system.namespace import ClassNamespaceMeta
 from ..system.object import Object, ObjectMeta, final
 from ..system.utils.abc import isabstractclass
 from ..system.utils.weakref import weakref_unwrap
+from .controller import ControllerAxis, ControllerButton
 
 if TYPE_CHECKING:
     from ..audio.music import Music
@@ -735,12 +736,10 @@ class ControllerAxisMotionEvent(
     event_type=BuiltinEventType.CONTROLLERAXISMOTION,
     event_name="ControllerAxisMotion",
 ):
-    axis: int
+    axis: ControllerAxis
     value: int
 
     def __post_init__(self) -> None:
-        from .controller import ControllerAxis
-
         self.axis = ControllerAxis(self.axis)
 
     def __repr__(self) -> str:
@@ -753,11 +752,9 @@ class ControllerAxisMotionEvent(
 
 @dataclass(kw_only=True)
 class ControllerButtonEvent(ControllerEvent):
-    button: int
+    button: ControllerButton
 
     def __post_init__(self) -> None:
-        from .controller import ControllerButton
-
         self.button = ControllerButton(self.button)
 
 

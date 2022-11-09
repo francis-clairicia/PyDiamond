@@ -97,10 +97,10 @@ class ControllerMapping(MutableMapping[str, str]):
 
     def __str__(self) -> str:
         controller = self.__controller
-        name: str = getattr(controller, "name")
-        joystick = controller.as_joystick()
+        name: str = controller.name  # type: ignore[attr-defined]
+        guid: str = controller.as_joystick().get_guid()
         mapping = controller.get_mapping()
-        return f"{name},{joystick.get_guid()},{','.join(f'{k}:{v}' for k, v in mapping.items())}"
+        return f"{name},{guid},{','.join(f'{k}:{v}' for k, v in mapping.items())}"
 
     def __iter__(self) -> Iterator[str]:
         mapping = self.__controller.get_mapping()
@@ -176,17 +176,13 @@ class ControllerMapping(MutableMapping[str, str]):
 class Controller(Object):
     __slots__ = ("__c", "__id", "__h", "__weakref__")
 
-    __c: _pg_controller.Controller | None
-    __id: int
-    __h: int
     __instances: Final[dict[int, Controller]] = {}
     __instances_lock: RLock = RLock()
 
     _ALL_CONTROLLERS: MappingProxyType[int, Controller] = MappingProxyType(__instances)
 
     def __new__(cls, device_index: int) -> Controller:
-        controller = _pg_controller.Controller(device_index)
-        joystick = controller.as_joystick()
+        joystick = _pg_joystick.Joystick(device_index)
         instance_id = joystick.get_instance_id()
         with cls.__instances_lock:
             try:
@@ -194,9 +190,13 @@ class Controller(Object):
             except KeyError:
                 self = super().__new__(cls)
                 cls.__instances[instance_id] = self
-            self.__c = controller
-            self.__id = instance_id
-            self.__h = hash((type(self), self.__c))
+                try:
+                    self.__internal_init(joystick)
+                except _pg_error:
+                    cls.__instances.pop(instance_id, None)
+                    raise
+            else:
+                self.__internal_init(joystick)
             return self
 
     @classmethod
@@ -219,11 +219,8 @@ class Controller(Object):
                 )
                 if joystick is None:
                     raise _pg_error("Invalid joystick instance id")
-                controller = _pg_controller.Controller.from_joystick(joystick)
                 self = super().__new__(cls)
-                self.__c = controller
-                self.__id = instance_id
-                self.__h = hash((type(self), self.__c))
+                self.__internal_init(joystick)
                 cls.__instances[instance_id] = self
             else:
                 try:
@@ -231,6 +228,12 @@ class Controller(Object):
                 except _pg_error:
                     raise _pg_error("Invalid joystick instance id") from None
             return self
+
+    def __internal_init(self, joystick: _pg_joystick.Joystick) -> None:
+        controller = _pg_controller.Controller.from_joystick(joystick)
+        self.__c: _pg_controller.Controller | None = controller
+        self.__id: int = joystick.get_instance_id()
+        self.__h: int = hash((type(self), self.__c))
 
     def __repr__(self) -> str:
         with self.__instances_lock:
@@ -245,17 +248,14 @@ class Controller(Object):
 
     def quit(self) -> None:
         with self.__instances_lock:
+            self.__instances.pop(self.__id, None)
             controller: _pg_controller.Controller | None = self.__c
-            if controller is None:
-                return
-            instance_id: int = self.__id
-            self.__instances.pop(instance_id, None)
             self.__c = None
-            self.__id = -1
-            try:
-                controller.quit()
-            except _pg_error:
-                pass
+            if controller is not None:
+                try:
+                    controller.quit()
+                except _pg_error:
+                    pass
 
     def attached(self) -> bool:
         try:
@@ -268,14 +268,6 @@ class Controller(Object):
         button = ControllerButton(button)
         controller: _pg_controller.Controller = self.__check_valid_controller()
         return controller.get_button(button)
-
-    @overload
-    def get_axis(self, axis: int, how: Literal["value"] = ...) -> int:
-        ...
-
-    @overload
-    def get_axis(self, axis: int, how: Literal["percent"]) -> float:
-        ...
 
     def get_axis(self, axis: int, how: Literal["value", "percent"] = "value") -> float:
         axis = ControllerAxis(axis)
@@ -313,12 +305,11 @@ class Controller(Object):
     def __check_valid_controller(self) -> _pg_controller.Controller:
         instance_id: int = self.__id
         controller: _pg_controller.Controller | None = self.__c
-        if instance_id < 0 or controller is None or not controller.get_init():
+        if controller is None or not controller.get_init():
             raise _pg_error("Controller closed")
         with self.__instances_lock:
             if instance_id != controller.as_joystick().get_instance_id():  # Object reused for another joystick
                 self.__c = None
-                self.__id = -1
                 self.__instances.pop(instance_id, None)
                 raise _pg_error("Controller closed")
         return controller
@@ -329,7 +320,7 @@ class Controller(Object):
             controller: _pg_controller.Controller = self.__check_valid_controller()
         except _pg_error:
             return ""
-        return getattr(controller, "name")
+        return controller.name  # type: ignore[attr-defined]
 
     @property
     def guid(self) -> str:
@@ -337,8 +328,7 @@ class Controller(Object):
             controller: _pg_controller.Controller = self.__check_valid_controller()
         except _pg_error:
             return ""
-        joystick = controller.as_joystick()
-        return joystick.get_guid()
+        return controller.as_joystick().get_guid()
 
     @property
     def device_index(self) -> int:

@@ -336,7 +336,10 @@ class Window(Object, no_slots=True):
                 self.__close_on_next_frame = True
                 break
             if event.type == _PG_CONTROLLERDEVICEADDED:
-                Controller(event.device_index)
+                try:
+                    Controller(event.device_index)
+                except _pg_error:  # Should not happen: ignore event
+                    continue
             elif event.type == _PG_CONTROLLERDEVICEREMOVED:
                 try:
                     _controller = Controller._ALL_CONTROLLERS[event.instance_id]
@@ -347,9 +350,6 @@ class Window(Object, no_slots=True):
             elif not handle_music_event(event):  # If it's a music event which is not expected
                 continue
             add_event(event)
-
-        for controller in filter(lambda c: not c.attached(), list(Controller._ALL_CONTROLLERS.values())):
-            controller.quit()
 
         if self.__handle_mouse_position:
             mouse_pos: tuple[int, int] = Mouse.get_pos()
