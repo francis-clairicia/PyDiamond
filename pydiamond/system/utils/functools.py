@@ -17,7 +17,8 @@ __all__ = [
 ]
 
 from functools import lru_cache as _lru_cache, wraps
-from typing import TYPE_CHECKING, Any, Callable, ParamSpec, TypeGuard, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Callable, Concatenate, ParamSpec, TypeGuard, TypeVar, overload
+from weakref import WeakMethod, ref as weakref
 
 _P = ParamSpec("_P")
 _T = TypeVar("_T")
@@ -153,3 +154,98 @@ def forbidden_call(func: Callable[_P, _R]) -> Callable[_P, _R]:
 
     setattr(not_callable, "__forbidden_call__", True)
     return not_callable
+
+
+@overload
+def make_callback(  # type: ignore[misc]
+    __func: Callable[_P, _R] | WeakMethod[Callable[_P, _R]],
+    __obj: None = ...,
+    /,
+    weakref_callback: Callable[[weakref[Any]], Any] | None = ...,
+    deadref_value_return: Any = ...,
+) -> Callable[_P, _R]:
+    ...
+
+
+@overload
+def make_callback(
+    __func: Callable[Concatenate[_T, _P], _R] | WeakMethod[Callable[Concatenate[_T, _P], _R]],
+    __obj: _T,
+    /,
+    weakref_callback: Callable[[weakref[_T]], Any] | None = ...,
+    deadref_value_return: _R = ...,
+) -> Callable[_P, _R]:
+    ...
+
+
+@overload
+def make_callback(
+    __func: Callable[Concatenate[_T, _P], _R] | WeakMethod[Callable[Concatenate[_T, _P], _R]],
+    __obj: _T,
+    /,
+    weakref_callback: Callable[[weakref[_T]], Any] | None = ...,
+    deadref_value_return: type[BaseException] = ...,
+) -> Callable[_P, _R]:
+    ...
+
+
+def make_callback(
+    func_or_weakmethod: Callable[..., Any] | WeakMethod[Callable[..., Any]],
+    obj: Any = None,
+    /,
+    weakref_callback: Callable[[weakref[Any]], Any] | None = None,
+    deadref_value_return: Any = ReferenceError,
+) -> Callable[..., Any]:
+    func: Callable[..., Any]
+    weak_method: WeakMethod[Callable[..., Any]]
+    objref: weakref[Any]
+
+    if isinstance(deadref_value_return, type) and issubclass(deadref_value_return, BaseException):
+        deadref_exception: type[BaseException] = deadref_value_return
+
+        def deadref_fallback() -> Any:
+            raise deadref_exception("weakly-referenced object no longer exists")
+
+    else:
+
+        def deadref_fallback() -> Any:
+            return deadref_value_return
+
+    if not isinstance(func_or_weakmethod, WeakMethod):
+        func = func_or_weakmethod
+
+        if obj is None:
+
+            callback = func
+
+        else:
+            objref = weakref(obj, weakref_callback)
+
+            def callback(*args: Any, **kwargs: Any) -> Any:
+                obj = objref()
+                if obj is None:
+                    return deadref_fallback()
+                return func(obj, *args, **kwargs)
+
+    else:
+        weak_method = func_or_weakmethod
+
+        if obj is None:
+
+            def callback(*args: Any, **kwargs: Any) -> Any:
+                method = weak_method()
+                if method is None:
+                    return deadref_fallback()
+                return method(*args, **kwargs)
+
+        else:
+            objref = weakref(obj, weakref_callback)
+
+            def callback(*args: Any, **kwargs: Any) -> Any:
+                method = weak_method()
+                obj = objref()
+                if method is None or obj is None:
+                    return deadref_fallback()
+                return method(obj, *args, **kwargs)
+
+    return callback
