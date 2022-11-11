@@ -821,12 +821,12 @@ class MusicEndEvent(BuiltinEvent, event_type=BuiltinEventType.MUSICEND, event_na
 @final
 @dataclass(kw_only=True)
 class ScreenshotEvent(BuiltinEvent, event_type=BuiltinEventType.SCREENSHOT, event_name="Screenshot"):
-    filepath: str
+    file: str
 
     def get_image(self) -> Surface:
         from ..graphics.surface import load_image
 
-        return load_image(self.filepath)
+        return load_image(self.file)
 
 
 def __check_event_types_association() -> None:

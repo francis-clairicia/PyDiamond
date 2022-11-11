@@ -48,8 +48,10 @@ from pygame.constants import (
     MOUSEWHEEL as _PG_MOUSEWHEEL,
     QUIT as _PG_QUIT,
     RESIZABLE as _PG_RESIZABLE,
+    WINDOWCLOSE as _PG_WINDOWCLOSE,
 )
 from pygame.version import SDL as _SDL_VERSION
+from typing_extensions import assert_never
 
 from ..audio.music import MusicStream
 from ..environ.executable import get_executable_path
@@ -146,6 +148,7 @@ class Window(Object, no_slots=True):
         self.__vsync: bool = bool(vsync)
 
         self.__close_on_next_frame: bool = True
+        self.__close_event: Literal["close", "iconify", "nothing"] = "close"
         self.__display_renderer: _WindowRendererImpl | None = None
         self.__rect: ImmutableRect = ImmutableRect(0, 0, 0, 0)
         self.__main_clock: _FramerateManager = _FramerateManager()
@@ -219,6 +222,7 @@ class Window(Object, no_slots=True):
 
             @stack.callback
             def _() -> None:
+                self.__close_on_next_frame = False
                 self.__display_renderer = None
                 self.__rect = ImmutableRect(0, 0, 0, 0)
                 self._last_tick_time = -1
@@ -280,6 +284,10 @@ class Window(Object, no_slots=True):
         raise WindowExit
 
     @final
+    def delayed_close(self) -> None:
+        self.__close_on_next_frame = True
+
+    @final
     def is_open(self) -> bool:
         return _pg_display.get_surface() is not None and self.__display_renderer is not None
 
@@ -291,7 +299,7 @@ class Window(Object, no_slots=True):
         screen: Surface | None = _pg_display.get_surface()
 
         if screen is None or (renderer := self.__display_renderer) is None:
-            raise WindowExit
+            raise WindowError("Closed window")
 
         self._last_tick_time = self._handle_framerate()
 
@@ -333,8 +341,20 @@ class Window(Object, no_slots=True):
         handle_music_event = MusicStream._handle_event
         for event in _pg_event.get():
             if event.type == _PG_QUIT:
-                self.__close_on_next_frame = True
-                break
+                continue
+            if event.type == _PG_WINDOWCLOSE:
+                match self.__close_event:
+                    case "close":
+                        add_event(event)
+                        self.__close_on_next_frame = True
+                        break
+                    case "iconify":
+                        self.iconify()
+                        continue
+                    case "nothing":
+                        continue
+                    case _:
+                        assert_never(self.__close_event)
             if event.type == _PG_CONTROLLERDEVICEADDED:
                 try:
                     Controller(event.device_index)
@@ -357,6 +377,11 @@ class Window(Object, no_slots=True):
                 mouse_pos_callback(mouse_pos)
 
         return True
+
+    def set_close_event_behavior(self, value: Literal["close", "iconify", "nothing"]) -> None:
+        if value not in ("close", "iconify", "nothing"):
+            raise ValueError(f"Invalid value: {value!r}")
+        self.__close_event = value
 
     def register_loop_callback(self, callback: Callable[[], Any]) -> None:
         if not callable(callback):
@@ -443,7 +468,7 @@ class Window(Object, no_slots=True):
         except ConstantFileNotFoundError as exc:
             file = str(exc.filename)
         save_image(screen, file)
-        self.post_event(ScreenshotEvent(filepath=file))
+        self.post_event(ScreenshotEvent(file=file))
 
     def get_screenshot_filename_format(self) -> str:
         return "Screenshot_%Y-%m-%d_%H-%M-%S"

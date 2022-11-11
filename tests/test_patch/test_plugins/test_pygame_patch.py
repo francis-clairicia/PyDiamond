@@ -149,8 +149,8 @@ class TestPygamePatch:
 
         def _pygame_event_event_name_side_effect(event_type: int) -> str:
             match event_type:
-                case pygame.QUIT:
-                    return "Quit"
+                case pygame.WINDOWCLOSE:
+                    return "WindowClose"
                 case pygame.VIDEORESIZE:
                     return "VideoResize"
                 case mocker.sentinel.MusicEndEvent:
@@ -177,7 +177,7 @@ class TestPygamePatch:
         mock_pygame_mixer_music_set_endevent.side_effect = lambda event_type: mock_pygame_mixer_music_get_endevent.configure_mock(
             return_value=event_type
         )
-        expected_forbidden_events = (pygame.QUIT, sentinel_event_type)
+        expected_forbidden_events = (pygame.WINDOWCLOSE, sentinel_event_type)
 
         # Act
         patch.run()
@@ -192,10 +192,10 @@ class TestPygamePatch:
         mock_pygame_event_set_blocked.assert_called_with(pygame.MOUSEBUTTONUP)
 
         mock_pygame_event_set_blocked.reset_mock()  # needed to use assert_not_called() later
-        with pytest.raises(ValueError, match=r"Quit must always be allowed"):
-            pygame.event.set_blocked(pygame.QUIT)
+        with pytest.raises(ValueError, match=r"WindowClose must always be allowed"):
+            pygame.event.set_blocked(pygame.WINDOWCLOSE)
         mock_pygame_event_set_blocked.assert_not_called()
-        mock_pygame_event_event_name.assert_called_with(pygame.QUIT)
+        mock_pygame_event_event_name.assert_called_with(pygame.WINDOWCLOSE)
         with pytest.raises(ValueError, match=r"MusicEnd must always be allowed"):
             pygame.event.set_blocked(sentinel_event_type)
         mock_pygame_event_set_blocked.assert_not_called()
@@ -208,13 +208,13 @@ class TestPygamePatch:
         mock_pygame_event_set_blocked.assert_called_with((pygame.KEYDOWN, pygame.KEYUP))  # implicitly converted to tuple
 
         mock_pygame_event_set_blocked.reset_mock()  # needed to use assert_not_called() later
-        with pytest.raises(ValueError, match=r"Quit, MusicEnd must always be allowed"):
-            pygame.event.set_blocked([pygame.KEYDOWN, pygame.QUIT, pygame.KEYUP, pygame.mixer.music.get_endevent()])
+        with pytest.raises(ValueError, match=r"WindowClose, MusicEnd must always be allowed"):
+            pygame.event.set_blocked([pygame.KEYDOWN, pygame.WINDOWCLOSE, pygame.KEYUP, pygame.mixer.music.get_endevent()])
         mock_pygame_event_set_blocked.assert_not_called()
 
         ## 'None' (which means all events)
         mock_pygame_event_set_blocked.reset_mock()  # needed to use assert_not_called() later
-        with pytest.raises(ValueError, match=r"Quit, MusicEnd must always be allowed"):
+        with pytest.raises(ValueError, match=r"WindowClose, MusicEnd must always be allowed"):
             pygame.event.set_blocked(None)
         mock_pygame_event_set_blocked.assert_not_called()
 
@@ -253,7 +253,7 @@ class TestPygamePatch:
         mock_pygame_mixer_music_set_endevent.side_effect = lambda event_type: mock_pygame_mixer_music_get_endevent.configure_mock(
             return_value=event_type
         )
-        expected_forbidden_events = (pygame.QUIT, music_end_event)
+        expected_forbidden_events = (pygame.WINDOWCLOSE, music_end_event)
 
         # Act
         patch.run()
