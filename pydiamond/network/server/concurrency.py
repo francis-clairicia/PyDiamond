@@ -19,7 +19,7 @@ __all__ = [
 ]
 
 import os
-from typing import Any, TypeVar
+from typing import Any, Callable, TypeVar
 
 from ...system.threading import Thread
 from ...system.utils.os import fork, has_fork
@@ -83,7 +83,12 @@ class ForkingMixIn:
         super().service_actions()  # type: ignore[misc]
         self.collect_children()
 
-    def __process_request_hook__(self, request: Any, client: ConnectedClient[Any]) -> None:
+    def __process_request_hook__(
+        self,
+        process_request: Callable[[ConnectedClient[Any]], None],
+        client: ConnectedClient[Any],
+        error_handler: Callable[[ConnectedClient[Any]], None],
+    ) -> None:
         """Fork a new subprocess to process the request."""
         pid = fork()
         if pid:
@@ -98,10 +103,10 @@ class ForkingMixIn:
         # This must never return, hence os._exit()!
         status = 1
         try:
-            self.process_request(request, client)  # type: ignore[attr-defined]
+            process_request(client)
             status = 0
         except Exception:
-            self.handle_error(client)  # type: ignore[attr-defined]
+            error_handler(client)
         finally:
             try:
                 client.shutdown()
@@ -148,17 +153,27 @@ class ThreadingMixIn:
     # used by server_close() to wait for all threads completion.
     _threads: _Threads | None = None
 
-    def process_request_thread(self, request: Any, client: ConnectedClient[Any]) -> None:
+    def process_request_thread(
+        self,
+        process_request: Callable[[ConnectedClient[Any]], None],
+        client: ConnectedClient[Any],
+        error_handler: Callable[[ConnectedClient[Any]], None],
+    ) -> None:
         try:
-            self.process_request(request, client)  # type: ignore[attr-defined]
+            process_request(client)
         except Exception:
-            self.handle_error(client)  # type: ignore[attr-defined]
+            error_handler(client)
 
-    def __process_request_hook__(self, request: Any, client: ConnectedClient[Any]) -> None:
+    def __process_request_hook__(
+        self,
+        process_request: Callable[[ConnectedClient[Any]], None],
+        client: ConnectedClient[Any],
+        error_handler: Callable[[ConnectedClient[Any]], None],
+    ) -> None:
         threads: _Threads | None = self._threads
         if self.block_on_close and threads is None:
             self._threads = threads = _Threads()
-        t = Thread(target=self.process_request_thread, args=(request, client))
+        t = Thread(target=self.process_request_thread, args=(process_request, client, error_handler))
         t.daemon = self.daemon_threads
         if threads is not None:
             threads.append(t)

@@ -152,8 +152,23 @@ class AbstractNetworkServer(Object, Generic[_RequestT, _ResponseT]):
     def shutdown(self) -> None:
         raise NotImplementedError
 
-    def __process_request_hook__(self, request: Any, client: ConnectedClient[Any]) -> None:
-        return self.process_request(request, client)
+    @final
+    def handle_request(self, request: _RequestT, client: ConnectedClient[_ResponseT]) -> None:
+        def process_request(client: ConnectedClient[_ResponseT]) -> None:
+            return self.process_request(request, client)
+
+        return self.__process_request_hook__(process_request, client, self.handle_error)
+
+    def __process_request_hook__(
+        self,
+        process_request: Callable[[ConnectedClient[Any]], None],
+        client: ConnectedClient[Any],
+        error_handler: Callable[[ConnectedClient[Any]], None],
+    ) -> None:
+        try:
+            return process_request(client)
+        except Exception:
+            error_handler(client)
 
     @abstractmethod
     def process_request(self, request: _RequestT, client: ConnectedClient[_ResponseT]) -> None:
@@ -259,6 +274,8 @@ class AbstractTCPNetworkServer(AbstractNetworkServer[_RequestT, _ResponseT], Gen
 
         tcp_no_delay: Final[bool] = self.__tcp_no_delay
         buffered_write: Final[bool] = self.__buffered_write
+
+        handle_request = AbstractNetworkServer.handle_request
 
         server_socket: Final[Socket] = self.__socket
         select_lock: Final[RLock] = RLock()
@@ -384,7 +401,7 @@ class AbstractTCPNetworkServer(AbstractNetworkServer[_RequestT, _ResponseT], Gen
                 except StopIteration:  # Not enough data
                     continue
                 try:
-                    self.__process_request_hook__(request, client)
+                    handle_request(self, request, client)
                 except Exception:
                     self.handle_error(client)
 
@@ -804,6 +821,8 @@ class AbstractUDPNetworkServer(AbstractNetworkServer[_RequestT, _ResponseT], Gen
         server: UDPNetworkClient[_ResponseT, _RequestT] = self.__server
         make_connected_client = self.__ConnectedUDPClient
 
+        handle_request = AbstractNetworkServer.handle_request
+
         def parse_requests() -> None:
             bad_request_address: SocketAddress | None = None
             try:
@@ -825,7 +844,7 @@ class AbstractUDPNetworkServer(AbstractNetworkServer[_RequestT, _ResponseT], Gen
             for request, address in packets:
                 connected_client = make_connected_client(server, address)
                 try:
-                    self.__process_request_hook__(request, connected_client)
+                    handle_request(self, request, connected_client)
                 except Exception:
                     self.handle_error(connected_client)
                 finally:
