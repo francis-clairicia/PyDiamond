@@ -15,7 +15,6 @@ from abc import abstractmethod
 from typing import Any
 
 from ...graphics.color import BLACK, TRANSPARENT, WHITE, Color
-from ...graphics.movable import MovableProxy
 from ...graphics.shape import RectangleShape
 from ...system.object import final
 from ...system.validation import valid_optional_float
@@ -124,5 +123,5 @@ class PopupDialog(Dialog):
         raise NotImplementedError
 
     @property
-    def popup(self) -> MovableProxy:
-        return MovableProxy(self.__bg)
+    def popup(self) -> RectangleShape:
+        return self.__bg

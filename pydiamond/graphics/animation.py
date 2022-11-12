@@ -18,8 +18,8 @@ from ..math import Vector2, angle_interpolation, linear_interpolation
 from ..system.object import Object, final
 from ..system.time import Time
 from ..system.utils.weakref import weakref_unwrap
-from .movable import Movable, MovableProxy
-from .transformable import Transformable, TransformableProxy
+from .movable import Movable
+from .transformable import Transformable
 
 if TYPE_CHECKING:
     from ..window.scene import Scene, SceneWindow
@@ -33,13 +33,12 @@ class AnimationInterpolator(Object):
         "__previous_state",
         "__state_update",
         "__state_factory",
+        "__weakref__",
     )
 
     __cache: WeakKeyDictionary[Movable | Transformable, AnimationInterpolator] = WeakKeyDictionary()
 
     def __new__(cls, obj: Movable | Transformable) -> AnimationInterpolator:
-        if isinstance(obj, (MovableProxy, TransformableProxy)):
-            obj = object.__getattribute__(obj, "_object")
         try:
             self = cls.__cache[obj]
         except KeyError:
@@ -79,7 +78,7 @@ class AnimationInterpolator(Object):
             raise RuntimeError("update() during state update")
         previous: _ObjectStateProtocol | None = self.__previous_state
         actual: _ObjectStateProtocol | None = self.__actual_state
-        if not previous or not actual:
+        if previous is None or actual is None:
             return
         interpolation = min(max(interpolation, 0), 1)
         obj: Movable | Transformable = weakref_unwrap(self.__obj)
@@ -208,14 +207,19 @@ class BaseAnimation(Object):
                 window.refresh()
 
 
+_MovableAnimationType: TypeAlias = Literal["move", "rotate_point"]
+
+
 @final
 class MoveAnimation(BaseAnimation):
-    __slots__ = ("__animation",)
+    __slots__ = ("__animations",)
+
+    __animations_order: Final[tuple[_MovableAnimationType, ...]] = ("rotate_point", "move")
 
     def __init__(self, movable: Movable) -> None:
         assert isinstance(movable, Movable), "Expected a Movable object"
         super().__init__(movable)
-        self.__animation: _AbstractAnimationClass | None = None
+        self.__animations: dict[_TransformableAnimationType, _AbstractAnimationClass] = {}
 
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="MoveAnimation")
@@ -258,35 +262,62 @@ class MoveAnimation(BaseAnimation):
         ...
 
     def smooth_set_position(self: __Self, speed: float = 100, **position: float | tuple[float, float]) -> __Self:
-        self.__animation = _AnimationSetPosition(self.object, speed, position)
+        self.__animations["move"] = _AnimationSetPosition(self.object, speed, position)
         return self
 
     def smooth_translation(self: __Self, translation: Vector2 | tuple[float, float], speed: float = 100) -> __Self:
-        self.__animation = _AnimationMove(self.object, speed, translation)
+        self.__animations["move"] = _AnimationMove(self.object, speed, translation)
+        return self
+
+    def smooth_rotation_around_point(
+        self: __Self,
+        angle: float,
+        pivot: str | tuple[float, float] | Vector2,
+        speed: float = 100,
+    ) -> __Self:
+        self.__animations["rotate_point"] = _AnimationMovableRotationAroundPoint(
+            self.object,
+            angle,
+            speed,
+            pivot,
+        )
         return self
 
     def infinite_translation(self: __Self, direction: Vector2 | tuple[float, float], speed: float = 100) -> __Self:
-        self.__animation = _AnimationInfiniteMove(self.object, speed, direction)
+        self.__animations["move"] = _AnimationInfiniteMove(self.object, speed, direction)
+        return self
+
+    def infinite_rotation_around_point(
+        self: __Self,
+        pivot: str | tuple[float, float] | Vector2,
+        speed: float = 100,
+        *,
+        counter_clockwise: bool = True,
+    ) -> __Self:
+        self.__animations["rotate_point"] = _AnimationMovableInfiniteRotateAroundPoint(
+            self.object,
+            speed,
+            pivot,
+            counter_clockwise,
+        )
         return self
 
     def has_animation_started(self) -> bool:
-        animation = self.__animation
-        return animation is not None and animation.started()
+        return any(animation.started() for animation in self.__animations.values())
 
     def clear(self, *, pause: bool = False) -> None:
         super().clear(pause=pause)
-        self.__animation = None
+        self.__animations.clear()
 
     def _launch_animations(self) -> None:
-        animation = self.__animation
-        assert animation is not None
-        if animation.started():
-            animation.fixed_update()
-        else:
-            animation.default()
+        for animation in filter(None, map(self.__animations.get, self.__animations_order)):
+            if animation.started():
+                animation.fixed_update()
+            else:
+                animation.default()
 
 
-_AnimationType: TypeAlias = Literal["move", "rotate", "rotate_point", "scale_x", "scale_y"]
+_TransformableAnimationType: TypeAlias = Literal["move", "rotate", "rotate_point", "scale_x", "scale_y"]
 
 
 @final
@@ -294,12 +325,12 @@ class TransformAnimation(BaseAnimation):
 
     __slots__ = ("__animations",)
 
-    __animations_order: Final[tuple[_AnimationType, ...]] = ("scale_x", "scale_y", "rotate", "rotate_point", "move")
+    __animations_order: Final[tuple[_TransformableAnimationType, ...]] = ("scale_x", "scale_y", "rotate", "rotate_point", "move")
 
     def __init__(self, transformable: Transformable) -> None:
         assert isinstance(transformable, Transformable), "Expected a Transformable object"
         super().__init__(transformable)
-        self.__animations: dict[_AnimationType, _AbstractAnimationClass] = {}
+        self.__animations: dict[_TransformableAnimationType, _AbstractAnimationClass] = {}
 
     if TYPE_CHECKING:
         __Self = TypeVar("__Self", bound="TransformAnimation")
@@ -390,7 +421,13 @@ class TransformAnimation(BaseAnimation):
         transformable: Transformable = self.object
         if rotate_object:
             self.__animations.pop("rotate", None)
-        self.__animations["rotate_point"] = _AnimationRotationAroundPoint(transformable, angle, speed, pivot, rotate_object)
+        self.__animations["rotate_point"] = _AnimationTransformableRotationAroundPoint(
+            transformable,
+            angle,
+            speed,
+            pivot,
+            rotate_object,
+        )
         return self
 
     def infinite_rotation(self: __Self, speed: float = 100, *, counter_clockwise: bool = True) -> __Self:
@@ -409,8 +446,12 @@ class TransformAnimation(BaseAnimation):
         transformable: Transformable = self.object
         if rotate_object:
             self.__animations.pop("rotate", None)
-        self.__animations["rotate_point"] = _AnimationInfiniteRotateAroundPoint(
-            transformable, speed, pivot, counter_clockwise, rotate_object
+        self.__animations["rotate_point"] = _AnimationTransformableInfiniteRotateAroundPoint(
+            transformable,
+            speed,
+            pivot,
+            counter_clockwise,
+            rotate_object,
         )
         return self
 
@@ -763,16 +804,65 @@ class _AnimationInfiniteRotate(_AbstractTransformableAnimationClass):
         pass
 
 
-# TODO: Make it available for Movable (non Transformable) objects
-class _AnimationRotationAroundPoint(_AbstractTransformableAnimationClass):
+class _AbstractAnimationRotationAroundPoint(_AbstractAnimationClass):
 
     __slots__ = (
         "__angle",
         "__orientation",
         "__actual_angle",
         "__pivot",
-        "__rotate_object",
     )
+
+    def __init__(
+        self,
+        movable: Movable,
+        angle: float,
+        speed: float,
+        pivot: Vector2 | tuple[float, float] | str,
+    ) -> None:
+        super().__init__(movable, speed)
+        self.__angle: float = abs(angle)
+        self.__orientation: int = int(angle // abs(angle)) if angle != 0 and speed > 0 else 0
+        self.__actual_angle: float = 0
+        self.__pivot: Vector2
+        if isinstance(pivot, str):
+            pivot = Vector2(movable._get_point_position(pivot))
+        self.__pivot = Vector2(pivot)
+
+    def started(self) -> bool:
+        return super().started() and self.__angle != 0
+
+    def fixed_update(self) -> None:
+        actual_angle: float = self.__actual_angle
+        angle: float = self.__angle
+        speed: float = self.speed
+        offset: float = min(angle - actual_angle, speed) * self.__orientation
+        if offset == 0:
+            return self.stop()
+        self._rotate_object(offset, self.__pivot)
+        self.__actual_angle += abs(offset)
+
+    @abstractmethod
+    def _rotate_object(self, offset: float, pivot: Vector2) -> None:
+        raise NotImplementedError
+
+    def default(self) -> None:
+        if self.__angle:
+            self.__actual_angle = self.__angle
+            self.__angle = 0
+
+
+class _AnimationMovableRotationAroundPoint(_AbstractAnimationRotationAroundPoint):
+
+    __slots__ = ()
+
+    def _rotate_object(self, offset: float, pivot: Vector2) -> None:
+        self.object.rotate_around_point(offset, pivot)
+
+
+class _AnimationTransformableRotationAroundPoint(_AbstractAnimationRotationAroundPoint, _AbstractTransformableAnimationClass):
+
+    __slots__ = ("__rotate_object",)
 
     def __init__(
         self,
@@ -782,43 +872,59 @@ class _AnimationRotationAroundPoint(_AbstractTransformableAnimationClass):
         pivot: Vector2 | tuple[float, float] | str,
         rotate_object: bool,
     ) -> None:
-        super().__init__(transformable, speed)
-        self.__angle: float = abs(angle)
-        self.__orientation: int = int(angle // abs(angle)) if angle != 0 and speed > 0 else 0
-        self.__actual_angle: float = 0
-        self.__pivot: Vector2
-        if isinstance(pivot, str):
-            pivot = Vector2(transformable._get_point_position(pivot))
-        self.__pivot = Vector2(pivot)
+        super().__init__(transformable, angle, speed, pivot)
         self.__rotate_object: bool = rotate_object
 
-    def started(self) -> bool:
-        return super().started() and self.__angle != 0
+    def _rotate_object(self, offset: float, pivot: Vector2) -> None:
+        if self.__rotate_object:
+            self.object.rotate(offset, pivot)
+        else:
+            self.object.rotate_around_point(offset, pivot)
+
+
+class _AbstractAnimationInfiniteRotateAroundPoint(_AbstractAnimationClass):
+
+    __slots__ = ("__pivot", "__orientation")
+
+    def __init__(
+        self,
+        movable: Movable,
+        speed: float,
+        pivot: Vector2 | tuple[float, float] | str,
+        counter_clockwise: bool,
+    ) -> None:
+        super().__init__(movable, speed)
+        self.__pivot: Vector2
+        if isinstance(pivot, str):
+            pivot = Vector2(movable._get_point_position(pivot))
+        self.__pivot = Vector2(pivot)
+        self.__orientation: int = 1 if counter_clockwise else -1
 
     def fixed_update(self) -> None:
-        transformable: Transformable = self.object
-        actual_angle: float = self.__actual_angle
-        angle: float = self.__angle
-        speed: float = self.speed
-        offset: float = min(angle - actual_angle, speed) * self.__orientation
-        if offset == 0:
-            return self.stop()
-        if self.__rotate_object:
-            transformable.rotate(offset, self.__pivot)
-        else:
-            transformable.rotate_around_point(offset, self.__pivot)
-        self.__actual_angle += abs(offset)
+        offset: float = self.speed * self.__orientation
+        self._rotate_object(offset, self.__pivot)
+
+    @abstractmethod
+    def _rotate_object(self, offset: float, pivot: Vector2) -> None:
+        raise NotImplementedError
 
     def default(self) -> None:
-        if self.__angle:
-            self.__actual_angle = self.__angle
-            self.__angle = 0
+        pass
 
 
-# TODO: Make it available for Movable (non Transformable) objects
-class _AnimationInfiniteRotateAroundPoint(_AbstractTransformableAnimationClass):
+class _AnimationMovableInfiniteRotateAroundPoint(_AbstractAnimationInfiniteRotateAroundPoint):
 
-    __slots__ = ("__pivot", "__orientation", "__rotate_object")
+    __slots__ = ()
+
+    def _rotate_object(self, offset: float, pivot: Vector2) -> None:
+        self.object.rotate_around_point(offset, pivot)
+
+
+class _AnimationTransformableInfiniteRotateAroundPoint(
+    _AbstractAnimationInfiniteRotateAroundPoint, _AbstractTransformableAnimationClass
+):
+
+    __slots__ = ("__rotate_object",)
 
     def __init__(
         self,
@@ -828,24 +934,14 @@ class _AnimationInfiniteRotateAroundPoint(_AbstractTransformableAnimationClass):
         counter_clockwise: bool,
         rotate_object: bool,
     ) -> None:
-        super().__init__(transformable, speed)
-        self.__pivot: Vector2
-        if isinstance(pivot, str):
-            pivot = Vector2(transformable._get_point_position(pivot))
-        self.__pivot = Vector2(pivot)
-        self.__orientation: int = 1 if counter_clockwise else -1
+        super().__init__(transformable, speed, pivot, counter_clockwise)
         self.__rotate_object: bool = rotate_object
 
-    def fixed_update(self) -> None:
-        transformable = self.object
-        offset: float = self.speed * self.__orientation
+    def _rotate_object(self, offset: float, pivot: Vector2) -> None:
         if self.__rotate_object:
-            transformable.rotate(offset, self.__pivot)
+            self.object.rotate(offset, pivot)
         else:
-            transformable.rotate_around_point(offset, self.__pivot)
-
-    def default(self) -> None:
-        pass
+            self.object.rotate_around_point(offset, pivot)
 
 
 class _AbstractAnimationScale(_AbstractTransformableAnimationClass):
@@ -866,7 +962,9 @@ class _AbstractAnimationScale(_AbstractTransformableAnimationClass):
         return area[1]
 
     def set_transformable_size(self, value: float) -> None:
-        getattr(self.object, f"scale_to_{self.__field}")(value, uniform=self.__uniform)
+        if self.__field == "width":
+            return self.object.scale_to_width(value, uniform=self.__uniform)
+        return self.object.scale_to_height(value, uniform=self.__uniform)
 
 
 class _AnimationSetSize(_AbstractAnimationScale):

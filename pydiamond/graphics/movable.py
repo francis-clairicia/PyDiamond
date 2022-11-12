@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Movable", "MovableProxy"]
+__all__ = ["Movable"]
 
 from abc import abstractmethod
 from contextlib import contextmanager
@@ -15,7 +15,6 @@ from typing import Any, Callable, Iterator, Literal, overload
 from ..math import Rect, Vector2
 from ..math.rect import modify_rect_in_place
 from ..system.object import Object, final
-from ..system.utils.abc import concreteclass
 from ..system.utils.functools import wraps
 
 _SINGLE_COMPONENT_POSITIONS = (
@@ -570,51 +569,4 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
         self.__y = midright[1] - (h / 2)
 
 
-def __prepare_proxy_namespace(mcs: Any, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> None:
-    from ..system.utils._mangling import mangle_private_attribute
-
-    for attr in ("x", "y"):
-        attr = mangle_private_attribute(Movable, attr)
-
-        def getter(self: MovableProxy, /, *, attr: str = str(attr)) -> Any:
-            movable: Movable = object.__getattribute__(self, "_object")
-            return getattr(movable, attr)
-
-        def setter(self: MovableProxy, value: Any, /, *, attr: str = str(attr)) -> None:
-            movable: Movable = object.__getattribute__(self, "_object")
-            return setattr(movable, attr, value)
-
-        def deleter(self: MovableProxy, /, *, attr: str = str(attr)) -> None:
-            movable: Movable = object.__getattribute__(self, "_object")
-            return delattr(movable, attr)
-
-        namespace[attr] = property(fget=getter, fset=setter, fdel=deleter)
-
-
-@concreteclass
-class MovableProxy(Movable, prepare_namespace=__prepare_proxy_namespace):
-    def __init__(self, movable: Movable) -> None:
-        object.__setattr__(self, "_object", movable)
-
-    def get_size(self) -> tuple[float, float]:
-        movable: Movable = object.__getattribute__(self, "_object")
-        return movable.get_size()
-
-    def _on_move(self) -> None:
-        movable: Movable = object.__getattribute__(self, "_object")
-        movable._on_move()
-        return super()._on_move()
-
-    def __hash__(self) -> int:
-        return hash(object.__getattribute__(self, "_object"))
-
-    def __eq__(self, __o: object) -> bool:
-        movable: Movable = object.__getattribute__(self, "_object")
-        return movable.__eq__(__o)
-
-    def __ne__(self, __o: object) -> bool:
-        movable: Movable = object.__getattribute__(self, "_object")
-        return movable.__ne__(__o)
-
-
-del __prepare_movable_namespace, __prepare_proxy_namespace
+del __prepare_movable_namespace

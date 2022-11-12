@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Transformable", "TransformableProxy"]
+__all__ = ["Transformable"]
 
 from abc import abstractmethod
 from typing import Any, Literal, Mapping, overload
@@ -16,8 +16,7 @@ from typing_extensions import assert_never
 from ..math import Rect, Vector2, compute_rect_from_vertices, compute_size_from_vertices, normalize_points, rotate_points
 from ..math.rect import modify_rect_in_place, move_rect_in_place
 from ..system.object import final
-from ..system.utils.abc import concreteclass
-from .movable import Movable, MovableProxy
+from .movable import Movable
 
 
 class Transformable(Movable):
@@ -564,57 +563,3 @@ class Transformable(Movable):
     @height.setter
     def height(self, height: float) -> None:
         self.scale_to_height(height, uniform=False)
-
-
-def __prepare_proxy_namespace(mcs: Any, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> None:
-    from ..system.utils._mangling import mangle_private_attribute
-
-    for attr in ("angle", "scale_x", "scale_y"):
-        attr = mangle_private_attribute(Transformable, attr)
-
-        def getter(self: TransformableProxy, /, *, attr: str = str(attr)) -> Any:
-            transformable: Transformable = object.__getattribute__(self, "_object")
-            return getattr(transformable, attr)
-
-        def setter(self: TransformableProxy, value: Any, /, *, attr: str = str(attr)) -> None:
-            transformable: Transformable = object.__getattribute__(self, "_object")
-            return setattr(transformable, attr, value)
-
-        def deleter(self: TransformableProxy, /, *, attr: str = str(attr)) -> None:
-            transformable: Transformable = object.__getattribute__(self, "_object")
-            return delattr(transformable, attr)
-
-        namespace[attr] = property(fget=getter, fset=setter, fdel=deleter)
-
-
-@concreteclass
-class TransformableProxy(Transformable, MovableProxy, prepare_namespace=__prepare_proxy_namespace):
-    def __init__(self, transformable: Transformable) -> None:
-        MovableProxy.__init__(self, transformable)
-
-    def get_local_size(self) -> tuple[float, float]:
-        transformable: Transformable = object.__getattribute__(self, "_object")
-        return transformable.get_local_size()
-
-    def _apply_both_rotation_and_scale(self) -> None:
-        transformable: Transformable = object.__getattribute__(self, "_object")
-        return transformable._apply_both_rotation_and_scale()
-
-    def _apply_only_rotation(self) -> None:
-        transformable: Transformable = object.__getattribute__(self, "_object")
-        return transformable._apply_only_rotation()
-
-    def _apply_only_scale(self) -> None:
-        transformable: Transformable = object.__getattribute__(self, "_object")
-        return transformable._apply_only_scale()
-
-    def _freeze_state(self) -> dict[str, Any] | None:
-        transformable: Transformable = object.__getattribute__(self, "_object")
-        return transformable._freeze_state()
-
-    def _set_frozen_state(self, angle: float, scale: tuple[float, float], state: Mapping[str, Any] | None) -> bool:
-        transformable: Transformable = object.__getattribute__(self, "_object")
-        return transformable._set_frozen_state(angle, scale, state)
-
-
-del __prepare_proxy_namespace
