@@ -42,7 +42,7 @@ from typing import (
     overload,
     runtime_checkable,
 )
-from weakref import WeakKeyDictionary, WeakSet, ref as weakref
+from weakref import WeakKeyDictionary, WeakSet
 
 from ...graphics.color import Color
 from ...graphics.renderer import AbstractRenderer
@@ -514,36 +514,20 @@ class SceneWindow(Window):
         self.__running: bool = False
         self.__event = EventManager()
 
-        def make_window_callback_list_handler(self: SceneWindow) -> Callable[[], None]:
-            selfref = weakref(self)
+        def process_scene_window_callbacks(self: SceneWindow) -> None:
+            actual_scene = self.__scenes.top()
+            window_callback_list = self.__callback_after_scenes.get(actual_scene) if actual_scene is not None else None
+            if window_callback_list:
+                window_callback_list.process()
 
-            def process_scene_window_callbacks() -> None:
-                self = selfref()
-                if self is None:
-                    return
-                actual_scene = self.__scenes.top()
-                window_callback_list = self.__callback_after_scenes.get(actual_scene) if actual_scene is not None else None
-                if window_callback_list:
-                    window_callback_list.process()
+        def handle_mouse_position(self: SceneWindow, mouse_pos: tuple[int, int], /) -> None:
+            self.__event._handle_mouse_position(mouse_pos)
+            actual_scene: Scene | None = self.__scenes.top()
+            if actual_scene is not None:
+                actual_scene.handle_mouse_position(mouse_pos)
 
-            return process_scene_window_callbacks
-
-        def make_mouse_position_handler(self: SceneWindow) -> Callable[[tuple[int, int]], None]:
-            selfref = weakref(self)
-
-            def handle_mouse_position(mouse_pos: tuple[int, int], /) -> None:
-                self = selfref()
-                if self is None:
-                    return
-                self.__event._handle_mouse_position(mouse_pos)
-                actual_scene: Scene | None = self.__scenes.top()
-                if actual_scene is not None:
-                    actual_scene.handle_mouse_position(mouse_pos)
-
-            return handle_mouse_position
-
-        Window.register_loop_callback(self, make_window_callback_list_handler(self))
-        Window.register_mouse_position_callback(self, make_mouse_position_handler(self))
+        Window.register_loop_callback(self, process_scene_window_callbacks)
+        Window.register_mouse_position_callback(self, handle_mouse_position)
 
     @contextmanager
     def open(self) -> Iterator[None]:
@@ -693,8 +677,8 @@ class SceneWindow(Window):
             for _ in range(self.__nb_fixed_update_call):
                 scene_fixed_update()
             del scene_fixed_update
-        if interpolation_update:
-            scene.interpolation_update(self.__alpha_interpolation)
+            if interpolation_update:
+                scene.interpolation_update(self.__alpha_interpolation)
         scene.update()
         self.__scenes._render(scene)
 

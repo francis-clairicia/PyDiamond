@@ -32,6 +32,7 @@ from typing import (
     NoReturn,
     ParamSpec,
     Sequence,
+    TypeVar,
     overload,
 )
 from weakref import ref as weakref
@@ -92,6 +93,8 @@ class WindowExit(BaseException):
 class Window(Object, no_slots=True):
     if TYPE_CHECKING:
         __slots__: Final[tuple[str, ...]] = ("__dict__", "__weakref__")
+
+        __Self = TypeVar("__Self", bound="Window")
 
     DEFAULT_TITLE: Final[str] = "PyDiamond window"
     DEFAULT_FRAMERATE: Final[int] = 60
@@ -165,21 +168,13 @@ class Window(Object, no_slots=True):
         self.__handle_mouse_button: bool | None = False
         self.__handle_keyboard: bool | None = False
 
-        self.__mouse_position_callbacks: set[Callable[[tuple[int, int]], Any]] = set()
-        self.__loop_callbacks: set[Callable[[], Any]] = set()
+        self.__mouse_position_callbacks: set[Callable[[Any, tuple[int, int]], Any]] = set()
+        self.__loop_callbacks: set[Callable[[Any], Any]] = set()
 
-        def make_window_callback_list_handler(self: Window) -> Callable[[], None]:
-            selfref = weakref(self)
+        def process_window_callbacks(self: Window) -> None:
+            self.__callback_after.process()
 
-            def process_window_callbacks() -> None:
-                self = selfref()
-                if self is None:
-                    return
-                self.__callback_after.process()
-
-            return process_window_callbacks
-
-        self.__loop_callbacks.add(make_window_callback_list_handler(self))
+        self.__loop_callbacks.add(process_window_callbacks)
 
         self.__stack = ExitStack()
 
@@ -336,7 +331,7 @@ class Window(Object, no_slots=True):
 
         if self.__process_callbacks:
             for loop_callback in list(self.__loop_callbacks):
-                loop_callback()
+                loop_callback(self)
 
         handle_music_event = MusicStream._handle_event
         for event in _pg_event.get():
@@ -374,7 +369,7 @@ class Window(Object, no_slots=True):
         if self.__handle_mouse_position:
             mouse_pos: tuple[int, int] = Mouse.get_pos()
             for mouse_pos_callback in list(self.__mouse_position_callbacks):
-                mouse_pos_callback(mouse_pos)
+                mouse_pos_callback(self, mouse_pos)
 
         return True
 
@@ -383,7 +378,7 @@ class Window(Object, no_slots=True):
             raise ValueError(f"Invalid value: {value!r}")
         self.__close_event = value
 
-    def register_loop_callback(self, callback: Callable[[], Any]) -> None:
+    def register_loop_callback(self: __Self, callback: Callable[[__Self], Any]) -> None:
         if not callable(callback):
             raise TypeError("must be a callable object")
         self.__loop_callbacks.add(callback)
@@ -603,7 +598,7 @@ class Window(Object, no_slots=True):
     def post_event(self, event: Event) -> bool:
         return _pg_event.post(EventFactory.make_pygame_event(event))
 
-    def register_mouse_position_callback(self, callback: Callable[[tuple[int, int]], Any]) -> None:
+    def register_mouse_position_callback(self: __Self, callback: Callable[[__Self, tuple[int, int]], Any]) -> None:
         if not callable(callback):
             raise TypeError("must be a callable object")
         self.__mouse_position_callbacks.add(callback)
@@ -619,7 +614,7 @@ class Window(Object, no_slots=True):
             _pg_mouse.set_cursor(cursor)
             return
         context_cursor = self.__context_cursor
-        if not context_cursor:
+        if context_cursor is None:
             self.__context_cursor = _TemporaryCursor(cursor, self.get_cursor(), nb_frames)
         else:
             context_cursor.cursor = cursor
@@ -987,7 +982,7 @@ class WindowRenderer(AbstractRenderer):
         raise NotImplementedError
 
     @abstractmethod
-    def system_renderer(self) -> ContextManager[None]:
+    def system_rendering(self) -> ContextManager[None]:
         raise NotImplementedError
 
     @abstractmethod
@@ -1180,7 +1175,7 @@ class _WindowRendererImpl(SurfaceRenderer, WindowRenderer):
         return bool(self.__capture_queue)
 
     @contextmanager
-    def system_renderer(self) -> Iterator[None]:
+    def system_rendering(self) -> Iterator[None]:
         if self.__capture_queue:
             raise WindowError("system display disabled in screen capturing context")
 
