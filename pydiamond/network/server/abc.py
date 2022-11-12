@@ -276,14 +276,19 @@ class AbstractTCPNetworkServer(AbstractNetworkServer[_RequestT, _ResponseT], Gen
 
         def verify_client(socket: Socket, address: SocketAddress) -> None:
             protocol = self.__protocol_cls()
-            with TCPNetworkClient(socket, protocol=protocol, give=False) as client:
-                try:
+            try:
+                with TCPNetworkClient(socket, protocol=protocol, give=False) as client:
                     accepted = self.verify_new_client(client, address)
-                except Exception:
-                    import traceback
+            except Exception:
+                import traceback
 
-                    traceback.print_exc()
-                    return
+                traceback.print_exc()
+                with suppress(Exception):
+                    socket.close()
+                return
+            except BaseException:
+                socket.close()
+                raise
             if not accepted:
                 with suppress(Exception):
                     socket.close()
@@ -328,7 +333,11 @@ class AbstractTCPNetworkServer(AbstractNetworkServer[_RequestT, _ResponseT], Gen
             if tcp_no_delay:
                 from socket import IPPROTO_TCP, TCP_NODELAY
 
-                client_socket.setsockopt(IPPROTO_TCP, TCP_NODELAY, True)
+                try:
+                    client_socket.setsockopt(IPPROTO_TCP, TCP_NODELAY, True)
+                except BaseException:
+                    client_socket.close()
+                    raise
             address = new_socket_address(address, client_socket.family)
             if self.__verify_in_thread:
                 verify_client_in_thread(client_socket, address)
@@ -746,6 +755,7 @@ class AbstractUDPNetworkServer(AbstractNetworkServer[_RequestT, _ResponseT], Gen
         *,
         family: int = AF_INET,
         reuse_port: bool = False,
+        max_packet_size: int = 0,
         send_flags: int = 0,
         recv_flags: int = 0,
     ) -> None:
@@ -766,6 +776,7 @@ class AbstractUDPNetworkServer(AbstractNetworkServer[_RequestT, _ResponseT], Gen
             protocol=protocol,
             socket=socket,
             give=True,
+            max_packet_size=max_packet_size,
             send_flags=send_flags,
             recv_flags=recv_flags,
         )
