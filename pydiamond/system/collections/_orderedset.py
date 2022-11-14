@@ -118,7 +118,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
             for item in sequence:
                 add(item)
 
-    def index(self, value: object, start: int | None = None, stop: int | None = None) -> int:
+    def index(self, value: object, start: int = 0, stop: int | None = None) -> int:
         """
         Get the index of a given entry, raising a ValueError if it's not
         present.
@@ -131,23 +131,23 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
             >>> oset.index(2)
             1
         """
+
+        if start < 0:
+            start = max(len(self._items) + start, 0)
+        if stop is not None:
+            if stop < 0:
+                stop += len(self._items)
+        else:
+            stop = len(self._items)
+
         with self._lock:
             try:
                 real_index = self._map[value]
             except KeyError:
                 raise ValueError(f"{value!r} not in set") from None
 
-            if start is not None or stop is not None:
-                if start is None:
-                    start = 0
-                elif start < 0:
-                    start = max(len(self._items) + start, 0)
-                if stop is None:
-                    stop = len(self._items)
-                elif stop < 0:
-                    stop += len(self._items)
-                if real_index not in range(start, stop):
-                    raise ValueError(f"{value!r} not in set")
+            if not (start <= real_index <= stop):
+                raise ValueError(f"{value!r} not in set")
 
             return real_index
 

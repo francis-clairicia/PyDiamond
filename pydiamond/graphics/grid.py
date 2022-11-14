@@ -12,7 +12,19 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from enum import auto, unique
 from itertools import takewhile
-from typing import Any, ClassVar, Container, Iterator, Protocol, Sequence, TypeVar, final, overload, runtime_checkable
+from typing import (
+    Any,
+    ClassVar,
+    Container,
+    Iterator,
+    Protocol,
+    Sequence,
+    SupportsIndex,
+    TypeVar,
+    final,
+    overload,
+    runtime_checkable,
+)
 from weakref import ref as weakref
 
 from typing_extensions import assert_never
@@ -797,7 +809,7 @@ class _GridGroup(DrawableGroup[GridElement]):
         for obj in objects:
             grid.remove(obj)
 
-    def pop(self, index: int = -1) -> GridElement:
+    def pop(self, index: SupportsIndex = -1) -> GridElement:
         grid: Grid = weakref_unwrap(self.__grid)
         obj = self[index]
         grid.remove(obj)

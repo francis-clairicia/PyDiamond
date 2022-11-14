@@ -360,7 +360,7 @@ class LayeredSpriteGroup(LayeredDrawableGroup[_S], SpriteGroup[_S]):
                 yield s
             return
 
-        sprites = self if layer is None else self.iter_in_layer(layer)
+        sprites = iter(self) if layer is None else self.iter_in_layer(layer)
         return (yield from (s for s in sprites if collide_sprite(s)))
 
     def group_collide(
@@ -388,7 +388,7 @@ class LayeredSpriteGroup(LayeredDrawableGroup[_S], SpriteGroup[_S]):
 
             return crashed
 
-        sprites = self if layer is None else self.iter_in_layer(layer)
+        sprites = iter(self) if layer is None else self.iter_in_layer(layer)
         return {
             self_sprite: collided_list
             for self_sprite in sprites
@@ -396,7 +396,7 @@ class LayeredSpriteGroup(LayeredDrawableGroup[_S], SpriteGroup[_S]):
         }
 
     def sprite_collide_any(self, sprite: _S, *, layer: int | None = None) -> _S | None:
-        sprites: Iterable[_S] = self if layer is None else self.iter_in_layer(layer)
+        sprites: Iterable[_S] = iter(self) if layer is None else self.iter_in_layer(layer)
         collide_sprite = sprite.is_colliding
         return next((s for s in sprites if collide_sprite(s)), None)
 
