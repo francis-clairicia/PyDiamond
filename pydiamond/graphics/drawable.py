@@ -68,6 +68,7 @@ class Drawable(Object):
                 actual_groups.remove(g)
             except KeyError:
                 failed_to_remove.append(g)
+                continue
             if self in g:
                 try:
                     g.remove(self)
@@ -92,11 +93,10 @@ class Drawable(Object):
                     g.remove(self)
                 except Exception:
                     if self in g:
-                        actual_groups.add(g)
+                        self.__groups.add(g)
                     failed_to_remove.append(g)
         del actual_groups
         if failed_to_remove:
-            self.__groups.update(failed_to_remove)
             raise ValueError("Failed to remove from several groups", failed_to_remove)
 
     def is_alive(self) -> bool:
@@ -200,7 +200,8 @@ class DrawableGroup(Generic[_D]):
                 try:
                     d.add_to_group(self)
                 except BaseException:
-                    drawable_list.remove(d)
+                    if not d.has_group(self):
+                        drawable_list.remove(d)
                     raise
 
     def remove(self, *objects: _D) -> None:
@@ -208,13 +209,24 @@ class DrawableGroup(Generic[_D]):
         if not objects:
             return
         drawable_list: list[_D] = self.data
+        failed_to_remove: list[_D] = []
         for d in objects:
-            if d not in drawable_list:
-                raise ValueError(f"{d!r} not in self")
-        for d in objects:
-            drawable_list.remove(d)
+            try:
+                d_idx = drawable_list.index(d)
+            except ValueError:
+                failed_to_remove.append(d)
+                continue
+            else:
+                del drawable_list[d_idx]
             if d.has_group(self):
-                d.remove_from_group(self)
+                try:
+                    d.remove_from_group(self)
+                except Exception:
+                    if d.has_group(self):
+                        drawable_list.insert(d_idx, d)
+                    failed_to_remove.append(d)
+        if failed_to_remove:
+            raise ValueError("Failed to remove self from several objects", failed_to_remove)
 
     def pop(self, index: SupportsIndex = -1) -> _D:
         index = int(index)
@@ -237,10 +249,18 @@ class DrawableGroup(Generic[_D]):
     def clear(self) -> None:
         # TODO (3.11): Exception groups
         drawable_list: list[_D] = self.data
+        failed_to_remove: list[_D] = []
         self.data = []
         for d in drawable_list:
             if d.has_group(self):
-                d.remove_from_group(self)
+                try:
+                    d.remove_from_group(self)
+                except Exception:
+                    if d.has_group(self):
+                        self.data.append(d)
+                    failed_to_remove.append(d)
+        if failed_to_remove:
+            raise ValueError("Failed to remove self from several objects", failed_to_remove)
 
 
 class LayeredDrawableGroup(DrawableGroup[_D]):
@@ -266,8 +286,9 @@ class LayeredDrawableGroup(DrawableGroup[_D]):
                 try:
                     d.add_to_group(self)
                 except BaseException:
-                    drawable_list.remove(d)
-                    layer_dict.pop(d, None)
+                    if not d.has_group(self):
+                        drawable_list.remove(d)
+                        layer_dict.pop(d, None)
                     raise
         super().add(*objects)
 
@@ -346,14 +367,14 @@ class LayeredDrawableGroup(DrawableGroup[_D]):
     def get_from_layer(self, layer: int) -> Sequence[_D]:
         return list(self.iter_in_layer(layer))
 
-    def remove_from_layer(self, layer: int) -> Sequence[_D]:
+    def remove_layer(self, layer: int) -> Sequence[_D]:
         drawable_list: Sequence[_D] = self.get_from_layer(layer)
         self.remove(*drawable_list)
         return drawable_list
 
     def switch_layer(self, layer1: int, layer2: int) -> None:
         change_layer = self.change_layer
-        drawable_list_layer1: Sequence[_D] = self.remove_from_layer(layer1)
+        drawable_list_layer1: Sequence[_D] = self.remove_layer(layer1)
         for d in self.get_from_layer(layer2):
             change_layer(d, layer1, top_of_layer=True)
         self.add(*drawable_list_layer1, layer=layer2)
