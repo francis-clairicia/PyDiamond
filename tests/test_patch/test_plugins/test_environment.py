@@ -55,7 +55,7 @@ class TestArrangePygameEnvironment:
         ids=lambda t: "{0}={1}".format(*t),
     )
     @pytest.mark.usefixtures("mock_check_booleans")
-    def test__run__set_default_values_in_environ(
+    def test____run____set_default_values_in_environ(
         self,
         environ_var_value: tuple[str, str],
         patch: ArrangePygameEnvironmentBeforeImport,
@@ -83,7 +83,7 @@ class TestArrangePygameEnvironment:
         ids=lambda t: "{0}={1}".format(*t),
     )
     @pytest.mark.usefixtures("mock_check_booleans")
-    def test__run__overrides_user_value(
+    def test____run____overrides_user_value(
         self,
         environ_var_value: tuple[str, bool],
         patch: ArrangePygameEnvironmentBeforeImport,
@@ -105,7 +105,7 @@ class TestArrangePygameEnvironment:
         else:
             assert os.environ[env_var] is sentinel
 
-    def test__run__calls_check_booleans_for_overridden_values(
+    def test____run____calls_check_booleans_for_overridden_values(
         self,
         patch: ArrangePygameEnvironmentBeforeImport,
         mock_check_booleans: MagicMock,
@@ -140,7 +140,7 @@ class TestVerifyBooleanEnvironmentVariables:
         yield patch
         patch.teardown()
 
-    def test__run__calls_check_booleans_excluding_already_checked(
+    def test____run____calls_check_booleans_excluding_already_checked(
         self,
         patch: ArrangePygameEnvironmentBeforeImport,
         mock_check_booleans: MagicMock,
@@ -198,7 +198,7 @@ class TestCheckBooleanEnvironmentVariables:
     def invalid_boolean(request: pytest.FixtureRequest) -> str:
         return str(getattr(request, "param"))
 
-    def test__check_booleans__does_nothing_for_true_value(self, env_var: str, true_boolean: str) -> None:
+    def test____check_booleans____does_nothing_for_true_value(self, env_var: str, true_boolean: str) -> None:
         # Arrange
         environ: dict[str, str] = {env_var: true_boolean}
 
@@ -209,7 +209,7 @@ class TestCheckBooleanEnvironmentVariables:
         assert env_var in environ
         assert environ[env_var] == true_boolean
 
-    def test__check_booleans__remove_var_from_mapping_for_false_value(self, env_var: str, false_boolean: str) -> None:
+    def test____check_booleans____remove_var_from_mapping_for_false_value(self, env_var: str, false_boolean: str) -> None:
         # Arrange
         environ: dict[str, str] = {env_var: false_boolean}
 
@@ -219,7 +219,7 @@ class TestCheckBooleanEnvironmentVariables:
         # Assert
         assert env_var not in environ
 
-    def test__check_booleans__raise_error_for_other_value(self, env_var: str, invalid_boolean: str) -> None:
+    def test____check_booleans____raise_error_for_other_value(self, env_var: str, invalid_boolean: str) -> None:
         # Arrange
         environ: dict[str, str] = {env_var: invalid_boolean}
 
@@ -233,7 +233,7 @@ class TestCheckBooleanEnvironmentVariables:
             random.sample(BOOLEAN_PYGAME_ENVIRONMENT_VARIABLES, k=k + 1) for k in range(len(BOOLEAN_PYGAME_ENVIRONMENT_VARIABLES))
         ),
     )
-    def test__check_booleans__check_only_for_specific_environment_variables(
+    def test____check_booleans____check_only_for_specific_environment_variables(
         self,
         sequence: Sequence[str],
         invalid_boolean: str,
@@ -249,7 +249,7 @@ class TestCheckBooleanEnvironmentVariables:
         # Assert
         # There is no raise ? Success !
 
-    def test__check_booleans__raise_error_if_only_argument_is_empty(self) -> None:
+    def test____check_booleans____raise_error_if_only_argument_is_empty(self) -> None:
         # Arrange
         environ: dict[str, str] = {}
 
@@ -263,7 +263,7 @@ class TestCheckBooleanEnvironmentVariables:
             random.sample(BOOLEAN_PYGAME_ENVIRONMENT_VARIABLES, k=k + 1) for k in range(len(BOOLEAN_PYGAME_ENVIRONMENT_VARIABLES))
         ),
     )
-    def test__check_booleans__do_not_check_for_excluded_environment_variables(
+    def test____check_booleans____do_not_check_for_excluded_environment_variables(
         self,
         sequence: Sequence[str],
         invalid_boolean: str,
@@ -279,7 +279,7 @@ class TestCheckBooleanEnvironmentVariables:
         # Assert
         # There is no raise ? Success !
 
-    def test__check_booleans__mutually_exclusive_parameters(self) -> None:
+    def test____check_booleans____mutually_exclusive_parameters(self) -> None:
         # Arrange
         environ: dict[str, str] = {}
 

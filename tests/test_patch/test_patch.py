@@ -45,10 +45,10 @@ class TestPatchCommon:
     # def patch(patch_cls: type[BasePatch]) -> BasePatch:
     #     return patch_cls()
 
-    def test__patch__get_name(self, patch_cls: type[BasePatch], patch_qualname: str) -> None:
+    def test____patch____get_name(self, patch_cls: type[BasePatch], patch_qualname: str) -> None:
         assert patch_cls.get_name() == f"plugins.{patch_qualname}"
 
-    def test__patch__required_context(self, patch_cls: type[BasePatch], patch_qualname: str) -> None:
+    def test____patch____required_context(self, patch_cls: type[BasePatch], patch_qualname: str) -> None:
         from pydiamond._patch._base import PatchContext
 
         expected_context = PatchContext[self.EXPECTED_CONTEXT[patch_qualname]]

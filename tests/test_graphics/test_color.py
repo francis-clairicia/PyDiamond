@@ -20,7 +20,7 @@ class TestColor:
             pytest.param("v", 2),
         ],
     )
-    def test__property__shorthand_to_Color_hsva(self, attr: str, hsva_index: int) -> None:
+    def test____property____shorthand_to_Color_hsva(self, attr: str, hsva_index: int) -> None:
         # Arrange
         color = Color(123, 123, 123)
 
@@ -28,7 +28,7 @@ class TestColor:
         assert getattr(color, attr) == color.hsva[hsva_index]
         assert getattr(color, attr) == color.hsla[hsva_index]
 
-    def test__instance__picklable(self) -> None:
+    def test____instance____picklable(self) -> None:
         # Arrange
         color = Color(123, 123, 123)
 
@@ -57,7 +57,7 @@ class TestImmutableColor:
             "i1i2i3",
         ],
     )
-    def test__setattr__frozen_attribute(self, attr: str) -> None:
+    def test____setattr____frozen_attribute(self, attr: str) -> None:
         # Arrange
         color = ImmutableColor(0, 0, 0)
 
@@ -66,7 +66,7 @@ class TestImmutableColor:
             setattr(color, attr, None)
 
     @pytest.mark.slow
-    def test__hash__returns_the_same_for_all_equal_colors(self) -> None:
+    def test____hash____returns_the_same_for_all_equal_colors(self) -> None:
         # Arrange
 
         # Act & Assert

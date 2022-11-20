@@ -35,7 +35,7 @@ class TestMixer:
         return mocker.patch("pydiamond.audio.music.MusicStream", autospec=True)
 
     @pytest.mark.usefixtures("mixer_init_default_side_effect")
-    def test__init__pygame_mixer_init_and_quit(self, mock_pygame_mixer_module: MockMixerModule) -> None:
+    def test____init____pygame_mixer_init_and_quit(self, mock_pygame_mixer_module: MockMixerModule) -> None:
         # Arrange
 
         # Act & Assert
@@ -48,7 +48,7 @@ class TestMixer:
         mock_pygame_mixer_module.quit.assert_called_once()
 
     @pytest.mark.usefixtures("mixer_init_default_side_effect")
-    def test__init__pygame_mixer_init_params(self, mock_pygame_mixer_module: MockMixerModule) -> None:
+    def test____init____pygame_mixer_init_params(self, mock_pygame_mixer_module: MockMixerModule) -> None:
         # Arrange
 
         ## We do not check for every combination as pygame itself do not do it
@@ -63,7 +63,7 @@ class TestMixer:
         mock_pygame_mixer_module.init.assert_called_once_with(**CONFIG)
 
     @pytest.mark.usefixtures("mixer_init_default_side_effect")
-    def test__init__yields_output_from_Mixer_get_init(self, mocker: MockerFixture, sentinel: Any) -> None:
+    def test____init____yields_output_from_Mixer_get_init(self, mocker: MockerFixture, sentinel: Any) -> None:
         # Arrange
         mocker.patch.object(Mixer, "get_init", return_value=sentinel.Mixer_get_init)
 
@@ -74,7 +74,7 @@ class TestMixer:
         # Assert
         assert mixer_params is sentinel.Mixer_get_init
 
-    def test__init__raises_pygame_error_if_already_initialized(self, mock_pygame_mixer_module: MockMixerModule) -> None:
+    def test____init____raises_pygame_error_if_already_initialized(self, mock_pygame_mixer_module: MockMixerModule) -> None:
         # Arrange
         mock_pygame_mixer_module.get_init.return_value = (44100, -16, 2)  # Simulate default initialization
 
@@ -93,7 +93,7 @@ class TestMixer:
         ],
     )
     @pytest.mark.usefixtures("mixer_init_default_side_effect")
-    def test__init__do_not_call_pygame_mixer_quit_on_init_error(
+    def test____init____do_not_call_pygame_mixer_quit_on_init_error(
         self, error: type[Exception], mock_pygame_mixer_module: MockMixerModule
     ) -> None:
         # Arrange
@@ -107,7 +107,7 @@ class TestMixer:
         # Assert
         mock_pygame_mixer_module.quit.assert_not_called()
 
-    def test__get_init__return_mixer_params(self, mock_pygame_mixer_module: MockMixerModule, sentinel: Any) -> None:
+    def test____get_init____return_mixer_params(self, mock_pygame_mixer_module: MockMixerModule, sentinel: Any) -> None:
         # Arrange
         mock_pygame_mixer_module.get_init.return_value = (
             sentinel.Mixer_get_init_frequency,
@@ -125,7 +125,7 @@ class TestMixer:
         assert mixer_params.size is sentinel.Mixer_get_init_size
         assert mixer_params.channels is sentinel.Mixer_get_init_channels
 
-    def test__get_init__return_None_if_mixer_not_initialized(self, mock_pygame_mixer_module: MockMixerModule) -> None:
+    def test____get_init____return_None_if_mixer_not_initialized(self, mock_pygame_mixer_module: MockMixerModule) -> None:
         # Arrange
         mock_pygame_mixer_module.get_init.return_value = None
 
@@ -149,7 +149,7 @@ class TestMixer:
             pytest.param("find_channel", "find_channel", (True,), id="find_channel(True)"),
         ],
     )
-    def test__method__pass_through(
+    def test____method____pass_through(
         self,
         mixer_cls_method_name: str,
         pygame_mixer_function_name: str,
@@ -173,7 +173,7 @@ class TestMixer:
         assert actual_value is sentinel_value
 
     @pytest.mark.parametrize("num_channels", [0, 1, 2, 8, 32])
-    def test__get_channels__list_Channel_objects_up_to_get_num_channels(
+    def test____get_channels____list_Channel_objects_up_to_get_num_channels(
         self,
         num_channels: int,
         mock_pygame_mixer_module: MockMixerModule,

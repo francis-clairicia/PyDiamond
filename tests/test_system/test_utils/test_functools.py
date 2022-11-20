@@ -34,7 +34,7 @@ def weakref_callback_stub(mocker: MockerFixture) -> MagicMock:
 class TestMakeCallback:
     ### Classic functions
 
-    def test__make_callback__default(self, callback_stub: MagicMock) -> None:
+    def test____make_callback____default(self, callback_stub: MagicMock) -> None:
         # Arrange
 
         # Act
@@ -43,7 +43,7 @@ class TestMakeCallback:
         # Assert
         assert callback is callback_stub
 
-    def test__make_callback__weakref_object(self, callback_stub: MagicMock) -> None:
+    def test____make_callback____weakref_object(self, callback_stub: MagicMock) -> None:
         # Arrange
         dummy = Dummy()
 
@@ -54,7 +54,7 @@ class TestMakeCallback:
         # Assert
         callback_stub.assert_called_once_with(dummy, a=5, b=12)
 
-    def test__make_callback__weakref_object_deadref_callback(
+    def test____make_callback____weakref_object_deadref_callback(
         self, callback_stub: MagicMock, weakref_callback_stub: MagicMock
     ) -> None:
         # Arrange
@@ -67,7 +67,7 @@ class TestMakeCallback:
         # Assert
         weakref_callback_stub.assert_called_once()
 
-    def test__make_callback__weakref_object_deadref_default(self, callback_stub: MagicMock) -> None:
+    def test____make_callback____weakref_object_deadref_default(self, callback_stub: MagicMock) -> None:
         # Arrange
         dummy = Dummy()
         callback: Callable[..., Any] = make_callback(callback_stub, dummy)
@@ -78,7 +78,7 @@ class TestMakeCallback:
             callback(a=5, b=12)
         callback_stub.assert_not_called()
 
-    def test__make_callback__weakref_object_deadref_exception(self, callback_stub: MagicMock) -> None:
+    def test____make_callback____weakref_object_deadref_exception(self, callback_stub: MagicMock) -> None:
         # Arrange
         dummy = Dummy()
 
@@ -93,7 +93,9 @@ class TestMakeCallback:
             callback(a=5, b=12)
         callback_stub.assert_not_called()
 
-    def test__make_callback__weakref_object_deadref_value_return(self, callback_stub: MagicMock, mocker: MockerFixture) -> None:
+    def test____make_callback____weakref_object_deadref_value_return(
+        self, callback_stub: MagicMock, mocker: MockerFixture
+    ) -> None:
         # Arrange
         dummy = Dummy()
         deadred_return_value = mocker.sentinel.deadref_return_value
@@ -110,7 +112,7 @@ class TestMakeCallback:
 
     ### Weak methods
 
-    def test__make_callback__weak_method__default(self, callback_stub: MagicMock) -> None:
+    def test____make_callback____weak_method____default(self, callback_stub: MagicMock) -> None:
         # Arrange
         dummy = Dummy()
         weak_method = WeakMethod(MethodType(callback_stub, dummy))
@@ -122,7 +124,7 @@ class TestMakeCallback:
         # Assert
         callback_stub.assert_called_once_with(dummy, 432, a=5, b=12)
 
-    def test__make_callback__weak_method__default_deadref_weakref_callback_ignored(
+    def test____make_callback____weak_method____default_deadref_weakref_callback_ignored(
         self, callback_stub: MagicMock, weakref_callback_stub: MagicMock
     ) -> None:
         # Arrange
@@ -136,7 +138,7 @@ class TestMakeCallback:
         # Assert
         weakref_callback_stub.assert_not_called()
 
-    def test__make_callback__weak_method__default_deadref(self, callback_stub: MagicMock) -> None:
+    def test____make_callback____weak_method____default_deadref(self, callback_stub: MagicMock) -> None:
         # Arrange
         dummy = Dummy()
         weak_method = WeakMethod(MethodType(callback_stub, dummy))
@@ -148,7 +150,7 @@ class TestMakeCallback:
             callback(432, a=5, b=12)
         callback_stub.assert_not_called()
 
-    def test__make_callback__weak_method__deadref_exception(self, callback_stub: MagicMock) -> None:
+    def test____make_callback____weak_method____deadref_exception(self, callback_stub: MagicMock) -> None:
         # Arrange
         dummy = Dummy()
         weak_method = WeakMethod(MethodType(callback_stub, dummy))
@@ -164,7 +166,9 @@ class TestMakeCallback:
             callback(a=5, b=12)
         callback_stub.assert_not_called()
 
-    def test__make_callback__weak_method__deadref_value_return(self, callback_stub: MagicMock, mocker: MockerFixture) -> None:
+    def test____make_callback____weak_method____deadref_value_return(
+        self, callback_stub: MagicMock, mocker: MockerFixture
+    ) -> None:
         # Arrange
         dummy = Dummy()
         weak_method = WeakMethod(MethodType(callback_stub, dummy))
@@ -180,7 +184,7 @@ class TestMakeCallback:
         callback_stub.assert_not_called()
         assert output is deadred_return_value
 
-    def test__make_callback__weak_method__weakref_object(self, callback_stub: MagicMock) -> None:
+    def test____make_callback____weak_method____weakref_object(self, callback_stub: MagicMock) -> None:
         # Arrange
         dummy = Dummy()
         weak_method = WeakMethod(MethodType(callback_stub, dummy))
@@ -193,7 +197,7 @@ class TestMakeCallback:
         # Assert
         callback_stub.assert_called_once_with(dummy, other_dummy, 432, a=5, b=12)
 
-    def test__make_callback__weak_method__weakref_object_deadref_callback(
+    def test____make_callback____weak_method____weakref_object_deadref_callback(
         self, callback_stub: MagicMock, weakref_callback_stub: MagicMock
     ) -> None:
         # Arrange
@@ -209,7 +213,7 @@ class TestMakeCallback:
         weakref_callback_stub.assert_called_once()
 
     @pytest.mark.parametrize("to_del", ["weakmethod_object_ref", "bound_object_ref", "both"], ids=lambda n: f"to_del=={n}")
-    def test__make_callback__weak_method__weakref_object_deadref(
+    def test____make_callback____weak_method____weakref_object_deadref(
         self, callback_stub: MagicMock, to_del: Literal["weakmethod_object_ref", "bound_object_ref", "both"]
     ) -> None:
         # Arrange
@@ -234,7 +238,7 @@ class TestMakeCallback:
         callback_stub.assert_not_called()
 
     @pytest.mark.parametrize("to_del", ["weakmethod_object_ref", "bound_object_ref", "both"], ids=lambda n: f"to_del=={n}")
-    def test__make_callback__weak_method__weakref_object_deadref_exception(
+    def test____make_callback____weak_method____weakref_object_deadref_exception(
         self, callback_stub: MagicMock, to_del: Literal["weakmethod_object_ref", "bound_object_ref", "both"]
     ) -> None:
         # Arrange
@@ -262,7 +266,7 @@ class TestMakeCallback:
         callback_stub.assert_not_called()
 
     @pytest.mark.parametrize("to_del", ["weakmethod_object_ref", "bound_object_ref", "both"], ids=lambda n: f"to_del=={n}")
-    def test__make_callback__weak_method__weakref_object_deadref_value_return(
+    def test____make_callback____weak_method____weakref_object_deadref_value_return(
         self,
         callback_stub: MagicMock,
         to_del: Literal["weakmethod_object_ref", "bound_object_ref", "both"],

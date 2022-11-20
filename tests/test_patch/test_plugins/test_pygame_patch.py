@@ -46,7 +46,7 @@ class TestPygamePatch:
         yield patch
         patch.teardown()
 
-    def test__run__apply_wrapper_to_pygame_functions(
+    def test____run____apply_wrapper_to_pygame_functions(
         self,
         patch: PygamePatch,
         mock_pygame_event_module: MagicMock,
@@ -76,7 +76,7 @@ class TestPygamePatch:
         assert pygame.event.post is not mock_pygame_event_post
         assert getattr(pygame.event.post, "__wrapped__") is mock_pygame_event_post
 
-    def test__run__replace_music_end_event_by_a_custom_type_and_forbid_further_calls_to_set_endevent(
+    def test____run____replace_music_end_event_by_a_custom_type_and_forbid_further_calls_to_set_endevent(
         self,
         patch: PygamePatch,
         mock_pygame_event_module: MagicMock,
@@ -104,7 +104,7 @@ class TestPygamePatch:
         with pytest.raises(TypeError, match=r"Call to function pygame\.mixer\.music\.set_endevent is forbidden"):
             pygame.mixer.music.set_endevent(sentinel_event_type)
 
-    def test__run__make_pygame_event_event_name_customizable(
+    def test____run____make_pygame_event_event_name_customizable(
         self,
         patch: PygamePatch,
         mock_pygame_event_module: MagicMock,
@@ -135,7 +135,7 @@ class TestPygamePatch:
         dispatch_table[12000] = ""
         assert pygame.event.event_name(12000) is sentinel_default_value
 
-    def test__run__forbids_a_list_of_events_to_be_blocked(
+    def test____run____forbids_a_list_of_events_to_be_blocked(
         self,
         patch: PygamePatch,
         mock_pygame_event_module: MagicMock,
@@ -218,7 +218,7 @@ class TestPygamePatch:
             pygame.event.set_blocked(None)
         mock_pygame_event_set_blocked.assert_not_called()
 
-    def test__run__forbids_a_list_of_events_to_be_posted(
+    def test____run____forbids_a_list_of_events_to_be_posted(
         self,
         patch: PygamePatch,
         mock_pygame_event_module: MagicMock,

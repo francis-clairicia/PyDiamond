@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import os
+import pathlib
 from typing import TYPE_CHECKING
 
 import pytest
 
 if TYPE_CHECKING:
-    import pathlib
-
     from pytest_mock import MockerFixture
 
 
@@ -42,8 +41,14 @@ pytest_plugins = [
 
 
 @pytest.fixture(scope="session")
-def pydiamond_rootdir(pytestconfig: pytest.Config) -> pathlib.Path:
-    return pytestconfig.rootpath / "pydiamond"
+def pydiamond_rootdirs_list() -> list[pathlib.Path]:
+    import importlib
+
+    pydiamond_spec = importlib.import_module("pydiamond").__spec__
+    assert pydiamond_spec is not None
+    assert pydiamond_spec.submodule_search_locations is not None
+
+    return [pathlib.Path(path) for path in pydiamond_spec.submodule_search_locations]
 
 
 ################################## Auto used fixtures for all session test ##################################

@@ -77,7 +77,7 @@ def enum_sample(
     ],
     ids=lambda sample: f"{sample.enum.__name__}.{sample.name}=={sample.module}.{sample.constant_name}",
 )
-def test__enum_member__value_from_constant(sample: EnumConstantSample) -> None:
+def test____enum_member____value_from_constant(sample: EnumConstantSample) -> None:
     # Arrange
     expected_value = sample.constant_value
 

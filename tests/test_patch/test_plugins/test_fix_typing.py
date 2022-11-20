@@ -74,7 +74,7 @@ class TestFixTypingFinal:
         yield patch
         patch.teardown()
 
-    def test__patch__wrap_default_final(
+    def test____patch____wrap_default_final(
         self,
         patch: OverrideFinalFunctionsPatch,
         typing_module: ModuleType,
@@ -92,7 +92,7 @@ class TestFixTypingFinal:
         assert final is not mock_default_final
         assert getattr(final, "__wrapped__") is mock_default_final
 
-    def test__patch__will_not_apply_wrapper_twice(
+    def test____patch____will_not_apply_wrapper_twice(
         self,
         patch: OverrideFinalFunctionsPatch,
         typing_module: ModuleType,
@@ -107,7 +107,7 @@ class TestFixTypingFinal:
         # Assert
         assert getattr(typing_module, "final") is expected_final
 
-    def test__patch__apply_for_both_typing_and_typing_extensions_modules(
+    def test____patch____apply_for_both_typing_and_typing_extensions_modules(
         self,
         patch: OverrideFinalFunctionsPatch,
         mock_default_final: MagicMock,
@@ -139,7 +139,7 @@ class TestFixTypingFinal:
             pytest.param("typing_extensions"),
         ],
     )
-    def test__final_wrapper__default_behavior_works(
+    def test____final_wrapper____default_behavior_works(
         self,
         typing_module_name: str,
         patch: OverrideFinalFunctionsPatch,
@@ -168,7 +168,7 @@ class TestFixTypingFinal:
             pytest.param("typing_extensions"),
         ],
     )
-    def test__final_wrapper__works_for_properties(
+    def test____final_wrapper____works_for_properties(
         self,
         typing_module_name: str,
         patch: OverrideFinalFunctionsPatch,
@@ -214,7 +214,7 @@ class TestFixTypingFinal:
             pytest.param(partialmethod, "func", id="partialmethod"),
         ],
     )
-    def test__final_wrapper__works_for_standard_method_descriptor(
+    def test____final_wrapper____works_for_standard_method_descriptor(
         self,
         typing_module_name: str,
         method_descriptor: Callable[[Any], Callable[..., Any]],

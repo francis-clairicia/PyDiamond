@@ -80,7 +80,7 @@ class TestGlobalImport:
         return unload_module("pydiamond", include_submodules=True, monkeypatch=monkeypatch)
 
     @pytest.mark.parametrize("module_name", ALL_PYDIAMOND_MODULES)
-    def test__import__successful_import_module_without_circular_import(self, module_name: str) -> None:
+    def test____import____successful_import_module_without_circular_import(self, module_name: str) -> None:
         import sys
 
         # Simple check to ensure the unload_* fixtures do their jobs
@@ -90,7 +90,7 @@ class TestGlobalImport:
 
         assert module_name in sys.modules
 
-    def test__import__raise_custom_message_if_pygame_is_not_installed(self, mocker: MockerFixture) -> None:
+    def test____import____raise_custom_message_if_pygame_is_not_installed(self, mocker: MockerFixture) -> None:
         # Forbid import of pygame
         original_import = __import__
 
@@ -108,7 +108,7 @@ class TestGlobalImport:
 
             del pydiamond
 
-    def test__import__raise_error_for_incompatible_python_version(self, mocker: MockerFixture) -> None:
+    def test____import____raise_error_for_incompatible_python_version(self, mocker: MockerFixture) -> None:
         mocker.patch("sys.version_info", MockVersionInfo(3, 9, 5, "final", 0))
 
         with pytest.raises(ImportError, match=r"This framework must be run with python >= 3\.10 \(actual=3\.9\.5\)"):
@@ -129,7 +129,7 @@ class TestStarImports:
             for imported_module in imported_module_list
         ),
     )
-    def test__dunder_all__values_from_imported_module_retrieved_in_main_module(
+    def test____dunder_all____values_from_imported_module_retrieved_in_main_module(
         self,
         module_name: str,
         imported_module_name: str,
@@ -156,7 +156,7 @@ class TestStarImports:
         assert not missing_names_in_declaration
 
     @pytest.mark.parametrize("module_name", ALL_PYDIAMOND_MODULES)
-    def test__dunder_all__is_conform(self, module_name: str) -> None:
+    def test____dunder_all____is_conform(self, module_name: str) -> None:
         # Arrange
         module = import_module(module_name)
         module_namespace = vars(module)
@@ -174,7 +174,7 @@ class TestStarImports:
         assert not unknown_names
 
     @pytest.mark.parametrize("module_name", sorted(AUTO_IMPORTED_MODULES))
-    def test__dunder_all__no_conflict_between_submodules(self, module_name: str) -> None:
+    def test____dunder_all____no_conflict_between_submodules(self, module_name: str) -> None:
         # Arrange
 
         # Act & Assert

@@ -38,7 +38,7 @@ class TestWindow:
         mock_pygame_display_module.set_mode.side_effect = set_mode
         mock_pygame_display_module.get_surface.return_value = None
 
-    def test__init__default_arguments(self, monkeypatch: MonkeyPatch, mock_pygame_display_module: MockDisplayModule) -> None:
+    def test____init____default_arguments(self, monkeypatch: MonkeyPatch, mock_pygame_display_module: MockDisplayModule) -> None:
         # Arrange
         monkeypatch.setattr(Window, "DEFAULT_TITLE", "A beautiful title")
 
@@ -52,7 +52,7 @@ class TestWindow:
         assert not window.fullscreen
         assert not window.vsync
 
-    def test__init__with_arguments(self, mock_pygame_display_module: MockDisplayModule) -> None:
+    def test____init____with_arguments(self, mock_pygame_display_module: MockDisplayModule) -> None:
         # Arrange
         from pydiamond.window.display import Window
 
@@ -63,7 +63,7 @@ class TestWindow:
         mock_pygame_display_module.set_caption.assert_called_with("A very beautiful title")
         assert window.size == (0, 0)  # Window not initialized so this must be true
 
-    def test__init__resizable_window(self) -> None:
+    def test____init____resizable_window(self) -> None:
         # Arrange
 
         # Act
@@ -72,7 +72,7 @@ class TestWindow:
         # Assert
         assert window.resizable
 
-    def test__init__fullscreen_window(self) -> None:
+    def test____init____fullscreen_window(self) -> None:
         # Arrange
 
         # Act
@@ -81,7 +81,7 @@ class TestWindow:
         # Assert
         assert window.fullscreen
 
-    def test__init__vertical_sync_enabled(self) -> None:
+    def test____init____vertical_sync_enabled(self) -> None:
         # Arrange
 
         # Act
@@ -90,21 +90,21 @@ class TestWindow:
         # Assert
         assert window.vsync
 
-    def test__init__mutually_exclusive_resizable_and_fullscreen(self) -> None:
+    def test____init____mutually_exclusive_resizable_and_fullscreen(self) -> None:
         # Arrange
 
         # Act & Assert
         with pytest.raises(WindowError, match=r"Choose between resizable or fullscreen window, both cannot exist"):
             _ = Window(resizable=True, fullscreen=True)
 
-    def test__init__mutually_exclusive_size_and_fullscreen(self) -> None:
+    def test____init____mutually_exclusive_size_and_fullscreen(self) -> None:
         # Arrange
 
         # Act & Assert
         with pytest.raises(WindowError, match=r"'size' parameter must not be given if 'fullscreen' is set"):
             _ = Window(size=(640, 480), fullscreen=True)
 
-    def test__open__pygame_display_init_and_quit(self, mock_pygame_display_module: MockDisplayModule) -> None:
+    def test____open____pygame_display_init_and_quit(self, mock_pygame_display_module: MockDisplayModule) -> None:
         # Arrange
 
         window = Window()
@@ -136,7 +136,7 @@ class TestWindow:
             pytest.param((1920, 1080), True, False, True, pygame.RESIZABLE, id="(1920, 1080), True, False, True, RESIZABLE"),
         ],
     )
-    def test__open__specific_mode(
+    def test____open____specific_mode(
         self,
         size: tuple[int, int] | None,
         resizable: bool,
@@ -159,7 +159,7 @@ class TestWindow:
             mock_pygame_display_module.set_mode.assert_called_once_with(expected_size, flags=expected_flags, vsync=int(vsync))
 
     @pytest.mark.parametrize("error", [pytest.param(pygame.error, id="pygame.error"), ValueError, KeyError, ZeroDivisionError])
-    def test__open__do_not_call_pygame_display_quit_on_init_error(
+    def test____open____do_not_call_pygame_display_quit_on_init_error(
         self, error: type[Exception], mock_pygame_display_module: MockDisplayModule
     ) -> None:
         # Arrange
@@ -177,7 +177,7 @@ class TestWindow:
         mock_pygame_display_module.quit.assert_not_called()
 
     @pytest.mark.parametrize("error", ["set_mode failed", "window_init failed"])
-    def test__open__always_call_pygame_display_quit_on_internal_setup_error(
+    def test____open____always_call_pygame_display_quit_on_internal_setup_error(
         self, error: str, mocker: MockerFixture, mock_pygame_display_module: MockDisplayModule
     ) -> None:
         # Arrange
@@ -200,7 +200,7 @@ class TestWindow:
         # Assert
         mock_pygame_display_module.quit.assert_called()
 
-    def test__open__call_dunder_window_init_and_quit(self, mocker: MockerFixture) -> None:
+    def test____open____call_dunder_window_init_and_quit(self, mocker: MockerFixture) -> None:
         # Arrange
 
         window = Window()
@@ -216,7 +216,7 @@ class TestWindow:
         mock_window_init.assert_called_once()
         mock_window_quit.assert_called_once()
 
-    def test__open__do_not_call_window_init_if_set_mode_failed(
+    def test____open____do_not_call_window_init_if_set_mode_failed(
         self,
         mocker: MockerFixture,
         mock_pygame_display_module: MockDisplayModule,

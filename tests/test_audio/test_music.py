@@ -68,7 +68,7 @@ class TestMusicObject:
     def mock_music_stream(mocker: MockerFixture) -> MagicMock:
         return mocker.patch("pydiamond.audio.music.MusicStream", spec=MusicStream)
 
-    def test__init__absolute_filepath(self, music_filepath_factory: Callable[[str], str]) -> None:
+    def test____init____absolute_filepath(self, music_filepath_factory: Callable[[str], str]) -> None:
         # Arrange
         expected_filepath = music_filepath_factory("music.wav")
 
@@ -78,7 +78,7 @@ class TestMusicObject:
         # Assert
         assert music.resource == FileResource(expected_filepath)
 
-    def test__init__relative_filepath(
+    def test____init____relative_filepath(
         self,
         tmp_path: Path,
         music_filepath_factory: Callable[[str], str],
@@ -97,7 +97,7 @@ class TestMusicObject:
         # Assert
         assert music.resource == FileResource(expected_filepath)
 
-    def test__play__calls_MusicStream_play_method(
+    def test____play____calls_MusicStream_play_method(
         self,
         music_factory: Callable[[str], Music],
         mock_music_stream: MagicMock,
@@ -117,7 +117,7 @@ class TestMusicObject:
             fade_ms=sentinel.Music_play_fade_ms,
         )
 
-    def test__queue__calls_MusicStream_queue_method(
+    def test____queue____calls_MusicStream_queue_method(
         self,
         music_factory: Callable[[str], Music],
         mock_music_stream: MagicMock,
@@ -133,7 +133,7 @@ class TestMusicObject:
         # Assert
         mock_music_stream_queue.assert_called_once_with(music_wav, repeat=sentinel.Music_queue_repeat)
 
-    def test__object__cache(self, music_filepath_factory: Callable[[str], str]) -> None:
+    def test____object____cache(self, music_filepath_factory: Callable[[str], str]) -> None:
         # Arrange
         music_wav_filepath = music_filepath_factory("music.wav")
 
@@ -145,7 +145,7 @@ class TestMusicObject:
         assert music_1 is music_2
 
     @pytest.mark.parametrize("copy_func", [copy, deepcopy])
-    def test__object__is_not_copyable(self, copy_func: Callable[[Any], Any], music_factory: Callable[[str], Music]) -> None:
+    def test____object____is_not_copyable(self, copy_func: Callable[[Any], Any], music_factory: Callable[[str], Music]) -> None:
         # Arrange
         music_wav = music_factory("music.wav")
 
@@ -153,7 +153,7 @@ class TestMusicObject:
         with pytest.raises(TypeError):
             _ = copy_func(music_wav)
 
-    def test__object__is_not_picklable(self, music_factory: Callable[[str], Music]) -> None:
+    def test____object____is_not_picklable(self, music_factory: Callable[[str], Music]) -> None:
         # Arrange
         import pickle
 
@@ -183,7 +183,7 @@ class TestMusicStream:
         yield
         stop(unload=True)
 
-    def test__play__calls_pygame_mixer_music_load_and_play(
+    def test____play____calls_pygame_mixer_music_load_and_play(
         self,
         music_factory: Callable[[str], Music],
         mock_pygame_mixer_music_module: MockMixerMusicModule,
@@ -198,7 +198,7 @@ class TestMusicStream:
         mock_pygame_mixer_music_module.load.assert_called_once_with(MockMusicOpenIO(music_wav.resource), music_wav.name)
         mock_pygame_mixer_music_module.play.assert_called_once_with(loops=10, fade_ms=30)
 
-    def test__play__ensure_to_stop_playback_before(
+    def test____play____ensure_to_stop_playback_before(
         self,
         music_factory: Callable[[str], Music],
         mocker: MockerFixture,
@@ -213,7 +213,7 @@ class TestMusicStream:
         # Assert
         mock_musicstream_stop.assert_called_once()
 
-    def test__stop__calls_pygame_mixer_music_stop(
+    def test____stop____calls_pygame_mixer_music_stop(
         self,
         mock_pygame_mixer_module: MockMixerModule,
         mock_pygame_mixer_music_module: MockMixerMusicModule,
@@ -228,7 +228,7 @@ class TestMusicStream:
         mock_pygame_mixer_music_module.stop.assert_called_once()
         mock_pygame_mixer_music_module.unload.assert_not_called()
 
-    def test__stop__calls_pygame_mixer_music_stop_and_unload(
+    def test____stop____calls_pygame_mixer_music_stop_and_unload(
         self,
         mock_pygame_mixer_module: MockMixerModule,
         mock_pygame_mixer_music_module: MockMixerMusicModule,
@@ -243,7 +243,7 @@ class TestMusicStream:
         mock_pygame_mixer_music_module.stop.assert_called_once()
         mock_pygame_mixer_music_module.unload.assert_called_once()
 
-    def test__stop__does_not_call_stop_and_unload_if_mixer_is_not_initialized(
+    def test____stop____does_not_call_stop_and_unload_if_mixer_is_not_initialized(
         self,
         mock_pygame_mixer_module: MockMixerModule,
         mock_pygame_mixer_music_module: MockMixerMusicModule,
@@ -269,7 +269,7 @@ class TestMusicStream:
             pytest.param("set_volume", "set_volume", (0.36,), id="set_volume(0.36)"),
         ],
     )
-    def test__method__pass_through(
+    def test____method____pass_through(
         self,
         cls_method_name: str,
         pygame_music_function_name: str,
@@ -292,7 +292,7 @@ class TestMusicStream:
         mock_func.assert_called_once_with(*args)
         assert actual_value is sentinel_value
 
-    def test__queue__calls_pygame_mixer_music_queue(
+    def test____queue____calls_pygame_mixer_music_queue(
         self,
         music_factory: Callable[[str], Music],
         mock_pygame_mixer_music_module: MockMixerMusicModule,
@@ -312,7 +312,7 @@ class TestMusicStream:
             loops=123,
         )
 
-    def test__queue__calls_MusicStream_play_if_not_busy(
+    def test____queue____calls_MusicStream_play_if_not_busy(
         self,
         music_factory: Callable[[str], Music],
         mocker: MockerFixture,
@@ -327,7 +327,7 @@ class TestMusicStream:
         # Assert
         mock_musicstream_play.assert_called_once_with(music_wav, repeat=123)
 
-    def test__queue__raises_error_for_infinite_loop(
+    def test____queue____raises_error_for_infinite_loop(
         self,
         music_factory: Callable[[str], Music],
         mock_pygame_mixer_music_module: MockMixerMusicModule,
@@ -344,7 +344,7 @@ class TestMusicStream:
         # Assert
         mock_pygame_mixer_music_module.queue.assert_not_called()
 
-    def test__queue__raises_error_if_queue_after_infinite_loop_playback_running(
+    def test____queue____raises_error_if_queue_after_infinite_loop_playback_running(
         self,
         music_factory: Callable[[str], Music],
         mock_pygame_mixer_music_module: MockMixerMusicModule,
@@ -391,7 +391,7 @@ class TestMusicStreamFunctional:
     def mixer_music_endevent() -> pygame.event.Event:
         return pygame.event.Event(pygame.mixer.music.get_endevent())
 
-    def test__play__replay_music_if_it_is_the_actual_running_playback(
+    def test____play____replay_music_if_it_is_the_actual_running_playback(
         self,
         music_factory: Callable[[str], Music],
         mock_pygame_mixer_music_module: MockMixerMusicModule,
@@ -410,7 +410,7 @@ class TestMusicStreamFunctional:
         mock_pygame_mixer_music_module.load.assert_not_called()
         mock_pygame_mixer_music_module.play.assert_called_once_with(loops=123, fade_ms=456)
 
-    def test__stop__without_unload_and_replay_does_not_reload_music(
+    def test____stop____without_unload_and_replay_does_not_reload_music(
         self,
         music_factory: Callable[[str], Music],
         mock_pygame_mixer_music_module: MockMixerMusicModule,
@@ -430,7 +430,7 @@ class TestMusicStreamFunctional:
         mock_pygame_mixer_music_module.load.assert_not_called()
         mock_pygame_mixer_music_module.play.assert_called_once_with(loops=123, fade_ms=456)
 
-    def test__stop__does_not_post_if_there_was_no_playbacks(
+    def test____stop____does_not_post_if_there_was_no_playbacks(
         self,
         mock_pygame_event_module: MockEventModule,
     ) -> None:
@@ -439,7 +439,7 @@ class TestMusicStreamFunctional:
         mock_pygame_event_module.post.assert_not_called()
 
     @pytest.mark.usefixtures("mock_pygame_mixer_music_module")
-    def test__get_music__get_running_music_object(self, music_factory: Callable[[str], Music]) -> None:
+    def test____get_music____get_running_music_object(self, music_factory: Callable[[str], Music]) -> None:
         music_wav = music_factory("music.wav")
 
         assert MusicStream.get_music() is None
@@ -453,7 +453,7 @@ class TestMusicStreamFunctional:
         assert MusicStream.get_music() is None
 
     @pytest.mark.usefixtures("mock_pygame_mixer_music_module")
-    def test__fadeout__post_event_for_stopped_playback(
+    def test____fadeout____post_event_for_stopped_playback(
         self,
         music_factory: Callable[[str], Music],
         mixer_music_endevent: pygame.event.Event,
@@ -469,7 +469,7 @@ class TestMusicStreamFunctional:
         assert mixer_music_endevent.finished is music_wav
         assert mixer_music_endevent.next is None
 
-    def test__queue__scenario_mutiple_calls(
+    def test____queue____scenario_mutiple_calls(
         self,
         music_factory: Callable[[str], Music],
         mock_pygame_mixer_music_module: MockMixerMusicModule,
@@ -564,10 +564,10 @@ class TestMusicStreamFunctional:
 
 @pytest.mark.functional
 class TestPygameMixerMusicModuleAlteration:
-    def test__get_endevent__returns_custom_userevent(self) -> None:
+    def test____get_endevent____returns_custom_userevent(self) -> None:
         assert pygame.mixer.music.get_endevent() != pygame.NOEVENT
         assert pygame.USEREVENT < pygame.mixer.music.get_endevent() < pygame.NUMEVENTS
 
-    def test__set_endevent__cannot_be_called_anymore(self) -> None:
+    def test____set_endevent____cannot_be_called_anymore(self) -> None:
         with pytest.raises(TypeError, match=r"Call to function [\w\.]+ is forbidden"):
             pygame.mixer.music.set_endevent(pygame.NOEVENT)

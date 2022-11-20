@@ -57,7 +57,7 @@ def json_data_bytes(json_encoder: json.JSONEncoder, json_data: Any) -> bytes:
 
 
 @pytest.mark.functional
-def test__serialize_deserialize__works(
+def test____serialize_deserialize____works(
     compressor_protocol: AbstractCompressorNetworkProtocol[Any, Any],
     json_data: Any,
     json_data_bytes: bytes,
@@ -75,7 +75,7 @@ def test__serialize_deserialize__works(
 
 
 class TestIncrementalDeserialize(BaseTestStreamPacketIncrementalDeserializer):
-    def test__incremental_deserialize__one_shot_chunk(
+    def test____incremental_deserialize____one_shot_chunk(
         self,
         compressor_protocol: AbstractCompressorNetworkProtocol[Any, Any],
         json_data: Any,
@@ -94,7 +94,7 @@ class TestIncrementalDeserialize(BaseTestStreamPacketIncrementalDeserializer):
         assert isinstance(remaining, bytes)
         assert not remaining
 
-    def test__incremental_deserialize__handle_partial_document(
+    def test____incremental_deserialize____handle_partial_document(
         self,
         compressor_protocol: AbstractCompressorNetworkProtocol[Any, Any],
         json_data: Any,

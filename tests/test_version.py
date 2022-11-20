@@ -28,7 +28,7 @@ class TestVersionInfo:
         ],
         ids=str,
     )
-    def test__str__returns_the_right_version_identifier(self, version_tuple: tuple[Any, ...], expected_version: str) -> None:
+    def test____str____returns_the_right_version_identifier(self, version_tuple: tuple[Any, ...], expected_version: str) -> None:
         # Arrange
         version_info = VersionInfo(*version_tuple)
 
@@ -53,7 +53,9 @@ class TestVersionInfo:
         ],
         ids=str,
     )
-    def test__from_string__returns_the_right_version_info(self, version: str, expected_version_tuple: tuple[Any, ...]) -> None:
+    def test____from_string____returns_the_right_version_info(
+        self, version: str, expected_version_tuple: tuple[Any, ...]
+    ) -> None:
         # Arrange
 
         # Act
@@ -82,14 +84,14 @@ class TestVersionInfo:
         ],
         ids=str,
     )
-    def test__from_string__invalid(self, version: str) -> None:
+    def test____from_string____invalid(self, version: str) -> None:
         # Arrange
 
         # Act & Assert
         with pytest.raises(ValueError, match=r"Invalid version"):
             _ = VersionInfo.from_string(version)
 
-    def test__version_info__rich_comparison(self) -> None:
+    def test____version_info____rich_comparison(self) -> None:
         # Arrange
         from random import Random
 
