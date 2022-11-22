@@ -51,17 +51,12 @@ class Image(Drawable, Transformable):
         self.__default_image = image
         self.__image = image
 
-        match (width, height):
-            case (int() | float() as width, int() | float() as height):
-                self.scale_to_size((width, height))
-            case (int() | float() as width, None):
-                self.scale_to_width(width)
-            case (None, int() | float() as height):
-                self.scale_to_height(height)
-            case (None, None):
-                pass
-            case _:
-                raise TypeError(f"Invalid argument: {(width, height)!r}")
+        if width is not None and height is not None:
+            self.scale_to_size((width, height))
+        elif width is not None:
+            self.scale_to_width(width)
+        elif height is not None:
+            self.scale_to_height(height)
 
         self.topleft = (0, 0)
 

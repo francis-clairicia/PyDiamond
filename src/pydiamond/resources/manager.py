@@ -20,8 +20,8 @@ from .abc import Resource, ResourcesLocation
 from .file import ResourcesDirectory
 from .loader import AbstractResourceLoader
 
-_ResourcePath: TypeAlias = str | PathLike[str] | Sequence["_ResourcePath"] | Mapping[Any, "_ResourcePath"]  # type: ignore[misc]
-_ResourceLoader: TypeAlias = AbstractResourceLoader[Any] | tuple["_ResourceLoader", ...] | dict[Any, "_ResourceLoader"]  # type: ignore[misc]
+_ResourcePath: TypeAlias = str | PathLike[str] | Sequence["_ResourcePath"] | Mapping[Any, "_ResourcePath"]
+_ResourceLoader: TypeAlias = AbstractResourceLoader[Any] | tuple["_ResourceLoader", ...] | dict[Any, "_ResourceLoader"]
 
 
 class _ResourceDescriptor:

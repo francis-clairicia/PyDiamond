@@ -403,7 +403,7 @@ class AbstractWidget(Drawable, Movable, prepare_namespace=__prepare_abstract_wid
 
     ### THE EVIL AND DANGEROUS PART
 
-    @property  # type: ignore[override]
+    @property
     def __x(self) -> float:
         self.__rel_x: float
         parent: AbstractWidget | None = self.__parent()
@@ -419,7 +419,7 @@ class AbstractWidget(Drawable, Movable, prepare_namespace=__prepare_abstract_wid
             return
         self.__rel_x = x - parent.__x
 
-    @property  # type: ignore[override]
+    @property
     def __y(self) -> float:
         self.__rel_y: float
         parent: AbstractWidget | None = self.__parent()

@@ -37,8 +37,8 @@ class TestPygamePatch:
 
         patch = PygamePatch()
         patch.setup()
-        assert patch.event is mock_pygame_event_module  # type: ignore[misc]  # mypy think it's an assignment ??
-        assert patch.music is mock_pygame_mixer_music_module  # type: ignore[misc]
+        assert patch.event is mock_pygame_event_module
+        assert patch.music is mock_pygame_mixer_music_module
         assert not patch._event_name_patched()
         assert not patch._event_set_blocked_patched()
         assert not patch._music_set_endevent_patched()

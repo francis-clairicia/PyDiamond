@@ -140,7 +140,7 @@ class EventMeta(ObjectMeta):
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
         setattr(cls, "_model_", model or isabstractclass(cls))
         if not is_model(cls) and not issubclass(cls, BuiltinEvent):
-            cls = final(cls)
+            final(cls)
             event_type: int = int(_pg_event.custom_type())
             if event_type in EventFactory.pygame_type:  # Should not happen
                 event_cls = EventFactory.pygame_type[event_type]

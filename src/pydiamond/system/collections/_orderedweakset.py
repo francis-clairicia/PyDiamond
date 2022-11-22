@@ -11,9 +11,7 @@ __all__ = ["OrderedWeakSet"]
 from typing import TYPE_CHECKING, Any, Iterator, Sequence
 from weakref import WeakSet, ref
 
-if not TYPE_CHECKING:  # Too many type errors :)
-    from _weakrefset import _IterationGuard
-else:
+if TYPE_CHECKING:  # Too many type errors :)
     from typing import ContextManager
 
     class _IterationGuard(ContextManager["_IterationGuard"]):
@@ -26,6 +24,8 @@ else:
         def __exit__(self, *args: Any) -> None:
             ...
 
+else:
+    from _weakrefset import _IterationGuard
 
 from ._orderedset import OrderedSet
 

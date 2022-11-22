@@ -2503,7 +2503,7 @@ class Configuration(NonCopyable, Generic[_T]):
     class __OptionUpdateContext(NamedTuple):
         first_call: bool
         register: _UpdateRegister
-        sections: Sequence[Configuration.__SectionUpdateContext]  # type: ignore[misc]
+        sections: Sequence[Configuration.__SectionUpdateContext]
 
     class __SectionUpdateContext(NamedTuple):
         option_context: Configuration.__OptionUpdateContext
