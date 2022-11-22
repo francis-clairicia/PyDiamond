@@ -16,6 +16,7 @@ __all__ = [
 
 from abc import abstractmethod
 from bisect import insort_left, insort_right
+from collections import deque
 from itertools import dropwhile, filterfalse, islice, takewhile
 from typing import TYPE_CHECKING, Any, Generic, Iterator, Protocol, Sequence, SupportsIndex, TypeVar, overload, runtime_checkable
 from weakref import WeakKeyDictionary, WeakSet
@@ -33,6 +34,7 @@ class SupportsDrawing(Protocol):
         raise NotImplementedError
 
 
+@SupportsDrawing.register
 class Drawable(Object):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -159,14 +161,6 @@ class DrawableGroup(Generic[_D]):
     def __getitem__(self, index: SupportsIndex | slice, /) -> _D | list[_D]:
         return self.data[index]
 
-    @overload
-    def __delitem__(self, index: SupportsIndex, /) -> None:
-        ...
-
-    @overload
-    def __delitem__(self, index: slice, /) -> None:
-        ...
-
     def __delitem__(self, index: SupportsIndex | slice, /) -> None:
         if isinstance(index, slice):
             self.remove(*islice(self.data, index.start, index.stop, index.step))
@@ -268,20 +262,23 @@ class LayeredDrawableGroup(DrawableGroup[_D]):
     __slots__ = ("__default_layer", "__layer_dict")
 
     def __init__(self, *objects: _D, default_layer: int = 0, **kwargs: Any) -> None:
-        self.__default_layer: int = default_layer
+        self.__default_layer: int = int(default_layer)
         self.__layer_dict: WeakKeyDictionary[_D, int] = WeakKeyDictionary()
         super().__init__(*objects, **kwargs)
 
-    def add(self, *objects: _D, layer: int | None = None) -> None:
+    def add(self, *objects: _D, layer: int | None = None, top_of_layer: bool = True) -> None:
         if not objects:
             return
+        insort = insort_right if top_of_layer else insort_left
         layer_dict: WeakKeyDictionary[_D, int] = self.__layer_dict
         drawable_list: list[_D] = self.data
         if layer is None:
             layer = self.__default_layer
+        else:
+            layer = int(layer)
         for d in filterfalse(drawable_list.__contains__, objects):
             layer_dict.setdefault(d, layer)
-            insort_right(drawable_list, d, key=layer_dict.__getitem__)
+            insort(drawable_list, d, key=layer_dict.__getitem__)
             if not d.has_group(self):
                 try:
                     d.add_to_group(self)
@@ -293,12 +290,16 @@ class LayeredDrawableGroup(DrawableGroup[_D]):
         super().add(*objects)
 
     def remove(self, *objects: _D) -> None:
+        valid_objects = [d for d in objects if d in self.data]
         try:
             super().remove(*objects)
         finally:
-            for d in objects:
+            for d in valid_objects:
                 if d not in self.data:
-                    self.__layer_dict.pop(d, None)
+                    try:
+                        self.__layer_dict.pop(d, None)
+                    except TypeError:
+                        continue
 
     def pop(self, index: SupportsIndex = -1) -> _D:
         d: _D = super().pop(index=index)
@@ -312,7 +313,10 @@ class LayeredDrawableGroup(DrawableGroup[_D]):
         finally:
             for d in objects:
                 if d not in self.data:
-                    self.__layer_dict.pop(d, None)
+                    try:
+                        self.__layer_dict.pop(d, None)
+                    except TypeError:
+                        continue
 
     def get_layer(self, obj: _D) -> int:
         layer_dict: WeakKeyDictionary[_D, int] = self.__layer_dict
@@ -337,9 +341,13 @@ class LayeredDrawableGroup(DrawableGroup[_D]):
         insort(drawable_list, obj, key=layer_dict.__getitem__)
 
     def get_top_layer(self) -> int:
+        if not self.data:
+            return self.__default_layer
         return self.__layer_dict[self.data[-1]]
 
     def get_bottom_layer(self) -> int:
+        if not self.data:
+            return self.__default_layer
         return self.__layer_dict[self.data[0]]
 
     def get_top(self) -> _D:
@@ -348,11 +356,15 @@ class LayeredDrawableGroup(DrawableGroup[_D]):
     def get_bottom(self) -> _D:
         return self.data[0]
 
-    def move_to_front(self, obj: _D, *, top_of_layer: bool = True) -> None:
-        self.change_layer(obj, self.get_top_layer(), top_of_layer=top_of_layer)
+    def move_to_front(self, obj: _D, *, before_first: bool = False, top_of_layer: bool = True) -> None:
+        if not before_first:
+            top_of_layer = True
+        self.change_layer(obj, self.get_top_layer() + bool(before_first), top_of_layer=top_of_layer)
 
-    def move_to_back(self, obj: _D, *, after_last: bool = True, top_of_layer: bool = False) -> None:
-        self.change_layer(obj, self.get_bottom_layer() - int(bool(after_last)), top_of_layer=top_of_layer)
+    def move_to_back(self, obj: _D, *, after_last: bool = False, top_of_layer: bool = False) -> None:
+        if not after_last:
+            top_of_layer = False
+        self.change_layer(obj, self.get_bottom_layer() - bool(after_last), top_of_layer=top_of_layer)
 
     def iter_in_layer(self, layer: int) -> Iterator[_D]:
         layer_dict = self.__layer_dict
@@ -372,12 +384,37 @@ class LayeredDrawableGroup(DrawableGroup[_D]):
         self.remove(*drawable_list)
         return drawable_list
 
+    def reset_layers(self) -> None:
+        layer_dict = self.__layer_dict
+        default_layer = self.__default_layer
+        self.data = sorted(set(self.data), key=lambda obj: layer_dict.setdefault(obj, default_layer))
+        for obj in [obj for obj in layer_dict.keys() if obj not in self.data]:
+            del layer_dict[obj]
+
     def switch_layer(self, layer1: int, layer2: int) -> None:
+        if layer1 == layer2:
+            return
+        if layer1 > layer2:
+            layer1, layer2 = layer2, layer1
+
+        layer_dict = self.__layer_dict
+        drawable_list_layer1: deque[_D] = deque()
+        drawable_list_layer2: deque[_D] = deque()
+        for item in (
+            (item, layer)
+            for item in dropwhile(lambda item: layer_dict[item] < layer1, self.data)
+            if (layer := layer_dict[item]) <= layer2
+        ):
+            if item[1] == layer1:
+                drawable_list_layer1.append(item[0])
+            elif item[1] == layer2:
+                drawable_list_layer2.append(item[0])
+
         change_layer = self.change_layer
-        drawable_list_layer1: Sequence[_D] = self.remove_layer(layer1)
-        for d in self.get_from_layer(layer2):
+        for d in drawable_list_layer2:
             change_layer(d, layer1, top_of_layer=True)
-        self.add(*drawable_list_layer1, layer=layer2)
+        for d in drawable_list_layer1:
+            change_layer(d, layer2, top_of_layer=True)
 
     @property
     def default_layer(self) -> int:
