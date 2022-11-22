@@ -17,15 +17,10 @@ from socket import socket as Socket
 from threading import RLock
 from typing import TYPE_CHECKING, Any, Generic, Iterator, Literal, TypeAlias, TypeVar, overload
 
-if TYPE_CHECKING:
-    from selectors import BaseSelector
-
-    _Selector: type[BaseSelector]
-
 try:
     from selectors import PollSelector as _Selector  # type: ignore[attr-defined]
 except ImportError:
-    from selectors import SelectSelector as _Selector  # type: ignore[misc]
+    from selectors import SelectSelector as _Selector  # type: ignore[misc,assignment]
 
 from ..system.object import Object, final
 from ..system.utils.abc import concreteclass
