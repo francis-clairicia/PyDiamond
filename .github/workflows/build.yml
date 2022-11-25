@@ -76,17 +76,18 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Setup Python ${{ matrix.python_version }}
+        id: setup-python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python_version }}
       - name: Install dependencies
-        run: pip install tox
+        run: pip install tox tox-gh-actions~=2.11
       - name: Restore tox environment
         uses: actions/cache@v3
         with:
           path: .tox
-          key: ${{ runner.os }}-${{ github.workflow }}-${{ github.job }}-tox-${{ hashFiles('tox.ini') }}
-          restore-keys: ${{ runner.os }}-${{ github.workflow }}-${{ github.job }}-tox-
+          key: ${{ runner.os }}-${{ github.workflow }}-${{ github.job }}-tox-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('tox.ini') }}
+          restore-keys: ${{ runner.os }}-${{ github.workflow }}-${{ github.job }}-tox-${{ steps.setup-python.outputs.python-version }}-
       - name: Launch tests
         run: tox
 
