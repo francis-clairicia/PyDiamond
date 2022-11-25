@@ -76,12 +76,18 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Setup Python ${{ matrix.python_version }}
+        id: setup-python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python_version }}
-      - run: python -m pip install --upgrade pip
       - name: Install dependencies
-        run: pip install tox
+        run: pip install tox tox-gh-actions~=2.11
+      - name: Restore tox environment
+        uses: actions/cache@v3
+        with:
+          path: .tox
+          key: ${{ runner.os }}-${{ github.workflow }}-${{ github.job }}-tox-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('tox.ini') }}
+          restore-keys: ${{ runner.os }}-${{ github.workflow }}-${{ github.job }}-tox-${{ steps.setup-python.outputs.python-version }}-
       - name: Launch tests
         run: tox
 
@@ -95,9 +101,8 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      - run: python -m pip install --upgrade pip
       - name: Install dependencies
-        run: pip install flit
+        run: pip install tox
       - name: Compute SOURCE_DATE_EPOCH from commit date
         if: env.SOURCE_DATE_EPOCH == ''
         run: |
@@ -105,29 +110,9 @@ jobs:
           echo "Using SOURCE_DATE_EPOCH=${date}"
           echo "SOURCE_DATE_EPOCH=${date}" >> $GITHUB_ENV
       - name: Build packages
-        run: flit build
+        run: tox -e build
       - name: Upload packages as artifacts
         uses: actions/upload-artifact@v3
         with:
           name: ${{ inputs.artifact-name || 'pydiamond-dist' }}
           path: dist
-
-  check:
-    needs: build
-    runs-on: ubuntu-latest
-    
-    name: Post-build checks
-    steps:
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-      - name: Install dependencies
-        run: |
-          pip install twine
-      - name: Retrieve packages
-        uses: actions/download-artifact@v3
-        with:
-          name: ${{ inputs.artifact-name || 'pydiamond-dist' }}
-          path: dist
-      - name: twine check
-        run: twine check --strict dist/*
