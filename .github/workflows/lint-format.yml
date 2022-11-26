@@ -9,6 +9,7 @@ on:
     paths:
       - '**.py'
       - '**.pyi'
+      - '.flake8'
       - 'tox.ini'
       - 'pyproject.toml'
   push:
@@ -20,6 +21,7 @@ on:
     paths:
       - '**.py'
       - '**.pyi'
+      - '.flake8'
       - 'tox.ini'
       - 'pyproject.toml'
       # include current file
