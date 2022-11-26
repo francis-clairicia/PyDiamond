@@ -8,6 +8,7 @@ on:
       - synchronize
     paths:
       - '**.py'
+      - '**.pyi'
       - 'tox.ini'
       - 'pyproject.toml'
   push:
@@ -18,6 +19,7 @@ on:
       - '*'
     paths:
       - '**.py'
+      - '**.pyi'
       - 'tox.ini'
       - 'pyproject.toml'
       # include current file
