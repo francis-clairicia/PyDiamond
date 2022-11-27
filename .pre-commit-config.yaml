@@ -1,15 +1,24 @@
 default_language_version:
     python: python3.10
 minimum_pre_commit_version: '2.20.0'
-exclude: ^(demo_resources|.github)/
+exclude: ^(demo_resources|\.github)/
 
 repos:
   - repo: local
     hooks:
       - id: mypy
-        name: mypy
+        name: mypy (project)
         entry: tox -q -e mypy
         language: system
+        files: ^((src|tests)/|demo\.py)
+        types_or: [python, pyi]
+        require_serial: true
+        pass_filenames: false
+      - id: mypy
+        name: mypy (devtools)
+        entry: tox -q -e mypy -- ./devtools
+        language: system
+        files: ^devtools/
         types_or: [python, pyi]
         require_serial: true
         pass_filenames: false
