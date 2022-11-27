@@ -13,24 +13,18 @@ repos:
         types_or: [python, pyi]
         require_serial: true
         pass_filenames: false
-  - repo: local
-    hooks:
       - id: isort
         name: isort
         entry: tox -q -e isort --
         language: system
         types_or: [python, pyi]
         require_serial: true
-  - repo: local
-    hooks:
       - id: black
         name: black
         entry: tox -q -e black --
         language: system
         types_or: [python, pyi]
         require_serial: true
-  - repo: local
-    hooks:
       - id: flake8
         name: flake8
         entry: tox -q -e flake8 --
