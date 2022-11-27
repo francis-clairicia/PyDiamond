@@ -25,6 +25,7 @@ repo:	pip-sync
 
 pip-sync:	$(VIRTUALENV_DIR)
 	$(PIP_SYNC) $(PIP_SYNC_FLAGS) $(REQUIREMENTS_FILES)
+	$(VIRTUALENV_DIR)/bin/flit install --pth-file --deps=none
 
 pip-compile:	$(REQUIREMENTS_FILES)
 
@@ -43,6 +44,7 @@ $(VIRTUALENV_DIR):
 	python3 -m venv $@
 	$@/bin/python -m pip install --upgrade pip
 	$@/bin/pip install pip-tools $(addprefix -r, $(REQUIREMENTS_FILES))
+	$@/bin/flit install --pth-file --deps=none
 
 
 .PHONY: all repo pip-compile pip-sync pip-update pip-upgrade FORCE
