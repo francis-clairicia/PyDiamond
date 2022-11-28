@@ -10,6 +10,7 @@ on:
       - '**/.gitignore'
       - '**/LICENSE'
       - '.bumpversion.cfg'
+      - '.pre-commit-config.yaml'
       - '**.md'
   push:
     branches:
@@ -22,6 +23,7 @@ on:
       - '**/.gitignore'
       - '**/LICENSE'
       - '.bumpversion.cfg'
+      - '.pre-commit-config.yaml'
       - '**.md'
       - '.github/scripts/**'
       - '.github/workflows/*.yml'
