@@ -36,7 +36,7 @@ Homepage = "https://github.com/francis-clairicia/PyDiamond"
 
 [project.optional-dependencies]
 test = [
-  "pytest~=7.1.2",
+  "pytest~=7.2",
   "pytest-mock~=3.10.0",
 ]
 dev = [
