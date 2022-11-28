@@ -41,7 +41,6 @@ jobs:
           cache: 'pip'
           cache-dependency-path: '**/requirements-dev.txt'
       - name: Install dependencies
-        if: steps.setup-python.outputs.cache-hit != 'true'
         run: pip install tox -c requirements-dev.txt
       - name: Restore tox environment
         uses: actions/cache@v3
@@ -71,7 +70,6 @@ jobs:
           cache: 'pip'
           cache-dependency-path: '**/requirements-dev.txt'
       - name: Install dependencies
-        if: steps.setup-python.outputs.cache-hit != 'true'
         run: pip install tox -c requirements-dev.txt
       - name: Restore tox environment
         uses: actions/cache@v3
