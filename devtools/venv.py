@@ -37,7 +37,7 @@ class VenvCommand(AbstractCommand):
 
         if config.venv_dir.is_dir():
             if log_if_already_created:
-                self.log("Nothing to do. Run python -m devtools pip-sync if you want to be up-to-date with requirements")
+                self.log(f"Nothing to do. Run python3 -m {__package__} pip-sync if you want to be up-to-date with requirements")
             return 0
 
         venv.create(config.venv_dir, clear=True, with_pip=True)
