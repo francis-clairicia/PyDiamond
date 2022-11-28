@@ -7,18 +7,10 @@ repos:
   - repo: local
     hooks:
       - id: mypy
-        name: mypy (project)
+        name: mypy
         entry: tox -q -e mypy
         language: system
-        files: ^((src|tests)/|demo\.py)
-        types_or: [python, pyi]
-        require_serial: true
-        pass_filenames: false
-      - id: mypy
-        name: mypy (devtools)
-        entry: tox -q -e mypy -- ./devtools
-        language: system
-        files: ^devtools/
+        files: ^((src|tests|devtools)/|demo\.py)
         types_or: [python, pyi]
         require_serial: true
         pass_filenames: false
