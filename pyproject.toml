@@ -34,6 +34,23 @@ keywords = ["game", "game-engine", "game-development", "pygame", "pygame-library
 [project.urls]
 Homepage = "https://github.com/francis-clairicia/PyDiamond"
 
+[project.optional-dependencies]
+test = [
+  "pytest~=7.2",
+  "pytest-mock~=3.10.0",
+]
+dev = [
+  "mypy==0.991",
+  "isort>=5.10.1",
+  "black>=22.6.0",
+  "flake8>=5.0.4",
+  "bump2version>=1.0.1",
+  "tox>=3.27.1",
+  "pip-tools>=6.10.0",
+  "flit>=3.7.1,<4",
+  "pre-commit>=2.20.0",
+]
+
 ############################ Flit configuration ############################
 [tool.flit.module]
 name = "pydiamond"
@@ -60,6 +77,7 @@ line-length = 130
 target-version = ["py310"]
 
 [tool.mypy]
+mypy_path = "$MYPY_CONFIG_FILE_DIR/src"
 python_version = "3.10"
 show_error_codes = true
 warn_unused_configs = true
