@@ -17,7 +17,7 @@ from .venv import VenvCommand
 class _AbstractPipToolsCommand(AbstractCommand):
     def __init__(self, config: Configuration, command: str) -> None:
         super().__init__(config)
-        piptools = config.get_module_exec("piptools", python_args=["-Wignore::UserWarning:_distutils_hack"])
+        piptools = config.get_module_exec("piptools", python_options=["-Wignore::UserWarning:_distutils_hack"])
         self.cmd: str = f"{piptools} {command}"
 
 
@@ -94,7 +94,7 @@ class PipSyncCommand(_AbstractPipToolsCommand):
         VenvCommand(self.config).create()
 
         self.exec_command(self.cmd, *self.default_options, *options, *REQUIREMENTS_FILES, check=True)
-        self.exec_command(self.config.get_script("flit"), "install", "--pth-file", "--deps=none")
+        self.exec_python_script("flit", "install", "--pth-file", "--deps=none")
 
 
 @final

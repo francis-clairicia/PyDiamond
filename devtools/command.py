@@ -21,8 +21,8 @@ class Configuration:
     def get_script(self, name: str) -> Path:
         return self.venv_dir / "bin" / name
 
-    def get_module_exec(self, name: str, *, python_args: Sequence[str] = ()) -> str:
-        return shlex.join([os.fspath(self.python_path), *python_args, "-m", name])
+    def get_module_exec(self, name: str, *, python_options: Sequence[str] = ()) -> str:
+        return shlex.join([os.fspath(self.python_path), *python_options, "-m", name])
 
     @property
     def python_path(self) -> Path:
@@ -67,3 +67,9 @@ class AbstractCommand(metaclass=ABCMeta):
         whole_cmd_args = [*shlex.split(os.fsdecode(cmd)), *args]
         self.log(shlex.join(whole_cmd_args))
         return subprocess.run(whole_cmd_args, check=check).returncode
+
+    def exec_python_script(self, name: str, *args: str, check: bool = True) -> int:
+        return self.exec_command(self.config.get_script(name), *args, check=check)
+
+    def exec_module(self, name: str, *args: str, python_options: Sequence[str] = (), check: bool = True) -> int:
+        return self.exec_command(self.config.get_module_exec(name, python_options=python_options), *args, check=check)

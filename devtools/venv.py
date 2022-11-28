@@ -42,8 +42,8 @@ class VenvCommand(AbstractCommand):
 
         venv.create(config.venv_dir, clear=True, with_pip=True)
 
-        self.exec_command(config.get_module_exec("pip"), "install", "--upgrade", "pip")
-        self.exec_command(config.get_module_exec("pip"), "install", "pip-tools", *(f"-r{f}" for f in REQUIREMENTS_FILES))
-        self.exec_command(config.get_script("flit"), "install", "--pth-file", "--deps=none")
+        self.exec_module("pip", "install", "--upgrade", "pip")
+        self.exec_module("pip", "install", "pip-tools", *(f"-r{f}" for f in REQUIREMENTS_FILES))
+        self.exec_python_script("flit", "install", "--pth-file", "--deps=none")
 
         return 0
