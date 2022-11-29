@@ -12,6 +12,8 @@ cryptography==38.0.4
     # via pydiamond-engine (pyproject.toml)
 exceptiongroup==1.0.4
     # via pytest
+execnet==1.9.0
+    # via pytest-xdist
 iniconfig==1.1.1
     # via pytest
 packaging==21.3
@@ -28,7 +30,10 @@ pytest==7.2.0
     # via
     #   pydiamond-engine (pyproject.toml)
     #   pytest-mock
+    #   pytest-xdist
 pytest-mock==3.10.0
+    # via pydiamond-engine (pyproject.toml)
+pytest-xdist==3.0.2
     # via pydiamond-engine (pyproject.toml)
 tomli==2.0.1
     # via pytest

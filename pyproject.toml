@@ -38,6 +38,7 @@ Homepage = "https://github.com/francis-clairicia/PyDiamond"
 test = [
   "pytest~=7.2",
   "pytest-mock~=3.10.0",
+  "pytest-xdist~=3.0.1",
 ]
 dev = [
   "mypy==0.991",
