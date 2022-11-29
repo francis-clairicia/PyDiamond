@@ -46,8 +46,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: .tox
-          key: ${{ github.workflow }}-${{ github.job }}-tox-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('tox.ini') }}
-          restore-keys: ${{ github.workflow }}-${{ github.job }}-tox-${{ steps.setup-python.outputs.python-version }}-
+          key: ${{ runner.os }}-${{ github.workflow }}-${{ github.job }}-tox-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('tox.ini', '**/requirements*.txt') }}
       - name: Launch checks
         run: tox -e black,isort --parallel
         env:
@@ -75,8 +74,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: .tox
-          key: ${{ runner.os }}-${{ github.workflow }}-${{ github.job }}-tox-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('tox.ini') }}
-          restore-keys: ${{ runner.os }}-${{ github.workflow }}-${{ github.job }}-tox-${{ steps.setup-python.outputs.python-version }}-
+          key: ${{ runner.os }}-${{ github.workflow }}-${{ github.job }}-tox-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('tox.ini', '**/requirements*.txt') }}
       - name: Launch checks
         run: tox -e mypy,flake8 --parallel
         env:
