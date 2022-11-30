@@ -7,6 +7,7 @@ __all__ = ["AbstractCommand"]
 import os
 import shlex
 import subprocess
+import sys
 from abc import ABCMeta, abstractmethod
 from argparse import ArgumentParser
 from dataclasses import dataclass
@@ -19,14 +20,18 @@ class Configuration:
     venv_dir: Path
 
     def get_script(self, name: str) -> Path:
-        return self.venv_dir / "bin" / name
+        if sys.platform == "win32":
+            binpath = "Scripts"
+        else:
+            binpath = "bin"
+        return self.venv_dir / binpath / name
 
     def get_module_exec(self, name: str, *, python_options: Sequence[str] = ()) -> str:
         return shlex.join([os.fspath(self.python_path), *python_options, "-m", name])
 
     @property
     def python_path(self) -> Path:
-        return self.get_script("python3")
+        return self.get_script("python")
 
 
 class AbstractCommand(metaclass=ABCMeta):
@@ -63,8 +68,11 @@ class AbstractCommand(metaclass=ABCMeta):
             end = "\n"
         print(*args, sep=sep, end=end)
 
-    def exec_command(self, cmd: str | bytes | os.PathLike[str] | os.PathLike[bytes], *args: str, check: bool = True) -> int:
-        whole_cmd_args = [*shlex.split(os.fsdecode(cmd)), *args]
+    def exec_command(self, cmd: str | os.PathLike[str], *args: str, check: bool = True) -> int:
+        if isinstance(cmd, os.PathLike):
+            whole_cmd_args = [os.fspath(cmd), *args]
+        else:
+            whole_cmd_args = [*shlex.split(cmd), *args]
         self.log(shlex.join(whole_cmd_args))
         return subprocess.run(whole_cmd_args, check=check).returncode
 
