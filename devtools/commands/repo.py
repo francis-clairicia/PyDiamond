@@ -37,4 +37,4 @@ class RepoCommand(AbstractCommand):
         VenvCommand(config).create()
         PipSyncCommand(config).sync()
 
-        self.exec_python_script("pre-commit", "install")
+        self.exec_venv_bin("pre-commit", "install")

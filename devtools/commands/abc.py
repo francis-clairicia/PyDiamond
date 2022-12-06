@@ -78,7 +78,7 @@ class AbstractCommand(metaclass=ABCMeta):
             self.log(shlex.join(whole_cmd_args))
         return subprocess.run(whole_cmd_args, check=check, capture_output=capture_output).returncode
 
-    def exec_python_script(
+    def exec_venv_bin(
         self,
         name: str,
         *args: str,
