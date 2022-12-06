@@ -19,19 +19,16 @@ from typing import Any, Sequence
 class Configuration:
     venv_dir: Path
 
-    def get_script(self, name: str) -> Path:
+    def get_exec_bin(self, name: str) -> Path:
         if sys.platform == "win32":
             binpath = "Scripts"
         else:
             binpath = "bin"
         return self.venv_dir / binpath / name
 
-    def get_module_exec(self, name: str, *, python_options: Sequence[str] = ()) -> str:
-        return shlex.join([os.fspath(self.python_path), *python_options, "-m", name])
-
     @property
     def python_path(self) -> Path:
-        return self.get_script("python")
+        return self.get_exec_bin("python")
 
 
 class AbstractCommand(metaclass=ABCMeta):
@@ -76,10 +73,7 @@ class AbstractCommand(metaclass=ABCMeta):
         verbose: bool = True,
         capture_output: bool = False,
     ) -> int:
-        if isinstance(cmd, os.PathLike):
-            whole_cmd_args = [os.fspath(cmd), *args]
-        else:
-            whole_cmd_args = [*shlex.split(cmd), *args]
+        whole_cmd_args = [os.fspath(cmd), *args]
         if verbose:
             self.log(shlex.join(whole_cmd_args))
         return subprocess.run(whole_cmd_args, check=check, capture_output=capture_output).returncode
@@ -92,7 +86,9 @@ class AbstractCommand(metaclass=ABCMeta):
         verbose: bool = True,
         capture_output: bool = False,
     ) -> int:
-        return self.exec_command(self.config.get_script(name), *args, check=check, verbose=verbose, capture_output=capture_output)
+        return self.exec_command(
+            self.config.get_exec_bin(name), *args, check=check, verbose=verbose, capture_output=capture_output
+        )
 
     def exec_module(
         self,
@@ -104,7 +100,10 @@ class AbstractCommand(metaclass=ABCMeta):
         capture_output: bool = False,
     ) -> int:
         return self.exec_command(
-            self.config.get_module_exec(name, python_options=python_options),
+            self.config.python_path,
+            *python_options,
+            "-m",
+            name,
             *args,
             check=check,
             verbose=verbose,

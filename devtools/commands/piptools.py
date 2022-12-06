@@ -15,10 +15,28 @@ from .venv import VenvCommand
 
 
 class _AbstractPipToolsCommand(AbstractCommand):
-    def __init__(self, config: Configuration, command: str) -> None:
+    def __init__(self, config: Configuration, piptools_command: str) -> None:
         super().__init__(config)
-        piptools = config.get_module_exec("piptools", python_options=["-Wignore::UserWarning:_distutils_hack"])
-        self.cmd: str = f"{piptools} {command}"
+        self.piptools_command: str = piptools_command
+
+    def exec_piptools_command(
+        self,
+        *args: str,
+        python_options: Sequence[str] = (),
+        check: bool = True,
+        verbose: bool = True,
+        capture_output: bool = False,
+    ) -> int:
+        python_options = ["-Wignore::UserWarning:_distutils_hack", *python_options]
+        return self.exec_module(
+            "piptools",
+            self.piptools_command,
+            *args,
+            python_options=python_options,
+            check=check,
+            verbose=verbose,
+            capture_output=capture_output,
+        )
 
 
 @final
@@ -29,6 +47,7 @@ class PipCompileCommand(_AbstractPipToolsCommand):
             "--no-allow-unsafe",
             "--resolver=backtracking",
             "--quiet",
+            "--no-header",
         )
 
     @classmethod
@@ -68,7 +87,7 @@ class PipCompileCommand(_AbstractPipToolsCommand):
         if extra is not None:
             extended_options.append(f"--extra={extra}")
         extended_options.append(f"--output-file={requirement_file}")
-        self.exec_command(self.cmd, *self.default_options, *options, *extended_options, "pyproject.toml", check=True)
+        self.exec_piptools_command(*self.default_options, *options, *extended_options, "pyproject.toml", check=True)
 
 
 @final
@@ -93,8 +112,8 @@ class PipSyncCommand(_AbstractPipToolsCommand):
         options = tuple(self.validate_args(options, posargs=False))
         VenvCommand(self.config).create()
 
-        self.exec_command(self.cmd, *self.default_options, *options, *REQUIREMENTS_FILES, check=True)
-        self.exec_python_script("flit", "install", "--pth-file", "--deps=none")
+        self.exec_piptools_command(*self.default_options, *options, *REQUIREMENTS_FILES, check=True)
+        self.exec_module("pip", "install", "--no-deps", "--no-build-isolation", "--editable", ".")
 
 
 @final

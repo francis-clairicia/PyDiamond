@@ -38,13 +38,13 @@ class VenvCommand(AbstractCommand):
         if config.venv_dir.is_dir():
             self.exec_module("pip", "install", "pip-tools", verbose=False, capture_output=True)
             if log_if_already_created:
-                self.log(f"Nothing to do. Run python3 -m {__package__} pip-sync if you want to be up-to-date with requirements")
+                self.log(f"Nothing to do. Run python -m {__package__} pip-sync if you want to be up-to-date with requirements")
             return 0
 
         venv.create(config.venv_dir, clear=True, with_pip=True)
 
         self.exec_module("pip", "install", "--upgrade", "pip")
         self.exec_module("pip", "install", "pip-tools", *(f"-r{f}" for f in REQUIREMENTS_FILES))
-        self.exec_python_script("flit", "install", "--pth-file", "--deps=none")
+        self.exec_module("pip", "install", "--no-deps", "--no-build-isolation", "--editable", ".")
 
         return 0

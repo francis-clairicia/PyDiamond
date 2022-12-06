@@ -50,13 +50,13 @@ repos:
     hooks:
       - id: pip-compile
         name: pip-compile pyproject.toml
-        args: [--no-allow-unsafe, --resolver=backtracking, --quiet, --output-file=requirements.txt, pyproject.toml]
+        args: [--no-allow-unsafe, --resolver=backtracking, --quiet, --no-header, --output-file=requirements.txt, pyproject.toml]
         files: ^(pyproject\.toml|requirements\.txt)$
       - id: pip-compile
         name: pip-compile pyproject.toml (extra==dev)
-        args: [--no-allow-unsafe, --resolver=backtracking, --quiet, --extra=dev, --output-file=requirements-dev.txt, pyproject.toml]
+        args: [--no-allow-unsafe, --resolver=backtracking, --quiet, --no-header, --extra=dev, --output-file=requirements-dev.txt, pyproject.toml]
         files: ^(pyproject\.toml|requirements-dev\.txt)$
       - id: pip-compile
         name: pip-compile pyproject.toml (extra==test)
-        args: [--no-allow-unsafe, --resolver=backtracking, --quiet, --extra=test, --output-file=requirements-test.txt, pyproject.toml]
+        args: [--no-allow-unsafe, --resolver=backtracking, --quiet, --no-header, --extra=test, --output-file=requirements-test.txt, pyproject.toml]
         files: ^(pyproject\.toml|requirements-test\.txt)$
