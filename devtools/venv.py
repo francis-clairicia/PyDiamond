@@ -36,6 +36,7 @@ class VenvCommand(AbstractCommand):
         config = self.config
 
         if config.venv_dir.is_dir():
+            self.exec_module("pip", "install", "pip-tools", verbose=False, capture_output=True)
             if log_if_already_created:
                 self.log(f"Nothing to do. Run python3 -m {__package__} pip-sync if you want to be up-to-date with requirements")
             return 0

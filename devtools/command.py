@@ -68,16 +68,45 @@ class AbstractCommand(metaclass=ABCMeta):
             end = "\n"
         print(*args, sep=sep, end=end)
 
-    def exec_command(self, cmd: str | os.PathLike[str], *args: str, check: bool = True) -> int:
+    def exec_command(
+        self,
+        cmd: str | os.PathLike[str],
+        *args: str,
+        check: bool = True,
+        verbose: bool = True,
+        capture_output: bool = False,
+    ) -> int:
         if isinstance(cmd, os.PathLike):
             whole_cmd_args = [os.fspath(cmd), *args]
         else:
             whole_cmd_args = [*shlex.split(cmd), *args]
-        self.log(shlex.join(whole_cmd_args))
-        return subprocess.run(whole_cmd_args, check=check).returncode
+        if verbose:
+            self.log(shlex.join(whole_cmd_args))
+        return subprocess.run(whole_cmd_args, check=check, capture_output=capture_output).returncode
 
-    def exec_python_script(self, name: str, *args: str, check: bool = True) -> int:
-        return self.exec_command(self.config.get_script(name), *args, check=check)
+    def exec_python_script(
+        self,
+        name: str,
+        *args: str,
+        check: bool = True,
+        verbose: bool = True,
+        capture_output: bool = False,
+    ) -> int:
+        return self.exec_command(self.config.get_script(name), *args, check=check, verbose=verbose, capture_output=capture_output)
 
-    def exec_module(self, name: str, *args: str, python_options: Sequence[str] = (), check: bool = True) -> int:
-        return self.exec_command(self.config.get_module_exec(name, python_options=python_options), *args, check=check)
+    def exec_module(
+        self,
+        name: str,
+        *args: str,
+        python_options: Sequence[str] = (),
+        check: bool = True,
+        verbose: bool = True,
+        capture_output: bool = False,
+    ) -> int:
+        return self.exec_command(
+            self.config.get_module_exec(name, python_options=python_options),
+            *args,
+            check=check,
+            verbose=verbose,
+            capture_output=capture_output,
+        )

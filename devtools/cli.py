@@ -4,6 +4,7 @@ from __future__ import annotations
 
 __all__ = ["main"]
 
+import os
 import sys
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, Namespace
 from pathlib import Path
@@ -36,7 +37,7 @@ def main(args: list[str] | None = None) -> int:
         "--venv-dir",
         dest="venv_dir",
         type=Path,
-        default=Path(".venv"),
+        default=Path(os.environ.get("VIRTUAL_ENV", ".venv")),
         help="virtual env directory",
     )
 
