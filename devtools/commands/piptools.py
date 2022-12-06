@@ -9,8 +9,8 @@ from argparse import ArgumentParser, ArgumentTypeError
 from pathlib import Path
 from typing import Any, Sequence, final
 
-from .command import AbstractCommand, Configuration
-from .constants import REQUIREMENTS_FILES
+from ..constants import REQUIREMENTS_FILES
+from .abc import AbstractCommand, Configuration
 from .venv import VenvCommand
 
 

@@ -10,10 +10,10 @@ from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, Namespace
 from pathlib import Path
 from types import MappingProxyType
 
-from .command import AbstractCommand, Configuration
-from .piptools import PipCompileCommand, PipSyncCommand, PipUpgradeCommand
-from .repo import RepoCommand
-from .venv import VenvCommand
+from .commands.abc import AbstractCommand, Configuration
+from .commands.piptools import PipCompileCommand, PipSyncCommand, PipUpgradeCommand
+from .commands.repo import RepoCommand
+from .commands.venv import VenvCommand
 
 COMMANDS: MappingProxyType[str, type[AbstractCommand]] = MappingProxyType(
     {

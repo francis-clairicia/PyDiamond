@@ -5,7 +5,7 @@ __all__ = ["RepoCommand"]
 from argparse import ArgumentParser
 from typing import Any, Sequence, final
 
-from .command import AbstractCommand, Configuration
+from .abc import AbstractCommand, Configuration
 from .piptools import PipSyncCommand
 from .venv import VenvCommand
 
