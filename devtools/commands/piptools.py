@@ -9,7 +9,7 @@ from argparse import ArgumentParser, ArgumentTypeError
 from pathlib import Path
 from typing import Any, Sequence, final
 
-from ..constants import REQUIREMENTS_FILES
+from ..constants import REQUIREMENTS_FILES, REQUIREMENTS_FILES_EXTRA_REQUIRES, REQUIREMENTS_FILES_INPUT
 from .abc import AbstractCommand, Configuration
 from .venv import VenvCommand
 
@@ -65,6 +65,8 @@ class PipCompileCommand(_AbstractPipToolsCommand):
         filename = Path(file).name
         if re.match(r"^requirements(-\w+)?\.txt$", filename) is None:
             raise ArgumentTypeError(f"Invalid filename {filename!r}")
+        if filename not in REQUIREMENTS_FILES_INPUT:
+            raise ArgumentTypeError(f"Unknown filename {filename!r}")
         return file
 
     def run(self, args: Any, pip_compile_args: Sequence[str]) -> int:
@@ -79,15 +81,16 @@ class PipCompileCommand(_AbstractPipToolsCommand):
 
     def compile(self, requirement_file: str, *options: str) -> None:
         extended_options: list[str] = []
-        extra: str | None
-        if (match := re.match(r"requirements-(\w+)\.txt", Path(requirement_file).name)) is not None:
-            extra = str(match.group(1))
-        else:
-            extra = None
-        if extra is not None:
-            extended_options.append(f"--extra={extra}")
+        requirement_filename = Path(requirement_file).name
+        requirement_input: str = REQUIREMENTS_FILES_INPUT[requirement_filename]
+        if requirement_filename in REQUIREMENTS_FILES_EXTRA_REQUIRES:
+            extra_requires: tuple[str, ...] | None = REQUIREMENTS_FILES_EXTRA_REQUIRES[requirement_filename]
+            if extra_requires is None:
+                extended_options.append("--all-extras")
+            else:
+                extended_options.extend(f"--extra={extra}" for extra in extra_requires)
         extended_options.append(f"--output-file={requirement_file}")
-        self.exec_piptools_command(*self.default_options, *options, *extended_options, "pyproject.toml", check=True)
+        self.exec_piptools_command(*self.default_options, *options, *extended_options, requirement_input, check=True)
 
 
 @final

@@ -1,35 +1,27 @@
 attrs==22.1.0
     # via pytest
-cffi==1.15.1
-    # via cryptography
-cryptography==38.0.4
-    # via pydiamond-engine (pyproject.toml)
+colorama==0.4.6 ; platform_system == "Windows"
+    # via
+    #   -r requirements/requirements-test.in
+    #   pytest
 exceptiongroup==1.0.4
     # via pytest
 execnet==1.9.0
     # via pytest-xdist
 iniconfig==1.1.1
     # via pytest
-packaging==21.3
+packaging==22.0
     # via pytest
 pluggy==1.0.0
     # via pytest
-pycparser==2.21
-    # via cffi
-pygame==2.1.2
-    # via pydiamond-engine (pyproject.toml)
-pyparsing==3.0.9
-    # via packaging
 pytest==7.2.0
     # via
-    #   pydiamond-engine (pyproject.toml)
+    #   -r requirements/requirements-test.in
     #   pytest-mock
     #   pytest-xdist
 pytest-mock==3.10.0
-    # via pydiamond-engine (pyproject.toml)
+    # via -r requirements/requirements-test.in
 pytest-xdist==3.0.2
-    # via pydiamond-engine (pyproject.toml)
+    # via -r requirements/requirements-test.in
 tomli==2.0.1
     # via pytest
-typing-extensions==4.4.0
-    # via pydiamond-engine (pyproject.toml)
