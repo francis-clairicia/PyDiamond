@@ -90,7 +90,7 @@ jobs:
 
   build:
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Bump version:')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     env:
       SOURCE_DATE_EPOCH: ${{ inputs.SOURCE_DATE_EPOCH }}
     steps:

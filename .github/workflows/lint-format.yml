@@ -30,7 +30,7 @@ on:
 jobs:
   format:
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Bump version:')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
       - uses: actions/checkout@v3
