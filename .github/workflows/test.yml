@@ -7,9 +7,9 @@ on:
       - opened
       - synchronize
     paths:
-      - 'src/**'
-      - 'tests/**
-      - 'devtools/**'
+      - 'src/'
+      - 'tests/'
+      - 'devtools/'
       - 'tox.ini'
       - 'pyproject.toml'
       - 'requirements/*.in'
