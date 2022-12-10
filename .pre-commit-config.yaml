@@ -36,7 +36,7 @@ repos:
       - id: isort
         args: ['--check-only', '--filter-files', '--settings-file', 'pyproject.toml']
   - repo: https://github.com/psf/black
-    rev: '22.10.0'  # Keep in sync with requirements-dev.txt
+    rev: '22.12.0'  # Keep in sync with requirements-dev.txt
     hooks:
       - id: black
         args: ['--check', '--config', 'pyproject.toml']
@@ -45,18 +45,9 @@ repos:
     hooks:
       - id: flake8
         args: ['--config', '.flake8']
-  - repo: https://github.com/jazzband/pip-tools
-    rev: '6.10.0'  # Keep in sync with requirements-dev.txt
+  - repo: https://github.com/aio-libs/sort-all
+    rev: 'v1.2.0'
     hooks:
-      - id: pip-compile
-        name: pip-compile pyproject.toml
-        args: [--no-allow-unsafe, --resolver=backtracking, --quiet, --output-file=requirements.txt, pyproject.toml]
-        files: ^(pyproject\.toml|requirements\.txt)$
-      - id: pip-compile
-        name: pip-compile pyproject.toml (extra==dev)
-        args: [--no-allow-unsafe, --resolver=backtracking, --quiet, --extra=dev, --output-file=requirements-dev.txt, pyproject.toml]
-        files: ^(pyproject\.toml|requirements-dev\.txt)$
-      - id: pip-compile
-        name: pip-compile pyproject.toml (extra==test)
-        args: [--no-allow-unsafe, --resolver=backtracking, --quiet, --extra=test, --output-file=requirements-test.txt, pyproject.toml]
-        files: ^(pyproject\.toml|requirements-test\.txt)$
+      - id: sort-all
+        types: []  # Overwrite with empty in order to fallback to types_or
+        types_or: [python, pyi]

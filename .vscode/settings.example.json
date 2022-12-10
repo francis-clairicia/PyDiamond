@@ -1,0 +1,42 @@
+{
+    "python.analysis.extraPaths": [
+        "./src"
+    ],
+    "python.linting.mypyEnabled": true,
+    "python.linting.mypyArgs": [
+        "--config-file=pyproject.toml",
+        "--cache-dir=.vscode/.mypy_cache",
+        "--no-color-output"
+    ],
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnSave": true,
+        "editor.formatOnSaveMode": "file",
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": true
+        },
+        "editor.rulers": [
+            130
+        ]
+    },
+    "black-formatter.args": [
+        "--config",
+        "pyproject.toml"
+    ],
+    "isort.args": [
+        "--settings-file",
+        "pyproject.toml",
+        "--extend-skip-glob",
+        "/usr/lib/python*"
+    ],
+    "python.linting.flake8Enabled": true,
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingImports": "error",
+        "reportAssertAlwaysTrue": "information",
+        "reportDuplicateImport": "warning",
+        "reportMissingModuleSource": "none",
+        "reportUnsupportedDunderAll": "warning",
+        "reportShadowedImports": "none"
+    },
+    "python.analysis.autoImportCompletions": true
+}

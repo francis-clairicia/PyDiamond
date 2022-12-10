@@ -30,27 +30,18 @@ on:
 jobs:
   format:
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Bump version:')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         id: setup-python
         with:
-          python-version: '3.x'
-          cache: 'pip'
-          cache-dependency-path: '**/requirements-dev.txt'
-      - name: Install dependencies
-        run: pip install tox -c requirements-dev.txt
-      - name: Restore tox environment
-        uses: actions/cache@v3
-        with:
-          path: .tox
-          key: ${{ runner.os }}-${{ github.workflow }}-${{ github.job }}-tox-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('tox.ini', '**/requirements*.txt') }}
+          python-version: '3.10'
       - name: Launch checks
-        run: tox -e black,isort --parallel
-        env:
-          TOX_PARALLEL_NO_SPINNER: '1'
+        uses: ./.github/actions/run-tox
+        with:
+          tox-args: -e black,isort,sort-all --parallel
 
   lint:
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Bump version:')
@@ -66,16 +57,7 @@ jobs:
         id: setup-python
         with:
           python-version: '3.10'
-          cache: 'pip'
-          cache-dependency-path: '**/requirements-dev.txt'
-      - name: Install dependencies
-        run: pip install tox -c requirements-dev.txt
-      - name: Restore tox environment
-        uses: actions/cache@v3
-        with:
-          path: .tox
-          key: ${{ runner.os }}-${{ github.workflow }}-${{ github.job }}-tox-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('tox.ini', '**/requirements*.txt') }}
       - name: Launch checks
-        run: tox -e mypy,flake8 --parallel
-        env:
-          TOX_PARALLEL_NO_SPINNER: '1'
+        uses: ./.github/actions/run-tox
+        with:
+          tox-args: -e mypy,flake8 --parallel

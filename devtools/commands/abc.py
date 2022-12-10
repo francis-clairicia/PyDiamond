@@ -17,21 +17,21 @@ from typing import Any, Sequence
 
 @dataclass
 class Configuration:
-    venv_dir: Path
+    venv_dir: Path | None
 
-    def get_script(self, name: str) -> Path:
+    def get_exec_bin(self, name: str) -> str:
+        venv_dir = self.venv_dir
+        if venv_dir is None:
+            return name
         if sys.platform == "win32":
             binpath = "Scripts"
         else:
             binpath = "bin"
-        return self.venv_dir / binpath / name
-
-    def get_module_exec(self, name: str, *, python_options: Sequence[str] = ()) -> str:
-        return shlex.join([os.fspath(self.python_path), *python_options, "-m", name])
+        return os.fspath(venv_dir / binpath / name)
 
     @property
-    def python_path(self) -> Path:
-        return self.get_script("python")
+    def python_path(self) -> str:
+        return self.get_exec_bin("python")
 
 
 class AbstractCommand(metaclass=ABCMeta):
@@ -43,23 +43,13 @@ class AbstractCommand(metaclass=ABCMeta):
         return {}
 
     @classmethod
-    def accepts_unknown_args(cls) -> bool:
-        return True
-
-    @classmethod
     @abstractmethod
     def register_to_parser(cls, parser: ArgumentParser) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def run(self, __args: Any, __unparsed_args: Sequence[str], /) -> int:
+    def run(self, __args: Any, /) -> int:
         raise NotImplementedError
-
-    def validate_args(self, unparsed_args: Sequence[str], *, posargs: bool = False) -> Sequence[str]:
-        unparsed_args = tuple(arg.strip() for arg in unparsed_args)
-        if not posargs and any(not arg.startswith("-") or not arg.lstrip("-") for arg in unparsed_args):
-            raise ValueError("Positional arguments are forbidden")
-        return unparsed_args
 
     def log(self, *args: object, sep: str | None = None, end: str | None = None) -> None:
         if sep is None:
@@ -76,15 +66,19 @@ class AbstractCommand(metaclass=ABCMeta):
         verbose: bool = True,
         capture_output: bool = False,
     ) -> int:
-        if isinstance(cmd, os.PathLike):
-            whole_cmd_args = [os.fspath(cmd), *args]
-        else:
-            whole_cmd_args = [*shlex.split(cmd), *args]
+        whole_cmd_args = [os.fspath(cmd), *args]
         if verbose:
             self.log(shlex.join(whole_cmd_args))
-        return subprocess.run(whole_cmd_args, check=check, capture_output=capture_output).returncode
+        try:
+            return subprocess.run(whole_cmd_args, check=check, capture_output=capture_output).returncode
+        except subprocess.CalledProcessError as exc:
+            if exc.stdout:
+                print(exc.stdout, file=sys.stdout)
+            if exc.stderr:
+                print(exc.stderr, file=sys.stderr)
+            raise
 
-    def exec_python_script(
+    def exec_bin(
         self,
         name: str,
         *args: str,
@@ -92,7 +86,9 @@ class AbstractCommand(metaclass=ABCMeta):
         verbose: bool = True,
         capture_output: bool = False,
     ) -> int:
-        return self.exec_command(self.config.get_script(name), *args, check=check, verbose=verbose, capture_output=capture_output)
+        return self.exec_command(
+            self.config.get_exec_bin(name), *args, check=check, verbose=verbose, capture_output=capture_output
+        )
 
     def exec_module(
         self,
@@ -104,9 +100,21 @@ class AbstractCommand(metaclass=ABCMeta):
         capture_output: bool = False,
     ) -> int:
         return self.exec_command(
-            self.config.get_module_exec(name, python_options=python_options),
+            self.config.python_path,
+            *python_options,
+            "-m",
+            name,
             *args,
             check=check,
+            verbose=verbose,
+            capture_output=capture_output,
+        )
+
+    def ensure_piptools(self, *, verbose: bool = False, capture_output: bool = True) -> None:
+        self.exec_module(
+            "pip",
+            "install",
+            "pip-tools",
             verbose=verbose,
             capture_output=capture_output,
         )
