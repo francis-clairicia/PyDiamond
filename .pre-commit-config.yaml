@@ -45,3 +45,9 @@ repos:
     hooks:
       - id: flake8
         args: ['--config', '.flake8']
+  - repo: https://github.com/aio-libs/sort-all
+    rev: 'v1.2.0'
+    hooks:
+      - id: sort-all
+        types: []  # Overwrite with empty in order to fallback to types_or
+        types_or: [python, pyi]

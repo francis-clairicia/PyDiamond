@@ -41,7 +41,7 @@ jobs:
       - name: Launch checks
         uses: ./.github/actions/run-tox
         with:
-          tox-args: -e black,isort --parallel
+          tox-args: -e black,isort,sort-all --parallel
 
   lint:
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Bump version:')
