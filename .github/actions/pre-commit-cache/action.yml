@@ -1,0 +1,26 @@
+name: pre-commit cache
+description: Handle pre-commit cache
+inputs:
+  cache-dir-path:
+    description: 'pre-commit cache directory path'
+    required: false
+    default: '~/.cache/pre-commit'
+  config-path:
+    description: 'pre-commit configuration filepath'
+    required: false
+    default: '.pre-commit-config.yaml'
+outputs:
+  cache-hit:
+    description: 'A boolean value to indicate an exact match was found.'
+    value: ${{ steps.cache.outputs.cache-hit }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: set PY
+      run: echo "PY=$(python -VV | sha256sum | cut -d' ' -f1)" >> $GITHUB_ENV
+    - uses: actions/cache@v1
+      id: cache
+      with:
+        path: ${{ inputs.cache-dir-path }}
+        key: pre-commit|${{ env.PY }}|${{ hashFiles( inputs.config-path ) }}

@@ -5,6 +5,10 @@ inputs:
     description: 'string to append at the end of the cache key'
     required: false
     default: ''
+outputs:
+  cache-hit:
+    description: 'A boolean value to indicate an exact match was found.'
+    value: ${{ steps.cache.outputs.cache-hit }}
 
 runs:
   using: 'composite'
@@ -24,6 +28,7 @@ runs:
       run: echo version=$(pip freeze | grep tox | grep -v 'tox-' | awk -F'==' '{print $2}') >> $GITHUB_OUTPUT
       shell: bash
     - name: Restore tox environment
+      id: cache
       uses: actions/cache@v3
       with:
         path: .tox
