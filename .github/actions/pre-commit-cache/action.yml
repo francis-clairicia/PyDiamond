@@ -19,6 +19,7 @@ runs:
   steps:
     - name: set PY
       run: echo "PY=$(python -VV | sha256sum | cut -d' ' -f1)" >> $GITHUB_ENV
+      shell: bash
     - uses: actions/cache@v1
       id: cache
       with:
