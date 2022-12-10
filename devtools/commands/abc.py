@@ -115,8 +115,6 @@ class AbstractCommand(metaclass=ABCMeta):
             "pip",
             "install",
             "pip-tools",
-            "-c",
-            "requirements/requirements-dev.in",
             verbose=verbose,
             capture_output=capture_output,
         )
