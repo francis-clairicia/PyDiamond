@@ -5,16 +5,14 @@ inputs:
     description: 'tox arguments'
     required: false
     default: ''
-    type: string
   tox-workdir:
     description: 'tox working directory (must be the same as defined in configuration)'
     required: false
     default: '.tox'
   tox-ini-file:
     description: 'tox configuration file'
-      required: false
-      default: 'tox.ini'
-      type: string
+    required: false
+    default: 'tox.ini'
 
 runs:
   using: 'composite'
