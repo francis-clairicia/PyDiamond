@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-__all__ = ["REQUIREMENTS_FILES", "REQUIREMENTS_FILES_INPUT"]
+__all__ = ["REQUIREMENTS_FILES", "REQUIREMENTS_FILES_EXTRA_REQUIRES", "REQUIREMENTS_FILES_INPUT"]
 
 from types import MappingProxyType
 
