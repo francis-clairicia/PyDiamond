@@ -32,6 +32,10 @@ on:
       - 'requirements/*.in'
       - '.github/workflows/lint-format.yml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
 jobs:
   format:
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Bump version:')
