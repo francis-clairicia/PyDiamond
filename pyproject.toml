@@ -39,9 +39,20 @@ Homepage = "https://github.com/francis-clairicia/PyDiamond"
 name = "pydiamond"
 
 [tool.flit.sdist]
+include = [
+  ".flake8",
+  "tox.ini",
+]
 exclude = [
   ".github/",
+  ".vscode/",
   "demo_resources/",
+  "devtools/",
+  "requirements/",
+  "tests/",
+  ".gitignore",
+  ".bumpversion.cfg",
+  ".pre-commit-config.yaml",
   "demo.py",
 ]
 

@@ -1,5 +1,6 @@
 # PyDiamond
-[![Build and test](https://github.com/francis-clairicia/PyDiamond/actions/workflows/build.yml/badge.svg)](https://github.com/francis-clairicia/PyDiamond/actions/workflows/build.yml)
+[![Build](https://github.com/francis-clairicia/PyDiamond/actions/workflows/build.yml/badge.svg)](https://github.com/francis-clairicia/PyDiamond/actions/workflows/build.yml)
+[![Test](https://github.com/francis-clairicia/PyDiamond/actions/workflows/test.yml/badge.svg)](https://github.com/francis-clairicia/PyDiamond/actions/workflows/test.yml)
 [![Lint/Format](https://github.com/francis-clairicia/PyDiamond/actions/workflows/lint-format.yml/badge.svg)](https://github.com/francis-clairicia/PyDiamond/actions/workflows/lint-format.yml)
 [![PyPI](https://img.shields.io/pypi/v/pydiamond-engine)](https://pypi.org/project/pydiamond-engine/)
 [![PyPI - License](https://img.shields.io/pypi/l/pydiamond-engine)](https://github.com/francis-clairicia/PyDiamond/blob/main/LICENSE)

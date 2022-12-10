@@ -1,8 +1,8 @@
-name: 'Run tox'
-description: 'Run tox command'
+name: 'Setup tox'
+description: 'Install tox and restore cache'
 inputs:
-  tox-args:
-    description: 'tox arguments'
+  cache-key-suffix:
+    description: 'string to append at the end of the cache key'
     required: false
     default: ''
 
@@ -27,9 +27,4 @@ runs:
       uses: actions/cache@v3
       with:
         path: .tox
-        key: ${{ runner.os }}-${{ github.workflow }}-${{ github.job }}-tox-${{ steps.tox.outputs.version }}-python-${{ steps.python.outputs.version }}-${{ hashFiles( 'tox.ini' , 'requirements*.txt', '.pre-commit-config.yaml') }}
-    - name: Launch tox
-      run: tox ${{ inputs.tox-args }}
-      shell: bash
-      env:
-        TOX_PARALLEL_NO_SPINNER: '1'
+        key: ${{ runner.os }}-${{ github.workflow }}-${{ github.job }}-tox-${{ steps.tox.outputs.version }}-python-${{ steps.python.outputs.version }}-${{ hashFiles( 'tox.ini' , 'requirements*.txt', '.pre-commit-config.yaml') }}-${{ inputs.cache-key-suffix }}
