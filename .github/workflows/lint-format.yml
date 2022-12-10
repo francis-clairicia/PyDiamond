@@ -7,11 +7,15 @@ on:
       - opened
       - synchronize
     paths:
-      - '**.py'
-      - '**.pyi'
+      - 'src/**.pyi?'
+      - 'tests/**.pyi?'
+      - 'devtools/**.pyi?'
       - '.flake8'
+      - '.pre-commit-config.yaml'
       - 'tox.ini'
       - 'pyproject.toml'
+      - 'requirements/*.in'
+      - '.github/workflows/lint-format.yml'
   push:
     branches:
       - main
@@ -19,13 +23,18 @@ on:
     tags-ignore:
       - '*'
     paths:
-      - '**.py'
-      - '**.pyi'
+      - '**.pyi?'
+      - '!.github/**.pyi?'
       - '.flake8'
+      - '.pre-commit-config.yaml'
       - 'tox.ini'
       - 'pyproject.toml'
-      # include current file
+      - 'requirements/*.in'
       - '.github/workflows/lint-format.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
 
 jobs:
   format:
@@ -38,10 +47,13 @@ jobs:
         id: setup-python
         with:
           python-version: '3.10'
+      - name: Setup tox
+        uses: ./.github/actions/setup-tox
       - name: Launch checks
-        uses: ./.github/actions/run-tox
-        with:
-          tox-args: -e black,isort,sort-all --parallel
+        run: tox -e black,isort,sort-all --parallel
+        env:
+          TOX_PARALLEL_NO_SPINNER: '1'
+
 
   lint:
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Bump version:')
@@ -57,7 +69,9 @@ jobs:
         id: setup-python
         with:
           python-version: '3.10'
+      - name: Setup tox
+        uses: ./.github/actions/setup-tox
       - name: Launch checks
-        uses: ./.github/actions/run-tox
-        with:
-          tox-args: -e mypy,flake8 --parallel
+        run: tox -e mypy,flake8 --parallel
+        env:
+          TOX_PARALLEL_NO_SPINNER: '1'
