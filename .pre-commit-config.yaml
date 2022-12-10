@@ -1,7 +1,6 @@
 default_language_version:
   python: python3.10
 minimum_pre_commit_version: '2.20.0'
-exclude: ^(demo_resources|\.github)/
 
 repos:
   - repo: local
@@ -34,21 +33,25 @@ repos:
     rev: '5.10.1'  # Keep in sync with requirements-dev.txt
     hooks:
       - id: isort
+        exclude: ^(demo_resources|\.github)/
         args: ['--check-only', '--filter-files', '--settings-file', 'pyproject.toml']
   - repo: https://github.com/psf/black
     rev: '22.12.0'  # Keep in sync with requirements-dev.txt
     hooks:
       - id: black
+        exclude: ^(demo_resources|\.github)/
         args: ['--check', '--config', 'pyproject.toml']
   - repo: https://github.com/PyCQA/flake8
     rev: '6.0.0'  # Keep in sync with requirements-dev.txt
     hooks:
       - id: flake8
+        exclude: ^(demo_resources|\.github)/
         args: ['--config', '.flake8']
   - repo: https://github.com/aio-libs/sort-all
     rev: 'v1.2.0'
     hooks:
       - id: sort-all
+        exclude: ^(demo_resources|\.github)/
         types: []  # Overwrite with empty in order to fallback to types_or
         types_or: [python, pyi]
   - repo: https://github.com/pre-commit/pre-commit-hooks
