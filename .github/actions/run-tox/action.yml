@@ -25,7 +25,7 @@ runs:
       shell: bash
     - name: Get tox package info
       id: tox
-      run: echo version=$(pip freeze | grep tox | awk -F'==' '{print $2}') >> $GITHUB_OUTPUT
+      run: echo version=$(pip freeze | grep tox | grep -v 'tox-' | awk -F'==' '{print $2}') >> $GITHUB_OUTPUT
       shell: bash
     - name: Restore tox environment
       uses: actions/cache@v3
