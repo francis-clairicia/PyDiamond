@@ -1,0 +1,38 @@
+name: 'Run tox'
+description: 'Run tox command'
+inputs:
+  tox-args:
+    description: 'tox arguments'
+    required: false
+    default: ''
+    type: string
+  tox-workdir:
+    description: 'tox working directory (must be the same as defined in configuration)'
+    required: false
+    default: '.tox'
+  tox-ini-file:
+    description: 'tox configuration file'
+      required: false
+      default: 'tox.ini'
+      type: string
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Compile requirements
+      run: python -m devtools --no-venv repo --no-sync --no-pre-commit-install
+    - name: Install dependencies
+      run: pip install tox tox-gh-actions==2.11.0 -c requirements-dev.txt
+    - name: Get tox package info
+      id: tox
+      run: echo version=$(pip freeze | grep tox | awk -F'==' '{print $2}') >> $GITHUB_OUTPUT
+      shell: bash
+    - name: Restore tox environment
+      uses: actions/cache@v3
+      with:
+        path: ${{ inputs.tox-workdir }}
+        key: ${{ runner.os }}-${{ github.workflow }}-${{ github.job }}-tox-${{ steps.tox.outputs.version }}-python-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles( inputs.tox-ini-file , '**/requirements*.txt') }}
+    - name: Launch tox
+      run: tox ${{ inputs.tox-args }}
+      env:
+        TOX_PARALLEL_NO_SPINNER: '1'

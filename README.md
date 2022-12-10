@@ -13,6 +13,12 @@ PyDiamond engine is a game engine for Python game developers.
 
 The framework uses the popular [pygame library](https://github.com/pygame/pygame/).
 
+## Installation
+The installation can be done using `pip`:
+```
+pip install pydiamond-engine
+```
+
 ## Usage
 Example with the minimal requirements:
 ```py
@@ -38,20 +44,22 @@ This code will open a small window.
 ### Documentation
 Coming soon. :)
 
-## Dependencies
+## Development
+### Dependencies
 PyDiamond is developed based on pygame and Python (obviously). In addition, some features of pygame are available with a specific version of the SDL.
 
 Dependency version:
 - CPython >= 3.10
 - pygame == 2.1.2
-- SDL >= 2.0.16
-- SDL_image >= 2.0.0
-- SDL_mixer >= 2.0.0
-- Other python dependencies referred by `requirements.txt`
+- SDL >= 2.0.16 (vendored in pygame)
+- SDL_image >= 2.0.0 (vendored in pygame)
+- SDL_mixer >= 2.0.0 (vendored in pygame)
+- Other python dependencies referred by `pyproject.toml`
 
+### Setup
 Use the following command to install all the necessary dependencies
 ```sh
-python3 -m pip install -r requirements.txt
+python -m devtools repo
 ```
 
 ## Credits

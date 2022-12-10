@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-__all__ = ["PipCompileCommand", "PipSyncCommand"]
+__all__ = ["EnsurePipToolsInstalledCommand", "PipCompileCommand", "PipSyncCommand"]
 
 import re
 from argparse import ArgumentParser, ArgumentTypeError
@@ -38,6 +38,13 @@ class _AbstractPipToolsCommand(AbstractCommand):
             capture_output=capture_output,
         )
 
+    @staticmethod
+    def validate_posarg(arg: str) -> str:
+        arg = arg.strip()
+        if not arg.startswith("-") or not arg.lstrip("-"):
+            raise ArgumentTypeError("Non-option arguments are forbidden")
+        return arg
+
 
 @final
 class PipCompileCommand(_AbstractPipToolsCommand):
@@ -48,6 +55,7 @@ class PipCompileCommand(_AbstractPipToolsCommand):
             "--resolver=backtracking",
             "--quiet",
             "--no-header",
+            "--newline=LF",
         )
 
     @classmethod
@@ -57,7 +65,10 @@ class PipCompileCommand(_AbstractPipToolsCommand):
     @classmethod
     def register_to_parser(cls, parser: ArgumentParser) -> None:
         parser.add_argument(
-            "files", type=cls.validate_filename, nargs="*", default=REQUIREMENTS_FILES, help="requirements.txt files to compile"
+            "--files", type=cls.validate_filename, nargs="*", default=REQUIREMENTS_FILES, help="requirements.txt files to compile"
+        )
+        parser.add_argument(
+            "pip_compile_args", type=cls.validate_posarg, default=[], nargs="*", metavar="OPTION", help="pip-compile options"
         )
 
     @staticmethod
@@ -69,7 +80,8 @@ class PipCompileCommand(_AbstractPipToolsCommand):
             raise ArgumentTypeError(f"Unknown filename {filename!r}")
         return file
 
-    def run(self, args: Any, pip_compile_args: Sequence[str]) -> int:
+    def run(self, args: Any) -> int:
+        pip_compile_args: Sequence[str] = args.pip_compile_args
         self.compile_all(args.files, *pip_compile_args)
         return 0
 
@@ -105,15 +117,21 @@ class PipSyncCommand(_AbstractPipToolsCommand):
 
     @classmethod
     def register_to_parser(cls, parser: ArgumentParser) -> None:
-        pass
+        parser.add_argument("-c", "--compile", action="store_true", help="Call pip-compile before sync")
+        parser.add_argument(
+            "pip_sync_args", type=cls.validate_posarg, default=[], nargs="*", metavar="OPTION", help="pip-sync options"
+        )
 
-    def run(self, _: Any, pip_sync_args: Sequence[str]) -> int:
-        self.sync(*pip_sync_args)
+    def run(self, args: Any) -> int:
+        pip_sync_args: Sequence[str] = args.pip_sync_args
+        self.sync(*pip_sync_args, compile_before=args.compile)
         return 0
 
-    def sync(self, *options: str) -> None:
-        options = tuple(self.validate_args(options, posargs=False))
+    def sync(self, *options: str, compile_before: bool = False) -> None:
         VenvCommand(self.config).create()
+
+        if compile_before:
+            PipCompileCommand(self.config).compile_all(REQUIREMENTS_FILES)
 
         self.exec_piptools_command(*self.default_options, *options, *REQUIREMENTS_FILES, check=True)
         self.exec_module("pip", "install", "--no-deps", "--no-build-isolation", "--editable", ".")
@@ -126,14 +144,10 @@ class PipUpgradeCommand(AbstractCommand):
         return super().get_parser_kwargs() | {"help": "Upgrade dependencies if possible"}
 
     @classmethod
-    def accepts_unknown_args(cls) -> bool:
-        return False
-
-    @classmethod
     def register_to_parser(cls, parser: ArgumentParser) -> None:
         pass
 
-    def run(self, __args: Any, __unparsed_args: Sequence[str], /) -> int:
+    def run(self, __args: Any, /) -> int:
         self.upgrade()
         return 0
 
@@ -141,3 +155,18 @@ class PipUpgradeCommand(AbstractCommand):
         config = self.config
         PipCompileCommand(config).compile_all(REQUIREMENTS_FILES, "--upgrade")
         PipSyncCommand(config).sync()
+
+
+@final
+class EnsurePipToolsInstalledCommand(AbstractCommand):
+    @classmethod
+    def get_parser_kwargs(cls) -> dict[str, Any]:
+        return super().get_parser_kwargs() | {"help": "Install pip-tools package if unavailable"}
+
+    @classmethod
+    def register_to_parser(cls, parser: ArgumentParser) -> None:
+        pass
+
+    def run(self, __args: Any, /) -> int:
+        self.ensure_piptools(capture_output=False)
+        return 0

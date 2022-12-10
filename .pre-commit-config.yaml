@@ -36,7 +36,7 @@ repos:
       - id: isort
         args: ['--check-only', '--filter-files', '--settings-file', 'pyproject.toml']
   - repo: https://github.com/psf/black
-    rev: '22.10.0'  # Keep in sync with requirements-dev.txt
+    rev: '22.12.0'  # Keep in sync with requirements-dev.txt
     hooks:
       - id: black
         args: ['--check', '--config', 'pyproject.toml']
@@ -45,18 +45,3 @@ repos:
     hooks:
       - id: flake8
         args: ['--config', '.flake8']
-  - repo: https://github.com/jazzband/pip-tools
-    rev: '6.10.0'  # Keep in sync with requirements-dev.txt
-    hooks:
-      - id: pip-compile
-        name: pip-compile requirements.txt
-        args: [--no-allow-unsafe, --resolver=backtracking, --quiet, --no-header, --output-file=requirements.txt, pyproject.toml]
-        files: ^(pyproject\.toml|requirements\.txt)$
-      - id: pip-compile
-        name: pip-compile requirements-dev.txt
-        args: [--no-allow-unsafe, --resolver=backtracking, --quiet, --no-header, --output-file=requirements-dev.txt, requirements/requirements-dev.in]
-        files: ^(requirements/requirements-dev\.in|requirements-dev\.txt)$
-      - id: pip-compile
-        name: pip-compile requirements-test.txt
-        args: [--no-allow-unsafe, --resolver=backtracking, --quiet, --no-header, --output-file=requirements-test.txt, requirements/requirements-test.in]
-        files: ^(requirements/requirements-test\.in|requirements-test\.txt)$

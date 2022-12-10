@@ -3,10 +3,11 @@ from __future__ import annotations
 __all__ = ["RepoCommand"]
 
 from argparse import ArgumentParser
-from typing import Any, Sequence, final
+from typing import Any, final
 
+from ..constants import REQUIREMENTS_FILES
 from .abc import AbstractCommand, Configuration
-from .piptools import PipSyncCommand
+from .piptools import PipCompileCommand, PipSyncCommand
 from .venv import VenvCommand
 
 
@@ -20,21 +21,26 @@ class RepoCommand(AbstractCommand):
         return super().get_parser_kwargs() | {"help": "Setup the repository for development"}
 
     @classmethod
-    def accepts_unknown_args(cls) -> bool:
-        return False
-
-    @classmethod
     def register_to_parser(cls, parser: ArgumentParser) -> None:
-        pass
+        parser.add_argument("-s", "--no-sync", dest="pip_sync", action="store_false", help="Do not run 'pip-sync'")
+        parser.add_argument(
+            "-p", "--no-pre-commit-install", dest="pre_commit", action="store_false", help="Do not run 'pre-commit install'"
+        )
 
-    def run(self, __args: Any, __unparsed_args: Sequence[str], /) -> int:
-        self.setup()
+    def run(self, args: Any, /) -> int:
+        self.setup(pip_sync=args.pip_sync, pre_commit_install=args.pre_commit)
         return 0
 
-    def setup(self) -> None:
+    def setup(self, pip_sync: bool = True, pre_commit_install: bool = True) -> None:
         config: Configuration = self.config
 
-        VenvCommand(config).create()
-        PipSyncCommand(config).sync()
+        if config.venv_dir is not None:
+            VenvCommand(config).create()
+        else:
+            self.ensure_piptools()
+        PipCompileCommand(config).compile_all(REQUIREMENTS_FILES)
+        if pip_sync:
+            PipSyncCommand(config).sync()
 
-        self.exec_venv_bin("pre-commit", "install")
+        if pre_commit_install:
+            self.exec_bin("pre-commit", "install")

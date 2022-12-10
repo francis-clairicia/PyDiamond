@@ -1,11 +1,11 @@
+-c ../requirements.txt
+
 mypy==0.991
 isort>=5.10.1
 black>=22.6.0
 flake8>=5.0.4
 bump2version>=1.0.1
-tox>=3.27.1
+tox>=3.27.1,<4
 pip-tools>=6.10.0
 flit>=3.7.1,<4
 pre-commit>=2.20.0
-
-colorama; platform_system=="Windows"

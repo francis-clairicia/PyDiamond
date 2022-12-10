@@ -17,17 +17,20 @@ from typing import Any, Sequence
 
 @dataclass
 class Configuration:
-    venv_dir: Path
+    venv_dir: Path | None
 
-    def get_exec_bin(self, name: str) -> Path:
+    def get_exec_bin(self, name: str) -> str:
+        venv_dir = self.venv_dir
+        if venv_dir is None:
+            return name
         if sys.platform == "win32":
             binpath = "Scripts"
         else:
             binpath = "bin"
-        return self.venv_dir / binpath / name
+        return os.fspath(venv_dir / binpath / name)
 
     @property
-    def python_path(self) -> Path:
+    def python_path(self) -> str:
         return self.get_exec_bin("python")
 
 
@@ -40,23 +43,13 @@ class AbstractCommand(metaclass=ABCMeta):
         return {}
 
     @classmethod
-    def accepts_unknown_args(cls) -> bool:
-        return True
-
-    @classmethod
     @abstractmethod
     def register_to_parser(cls, parser: ArgumentParser) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def run(self, __args: Any, __unparsed_args: Sequence[str], /) -> int:
+    def run(self, __args: Any, /) -> int:
         raise NotImplementedError
-
-    def validate_args(self, unparsed_args: Sequence[str], *, posargs: bool = False) -> Sequence[str]:
-        unparsed_args = tuple(arg.strip() for arg in unparsed_args)
-        if not posargs and any(not arg.startswith("-") or not arg.lstrip("-") for arg in unparsed_args):
-            raise ValueError("Positional arguments are forbidden")
-        return unparsed_args
 
     def log(self, *args: object, sep: str | None = None, end: str | None = None) -> None:
         if sep is None:
@@ -78,7 +71,7 @@ class AbstractCommand(metaclass=ABCMeta):
             self.log(shlex.join(whole_cmd_args))
         return subprocess.run(whole_cmd_args, check=check, capture_output=capture_output).returncode
 
-    def exec_venv_bin(
+    def exec_bin(
         self,
         name: str,
         *args: str,
@@ -106,6 +99,17 @@ class AbstractCommand(metaclass=ABCMeta):
             name,
             *args,
             check=check,
+            verbose=verbose,
+            capture_output=capture_output,
+        )
+
+    def ensure_piptools(self, *, verbose: bool = False, capture_output: bool = True) -> None:
+        self.exec_module(
+            "pip",
+            "install",
+            "pip-tools",
+            "-c",
+            "requirements/requirements-dev.in",
             verbose=verbose,
             capture_output=capture_output,
         )

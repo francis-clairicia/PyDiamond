@@ -5,13 +5,12 @@ from __future__ import annotations
 __all__ = ["main"]
 
 import os
-import sys
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, Namespace
 from pathlib import Path
 from types import MappingProxyType
 
 from .commands.abc import AbstractCommand, Configuration
-from .commands.piptools import PipCompileCommand, PipSyncCommand, PipUpgradeCommand
+from .commands.piptools import EnsurePipToolsInstalledCommand, PipCompileCommand, PipSyncCommand, PipUpgradeCommand
 from .commands.repo import RepoCommand
 from .commands.venv import VenvCommand
 
@@ -19,6 +18,7 @@ COMMANDS: MappingProxyType[str, type[AbstractCommand]] = MappingProxyType(
     {
         "repo": RepoCommand,
         "venv": VenvCommand,
+        "ensure-piptools": EnsurePipToolsInstalledCommand,
         "pip-compile": PipCompileCommand,
         "pip-sync": PipSyncCommand,
         "pip-upgrade": PipUpgradeCommand,
@@ -33,12 +33,22 @@ class CustomNamespace(Namespace):
 def main(args: list[str] | None = None) -> int:
     parser = ArgumentParser(prog=__package__, formatter_class=ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument(
+    default_venv_dir = Path(os.environ.get("VIRTUAL_ENV", ".venv"))
+    venv_option_group = parser.add_mutually_exclusive_group()
+    venv_option_group.add_argument(
         "--venv-dir",
         dest="venv_dir",
         type=Path,
-        default=Path(os.environ.get("VIRTUAL_ENV", ".venv")),
+        default=default_venv_dir,
         help="virtual env directory",
+    )
+    venv_option_group.add_argument(
+        "--no-venv",
+        dest="venv_dir",
+        action="store_const",
+        const=None,
+        default="Use venv_dir",
+        help="Do not try to use a virtualenv",
     )
 
     commands_subparser = parser.add_subparsers(
@@ -57,17 +67,9 @@ def main(args: list[str] | None = None) -> int:
             )
         )
 
-    parsed_args, unparsed_args = parser.parse_known_args(args, namespace=CustomNamespace())
+    parsed_args = parser.parse_args(args, namespace=CustomNamespace())
 
     command_cls: type[AbstractCommand] = COMMANDS[parsed_args.command]
-
-    if not command_cls.accepts_unknown_args() and unparsed_args:
-        parser.print_usage(file=sys.stderr)
-        print(
-            f"{parser.prog}: error: argument {parsed_args.command}: unexpected arguments {', '.join(map(repr, unparsed_args))}",
-            file=sys.stderr,
-        )
-        return 1
 
     config = Configuration(venv_dir=parsed_args.venv_dir)
 
@@ -75,4 +77,4 @@ def main(args: list[str] | None = None) -> int:
 
     args_namespace = Namespace(**vars(parsed_args))
 
-    return command.run(args_namespace, unparsed_args)
+    return command.run(args_namespace)

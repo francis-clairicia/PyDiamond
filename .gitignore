@@ -1,5 +1,9 @@
 # Workspace
-.vscode
+.vscode/*
+!.vscode/settings.example.json
+
+# Compiled requirements
+requirements*.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

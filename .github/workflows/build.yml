@@ -85,17 +85,8 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python_version }}
-          cache: 'pip'
-          cache-dependency-path: '**/requirements-dev.txt'
-      - name: Install dependencies
-        run: pip install tox tox-gh-actions==2.11.0 -c requirements-dev.txt
-      - name: Restore tox environment
-        uses: actions/cache@v3
-        with:
-          path: .tox
-          key: ${{ runner.os }}-${{ github.workflow }}-${{ github.job }}-tox-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('tox.ini', '**/requirements*.txt') }}
       - name: Launch tests
-        run: tox
+        uses: ./.github/actions/run-tox
 
   build:
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Bump version:')
@@ -107,10 +98,6 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-          cache: 'pip'
-          cache-dependency-path: '**/requirements-dev.txt'
-      - name: Install dependencies
-        run: pip install tox -c requirements-dev.txt
       - name: Compute SOURCE_DATE_EPOCH from commit date
         if: env.SOURCE_DATE_EPOCH == ''
         run: |
@@ -118,7 +105,9 @@ jobs:
           echo "Using SOURCE_DATE_EPOCH=${date}"
           echo "SOURCE_DATE_EPOCH=${date}" >> $GITHUB_ENV
       - name: Build packages
-        run: tox -e build
+        uses: ./.github/actions/run-tox
+        with:
+          tox-args: -e build
       - name: Upload packages as artifacts
         uses: actions/upload-artifact@v3
         with:
