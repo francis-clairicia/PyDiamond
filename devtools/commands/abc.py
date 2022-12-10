@@ -69,7 +69,14 @@ class AbstractCommand(metaclass=ABCMeta):
         whole_cmd_args = [os.fspath(cmd), *args]
         if verbose:
             self.log(shlex.join(whole_cmd_args))
-        return subprocess.run(whole_cmd_args, check=check, capture_output=capture_output).returncode
+        try:
+            return subprocess.run(whole_cmd_args, check=check, capture_output=capture_output).returncode
+        except subprocess.CalledProcessError as exc:
+            if exc.stdout:
+                print(exc.stdout, file=sys.stdout)
+            if exc.stderr:
+                print(exc.stderr, file=sys.stderr)
+            raise
 
     def exec_bin(
         self,
