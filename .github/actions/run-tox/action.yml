@@ -5,14 +5,6 @@ inputs:
     description: 'tox arguments'
     required: false
     default: ''
-  tox-workdir:
-    description: 'tox working directory (must be the same as defined in configuration)'
-    required: false
-    default: '.tox'
-  tox-ini-file:
-    description: 'tox configuration file'
-    required: false
-    default: 'tox.ini'
 
 runs:
   using: 'composite'
@@ -34,8 +26,8 @@ runs:
     - name: Restore tox environment
       uses: actions/cache@v3
       with:
-        path: ${{ inputs.tox-workdir }}
-        key: ${{ runner.os }}-${{ github.workflow }}-${{ github.job }}-tox-${{ steps.tox.outputs.version }}-python-${{ steps.python.outputs.version }}-${{ hashFiles( inputs.tox-ini-file , '**/requirements*.txt') }}
+        path: .tox
+        key: ${{ runner.os }}-${{ github.workflow }}-${{ github.job }}-tox-${{ steps.tox.outputs.version }}-python-${{ steps.python.outputs.version }}-${{ hashFiles( '**/tox.ini' , '**/requirements*.txt', '**/.pre-commit-config.yaml') }}
     - name: Launch tox
       run: tox ${{ inputs.tox-args }}
       shell: bash
