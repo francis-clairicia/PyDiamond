@@ -17,11 +17,12 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    - name: set PY
-      run: echo "PY=$(python -VV | sha256sum | cut -d' ' -f1)" >> $GITHUB_ENV
+    - name: Get Python version checksum
+      id: py
+      run: echo "checksum=$(python -VV | sha256sum | cut -d' ' -f1)" >> $GITHUB_OUTPUT
       shell: bash
     - uses: actions/cache@v1
       id: cache
       with:
         path: ${{ inputs.cache-dir-path }}
-        key: pre-commit|${{ env.PY }}|${{ hashFiles( inputs.config-path ) }}
+        key: pre-commit|${{ steps.py.outputs.checksum }}|${{ hashFiles( inputs.config-path ) }}
