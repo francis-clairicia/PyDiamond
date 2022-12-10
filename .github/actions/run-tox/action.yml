@@ -27,7 +27,7 @@ runs:
       uses: actions/cache@v3
       with:
         path: .tox
-        key: ${{ runner.os }}-${{ github.workflow }}-${{ github.job }}-tox-${{ steps.tox.outputs.version }}-python-${{ steps.python.outputs.version }}-${{ hashFiles( '**/tox.ini' , '**/requirements*.txt', '**/.pre-commit-config.yaml') }}
+        key: ${{ runner.os }}-${{ github.workflow }}-${{ github.job }}-tox-${{ steps.tox.outputs.version }}-python-${{ steps.python.outputs.version }}-${{ hashFiles( 'tox.ini' , 'requirements*.txt', '.pre-commit-config.yaml') }}
     - name: Launch tox
       run: tox ${{ inputs.tox-args }}
       shell: bash
