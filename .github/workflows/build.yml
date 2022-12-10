@@ -14,9 +14,7 @@ on:
       - '.pre-commit-config.yaml'
       - '**.md'
       - '!README.md'
-      - '.github/actions/**'
-      - '.github/scripts/**'
-      - '.github/workflows/*.yml'
+      - '.github/**'
       - '!.github/workflows/build.yml'
   push:
     branches:
@@ -33,9 +31,7 @@ on:
       - '.pre-commit-config.yaml'
       - '**.md'
       - '!README.md'
-      - '.github/actions/**'
-      - '.github/scripts/**'
-      - '.github/workflows/*.yml'
+      - '.github/**'
       - '!.github/workflows/build.yml'
   workflow_dispatch:
     inputs:
