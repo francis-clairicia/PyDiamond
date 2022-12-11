@@ -63,6 +63,20 @@ jobs:
 
   lint:
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Bump version:')
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        id: setup-python
+        with:
+          python-version: '3.10'
+      - name: Setup tox
+        uses: ./.github/actions/setup-tox
+      - name: Launch checks
+        run: tox run -e flake8
+
+  type-checking:
+    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Bump version:')
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -78,4 +92,4 @@ jobs:
       - name: Setup tox
         uses: ./.github/actions/setup-tox
       - name: Launch checks
-        run: tox run-parallel --parallel-no-spinner -e mypy,flake8
+        run: tox run -e mypy
