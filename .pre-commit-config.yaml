@@ -59,5 +59,6 @@ repos:
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
+      - id: check-json
       - id: check-toml
       - id: check-yaml

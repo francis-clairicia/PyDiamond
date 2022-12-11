@@ -21,13 +21,15 @@
     },
     "black-formatter.args": [
         "--config",
-        "pyproject.toml"
+        "pyproject.toml",
+        "--force-exclude",
+        "site-packages"
     ],
     "isort.args": [
         "--settings-file",
         "pyproject.toml",
         "--extend-skip-glob",
-        "/usr/lib/python*"
+        "*/site-packages/*"
     ],
     "python.linting.flake8Enabled": true,
     "python.analysis.diagnosticSeverityOverrides": {
