@@ -219,10 +219,4 @@ class PygamePatch(RequiredPatch):
             def __hash__(self) -> int:
                 return hash((self.__class__, self.id))
 
-            if TYPE_CHECKING:
-
-                @property
-                def id(self) -> int:
-                    ...
-
         return Controller

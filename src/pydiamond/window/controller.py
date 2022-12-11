@@ -97,7 +97,7 @@ class ControllerMapping(MutableMapping[str, str]):
 
     def __str__(self) -> str:
         controller = self.__controller
-        name: str = controller.name  # type: ignore[attr-defined]
+        name: str = controller.name
         guid: str = controller.as_joystick().get_guid()
         mapping = controller.get_mapping()
         return f"{name},{guid},{','.join(f'{k}:{v}' for k, v in mapping.items())}"
@@ -205,7 +205,7 @@ class Controller(Object):
             try:
                 self = cls.__instances[instance_id]
             except KeyError:
-                joystick: _pg_joystick.Joystick | None = (
+                joystick: _pg_joystick.JoystickType | None = (
                     next(
                         (
                             joy
@@ -229,7 +229,7 @@ class Controller(Object):
                     raise _pg_error("Invalid joystick instance id") from None
             return self
 
-    def __internal_init(self, joystick: _pg_joystick.Joystick) -> None:
+    def __internal_init(self, joystick: _pg_joystick.JoystickType) -> None:
         controller = _pg_controller.Controller.from_joystick(joystick)
         self.__c: _pg_controller.Controller | None = controller
         self.__id: int = joystick.get_instance_id()
@@ -320,7 +320,7 @@ class Controller(Object):
             controller: _pg_controller.Controller = self.__check_valid_controller()
         except _pg_error:
             return ""
-        return controller.name  # type: ignore[attr-defined]
+        return controller.name
 
     @property
     def guid(self) -> str:
@@ -336,7 +336,7 @@ class Controller(Object):
             controller: _pg_controller.Controller = self.__check_valid_controller()
         except _pg_error:
             return -1
-        return controller.id  # type: ignore[attr-defined]
+        return controller.id
 
     @property
     def instance_id(self) -> int:
