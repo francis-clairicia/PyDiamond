@@ -41,7 +41,6 @@ name = "pydiamond"
 [tool.flit.sdist]
 include = [
   ".flake8",
-  "tox.ini",
 ]
 exclude = [
   ".github/",
@@ -54,6 +53,7 @@ exclude = [
   ".bumpversion.cfg",
   ".pre-commit-config.yaml",
   "demo.py",
+  "tox.ini",
 ]
 
 ############################ Development tools configuration ############################
