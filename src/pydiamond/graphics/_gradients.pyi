@@ -1,6 +1,6 @@
 # isort: dont-add-imports
 
-__all__: Final[list[str]] = []
+__all__: list[str] = []
 
 from typing import Callable, Final, Sequence, TypeAlias, Union
 

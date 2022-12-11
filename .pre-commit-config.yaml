@@ -47,6 +47,8 @@ repos:
       - id: flake8
         exclude: ^(demo_resources|\.github)/
         args: ['--config', '.flake8']
+        types: []  # Overwrite with empty in order to fallback to types_or
+        types_or: [python, pyi]
   - repo: https://github.com/aio-libs/sort-all
     rev: 'v1.2.0'
     hooks:
