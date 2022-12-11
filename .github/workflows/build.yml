@@ -76,7 +76,10 @@ jobs:
         uses: ./.github/actions/setup-tox
       - name: Check source distribution consistency
         if: github.event_name != 'workflow_call'
-        run: tox -e check-build-sdist
+        run: tox run -e check-build-sdist
+      - name: Post-check cleanup
+        if: always()
+        run: rm -rf .tox/check-build-sdist
       - name: Compute SOURCE_DATE_EPOCH from commit date
         if: env.SOURCE_DATE_EPOCH == ''
         run: |
@@ -84,7 +87,7 @@ jobs:
           echo "Using SOURCE_DATE_EPOCH=${date}"
           echo "SOURCE_DATE_EPOCH=${date}" >> $GITHUB_ENV
       - name: Build packages
-        run: tox -e build
+        run: tox run -e build
       - name: Upload packages as artifacts
         uses: actions/upload-artifact@v3
         with:

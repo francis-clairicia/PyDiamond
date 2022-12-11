@@ -7,7 +7,7 @@ repos:
     hooks:
       - id: mypy
         name: mypy (project + examples)
-        entry: tox -q -e mypy -- src demo.py
+        entry: tox run -q -e mypy -- src demo.py
         language: system
         files: ^(src/|demo\.py)
         types_or: [python, pyi]
@@ -16,14 +16,14 @@ repos:
       - id: mypy
         name: mypy (tests)
         files: ^((src|tests)/)
-        entry: tox -q -e mypy -- tests
+        entry: tox run -q -e mypy -- tests
         language: system
         types_or: [python, pyi]
         require_serial: true
         pass_filenames: false
       - id: mypy
         name: mypy (devtools)
-        entry: tox -q -e mypy -- devtools
+        entry: tox run -q -e mypy -- devtools
         language: system
         files: ^(devtools/)
         types_or: [python, pyi]
