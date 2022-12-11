@@ -59,10 +59,7 @@ jobs:
       - name: Setup tox
         uses: ./.github/actions/setup-tox
       - name: Launch checks
-        run: tox -e black,isort,sort-all --parallel
-        env:
-          TOX_PARALLEL_NO_SPINNER: '1'
-
+        run: tox run-parallel --parallel-no-spinner -e black,isort,sort-all
 
   lint:
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Bump version:')
@@ -81,6 +78,4 @@ jobs:
       - name: Setup tox
         uses: ./.github/actions/setup-tox
       - name: Launch checks
-        run: tox -e mypy,flake8 --parallel
-        env:
-          TOX_PARALLEL_NO_SPINNER: '1'
+        run: tox run-parallel --parallel-no-spinner -e mypy,flake8

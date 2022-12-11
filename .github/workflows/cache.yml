@@ -1,4 +1,5 @@
 name: Cleanup caches by a branch
+
 on:
   pull_request:
     types:
@@ -13,7 +14,6 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v3
-
       - name: Cleanup
         run: |
           gh extension install actions/gh-actions-cache

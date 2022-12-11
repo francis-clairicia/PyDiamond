@@ -57,4 +57,4 @@ jobs:
       - name: Setup tox
         uses: ./.github/actions/setup-tox
       - name: Launch tests
-        run: tox
+        run: tox run -f py$(echo ${{ matrix.python-version }} | tr -d .)

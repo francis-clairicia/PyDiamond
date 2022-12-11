@@ -17,7 +17,7 @@ runs:
       run: python -m devtools --no-venv repo --no-sync --no-pre-commit-install
       shell: bash
     - name: Install dependencies
-      run: pip install tox tox-gh-actions==2.11.0 -c requirements-dev.txt
+      run: pip install tox -c requirements-dev.txt
       shell: bash
     - name: Get python info
       id: python
