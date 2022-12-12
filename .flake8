@@ -1,25 +1,28 @@
 [flake8]
-noqa-require-code = True
 extend-exclude =
     .mypy_cache
     .pytest_cache
     .venv
     .vscode
     demo_resources
+    dist
+    requirements
     site-packages
+filename =
+    *.py
     *.pyi
 doctest = true
 max-line-length = 130
 extend-ignore =
-    # whitespace before ':' (Thanks black)
+    # E203: whitespace before ':' (Thanks black)
     E203
-    # too many leading '#' for block comment
+    # E266: too many leading '#' for block comment
     E266
-    # module level import not a top of file
+    # E402: module level import not a top of file
     E402
-    # line too long (already have black for that)
+    # E501: line too long (already have black for that)
     E501
-    # do not assign a lambda expression, use a def
+    # E731: do not assign a lambda expression, use a def
     E731
 per-file-ignores =
     # F401: 'module' imported but unused
@@ -28,3 +31,17 @@ per-file-ignores =
     src/pydiamond/__init__.py:F401
     src/pydiamond/*/__init__.py:F401,F403,F405
     src/pydiamond/window/scene/__init__.py:
+    #### Stub errors ignore ####
+    # E301,E302: expected 1/2 blank line(s)
+    # E701: multiple statements on one line
+    # F821: undefined name (useless for stub files)
+    src/pydiamond/__init__.pyi:F401
+    *.pyi:E301,E302,E701,F821
+
+
+[flake8:local-plugins]
+extension =
+    DAL = flake8_extensions:DunderAll
+    STB = flake8_extensions:Stubs
+paths =
+    ./devtools/lint

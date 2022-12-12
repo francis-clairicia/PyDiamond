@@ -1,8 +1,9 @@
 # isort: dont-add-imports
 
-__all__: Final[list[str]] = []
+__all__: list[str] = []
 
-from typing import Callable, Final, Sequence, TypeAlias, Union
+from collections.abc import Callable, Sequence
+from typing import Final, TypeAlias, Union  # noqa: Y037
 
 from pygame import Rect, Surface, Vector2
 
@@ -18,7 +19,7 @@ _Color: TypeAlias = Union[_OpaqueColor, _ColorWithTransparency]
 
 _Function: TypeAlias = Callable[[_Number], _Number]
 
-class ColorInterpolator(object):
+class ColorInterpolator:
     def __init__(
         self,
         distance: _Number,
@@ -31,7 +32,7 @@ class ColorInterpolator(object):
     ): ...
     def eval(self, x: _Number) -> _ColorWithTransparency: ...
 
-class FunctionInterpolator(object):
+class FunctionInterpolator:
     def __init__(self, startvalue: _Number, endvalue: _Number, trange: _Number, func: _Function): ...
     def eval(self, x: _Number) -> int: ...
 
