@@ -6,6 +6,8 @@ extend-exclude =
     .venv
     .vscode
     demo_resources
+    dist
+    requirements
     site-packages
 filename =
     *.py
