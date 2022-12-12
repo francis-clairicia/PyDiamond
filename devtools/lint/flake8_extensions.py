@@ -11,13 +11,11 @@ class DunderAll:
     name = "dunder-all"
     version = "0.1.0"
 
-    def __init__(self, tree: ast.AST) -> None:
-        self.__tree: ast.Module | None = tree if isinstance(tree, ast.Module) else None
+    def __init__(self, tree: ast.Module) -> None:
+        self.__tree: ast.Module = tree
 
     def run(self) -> Generator[tuple[int, int, str, type[Any]], None, None]:
-        tree: ast.Module | None = self.__tree
-        if tree is None:
-            return
+        tree: ast.Module = self.__tree
         misplaced_import_lines: list[tuple[int, int]] = []
         for node in tree.body:
             match node:
@@ -47,9 +45,9 @@ class Stubs:
 
     EXT = ".pyi"
 
-    def __init__(self, tree: ast.AST, filename: str) -> None:
+    def __init__(self, tree: ast.Module, filename: str) -> None:
         self.__tree: ast.Module | None
-        if splitext(filename)[1] == Stubs.EXT and isinstance(tree, ast.Module):
+        if splitext(filename)[1] == Stubs.EXT:
             self.__tree = tree
         else:
             self.__tree = None
