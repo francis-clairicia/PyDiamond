@@ -51,6 +51,28 @@ def pydiamond_rootdirs_list() -> list[pathlib.Path]:
     return [pathlib.Path(path) for path in pydiamond_spec.submodule_search_locations]
 
 
+@pytest.fixture(scope="session")
+def pydiamond_packages_paths(pydiamond_rootdirs_list: list[pathlib.Path]) -> list[pathlib.Path]:
+    import importlib
+    import pkgutil
+
+    if TYPE_CHECKING:
+        from typing import Iterator
+
+    def get_packages_paths() -> Iterator[str]:
+        for package_info in filter(
+            lambda module_info: module_info.ispkg,
+            pkgutil.walk_packages(map(os.fspath, pydiamond_rootdirs_list), prefix="pydiamond."),
+        ):
+            package_module = importlib.import_module(package_info.name)
+            package_module_spec = package_module.__spec__
+            assert package_module_spec is not None
+            assert package_module_spec.submodule_search_locations is not None
+            yield from package_module_spec.submodule_search_locations
+
+    return [pathlib.Path(p) for p in get_packages_paths()]
+
+
 ################################## Auto used fixtures for all session test ##################################
 
 
