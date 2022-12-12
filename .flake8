@@ -1,5 +1,4 @@
 [flake8]
-noqa-require-code = True
 extend-exclude =
     .mypy_cache
     .pytest_cache
