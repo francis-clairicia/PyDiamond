@@ -1,9 +1,9 @@
 ############ Module declaration ############
 # isort: dont-add-imports
 
-from typing import Final, Literal
+__all__: list[str] = []
 
-__all__: Final[list[str]] = []
+from typing import Final, Literal
 
 __author__: Final[str]
 __contact__: Final[str]

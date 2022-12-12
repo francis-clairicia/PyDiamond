@@ -38,3 +38,11 @@ per-file-ignores =
     # F821: undefined name (useless for stub files)
     src/pydiamond/__init__.pyi:F401
     *.pyi:E301,E302,E701,F821
+
+
+[flake8:local-plugins]
+extension =
+    DAL = flake8_extensions:DunderAll
+    STB = flake8_extensions:Stubs
+paths =
+    ./devtools/lint
