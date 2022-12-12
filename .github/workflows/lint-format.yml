@@ -25,8 +25,9 @@ on:
     tags-ignore:
       - '*'
     paths:
-      - '**.pyi?'
-      - '!.github/**.pyi?'
+      - 'src/**.pyi?'
+      - 'tests/**.pyi?'
+      - 'devtools/**.pyi?'
       - '.flake8'
       - '.pre-commit-config.yaml'
       - 'tox.ini'
