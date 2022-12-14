@@ -83,7 +83,7 @@ jobs:
       - name: Compute SOURCE_DATE_EPOCH from commit date
         if: env.SOURCE_DATE_EPOCH == ''
         run: |
-          date=`git show ${{ github.sha }} --pretty="%ct" --no-patch`
+          date=$(git show ${{ github.sha }} --pretty="%ct" --no-patch)
           echo "Using SOURCE_DATE_EPOCH=${date}"
           echo "SOURCE_DATE_EPOCH=${date}" >> $GITHUB_ENV
       - name: Build packages
