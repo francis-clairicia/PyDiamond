@@ -21,15 +21,15 @@ runs:
       shell: bash
     - name: Get python info
       id: python
-      run: echo version=$(python -c 'import sysconfig; print(sysconfig.get_python_version())') >> $GITHUB_OUTPUT
+      run: echo "checksum=$(python -VV | sha256sum | cut -d' ' -f1)" >> $GITHUB_OUTPUT
       shell: bash
     - name: Get tox package info
       id: tox
-      run: echo version=$(pip freeze | grep tox | grep -v 'tox-' | awk -F'==' '{print $2}') >> $GITHUB_OUTPUT
+      run: echo "version=$(pip freeze | grep 'tox==' | awk -F'==' '{print $2}')" >> $GITHUB_OUTPUT
       shell: bash
     - name: Restore tox environment
       id: cache
       uses: actions/cache@v3
       with:
         path: .tox
-        key: ${{ runner.os }}-${{ github.workflow }}-${{ github.job }}-tox-${{ steps.tox.outputs.version }}-python-${{ steps.python.outputs.version }}-${{ hashFiles( 'tox.ini' , 'requirements*.txt', '.pre-commit-config.yaml') }}-${{ inputs.cache-key-suffix }}
+        key: ${{ runner.os }}|${{ github.workflow }}|${{ github.job }}|tox-${{ steps.tox.outputs.version }}|${{ steps.python.outputs.checksum }}|${{ hashFiles( 'tox.ini' , 'requirements*.txt') }}|${{ inputs.cache-key-suffix }}
