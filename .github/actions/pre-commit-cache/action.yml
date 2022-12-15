@@ -26,3 +26,5 @@ runs:
       with:
         path: ${{ inputs.cache-dir-path }}
         key: pre-commit|${{ steps.py.outputs.checksum }}|${{ hashFiles( inputs.config-path ) }}
+        restore-keys: |
+          pre-commit|${{ steps.py.outputs.checksum }}|
