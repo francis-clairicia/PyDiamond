@@ -36,8 +36,7 @@ class RepoCommand(AbstractCommand):
 
         if config.venv_dir is not None:
             VenvCommand(config).create()
-        else:
-            self.ensure_piptools()
+        self.ensure_piptools()
         PipCompileCommand(config).compile_all(REQUIREMENTS_FILES)
         if pip_sync:
             PipSyncCommand(config).sync()
