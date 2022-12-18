@@ -1,7 +1,7 @@
 # PyDiamond
 [![Build](https://github.com/francis-clairicia/PyDiamond/actions/workflows/build.yml/badge.svg)](https://github.com/francis-clairicia/PyDiamond/actions/workflows/build.yml)
 [![Test](https://github.com/francis-clairicia/PyDiamond/actions/workflows/test.yml/badge.svg)](https://github.com/francis-clairicia/PyDiamond/actions/workflows/test.yml)
-[![Lint/Format](https://github.com/francis-clairicia/PyDiamond/actions/workflows/lint-format.yml/badge.svg)](https://github.com/francis-clairicia/PyDiamond/actions/workflows/lint-format.yml)
+[![Lint](https://github.com/francis-clairicia/PyDiamond/actions/workflows/lint.yml/badge.svg)](https://github.com/francis-clairicia/PyDiamond/actions/workflows/lint.yml)
 
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/francis-clairicia/PyDiamond/main.svg)](https://results.pre-commit.ci/latest/github/francis-clairicia/PyDiamond/main)
