@@ -2,6 +2,9 @@ default_language_version:
   python: python3.10
 minimum_pre_commit_version: '2.20.0'
 
+ci:
+  skip: [mypy]
+
 repos:
   - repo: local
     hooks:
@@ -62,6 +65,8 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: 'v4.4.0'
     hooks:
+      - id: mixed-line-ending
+        args: [--fix=lf]
       - id: end-of-file-fixer
       - id: trailing-whitespace
       - id: check-json
