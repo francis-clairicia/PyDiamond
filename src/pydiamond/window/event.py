@@ -1109,16 +1109,16 @@ class EventManager:
                 raise TypeError("Cannot assign events to event models")
         if event_cls is KeyDownEvent or event_cls is None:
             if callback in self.__key_pressed_handler_dict.values():
-                raise TypeError("Conflict with predecent bind_key_press() call")
+                raise TypeError("Conflict with precedent bind_key_press() call")
         if event_cls is KeyUpEvent or event_cls is None:
             if callback in self.__key_released_handler_dict.values():
-                raise TypeError("Conflict with predecent bind_key_release() call")
+                raise TypeError("Conflict with precedent bind_key_release() call")
         if event_cls is MouseButtonDownEvent or event_cls is None:
             if callback in self.__mouse_button_pressed_handler_dict.values():
-                raise TypeError("Conflict with predecent bind_mouse_button_press() call")
+                raise TypeError("Conflict with precedent bind_mouse_button_press() call")
         if event_cls is MouseButtonUpEvent or event_cls is None:
             if callback in self.__mouse_button_released_handler_dict.values():
-                raise TypeError("Conflict with predecent bind_mouse_button_release() call")
+                raise TypeError("Conflict with precedent bind_mouse_button_release() call")
         if event_cls is None:
             self.__other_event_handlers_list.add(cast(_EventCallback, callback))
         else:
@@ -1249,9 +1249,9 @@ class EventManager:
             )
 
         if callback in self.__event_handler_dict.get(KeyDownEvent, ()):
-            raise TypeError("Conflict with predecent bind(KeyDownEvent) call")
+            raise TypeError("Conflict with precedent bind(KeyDownEvent) call")
         if callback in self.__other_event_handlers_list:
-            raise TypeError("Conflict with predecent bind(None) call")
+            raise TypeError("Conflict with precedent bind(None) call")
 
         EventManager.__bind_single(self.__key_pressed_handler_dict, int(key), callback)
 
@@ -1276,9 +1276,9 @@ class EventManager:
             )
 
         if callback in self.__event_handler_dict.get(KeyUpEvent, ()):
-            raise TypeError("Conflict with predecent bind(KeyUpEvent) call")
+            raise TypeError("Conflict with precedent bind(KeyUpEvent) call")
         if callback in self.__other_event_handlers_list:
-            raise TypeError("Conflict with predecent bind(None) call")
+            raise TypeError("Conflict with precedent bind(None) call")
 
         EventManager.__bind_single(self.__key_released_handler_dict, int(key), callback)
 
@@ -1327,9 +1327,9 @@ class EventManager:
             )
 
         if callback in self.__event_handler_dict.get(MouseButtonDownEvent, ()):
-            raise TypeError("Conflict with predecent bind(MouseButtonDownEvent) call")
+            raise TypeError("Conflict with precedent bind(MouseButtonDownEvent) call")
         if callback in self.__other_event_handlers_list:
-            raise TypeError("Conflict with predecent bind(None) call")
+            raise TypeError("Conflict with precedent bind(None) call")
 
         EventManager.__bind_single(self.__mouse_button_pressed_handler_dict, int(button), callback)
 
@@ -1354,9 +1354,9 @@ class EventManager:
             )
 
         if callback in self.__event_handler_dict.get(MouseButtonUpEvent, ()):
-            raise TypeError("Conflict with predecent bind(MouseButtonUpEvent) call")
+            raise TypeError("Conflict with precedent bind(MouseButtonUpEvent) call")
         if callback in self.__other_event_handlers_list:
-            raise TypeError("Conflict with predecent bind(None) call")
+            raise TypeError("Conflict with precedent bind(None) call")
 
         EventManager.__bind_single(self.__mouse_button_released_handler_dict, int(button), callback)
 
