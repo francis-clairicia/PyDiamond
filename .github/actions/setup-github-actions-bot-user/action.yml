@@ -1,0 +1,12 @@
+name: 'Setup github-actions[bot] user'
+description: 'Configure git user name and email to github action bot'
+
+# c.f.: https://github.com/orgs/community/discussions/26560#discussioncomment-3252339
+
+runs:
+  using: 'composite'
+  steps:
+    - run: |
+        git config user.name github-actions[bot]
+        git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+      shell: bash

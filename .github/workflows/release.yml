@@ -31,7 +31,7 @@ jobs:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
       - name: Upload to Github Release
-        uses: softprops/action-gh-release@v0.1.14
+        uses: softprops/action-gh-release@v0.1.15
         with:
           files: |
             dist/*
@@ -76,7 +76,7 @@ jobs:
 
   make-release-branch:
     needs: [version-check, build]
-    if: ${{ needs.version-check.outputs.minor_major_release == 'true' }}
+    if: ${{ success() && needs.version-check.outputs.minor_major_release == 'true' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -84,11 +84,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup 'github-actions' user  # c.f.: https://github.com/orgs/community/discussions/26560#discussioncomment-3252339
-        run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+        uses: ./.github/actions/setup-github-actions-bot-user
       - name: Get release branch name
-        run: echo "RELEASE_BRANCH_NAME=release/${GITHUB_REF_NAME%.0}" >> $GITHUB_ENV
+        run: echo "RELEASE_BRANCH_NAME=release/${GITHUB_REF_NAME%.0}.x" >> $GITHUB_ENV
       - name: Create release branch
         run: git branch $RELEASE_BRANCH_NAME ${{ github.ref_name }}
       - run: git switch $RELEASE_BRANCH_NAME
