@@ -1,0 +1,56 @@
+name: Lint
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+    paths:
+      - 'src/**.pyi?'
+      - 'tests/**.pyi?'
+      - 'devtools/**.pyi?'
+      - 'tox.ini'
+      - 'pyproject.toml'
+      - 'requirements/*.in'
+      - '.github/actions/setup-tox/**'
+      - '.github/workflows/lint.yml'
+  push:
+    branches:
+      - main
+      - release/**
+    tags-ignore:
+      - '*'
+    paths:
+      - 'src/**.pyi?'
+      - 'tests/**.pyi?'
+      - 'devtools/**.pyi?'
+      - 'tox.ini'
+      - 'pyproject.toml'
+      - 'requirements/*.in'
+      - '.github/actions/setup-tox/**'
+      - '.github/workflows/lint.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  type-hinting:
+    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Bump version:')
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-20.04, windows-2022, macos-12]
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        id: setup-python
+        with:
+          python-version: '3.10'
+      - name: Setup tox
+        uses: ./.github/actions/setup-tox
+      - name: Launch checks
+        run: tox run -e mypy
