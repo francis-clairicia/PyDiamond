@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any, Callable, NamedTuple
 from pydiamond.audio.mixer import AllowedAudioChanges, AudioFormat
 from pydiamond.graphics.font import FontStyle
 from pydiamond.graphics.renderer import BlendMode
-from pydiamond.network.socket import AddressFamily, ShutdownFlag
 from pydiamond.window.controller import ControllerAxis, ControllerButton
 from pydiamond.window.cursor import SystemCursor
 from pydiamond.window.event import BuiltinEventType
@@ -63,9 +62,6 @@ def enum_sample(
         # pydiamond.graphics
         *enum_sample(FontStyle, constant_name=lambda name: f"STYLE_{name}", module="pygame.freetype"),
         *enum_sample(BlendMode, constant_name=lambda name: f"BLEND_{name}", predicate=lambda sample: sample.name != "NONE"),
-        # pydiamond.network
-        *enum_sample(AddressFamily, module="socket"),
-        *enum_sample(ShutdownFlag, module="socket"),
         # pydiamond.window
         *enum_sample(ControllerAxis, constant_name=lambda name: f"CONTROLLER_AXIS_{name.replace('_', '')}"),
         *enum_sample(ControllerButton, constant_name=lambda name: f"CONTROLLER_BUTTON_{name.removeprefix('BUTTON_')}"),

@@ -13,7 +13,6 @@ authors = [
 license = {file = "LICENSE"}
 dependencies = [
   "pygame==2.1.2",
-  "cryptography~=38.0.1",
   "typing_extensions>=4.4.0,<5"
 ]
 classifiers = [
