@@ -105,12 +105,6 @@ source_pkgs = [
   "pydiamond",
 ]
 
-[tool.coverage.paths]
-source = [
-    "src/pydiamond/",
-    ".tox/*/site-packages",
-]
-
 [tool.coverage.report]
 show_missing = true
 precision = 2
