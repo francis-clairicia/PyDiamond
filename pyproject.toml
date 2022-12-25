@@ -95,6 +95,43 @@ enable_error_code = ["truthy-bool", "ignore-without-code"]
 minversion = "7.1.2"
 testpaths = ["tests"]
 markers = [
-    "slow: marks tests as slow",
-    "functional: marks tests as functional tests",
+  "slow: marks tests as slow",
+  "functional: marks tests as functional tests",
+]
+
+[tool.coverage.run]
+branch = true
+source_pkgs = [
+  "pydiamond",
+]
+
+[tool.coverage.paths]
+source = [
+    "src/pydiamond/",
+    ".tox/*/site-packages",
+]
+
+[tool.coverage.report]
+show_missing = true
+precision = 2
+exclude_lines = [
+  # Have to re-enable the standard pragma
+  "pragma: no cover",
+
+  # Don't complain about missing debug-only code:
+  "def __repr__",
+
+  # Don't complain if tests don't hit defensive assertion code:
+  "raise AssertionError",
+  "raise NotImplementedError",
+
+  # Don't complain if non-runnable code isn't run:
+  "if __name__ == .__main__.:",
+
+  # Don't complain about type hinting code:
+  "if (typing\\.)?TYPE_CHECKING:",
+  "@(typing\\.)?overload",
+
+  # Don't complain about abstract methods, they aren't run:
+  "@(abc\\.)?abstractmethod",
 ]

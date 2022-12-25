@@ -10,19 +10,20 @@ __all__ = [
     "Font",
     "FontFactory",
     "SysFont",
+    "SysFontNotFound",
 ]
 
 
 import os
 from enum import IntFlag, auto, unique
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Iterable, NamedTuple, TypeAlias, TypeVar, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Iterable, NamedTuple, TypeAlias, overload
 
 import pygame.freetype as _pg_freetype
 import pygame.sysfont as _pg_sysfont
+from pygame import encode_file_path
 
 from ..math.rect import Rect, move_rect_in_place
 from ..resources.abc import Resource
-from ..resources.file import FileResource
 from ..system.configuration import ConfigurationTemplate, OptionAttribute
 from ..system.object import Object, final
 
@@ -30,6 +31,16 @@ if TYPE_CHECKING:
     from pygame._common import _CanBeRect, _ColorValue, _Coordinate, _FileArg
 
     from .surface import Surface
+
+
+class SysFontNotFound(ValueError):
+    def __init__(self, *args: object, name: str | bytes | Iterable[str | bytes]) -> None:
+        if isinstance(name, (str, bytes)):
+            name = (name,)
+        else:
+            name = tuple(name)
+        super().__init__(*args)
+        self.names: tuple[str | bytes, ...] = name
 
 
 def get_fonts() -> list[str]:
@@ -44,7 +55,13 @@ def match_font(name: str | bytes | Iterable[str | bytes], bold: bool = False, it
     return _pg_sysfont.match_font(name, bold=bold, italic=italic)  # type: ignore[no-untyped-call]
 
 
-def SysFont(name: str | bytes | Iterable[str | bytes], size: float, bold: bool = False, italic: bool = False) -> Font:
+def SysFont(
+    name: str | bytes | Iterable[str | bytes],
+    size: float,
+    bold: bool = False,
+    italic: bool = False,
+    raise_if_not_found: bool = False,
+) -> Font:
     """SysFont(name, size, bold=False, italic=False) -> Font
     Create a pygame Font from system font resources.
 
@@ -61,10 +78,12 @@ def SysFont(name: str | bytes | Iterable[str | bytes], size: float, bold: bool =
     font names, in which case the set of names will be searched
     in order. Pygame uses a small set of common font aliases. If the
     specific font you ask for is not available, a reasonable
-    alternative may be used.
+    alternative may be used, or a SysFontNotFound exception will be raise if 'raise_if_not_found' is True.
     """
 
-    def font_constructor(fontpath: str, size: float, bold: bool, italic: bool) -> Font:
+    def font_constructor(fontpath: str | None, size: float, bold: bool, italic: bool) -> Font:
+        if not fontpath and raise_if_not_found:
+            raise SysFontNotFound("Couldn't match font path from given name(s)", name=name)
         font: Font = Font(fontpath, size)
         font.config.update(wide=bold, oblique=italic)
         return font
@@ -111,15 +130,7 @@ class FontSizeInfo(NamedTuple):
 class Font(Object):
     __slots__ = ("__ft", "__weakref__")
 
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="Font")
-
-    from pygame import encode_file_path as __encode_file_path  # type: ignore[misc]
-
-    __factory = staticmethod(_pg_freetype.Font)
-    __encode_file_path = staticmethod(__encode_file_path)
-    __get_default_resolution = staticmethod(_pg_freetype.get_default_resolution)
-    __default_font = __encode_file_path(get_default_font())
+    __default_font = encode_file_path(get_default_font())
 
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "size",
@@ -160,20 +171,20 @@ class Font(Object):
         bfile: Any
         if isinstance(file, str):
             try:
-                bfile = self.__encode_file_path(file, ValueError)
-            except ValueError:
+                bfile = encode_file_path(file, ValueError)
+            except ValueError:  # pragma: no cover
                 bfile = ""
         else:
             bfile = file
         if isinstance(bfile, bytes) and bfile == self.__default_font:
             file = None
         if file is None:
-            resolution = int(self.__get_default_resolution() * 0.6875)
+            resolution = int(_pg_freetype.get_default_resolution() * 0.6875)
             if resolution == 0:
                 resolution = 1
         else:
             resolution = 0
-        self.__ft: _pg_freetype.Font = self.__factory(file, size=size, resolution=resolution)
+        self.__ft: _pg_freetype.Font = _pg_freetype.Font(file, size=size, resolution=resolution)
         self.__ft.strength = 1.0 / 12.0
         self.__ft.kerning = False
         self.__ft.origin = False
@@ -181,42 +192,32 @@ class Font(Object):
         self.__ft.ucs4 = True
         self.__ft.underline_adjustment = 1.0
         self.__ft.antialiased = True
+        self.__ft.rotation = 0
+        self.__ft.vertical = False
 
         super().__init__()
 
-    @property
     def name(self) -> str:
         return self.__ft.name
 
-    @property
-    def path(self) -> str | None:
-        return self.__ft.path
-
-    @property
     def resolution(self) -> int:
         return self.__ft.resolution
 
-    @property
     def height(self) -> int:
         return self.__ft.height
 
-    @property
     def ascender(self) -> int:
         return self.__ft.ascender
 
-    @property
     def descender(self) -> int:
         return self.__ft.descender
 
-    @property
     def fixed_width(self) -> int:
         return self.__ft.fixed_width
 
-    @property
     def fixed_sizes(self) -> int:
         return self.__ft.fixed_sizes
 
-    @property
     def scalable(self) -> bool:
         return self.__ft.scalable
 
@@ -228,7 +229,10 @@ class Font(Object):
 
     def set_scale_size(self, size: tuple[float, float]) -> None:
         w, h = size
-        self.__ft.size = (w, h)
+        if w == h:
+            self.__ft.size = w
+        else:
+            self.__ft.size = (w, h)
 
     @overload
     def get_rect(
@@ -276,17 +280,18 @@ class Font(Object):
         size: float = 0,
         **kwargs: Any,
     ) -> Rect:
+        font: _pg_freetype.Font = self.__ft
         try:
-            self.__ft.pad = rotation == 0
-            r = self.__ft.get_rect(text or "", style=style, rotation=rotation, size=size)
+            font.pad = rotation == 0
+            r = font.get_rect(text or "", style=style, rotation=rotation, size=size)
         finally:
-            self.__ft.pad = True
+            font.pad = True
         if kwargs:
             move_rect_in_place(r, **kwargs)
         return r
 
     def get_metrics(self, text: str, size: float = 0) -> list[GlyphMetrics]:
-        return [GlyphMetrics._make(metrics) for metrics in self.__ft.get_metrics(text or "", size=size)]
+        return list(map(GlyphMetrics._make, self.__ft.get_metrics(text or "", size=size)))
 
     def get_sized_ascender(self, size: float = 0) -> int:
         return self.__ft.get_sized_ascender(size)
@@ -301,7 +306,7 @@ class Font(Object):
         return self.__ft.get_sized_glyph_height(size)
 
     def get_sizes(self) -> list[FontSizeInfo]:
-        return [FontSizeInfo._make(info) for info in self.__ft.get_sizes()]
+        return list(map(FontSizeInfo._make, self.__ft.get_sizes()))
 
     def render(
         self,
@@ -314,9 +319,10 @@ class Font(Object):
     ) -> tuple[Surface, Rect]:
         assert fgcolor is not None, "Give a foreground color"
         rotation %= 360
+        font: _pg_freetype.Font = self.__ft
         try:
-            self.__ft.pad = rotation == 0
-            return self.__ft.render(
+            font.pad = rotation == 0
+            return font.render(
                 text or "",
                 fgcolor=fgcolor,
                 bgcolor=bgcolor,
@@ -325,7 +331,7 @@ class Font(Object):
                 size=size,
             )
         finally:
-            self.__ft.pad = True
+            font.pad = True
 
     def render_to(
         self,
@@ -340,9 +346,10 @@ class Font(Object):
     ) -> Rect:
         assert fgcolor is not None, "Give a foreground color"
         rotation %= 360
+        font: _pg_freetype.Font = self.__ft
         try:
-            self.__ft.pad = rotation == 0
-            return self.__ft.render_to(
+            font.pad = rotation == 0
+            return font.render_to(
                 surf,
                 dest,  # type: ignore[arg-type]
                 text or "",
@@ -353,7 +360,7 @@ class Font(Object):
                 size=size,
             )
         finally:
-            self.__ft.pad = True
+            font.pad = True
 
     config.add_enum_converter("style", FontStyle, store_value=True)
     config.add_value_converter_on_set_static("size", float)
@@ -415,25 +422,16 @@ class FontFactory(Object):
 
     def __init__(self, name: _Path | Resource | None) -> None:
         super().__init__()
-        if name is not None and not isinstance(name, (str, bytes, os.PathLike, Resource)):
-            raise TypeError("Invalid argument")
-        if isinstance(name, FileResource):
-            name = name.path
         self.__name: _Path | Resource | None = name
 
-    def __call__(self, size: float, bold: bool | None = None, italic: bool | None = None, underline: bool | None = None) -> Font:
+    def __call__(self, size: float, bold: bool = False, italic: bool = False, underline: bool = False) -> Font:
         name = self.__name
         if name is not None and isinstance(name, Resource):
             from io import BytesIO
 
             with name.open() as fp:
                 font: Font = Font(BytesIO(fp.read()), size)
-            if bold is not None:
-                font.wide = bold
-            if italic is not None:
-                font.oblique = italic
-            if underline is not None:
-                font.underline = underline
+            font.config.update(wide=bold, oblique=italic, underline=underline)
             return font
 
         return self.create_font((name, size), bold=bold, italic=italic, underline=underline)
@@ -441,29 +439,30 @@ class FontFactory(Object):
     @staticmethod
     def create_font(
         font: _TextFont | None,
-        bold: bool | None = None,
-        italic: bool | None = None,
-        underline: bool | None = None,
+        bold: bool = False,
+        italic: bool = False,
+        underline: bool = False,
     ) -> Font:
         obj: Font
         if isinstance(font, Font):
             return font
-        elif font is None:
+        if font is None:
             font = (None, 15)
-        if isinstance(font, (tuple, list)):
-            font_family, font_size = font
-            if font_family is not None:
-                font_family = os.fsdecode(font_family)
-            if font_family is None or os.path.isfile(font_family):
-                obj = Font(font_family, font_size)
-                if bold is not None:
-                    obj.wide = bold
-                if italic is not None:
-                    obj.oblique = italic
-            else:
-                obj = SysFont(font_family, font_size, bold=bool(bold), italic=bool(italic))
+        font_family, font_size = font
+        if (
+            font_family is None
+            or isinstance(font_family, os.PathLike)
+            or os.path.isfile(font_family)
+            or (isinstance(font_family, str) and any(c in font_family for c in {"/", "\\", "."}))
+            or (isinstance(font_family, bytes) and any(c in font_family for c in {b"/", b"\\", b"."}))
+        ):
+            obj = Font(font_family, font_size)
+            obj.config.update(wide=bold, oblique=italic, underline=underline)
         else:
-            raise TypeError("Invalid arguments")
-        if underline is not None:
-            obj.underline = underline
+            obj = SysFont(font_family, font_size, bold=bold, italic=italic, raise_if_not_found=False)
+            obj.config.update(underline=underline)
         return obj
+
+
+# Initialize freetype module
+_pg_freetype.init()

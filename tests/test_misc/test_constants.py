@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import itertools
 from typing import TYPE_CHECKING, Any, Callable, NamedTuple
 
 from pydiamond.audio.mixer import AllowedAudioChanges, AudioFormat
@@ -55,22 +56,24 @@ def enum_sample(
 
 @pytest.mark.parametrize(
     "sample",
-    [
-        # pydiamond.audio
-        *enum_sample(AudioFormat),
-        *enum_sample(AllowedAudioChanges, constant_name=lambda name: f"AUDIO_ALLOW_{name}_CHANGE"),
-        # pydiamond.graphics
-        *enum_sample(FontStyle, constant_name=lambda name: f"STYLE_{name}", module="pygame.freetype"),
-        *enum_sample(BlendMode, constant_name=lambda name: f"BLEND_{name}", predicate=lambda sample: sample.name != "NONE"),
-        # pydiamond.window
-        *enum_sample(ControllerAxis, constant_name=lambda name: f"CONTROLLER_AXIS_{name.replace('_', '')}"),
-        *enum_sample(ControllerButton, constant_name=lambda name: f"CONTROLLER_BUTTON_{name.removeprefix('BUTTON_')}"),
-        *enum_sample(SystemCursor, constant_name=lambda name: f"SYSTEM_CURSOR_{name}"),
-        *enum_sample(BuiltinEventType, predicate=lambda sample: NOEVENT < sample.value < USEREVENT),
-        *enum_sample(Key),
-        *enum_sample(KeyModifiers),
-        *enum_sample(MouseButton, constant_name=lambda name: f"BUTTON_{name}"),
-    ],
+    list(
+        itertools.chain(
+            # pydiamond.audio
+            enum_sample(AudioFormat),
+            enum_sample(AllowedAudioChanges, constant_name=lambda name: f"AUDIO_ALLOW_{name}_CHANGE"),
+            # pydiamond.graphics
+            enum_sample(FontStyle, constant_name=lambda name: f"STYLE_{name}", module="pygame.freetype"),
+            enum_sample(BlendMode, constant_name=lambda name: f"BLEND_{name}", predicate=lambda sample: sample.name != "NONE"),
+            # pydiamond.window
+            enum_sample(ControllerAxis, constant_name=lambda name: f"CONTROLLER_AXIS_{name.replace('_', '')}"),
+            enum_sample(ControllerButton, constant_name=lambda name: f"CONTROLLER_BUTTON_{name.removeprefix('BUTTON_')}"),
+            enum_sample(SystemCursor, constant_name=lambda name: f"SYSTEM_CURSOR_{name}"),
+            enum_sample(BuiltinEventType, predicate=lambda sample: NOEVENT < sample.value < USEREVENT),
+            enum_sample(Key),
+            enum_sample(KeyModifiers),
+            enum_sample(MouseButton, constant_name=lambda name: f"BUTTON_{name}"),
+        )
+    ),
     ids=lambda sample: f"{sample.enum.__name__}.{sample.name}=={sample.module}.{sample.constant_name}",
 )
 def test____enum_member____value_from_constant(sample: EnumConstantSample) -> None:

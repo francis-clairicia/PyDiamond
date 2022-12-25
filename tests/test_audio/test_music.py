@@ -101,37 +101,37 @@ class TestMusicObject:
         self,
         music_factory: Callable[[str], Music],
         mock_music_stream: MagicMock,
-        sentinel: Any,
+        mocker: MockerFixture,
     ) -> None:
         # Arrange
         music_wav = music_factory("music.wav")
         mock_music_stream_play: MagicMock = mock_music_stream.play
 
         # Act
-        music_wav.play(repeat=sentinel.Music_play_repeat, fade_ms=sentinel.Music_play_fade_ms)
+        music_wav.play(repeat=mocker.sentinel.Music_play_repeat, fade_ms=mocker.sentinel.Music_play_fade_ms)
 
         # Assert
         mock_music_stream_play.assert_called_once_with(
             music_wav,
-            repeat=sentinel.Music_play_repeat,
-            fade_ms=sentinel.Music_play_fade_ms,
+            repeat=mocker.sentinel.Music_play_repeat,
+            fade_ms=mocker.sentinel.Music_play_fade_ms,
         )
 
     def test____queue____calls_MusicStream_queue_method(
         self,
         music_factory: Callable[[str], Music],
         mock_music_stream: MagicMock,
-        sentinel: Any,
+        mocker: MockerFixture,
     ) -> None:
         # Arrange
         music_wav = music_factory("music.wav")
         mock_music_stream_queue: MagicMock = mock_music_stream.queue
 
         # Act
-        music_wav.queue(repeat=sentinel.Music_queue_repeat)
+        music_wav.queue(repeat=mocker.sentinel.Music_queue_repeat)
 
         # Assert
-        mock_music_stream_queue.assert_called_once_with(music_wav, repeat=sentinel.Music_queue_repeat)
+        mock_music_stream_queue.assert_called_once_with(music_wav, repeat=mocker.sentinel.Music_queue_repeat)
 
     def test____object____cache(self, music_filepath_factory: Callable[[str], str]) -> None:
         # Arrange
@@ -275,11 +275,11 @@ class TestMusicStream:
         pygame_music_function_name: str,
         args: tuple[Any, ...] | None,
         mock_pygame_mixer_music_module: MockMixerMusicModule,
-        sentinel: Any,
+        mocker: MockerFixture,
     ) -> None:
         # Arrange
         mock_func: MagicMock = getattr(mock_pygame_mixer_music_module, pygame_music_function_name)
-        sentinel_value: Any = getattr(sentinel, f"MusicStream_{cls_method_name}")
+        sentinel_value: Any = getattr(mocker.sentinel, f"MusicStream_{cls_method_name}")
         mock_func.return_value = sentinel_value
         cls_method: Callable[..., Any] = getattr(MusicStream, cls_method_name)
         if args is None:

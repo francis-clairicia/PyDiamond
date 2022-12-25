@@ -19,20 +19,20 @@ if TYPE_CHECKING:
 
 
 @cache
-def _catch_all_py_diamond_packages_and_modules() -> list[ModuleInfo]:
+def _catch_all_pydiamond_packages_and_modules() -> list[ModuleInfo]:
     from pkgutil import walk_packages
 
-    py_diamond_spec = import_module("pydiamond").__spec__
+    pydiamond_spec = import_module("pydiamond").__spec__
 
-    assert py_diamond_spec is not None
+    assert pydiamond_spec is not None
 
-    py_diamond_paths = py_diamond_spec.submodule_search_locations or import_module("pydiamond").__path__
+    pydiamond_paths = pydiamond_spec.submodule_search_locations or import_module("pydiamond").__path__
 
-    return list(walk_packages(py_diamond_paths, prefix=f"{py_diamond_spec.name}."))
+    return list(walk_packages(pydiamond_paths, prefix=f"{pydiamond_spec.name}."))
 
 
-ALL_PYDIAMOND_PACKAGES = [info.name for info in _catch_all_py_diamond_packages_and_modules() if info.ispkg]
-ALL_PYDIAMOND_MODULES = [info.name for info in _catch_all_py_diamond_packages_and_modules()]
+ALL_PYDIAMOND_PACKAGES = [info.name for info in _catch_all_pydiamond_packages_and_modules() if info.ispkg]
+ALL_PYDIAMOND_MODULES = [info.name for info in _catch_all_pydiamond_packages_and_modules()]
 
 
 @cache
@@ -63,20 +63,21 @@ def _catch_star_imports_within_packages() -> dict[str, list[str]]:
 
 
 @pytest.mark.functional
+@pytest.mark.usefixtures("mock_pygame_freetype_module")
 class TestGlobalImport:
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(scope="class", autouse=True)
     @staticmethod
-    def arrange_environment(monkeypatch: MonkeyPatch) -> None:
-        monkeypatch.setenv("PYDIAMOND_TEST_STRICT_FINAL", "1")
+    def arrange_environment(monkeypatch_class: MonkeyPatch) -> None:
+        monkeypatch_class.setenv("PYDIAMOND_TEST_STRICT_FINAL", "1")
 
-    @pytest.fixture(autouse=True)
+    @pytest.fixture
     @staticmethod
     def unload_pygame(monkeypatch: MonkeyPatch) -> None:
         return unload_module("pygame", include_submodules=True, monkeypatch=monkeypatch)
 
     @pytest.fixture(autouse=True)
     @staticmethod
-    def unload_py_diamond(monkeypatch: MonkeyPatch) -> None:
+    def unload_pydiamond(monkeypatch: MonkeyPatch) -> None:
         return unload_module("pydiamond", include_submodules=True, monkeypatch=monkeypatch)
 
     @pytest.mark.parametrize("module_name", ALL_PYDIAMOND_MODULES)
@@ -90,6 +91,7 @@ class TestGlobalImport:
 
         assert module_name in sys.modules
 
+    @pytest.mark.usefixtures("unload_pygame")
     def test____import____raise_custom_message_if_pygame_is_not_installed(self, mocker: MockerFixture) -> None:
         # Forbid import of pygame
         original_import = __import__

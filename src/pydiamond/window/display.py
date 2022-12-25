@@ -197,15 +197,11 @@ class Window(Object, no_slots=True):
             stack.callback(_pg_display.quit)
 
             import pygame._sdl2.controller as _pg_controller
-            import pygame.freetype as _pg_freetype
 
-            if not _pg_freetype.get_init():
-                _pg_freetype.init()
-                stack.callback(_pg_freetype.quit)
             if not _pg_controller.get_init():
                 _pg_controller.init()
                 stack.callback(_pg_controller.quit)
-            del _pg_freetype, _pg_controller
+            del _pg_controller
 
             size: tuple[int, int] = self.__size
             flags: int = self.__flags

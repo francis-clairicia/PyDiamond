@@ -75,9 +75,9 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
         message: str = "",
         *,
         font: _TextFont | None = None,
-        bold: bool | None = None,
-        italic: bool | None = None,
-        underline: bool | None = None,
+        bold: bool = False,
+        italic: bool = False,
+        underline: bool = False,
         color: Color = BLACK,
         wrap: int = 0,
         justify: str = "left",
@@ -130,9 +130,9 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
     def set_font(
         self,
         font: _TextFont | None,
-        bold: bool | None = None,
-        italic: bool | None = None,
-        underline: bool | None = None,
+        bold: bool = False,
+        italic: bool = False,
+        underline: bool = False,
     ) -> None:
         self.__font = FontFactory.create_font(font, bold=bold, italic=italic, underline=underline)
         self.config.update_section("font")
@@ -141,9 +141,9 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
         self,
         index: int,
         font: _TextFont | None,
-        bold: bool | None = None,
-        italic: bool | None = None,
-        underline: bool | None = None,
+        bold: bool = False,
+        italic: bool = False,
+        underline: bool = False,
     ) -> None:
         if index < 0:
             raise ValueError(f"Negative index: {index}")
@@ -304,9 +304,9 @@ class TextImage(Text):
         compound: str = "left",
         distance: float = 5,
         font: _TextFont | None = None,
-        bold: bool | None = None,
-        italic: bool | None = None,
-        underline: bool | None = None,
+        bold: bool = False,
+        italic: bool = False,
+        underline: bool = False,
         color: Color = BLACK,
         wrap: int = 0,
         justify: str = "left",

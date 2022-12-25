@@ -63,16 +63,16 @@ class TestMixer:
         mock_pygame_mixer_module.init.assert_called_once_with(**CONFIG)
 
     @pytest.mark.usefixtures("mixer_init_default_side_effect")
-    def test____init____yields_output_from_Mixer_get_init(self, mocker: MockerFixture, sentinel: Any) -> None:
+    def test____init____yields_output_from_Mixer_get_init(self, mocker: MockerFixture) -> None:
         # Arrange
-        mocker.patch.object(Mixer, "get_init", return_value=sentinel.Mixer_get_init)
+        mocker.patch.object(Mixer, "get_init", return_value=mocker.sentinel.Mixer_get_init)
 
         # Act
         with Mixer.init() as mixer_params:
             pass
 
         # Assert
-        assert mixer_params is sentinel.Mixer_get_init
+        assert mixer_params is mocker.sentinel.Mixer_get_init
 
     def test____init____raises_pygame_error_if_already_initialized(self, mock_pygame_mixer_module: MockMixerModule) -> None:
         # Arrange
@@ -107,12 +107,12 @@ class TestMixer:
         # Assert
         mock_pygame_mixer_module.quit.assert_not_called()
 
-    def test____get_init____return_mixer_params(self, mock_pygame_mixer_module: MockMixerModule, sentinel: Any) -> None:
+    def test____get_init____return_mixer_params(self, mock_pygame_mixer_module: MockMixerModule, mocker: MockerFixture) -> None:
         # Arrange
         mock_pygame_mixer_module.get_init.return_value = (
-            sentinel.Mixer_get_init_frequency,
-            sentinel.Mixer_get_init_size,
-            sentinel.Mixer_get_init_channels,
+            mocker.sentinel.Mixer_get_init_frequency,
+            mocker.sentinel.Mixer_get_init_size,
+            mocker.sentinel.Mixer_get_init_channels,
         )
 
         # Act
@@ -121,9 +121,9 @@ class TestMixer:
         # Assert
         assert mixer_params is not None
         assert isinstance(mixer_params, MixerParams)
-        assert mixer_params.frequency is sentinel.Mixer_get_init_frequency
-        assert mixer_params.size is sentinel.Mixer_get_init_size
-        assert mixer_params.channels is sentinel.Mixer_get_init_channels
+        assert mixer_params.frequency is mocker.sentinel.Mixer_get_init_frequency
+        assert mixer_params.size is mocker.sentinel.Mixer_get_init_size
+        assert mixer_params.channels is mocker.sentinel.Mixer_get_init_channels
 
     def test____get_init____return_None_if_mixer_not_initialized(self, mock_pygame_mixer_module: MockMixerModule) -> None:
         # Arrange
@@ -155,11 +155,11 @@ class TestMixer:
         pygame_mixer_function_name: str,
         args: tuple[Any, ...] | None,
         mock_pygame_mixer_module: MockMixerModule,
-        sentinel: Any,
+        mocker: MockerFixture,
     ) -> None:
         # Arrange
         mock_func: MagicMock = getattr(mock_pygame_mixer_module, pygame_mixer_function_name)
-        sentinel_value: Any = getattr(sentinel, f"Mixer_{mixer_cls_method_name}")
+        sentinel_value: Any = getattr(mocker.sentinel, f"Mixer_{mixer_cls_method_name}")
         mock_func.return_value = sentinel_value
         mixer_cls_method: Callable[..., Any] = getattr(Mixer, mixer_cls_method_name)
         if args is None:
