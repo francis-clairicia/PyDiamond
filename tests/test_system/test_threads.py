@@ -140,10 +140,10 @@ def test_thread_factory_method_shared_lock_true() -> None:
     assert c1.action.get_lock() is c2.action.get_lock()
 
 
-def test_thread_factory_method_shared_lock_callable(sentinel: Any) -> None:
+def test_thread_factory_method_shared_lock_callable(mocker: Any) -> None:
     class C:
         def __init__(self) -> None:
-            self.__lock = sentinel.lock
+            self.__lock = mocker.sentinel.lock
 
         def get_lock(self) -> Any:
             return self.__lock

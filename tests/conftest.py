@@ -31,12 +31,13 @@ pytest_plugins = [
     # pygame modules plugins
     f"{__package__}.mock.pygame.display",
     f"{__package__}.mock.pygame.event",
+    f"{__package__}.mock.pygame.freetype",
     f"{__package__}.mock.pygame.mixer",
     f"{__package__}.mock.pygame.mouse",
+    f"{__package__}.mock.pygame.sysfont",
     # other plugins
     f"{__package__}.mock.sys",
     f"{__package__}.fixtures.monkeypatch",
-    f"{__package__}.fixtures.sentinel",
 ]
 
 

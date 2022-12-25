@@ -56,6 +56,7 @@ class PipCompileCommand(_AbstractPipToolsCommand):
             "--quiet",
             "--no-header",
             "--newline=LF",
+            "--strip-extras",
         )
 
     @classmethod
