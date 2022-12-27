@@ -46,12 +46,10 @@ from pygame.constants import (
     CONTROLLERDEVICEADDED as _PG_CONTROLLERDEVICEADDED,
     CONTROLLERDEVICEREMOVED as _PG_CONTROLLERDEVICEREMOVED,
     FULLSCREEN as _PG_FULLSCREEN,
-    MOUSEWHEEL as _PG_MOUSEWHEEL,
     QUIT as _PG_QUIT,
     RESIZABLE as _PG_RESIZABLE,
     WINDOWCLOSE as _PG_WINDOWCLOSE,
 )
-from pygame.version import SDL as _SDL_VERSION
 from typing_extensions import assert_never
 
 from ..audio.music import MusicStream
@@ -572,13 +570,6 @@ class Window(Object, no_slots=True):
                 pg_event = poll_event()
             except IndexError:
                 break
-            if pg_event.type == _PG_MOUSEWHEEL and (
-                (_SDL_VERSION == (2, 0, 16) and _pg_display.get_driver() in ("x11", "wayland"))
-                or (_SDL_VERSION < (2, 0, 20) and _pg_display.get_driver() == "wayland")
-            ):
-                # Inverted x value returned by the SDL
-                # See https://github.com/libsdl-org/SDL/issues/5202
-                pg_event.__dict__["x"] *= -1
             try:
                 event = make_event(pg_event, raise_if_blocked=True)
             except UnknownEventTypeError:
