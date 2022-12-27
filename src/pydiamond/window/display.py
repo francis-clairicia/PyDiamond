@@ -155,7 +155,7 @@ class Window(Object, no_slots=True):
         self.__main_clock: _FramerateManager = _FramerateManager()
         self.__event_queue: deque[_pg_event.Event] = deque()
 
-        self._last_tick_time: float = -1
+        self.last_tick_time: float = -1
 
         self.__default_framerate: int = self.DEFAULT_FRAMERATE
         self.__busy_loop: bool = False
@@ -168,11 +168,6 @@ class Window(Object, no_slots=True):
 
         self.__mouse_position_callbacks: set[Callable[[Any, tuple[int, int]], Any]] = set()
         self.__loop_callbacks: set[Callable[[Any], Any]] = set()
-
-        def process_window_callbacks(self: Window) -> None:
-            self.__callback_after.process()
-
-        self.__loop_callbacks.add(process_window_callbacks)
 
         self.__stack = ExitStack()
 
@@ -213,7 +208,7 @@ class Window(Object, no_slots=True):
                 self.__close_on_next_frame = False
                 self.__display_renderer = None
                 self.__rect = ImmutableRect(0, 0, 0, 0)
-                self._last_tick_time = -1
+                self.last_tick_time = -1
                 self.__event_queue.clear()
 
             stack.enter_context(self.__stack)
@@ -249,7 +244,7 @@ class Window(Object, no_slots=True):
 
             self.__event_queue.clear()
             self.__main_clock.tick()
-            self._last_tick_time = -1
+            self.last_tick_time = -1
             self.__close_on_next_frame = False
             yield
 
@@ -289,7 +284,11 @@ class Window(Object, no_slots=True):
         if screen is None or (renderer := self.__display_renderer) is None:
             raise WindowError("Closed window")
 
-        self._last_tick_time = self._handle_framerate()
+        framerate: int = self.used_framerate()
+        if framerate <= 0:
+            self.last_tick_time = self.__main_clock.tick()
+        else:
+            self.last_tick_time = self.__main_clock.tick(framerate, self.get_busy_loop())
 
         event_queue = self.__event_queue
         event_queue.clear()
@@ -322,9 +321,11 @@ class Window(Object, no_slots=True):
             renderer._resize()
             self.__rect = ImmutableRect.convert(screen.get_rect())
 
+        for loop_callback in list(self.__loop_callbacks):
+            loop_callback(self)
+
         if self.__process_callbacks:
-            for loop_callback in list(self.__loop_callbacks):
-                loop_callback(self)
+            self.__callback_after.process()
 
         handle_music_event = MusicStream._handle_event
         for event in _pg_event.get():
@@ -376,6 +377,14 @@ class Window(Object, no_slots=True):
             raise TypeError("must be a callable object")
         self.__loop_callbacks.add(callback)
 
+    def register_window_callback(self, window_callback: WindowCallback) -> None:
+        if not isinstance(window_callback, WindowCallback):
+            raise TypeError("must be a WindowCallback object")
+        if window_callback.master is not self:
+            raise ValueError("window callback's master is not self")
+        if window_callback not in self.__callback_after:
+            self.__callback_after.append(window_callback)
+
     def clear(self, color: ColorValue = BLACK, *, blend_alpha: bool = False) -> None:
         screen = self.__display_renderer
         if screen is None:
@@ -402,15 +411,6 @@ class Window(Object, no_slots=True):
 
     def set_busy_loop(self, status: bool) -> None:
         self.__busy_loop = bool(status)
-
-    def _handle_framerate(self) -> float:
-        framerate: int = self.used_framerate()
-        real_time: float
-        if framerate <= 0:
-            real_time = self.__main_clock.tick()
-        else:
-            real_time = self.__main_clock.tick(framerate, self.get_busy_loop())
-        return real_time
 
     def refresh(self) -> None:
         screen = self.__display_renderer
@@ -1071,6 +1071,10 @@ class WindowCallback:
         with suppress(AttributeError):
             del self.__master, self.__args, self.__kwargs, self.__callback, self.__clock
         master._remove_window_callback(self)
+
+    @property
+    def master(self) -> Window:
+        return self.__master
 
 
 class _WindowCallbackList(list[WindowCallback]):
