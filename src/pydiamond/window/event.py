@@ -44,11 +44,13 @@ __all__ = [
     "TextEditingEvent",
     "TextInputEvent",
     "UnknownEventTypeError",
+    "WindowDisplayChangedEvent",
     "WindowEnterEvent",
     "WindowExposedEvent",
     "WindowFocusGainedEvent",
     "WindowFocusLostEvent",
     "WindowHiddenEvent",
+    "WindowICCProfChangedEvent",
     "WindowLeaveEvent",
     "WindowMaximizedEvent",
     "WindowMinimizedEvent",
@@ -346,6 +348,8 @@ class BuiltinEventType(IntEnum):
     WINDOWCLOSE = auto()
     WINDOWTAKEFOCUS = auto()
     WINDOWHITTEST = auto()
+    WINDOWICCPROFCHANGED = auto()
+    WINDOWDISPLAYCHANGED = auto()
     CONTROLLERAXISMOTION = auto()
     CONTROLLERBUTTONDOWN = auto()
     CONTROLLERBUTTONUP = auto()
@@ -442,18 +446,17 @@ class MouseWheelEvent(MouseEvent, event_type=BuiltinEventType.MOUSEWHEEL):
     flipped: bool
     x: int
     y: int
-
-    def __post_init__(self) -> None:
-        self.flipped = bool(self.flipped)
+    precise_x: float
+    precise_y: float
 
     def x_offset(self, factor: float = 1) -> float:
-        offset = float(factor) * self.x
+        offset = float(factor) * self.precise_x
         if self.flipped:
             return -offset
         return offset
 
     def y_offset(self, factor: float = 1) -> float:
-        offset = float(factor) * self.y
+        offset = float(factor) * self.precise_y
         if self.flipped:
             return offset
         return -offset
@@ -724,6 +727,18 @@ class WindowHitTestEvent(WindowEvent, event_type=BuiltinEventType.WINDOWHITTEST)
     pass
 
 
+@final
+@dataclass(kw_only=True)
+class WindowICCProfChangedEvent(WindowEvent, event_type=BuiltinEventType.WINDOWICCPROFCHANGED):
+    pass
+
+
+@final
+@dataclass(kw_only=True)
+class WindowDisplayChangedEvent(WindowEvent, event_type=BuiltinEventType.WINDOWDISPLAYCHANGED):
+    display_index: int
+
+
 @dataclass(kw_only=True)
 class ControllerEvent(BuiltinEvent):
     instance_id: int
@@ -734,7 +749,6 @@ class ControllerEvent(BuiltinEvent):
 class ControllerAxisMotionEvent(
     ControllerEvent,
     event_type=BuiltinEventType.CONTROLLERAXISMOTION,
-    event_name="ControllerAxisMotion",
 ):
     axis: ControllerAxis
     value: int
@@ -763,7 +777,6 @@ class ControllerButtonEvent(ControllerEvent):
 class ControllerButtonDownEvent(
     ControllerButtonEvent,
     event_type=BuiltinEventType.CONTROLLERBUTTONDOWN,
-    event_name="ControllerButtonDown",
 ):
     pass
 
@@ -773,7 +786,6 @@ class ControllerButtonDownEvent(
 class ControllerButtonUpEvent(
     ControllerButtonEvent,
     event_type=BuiltinEventType.CONTROLLERBUTTONUP,
-    event_name="ControllerButtonUp",
 ):
     pass
 
@@ -783,7 +795,6 @@ class ControllerButtonUpEvent(
 class ControllerDeviceAddedEvent(
     BuiltinEvent,
     event_type=BuiltinEventType.CONTROLLERDEVICEADDED,
-    event_name="ControllerDeviceAdded",
     non_blockable=True,
 ):
     device_index: int
@@ -795,7 +806,6 @@ class ControllerDeviceAddedEvent(
 class ControllerDeviceRemovedEvent(
     BuiltinEvent,
     event_type=BuiltinEventType.CONTROLLERDEVICEREMOVED,
-    event_name="ControllerDeviceRemoved",
     non_blockable=True,
 ):
     instance_id: int
@@ -806,7 +816,6 @@ class ControllerDeviceRemovedEvent(
 class ControllerDeviceRemappedEvent(
     BuiltinEvent,
     event_type=BuiltinEventType.CONTROLLERDEVICEREMAPPED,
-    event_name="ControllerDeviceMapped",
 ):
     instance_id: int
 
@@ -862,12 +871,6 @@ class PygameEventConversionError(EventFactoryError):
 
 class PygameConvertedEventBlocked(PygameEventConversionError):
     pass
-
-
-if TYPE_CHECKING:
-    _PygameEventType: TypeAlias = _pg_event.Event
-else:
-    from pygame.event import EventType as _PygameEventType
 
 
 @final
@@ -934,7 +937,7 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
         import pygame.constants as _pg_constants
 
         match event:
-            case _PygameEventType(type=EventFactory.USEREVENT, code=_pg_constants.USEREVENT_DROPFILE):
+            case _pg_event.Event(type=EventFactory.USEREVENT, code=_pg_constants.USEREVENT_DROPFILE):
                 # cf.: https://www.pygame.org/docs/ref/event.html#:~:text=%3Dpygame.-,USEREVENT_DROPFILE,-%2C%20filename
                 try:
                     event = _pg_event.Event(int(BuiltinEventType.DROPFILE), file=event.filename)

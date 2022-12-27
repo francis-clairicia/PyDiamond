@@ -299,7 +299,7 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
 
     @final
     def move(self, dx: float, dy: float) -> None:
-        if (dx, dy) == (0, 0):
+        if dx == 0 and dy == 0:
             return
         self.__x += dx
         self.__y += dy
@@ -307,7 +307,7 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
 
     @final
     def translate(self, vector: Vector2 | tuple[float, float]) -> None:
-        if (vector[0], vector[1]) == (0, 0):
+        if vector[0] == 0 and vector[1] == 0:
             return
         self.__x += vector[0]
         self.__y += vector[1]

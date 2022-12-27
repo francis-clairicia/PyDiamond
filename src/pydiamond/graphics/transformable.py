@@ -414,7 +414,7 @@ class Transformable(Movable):
             normalize_points(vertices)
 
         if kwargs:
-            rect = Rect(compute_rect_from_vertices(vertices))
+            rect = Rect(*compute_rect_from_vertices(vertices))
             move_rect_in_place(rect, **kwargs)
             dx = rect.x
             dy = rect.y

@@ -39,13 +39,13 @@ from .font import STYLE_DEFAULT, Font, FontFactory
 from .renderer import AbstractRenderer, BlendMode, RendererAnchor
 
 if TYPE_CHECKING:
-    from pygame._common import _CanBeRect, _ColorValue, _Coordinate, _RectValue
+    from pygame._common import ColorValue, Coordinate, RectValue, _CanBeRect
 
     from ..resources.abc import Resource
     from .font import _TextFont
 
 
-def create_surface(size: tuple[float, float], *, convert_alpha: bool = True, default_color: _ColorValue = TRANSPARENT) -> Surface:
+def create_surface(size: tuple[float, float], *, convert_alpha: bool = True, default_color: ColorValue = TRANSPARENT) -> Surface:
     size = (max(size[0], 0), max(size[1], 0))
     s: Surface = Surface(size)
     if convert_alpha:
@@ -104,7 +104,7 @@ class SurfaceRenderer(AbstractRenderer):
     def get_height(self) -> float:
         return self.__target.get_height()
 
-    def fill(self, color: _ColorValue, rect: _CanBeRect | None = None) -> Rect:
+    def fill(self, color: ColorValue, rect: _CanBeRect | None = None) -> Rect:
         return self.__target.fill(color, rect=rect)
 
     def get_clip(self) -> Rect:
@@ -140,7 +140,7 @@ class SurfaceRenderer(AbstractRenderer):
     def draw_surface(
         self,
         surface: Surface,
-        dest: _Coordinate | _CanBeRect,
+        dest: Coordinate | _CanBeRect,
         area: _CanBeRect | None = None,
         special_flags: int = BlendMode.NONE,
         anchor: RendererAnchor = "topleft",
@@ -153,9 +153,9 @@ class SurfaceRenderer(AbstractRenderer):
     def draw_many_surfaces(
         self,
         sequence: Iterable[
-            tuple[Surface, _Coordinate | _CanBeRect]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
+            tuple[Surface, Coordinate | _CanBeRect]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None, int]
         ],
         doreturn: Literal[True] = ...,
     ) -> list[Rect]:
@@ -165,9 +165,9 @@ class SurfaceRenderer(AbstractRenderer):
     def draw_many_surfaces(
         self,
         sequence: Iterable[
-            tuple[Surface, _Coordinate | _CanBeRect]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
+            tuple[Surface, Coordinate | _CanBeRect]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None, int]
         ],
         doreturn: Literal[False],
     ) -> None:
@@ -177,9 +177,9 @@ class SurfaceRenderer(AbstractRenderer):
     def draw_many_surfaces(
         self,
         sequence: Iterable[
-            tuple[Surface, _Coordinate | _CanBeRect]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
+            tuple[Surface, Coordinate | _CanBeRect]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None, int]
         ],
         doreturn: bool,
     ) -> list[Rect] | None:
@@ -188,9 +188,9 @@ class SurfaceRenderer(AbstractRenderer):
     def draw_many_surfaces(
         self,
         sequence: Iterable[
-            tuple[Surface, _Coordinate | _CanBeRect]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None]
-            | tuple[Surface, _Coordinate | _CanBeRect, _CanBeRect | None, int]
+            tuple[Surface, Coordinate | _CanBeRect]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None]
+            | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None, int]
         ],
         doreturn: bool = True,
     ) -> list[Rect] | None:
@@ -200,9 +200,9 @@ class SurfaceRenderer(AbstractRenderer):
         self,
         text: str,
         font: _TextFont,
-        dest: _Coordinate | _CanBeRect,
-        fgcolor: _ColorValue,
-        bgcolor: _ColorValue | None = None,
+        dest: Coordinate | _CanBeRect,
+        fgcolor: ColorValue,
+        bgcolor: ColorValue | None = None,
         style: int = STYLE_DEFAULT,
         rotation: int = 0,
         size: float = 0,
@@ -216,8 +216,8 @@ class SurfaceRenderer(AbstractRenderer):
 
     def draw_rect(
         self,
-        color: _ColorValue,
-        rect: _RectValue,
+        color: ColorValue,
+        rect: RectValue,
         width: int = 0,
         border_radius: int = -1,
         border_top_left_radius: int = -1,
@@ -239,16 +239,16 @@ class SurfaceRenderer(AbstractRenderer):
 
     def draw_polygon(
         self,
-        color: _ColorValue,
-        points: Sequence[_Coordinate],
+        color: ColorValue,
+        points: Sequence[Coordinate],
         width: int = 0,
     ) -> Rect:
         return _draw_polygon(surface=self.__target, color=color, points=points, width=width)
 
     def draw_circle(
         self,
-        color: _ColorValue,
-        center: _Coordinate,
+        color: ColorValue,
+        center: Coordinate,
         radius: float,
         width: int = 0,
         draw_top_right: bool = True,
@@ -268,13 +268,13 @@ class SurfaceRenderer(AbstractRenderer):
             draw_bottom_right=draw_bottom_right,
         )
 
-    def draw_ellipse(self, color: _ColorValue, rect: _RectValue, width: int = 0) -> Rect:
+    def draw_ellipse(self, color: ColorValue, rect: RectValue, width: int = 0) -> Rect:
         return _draw_ellipse(surface=self.__target, color=color, rect=rect, width=width)
 
     def draw_arc(
         self,
-        color: _ColorValue,
-        rect: _RectValue,
+        color: ColorValue,
+        rect: RectValue,
         start_angle: float,
         stop_angle: float,
         width: int = 1,
@@ -290,36 +290,36 @@ class SurfaceRenderer(AbstractRenderer):
 
     def draw_line(
         self,
-        color: _ColorValue,
-        start_pos: _Coordinate,
-        end_pos: _Coordinate,
+        color: ColorValue,
+        start_pos: Coordinate,
+        end_pos: Coordinate,
         width: int = 1,
     ) -> Rect:
         return _draw_line(surface=self.__target, color=color, start_pos=start_pos, end_pos=end_pos, width=width)
 
     def draw_lines(
         self,
-        color: _ColorValue,
+        color: ColorValue,
         closed: bool,
-        points: Sequence[_Coordinate],
+        points: Sequence[Coordinate],
         width: int = 1,
     ) -> Rect:
         return _draw_multiple_lines(surface=self.__target, color=color, closed=closed, points=points, width=width)
 
     def draw_aaline(
         self,
-        color: _ColorValue,
-        start_pos: _Coordinate,
-        end_pos: _Coordinate,
+        color: ColorValue,
+        start_pos: Coordinate,
+        end_pos: Coordinate,
         blend: int = 1,
     ) -> Rect:
         return _draw_antialiased_line(surface=self.__target, color=color, start_pos=start_pos, end_pos=end_pos, blend=blend)
 
     def draw_aalines(
         self,
-        color: _ColorValue,
+        color: ColorValue,
         closed: bool,
-        points: Sequence[_Coordinate],
+        points: Sequence[Coordinate],
         blend: int = 1,
     ) -> Rect:
         return _draw_multiple_antialiased_lines(

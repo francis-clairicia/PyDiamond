@@ -46,12 +46,10 @@ from pygame.constants import (
     CONTROLLERDEVICEADDED as _PG_CONTROLLERDEVICEADDED,
     CONTROLLERDEVICEREMOVED as _PG_CONTROLLERDEVICEREMOVED,
     FULLSCREEN as _PG_FULLSCREEN,
-    MOUSEWHEEL as _PG_MOUSEWHEEL,
     QUIT as _PG_QUIT,
     RESIZABLE as _PG_RESIZABLE,
     WINDOWCLOSE as _PG_WINDOWCLOSE,
 )
-from pygame.version import SDL as _SDL_VERSION
 from typing_extensions import assert_never
 
 from ..audio.music import MusicStream
@@ -75,7 +73,7 @@ from .keyboard import Keyboard
 from .mouse import Mouse
 
 if TYPE_CHECKING:
-    from pygame._common import _ColorValue
+    from pygame._common import ColorValue
 
     from ..graphics.drawable import SupportsDrawing
 
@@ -206,8 +204,7 @@ class Window(Object, no_slots=True):
             size: tuple[int, int] = self.__size
             flags: int = self.__flags
             vsync: bool = self.__vsync
-            _pg_display.set_mode(size, flags=flags, vsync=vsync).fill((0, 0, 0))
-            _pg_display.flip()
+            _pg_display.set_mode(size, flags=flags, vsync=vsync)
             self.__display_renderer = _WindowRendererImpl()
             self.__rect = ImmutableRect.convert(self.__display_renderer.get_rect())
 
@@ -379,7 +376,7 @@ class Window(Object, no_slots=True):
             raise TypeError("must be a callable object")
         self.__loop_callbacks.add(callback)
 
-    def clear(self, color: _ColorValue = BLACK, *, blend_alpha: bool = False) -> None:
+    def clear(self, color: ColorValue = BLACK, *, blend_alpha: bool = False) -> None:
         screen = self.__display_renderer
         if screen is None:
             raise WindowError("No active renderer")
@@ -573,13 +570,6 @@ class Window(Object, no_slots=True):
                 pg_event = poll_event()
             except IndexError:
                 break
-            if pg_event.type == _PG_MOUSEWHEEL and (
-                (_SDL_VERSION == (2, 0, 16) and _pg_display.get_driver() in ("x11", "wayland"))
-                or (_SDL_VERSION < (2, 0, 20) and _pg_display.get_driver() == "wayland")
-            ):
-                # Inverted x value returned by the SDL
-                # See https://github.com/libsdl-org/SDL/issues/5202
-                pg_event.__dict__["x"] *= -1
             try:
                 event = make_event(pg_event, raise_if_blocked=True)
             except UnknownEventTypeError:

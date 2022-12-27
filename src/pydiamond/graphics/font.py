@@ -28,7 +28,7 @@ from ..system.configuration import ConfigurationTemplate, OptionAttribute
 from ..system.object import Object, final
 
 if TYPE_CHECKING:
-    from pygame._common import _CanBeRect, _ColorValue, _Coordinate, _FileArg
+    from pygame._common import ColorValue, Coordinate, FileArg, _CanBeRect
 
     from .surface import Surface
 
@@ -164,7 +164,7 @@ class Font(Object):
 
     def __init__(
         self,
-        file: _FileArg | None,
+        file: FileArg | None,
         size: float = 0,
     ) -> None:
         size = max(size, 1)
@@ -311,8 +311,8 @@ class Font(Object):
     def render(
         self,
         text: str,
-        fgcolor: _ColorValue,
-        bgcolor: _ColorValue | None = None,
+        fgcolor: ColorValue,
+        bgcolor: ColorValue | None = None,
         style: int = STYLE_DEFAULT,
         rotation: int = 0,
         size: float = 0,
@@ -336,10 +336,10 @@ class Font(Object):
     def render_to(
         self,
         surf: Surface,
-        dest: _Coordinate | _CanBeRect,
+        dest: Coordinate | _CanBeRect,
         text: str,
-        fgcolor: _ColorValue,
-        bgcolor: _ColorValue | None = None,
+        fgcolor: ColorValue,
+        bgcolor: ColorValue | None = None,
         style: int = STYLE_DEFAULT,
         rotation: int = 0,
         size: float = 0,
