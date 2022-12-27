@@ -22,7 +22,7 @@ from .movable import Movable
 from .transformable import Transformable
 
 if TYPE_CHECKING:
-    from ..window.scene import Scene, SceneWindow
+    from ..scene import Scene, SceneWindow
 
 
 @final

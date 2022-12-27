@@ -30,7 +30,6 @@ per-file-ignores =
     # F405: 'name' may be undefined, or defined from star imports: 'module'
     src/pydiamond/__init__.py:F401
     src/pydiamond/*/__init__.py:F401,F403,F405
-    src/pydiamond/window/scene/__init__.py:
     #### Stub errors ignore ####
     # E301,E302: expected 1/2 blank line(s)
     # E701: multiple statements on one line

@@ -12,13 +12,16 @@ __all__ = [
 ]
 
 from abc import abstractmethod
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from ...graphics.color import BLACK, TRANSPARENT, WHITE, Color
-from ...graphics.shape import RectangleShape
-from ...system.object import final
-from ...system.validation import valid_optional_float
-from . import Scene, SceneWindow
+from ..graphics.color import BLACK, TRANSPARENT, WHITE, Color
+from ..graphics.shape import RectangleShape
+from ..system.object import final
+from ..system.validation import valid_optional_float
+from .abc import Scene
+
+if TYPE_CHECKING:
+    from .window import SceneWindow
 
 
 class Dialog(Scene):

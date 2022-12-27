@@ -19,11 +19,11 @@ from enum import auto, unique
 from typing import Any, Callable, Final, Iterator, Literal, Mapping, Protocol, TypedDict, TypeGuard, overload, runtime_checkable
 from weakref import WeakSet, WeakValueDictionary, ref as weakref
 
+from ..scene.abc import Scene
 from ..system.collections import WeakKeyDefaultDictionary
 from ..system.utils.enum import AutoLowerNameEnum
 from ..system.utils.weakref import weakref_unwrap
 from ..window.event import Event
-from ..window.scene import Scene
 
 
 @runtime_checkable

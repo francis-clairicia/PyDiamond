@@ -60,6 +60,9 @@ from pydiamond.gui.widgets.scroll import ScrollBar, ScrollingContainer
 from pydiamond.resources.loader import FontLoader, ImageLoader, MusicLoader, SoundLoader
 from pydiamond.resources.manager import ResourceManager
 from pydiamond.resources.package import ResourcesPackage
+from pydiamond.scene.abc import MainScene, Scene, SceneTransition
+from pydiamond.scene.dialog import PopupDialog
+from pydiamond.scene.window import SceneWindow
 from pydiamond.system.clock import Clock
 from pydiamond.system.time import Time
 from pydiamond.window.controller import Controller, ControllerAxis, ControllerButton, get_all_controllers
@@ -77,8 +80,6 @@ from pydiamond.window.event import (
 )
 from pydiamond.window.keyboard import Key, Keyboard
 from pydiamond.window.mouse import Mouse, MouseButton
-from pydiamond.window.scene import MainScene, Scene, SceneTransition, SceneWindow
-from pydiamond.window.scene.dialog import PopupDialog
 
 
 class ShapeScene(MainScene, busy_loop=True):

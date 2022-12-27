@@ -26,6 +26,8 @@ from ...graphics.drawable import Drawable
 from ...graphics.movable import Movable
 from ...graphics.renderer import AbstractRenderer
 from ...math.rect import Rect
+from ...scene.abc import Scene
+from ...scene.window import SceneWindow
 from ...system.collections import OrderedSet, OrderedWeakSet
 from ...system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 from ...system.object import Object
@@ -51,7 +53,6 @@ from ...window.event import (
 )
 from ...window.keyboard import Key
 from ...window.mouse import MouseButton
-from ...window.scene import Scene, SceneWindow
 from ..focus import BoundFocus
 from ..scene import FocusMode
 

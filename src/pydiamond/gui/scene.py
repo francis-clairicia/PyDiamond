@@ -13,6 +13,7 @@ from enum import auto, unique
 from types import MappingProxyType
 from typing import Any, Callable, ClassVar, Final, Iterator, Literal, Mapping, Sequence, overload
 
+from ..scene.abc import Scene
 from ..system.collections import OrderedWeakSet
 from ..system.object import final
 from ..system.theme import no_theme_decorator
@@ -21,7 +22,6 @@ from ..system.utils.weakref import weakref_unwrap
 from ..window.controller import ControllerButton
 from ..window.event import ControllerButtonDownEvent, ControllerEvent, Event, KeyDownEvent, KeyEvent, MouseEvent
 from ..window.keyboard import Key, KeyModifiers
-from ..window.scene import Scene
 
 
 @unique
