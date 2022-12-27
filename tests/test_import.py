@@ -67,8 +67,8 @@ def _catch_star_imports_within_packages() -> dict[str, list[str]]:
 class TestGlobalImport:
     @pytest.fixture(scope="class", autouse=True)
     @staticmethod
-    def arrange_environment(monkeypatch_class: MonkeyPatch) -> None:
-        monkeypatch_class.setenv("PYDIAMOND_TEST_STRICT_FINAL", "1")
+    def arrange_environment(class_monkeypatch: MonkeyPatch) -> None:
+        class_monkeypatch.setenv("PYDIAMOND_TEST_STRICT_FINAL", "1")
 
     @pytest.fixture
     @staticmethod

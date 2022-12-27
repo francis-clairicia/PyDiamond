@@ -168,13 +168,13 @@ class TestMusicObject:
 class TestMusicStream:
     @pytest.fixture(scope="class", autouse=True)
     @staticmethod
-    def mock_music_open(monkeypatch_class: pytest.MonkeyPatch) -> None:
+    def mock_music_open(class_monkeypatch: pytest.MonkeyPatch) -> None:
         from contextlib import nullcontext
 
         def mock_open(self: Music) -> Any:
             return nullcontext(MockMusicOpenIO(self.resource))
 
-        monkeypatch_class.setattr(Music, "open", mock_open)
+        class_monkeypatch.setattr(Music, "open", mock_open)
 
     @pytest.fixture(autouse=True)
     @staticmethod
@@ -367,13 +367,13 @@ class TestMusicStream:
 class TestMusicStreamFunctional:
     @pytest.fixture(scope="class", autouse=True)
     @staticmethod
-    def mock_music_open(monkeypatch_class: pytest.MonkeyPatch) -> None:
+    def mock_music_open(class_monkeypatch: pytest.MonkeyPatch) -> None:
         from contextlib import nullcontext
 
         def mock_open(self: Music) -> Any:
             return nullcontext(MockMusicOpenIO(self.resource))
 
-        monkeypatch_class.setattr(Music, "open", mock_open)
+        class_monkeypatch.setattr(Music, "open", mock_open)
 
     @pytest.fixture(autouse=True)
     @staticmethod

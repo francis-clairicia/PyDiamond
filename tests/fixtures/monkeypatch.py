@@ -16,20 +16,20 @@ def _monkeypatch() -> Iterator[MonkeyPatch]:
 
 
 @pytest.fixture(scope="session")
-def monkeypatch_session() -> Iterator[MonkeyPatch]:
+def session_monkeypatch() -> Iterator[MonkeyPatch]:
     yield from _monkeypatch()
 
 
 @pytest.fixture(scope="package")
-def monkeypatch_package() -> Iterator[MonkeyPatch]:
+def package_monkeypatch() -> Iterator[MonkeyPatch]:
     yield from _monkeypatch()
 
 
 @pytest.fixture(scope="module")
-def monkeypatch_module() -> Iterator[MonkeyPatch]:
+def module_monkeypatch() -> Iterator[MonkeyPatch]:
     yield from _monkeypatch()
 
 
 @pytest.fixture(scope="class")
-def monkeypatch_class() -> Iterator[MonkeyPatch]:
+def class_monkeypatch() -> Iterator[MonkeyPatch]:
     yield from _monkeypatch()
