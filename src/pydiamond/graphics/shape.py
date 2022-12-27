@@ -231,7 +231,7 @@ class PolygonShape(OutlinedShape, SingleColorShape):
             if outline > 0:
                 rect = image.draw_polygon(self.outline_color, all_points, width=outline)
 
-        return _surface_scale(image.surface.subsurface(rect), (w, h))
+        return _surface_scale(image.get_target().subsurface(rect), (w, h))
 
     @final
     def get_local_vertices(self) -> Sequence[_FPoint]:
@@ -469,7 +469,7 @@ class RectangleShape(AbstractRectangleShape, OutlinedShape, SingleColorShape, Ab
         if outline > 0:
             image.draw_rect(self.outline_color, rect, width=outline, **draw_params)
 
-        surface = image.surface
+        surface = image.get_target()
         if apply_rotation and (angle := self.angle) != 0:
             surface = _surface_rotozoom(surface, angle, 1)
         return surface
@@ -557,7 +557,7 @@ class CircleShape(AbstractCircleShape, OutlinedShape, SingleColorShape):
         image.draw_circle(self.color, center, radius, **draw_params)
         if outline > 0:
             image.draw_circle(self.outline_color, center, radius, width=outline, **draw_params)
-        surface = image.surface
+        surface = image.get_target()
         if apply_rotation and (angle := self.angle) != 0 and not all(drawn for drawn in draw_params.values()):
             surface = _surface_rotozoom(surface, angle, 1)
         return surface
@@ -674,7 +674,7 @@ class _AbstractCrossShape(OutlinedShape, SingleColorShape):
         if outline > 0:
             rect = image.draw_polygon(self.outline_color, all_points, width=outline)
 
-        return _surface_scale(image.surface.subsurface(rect), (w, h))
+        return _surface_scale(image.get_target().subsurface(rect), (w, h))
 
     def get_local_size(self) -> tuple[float, float]:
         return self.local_size

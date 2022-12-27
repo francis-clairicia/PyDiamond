@@ -346,17 +346,17 @@ class ProgressBar(Drawable, Transformable):
                 whole_rect.union_ip(text_label.get_rect())
 
         if text_label is None and text_value is None:
-            return shape_renderer.surface
+            return shape_renderer.get_target()
 
         whole_area = SurfaceRenderer.from_size(whole_rect.size)
-        whole_area.draw_surface(shape_renderer.surface, (-whole_rect.x, -whole_rect.y))
+        whole_area.draw_surface(shape_renderer.get_target(), (-whole_rect.x, -whole_rect.y))
 
         text_object: Text
         for text_object in filter(None, [text_label, text_value]):
             text_object.move(-whole_rect.x, -whole_rect.y)
             text_object.draw_onto(whole_area)
 
-        return whole_area.surface
+        return whole_area.get_target()
 
     @staticmethod
     def __place_text(text: Text, side: ProgressBarTextSide, offset: tuple[float, float], rect: Rect) -> None:

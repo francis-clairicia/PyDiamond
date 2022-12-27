@@ -15,6 +15,7 @@ __all__ = [
     "save_image",
 ]
 
+from abc import abstractmethod
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Iterable, Iterator, Literal, Sequence, TypeVar, overload
 
@@ -75,44 +76,35 @@ def save_image(image: Surface, file: str) -> None:
     return _pg_image.save(image, encode_file_path(file))
 
 
-@concreteclass
-class SurfaceRenderer(AbstractRenderer):
+class AbstractSurfaceRenderer(AbstractRenderer):
 
-    __slots__ = ("__target",)
+    __slots__ = ()
 
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="SurfaceRenderer")
-
-    def __init__(self, target: Surface) -> None:
-        assert isinstance(target, Surface), "target must be a regular surface"
-        self.__target: Surface = target
-
-    @classmethod
-    def from_size(cls: type[__Self], size: tuple[float, float], *, convert_alpha: bool = True) -> __Self:
-        target = create_surface(size, convert_alpha=convert_alpha)
-        return cls(target)
+    @abstractmethod
+    def get_target(self) -> Surface:
+        raise NotImplementedError
 
     def get_rect(self, **kwargs: Any) -> Rect:
-        return self.__target.get_rect(**kwargs)
+        return self.get_target().get_rect(**kwargs)
 
     def get_size(self) -> tuple[int, int]:
-        return self.__target.get_size()
+        return self.get_target().get_size()
 
     def get_width(self) -> float:
-        return self.__target.get_width()
+        return self.get_target().get_width()
 
     def get_height(self) -> float:
-        return self.__target.get_height()
+        return self.get_target().get_height()
 
     def fill(self, color: ColorValue, rect: _CanBeRect | None = None) -> Rect:
-        return self.__target.fill(color, rect=rect)
+        return self.get_target().fill(color, rect=rect)
 
     def get_clip(self) -> Rect:
-        return self.__target.get_clip()
+        return self.get_target().get_clip()
 
     @contextmanager
     def using_clip(self, rect: _CanBeRect | None) -> Iterator[None]:
-        target = self.__target
+        target = self.get_target()
         set_clip = target.set_clip
         former_rect = target.get_clip()
         set_clip(rect)
@@ -122,7 +114,7 @@ class SurfaceRenderer(AbstractRenderer):
             set_clip(former_rect)
 
     def to_surface(self, surface: Surface | None = None, area: _CanBeRect | None = None) -> Surface:
-        target: Surface = self.__target
+        target: Surface = self.get_target()
         match surface:
             case None:
                 surface = target
@@ -147,7 +139,7 @@ class SurfaceRenderer(AbstractRenderer):
     ) -> Rect:
         if anchor != "topleft":
             dest = surface.get_rect(**{anchor: dest})  # type: ignore[misc]
-        return self.__target.blit(surface, dest, area, special_flags)
+        return self.get_target().blit(surface, dest, area, special_flags)
 
     @overload
     def draw_many_surfaces(
@@ -194,7 +186,7 @@ class SurfaceRenderer(AbstractRenderer):
         ],
         doreturn: bool = True,
     ) -> list[Rect] | None:
-        return self.__target.blits(sequence, doreturn)  # type: ignore[arg-type]
+        return self.get_target().blits(sequence, doreturn)  # type: ignore[arg-type]
 
     def draw_text(
         self,
@@ -212,7 +204,7 @@ class SurfaceRenderer(AbstractRenderer):
             font = FontFactory.create_font(font)
         if anchor != "topleft":
             dest = font.get_rect(text, style=style, rotation=rotation, size=size, **{anchor: dest})
-        return font.render_to(self.__target, dest, text, fgcolor, bgcolor=bgcolor, style=style, rotation=rotation, size=size)
+        return font.render_to(self.get_target(), dest, text, fgcolor, bgcolor=bgcolor, style=style, rotation=rotation, size=size)
 
     def draw_rect(
         self,
@@ -226,7 +218,7 @@ class SurfaceRenderer(AbstractRenderer):
         border_bottom_right_radius: int = -1,
     ) -> Rect:
         return _draw_rect(
-            surface=self.__target,
+            surface=self.get_target(),
             color=color,
             rect=rect,
             width=width,
@@ -243,7 +235,7 @@ class SurfaceRenderer(AbstractRenderer):
         points: Sequence[Coordinate],
         width: int = 0,
     ) -> Rect:
-        return _draw_polygon(surface=self.__target, color=color, points=points, width=width)
+        return _draw_polygon(surface=self.get_target(), color=color, points=points, width=width)
 
     def draw_circle(
         self,
@@ -257,7 +249,7 @@ class SurfaceRenderer(AbstractRenderer):
         draw_bottom_right: bool = True,
     ) -> Rect:
         return _draw_circle(
-            surface=self.__target,
+            surface=self.get_target(),
             color=color,
             center=center,
             radius=radius,
@@ -269,7 +261,7 @@ class SurfaceRenderer(AbstractRenderer):
         )
 
     def draw_ellipse(self, color: ColorValue, rect: RectValue, width: int = 0) -> Rect:
-        return _draw_ellipse(surface=self.__target, color=color, rect=rect, width=width)
+        return _draw_ellipse(surface=self.get_target(), color=color, rect=rect, width=width)
 
     def draw_arc(
         self,
@@ -280,7 +272,7 @@ class SurfaceRenderer(AbstractRenderer):
         width: int = 1,
     ) -> Rect:
         return _draw_arc(
-            surface=self.__target,
+            surface=self.get_target(),
             color=color,
             rect=rect,
             start_angle=start_angle,
@@ -295,7 +287,7 @@ class SurfaceRenderer(AbstractRenderer):
         end_pos: Coordinate,
         width: int = 1,
     ) -> Rect:
-        return _draw_line(surface=self.__target, color=color, start_pos=start_pos, end_pos=end_pos, width=width)
+        return _draw_line(surface=self.get_target(), color=color, start_pos=start_pos, end_pos=end_pos, width=width)
 
     def draw_lines(
         self,
@@ -304,7 +296,7 @@ class SurfaceRenderer(AbstractRenderer):
         points: Sequence[Coordinate],
         width: int = 1,
     ) -> Rect:
-        return _draw_multiple_lines(surface=self.__target, color=color, closed=closed, points=points, width=width)
+        return _draw_multiple_lines(surface=self.get_target(), color=color, closed=closed, points=points, width=width)
 
     def draw_aaline(
         self,
@@ -313,7 +305,7 @@ class SurfaceRenderer(AbstractRenderer):
         end_pos: Coordinate,
         blend: int = 1,
     ) -> Rect:
-        return _draw_antialiased_line(surface=self.__target, color=color, start_pos=start_pos, end_pos=end_pos, blend=blend)
+        return _draw_antialiased_line(surface=self.get_target(), color=color, start_pos=start_pos, end_pos=end_pos, blend=blend)
 
     def draw_aalines(
         self,
@@ -323,17 +315,30 @@ class SurfaceRenderer(AbstractRenderer):
         blend: int = 1,
     ) -> Rect:
         return _draw_multiple_antialiased_lines(
-            surface=self.__target,
+            surface=self.get_target(),
             color=color,
             closed=closed,
             points=points,
             blend=blend,
         )
 
-    @property
-    def surface(self) -> Surface:
-        return self.__target
 
-    @surface.setter
-    def surface(self, new_target: Surface) -> None:
-        self.__target = new_target
+@concreteclass
+class SurfaceRenderer(AbstractSurfaceRenderer):
+
+    __slots__ = ("__target",)
+
+    if TYPE_CHECKING:
+        __Self = TypeVar("__Self", bound="SurfaceRenderer")
+
+    def __init__(self, target: Surface) -> None:
+        assert isinstance(target, Surface), "target must be a regular surface"
+        self.__target: Surface = target
+
+    @classmethod
+    def from_size(cls: type[__Self], size: tuple[float, float], *, convert_alpha: bool = True) -> __Self:
+        target = create_surface(size, convert_alpha=convert_alpha)
+        return cls(target)
+
+    def get_target(self) -> Surface:
+        return self.__target

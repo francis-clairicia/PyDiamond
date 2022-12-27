@@ -336,7 +336,7 @@ class HorizontalMultiColorShape(AbstractRectangleShape, MultiColorShape):
         for i, gradient in enumerate(self.__shapes):
             gradient.topleft = (gradient.width * i, 0)
             gradient.draw_onto(renderer)
-        surface = renderer.surface
+        surface = renderer.get_target()
         if apply_scale:
             scale_x, scale_y = self.scale
             surface = _surface_scale(surface, (width * scale_x, height * scale_y))
@@ -377,7 +377,7 @@ class VerticalMultiColorShape(AbstractRectangleShape, MultiColorShape):
         for i, gradient in enumerate(self.__shapes):
             gradient.topleft = (0, gradient.height * i)
             gradient.draw_onto(renderer)
-        surface = renderer.surface
+        surface = renderer.get_target()
         if apply_scale:
             scale_x, scale_y = self.scale
             surface = _surface_scale(surface, (width * scale_x, height * scale_y))

@@ -56,7 +56,7 @@ from ..audio.music import MusicStream
 from ..environ.executable import get_executable_path
 from ..graphics.color import BLACK, Color
 from ..graphics.renderer import AbstractRenderer
-from ..graphics.surface import Surface, SurfaceRenderer, create_surface, save_image
+from ..graphics.surface import AbstractSurfaceRenderer, Surface, create_surface, save_image
 from ..math.rect import ImmutableRect
 from ..system.clock import Clock
 from ..system.object import Object, final
@@ -619,7 +619,7 @@ class Window(Object, no_slots=True):
         renderer = self.__display_renderer
         if renderer is None:
             raise WindowError("No active renderer")
-        screen: Surface = renderer.screen
+        screen: Surface = renderer._get_screen_surface()
         if size == screen.get_size():
             return
         flags: int = self.__flags
@@ -632,14 +632,14 @@ class Window(Object, no_slots=True):
         renderer = self.__display_renderer
         if renderer is None:
             raise WindowError("No active renderer")
-        return self.set_size((width, renderer.screen.get_height()))
+        return self.set_size((width, renderer._get_screen_surface().get_height()))
 
     @final
     def set_height(self, height: int) -> None:
         renderer = self.__display_renderer
         if renderer is None:
             raise WindowError("No active renderer")
-        return self.set_size((renderer.screen.get_width(), height))
+        return self.set_size((renderer._get_screen_surface().get_width(), height))
 
     @final
     def event_grabbed(self) -> bool:
@@ -1086,8 +1086,9 @@ class _WindowCallbackList(list[WindowCallback]):
 
 
 @final
-class _WindowRendererImpl(SurfaceRenderer, WindowRenderer):
+class _WindowRendererImpl(AbstractSurfaceRenderer, WindowRenderer):
     __slots__ = (
+        "__target",
         "__capture_queue",
         "__last_frame",
         "__system_surface",
@@ -1106,48 +1107,55 @@ class _WindowRendererImpl(SurfaceRenderer, WindowRenderer):
         self.__system_surface: Surface | None = None
         self.__system_surface_cache: Surface = create_surface(screen.get_size())
         self.__update_window = _pg_display.flip
-        super().__init__(screen)
+        self.__target: Surface = screen
+        super().__init__()
+
+    def get_target(self) -> Surface:
+        return self.__target
 
     def _resize(self) -> None:
-        new_surface = screen = self.screen
-        if system_surface := self.__system_surface:
+        new_surface = screen = self._get_screen_surface()
+        if (system_surface := self.__system_surface) is not None:
             self.__system_surface_cache = self.__system_surface = new_system_surface = create_surface(screen.get_size())
             new_system_surface.blit(system_surface, (0, 0))
-            if self.surface is system_surface:
+            if self.__target is system_surface:
                 new_surface = new_system_surface
         if self.__capture_queue:
             return
-        super().__init__(new_surface)
+        self.__target = new_surface
 
     def present(self) -> None:
-        screen = self.screen
-        if self.surface is not screen:
-            if self.surface is self.__system_surface:
-                raise WindowError("Screen refresh occured in system display context")
-            screen.fill((0, 0, 0))
-            screen.blit(self.surface, (0, 0))
-        if system_surface := self.__system_surface:
-            self.__last_frame = screen.copy()
-            screen.blit(system_surface, (0, 0))
-            system_surface.fill((0, 0, 0, 0))
-            self.__system_surface = None
+        system_surface = self.__system_surface
+        if self.__capture_queue or system_surface is not None:
+            screen = self._get_screen_surface()
+            used_target = self.__target
+            if system_surface is not None:
+                if used_target is system_surface:
+                    raise WindowError("Screen refresh occured in system display context")
+                self.__last_frame = screen.copy()
+                screen.blit(system_surface, (0, 0))
+                system_surface.fill((0, 0, 0, 0))
+                self.__system_surface = None
+            else:
+                screen.fill((0, 0, 0))
+                screen.blit(used_target, (0, 0))
+                self.__last_frame = None
         else:
             self.__last_frame = None
         self.__update_window()
 
     def get_screen_copy(self) -> Surface:
-        return (self.__last_frame or self.screen).copy()
+        return (self.__last_frame or self._get_screen_surface()).copy()
 
     @contextmanager
     def capture(self, draw_on_default_at_end: bool) -> Iterator[Surface]:
-        if self.surface is self.__system_surface:
+        if self.__target is self.__system_surface:
             raise WindowError("Screen capturing disabled in system display context")
 
-        fset = SurfaceRenderer.surface.fset  # type: ignore[attr-defined]
         capture_queue = self.__capture_queue
 
-        captured_surface = self.surface.copy()
-        fset(self, captured_surface)
+        captured_surface = self.__target.copy()
+        self.__target = captured_surface
         capture_queue.append(captured_surface)
         try:
             yield captured_surface
@@ -1156,8 +1164,8 @@ class _WindowRendererImpl(SurfaceRenderer, WindowRenderer):
             try:
                 default_surface = capture_queue[-1]
             except IndexError:
-                default_surface = self.screen
-            fset(self, default_surface)
+                default_surface = self._get_screen_surface()
+            self.__target = default_surface
             if draw_on_default_at_end:
                 default_surface.blit(captured_surface, (0, 0))
 
@@ -1171,28 +1179,20 @@ class _WindowRendererImpl(SurfaceRenderer, WindowRenderer):
 
         if (system_surface := self.__system_surface) is None:
             self.__system_surface = system_surface = self.__system_surface_cache
-        elif self.surface is system_surface:
+        elif self.__target is system_surface:
             yield
             return
 
-        fset = SurfaceRenderer.surface.fset  # type: ignore[attr-defined]
-        fset(self, system_surface)
+        self.__target = system_surface
         try:
             yield
         finally:
-            fset(self, self.screen)
+            self.__target = self._get_screen_surface()
 
-    @property
-    def screen(self) -> Surface:
+    def _get_screen_surface(self) -> Surface:
         screen: Surface | None = self.__get_screen()
         assert screen is not None, "No display mode configured"
         return screen
-
-    if not TYPE_CHECKING:
-
-        @SurfaceRenderer.surface.setter
-        def surface(self, new_target: Surface) -> None:
-            raise AttributeError("Read-only property")
 
 
 @dataclass
