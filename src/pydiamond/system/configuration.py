@@ -59,8 +59,10 @@ from typing import (
 )
 from weakref import WeakKeyDictionary, ref as weakref
 
+from typing_extensions import final
+
 from .non_copyable import NonCopyable
-from .object import Object, final
+from .object import Object
 from .utils._mangling import mangle_private_attribute as _private_attribute
 from .utils.itertools import prepend
 

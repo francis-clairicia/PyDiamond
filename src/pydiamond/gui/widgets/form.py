@@ -9,8 +9,10 @@ from __future__ import annotations
 __all__ = ["Form", "FormJustify"]
 
 from types import MappingProxyType
-from typing import Any, Callable, ClassVar, Mapping, Sequence, TypeVar, final, overload
+from typing import Any, Callable, ClassVar, Mapping, Sequence, TypeVar, overload
 from weakref import WeakValueDictionary
+
+from typing_extensions import final
 
 from ...graphics.color import BLACK, TRANSPARENT, Color
 from ...graphics.renderer import AbstractRenderer

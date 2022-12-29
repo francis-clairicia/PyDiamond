@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydiamond.system.object import Object, final, mro, override
+from pydiamond.system.object import Object, mro, override
 
 import pytest
+from typing_extensions import final
 
 # pyright: reportUnusedClass=false
 

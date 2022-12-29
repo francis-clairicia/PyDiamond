@@ -16,10 +16,10 @@ from abc import abstractmethod
 from enum import auto, unique
 from itertools import takewhile
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterator, Literal, TypeGuard, TypeVar, cast, final, overload
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterator, Literal, TypeGuard, TypeVar, cast, overload
 from weakref import WeakMethod, WeakSet, WeakValueDictionary, ref as weakref
 
-from typing_extensions import assert_never
+from typing_extensions import assert_never, final
 
 from ...audio.sound import Sound
 from ...graphics.drawable import Drawable

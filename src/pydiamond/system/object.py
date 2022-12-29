@@ -6,14 +6,12 @@
 
 from __future__ import annotations
 
-__all__ = ["Object", "ObjectMeta", "final", "mro", "override"]
+__all__ = ["Object", "ObjectMeta", "mro", "override"]
 
 from abc import ABCMeta
 from functools import cached_property, partialmethod
 from itertools import chain, takewhile
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, overload
-
-from typing_extensions import final
 
 from .utils.abc import isabstractmethod
 

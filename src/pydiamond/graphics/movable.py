@@ -12,9 +12,11 @@ from abc import abstractmethod
 from contextlib import contextmanager
 from typing import Any, Callable, Iterator, Literal, overload
 
+from typing_extensions import final
+
 from ..math import Rect, Vector2
 from ..math.rect import modify_rect_in_place
-from ..system.object import Object, final
+from ..system.object import Object
 from ..system.utils.functools import wraps
 
 _SINGLE_COMPONENT_POSITIONS = (

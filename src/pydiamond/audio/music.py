@@ -29,12 +29,12 @@ from weakref import WeakValueDictionary
 import pygame.mixer as _pg_mixer
 from pygame.event import Event as _PygameEvent
 from pygame.mixer import music as _pg_music
+from typing_extensions import final
 
 from ..resources.abc import Resource
 from ..resources.file import FileResource
 from ..system.namespace import ClassNamespace
 from ..system.non_copyable import NonCopyable
-from ..system.object import final
 from ..system.utils.itertools import prepend
 
 

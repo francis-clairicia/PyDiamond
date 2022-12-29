@@ -38,10 +38,12 @@ from typing import (
     runtime_checkable,
 )
 
+from typing_extensions import final
+
 from ..graphics.color import Color
 from ..graphics.renderer import AbstractRenderer
 from ..graphics.surface import Surface
-from ..system.object import Object, final
+from ..system.object import Object
 from ..system.theme import ClassWithThemeNamespaceMeta, no_theme_decorator
 from ..system.utils.abc import concreteclassmethod, isabstractclass
 from ..system.utils.contextlib import ExitStackView

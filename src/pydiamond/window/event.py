@@ -89,10 +89,11 @@ from typing import (
 import pygame.constants as _pg_constants
 import pygame.event as _pg_event
 from pygame.mixer import music as _pg_music
+from typing_extensions import final
 
 from ..system.collections import OrderedSet, WeakKeyDefaultDictionary
 from ..system.namespace import ClassNamespaceMeta
-from ..system.object import Object, ObjectMeta, final
+from ..system.object import Object, ObjectMeta
 from ..system.utils.abc import isabstractclass
 from ..system.utils.weakref import weakref_unwrap
 from .controller import ControllerAxis, ControllerButton

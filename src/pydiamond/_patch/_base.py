@@ -18,6 +18,8 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from enum import IntEnum, auto, unique
 
+import typing_extensions
+
 
 class PyDiamondPatchWarning(UserWarning):
     pass
@@ -62,7 +64,7 @@ class BasePatch(metaclass=PatchMeta):
         return PatchContext.BEFORE_ALL
 
     @classmethod
-    @typing.final
+    @typing_extensions.final
     def enabled(cls) -> bool:
         if RequiredPatch in cls.__bases__:
             return True

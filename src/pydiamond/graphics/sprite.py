@@ -15,10 +15,11 @@ from typing import TYPE_CHECKING, Any, Final, Iterable, Iterator, Mapping, TypeV
 
 from pygame.mask import Mask, from_surface as _pg_mask_from_surface
 from pygame.transform import rotozoom as _surface_rotozoom
+from typing_extensions import final
 
 from ..math.rect import Rect
 from ..system.clock import Clock
-from ..system.object import Object, final
+from ..system.object import Object
 from ..system.utils.itertools import prepend
 from ._transform import rotozoom2 as _surface_rotozoom2, scale_by as _surface_scale_by
 from .animation import TransformAnimation

@@ -68,7 +68,20 @@ class TestGlobalImport:
     @pytest.fixture(scope="class", autouse=True)
     @staticmethod
     def arrange_environment(class_monkeypatch: MonkeyPatch) -> None:
-        class_monkeypatch.setenv("PYDIAMOND_TEST_STRICT_FINAL", "1")
+        class_monkeypatch.delenv("PYDIAMOND_PATCH_DISABLE")
+
+        import typing
+
+        class_monkeypatch.delattr(typing, "final")
+
+        import typing_extensions
+
+        def strict_final(f: typing.Any) -> typing.Any:
+            f.__final__ = True
+            assert f.__final__ is True
+            return f
+
+        class_monkeypatch.setattr(typing_extensions, "final", strict_final)
 
     @pytest.fixture
     @staticmethod

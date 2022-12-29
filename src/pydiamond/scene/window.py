@@ -17,10 +17,11 @@ from itertools import chain
 from typing import Any, Callable, Final, Generator, Iterator, NoReturn, Sequence, TypeGuard, TypeVar
 from weakref import WeakSet
 
+from typing_extensions import final
+
 from ..graphics.renderer import AbstractRenderer
 from ..graphics.surface import Surface, SurfaceRenderer
 from ..system.collections import WeakKeyDefaultDictionary
-from ..system.object import final
 from ..system.time import Time
 from ..system.utils._mangling import getattr_pv, mangle_private_attribute, setattr_pv
 from ..system.utils.abc import isabstractclass

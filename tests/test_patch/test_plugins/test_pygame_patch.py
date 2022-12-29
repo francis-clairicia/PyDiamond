@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Iterator
 
+from pydiamond._patch.plugins.pygame_patch import PygamePatch
+
 import pytest
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
-
-    from pydiamond._patch.plugins.pygame_patch import PygamePatch
 
     from pytest_mock import MockerFixture
 
@@ -33,8 +33,6 @@ class TestPygamePatch:
     @pytest.fixture
     @staticmethod
     def patch(mock_pygame_event_module: Any, mock_pygame_mixer_music_module: Any) -> Iterator[PygamePatch]:
-        from pydiamond._patch.plugins.pygame_patch import PygamePatch
-
         patch = PygamePatch()
         patch.setup()
         assert patch.event is mock_pygame_event_module

@@ -14,8 +14,10 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, Final, Iterator, Literal, NamedTuple, Protocol, TypeAlias, TypeVar, overload
 from weakref import WeakKeyDictionary, ref as weakref
 
+from typing_extensions import final
+
 from ..math import Vector2, angle_interpolation, linear_interpolation
-from ..system.object import Object, final
+from ..system.object import Object
 from ..system.time import Time
 from ..system.utils.weakref import weakref_unwrap
 from .movable import Movable

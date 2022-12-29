@@ -2,243 +2,96 @@
 
 from __future__ import annotations
 
-import importlib
-from functools import cached_property, partialmethod
-from typing import TYPE_CHECKING, Any, Callable, Iterator, TypeVar
+from typing import TYPE_CHECKING, Iterator, no_type_check
+
+from pydiamond._patch.plugins.fix_typing import OverrideFinalFunctionPatch
 
 import pytest
 
 from ...mock.sys import MockVersionInfo, unload_module
 
 if TYPE_CHECKING:
-    from types import ModuleType
-    from unittest.mock import MagicMock
-
-    from pydiamond._patch.plugins.fix_typing import OverrideFinalFunctionsPatch
-
     from pytest_mock import MockerFixture
-
-
-_T = TypeVar("_T")
 
 
 @pytest.mark.functional
 class TestFixTypingFinal:
     @pytest.fixture(autouse=True)
     @staticmethod
-    def arrange_environment(monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("PYDIAMOND_TEST_STRICT_FINAL", "0")
-
-    @pytest.fixture(scope="class", params=[MockVersionInfo(3, 10, 4, "final", 0), MockVersionInfo(3, 11, 0, "beta", 5)], ids=str)
-    @staticmethod
-    def python_version(request: pytest.FixtureRequest, class_mocker: MockerFixture) -> MockVersionInfo:
-        python_version: MockVersionInfo = getattr(request, "param")
-        class_mocker.patch("sys.version_info", python_version)
-        return python_version
-
-    @pytest.fixture
-    @staticmethod
-    def typing_module(python_version: MockVersionInfo, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
+    def unload_typing_module(monkeypatch: pytest.MonkeyPatch) -> None:
         # Unload the modules first
-        unload_module("typing_extensions", True, monkeypatch)
         unload_module("typing", True, monkeypatch)
 
-        used_typing_module: ModuleType
-        if python_version < (3, 11):
-            used_typing_module = importlib.import_module("typing_extensions")
-        else:
-            used_typing_module = importlib.import_module("typing")
-        return used_typing_module
-
-    @pytest.fixture(autouse=True)
-    @staticmethod
-    def mock_default_final(typing_module: ModuleType, mocker: MockerFixture) -> MagicMock:
-        def final(f: Any) -> Any:
-            # Reproduced final behavior, in order not to depend of the standard module implementation
-            # Must be changed if there is a modification in the standard library
-            try:
-                f.__final__ = True
-            except (AttributeError, TypeError):
-                pass
-            return f
-
-        return mocker.patch.object(typing_module, "final", side_effect=final)
-
     @pytest.fixture
     @staticmethod
-    def patch(mock_default_final: MagicMock) -> Iterator[OverrideFinalFunctionsPatch]:
-        from pydiamond._patch.plugins.fix_typing import OverrideFinalFunctionsPatch
-
-        patch = OverrideFinalFunctionsPatch()
+    def patch() -> Iterator[OverrideFinalFunctionPatch]:
+        patch = OverrideFinalFunctionPatch()
         patch.setup()
         yield patch
         patch.teardown()
 
-    def test____patch____wrap_default_final(
+    @pytest.fixture
+    @staticmethod
+    def force_sys_version_310(mocker: MockerFixture) -> None:
+        mocker.patch("sys.version_info", MockVersionInfo(3, 10, 0, "final", 0))
+
+    @pytest.mark.usefixtures("force_sys_version_310")
+    def test____run____apply_typing_extensions_final(
         self,
-        patch: OverrideFinalFunctionsPatch,
-        typing_module: ModuleType,
-        mock_default_final: MagicMock,
-    ) -> None:
-        # Arrange
-        ## Verify we don't lie
-        assert getattr(typing_module, "final") is mock_default_final
-
-        # Act
-        patch.run()
-        final: Any = getattr(typing_module, "final")
-
-        # Assert
-        assert final is not mock_default_final
-        assert getattr(final, "__wrapped__") is mock_default_final
-
-    def test____patch____will_not_apply_wrapper_twice(
-        self,
-        patch: OverrideFinalFunctionsPatch,
-        typing_module: ModuleType,
-    ) -> None:
-        # Arrange
-        patch.run()
-        expected_final: Any = getattr(typing_module, "final")
-
-        # Act
-        patch.run()
-
-        # Assert
-        assert getattr(typing_module, "final") is expected_final
-
-    def test____patch____apply_for_both_typing_and_typing_extensions_modules(
-        self,
-        patch: OverrideFinalFunctionsPatch,
-        mock_default_final: MagicMock,
+        patch: OverrideFinalFunctionPatch,
     ) -> None:
         # Arrange
         import typing
 
         import typing_extensions
 
-        default_typing_final = typing.final
-        default_typing_extensions_final = typing_extensions.final
-
         # Act
         patch.run()
 
         # Assert
-        assert typing.final is not default_typing_final
-        assert getattr(typing.final, "__wrapped__") is default_typing_final
-        assert getattr(typing.final, "__default_final__") is mock_default_final
+        assert typing.final is typing_extensions.final
 
-        assert typing_extensions.final is not default_typing_extensions_final
-        assert getattr(typing_extensions.final, "__wrapped__") is default_typing_extensions_final
-        assert getattr(typing_extensions.final, "__default_final__") is mock_default_final
-
-    @pytest.mark.parametrize(
-        ["typing_module_name"],
-        [
-            pytest.param("typing"),
-            pytest.param("typing_extensions"),
-        ],
-    )
-    def test____final_wrapper____default_behavior_works(
+    @pytest.mark.usefixtures("force_sys_version_310")
+    def test____run____apply_static_method_final_patch_if_typing_extensions_does_not_exist(
         self,
-        typing_module_name: str,
-        patch: OverrideFinalFunctionsPatch,
-        mock_default_final: MagicMock,
-    ) -> None:
-        # Arrange
-        typing_module = importlib.import_module(typing_module_name)
-        patch.run()
-        final: Callable[[_T], _T] = getattr(typing_module, "final")
-
-        def func() -> None:
-            pass
-
-        # Act
-        final_func = final(func)
-
-        # Assert
-        mock_default_final.assert_called_with(func)
-        assert final_func is func  # If this test fails, checkout the side effect of 'mock_default_final'
-        assert getattr(func, "__final__") is True  # If this test fails, checkout the side effect of 'mock_default_final"
-
-    @pytest.mark.parametrize(
-        ["typing_module_name"],
-        [
-            pytest.param("typing"),
-            pytest.param("typing_extensions"),
-        ],
-    )
-    def test____final_wrapper____works_for_properties(
-        self,
-        typing_module_name: str,
-        patch: OverrideFinalFunctionsPatch,
-        mock_default_final: MagicMock,
+        patch: OverrideFinalFunctionPatch,
         mocker: MockerFixture,
     ) -> None:
         # Arrange
-        typing_module = importlib.import_module(typing_module_name)
-        patch.run()
-        final: Callable[[_T], _T] = getattr(typing_module, "final")
+        import typing
 
-        def fget(self: Any) -> Any:
-            return mocker.sentinel.property_get
+        original_import = __import__
 
-        fset = lambda self, val: None
+        @no_type_check
+        def import_mock(name: str, globals=None, locals=None, fromlist=(), level=0):
+            if name.startswith("typing_extensions"):
+                raise ModuleNotFoundError(name)
+            return original_import(name, globals, locals, fromlist, level)
 
-        p = property(fget=fget, fset=fset, fdel=None)
+        mocker.patch("builtins.__import__", import_mock)
 
         # Act
-        final_p = final(p)
+        patch.run()
 
         # Assert
-        assert mock_default_final.mock_calls == [mocker.call(fget), mocker.call(fset), mocker.call(p)]
-        assert final_p is p
+        assert typing.final is OverrideFinalFunctionPatch.final
 
-        ## The wrapper should not replace the functions
-        assert p.fget is fget
-        assert p.fset is fset
-
-    @pytest.mark.parametrize(
-        ["typing_module_name"],
-        [
-            pytest.param("typing"),
-            pytest.param("typing_extensions"),
-        ],
-    )
-    @pytest.mark.parametrize(
-        ["method_descriptor", "function_attribute_name"],
-        [
-            pytest.param(classmethod, "__func__", id="classmethod"),
-            pytest.param(staticmethod, "__func__", id="staticmethod"),
-            pytest.param(cached_property, "func", id="cached_property"),
-            pytest.param(partialmethod, "func", id="partialmethod"),
-        ],
-    )
-    def test____final_wrapper____works_for_standard_method_descriptor(
+    @pytest.mark.parametrize("version_info", [MockVersionInfo(3, 11, 0, "beta", 5), MockVersionInfo(3, 12, 0, "alpha", 1)])
+    def test____run____do_not_apply_patch_for_python_311_and_greater(
         self,
-        typing_module_name: str,
-        method_descriptor: Callable[[Any], Callable[..., Any]],
-        function_attribute_name: str,
-        patch: OverrideFinalFunctionsPatch,
-        mock_default_final: MagicMock,
+        version_info: MockVersionInfo,
+        patch: OverrideFinalFunctionPatch,
         mocker: MockerFixture,
     ) -> None:
         # Arrange
-        typing_module = importlib.import_module(typing_module_name)
-        patch.run()
-        final: Callable[[_T], _T] = getattr(typing_module, "final")
+        import typing
 
-        def method() -> None:
-            pass
+        default_final = typing.final
 
-        descriptor = method_descriptor(method)
+        mocker.patch("sys.version_info", version_info)
 
         # Act
-        final_descriptor = final(descriptor)
+        patch.run()
 
         # Assert
-        assert mock_default_final.mock_calls == [mocker.call(method), mocker.call(descriptor)]
-        assert final_descriptor is descriptor
-
-        ## The wrapper should not replace the functions
-        assert getattr(descriptor, function_attribute_name) is method
+        assert typing.final is default_final

@@ -12,7 +12,9 @@ from collections import ChainMap
 from contextlib import suppress
 from os import PathLike, fspath
 from types import MappingProxyType
-from typing import AbstractSet, Any, Callable, Mapping, NoReturn, Sequence, TypeAlias, final
+from typing import AbstractSet, Any, Callable, Mapping, NoReturn, Sequence, TypeAlias
+
+from typing_extensions import final
 
 from ..system.namespace import ClassNamespace, ClassNamespaceMeta
 from ..system.object import mro

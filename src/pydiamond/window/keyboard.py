@@ -9,10 +9,11 @@ from __future__ import annotations
 __all__ = ["Key", "KeyModifiers", "Keyboard"]
 
 from enum import IntEnum, IntFlag, auto, unique
-from typing import ClassVar, Sequence, final, overload
+from typing import ClassVar, Sequence, overload
 
 import pygame.constants as _pg_constants
 import pygame.key as _pg_key
+from typing_extensions import final
 
 from ..system.namespace import ClassNamespace
 

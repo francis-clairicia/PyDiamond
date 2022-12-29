@@ -69,6 +69,8 @@ class ClassNamespaceMeta(ObjectMeta):
             raise TypeError(f"{cls.__module__}.{cls.__name__} cannot be instantiated")
         if getattr(cls, "_class_namespace_was_init_"):
             if getattr(cls, "_frozen_class_namespace_", False):
+                if name in {"__final__"}:
+                    return
                 raise AttributeError(f"{cls.__module__}.{cls.__name__}: Frozen class namespace")
             if name in ["_frozen_class_namespace_", "_class_namespace_was_init_"]:
                 raise AttributeError(f"{name!r} is read-only")

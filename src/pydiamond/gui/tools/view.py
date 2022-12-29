@@ -9,10 +9,10 @@ from __future__ import annotations
 __all__ = ["AbstractScrollableView"]
 
 from abc import abstractmethod
-from typing import Any, Callable, Literal, final, overload
+from typing import Any, Callable, Literal, overload
 from weakref import WeakMethod
 
-from typing_extensions import assert_never
+from typing_extensions import assert_never, final
 
 from ...math.rect import Rect
 from ...system.object import Object

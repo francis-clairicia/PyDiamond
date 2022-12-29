@@ -50,7 +50,7 @@ from pygame.constants import (
     RESIZABLE as _PG_RESIZABLE,
     WINDOWCLOSE as _PG_WINDOWCLOSE,
 )
-from typing_extensions import assert_never
+from typing_extensions import assert_never, final
 
 from ..audio.music import MusicStream
 from ..environ.executable import get_executable_path
@@ -59,7 +59,7 @@ from ..graphics.renderer import AbstractRenderer
 from ..graphics.surface import AbstractSurfaceRenderer, Surface, create_surface, save_image
 from ..math.rect import ImmutableRect
 from ..system.clock import Clock
-from ..system.object import Object, final
+from ..system.object import Object
 from ..system.path import ConstantFileNotFoundError, set_constant_file
 from ..system.threading import Thread, thread_factory_method
 from ..system.time import Time

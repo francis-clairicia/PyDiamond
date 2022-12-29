@@ -11,7 +11,9 @@ __all__ = ["Singleton", "SingletonMeta"]
 from types import MethodType
 from typing import Any, Callable, TypeVar
 
-from .object import Object, ObjectMeta, final
+from typing_extensions import final
+
+from .object import Object, ObjectMeta
 from .utils.abc import isabstractclass
 
 _T = TypeVar("_T")

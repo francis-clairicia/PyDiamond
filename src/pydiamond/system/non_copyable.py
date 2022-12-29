@@ -10,7 +10,9 @@ __all__ = ["NonCopyable", "NonCopyableMeta"]
 
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
 
-from .object import Object, ObjectMeta, final
+from typing_extensions import final
+
+from .object import Object, ObjectMeta
 
 
 class NonCopyableMeta(ObjectMeta):

@@ -14,9 +14,10 @@ __all__ = [
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any
 
+from typing_extensions import final
+
 from ..graphics.color import BLACK, TRANSPARENT, WHITE, Color
 from ..graphics.shape import RectangleShape
-from ..system.object import final
 from ..system.validation import valid_optional_float
 from .abc import Scene
 

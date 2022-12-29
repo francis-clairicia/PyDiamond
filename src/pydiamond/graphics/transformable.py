@@ -11,11 +11,10 @@ __all__ = ["Transformable"]
 from abc import abstractmethod
 from typing import Any, Literal, Mapping, overload
 
-from typing_extensions import assert_never
+from typing_extensions import assert_never, final
 
 from ..math import Rect, Vector2, compute_rect_from_vertices, compute_size_from_vertices, normalize_points, rotate_points
 from ..math.rect import modify_rect_in_place, move_rect_in_place
-from ..system.object import final
 from .movable import Movable
 
 

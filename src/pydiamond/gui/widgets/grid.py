@@ -8,7 +8,9 @@ from __future__ import annotations
 
 __all__ = ["Grid", "GridElement", "GridJustify"]
 
-from typing import TYPE_CHECKING, Any, Callable, Container, TypeVar, final
+from typing import TYPE_CHECKING, Any, Callable, Container, TypeVar
+
+from typing_extensions import final
 
 from ...graphics.color import BLACK, TRANSPARENT, Color
 from ..scene import GUIScene

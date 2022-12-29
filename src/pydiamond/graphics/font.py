@@ -21,11 +21,12 @@ from typing import TYPE_CHECKING, Any, ClassVar, Final, Iterable, NamedTuple, Ty
 import pygame.freetype as _pg_freetype
 import pygame.sysfont as _pg_sysfont
 from pygame import encode_file_path
+from typing_extensions import final
 
 from ..math.rect import Rect, move_rect_in_place
 from ..resources.abc import Resource
 from ..system.configuration import ConfigurationTemplate, OptionAttribute
-from ..system.object import Object, final
+from ..system.object import Object
 
 if TYPE_CHECKING:
     from pygame._common import ColorValue, Coordinate, FileArg, _CanBeRect

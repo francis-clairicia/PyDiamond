@@ -20,9 +20,8 @@ os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 os.environ["SDL_VIDEODRIVER"] = "dummy"
 os.environ["SDL_AUDIODRIVER"] = "disk"
 
-# This is the default but we enforce the values for the tests
-os.environ["PYDIAMOND_TEST_STRICT_FINAL"] = "0"
-os.environ.pop("PYDIAMOND_PATCH_DISABLE", None)
+# Do not run any optional patch
+os.environ["PYDIAMOND_PATCH_DISABLE"] = "all"
 
 
 ################################## fixtures ##################################

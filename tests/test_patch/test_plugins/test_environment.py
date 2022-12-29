@@ -5,14 +5,16 @@ from __future__ import annotations
 import random
 from typing import TYPE_CHECKING, Any, Iterator, MutableMapping, Sequence
 
-from pydiamond._patch.plugins.environment import check_booleans
+from pydiamond._patch.plugins.environment import (
+    ArrangePygameEnvironmentBeforeImport,
+    VerifyBooleanEnvironmentVariables,
+    check_booleans,
+)
 
 import pytest
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
-
-    from pydiamond._patch.plugins.environment import ArrangePygameEnvironmentBeforeImport, VerifyBooleanEnvironmentVariables
 
     from pytest import MonkeyPatch
     from pytest_mock import MockerFixture
@@ -37,8 +39,6 @@ class TestArrangePygameEnvironment:
     @pytest.fixture
     @staticmethod
     def patch(fake_environ: MutableMapping[str, str]) -> Iterator[ArrangePygameEnvironmentBeforeImport]:
-        from pydiamond._patch.plugins.environment import ArrangePygameEnvironmentBeforeImport
-
         patch = ArrangePygameEnvironmentBeforeImport()
         patch.setup()
         assert patch.environ is fake_environ

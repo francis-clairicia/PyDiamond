@@ -9,10 +9,10 @@ from __future__ import annotations
 __all__ = ["Mouse", "MouseButton"]
 
 from enum import IntEnum, auto
-from typing import final
 
 import pygame.constants as _pg_constants
 import pygame.mouse as _pg_mouse
+from typing_extensions import final
 
 from ..system.namespace import ClassNamespace
 

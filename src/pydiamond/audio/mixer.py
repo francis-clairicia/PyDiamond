@@ -20,9 +20,9 @@ from typing import TYPE_CHECKING, Any, Iterator, Literal, NamedTuple, overload
 import pygame.constants as _pg_constants
 import pygame.mixer as _pg_mixer
 from pygame import error as _pg_error
+from typing_extensions import final
 
 from ..system.namespace import ClassNamespace
-from ..system.object import final
 from .sound import Channel
 
 if TYPE_CHECKING:
