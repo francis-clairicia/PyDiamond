@@ -6,6 +6,7 @@ on:
       - opened
       - synchronize
     paths-ignore:
+      - 'lintingtools'
       - 'demo.py'
       - 'demo_resources'
       - '**.pyi'
@@ -24,6 +25,7 @@ on:
     tags-ignore:
       - '*'
     paths-ignore:
+      - 'lintingtools'
       - 'demo.py'
       - 'demo_resources'
       - '**.pyi'

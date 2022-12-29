@@ -9,7 +9,6 @@ on:
     paths:
       - 'src/**.pyi?'
       - 'tests/**.pyi?'
-      - 'devtools/**.pyi?'
       - 'tox.ini'
       - 'pyproject.toml'
       - 'requirements/*.in'
@@ -24,7 +23,6 @@ on:
     paths:
       - 'src/**.pyi?'
       - 'tests/**.pyi?'
-      - 'devtools/**.pyi?'
       - 'tox.ini'
       - 'pyproject.toml'
       - 'requirements/*.in'
