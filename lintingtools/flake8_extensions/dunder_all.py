@@ -3,18 +3,21 @@
 from __future__ import annotations
 
 import ast
-from typing import Any, Generator
+from dataclasses import dataclass
+from typing import ClassVar, Generator
+
+from ._common import Error
 
 
+@dataclass
 class DunderAll:
-    name = "dunder-all"
-    version = "0.1.0"
+    name: ClassVar[str] = "dunder-all"
+    version: ClassVar[str] = "0.1.0"
 
-    def __init__(self, tree: ast.Module) -> None:
-        self.__tree: ast.Module = tree
+    tree: ast.Module
 
-    def run(self) -> Generator[tuple[int, int, str, type[Any]], None, None]:
-        tree: ast.Module = self.__tree
+    def run(self) -> Generator[Error, None, None]:
+        tree: ast.Module = self.tree
         misplaced_import_lines: list[tuple[int, int]] = []
         for node in tree.body:
             match node:
@@ -30,7 +33,7 @@ class DunderAll:
         else:  # __all__ not found
             return
         for lineno, col_offset in misplaced_import_lines:
-            yield (
+            yield Error(
                 lineno,
                 col_offset,
                 "DAL001 'import' statement before __all__ declaration",
