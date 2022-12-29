@@ -25,25 +25,19 @@ class VenvCommand(AbstractCommand):
         pass
 
     def run(self, __args: Any, /) -> int:
-        return self.create(log_if_already_created=True)
+        return self.create()
 
-    def create(self, log_if_already_created: bool = False) -> int:
+    def create(self) -> int:
         config = self.config
 
         if config.venv_dir is None:
             self.log("ERROR: Non venv directory given, abort.")
             return 1
 
-        if config.venv_dir.is_dir():
-            if log_if_already_created:
-                self.log(
-                    f"Nothing to do. Run python -m {__package__.rpartition('.')[0]} pip-sync if you want to be up-to-date with requirements"
-                )
-            return 0
-
-        venv.create(config.venv_dir, clear=True, with_pip=True)
+        if not config.venv_dir.is_dir():
+            venv.create(config.venv_dir, clear=True, with_pip=True)
 
         self.exec_module("pip", "install", "--upgrade", "pip")
-        self.ensure_piptools()
+        self.ensure_piptools(verbose=True, capture_output=False)
 
         return 0
