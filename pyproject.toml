@@ -46,6 +46,7 @@ exclude = [
   ".vscode/",
   "demo_resources/",
   "devtools/",
+  "lintingtools/",
   "requirements/",
   "tests/",
   ".gitignore",
