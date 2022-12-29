@@ -66,7 +66,12 @@ class PipCompileCommand(_AbstractPipToolsCommand):
     @classmethod
     def register_to_parser(cls, parser: ArgumentParser) -> None:
         parser.add_argument(
-            "--files", type=cls.validate_filename, nargs="*", default=REQUIREMENTS_FILES, help="requirements.txt files to compile"
+            "--files",
+            type=cls.validate_filename,
+            nargs="*",
+            choices=REQUIREMENTS_FILES,
+            default=REQUIREMENTS_FILES,
+            help="requirements.txt files to compile",
         )
         parser.add_argument(
             "pip_compile_args", type=cls.validate_posarg, default=[], nargs="*", metavar="OPTION", help="pip-compile options"
