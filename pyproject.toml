@@ -46,10 +46,10 @@ exclude = [
   ".vscode/",
   "demo_resources/",
   "devtools/",
-  "lintingtools/",
   "requirements/",
   "tests/",
   ".gitignore",
+  ".gitmodules",
   ".bumpversion.cfg",
   ".pre-commit-config.yaml",
   "demo.py",
@@ -65,10 +65,12 @@ combine_as_imports = true
 sections = ["FUTURE", "STDLIB", "PYDIAMOND", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
 known_pydiamond = ["pydiamond"]
 add_imports = ["from __future__ import annotations"]
+extend_skip = ["devtools"]
 
 [tool.black]
 line-length = 130
 target-version = ["py310"]
+force-exclude = "(devtools/)"
 
 [tool.mypy]
 mypy_path = "$MYPY_CONFIG_FILE_DIR/src"

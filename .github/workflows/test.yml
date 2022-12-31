@@ -9,7 +9,6 @@ on:
     paths:
       - 'src/**'
       - 'tests/**'
-      - 'devtools/**'
       - '!**.pyi'
       - 'tox.ini'
       - 'pyproject.toml'
@@ -25,7 +24,6 @@ on:
     paths:
       - 'src/**'
       - 'tests/**'
-      - 'devtools/**'
       - '!**.pyi'
       - 'tox.ini'
       - 'pyproject.toml'
@@ -51,6 +49,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: true
       - name: Setup Python ${{ matrix.python_version }}
         id: setup-python
         uses: actions/setup-python@v4

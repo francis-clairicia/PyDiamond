@@ -6,7 +6,6 @@ on:
       - opened
       - synchronize
     paths-ignore:
-      - 'lintingtools'
       - 'demo.py'
       - 'demo_resources'
       - '**.pyi'
@@ -25,7 +24,6 @@ on:
     tags-ignore:
       - '*'
     paths-ignore:
-      - 'lintingtools'
       - 'demo.py'
       - 'demo_resources'
       - '**.pyi'
@@ -71,6 +69,8 @@ jobs:
       SOURCE_DATE_EPOCH: ${{ inputs.SOURCE_DATE_EPOCH }}
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: true
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'

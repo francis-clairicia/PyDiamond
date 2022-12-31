@@ -4,6 +4,7 @@ minimum_pre_commit_version: '2.20.0'
 
 ci:
   skip: [mypy]
+  submodules: true
 
 repos:
   - repo: local
@@ -24,39 +25,23 @@ repos:
         types_or: [python, pyi]
         require_serial: true
         pass_filenames: false
-      - id: mypy
-        name: mypy (devtools)
-        entry: tox run -q -e mypy -- devtools
-        language: system
-        files: ^(devtools/)
-        types_or: [python, pyi]
-        require_serial: true
-        pass_filenames: false
-      - id: mypy
-        name: mypy (linting tools)
-        entry: tox run -q -e mypy -- lintingtools
-        language: system
-        files: ^(lintingtools/)
-        types_or: [python, pyi]
-        require_serial: true
-        pass_filenames: false
   - repo: https://github.com/PyCQA/isort
     rev: '5.11.4'  # Keep in sync with requirements-dev.txt
     hooks:
       - id: isort
-        exclude: ^(demo_resources|\.github)/
+        exclude: ^(devtools|demo_resources|\.github)/
         args: ['--check-only', '--filter-files', '--settings-file', 'pyproject.toml']
   - repo: https://github.com/psf/black
     rev: '22.12.0'  # Keep in sync with requirements-dev.txt
     hooks:
       - id: black
-        exclude: ^(demo_resources|\.github)/
+        exclude: ^(devtools|demo_resources|\.github)/
         args: ['--check', '--config', 'pyproject.toml']
   - repo: https://github.com/PyCQA/flake8
     rev: '6.0.0'  # Keep in sync with requirements-dev.txt
     hooks:
       - id: flake8
-        exclude: ^(demo_resources|\.github)/
+        exclude: ^(devtools|demo_resources|\.github)/
         args: ['--config', '.flake8']
         types: []  # Overwrite with empty in order to fallback to types_or
         types_or: [python, pyi]
@@ -67,7 +52,7 @@ repos:
     rev: 'v1.2.0'
     hooks:
       - id: sort-all
-        exclude: ^(demo_resources|\.github)/
+        exclude: ^(devtools|demo_resources|\.github)/
         types: []  # Overwrite with empty in order to fallback to types_or
         types_or: [python, pyi]
   - repo: https://github.com/pre-commit/pre-commit-hooks
