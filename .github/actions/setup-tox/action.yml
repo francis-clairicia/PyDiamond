@@ -1,10 +1,5 @@
 name: 'Setup tox'
 description: 'Install tox and restore cache'
-inputs:
-  cache-key-suffix:
-    description: 'string to append at the end of the cache key'
-    required: false
-    default: ''
 outputs:
   cache-hit:
     description: 'A boolean value to indicate an exact match was found.'
@@ -23,13 +18,9 @@ runs:
       id: python
       run: echo "checksum=$(python -VV | sha256sum | cut -d' ' -f1)" >> $GITHUB_OUTPUT
       shell: bash
-    - name: Get tox package info
-      id: tox
-      run: echo "version=$(pip freeze | grep 'tox==' | awk -F'==' '{print $2}')" >> $GITHUB_OUTPUT
-      shell: bash
     - name: Restore tox environment
       id: cache
       uses: actions/cache@v3
       with:
         path: .tox
-        key: ${{ runner.os }}|${{ github.workflow }}|${{ github.job }}|tox-${{ steps.tox.outputs.version }}|${{ steps.python.outputs.checksum }}|${{ hashFiles( 'tox.ini' , 'requirements*.txt') }}|${{ inputs.cache-key-suffix }}
+        key: tox|${{ runner.os }}|${{ github.workflow }}|${{ github.job }}|${{ steps.python.outputs.checksum }}|${{ hashFiles( 'tox.ini' , 'requirements*.txt') }}
