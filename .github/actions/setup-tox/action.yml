@@ -9,7 +9,7 @@ runs:
   using: 'composite'
   steps:
     - name: Compile requirements
-      run: python -m devtools --no-venv repo --no-sync --no-pre-commit-install
+      run: python -m devtools --no-venv repo --no-sync
       shell: bash
     - name: Install dependencies
       run: pip install tox -c requirements-dev.txt
