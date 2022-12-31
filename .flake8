@@ -1,12 +1,13 @@
 [flake8]
 extend-exclude =
-    .mypy_cache
-    .pytest_cache
-    .venv
-    .vscode
-    demo_resources
-    dist
-    requirements
+    .mypy_cache,
+    .pytest_cache,
+    .venv,
+    .vscode,
+    devtools,
+    demo_resources,
+    dist,
+    requirements,
     site-packages
 filename =
     *.py
