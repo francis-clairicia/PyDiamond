@@ -83,7 +83,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Setup 'github-actions' user  # c.f.: https://github.com/orgs/community/discussions/26560#discussioncomment-3252339
+      - name: Setup 'github-actions' user
         uses: ./.github/actions/setup-github-actions-bot-user
       - name: Get release branch name
         run: echo "RELEASE_BRANCH_NAME=release/${GITHUB_REF_NAME%.0}.x" >> $GITHUB_ENV
