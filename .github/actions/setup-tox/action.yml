@@ -16,7 +16,7 @@ runs:
       shell: bash
     - name: Get python info
       id: python
-      run: echo "checksum=$(python -VV | sha256sum | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+      run: echo "checksum=$(python -VV | (sha256sum || shasum -a 256) | awk '{ print $1 }')" >> $GITHUB_OUTPUT
       shell: bash
     - name: Restore tox environment
       id: cache
