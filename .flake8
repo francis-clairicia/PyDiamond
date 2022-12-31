@@ -42,4 +42,4 @@ per-file-ignores =
 extension =
     DAL = flake8_extensions.dunder_all:DunderAll
 paths =
-    ./lintingtools
+    ./devtools/linting
