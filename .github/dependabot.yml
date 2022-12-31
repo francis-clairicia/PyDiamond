@@ -7,6 +7,5 @@ updates:
       day: "sunday"
     commit-message:
       prefix: "[dependabot]"
-      include: "scope"
     reviewers:
       - "francis-clairicia"
