@@ -5,6 +5,8 @@ on:
     types:
       - opened
       - synchronize
+    branches:
+      - main
     paths-ignore:
       - 'demo.py'
       - 'demo_resources'

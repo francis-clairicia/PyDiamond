@@ -6,6 +6,8 @@ on:
     types:
       - opened
       - synchronize
+    branches:
+      - main
     paths:
       - 'src/**'
       - 'tests/**'
