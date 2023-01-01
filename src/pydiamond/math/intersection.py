@@ -1,6 +1,6 @@
 # -*- coding: Utf-8 -*-
 # -*- coding: Utf-8 -*-
-# Copyright (c) 2021-2022, Francis Clairicia-Rose-Claire-Josephine
+# Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
 """Intersection utils module
