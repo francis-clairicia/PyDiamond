@@ -32,7 +32,7 @@ repos:
         exclude: ^(devtools|demo_resources|\.github)/
         args: ['--check-only', '--filter-files', '--settings-file', 'pyproject.toml']
   - repo: https://github.com/psf/black
-    rev: '22.12.0'  # Keep in sync with requirements-dev.txt
+    rev: '23.1.0'  # Keep in sync with requirements-dev.txt
     hooks:
       - id: black
         exclude: ^(devtools|demo_resources|\.github)/
