@@ -77,7 +77,6 @@ def save_image(image: Surface, file: str) -> None:
 
 
 class AbstractSurfaceRenderer(AbstractRenderer):
-
     __slots__ = ()
 
     @abstractmethod
@@ -325,7 +324,6 @@ class AbstractSurfaceRenderer(AbstractRenderer):
 
 @concreteclass
 class SurfaceRenderer(AbstractSurfaceRenderer):
-
     __slots__ = ("__target",)
 
     if TYPE_CHECKING:

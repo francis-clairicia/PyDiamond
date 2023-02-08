@@ -553,7 +553,6 @@ class Grid(Drawable, Movable, Container[GridElement]):
 
 
 class _GridRow:
-
     __slots__ = ("__master", "__grid_group", "__cells", "__columns", "__row", "__weakref__")
 
     def __init__(self, master: Grid, row: int, column_dict: dict[int, _GridColumnPlaceholder], grid_group: _GridGroup) -> None:
@@ -615,7 +614,6 @@ class _GridRow:
 
 
 class _GridColumnPlaceholder:
-
     __slots__ = ("__column", "__weakref__")
 
     def __init__(self, column: int) -> None:
@@ -635,7 +633,6 @@ class _GridColumnPlaceholder:
 
 
 class _GridCell(Drawable, Movable):
-
     __slots__ = (
         "__master",
         "__grid_group",

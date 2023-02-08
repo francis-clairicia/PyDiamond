@@ -1687,7 +1687,6 @@ class TextFramerate(Text, no_theme=True):
 
 
 class MainWindow(SceneWindow):
-
     all_scenes: ClassVar[list[type[Scene]]] = [
         ShapeScene,
         AnimationScene,

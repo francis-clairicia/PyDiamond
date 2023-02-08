@@ -266,7 +266,6 @@ class _ThreadFactoryMethod(Generic[_T, _P, _R, _ThreadT]):
                     return func(*args, **kwargs)
 
         else:
-
             thread_method = self.__thread_factory(func)
 
         setattr(thread_method, "get_lock", lambda: lock)

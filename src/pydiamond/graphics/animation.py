@@ -324,7 +324,6 @@ _TransformableAnimationType: TypeAlias = Literal["move", "rotate", "rotate_point
 
 @final
 class TransformAnimation(BaseAnimation):
-
     __slots__ = ("__animations",)
 
     __animations_order: Final[tuple[_TransformableAnimationType, ...]] = ("scale_x", "scale_y", "rotate", "rotate_point", "move")
@@ -565,7 +564,6 @@ class _TransformState(NamedTuple):
 
 
 class _AbstractAnimationClass(metaclass=ABCMeta):
-
     __slots__ = (
         "__object",
         "__animation_started",
@@ -605,7 +603,6 @@ class _AbstractAnimationClass(metaclass=ABCMeta):
 
 
 class _AbstractTransformableAnimationClass(_AbstractAnimationClass):
-
     __slots__ = ()
 
     if TYPE_CHECKING:
@@ -619,7 +616,6 @@ class _AbstractTransformableAnimationClass(_AbstractAnimationClass):
 
 
 class _AnimationSetPosition(_AbstractAnimationClass):
-
     __slots__ = ("__position",)
 
     def __init__(self, movable: Movable, speed: float, position: dict[str, float | tuple[float, float]]) -> None:
@@ -650,7 +646,6 @@ class _AnimationSetPosition(_AbstractAnimationClass):
 
 
 class _AnimationMove(_AbstractAnimationClass):
-
     __slots__ = ("__vector", "__traveled")
 
     def __init__(self, movable: Movable, speed: float, translation: Vector2 | tuple[float, float]) -> None:
@@ -682,7 +677,6 @@ class _AnimationMove(_AbstractAnimationClass):
 
 
 class _AnimationInfiniteMove(_AbstractAnimationClass):
-
     __slots__ = ("__vector",)
 
     def __init__(self, movable: Movable, speed: float, direction: Vector2 | tuple[float, float]) -> None:
@@ -706,7 +700,6 @@ class _AnimationInfiniteMove(_AbstractAnimationClass):
 
 
 class _AnimationSetRotation(_AbstractTransformableAnimationClass):
-
     __slots__ = ("__angle", "__pivot", "__counter_clockwise")
 
     def __init__(
@@ -750,7 +743,6 @@ class _AnimationSetRotation(_AbstractTransformableAnimationClass):
 
 
 class _AnimationRotation(_AbstractTransformableAnimationClass):
-
     __slots__ = ("__angle", "__orientation", "__actual_angle")
 
     def __init__(
@@ -785,7 +777,6 @@ class _AnimationRotation(_AbstractTransformableAnimationClass):
 
 
 class _AnimationInfiniteRotate(_AbstractTransformableAnimationClass):
-
     __slots__ = ("__orientation",)
 
     def __init__(
@@ -807,7 +798,6 @@ class _AnimationInfiniteRotate(_AbstractTransformableAnimationClass):
 
 
 class _AbstractAnimationRotationAroundPoint(_AbstractAnimationClass):
-
     __slots__ = (
         "__angle",
         "__orientation",
@@ -855,7 +845,6 @@ class _AbstractAnimationRotationAroundPoint(_AbstractAnimationClass):
 
 
 class _AnimationMovableRotationAroundPoint(_AbstractAnimationRotationAroundPoint):
-
     __slots__ = ()
 
     def _rotate_object(self, offset: float, pivot: Vector2) -> None:
@@ -863,7 +852,6 @@ class _AnimationMovableRotationAroundPoint(_AbstractAnimationRotationAroundPoint
 
 
 class _AnimationTransformableRotationAroundPoint(_AbstractAnimationRotationAroundPoint, _AbstractTransformableAnimationClass):
-
     __slots__ = ("__rotate_object",)
 
     def __init__(
@@ -885,7 +873,6 @@ class _AnimationTransformableRotationAroundPoint(_AbstractAnimationRotationAroun
 
 
 class _AbstractAnimationInfiniteRotateAroundPoint(_AbstractAnimationClass):
-
     __slots__ = ("__pivot", "__orientation")
 
     def __init__(
@@ -915,7 +902,6 @@ class _AbstractAnimationInfiniteRotateAroundPoint(_AbstractAnimationClass):
 
 
 class _AnimationMovableInfiniteRotateAroundPoint(_AbstractAnimationInfiniteRotateAroundPoint):
-
     __slots__ = ()
 
     def _rotate_object(self, offset: float, pivot: Vector2) -> None:
@@ -925,7 +911,6 @@ class _AnimationMovableInfiniteRotateAroundPoint(_AbstractAnimationInfiniteRotat
 class _AnimationTransformableInfiniteRotateAroundPoint(
     _AbstractAnimationInfiniteRotateAroundPoint, _AbstractTransformableAnimationClass
 ):
-
     __slots__ = ("__rotate_object",)
 
     def __init__(
@@ -947,7 +932,6 @@ class _AnimationTransformableInfiniteRotateAroundPoint(
 
 
 class _AbstractAnimationScale(_AbstractTransformableAnimationClass):
-
     __slots__ = ("__field", "__uniform")
 
     def __init__(self, transformable: Transformable, speed: float, field: Literal["width", "height"], uniform: bool) -> None:
@@ -970,7 +954,6 @@ class _AbstractAnimationScale(_AbstractTransformableAnimationClass):
 
 
 class _AnimationSetSize(_AbstractAnimationScale):
-
     __slots__ = ("__value",)
 
     def __init__(
@@ -1005,7 +988,6 @@ class _AnimationSetSize(_AbstractAnimationScale):
 
 
 class _AnimationSizeGrowth(_AbstractAnimationScale):
-
     __slots__ = ("__value", "__orientation", "__actual_value")
 
     def __init__(

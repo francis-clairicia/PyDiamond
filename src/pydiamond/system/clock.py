@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING
 
 
 class Clock:
-
     __slots__ = ("__time", "__last_tick")
 
     if TYPE_CHECKING:
@@ -23,7 +22,6 @@ class Clock:
             return time.perf_counter_ns()
 
     else:
-
         get_time_ns = staticmethod(time.perf_counter_ns)
 
     def __init__(self, start: bool = False) -> None:

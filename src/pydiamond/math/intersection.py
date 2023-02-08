@@ -51,7 +51,6 @@ def orientation(p: _FPoint | Vector2, q: _FPoint | Vector2, r: _FPoint | Vector2
 
 
 def do_intersect(p1: _FPoint | Vector2, q1: _FPoint | Vector2, p2: _FPoint | Vector2, q2: _FPoint | Vector2) -> bool:
-
     # Find the four orientations needed for
     # general and special cases
     o1 = orientation(p1, q1, p2)
@@ -121,7 +120,6 @@ def is_inside_polygon(points: Sequence[_FPoint] | Sequence[Vector2], p: _FPoint 
         # 'extreme' intersects with the line
         # segment from 'polygon[i]' to 'polygon[next]'
         if do_intersect(points[i], points[next], p, extreme):
-
             # If the point 'p' is collinear with line
             # segment 'i-next', then check if it lies
             # on segment. If it lies, return true, otherwise false
