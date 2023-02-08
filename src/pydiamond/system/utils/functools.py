@@ -134,7 +134,6 @@ def setdefaultattr(obj: object, name: str, value: _T) -> Any | _T:
 
 
 if TYPE_CHECKING:
-
     classmethodonly = classmethod
 
 else:
@@ -215,7 +214,6 @@ def make_callback(
         func = func_or_weakmethod
 
         if obj is None:
-
             callback = func
 
         else:

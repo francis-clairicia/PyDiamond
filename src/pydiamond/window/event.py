@@ -890,7 +890,6 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
             return EventFactory.associations[event]
 
     else:
-
         get_pygame_event_type = staticmethod(associations.__getitem__)
 
     @staticmethod
@@ -956,7 +955,6 @@ _WeakCallbackRegister: TypeAlias = weakref.WeakKeyDictionary[Callable[..., Any],
 
 
 class EventManager:
-
     __slots__ = (
         "__event_handler_dict",
         "__other_event_handlers_list",

@@ -73,7 +73,6 @@ class _ThemeNamespaceBackupItem(NamedTuple):
 
 @final
 class ThemeNamespace(ContextManager["ThemeNamespace"], Object):
-
     __THEMES: _ClassThemeDict = dict()
     __DEFAULT_THEME: _ClassDefaultThemeDict = dict()
     __THEMES_DEFAULT_DICT: Final[_ClassThemeDict] = __THEMES

@@ -111,7 +111,6 @@ class TestWindow:
 
         # Act & Assert
         with window.open():
-
             mock_pygame_display_module.init.assert_called()
             mock_pygame_display_module.quit.assert_not_called()
 
@@ -155,7 +154,6 @@ class TestWindow:
 
         # Act & Assert
         with window.open():
-
             mock_pygame_display_module.set_mode.assert_called_once_with(expected_size, flags=expected_flags, vsync=int(vsync))
 
     @pytest.mark.parametrize("error", [pytest.param(pygame.error, id="pygame.error"), ValueError, KeyError, ZeroDivisionError])
@@ -209,7 +207,6 @@ class TestWindow:
 
         # Act & Assert
         with window.open():
-
             mock_window_init.assert_called()
             mock_window_quit.assert_not_called()
 

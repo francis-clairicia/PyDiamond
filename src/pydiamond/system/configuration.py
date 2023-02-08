@@ -1750,7 +1750,6 @@ class ConfigurationTemplate(Object):
             value_converter_list.append(wrapper)
 
         if isinstance(func, type):
-
             if issubclass(func, Enum):
                 raise TypeError("Use add_enum_converter() instead for enum conversions")
 
@@ -1831,7 +1830,6 @@ class ConfigurationTemplate(Object):
             value_converter_list.append(wrapper)
 
         if isinstance(func, type):
-
             if issubclass(func, Enum):
                 raise TypeError("Use add_enum_converter() instead for enum conversions")
 
@@ -2079,7 +2077,6 @@ class ConfigurationTemplate(Object):
 
 @final
 class OptionAttribute(Generic[_T], Object):
-
     __slots__ = ("__name", "__owner", "__config_name", "__doc__")
 
     def __init__(self) -> None:
@@ -2530,7 +2527,6 @@ class Configuration(NonCopyable, Generic[_T]):
         parent: Configuration[_T],
         weakref_callback: Callable[[weakref[_S]], Any] | None = None,
     ) -> Configuration[_S]:
-
         parent.__info.check_section_validity(section.name)
 
         section_config: Configuration[_S] = section.original_config(parent.__self__)
@@ -3378,7 +3374,6 @@ class _FunctionWrapperBuilder:
                 return func(*args, **kwargs)
 
         elif not hasattr(func, "__get__"):
-
             assert callable(func)
 
             if func_name:
@@ -3530,7 +3525,6 @@ def _make_enum_converter(enum: type[Enum], return_value: bool, accept_none: bool
     assert issubclass(enum, Enum)
 
     if not return_value:
-
         if not accept_none:
             return lambda val, /, *, enum=enum: enum(val)  # type: ignore[misc]
 
@@ -3540,7 +3534,6 @@ def _make_enum_converter(enum: type[Enum], return_value: bool, accept_none: bool
             return enum(val)
 
     else:
-
         if not accept_none:
             return lambda val, /, *, enum=enum: enum(val).value  # type: ignore[misc]
 
@@ -3872,7 +3865,6 @@ class _ConfigInfoTemplate:
 
 
 class _ConfigInitializer:
-
     __slots__ = ("__func__", "__config_name")
 
     def __init__(self, func: Callable[..., Any]) -> None:

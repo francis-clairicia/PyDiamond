@@ -246,7 +246,6 @@ _SIDE_WITH_CONTROLLER_BUTTON_EVENT: Final[MappingProxyType[int, BoundFocusSide]]
 
 
 class _FocusableContainer(Sequence[SupportsFocus]):
-
     __slots__ = ("__master", "__list")
 
     def __init__(self, master: GUIScene) -> None:

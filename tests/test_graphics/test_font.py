@@ -189,7 +189,6 @@ class TestFont:
         font_filepath.touch()
 
         with font_filepath.open("rb") as file_io:
-
             # Act
             _ = Font(file_io)
 

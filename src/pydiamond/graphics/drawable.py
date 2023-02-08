@@ -132,7 +132,6 @@ _D = TypeVar("_D", bound=SupportsDrawableGroups)
 
 @Sequence.register
 class DrawableGroup(Generic[_D]):
-
     __slots__ = ("data", "__weakref__")
 
     def __init__(self, *objects: _D, **kwargs: Any) -> None:
@@ -258,7 +257,6 @@ class DrawableGroup(Generic[_D]):
 
 
 class LayeredDrawableGroup(DrawableGroup[_D]):
-
     __slots__ = ("__default_layer", "__layer_dict")
 
     def __init__(self, *objects: _D, default_layer: int = 0, **kwargs: Any) -> None:

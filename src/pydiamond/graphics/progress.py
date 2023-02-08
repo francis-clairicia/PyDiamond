@@ -51,7 +51,6 @@ class ProgressBarOrient(AutoLowerNameEnum):
 
 
 class ProgressBar(Drawable, Transformable):
-
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "value",
         "percent",

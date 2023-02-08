@@ -19,7 +19,6 @@ if sys.version_info < (3, 11):
         from _typeshed import Self
 
     class StrEnum(str, enum.Enum):
-
         if TYPE_CHECKING:
 
             def __new__(cls: type[Self], value: str | Self) -> Self:
@@ -30,7 +29,6 @@ if sys.version_info < (3, 11):
                 ...
 
 else:
-
     from enum import StrEnum
 
 

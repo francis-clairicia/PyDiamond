@@ -40,7 +40,6 @@ class TestMixer:
 
         # Act & Assert
         with Mixer.init():
-
             mock_pygame_mixer_module.init.assert_called()
             mock_pygame_mixer_module.quit.assert_not_called()
 

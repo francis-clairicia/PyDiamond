@@ -64,7 +64,6 @@ class BlendMode(IntEnum):
 
 
 class AbstractRenderer(Object):
-
     __slots__ = ()
 
     @abstractmethod
