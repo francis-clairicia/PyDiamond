@@ -93,7 +93,7 @@ jobs:
       - name: Build packages
         run: tox run -e build
       - name: Upload packages as artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.artifact-name || 'pydiamond-dist' }}
           path: dist
