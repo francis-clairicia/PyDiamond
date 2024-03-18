@@ -149,8 +149,7 @@ class AbstractSurfaceRenderer(AbstractRenderer):
             | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None, int]
         ],
         doreturn: Literal[True] = ...,
-    ) -> list[Rect]:
-        ...
+    ) -> list[Rect]: ...
 
     @overload
     def draw_many_surfaces(
@@ -161,8 +160,7 @@ class AbstractSurfaceRenderer(AbstractRenderer):
             | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None, int]
         ],
         doreturn: Literal[False],
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def draw_many_surfaces(
@@ -173,8 +171,7 @@ class AbstractSurfaceRenderer(AbstractRenderer):
             | tuple[Surface, Coordinate | _CanBeRect, _CanBeRect | None, int]
         ],
         doreturn: bool,
-    ) -> list[Rect] | None:
-        ...
+    ) -> list[Rect] | None: ...
 
     def draw_many_surfaces(
         self,

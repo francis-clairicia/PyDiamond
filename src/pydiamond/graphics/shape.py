@@ -293,8 +293,7 @@ class AbstractRectangleShape(AbstractShape):
             center: Vector2 | _FPoint | None = ...,
             apply_rotation: bool = ...,
             apply_scale: bool = ...,
-        ) -> tuple[()] | tuple[Vector2, Vector2, Vector2, Vector2]:
-            ...
+        ) -> tuple[()] | tuple[Vector2, Vector2, Vector2, Vector2]: ...
 
     @final
     def get_local_size(self) -> tuple[float, float]:
@@ -339,8 +338,7 @@ class AbstractSquareShape(AbstractShape):
             center: Vector2 | _FPoint | None = ...,
             apply_rotation: bool = ...,
             apply_scale: bool = ...,
-        ) -> tuple[()] | tuple[Vector2, Vector2, Vector2, Vector2]:
-            ...
+        ) -> tuple[()] | tuple[Vector2, Vector2, Vector2, Vector2]: ...
 
     @final
     def get_local_size(self) -> tuple[float, float]:

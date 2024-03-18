@@ -21,12 +21,10 @@ if sys.version_info < (3, 11):
     class StrEnum(str, enum.Enum):
         if TYPE_CHECKING:
 
-            def __new__(cls: type[Self], value: str | Self) -> Self:
-                ...
+            def __new__(cls: type[Self], value: str | Self) -> Self: ...
 
             @property
-            def value(self) -> str:
-                ...
+            def value(self) -> str: ...
 
 else:
     from enum import StrEnum

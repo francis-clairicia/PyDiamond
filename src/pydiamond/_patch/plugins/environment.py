@@ -70,18 +70,15 @@ class VerifyBooleanEnvironmentVariables(AbstractEnvironmentPatch):
 
 
 @overload
-def check_booleans(environ: MutableMapping[str, str]) -> None:
-    ...
+def check_booleans(environ: MutableMapping[str, str]) -> None: ...
 
 
 @overload
-def check_booleans(environ: MutableMapping[str, str], *, only: Sequence[str]) -> None:
-    ...
+def check_booleans(environ: MutableMapping[str, str], *, only: Sequence[str]) -> None: ...
 
 
 @overload
-def check_booleans(environ: MutableMapping[str, str], *, exclude: Sequence[str]) -> None:
-    ...
+def check_booleans(environ: MutableMapping[str, str], *, exclude: Sequence[str]) -> None: ...
 
 
 def check_booleans(

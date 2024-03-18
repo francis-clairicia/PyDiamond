@@ -32,8 +32,7 @@ if TYPE_CHECKING:
 
 
 class _ScrollBarCommand(Protocol):
-    def __call__(self, action: Literal["moveto"], fraction: float, /) -> None:
-        ...
+    def __call__(self, action: Literal["moveto"], fraction: float, /) -> None: ...
 
     # TODO: Add this command (arrow buttons)
     # @overload
@@ -416,8 +415,7 @@ class AbstractScrollableWidget(AbstractWidget, AbstractScrollableView):
             wheel_xscroll_increment: int = ...,
             wheel_yscroll_increment: int = ...,
             **kwargs: Any,
-        ) -> None:
-            ...
+        ) -> None: ...
 
     def _setup_mouse_wheel(
         self,

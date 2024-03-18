@@ -150,12 +150,10 @@ class DrawableGroup(Generic[_D]):
         return self.data.__contains__(value)
 
     @overload
-    def __getitem__(self, index: SupportsIndex, /) -> _D:
-        ...
+    def __getitem__(self, index: SupportsIndex, /) -> _D: ...
 
     @overload
-    def __getitem__(self, index: slice, /) -> list[_D]:
-        ...
+    def __getitem__(self, index: slice, /) -> list[_D]: ...
 
     def __getitem__(self, index: SupportsIndex | slice, /) -> _D | list[_D]:
         return self.data[index]

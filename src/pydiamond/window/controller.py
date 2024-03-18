@@ -132,16 +132,13 @@ class ControllerMapping(MutableMapping[str, str]):
         raise KeyError("Cannot be deleted")
 
     @overload
-    def update(self, __m: SupportsKeysAndGetItem[str, str], /, **kwargs: str) -> None:
-        ...
+    def update(self, __m: SupportsKeysAndGetItem[str, str], /, **kwargs: str) -> None: ...
 
     @overload
-    def update(self, __m: Iterable[tuple[str, str]], /, **kwargs: str) -> None:
-        ...
+    def update(self, __m: Iterable[tuple[str, str]], /, **kwargs: str) -> None: ...
 
     @overload
-    def update(self, /, **kwargs: str) -> None:
-        ...
+    def update(self, /, **kwargs: str) -> None: ...
 
     def update(self, other: Any = (), /, **kwargs: Any) -> None:
         mapping = self.__controller.get_mapping()

@@ -227,8 +227,7 @@ class MoveAnimation(BaseAnimation):
         __Self = TypeVar("__Self", bound="MoveAnimation")
 
         @property
-        def object(self) -> Movable:
-            ...
+        def object(self) -> Movable: ...
 
     @overload
     def smooth_set_position(
@@ -243,8 +242,7 @@ class MoveAnimation(BaseAnimation):
         bottom: float = ...,
         centerx: float = ...,
         centery: float = ...,
-    ) -> __Self:
-        ...
+    ) -> __Self: ...
 
     @overload
     def smooth_set_position(
@@ -260,8 +258,7 @@ class MoveAnimation(BaseAnimation):
         midright: tuple[float, float] = ...,
         midtop: tuple[float, float] = ...,
         midbottom: tuple[float, float] = ...,
-    ) -> __Self:
-        ...
+    ) -> __Self: ...
 
     def smooth_set_position(self: __Self, speed: float = 100, **position: float | tuple[float, float]) -> __Self:
         self.__animations["move"] = _AnimationSetPosition(self.object, speed, position)
@@ -337,8 +334,7 @@ class TransformAnimation(BaseAnimation):
         __Self = TypeVar("__Self", bound="TransformAnimation")
 
         @property
-        def object(self) -> Transformable:
-            ...
+        def object(self) -> Transformable: ...
 
     @overload
     def smooth_set_position(
@@ -353,8 +349,7 @@ class TransformAnimation(BaseAnimation):
         bottom: float = ...,
         centerx: float = ...,
         centery: float = ...,
-    ) -> __Self:
-        ...
+    ) -> __Self: ...
 
     @overload
     def smooth_set_position(
@@ -370,8 +365,7 @@ class TransformAnimation(BaseAnimation):
         midright: tuple[float, float] = ...,
         midtop: tuple[float, float] = ...,
         midbottom: tuple[float, float] = ...,
-    ) -> __Self:
-        ...
+    ) -> __Self: ...
 
     def smooth_set_position(self: __Self, speed: float = 100, **position: float | tuple[float, float]) -> __Self:
         transformable: Transformable = self.object
@@ -607,12 +601,10 @@ class _AbstractTransformableAnimationClass(_AbstractAnimationClass):
 
     if TYPE_CHECKING:
 
-        def __init__(self, obj: Transformable, speed: float) -> None:
-            ...
+        def __init__(self, obj: Transformable, speed: float) -> None: ...
 
         @property
-        def object(self) -> Transformable:
-            ...
+        def object(self) -> Transformable: ...
 
 
 class _AnimationSetPosition(_AbstractAnimationClass):

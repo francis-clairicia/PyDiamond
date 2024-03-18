@@ -151,8 +151,7 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
         self.__y: float = 0
 
     @overload
-    def get_position(self, anchor: Literal["x", "y", "left", "top", "right", "bottom", "centerx", "centery"]) -> float:
-        ...
+    def get_position(self, anchor: Literal["x", "y", "left", "top", "right", "bottom", "centerx", "centery"]) -> float: ...
 
     @overload
     def get_position(
@@ -168,12 +167,10 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
             "midtop",
             "midbottom",
         ],
-    ) -> tuple[float, float]:
-        ...
+    ) -> tuple[float, float]: ...
 
     @overload
-    def get_position(self, anchor: str) -> float | tuple[float, float]:
-        ...
+    def get_position(self, anchor: str) -> float | tuple[float, float]: ...
 
     @final
     def get_position(self, anchor: str) -> float | tuple[float, float]:
@@ -199,8 +196,7 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
         bottom: float = ...,
         centerx: float = ...,
         centery: float = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def set_position(
@@ -215,8 +211,7 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
         midright: tuple[float, float] = ...,
         midtop: tuple[float, float] = ...,
         midbottom: tuple[float, float] = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @final
     def set_position(self, **kwargs: Any) -> None:
@@ -262,8 +257,7 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
         self,
         anchor: Literal["x", "y", "left", "top", "right", "bottom", "centerx", "centery"],
         value: float,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def _set_position(
@@ -280,12 +274,10 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
             "midbottom",
         ],
         value: tuple[float, float],
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
-    def _set_position(self, anchor: str, value: float | tuple[float, float]) -> None:
-        ...
+    def _set_position(self, anchor: str, value: float | tuple[float, float]) -> None: ...
 
     @final
     def _set_position(self, anchor: str, value: float | tuple[float, float]) -> None:
@@ -344,8 +336,7 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
         return self.get_size()[1]
 
     @overload
-    def get_rect(self) -> Rect:
-        ...
+    def get_rect(self) -> Rect: ...
 
     @overload
     def get_rect(
@@ -373,8 +364,7 @@ class Movable(Object, prepare_namespace=__prepare_movable_namespace):
         height: float = ...,
         w: float = ...,
         h: float = ...,
-    ) -> Rect:
-        ...
+    ) -> Rect: ...
 
     @final
     def get_rect(self, **kwargs: float | tuple[float, float]) -> Rect:
