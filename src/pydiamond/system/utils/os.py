@@ -34,8 +34,7 @@ def register_at_fork_if_supported(
     before: Callable[[], Any],
     after_in_parent: Callable[[], Any] = ...,
     after_in_child: Callable[[], Any] = ...,
-) -> None:
-    ...
+) -> None: ...
 
 
 @overload
@@ -44,8 +43,7 @@ def register_at_fork_if_supported(
     after_in_parent: Callable[[], Any],
     before: Callable[[], Any] = ...,
     after_in_child: Callable[[], Any] = ...,
-) -> None:
-    ...
+) -> None: ...
 
 
 @overload
@@ -54,8 +52,7 @@ def register_at_fork_if_supported(
     after_in_child: Callable[[], Any],
     before: Callable[[], Any] = ...,
     after_in_parent: Callable[[], Any] = ...,
-) -> None:
-    ...
+) -> None: ...
 
 
 def register_at_fork_if_supported(

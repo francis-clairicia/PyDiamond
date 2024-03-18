@@ -94,8 +94,7 @@ class Mixer(ClassNamespace, frozen=True):
 
     @overload
     @staticmethod
-    def pre_init() -> None:
-        ...
+    def pre_init() -> None: ...
 
     @overload
     @staticmethod
@@ -107,8 +106,7 @@ class Mixer(ClassNamespace, frozen=True):
         buffersize: int = ...,
         allowedchanges: AllowedAudioChanges | Literal[-1, 0] = ...,
         **kwargs: Any,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @staticmethod
     def pre_init(**kwargs: Any) -> None:
@@ -126,8 +124,7 @@ class Mixer(ClassNamespace, frozen=True):
 
     @overload
     @staticmethod
-    def init() -> _GeneratorContextManager[MixerParams]:
-        ...
+    def init() -> _GeneratorContextManager[MixerParams]: ...
 
     @overload
     @staticmethod
@@ -139,8 +136,7 @@ class Mixer(ClassNamespace, frozen=True):
         buffersize: int = ...,
         allowedchanges: AllowedAudioChanges | Literal[-1, 0] = ...,
         **kwargs: Any,
-    ) -> _GeneratorContextManager[MixerParams]:
-        ...
+    ) -> _GeneratorContextManager[MixerParams]: ...
 
     # So add 'devicename' breaks you mypy...?
     @staticmethod
@@ -278,13 +274,11 @@ class Mixer(ClassNamespace, frozen=True):
 
     @overload
     @staticmethod
-    def find_channel(force: Literal[True]) -> Channel:
-        ...
+    def find_channel(force: Literal[True]) -> Channel: ...
 
     @overload
     @staticmethod
-    def find_channel(force: bool = ...) -> Channel | None:
-        ...
+    def find_channel(force: bool = ...) -> Channel | None: ...
 
     @staticmethod
     def find_channel(force: bool = False) -> Channel | None:

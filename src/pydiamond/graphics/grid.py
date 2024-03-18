@@ -128,8 +128,7 @@ class Grid(Drawable, Movable, Container[GridElement]):
         return (self.__max_width_columns.get(column, 0), self.__max_height_rows.get(row, 0))
 
     @overload
-    def get_cell_rect(self, row: int, column: int) -> Rect:
-        ...
+    def get_cell_rect(self, row: int, column: int) -> Rect: ...
 
     @overload
     def get_cell_rect(
@@ -159,8 +158,7 @@ class Grid(Drawable, Movable, Container[GridElement]):
         height: float = ...,
         w: float = ...,
         h: float = ...,
-    ) -> Rect:
-        ...
+    ) -> Rect: ...
 
     @final
     def get_cell_rect(self, row: int, column: int, **kwargs: float | tuple[float, float]) -> Rect:
@@ -174,8 +172,7 @@ class Grid(Drawable, Movable, Container[GridElement]):
         return Rect(*self.__compute_cell_rect(row, column, relative=True))
 
     @overload
-    def get_cell_rect_from_object(self, obj: GridElement) -> Rect:
-        ...
+    def get_cell_rect_from_object(self, obj: GridElement) -> Rect: ...
 
     @overload
     def get_cell_rect_from_object(
@@ -204,8 +201,7 @@ class Grid(Drawable, Movable, Container[GridElement]):
         height: float = ...,
         w: float = ...,
         h: float = ...,
-    ) -> Rect:
-        ...
+    ) -> Rect: ...
 
     @final
     def get_cell_rect_from_object(self, obj: GridElement, **kwargs: float | tuple[float, float]) -> Rect:
@@ -286,12 +282,10 @@ class Grid(Drawable, Movable, Container[GridElement]):
         return obj
 
     @overload
-    def get(self, row: int, column: int) -> GridElement | None:
-        ...
+    def get(self, row: int, column: int) -> GridElement | None: ...
 
     @overload
-    def get(self, row: int, column: int, default: _T) -> GridElement | _T:
-        ...
+    def get(self, row: int, column: int, default: _T) -> GridElement | _T: ...
 
     def get(self, row: int, column: int, default: Any = None) -> Any:
         try:
@@ -300,12 +294,10 @@ class Grid(Drawable, Movable, Container[GridElement]):
             return default
 
     @overload
-    def pop(self, row: int, column: int) -> GridElement:
-        ...
+    def pop(self, row: int, column: int) -> GridElement: ...
 
     @overload
-    def pop(self, row: int, column: int, default: _T) -> GridElement | _T:
-        ...
+    def pop(self, row: int, column: int, default: _T) -> GridElement | _T: ...
 
     def pop(self, row: int, column: int, default: Any = _MISSING) -> Any:
         try:
@@ -706,12 +698,10 @@ class _GridCell(Drawable, Movable):
     @overload
     def set_object(
         self, obj: GridElement, *, padx: int | None = None, pady: int | None = None, justify: str | None = None
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
-    def set_object(self, obj: None) -> None:
-        ...
+    def set_object(self, obj: None) -> None: ...
 
     def set_object(
         self,

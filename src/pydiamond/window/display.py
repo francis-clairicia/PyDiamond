@@ -764,12 +764,10 @@ class Window(Object, no_slots=True):
     @overload
     def after(
         self, __milliseconds: float, __callback: Callable[_P, None], /, *args: _P.args, **kwargs: _P.kwargs
-    ) -> WindowCallback:
-        ...
+    ) -> WindowCallback: ...
 
     @overload
-    def after(self, __milliseconds: float, /) -> Callable[[Callable[[], None]], WindowCallback]:
-        ...
+    def after(self, __milliseconds: float, /) -> Callable[[Callable[[], None]], WindowCallback]: ...
 
     def after(
         self, __milliseconds: float, __callback: Callable[..., None] | None = None, /, *args: Any, **kwargs: Any
@@ -786,18 +784,15 @@ class Window(Object, no_slots=True):
     @overload
     def every(
         self, __milliseconds: float, __callback: Callable[_P, None], /, *args: _P.args, **kwargs: _P.kwargs
-    ) -> WindowCallback:
-        ...
+    ) -> WindowCallback: ...
 
     @overload
     def every(
         self, __milliseconds: float, __callback: Callable[_P, Iterator[None]], /, *args: _P.args, **kwargs: _P.kwargs
-    ) -> WindowCallback:
-        ...
+    ) -> WindowCallback: ...
 
     @overload
-    def every(self, __milliseconds: float, /) -> Callable[[Callable[[], Iterator[None] | None]], WindowCallback]:
-        ...
+    def every(self, __milliseconds: float, /) -> Callable[[Callable[[], Iterator[None] | None]], WindowCallback]: ...
 
     def every(
         self, __milliseconds: float, __callback: Callable[..., Any] | None = None, /, *args: Any, **kwargs: Any
