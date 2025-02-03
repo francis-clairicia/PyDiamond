@@ -24,33 +24,27 @@ _MISSING: Any = object()
 
 
 @overload
-def valid_integer(*, min_value: int) -> Callable[[Any], int]:
-    ...
+def valid_integer(*, min_value: int) -> Callable[[Any], int]: ...
 
 
 @overload
-def valid_integer(*, max_value: int) -> Callable[[Any], int]:
-    ...
+def valid_integer(*, max_value: int) -> Callable[[Any], int]: ...
 
 
 @overload
-def valid_integer(*, min_value: int, max_value: int) -> Callable[[Any], int]:
-    ...
+def valid_integer(*, min_value: int, max_value: int) -> Callable[[Any], int]: ...
 
 
 @overload
-def valid_integer(*, value: Any, min_value: int) -> int:
-    ...
+def valid_integer(*, value: Any, min_value: int) -> int: ...
 
 
 @overload
-def valid_integer(*, value: Any, max_value: int) -> int:
-    ...
+def valid_integer(*, value: Any, max_value: int) -> int: ...
 
 
 @overload
-def valid_integer(*, value: Any, min_value: int, max_value: int) -> int:
-    ...
+def valid_integer(*, value: Any, min_value: int, max_value: int) -> int: ...
 
 
 def valid_integer(**kwargs: Any) -> int | Callable[[Any], int]:
@@ -62,33 +56,27 @@ def valid_integer(**kwargs: Any) -> int | Callable[[Any], int]:
 
 
 @overload
-def valid_optional_integer(*, min_value: int) -> Callable[[Any], int | None]:
-    ...
+def valid_optional_integer(*, min_value: int) -> Callable[[Any], int | None]: ...
 
 
 @overload
-def valid_optional_integer(*, max_value: int) -> Callable[[Any], int | None]:
-    ...
+def valid_optional_integer(*, max_value: int) -> Callable[[Any], int | None]: ...
 
 
 @overload
-def valid_optional_integer(*, min_value: int, max_value: int) -> Callable[[Any], int | None]:
-    ...
+def valid_optional_integer(*, min_value: int, max_value: int) -> Callable[[Any], int | None]: ...
 
 
 @overload
-def valid_optional_integer(*, value: Any, min_value: int) -> int | None:
-    ...
+def valid_optional_integer(*, value: Any, min_value: int) -> int | None: ...
 
 
 @overload
-def valid_optional_integer(*, value: Any, max_value: int) -> int | None:
-    ...
+def valid_optional_integer(*, value: Any, max_value: int) -> int | None: ...
 
 
 @overload
-def valid_optional_integer(*, value: Any, min_value: int, max_value: int) -> int | None:
-    ...
+def valid_optional_integer(*, value: Any, min_value: int, max_value: int) -> int | None: ...
 
 
 def valid_optional_integer(**kwargs: Any) -> int | None | Callable[[Any], int | None]:
@@ -100,33 +88,27 @@ def valid_optional_integer(**kwargs: Any) -> int | None | Callable[[Any], int | 
 
 
 @overload
-def valid_float(*, min_value: float) -> Callable[[Any], float]:
-    ...
+def valid_float(*, min_value: float) -> Callable[[Any], float]: ...
 
 
 @overload
-def valid_float(*, max_value: float) -> Callable[[Any], float]:
-    ...
+def valid_float(*, max_value: float) -> Callable[[Any], float]: ...
 
 
 @overload
-def valid_float(*, min_value: float, max_value: float) -> Callable[[Any], float]:
-    ...
+def valid_float(*, min_value: float, max_value: float) -> Callable[[Any], float]: ...
 
 
 @overload
-def valid_float(*, value: Any, min_value: float) -> float:
-    ...
+def valid_float(*, value: Any, min_value: float) -> float: ...
 
 
 @overload
-def valid_float(*, value: Any, max_value: float) -> float:
-    ...
+def valid_float(*, value: Any, max_value: float) -> float: ...
 
 
 @overload
-def valid_float(*, value: Any, min_value: float, max_value: float) -> float:
-    ...
+def valid_float(*, value: Any, min_value: float, max_value: float) -> float: ...
 
 
 def valid_float(**kwargs: Any) -> float | Callable[[Any], float]:
@@ -138,33 +120,27 @@ def valid_float(**kwargs: Any) -> float | Callable[[Any], float]:
 
 
 @overload
-def valid_optional_float(*, min_value: float) -> Callable[[Any], float | None]:
-    ...
+def valid_optional_float(*, min_value: float) -> Callable[[Any], float | None]: ...
 
 
 @overload
-def valid_optional_float(*, max_value: float) -> Callable[[Any], float | None]:
-    ...
+def valid_optional_float(*, max_value: float) -> Callable[[Any], float | None]: ...
 
 
 @overload
-def valid_optional_float(*, min_value: float, max_value: float) -> Callable[[Any], float | None]:
-    ...
+def valid_optional_float(*, min_value: float, max_value: float) -> Callable[[Any], float | None]: ...
 
 
 @overload
-def valid_optional_float(*, value: Any, min_value: float) -> float | None:
-    ...
+def valid_optional_float(*, value: Any, min_value: float) -> float | None: ...
 
 
 @overload
-def valid_optional_float(*, value: Any, max_value: float) -> float | None:
-    ...
+def valid_optional_float(*, value: Any, max_value: float) -> float | None: ...
 
 
 @overload
-def valid_optional_float(*, value: Any, min_value: float, max_value: float) -> float | None:
-    ...
+def valid_optional_float(*, value: Any, min_value: float, max_value: float) -> float | None: ...
 
 
 def valid_optional_float(**kwargs: Any) -> float | None | Callable[[Any], float | None]:
@@ -244,23 +220,19 @@ def __valid_number(value_type: type[_Number], optional: bool, /, **kwargs: Any) 
 
 
 @overload
-def valid_sequence(*, length: int = ...) -> Callable[[Any], Sequence[Any]]:
-    ...
+def valid_sequence(*, length: int = ...) -> Callable[[Any], Sequence[Any]]: ...
 
 
 @overload
-def valid_sequence(*, validator: Callable[[Any], _T], length: int = ...) -> Callable[[Any], Sequence[_T]]:
-    ...
+def valid_sequence(*, validator: Callable[[Any], _T], length: int = ...) -> Callable[[Any], Sequence[_T]]: ...
 
 
 @overload
-def valid_sequence(*, value: Any, length: int = ...) -> Sequence[Any]:
-    ...
+def valid_sequence(*, value: Any, length: int = ...) -> Sequence[Any]: ...
 
 
 @overload
-def valid_sequence(*, value: Any, validator: Callable[[Any], _T], length: int = ...) -> Sequence[_T]:
-    ...
+def valid_sequence(*, value: Any, validator: Callable[[Any], _T], length: int = ...) -> Sequence[_T]: ...
 
 
 def valid_sequence(*, value: Any = _MISSING, validator: Callable[[Any], Any] | None = None, length: int = -1) -> Any:

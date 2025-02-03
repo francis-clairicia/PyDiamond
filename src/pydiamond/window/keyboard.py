@@ -38,13 +38,11 @@ class Keyboard(ClassNamespace, frozen=True):
 
     @overload
     @staticmethod
-    def set_repeat(delay: None) -> tuple[int, int]:
-        ...
+    def set_repeat(delay: None) -> tuple[int, int]: ...
 
     @overload
     @staticmethod
-    def set_repeat(delay: int, interval: int = 0) -> tuple[int, int]:
-        ...
+    def set_repeat(delay: int, interval: int = 0) -> tuple[int, int]: ...
 
     @staticmethod
     def set_repeat(delay: int | None, interval: int = 0) -> tuple[int, int]:

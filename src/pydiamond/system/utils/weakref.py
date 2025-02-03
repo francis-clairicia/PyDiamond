@@ -16,13 +16,11 @@ _Func = TypeVar("_Func", bound=Callable[..., Any])
 
 
 @overload
-def weakref_unwrap(ref: ReferenceType[_T]) -> _T:
-    ...
+def weakref_unwrap(ref: ReferenceType[_T]) -> _T: ...
 
 
 @overload
-def weakref_unwrap(ref: WeakMethod[_Func]) -> _Func:
-    ...
+def weakref_unwrap(ref: WeakMethod[_Func]) -> _Func: ...
 
 
 def weakref_unwrap(ref: Callable[[], _T | None]) -> _T:

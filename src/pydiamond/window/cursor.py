@@ -39,20 +39,16 @@ class Cursor(_pg_cursors.Cursor, Object, no_slots=True):
     @overload
     def __init__(
         self, size: tuple[int, int], hotspot: tuple[int, int], xormasks: Sequence[int], andmasks: Sequence[int], /
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
-    def __init__(self, hotspot: tuple[int, int], surface: Surface, /) -> None:
-        ...
+    def __init__(self, hotspot: tuple[int, int], surface: Surface, /) -> None: ...
 
     @overload
-    def __init__(self, cursor: _pg_cursors.Cursor, /) -> None:
-        ...
+    def __init__(self, cursor: _pg_cursors.Cursor, /) -> None: ...
 
     @overload
-    def __init__(self, system_cursor_constant: int, /) -> None:
-        ...
+    def __init__(self, system_cursor_constant: int, /) -> None: ...
 
     def __init__(self, *args: Any) -> None:
         try:
@@ -112,8 +108,7 @@ class SystemCursor(Cursor, Enum, metaclass=EnumObjectMeta):
 
     if TYPE_CHECKING:
 
-        def __init__(self, value: int | SystemCursor) -> None:
-            ...
+        def __init__(self, value: int | SystemCursor) -> None: ...
 
     ARROW = auto()
     IBEAM = auto()
@@ -131,8 +126,7 @@ class SystemCursor(Cursor, Enum, metaclass=EnumObjectMeta):
     if TYPE_CHECKING:
 
         @property
-        def value(self) -> int:
-            ...
+        def value(self) -> int: ...
 
 
 del _pg_constants

@@ -40,33 +40,25 @@ if TYPE_CHECKING:
         __wrapped__: Callable[_P, _R]
 
         @staticmethod
-        def __call__(*args: _P.args, **kwds: _P.kwargs) -> _R:
-            ...
+        def __call__(*args: _P.args, **kwds: _P.kwargs) -> _R: ...
 
-        def cache_info(self) -> _CacheInfo:
-            ...
+        def cache_info(self) -> _CacheInfo: ...
 
-        def cache_clear(self) -> None:
-            ...
+        def cache_clear(self) -> None: ...
 
-        def cache_parameters(self) -> _CacheParameters:
-            ...
+        def cache_parameters(self) -> _CacheParameters: ...
 
-        def __copy__(self) -> _lru_cache_wrapper[_P, _R]:
-            ...
+        def __copy__(self) -> _lru_cache_wrapper[_P, _R]: ...
 
-        def __deepcopy__(self, __memo: Any, /) -> _lru_cache_wrapper[_P, _R]:
-            ...
+        def __deepcopy__(self, __memo: Any, /) -> _lru_cache_wrapper[_P, _R]: ...
 
 
 @overload
-def lru_cache(func: Callable[_P, _R], /) -> Callable[_P, _R]:
-    ...
+def lru_cache(func: Callable[_P, _R], /) -> Callable[_P, _R]: ...
 
 
 @overload
-def lru_cache(*, maxsize: int | None = 128, typed: bool = False) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]:
-    ...
+def lru_cache(*, maxsize: int | None = 128, typed: bool = False) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]: ...
 
 
 def lru_cache(func: Callable[..., Any] | None = None, /, *, maxsize: int | None = 128, typed: bool = False) -> Callable[..., Any]:
@@ -81,13 +73,11 @@ def cache(func: Callable[_P, _R], /) -> Callable[_P, _R]:
 
 
 @overload
-def tp_cache(func: Callable[_P, _R], /) -> Callable[_P, _R]:
-    ...
+def tp_cache(func: Callable[_P, _R], /) -> Callable[_P, _R]: ...
 
 
 @overload
-def tp_cache(*, maxsize: int | None = 128, typed: bool = False) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]:
-    ...
+def tp_cache(*, maxsize: int | None = 128, typed: bool = False) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]: ...
 
 
 def tp_cache(func: Callable[..., Any] | None = None, /, *, maxsize: int | None = 128, typed: bool = False) -> Callable[..., Any]:
@@ -162,8 +152,7 @@ def make_callback(  # type: ignore[misc]
     /,
     weakref_callback: Callable[[weakref[Any]], Any] | None = ...,
     deadref_value_return: Any = ...,
-) -> Callable[_P, _R]:
-    ...
+) -> Callable[_P, _R]: ...
 
 
 @overload
@@ -173,8 +162,7 @@ def make_callback(
     /,
     weakref_callback: Callable[[weakref[_T]], Any] | None = ...,
     deadref_value_return: _R = ...,
-) -> Callable[_P, _R]:
-    ...
+) -> Callable[_P, _R]: ...
 
 
 @overload
@@ -184,8 +172,7 @@ def make_callback(
     /,
     weakref_callback: Callable[[weakref[_T]], Any] | None = ...,
     deadref_value_return: type[BaseException] = ...,
-) -> Callable[_P, _R]:
-    ...
+) -> Callable[_P, _R]: ...
 
 
 def make_callback(

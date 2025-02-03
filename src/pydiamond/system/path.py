@@ -45,18 +45,15 @@ def __set_path(
 
 
 @overload
-def set_constant_directory(path: str, *paths: str, relative_to_cwd: bool = False) -> str:
-    ...
+def set_constant_directory(path: str, *paths: str, relative_to_cwd: bool = False) -> str: ...
 
 
 @overload
-def set_constant_directory(path: str, *paths: str, raise_error: bool, relative_to_cwd: bool = False) -> str:
-    ...
+def set_constant_directory(path: str, *paths: str, raise_error: bool, relative_to_cwd: bool = False) -> str: ...
 
 
 @overload
-def set_constant_directory(path: str, *paths: str, error_msg: str, relative_to_cwd: bool = False) -> str:
-    ...
+def set_constant_directory(path: str, *paths: str, error_msg: str, relative_to_cwd: bool = False) -> str: ...
 
 
 def set_constant_directory(path: str, *paths: str, raise_error: bool = True, **kwargs: Any) -> str:
@@ -67,18 +64,15 @@ def set_constant_directory(path: str, *paths: str, raise_error: bool = True, **k
 
 
 @overload
-def set_constant_file(path: str, *paths: str, relative_to_cwd: bool = False) -> str:
-    ...
+def set_constant_file(path: str, *paths: str, relative_to_cwd: bool = False) -> str: ...
 
 
 @overload
-def set_constant_file(path: str, *paths: str, raise_error: bool, relative_to_cwd: bool = False) -> str:
-    ...
+def set_constant_file(path: str, *paths: str, raise_error: bool, relative_to_cwd: bool = False) -> str: ...
 
 
 @overload
-def set_constant_file(path: str, *paths: str, error_msg: str, relative_to_cwd: bool = False) -> str:
-    ...
+def set_constant_file(path: str, *paths: str, error_msg: str, relative_to_cwd: bool = False) -> str: ...
 
 
 def set_constant_file(path: str, *paths: str, raise_error: bool = True, **kwargs: Any) -> str:

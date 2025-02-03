@@ -242,8 +242,7 @@ class Font(Object):
         style: int = ...,
         rotation: int = ...,
         size: float = ...,
-    ) -> Rect:
-        ...
+    ) -> Rect: ...
 
     @overload
     def get_rect(
@@ -270,8 +269,7 @@ class Font(Object):
         center: tuple[float, float] = ...,
         centerx: float = ...,
         centery: float = ...,
-    ) -> Rect:
-        ...
+    ) -> Rect: ...
 
     def get_rect(
         self,

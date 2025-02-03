@@ -69,12 +69,10 @@ class Image(Drawable, Transformable):
         return self.__default_image.copy()
 
     @overload
-    def set(self, image: Surface, copy: bool = True) -> None:
-        ...
+    def set(self, image: Surface, copy: bool = True) -> None: ...
 
     @overload
-    def set(self, image: None) -> None:
-        ...
+    def set(self, image: None) -> None: ...
 
     def set(self, image: Surface | None, copy: bool = True) -> None:
         center: tuple[float, float] = self.center

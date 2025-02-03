@@ -118,12 +118,10 @@ class BoundFocus:
         return (scene.focus_get() if (scene := self.__scene()) else None) is self.__self__
 
     @overload
-    def take(self, status: bool) -> None:
-        ...
+    def take(self, status: bool) -> None: ...
 
     @overload
-    def take(self) -> bool:
-        ...
+    def take(self) -> bool: ...
 
     def take(self, status: bool | None = None) -> bool | None:
         f: SupportsFocus = self.__self__
@@ -158,12 +156,10 @@ class BoundFocus:
         on_bottom: SupportsFocus | None = ...,
         on_left: SupportsFocus | None = ...,
         on_right: SupportsFocus | None = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
-    def set_obj_on_side(self, __m: Mapping[str, SupportsFocus | None], /) -> None:
-        ...
+    def set_obj_on_side(self, __m: Mapping[str, SupportsFocus | None], /) -> None: ...
 
     def set_obj_on_side(
         self,
@@ -205,12 +201,10 @@ class BoundFocus:
         self.__side.pop(f, None)
 
     @overload
-    def get_obj_on_side(self) -> BoundObjectsDict:
-        ...
+    def get_obj_on_side(self) -> BoundObjectsDict: ...
 
     @overload
-    def get_obj_on_side(self, side: str) -> SupportsFocus | None:
-        ...
+    def get_obj_on_side(self, side: str) -> SupportsFocus | None: ...
 
     def get_obj_on_side(self, side: str | None = None) -> BoundObjectsDict | SupportsFocus | None:
         f: SupportsFocus = self.__self__

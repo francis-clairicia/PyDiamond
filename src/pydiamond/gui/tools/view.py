@@ -102,12 +102,10 @@ class AbstractScrollableView(Object):
         self.__xscrollcommand = xscrollcommand
 
     @overload
-    def xview(self, action: Literal["moveto"], fraction: float, /) -> None:
-        ...
+    def xview(self, action: Literal["moveto"], fraction: float, /) -> None: ...
 
     @overload
-    def xview(self, action: str, /, *args: Any) -> None:
-        ...
+    def xview(self, action: str, /, *args: Any) -> None: ...
 
     def xview(self, action: str, /, *args: Any) -> None:
         match action:
@@ -146,12 +144,10 @@ class AbstractScrollableView(Object):
         self.__yscrollcommand = yscrollcommand
 
     @overload
-    def yview(self, action: Literal["moveto"], fraction: float, /) -> None:
-        ...
+    def yview(self, action: Literal["moveto"], fraction: float, /) -> None: ...
 
     @overload
-    def yview(self, action: str, /, *args: Any) -> None:
-        ...
+    def yview(self, action: str, /, *args: Any) -> None: ...
 
     def yview(self, action: str, /, *args: Any) -> None:
         match action:

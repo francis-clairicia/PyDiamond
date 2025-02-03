@@ -110,12 +110,10 @@ class GUIScene(Scene):
         return None
 
     @overload
-    def focus_set(self, focusable: SupportsFocus) -> bool:
-        ...
+    def focus_set(self, focusable: SupportsFocus) -> bool: ...
 
     @overload
-    def focus_set(self, focusable: None) -> None:
-        ...
+    def focus_set(self, focusable: None) -> None: ...
 
     @no_theme_decorator
     def focus_set(self, focusable: SupportsFocus | None) -> bool | None:
@@ -269,12 +267,10 @@ class _FocusableContainer(Sequence[SupportsFocus]):
         return self.__list.__contains__(value)
 
     @overload
-    def __getitem__(self, index: int, /) -> SupportsFocus:
-        ...
+    def __getitem__(self, index: int, /) -> SupportsFocus: ...
 
     @overload
-    def __getitem__(self, index: slice, /) -> Sequence[SupportsFocus]:
-        ...
+    def __getitem__(self, index: slice, /) -> Sequence[SupportsFocus]: ...
 
     def __getitem__(self, index: int | slice, /) -> SupportsFocus | Sequence[SupportsFocus]:
         if not isinstance(index, slice) and index < 0:
@@ -300,12 +296,10 @@ class _FocusableContainer(Sequence[SupportsFocus]):
             f._focus_update()
 
     @overload
-    def index(self, value: Any) -> int:
-        ...
+    def index(self, value: Any) -> int: ...
 
     @overload
-    def index(self, value: Any, start: int = ..., stop: int = ...) -> int:
-        ...
+    def index(self, value: Any, start: int = ..., stop: int = ...) -> int: ...
 
     def index(self, value: Any, *args: Any, **kwargs: Any) -> int:
         return self.__list.index(value, *args, **kwargs)
