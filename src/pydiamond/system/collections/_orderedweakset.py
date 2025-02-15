@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -8,7 +7,8 @@ from __future__ import annotations
 
 __all__ = ["OrderedWeakSet"]
 
-from typing import TYPE_CHECKING, Any, Iterator, Sequence
+from collections.abc import Iterator, Sequence
+from typing import TYPE_CHECKING, Any
 from weakref import WeakSet, ref
 
 if TYPE_CHECKING:  # Too many type errors :)
@@ -45,7 +45,7 @@ class OrderedWeakSet(WeakSet, Sequence):  # type: ignore[type-arg]
             self._commit_removals()
         if isinstance(index, slice):
             with _IterationGuard(self):
-                return self.__class__((item for itemref in self.data[index] if (item := itemref()) is not None))  # type: ignore[operator, union-attr]
+                return self.__class__(item for itemref in self.data[index] if (item := itemref()) is not None)  # type: ignore[operator, union-attr]
         if not isinstance(index, int):
             raise TypeError(f"indices must be integers or slices, not {type(index).__name__}")
         if index >= 0:
@@ -58,7 +58,7 @@ class OrderedWeakSet(WeakSet, Sequence):  # type: ignore[type-arg]
                     raise IndexError("out of range")
         return obj
 
-    def __delitem__(self, index: int) -> None:
+    def __delitem__(self, index: int | slice) -> None:
         if isinstance(index, slice):
             raise TypeError("Slice are not accepted")
         self.discard(self[index])

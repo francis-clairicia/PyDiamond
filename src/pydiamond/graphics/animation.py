@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -9,12 +8,22 @@ from __future__ import annotations
 __all__ = ["AnimationInterpolator", "AnimationInterpolatorPool", "BaseAnimation", "MoveAnimation", "TransformAnimation"]
 
 from abc import ABCMeta, abstractmethod
+from collections.abc import Callable, Iterator
 from contextlib import ExitStack, contextmanager
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, Final, Iterator, Literal, NamedTuple, Protocol, TypeAlias, TypeVar, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Final,
+    Literal,
+    NamedTuple,
+    Protocol,
+    TypeAlias,
+    TypeVar,
+    final,
+    overload,
+)
 from weakref import WeakKeyDictionary, ref as weakref
-
-from typing_extensions import final
 
 from ..math import Vector2, angle_interpolation, linear_interpolation
 from ..system.object import Object
@@ -50,7 +59,7 @@ class AnimationInterpolator(Object):
 
     def __internal_init(self, obj: Movable | Transformable) -> None:
         self.__obj: weakref[Movable | Transformable] = weakref(obj)
-        self.__state_factory: type[_ObjectStateProtocol] = _TransformState if isinstance(obj, Transformable) else _MoveState
+        self.__state_factory: type[_ObjectStateProtocol] = _TransformState if isinstance(obj, Transformable) else _MoveState  # type: ignore[assignment]
         self.__actual_state: _ObjectStateProtocol | None = None
         self.__previous_state: _ObjectStateProtocol | None = None
         self.__state_update: bool = False

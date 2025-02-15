@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -12,9 +11,7 @@ __all__ = [
 ]
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any
-
-from typing_extensions import final
+from typing import TYPE_CHECKING, Any, final
 
 from ..graphics.color import BLACK, TRANSPARENT, WHITE, Color
 from ..graphics.shape import RectangleShape
@@ -64,7 +61,6 @@ class PopupDialog(Dialog):
         border_bottom_right_radius: int = -1,
         **kwargs: Any,
     ) -> None:
-        super().awake(**kwargs)
         window: SceneWindow = self.window
         width_ratio = valid_optional_float(value=width_ratio, min_value=0, max_value=1)
         height_ratio = valid_optional_float(value=height_ratio, min_value=0, max_value=1)

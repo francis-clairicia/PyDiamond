@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -8,9 +7,7 @@ from __future__ import annotations
 
 __all__ = ["WidgetRendererView"]
 
-from typing import TYPE_CHECKING, ContextManager
-
-from typing_extensions import final
+from typing import TYPE_CHECKING, ContextManager, final
 
 from ...graphics.renderer import AbstractRenderer, RendererView
 from ...math.rect import Rect

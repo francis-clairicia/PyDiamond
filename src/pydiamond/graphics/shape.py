@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -21,12 +20,12 @@ __all__ = [
 ]
 
 from abc import abstractmethod
+from collections.abc import Mapping, Sequence
 from math import radians, sin, tan
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, ClassVar, Mapping, Sequence, TypeAlias
+from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, final
 
 from pygame.transform import rotozoom as _surface_rotozoom, smoothscale as _surface_scale
-from typing_extensions import final
 
 from ..math import Rect, Vector2, compute_rect_from_vertices, compute_size_from_vertices, get_vertices_center, normalize_points
 from ..system.configuration import ConfigurationTemplate, OptionAttribute, UnregisteredOptionError, initializer

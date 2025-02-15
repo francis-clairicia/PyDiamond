@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -9,13 +8,13 @@ from __future__ import annotations
 __all__ = ["Text", "TextImage"]
 
 from collections import deque
+from collections.abc import Mapping
 from enum import auto, unique
 from textwrap import wrap as textwrap
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Mapping, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Final, assert_never, overload
 from weakref import proxy as weakproxy
 
 from pygame.transform import rotozoom as _surface_rotozoom
-from typing_extensions import assert_never
 
 from ..math.rect import Rect
 from ..system.configuration import Configuration, ConfigurationTemplate, OptionAttribute, initializer
@@ -125,7 +124,7 @@ class Text(Drawable, Transformable, metaclass=ThemedObjectMeta):
         return "\n".join(textwrap(message, width=wrap)) if (wrap := self.wrap) > 0 else message
 
     def clear(self) -> None:
-        self.message = str()
+        self.message = ""
 
     def set_font(
         self,

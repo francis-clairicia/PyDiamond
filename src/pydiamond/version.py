@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -9,8 +8,6 @@ from __future__ import annotations
 __all__ = ["VersionInfo", "version_info"]
 
 import typing
-
-from typing_extensions import assert_never
 
 from . import __version__
 
@@ -34,7 +31,7 @@ class VersionInfo(typing.NamedTuple):
             case "final":
                 releaselevel = ""
             case _:
-                assert_never(self.releaselevel)
+                typing.assert_never(self.releaselevel)
         if releaselevel:
             releaselevel = f"{releaselevel}{self.serial}"
         return f"{self.major}.{self.minor}.{self.patch}{releaselevel}"

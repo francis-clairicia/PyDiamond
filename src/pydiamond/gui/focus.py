@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -15,8 +14,9 @@ __all__ = [
 ]
 
 from abc import abstractmethod
+from collections.abc import Callable, Iterator, Mapping
 from enum import auto, unique
-from typing import Any, Callable, Final, Iterator, Literal, Mapping, Protocol, TypedDict, TypeGuard, overload, runtime_checkable
+from typing import Any, Final, Literal, Protocol, TypedDict, TypeGuard, overload, runtime_checkable
 from weakref import WeakSet, WeakValueDictionary, ref as weakref
 
 from ..scene.abc import Scene
@@ -173,7 +173,7 @@ class BoundFocus:
         f: SupportsFocus = self.__self__
         bound_object_dict: WeakValueDictionary[BoundFocusSide, SupportsFocus] = self.__side[f]
         if __m is not None:
-            kwargs = __m | kwargs
+            kwargs = {**__m, **kwargs}
         del __m
         for side, obj in kwargs.items():
             side = BoundFocusSide(side)

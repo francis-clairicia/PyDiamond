@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -10,10 +9,9 @@ __all__ = ["ProgressBar", "ProgressBarOrient", "ProgressBarTextSide"]
 
 from dataclasses import dataclass
 from enum import auto, unique
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, assert_never
 
 from pygame.transform import rotozoom as _surface_rotozoom
-from typing_extensions import assert_never
 
 from ..math.rect import Rect
 from ..system.configuration import Configuration, ConfigurationTemplate, OptionAttribute, initializer

@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -9,25 +8,22 @@ from __future__ import annotations
 __all__ = ["Grid", "GridElement", "GridJustify"]
 
 from abc import abstractmethod
+from collections.abc import Container, Iterator, Sequence
 from dataclasses import dataclass
 from enum import auto, unique
 from itertools import takewhile
 from typing import (
     Any,
     ClassVar,
-    Container,
-    Iterator,
     Protocol,
-    Sequence,
     SupportsIndex,
     TypeVar,
+    assert_never,
     final,
     overload,
     runtime_checkable,
 )
 from weakref import ref as weakref
-
-from typing_extensions import assert_never
 
 from ..math.rect import Rect, modify_rect_in_place
 from ..system.collections import SortedDict

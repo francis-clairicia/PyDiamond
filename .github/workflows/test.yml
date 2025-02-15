@@ -46,19 +46,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, windows-2022, macos-12]
-        python_version: ['3.10']
+        os: [ubuntu-24.04, windows-2022, macos-14]
+        python_version: ['3.13']
+        include:
+          - python_version: '3.13'
+            tox_py: py313
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Setup Python ${{ matrix.python_version }}
         id: setup-python
         uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python_version }}
       - name: Setup tox
         uses: ./.github/actions/setup-tox
+        with:
+          python-version: ${{ matrix.python_version }}
       - name: Launch tests
-        run: tox run -f py$(echo ${{ matrix.python_version }} | tr -d .)
+        timeout-minutes: 20
+        run: tox run -f ${{ matrix.tox_py }}

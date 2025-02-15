@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -16,8 +15,9 @@ __all__ = [
 ]
 
 from abc import abstractmethod
+from collections.abc import Iterable, Iterator, Sequence
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Iterable, Iterator, Literal, Sequence, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
 
 import pygame.image as _pg_image
 from pygame import encode_file_path
@@ -199,7 +199,7 @@ class AbstractSurfaceRenderer(AbstractRenderer):
         if not isinstance(font, Font):
             font = FontFactory.create_font(font)
         if anchor != "topleft":
-            dest = font.get_rect(text, style=style, rotation=rotation, size=size, **{anchor: dest})
+            dest = font.get_rect(text, style=style, rotation=rotation, size=size, **{str(anchor): dest})
         return font.render_to(self.get_target(), dest, text, fgcolor, bgcolor=bgcolor, style=style, rotation=rotation, size=size)
 
     def draw_rect(

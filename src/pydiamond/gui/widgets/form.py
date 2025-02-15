@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -8,11 +7,10 @@ from __future__ import annotations
 
 __all__ = ["Form", "FormJustify"]
 
+from collections.abc import Callable, Mapping, Sequence
 from types import MappingProxyType
-from typing import Any, Callable, ClassVar, Mapping, Sequence, TypeVar, overload
+from typing import Any, ClassVar, TypeVar, final, overload
 from weakref import WeakValueDictionary
-
-from typing_extensions import final
 
 from ...graphics.color import BLACK, TRANSPARENT, Color
 from ...graphics.renderer import AbstractRenderer

@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -65,6 +64,7 @@ __all__ = [
 import weakref
 from abc import abstractmethod
 from collections import ChainMap, defaultdict
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, fields
 from enum import IntEnum, auto, unique
 from itertools import chain
@@ -72,24 +72,22 @@ from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Concatenate,
     Final,
     Generic,
-    Iterable,
-    Mapping,
     ParamSpec,
-    Sequence,
+    Self,
     TypeAlias,
     TypeVar,
     cast,
+    dataclass_transform,
+    final,
     overload,
 )
 
 import pygame.constants as _pg_constants
 import pygame.event as _pg_event
 from pygame.mixer import music as _pg_music
-from typing_extensions import final
 
 from ..system.collections import OrderedSet, WeakKeyDefaultDictionary
 from ..system.namespace import ClassNamespaceMeta
@@ -196,9 +194,10 @@ _BUILTIN_ASSOCIATIONS: dict[type[Event], int] = {}
 
 
 @final
+@dataclass_transform(kw_only_default=True)
 class _BuiltinEventMeta(EventMeta):
     def __new__(
-        mcs,
+        mcs: type[_BuiltinEventMeta],
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, Any],
@@ -207,7 +206,7 @@ class _BuiltinEventMeta(EventMeta):
         event_name: str | None = None,
         non_blockable: bool = False,
         **kwargs: Any,
-    ) -> _BuiltinEventMeta:  # noqa: F821
+    ) -> _BuiltinEventMeta:
         try:
             BuiltinEvent
         except NameError:
@@ -220,7 +219,10 @@ class _BuiltinEventMeta(EventMeta):
             raise TypeError("Trying to create custom event from BuiltinEvent class") from None
 
         assert len(bases) == 1 and issubclass(bases[0], BuiltinEvent)
-        cls = super().__new__(mcs, name, bases, namespace, model=event_type is None, **kwargs)
+        cls: _BuiltinEventMeta = super().__new__(mcs, name, bases, namespace, model=event_type is None, **kwargs)
+
+        cls = dataclass(kw_only=True)(cls)  # type: ignore[assignment,arg-type]
+
         if cls.is_model():
             assert event_type is None, f"Got {event_type!r}"
             assert event_name is None, f"Got {event_name!r}"
@@ -242,9 +244,6 @@ class _BuiltinEventMeta(EventMeta):
 class Event(Object, metaclass=EventMeta):
     __slots__ = ("__weakref__",)
 
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="Event")
-
     def __repr__(self) -> str:
         event_name: str
         event_type = self.__class__
@@ -259,7 +258,7 @@ class Event(Object, metaclass=EventMeta):
 
     @classmethod
     @abstractmethod
-    def from_dict(cls: type[__Self], event_dict: Mapping[str, Any]) -> __Self:
+    def from_dict(cls, event_dict: Mapping[str, Any]) -> Self:
         raise NotImplementedError
 
     @abstractmethod
@@ -270,12 +269,9 @@ class Event(Object, metaclass=EventMeta):
 class NoDataEventModel(Event, model=True):
     __slots__ = ()
 
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="NoDataEventModel")
-
     @classmethod
     @final
-    def from_dict(cls: type[__Self], event_dict: Mapping[str, Any]) -> __Self:
+    def from_dict(cls, event_dict: Mapping[str, Any]) -> Self:
         if event_dict:
             raise TypeError(f"{cls.get_name()} does not take data")
         return cls()
@@ -286,12 +282,10 @@ class NoDataEventModel(Event, model=True):
 
 
 class NamespaceEventModel(Event, model=True, no_slots=True):
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="NamespaceEventModel")
 
     @classmethod
     @final
-    def from_dict(cls: type[__Self], event_dict: Mapping[str, Any]) -> __Self:
+    def from_dict(cls, event_dict: Mapping[str, Any]) -> Self:
         self = cls.__new__(cls)
         self.__dict__.update(event_dict)
         return self
@@ -370,15 +364,11 @@ class BuiltinEventType(IntEnum):
         return _pg_event.event_name(self)
 
 
-# TODO (3.11) dataclass_transform (PEP-681)
 class BuiltinEvent(Event, metaclass=_BuiltinEventMeta):
     __slots__ = ()
 
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="BuiltinEvent")
-
     @classmethod
-    def from_dict(cls: type[__Self], event_dict: Mapping[str, Any]) -> __Self:
+    def from_dict(cls, event_dict: Mapping[str, Any]) -> Self:
         event_fields: Sequence[str] = tuple(f.name for f in fields(cls))
         kwargs: dict[str, Any] = {k: event_dict[k] for k in filter(event_fields.__contains__, event_dict)}
         return cls(**kwargs)
@@ -883,14 +873,9 @@ class EventFactory(metaclass=ClassNamespaceMeta, frozen=True):
     USEREVENT: Final[int] = _pg_constants.USEREVENT
     NUMEVENTS: Final[int] = _pg_constants.NUMEVENTS
 
-    if __debug__:
-
-        @staticmethod
-        def get_pygame_event_type(event: type[Event]) -> int:
-            return EventFactory.associations[event]
-
-    else:
-        get_pygame_event_type = staticmethod(associations.__getitem__)
+    @staticmethod
+    def get_pygame_event_type(event: type[Event]) -> int:
+        return EventFactory.associations[event]
 
     @staticmethod
     def is_blockable(event: type[Event] | int) -> bool:
@@ -2137,5 +2122,5 @@ class BoundEventManager(Generic[_T]):
         return weakref_unwrap(self.__ref)
 
 
-del _pg_constants, _BuiltinEventMeta
+del _pg_constants
 del _ASSOCIATIONS, _PYGAME_EVENT_TYPE, _BUILTIN_ASSOCIATIONS, _BUILTIN_PYGAME_EVENT_TYPE

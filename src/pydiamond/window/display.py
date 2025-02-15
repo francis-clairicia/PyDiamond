@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -13,6 +12,7 @@ import os
 import os.path
 from abc import abstractmethod
 from collections import deque
+from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
 from contextlib import ExitStack, contextmanager, suppress
 from dataclasses import dataclass
 from datetime import datetime
@@ -21,18 +21,15 @@ from itertools import count as itertools_count, filterfalse
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
     ContextManager,
     Final,
-    Generator,
-    Iterable,
-    Iterator,
     Literal,
     NoReturn,
     ParamSpec,
-    Sequence,
     TypeVar,
+    assert_never,
+    final,
     overload,
 )
 from weakref import ref as weakref
@@ -50,7 +47,6 @@ from pygame.constants import (
     RESIZABLE as _PG_RESIZABLE,
     WINDOWCLOSE as _PG_WINDOWCLOSE,
 )
-from typing_extensions import assert_never, final
 
 from ..audio.music import MusicStream
 from ..environ.executable import get_executable_path
@@ -98,7 +94,7 @@ class Window(Object, no_slots=True):
     DEFAULT_FRAMERATE: Final[int] = 60
     DEFAULT_SIZE: Final[tuple[int, int]] = (800, 600)
 
-    __instance: ClassVar[Callable[[], "Window" | None]] = lambda: None
+    __instance: ClassVar[Callable[[], Window | None]] = lambda: None
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Any:
         instance = Window.__instance()
@@ -562,7 +558,7 @@ class Window(Object, no_slots=True):
         ):
             yield
 
-    def process_events(self) -> Generator[Event, None, None]:
+    def process_events(self) -> Generator[Event]:
         poll_event = self.__event_queue.popleft
         make_event = EventFactory.from_pygame_event
         while True:

@@ -1,13 +1,10 @@
-# -*- coding: Utf-8 -*-
-
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, final
 
 from pydiamond.system.object import Object, mro, override
 
 import pytest
-from typing_extensions import final
 
 # pyright: reportUnusedClass=false
 
@@ -60,18 +57,8 @@ def test_object_override_method() -> None:
             return super().method()
 
         assert getattr(method, "__mustoverride__")
-        assert hasattr(method, "__final__")
-        assert not getattr(method, "__final__")
 
     class C(B):
-        @override(final=True)
-        def method(self) -> None:
-            return super().method()
-
-        assert getattr(method, "__mustoverride__")
-        assert getattr(method, "__final__")
-
-    class D(B):
         @final
         @override
         def method(self) -> None:
@@ -99,7 +86,7 @@ def test_object_override_property() -> None:
             return 2
 
     class B(A):
-        @override  # type: ignore[misc]
+        @override  # type: ignore[prop-decorator]
         @property
         def a(self) -> int:
             return 3
@@ -162,10 +149,10 @@ def test_object_final_method_overriden() -> None:
 
 def test_mro_invalid_order() -> None:
     class SeriousOrderDisagreement:
-        class X(object):
+        class X:
             pass
 
-        class Y(object):
+        class Y:
             pass
 
         class A(X, Y):
@@ -182,7 +169,7 @@ def test_mro_invalid_order() -> None:
 
 ## Example classes samples (TODO: Fixture)
 class _Example0:  # Trivial single inheritance case.
-    class A(object):
+    class A:
         pass
 
     class B(A):
@@ -199,13 +186,13 @@ class _Example0:  # Trivial single inheritance case.
 
 
 class _Example1:
-    class F(object):
+    class F:
         pass
 
-    class E(object):
+    class E:
         pass
 
-    class D(object):
+    class D:
         pass
 
     class C(D, F):
@@ -222,13 +209,13 @@ class _Example1:
 
 
 class _Example2:
-    class F(object):
+    class F:
         pass
 
-    class E(object):
+    class E:
         pass
 
-    class D(object):
+    class D:
         pass
 
     class C(D, F):
@@ -245,19 +232,19 @@ class _Example2:
 
 
 class _Example3:
-    class A(object):
+    class A:
         pass
 
-    class B(object):
+    class B:
         pass
 
-    class C(object):
+    class C:
         pass
 
-    class D(object):
+    class D:
         pass
 
-    class E(object):
+    class E:
         pass
 
     class K1(A, B, C):

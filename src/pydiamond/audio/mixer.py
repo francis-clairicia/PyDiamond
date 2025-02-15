@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -13,14 +12,14 @@ from __future__ import annotations
 
 __all__ = ["AllowedAudioChanges", "AudioFormat", "Mixer", "MixerParams"]
 
+from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
 from enum import IntEnum, IntFlag, auto
-from typing import TYPE_CHECKING, Any, Iterator, Literal, NamedTuple, overload
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, final, overload
 
 import pygame.constants as _pg_constants
 import pygame.mixer as _pg_mixer
 from pygame import error as _pg_error
-from typing_extensions import final
 
 from ..system.namespace import ClassNamespace
 from .sound import Channel

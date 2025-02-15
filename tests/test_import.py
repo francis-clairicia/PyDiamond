@@ -1,5 +1,3 @@
-# -*- coding: Utf-8 -*-
-
 from __future__ import annotations
 
 from functools import cache
@@ -43,7 +41,7 @@ def _catch_star_imports_within_packages() -> dict[str, list[str]]:
     all_packages: dict[str, list[str]] = {}
     for package_name in ALL_PYDIAMOND_PACKAGES:
         package_file = inspect.getfile(import_module(package_name))
-        with open(package_file, "r") as package_fp:
+        with open(package_file) as package_fp:
             package_source = package_fp.read()
         tree = ast.parse(package_source, package_file)
         start_import_modules: list[str] = []
@@ -72,16 +70,12 @@ class TestGlobalImport:
 
         import typing
 
-        class_monkeypatch.delattr(typing, "final")
-
-        import typing_extensions
-
         def strict_final(f: typing.Any) -> typing.Any:
             f.__final__ = True
             assert f.__final__ is True
             return f
 
-        class_monkeypatch.setattr(typing_extensions, "final", strict_final)
+        class_monkeypatch.setattr(typing, "final", strict_final)
 
     @pytest.fixture
     @staticmethod

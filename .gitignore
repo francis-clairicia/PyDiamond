@@ -2,13 +2,17 @@
 .vscode/*
 !.vscode/settings.example.json
 
-# Compiled requirements
-requirements*.txt
+# Github Actions
+.github/.*.key
+.github/requirements*.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
+
+# pdm
+.pdm-python
 
 # C extensions
 *.so

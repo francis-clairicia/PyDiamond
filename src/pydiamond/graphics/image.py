@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -8,10 +7,10 @@ from __future__ import annotations
 
 __all__ = ["Image"]
 
-from typing import TYPE_CHECKING, Any, Mapping, overload
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, assert_never, overload
 
 from pygame.transform import rotozoom as _surface_rotozoom
-from typing_extensions import assert_never
 
 from ..math.rect import Rect
 from ._transform import rotozoom2 as _surface_rotozoom2, scale_by as _surface_scale_by

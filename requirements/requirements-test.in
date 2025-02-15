@@ -1,7 +1,0 @@
--c ../requirements.txt
-
-pytest~=7.2
-pytest-mock~=3.10.0
-pytest-xdist~=3.0.1
-pytest-cov>=4.0,<5
-coverage[toml]  # Force install extra in order to use pyproject.toml as config file

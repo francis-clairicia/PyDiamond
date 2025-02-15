@@ -71,13 +71,10 @@ jobs:
       SOURCE_DATE_EPOCH: ${{ inputs.SOURCE_DATE_EPOCH }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
       - name: Setup tox
         uses: ./.github/actions/setup-tox
+        with:
+          python-version: '3.13'
       - name: Check source distribution consistency
         if: github.event_name != 'workflow_call'
         run: tox run -e check-build-sdist

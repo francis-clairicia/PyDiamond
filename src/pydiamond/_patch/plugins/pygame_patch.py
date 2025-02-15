@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -8,9 +7,10 @@ from __future__ import annotations
 
 __all__ = []  # type: list[str]
 
+from collections.abc import Callable
 from functools import wraps
 from types import BuiltinFunctionType
-from typing import TYPE_CHECKING, Callable, no_type_check
+from typing import TYPE_CHECKING, no_type_check
 
 from .._base import PatchContext, RequiredPatch
 
@@ -181,7 +181,7 @@ class PygamePatch(RequiredPatch):
     def _make_controller_subclass(self) -> type[_Controller]:
         _pg_controller = self.controller
 
-        from typing_extensions import final
+        from typing import final
 
         @final
         @no_type_check
@@ -195,7 +195,7 @@ class PygamePatch(RequiredPatch):
             def __init_subclass__(cls) -> None:
                 raise TypeError(f"{cls.__module__}.{cls.__qualname__} cannot be subclassed")
 
-            @wraps(_pg_controller.Controller.__new__)
+            @wraps(_pg_controller.Controller.__new__)  # type: ignore[misc]
             def __new__(cls, index: int) -> Controller:
                 controllers: list[Controller] = getattr(_pg_controller.Controller, "_controllers")
                 try:
@@ -203,7 +203,7 @@ class PygamePatch(RequiredPatch):
                 except StopIteration:
                     return super().__new__(cls)
 
-            @wraps(_pg_controller.Controller.__init__)
+            @wraps(_pg_controller.Controller.__init__)  # type: ignore[misc]
             def __init__(self, index: int) -> None:
                 if index != self.id or not self.get_init():
                     super().__init__(index)

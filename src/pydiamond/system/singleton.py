@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -8,10 +7,9 @@ from __future__ import annotations
 
 __all__ = ["Singleton", "SingletonMeta"]
 
+from collections.abc import Callable
 from types import MethodType
-from typing import Any, Callable, TypeVar
-
-from typing_extensions import final
+from typing import Any, TypeVar, final
 
 from .object import Object, ObjectMeta
 from .utils.abc import isabstractclass
@@ -84,7 +82,7 @@ class SingletonMeta(ObjectMeta):
         if instance is None:
             instance = cls.__new__(cls)
             cls.__init__(instance)
-            super(SingletonMeta, cls).__setattr__("_singleton_instance_", instance)  # type: ignore[misc]
+            super().__setattr__("_singleton_instance_", instance)  # type: ignore[misc]
         return instance
 
     class __call_twice_error_wrapper:

@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -12,17 +11,16 @@ from __future__ import annotations
 
 __all__ = ["Controller"]
 
-from collections.abc import MutableMapping
+from collections.abc import Iterable, Iterator, MutableMapping
 from enum import IntEnum, auto, unique
 from threading import RLock
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Final, Iterable, Iterator, Literal, NoReturn, overload
+from typing import TYPE_CHECKING, Any, Final, Literal, NoReturn, assert_never, final, overload
 
 import pygame._sdl2.controller as _pg_controller
 import pygame.constants as _pg_constants
 import pygame.joystick as _pg_joystick
 from pygame import error as _pg_error
-from typing_extensions import assert_never, final
 
 from ..system.object import Object
 
