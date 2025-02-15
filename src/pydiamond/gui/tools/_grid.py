@@ -149,8 +149,7 @@ class AbstractGUIScrollableGrid(AbstractGUIGrid, AbstractScrollableView):
             wheel_xscroll_increment: int = ...,
             wheel_yscroll_increment: int = ...,
             **kwargs: Any,
-        ) -> None:
-            ...
+        ) -> None: ...
 
     @abstractmethod
     def get_size(self) -> tuple[float, float]:

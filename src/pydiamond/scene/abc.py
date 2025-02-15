@@ -337,8 +337,7 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
         __dialog: type[Dialog],
         /,
         **awake_kwargs: Any,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def start(
@@ -349,8 +348,7 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
         transition: SceneTransitionProtocol | None = None,
         stop_self: bool = False,
         **awake_kwargs: Any,
-    ) -> NoReturn:
-        ...
+    ) -> NoReturn: ...
 
     @final
     def start(
@@ -375,12 +373,10 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
     @overload
     def after(
         self, __milliseconds: float, __callback: Callable[_P, None], /, *args: _P.args, **kwargs: _P.kwargs
-    ) -> WindowCallback:
-        ...
+    ) -> WindowCallback: ...
 
     @overload
-    def after(self, __milliseconds: float, /) -> Callable[[Callable[[], None]], WindowCallback]:
-        ...
+    def after(self, __milliseconds: float, /) -> Callable[[Callable[[], None]], WindowCallback]: ...
 
     @no_theme_decorator
     def after(
@@ -400,18 +396,15 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
     @overload
     def every(
         self, __milliseconds: float, __callback: Callable[_P, None], /, *args: _P.args, **kwargs: _P.kwargs
-    ) -> WindowCallback:
-        ...
+    ) -> WindowCallback: ...
 
     @overload
     def every(
         self, __milliseconds: float, __callback: Callable[_P, Iterator[None]], /, *args: _P.args, **kwargs: _P.kwargs
-    ) -> WindowCallback:
-        ...
+    ) -> WindowCallback: ...
 
     @overload
-    def every(self, __milliseconds: float, /) -> Callable[[Callable[[], Iterator[None] | None]], WindowCallback]:
-        ...
+    def every(self, __milliseconds: float, /) -> Callable[[Callable[[], Iterator[None] | None]], WindowCallback]: ...
 
     @no_theme_decorator
     def every(

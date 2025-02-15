@@ -263,11 +263,9 @@ class CallableProxyType(ProxyType):
 
     if TYPE_CHECKING:
 
-        def __new__(cls, obj: Callable[..., Any], /, *args: Any, **kwargs: Any) -> Any:
-            ...
+        def __new__(cls, obj: Callable[..., Any], /, *args: Any, **kwargs: Any) -> Any: ...
 
-        def __init__(self, obj: Callable[..., Any], /) -> None:
-            ...
+        def __init__(self, obj: Callable[..., Any], /) -> None: ...
 
     def __call__(__self, /, *args: Any, **kwargs: Any) -> Any:
         obj: Callable[..., Any] = object.__getattribute__(__self, "_obj")

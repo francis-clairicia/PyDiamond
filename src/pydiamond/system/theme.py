@@ -359,12 +359,10 @@ class _AbstractThemedObjectResolver(Object):
         self.__lock: defaultdict[ThemedObjectMeta, RLock] = defaultdict(RLock)
 
     @overload
-    def __get__(self: __Self, obj: None, objtype: type, /) -> __Self:
-        ...
+    def __get__(self: __Self, obj: None, objtype: type, /) -> __Self: ...
 
     @overload
-    def __get__(self, obj: ThemedObjectMeta, objtype: type | None = None, /) -> tuple[ThemedObjectMeta, ...]:
-        ...
+    def __get__(self, obj: ThemedObjectMeta, objtype: type | None = None, /) -> tuple[ThemedObjectMeta, ...]: ...
 
     def __get__(self: __Self, obj: ThemedObjectMeta | None, objtype: type | None = None) -> __Self | tuple[ThemedObjectMeta, ...]:
         if obj is None:
@@ -534,12 +532,10 @@ class ThemedObjectMeta(ObjectMeta):
         return super().__delattr__(name)
 
     @overload
-    def set_theme(cls, name: str, options: dict[str, Any], *, update: bool = False, ignore_unusable: bool = False) -> None:
-        ...
+    def set_theme(cls, name: str, options: dict[str, Any], *, update: bool = False, ignore_unusable: bool = False) -> None: ...
 
     @overload
-    def set_theme(cls, name: str, options: None) -> None:
-        ...
+    def set_theme(cls, name: str, options: None) -> None: ...
 
     def set_theme(cls, name: str, options: dict[str, Any] | None, *, update: bool = False, ignore_unusable: bool = False) -> None:
         if cls.is_abstract_theme_class():
@@ -601,12 +597,10 @@ class ThemedObjectMeta(ObjectMeta):
                 theme_dict[name] = MappingProxyType(theme_dict[name] | options)
 
     @overload
-    def set_default_theme(cls, name: str, /, *names: str, update: bool = False) -> None:
-        ...
+    def set_default_theme(cls, name: str, /, *names: str, update: bool = False) -> None: ...
 
     @overload
-    def set_default_theme(cls, name: None, /) -> None:
-        ...
+    def set_default_theme(cls, name: None, /) -> None: ...
 
     def set_default_theme(cls, name: str | None, /, *names: str, update: bool = False) -> None:
         if cls.is_abstract_theme_class():
@@ -953,7 +947,7 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
 
     @staticmethod
     def __theme_initializer_decorator(
-        func: Callable[[ClassWithThemeNamespaceMeta], None]
+        func: Callable[[ClassWithThemeNamespaceMeta], None],
     ) -> Callable[[ClassWithThemeNamespaceMeta], None]:
         @wraps(func)
         def wrapper(cls: ClassWithThemeNamespaceMeta, /) -> None:
@@ -993,13 +987,11 @@ def closed_namespace(cls: _S) -> _S:
 
 
 @overload
-def no_theme_decorator(func: _T) -> _T:
-    ...
+def no_theme_decorator(func: _T) -> _T: ...
 
 
 @overload
-def no_theme_decorator(*, permanent: bool = True) -> Callable[[_T], _T]:
-    ...
+def no_theme_decorator(*, permanent: bool = True) -> Callable[[_T], _T]: ...
 
 
 def no_theme_decorator(func: Any = None, *, permanent: bool = True) -> Any:

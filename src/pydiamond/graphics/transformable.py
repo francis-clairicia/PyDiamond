@@ -54,24 +54,19 @@ class Transformable(Movable):
         self.center = center.x, center.y
 
     @overload
-    def set_scale(self, *, scale_x: float) -> None:
-        ...
+    def set_scale(self, *, scale_x: float) -> None: ...
 
     @overload
-    def set_scale(self, *, scale_y: float) -> None:
-        ...
+    def set_scale(self, *, scale_y: float) -> None: ...
 
     @overload
-    def set_scale(self, *, scale_x: float, scale_y: float) -> None:
-        ...
+    def set_scale(self, *, scale_x: float, scale_y: float) -> None: ...
 
     @overload
-    def set_scale(self, __scale: float, /) -> None:
-        ...
+    def set_scale(self, __scale: float, /) -> None: ...
 
     @overload
-    def set_scale(self, __scale: tuple[float, float], /) -> None:
-        ...
+    def set_scale(self, __scale: tuple[float, float], /) -> None: ...
 
     @final  # type: ignore[misc]  # mypy will not understand
     def set_scale(
@@ -354,8 +349,7 @@ class Transformable(Movable):
         *,
         apply_scale: bool = True,
         apply_rotation: bool = True,
-    ) -> tuple[()] | tuple[Vector2, Vector2, Vector2, Vector2]:
-        ...
+    ) -> tuple[()] | tuple[Vector2, Vector2, Vector2, Vector2]: ...
 
     @overload
     def get_area_vertices(
@@ -380,8 +374,7 @@ class Transformable(Movable):
         midright: tuple[float, float] = ...,
         midtop: tuple[float, float] = ...,
         midbottom: tuple[float, float] = ...,
-    ) -> tuple[()] | tuple[Vector2, Vector2, Vector2, Vector2]:
-        ...
+    ) -> tuple[()] | tuple[Vector2, Vector2, Vector2, Vector2]: ...
 
     @final
     def get_area_vertices(
@@ -425,8 +418,7 @@ class Transformable(Movable):
         return vertices
 
     @overload
-    def get_area(self, *, apply_scale: bool = True, apply_rotation: bool = True) -> Rect:
-        ...
+    def get_area(self, *, apply_scale: bool = True, apply_rotation: bool = True) -> Rect: ...
 
     @overload
     def get_area(
@@ -456,8 +448,7 @@ class Transformable(Movable):
         height: float = ...,
         w: float = ...,
         h: float = ...,
-    ) -> Rect:
-        ...
+    ) -> Rect: ...
 
     @final
     def get_area(self, *, apply_scale: bool = True, apply_rotation: bool = True, **kwargs: float | tuple[float, float]) -> Rect:
@@ -467,8 +458,7 @@ class Transformable(Movable):
         return r
 
     @overload
-    def get_local_rect(self) -> Rect:
-        ...
+    def get_local_rect(self) -> Rect: ...
 
     @overload
     def get_local_rect(
@@ -496,8 +486,7 @@ class Transformable(Movable):
         height: float = ...,
         w: float = ...,
         h: float = ...,
-    ) -> Rect:
-        ...
+    ) -> Rect: ...
 
     @final
     def get_local_rect(self, **kwargs: float | tuple[float, float]) -> Rect:

@@ -132,12 +132,10 @@ class Form(AbstractWidget, metaclass=ThemedObjectMeta):
         grid.unify()
 
     @overload
-    def get(self) -> MappingProxyType[str, str]:
-        ...
+    def get(self) -> MappingProxyType[str, str]: ...
 
     @overload
-    def get(self, name: str) -> str:
-        ...
+    def get(self, name: str) -> str: ...
 
     def get(self, name: str | None = None) -> str | MappingProxyType[str, str]:
         entry_dict: WeakValueDictionary[str, Entry] = self.__entry_dict

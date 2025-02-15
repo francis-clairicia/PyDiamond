@@ -63,8 +63,7 @@ class Thread(threading.Thread, Object, no_slots=True):
 
 
 @overload
-def thread_factory(func: Callable[_P, Any], /) -> Callable[_P, Thread]:
-    ...
+def thread_factory(func: Callable[_P, Any], /) -> Callable[_P, Thread]: ...
 
 
 @overload
@@ -73,8 +72,7 @@ def thread_factory(
     daemon: bool | None = ...,
     auto_start: bool = ...,
     name: str | None = ...,
-) -> Callable[[Callable[_P, Any]], Callable[_P, Thread]]:
-    ...
+) -> Callable[[Callable[_P, Any]], Callable[_P, Thread]]: ...
 
 
 @overload
@@ -85,8 +83,7 @@ def thread_factory(
     auto_start: bool = ...,
     name: str | None = ...,
     **thread_cls_kwargs: Any,
-) -> Callable[[Callable[_P, Any]], Callable[_P, _ThreadT]]:
-    ...
+) -> Callable[[Callable[_P, Any]], Callable[_P, _ThreadT]]: ...
 
 
 def thread_factory(
@@ -122,8 +119,7 @@ def thread_factory(
 
 
 @overload
-def thread_factory_method(func: Callable[Concatenate[_T, _P], _R], /) -> _ThreadFactoryMethod[_T, _P, _R, Thread]:
-    ...
+def thread_factory_method(func: Callable[Concatenate[_T, _P], _R], /) -> _ThreadFactoryMethod[_T, _P, _R, Thread]: ...
 
 
 @overload
@@ -134,8 +130,7 @@ def thread_factory_method(
     name: str | None = ...,
     global_lock: bool = ...,
     shared_lock: bool = ...,
-) -> Callable[[Callable[Concatenate[_T, _P], _R]], _ThreadFactoryMethod[_T, _P, _R, Thread]]:
-    ...
+) -> Callable[[Callable[Concatenate[_T, _P], _R]], _ThreadFactoryMethod[_T, _P, _R, Thread]]: ...
 
 
 @overload
@@ -146,8 +141,7 @@ def thread_factory_method(
     name: str | None = ...,
     global_lock: bool = ...,
     shared_lock: Callable[[_T], threading.RLock],
-) -> Callable[[Callable[Concatenate[_T, _P], _R]], _ThreadFactoryMethod[_T, _P, _R, Thread]]:
-    ...
+) -> Callable[[Callable[Concatenate[_T, _P], _R]], _ThreadFactoryMethod[_T, _P, _R, Thread]]: ...
 
 
 @overload
@@ -160,8 +154,7 @@ def thread_factory_method(
     global_lock: bool = ...,
     shared_lock: bool = ...,
     **thread_cls_kwargs: Any,
-) -> Callable[[Callable[Concatenate[_T, _P], _R]], _ThreadFactoryMethod[_T, _P, _R, _ThreadT]]:
-    ...
+) -> Callable[[Callable[Concatenate[_T, _P], _R]], _ThreadFactoryMethod[_T, _P, _R, _ThreadT]]: ...
 
 
 @overload
@@ -174,8 +167,7 @@ def thread_factory_method(
     global_lock: bool = ...,
     shared_lock: Callable[[_T], threading.RLock],
     **thread_cls_kwargs: Any,
-) -> Callable[[Callable[Concatenate[_T, _P], _R]], _ThreadFactoryMethod[_T, _P, _R, _ThreadT]]:
-    ...
+) -> Callable[[Callable[Concatenate[_T, _P], _R]], _ThreadFactoryMethod[_T, _P, _R, _ThreadT]]: ...
 
 
 def thread_factory_method(
@@ -198,11 +190,9 @@ if TYPE_CHECKING:
     @type_check_only
     class _ThreadMethodType(Generic[_P, _ThreadT]):
         @staticmethod
-        def __call__(*args: _P.args, **kwds: _P.kwargs) -> _ThreadT:
-            ...
+        def __call__(*args: _P.args, **kwds: _P.kwargs) -> _ThreadT: ...
 
-        def get_lock(self) -> threading.RLock:
-            ...
+        def get_lock(self) -> threading.RLock: ...
 
 
 class _ThreadFactoryMethod(Generic[_T, _P, _R, _ThreadT]):
@@ -242,12 +232,10 @@ class _ThreadFactoryMethod(Generic[_T, _P, _R, _ThreadT]):
         return func(*args, **kwargs)
 
     @overload
-    def __get__(self: __Self, obj: None, objtype: type, /) -> __Self:
-        ...
+    def __get__(self: __Self, obj: None, objtype: type, /) -> __Self: ...
 
     @overload
-    def __get__(self, obj: _T, objtype: type | None = None, /) -> _ThreadMethodType[_P, _ThreadT]:
-        ...
+    def __get__(self, obj: _T, objtype: type | None = None, /) -> _ThreadMethodType[_P, _ThreadT]: ...
 
     def __get__(self: __Self, obj: _T | None, objtype: type | None = None, /) -> __Self | _ThreadMethodType[_P, _ThreadT]:
         if obj is None:

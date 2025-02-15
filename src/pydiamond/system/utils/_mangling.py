@@ -45,13 +45,11 @@ def hasattr_pv(obj: object, name: str, *, owner: type | None = None) -> bool:
 
 
 @overload
-def getattr_pv(obj: object, name: str, *, owner: type | None = None) -> Any:
-    ...
+def getattr_pv(obj: object, name: str, *, owner: type | None = None) -> Any: ...
 
 
 @overload
-def getattr_pv(obj: object, name: str, default: _T, *, owner: type | None = None) -> Any | _T:
-    ...
+def getattr_pv(obj: object, name: str, default: _T, *, owner: type | None = None) -> Any | _T: ...
 
 
 def getattr_pv(obj: object, name: str, default: Any = _NO_DEFAULT, *, owner: type | None = None) -> Any:

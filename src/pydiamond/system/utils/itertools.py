@@ -40,13 +40,11 @@ class NoStopIteration(Exception):
 
 
 @overload
-def next_return(__gen: Generator[Any, None, _V_co], /) -> _V_co:
-    ...
+def next_return(__gen: Generator[Any, None, _V_co], /) -> _V_co: ...
 
 
 @overload
-def next_return(__gen: Generator[Any, None, _V_co], __default: _T, /) -> _V_co | _T:
-    ...
+def next_return(__gen: Generator[Any, None, _V_co], __default: _T, /) -> _V_co | _T: ...
 
 
 def next_return(gen: Generator[Any, None, Any], default: Any = _NO_DEFAULT, /) -> Any:
@@ -76,28 +74,23 @@ def send_return(gen: Generator[Any, _T_contra, _V_co], value: _T_contra, /) -> _
 
 
 @overload
-def flatten(iterable: Iterable[Iterable[_T]], *, level: Literal[1] = ...) -> Iterator[_T]:
-    ...
+def flatten(iterable: Iterable[Iterable[_T]], *, level: Literal[1] = ...) -> Iterator[_T]: ...
 
 
 @overload
-def flatten(iterable: Iterable[Iterable[Iterable[_T]]], *, level: Literal[2]) -> Iterator[_T]:
-    ...
+def flatten(iterable: Iterable[Iterable[Iterable[_T]]], *, level: Literal[2]) -> Iterator[_T]: ...
 
 
 @overload
-def flatten(iterable: Iterable[Iterable[Iterable[Iterable[_T]]]], *, level: Literal[3]) -> Iterator[_T]:
-    ...
+def flatten(iterable: Iterable[Iterable[Iterable[Iterable[_T]]]], *, level: Literal[3]) -> Iterator[_T]: ...
 
 
 @overload
-def flatten(iterable: Iterable[Iterable[Iterable[Iterable[Iterable[_T]]]]], *, level: Literal[4]) -> Iterator[_T]:
-    ...
+def flatten(iterable: Iterable[Iterable[Iterable[Iterable[Iterable[_T]]]]], *, level: Literal[4]) -> Iterator[_T]: ...
 
 
 @overload
-def flatten(iterable: Iterable[Any], *, level: int) -> Iterator[Any]:
-    ...
+def flatten(iterable: Iterable[Any], *, level: int) -> Iterator[Any]: ...
 
 
 def flatten(iterable: Any, *, level: int = 1) -> Iterator[Any]:

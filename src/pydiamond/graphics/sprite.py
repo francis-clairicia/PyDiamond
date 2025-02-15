@@ -40,17 +40,14 @@ class _SpriteTransformAnimation(cached_property[TransformAnimation], Object):
     if TYPE_CHECKING:
 
         @overload  # type: ignore[override]
-        def __get__(self, instance: None, owner: type[Any] | None = None) -> _SpriteTransformAnimation:
-            ...
+        def __get__(self, instance: None, owner: type[Any] | None = None) -> _SpriteTransformAnimation: ...
 
         @overload
-        def __get__(self, instance: Sprite, owner: type[Any] | None = None) -> TransformAnimation:
-            ...
+        def __get__(self, instance: Sprite, owner: type[Any] | None = None) -> TransformAnimation: ...
 
         def __get__(
             self, instance: Sprite | None, owner: type[Any] | None = None
-        ) -> _SpriteTransformAnimation | TransformAnimation:
-            ...
+        ) -> _SpriteTransformAnimation | TransformAnimation: ...
 
 
 class Sprite(Drawable, Transformable):

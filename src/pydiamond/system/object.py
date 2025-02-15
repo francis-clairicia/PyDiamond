@@ -173,13 +173,11 @@ class Object(metaclass=ObjectMeta):
 
 
 @overload
-def override(f: _T, /) -> _T:
-    ...
+def override(f: _T, /) -> _T: ...
 
 
 @overload
-def override(*, final: bool = False) -> Callable[[_T], _T]:
-    ...
+def override(*, final: bool = False) -> Callable[[_T], _T]: ...
 
 
 def override(f: Any = ..., /, *, final: bool = False) -> Any:
@@ -212,13 +210,11 @@ _MetaClassT = TypeVar("_MetaClassT", bound=type)
 
 
 @overload
-def mro(*bases: type[_T], attr: str = "__mro__") -> tuple[type[_T], ...]:
-    ...
+def mro(*bases: type[_T], attr: str = "__mro__") -> tuple[type[_T], ...]: ...
 
 
 @overload
-def mro(*bases: _MetaClassT, attr: str = "__mro__") -> tuple[_MetaClassT, ...]:
-    ...
+def mro(*bases: _MetaClassT, attr: str = "__mro__") -> tuple[_MetaClassT, ...]: ...
 
 
 # Ref: https://code.activestate.com/recipes/577748-calculate-the-mro-of-a-class/

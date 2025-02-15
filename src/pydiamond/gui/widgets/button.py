@@ -403,24 +403,19 @@ class Button(Widget, Transformable, metaclass=ThemedObjectMeta):
         self.__update_shape_size()
 
     @overload
-    def img_set_scale(self, *, scale_x: float) -> None:
-        ...
+    def img_set_scale(self, *, scale_x: float) -> None: ...
 
     @overload
-    def img_set_scale(self, *, scale_y: float) -> None:
-        ...
+    def img_set_scale(self, *, scale_y: float) -> None: ...
 
     @overload
-    def img_set_scale(self, *, scale_x: float, scale_y: float) -> None:
-        ...
+    def img_set_scale(self, *, scale_x: float, scale_y: float) -> None: ...
 
     @overload
-    def img_set_scale(self, __scale: float, /) -> None:
-        ...
+    def img_set_scale(self, __scale: float, /) -> None: ...
 
     @overload
-    def img_set_scale(self, __scale: tuple[float, float], /) -> None:
-        ...
+    def img_set_scale(self, __scale: tuple[float, float], /) -> None: ...
 
     # @reflect_method_signature() doesn't work with overloads
     def img_set_scale(self, *args: Any, **kwargs: Any) -> None:
@@ -473,12 +468,10 @@ class Button(Widget, Transformable, metaclass=ThemedObjectMeta):
         self.__update_shape_size()
 
     @overload
-    def show_background(self) -> bool:
-        ...
+    def show_background(self) -> bool: ...
 
     @overload
-    def show_background(self, status: bool) -> None:
-        ...
+    def show_background(self, status: bool) -> None: ...
 
     def show_background(self, status: bool | None = None) -> bool | None:
         if status is None:
@@ -1186,13 +1179,11 @@ class _ImageButtonDict(TypedDict):
 
 
 @overload
-def _copy_color(c: Color | None) -> Color | None:
-    ...
+def _copy_color(c: Color | None) -> Color | None: ...
 
 
 @overload
-def _copy_color(c: Color | None, default: Color) -> Color:
-    ...
+def _copy_color(c: Color | None, default: Color) -> Color: ...
 
 
 def _copy_color(c: Color | None, default: Color | None = None) -> Color | None:
@@ -1200,13 +1191,11 @@ def _copy_color(c: Color | None, default: Color | None = None) -> Color | None:
 
 
 @overload
-def _copy_img(surface: Surface | None) -> Surface | None:
-    ...
+def _copy_img(surface: Surface | None) -> Surface | None: ...
 
 
 @overload
-def _copy_img(surface: Surface | None, default: Surface) -> Surface:
-    ...
+def _copy_img(surface: Surface | None, default: Surface) -> Surface: ...
 
 
 def _copy_img(surface: Surface | None, default: Surface | None = None) -> Surface | None:

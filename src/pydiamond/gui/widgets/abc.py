@@ -234,8 +234,7 @@ class AbstractWidget(Drawable, Movable, prepare_namespace=__prepare_abstract_wid
     def get_relative_position(
         self,
         anchor: Literal["x", "y", "left", "top", "right", "bottom", "centerx", "centery"],
-    ) -> float:
-        ...
+    ) -> float: ...
 
     @overload
     def get_relative_position(
@@ -251,12 +250,10 @@ class AbstractWidget(Drawable, Movable, prepare_namespace=__prepare_abstract_wid
             "midtop",
             "midbottom",
         ],
-    ) -> tuple[float, float]:
-        ...
+    ) -> tuple[float, float]: ...
 
     @overload
-    def get_relative_position(self, anchor: str) -> float | tuple[float, float]:
-        ...
+    def get_relative_position(self, anchor: str) -> float | tuple[float, float]: ...
 
     @final
     def get_relative_position(self, anchor: str) -> float | tuple[float, float]:
@@ -289,8 +286,7 @@ class AbstractWidget(Drawable, Movable, prepare_namespace=__prepare_abstract_wid
         bottom: float = ...,
         centerx: float = ...,
         centery: float = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def set_relative_position(
@@ -305,8 +301,7 @@ class AbstractWidget(Drawable, Movable, prepare_namespace=__prepare_abstract_wid
         midright: tuple[float, float] = ...,
         midtop: tuple[float, float] = ...,
         midbottom: tuple[float, float] = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @final
     def set_relative_position(self, **kwargs: Any) -> None:
