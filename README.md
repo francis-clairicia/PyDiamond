@@ -54,8 +54,8 @@ Coming soon. :)
 PyDiamond is developed based on pygame and Python (obviously). In addition, some features of pygame are available with a specific version of the SDL.
 
 Dependency version:
-- CPython >= 3.10
-- pygame == 2.1.2
+- CPython >= 3.13
+- pygame >= 2.6.1
 - SDL >= 2.0.16 (vendored in pygame)
 - SDL_image >= 2.0.0 (vendored in pygame)
 - SDL_mixer >= 2.0.0 (vendored in pygame)
