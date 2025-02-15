@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -9,10 +8,9 @@ from __future__ import annotations
 __all__ = ["AbstractScrollableView"]
 
 from abc import abstractmethod
-from typing import Any, Callable, Literal, overload
+from collections.abc import Callable
+from typing import Any, Literal, assert_never, final, overload
 from weakref import WeakMethod
-
-from typing_extensions import assert_never, final
 
 from ...math.rect import Rect
 from ...system.object import Object

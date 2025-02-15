@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -9,9 +8,10 @@ from __future__ import annotations
 __all__ = ["Object", "ObjectMeta", "mro", "override"]
 
 from abc import ABCMeta
+from collections.abc import Callable
 from functools import cached_property, partialmethod
 from itertools import chain, takewhile
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, overload
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 from .utils.abc import isabstractmethod
 
@@ -172,20 +172,10 @@ class Object(metaclass=ObjectMeta):
     __slots__ = ()
 
 
-@overload
-def override(f: _T, /) -> _T: ...
-
-
-@overload
-def override(*, final: bool = False) -> Callable[[_T], _T]: ...
-
-
-def override(f: Any = ..., /, *, final: bool = False) -> Any:
-    final = bool(final)
+def override(f: _T, /) -> _T:
 
     def apply_markers(f: Any) -> None:
         setattr(f, "__mustoverride__", True)
-        setattr(f, "__final__", final)
 
     def decorator(f: Any) -> Any:
         match f:
@@ -203,7 +193,7 @@ def override(f: Any = ..., /, *, final: bool = False) -> Any:
                 apply_markers(f)
         return f
 
-    return decorator if f is Ellipsis else decorator(f)
+    return decorator(f)
 
 
 _MetaClassT = TypeVar("_MetaClassT", bound=type)

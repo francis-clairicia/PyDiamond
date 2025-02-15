@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -37,15 +36,6 @@ import os
 import sys
 
 ############ Environment initialization ############
-if sys.version_info < (3, 10):
-    raise ImportError(
-        "This framework must be run with python >= 3.10 (actual={}.{}.{})".format(*sys.version_info[0:3]),
-        name=__name__,
-        path=__file__,
-    )
-
-############ Package initialization ############
-#### Apply various patch that must be run before importing the main modules
 from ._patch import PatchContext, collector
 
 collector.start_record()

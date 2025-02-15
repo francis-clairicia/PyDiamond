@@ -1,5 +1,3 @@
-# -*- coding: Utf-8 -*-
-
 from __future__ import annotations
 
 __all__ = [
@@ -8,7 +6,8 @@ __all__ = [
     "proxy",
 ]
 
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, SupportsIndex, TypeVar
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, ClassVar, SupportsIndex, TypeVar
 from weakref import WeakSet, WeakValueDictionary
 
 from ..system.collections import WeakKeyDefaultDictionary
@@ -18,7 +17,7 @@ from ..system.collections import WeakKeyDefaultDictionary
 _T = TypeVar("_T")
 
 
-class ProxyType(object):
+class ProxyType:
     __slots__ = ("_obj",)
 
     def __init__(self, obj: Any, /) -> None:
@@ -61,14 +60,14 @@ class ProxyType(object):
         proxy_cls: type[Any] = type(self)
         dynmaic_classes = ProxyType.__dynamic_classes
         while proxy_cls in dynmaic_classes:
-            proxy_cls = proxy_cls.__base__
+            proxy_cls = proxy_cls.__base__ or ProxyType
         return proxy_cls, (object.__getattribute__(self, "_obj"),)
 
     def __reduce__(self) -> str | tuple[Any, ...]:
         proxy_cls: type[Any] = type(self)
         dynmaic_classes = ProxyType.__dynamic_classes
         while proxy_cls in dynmaic_classes:
-            proxy_cls = proxy_cls.__base__
+            proxy_cls = proxy_cls.__base__ or ProxyType
         return proxy_cls, (object.__getattribute__(self, "_obj"),)
 
     #
@@ -247,7 +246,7 @@ class ProxyType(object):
         class must hold its own cache)
         """
         while cls in ProxyType.__dynamic_classes:
-            cls = cls.__base__
+            cls = cls.__base__ or ProxyType
         cache: WeakValueDictionary[type[Any], type[ProxyType]] = ProxyType.__class_proxy_cache[cls]
         try:
             theclass = cache[obj.__class__]

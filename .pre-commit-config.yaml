@@ -1,61 +1,51 @@
 default_language_version:
-  python: python3.10
+  python: python3.13
 minimum_pre_commit_version: '2.20.0'
 
 ci:
-  skip: [mypy]
-  submodules: true
   autoupdate_schedule: 'quarterly'
 
 repos:
-  - repo: local
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.19.1
     hooks:
-      - id: mypy
-        name: mypy (project + examples)
-        entry: tox run -q -e mypy -- src demo.py
-        language: system
-        files: ^(src/|demo\.py)
-        types_or: [python, pyi]
-        require_serial: true
-        pass_filenames: false
-      - id: mypy
-        name: mypy (tests)
-        files: ^((src|tests)/)
-        entry: tox run -q -e mypy -- tests
-        language: system
-        types_or: [python, pyi]
-        require_serial: true
-        pass_filenames: false
+      - id: pyupgrade
+        args: ['--py313-plus']
   - repo: https://github.com/PyCQA/isort
-    rev: '6.0.0'  # Keep in sync with requirements-dev.txt
+    rev: '6.0.0'
     hooks:
       - id: isort
         exclude: ^(devtools|demo_resources|\.github)/
         args: ['--filter-files', '--settings-file', 'pyproject.toml']
   - repo: https://github.com/psf/black
-    rev: '25.1.0'  # Keep in sync with requirements-dev.txt
+    rev: '25.1.0'
     hooks:
       - id: black
         exclude: ^(devtools|demo_resources|\.github)/
         args: ['--config', 'pyproject.toml']
   - repo: https://github.com/PyCQA/flake8
-    rev: '7.1.1'  # Keep in sync with requirements-dev.txt
+    rev: '7.1.1'
     hooks:
       - id: flake8
         exclude: ^(devtools|demo_resources|\.github)/
         args: ['--config', '.flake8']
         types: []  # Overwrite with empty in order to fallback to types_or
         types_or: [python, pyi]
-        additional_dependencies: [  # keep in sync with requirements/requirement-dev.in
+        additional_dependencies: [
           flake8-pyi>=22.11.0,
+          'git+https://github.com/francis-clairicia/flake8-dunder-all.git@v0.1.0',
         ]
   - repo: https://github.com/aio-libs/sort-all
     rev: 'v1.3.0'
     hooks:
       - id: sort-all
-        exclude: ^(devtools|demo_resources|\.github)/
+        exclude: ^(demo_resources|\.github)/
         types: []  # Overwrite with empty in order to fallback to types_or
         types_or: [python, pyi]
+  - repo: https://github.com/pdm-project/pdm
+    rev: '2.22.3'
+    hooks:
+      - id: pdm-lock-check
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: 'v5.0.0'
     hooks:

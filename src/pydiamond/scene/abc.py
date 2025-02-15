@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -18,27 +17,23 @@ __all__ = [
 ]
 
 from abc import abstractmethod
+from collections.abc import Callable, Generator, Iterator, Sequence
 from contextlib import ExitStack, suppress
 from enum import auto, unique
 from inspect import isgeneratorfunction
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Final,
-    Generator,
-    Iterator,
     NoReturn,
     ParamSpec,
     Protocol,
-    Sequence,
     TypeAlias,
     TypeVar,
+    final,
     overload,
     runtime_checkable,
 )
-
-from typing_extensions import final
 
 from ..graphics.color import Color
 from ..graphics.renderer import AbstractRenderer
@@ -272,7 +267,7 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
 
     @abstractmethod
     def awake(self, **kwargs: Any) -> None:
-        pass
+        raise NotImplementedError
 
     def on_restart(self, **kwargs: Any) -> None:
         pass
@@ -332,7 +327,7 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
         return self.__class__.get_required_fixed_framerate()
 
     @overload
-    def start(  # type: ignore[misc]
+    def start(
         self,
         __dialog: type[Dialog],
         /,

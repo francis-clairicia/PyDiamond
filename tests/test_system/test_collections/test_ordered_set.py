@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # type: ignore
 """
 Unit tests for OrderedSet (modified to fit with the implemented features)
@@ -236,7 +235,7 @@ def test_unordered_equality():
 
 
 def test_unordered_inequality():
-    assert OrderedSet([1, 2]) != set([])
+    assert OrderedSet([1, 2]) != set()
     assert OrderedSet([1, 2]) != frozenset([2, 1, 3])
 
     assert OrderedSet([1, 2]) != {2: "b"}
@@ -266,7 +265,7 @@ def check_results_(results, datas, name):
     data and name are used to indicate what sort of tests is run.
     """
     if not allsame_(results):
-        raise AssertionError("Not all same {} for {} with datas={}".format(results, name, datas))
+        raise AssertionError(f"Not all same {results} for {name} with datas={datas}")
     for a, b in it.combinations(results, 2):
         if not isinstance(a, (bool, int)):
             assert a is not b, name + " should all be different items"

@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -8,7 +7,8 @@ from __future__ import annotations
 
 __all__ = ["BooleanCheckBox", "CheckBox"]
 
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Literal, Sequence, TypeVar
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Literal, TypeVar
 
 from ...graphics.color import BLACK, BLUE, Color
 from ...graphics.image import Image

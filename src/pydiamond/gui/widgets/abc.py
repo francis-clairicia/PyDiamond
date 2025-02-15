@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -13,13 +12,24 @@ __all__ = [
 ]
 
 from abc import abstractmethod
+from collections.abc import Callable, Iterator
 from enum import auto, unique
 from itertools import takewhile
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterator, Literal, TypeGuard, TypeVar, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Final,
+    Literal,
+    TypeGuard,
+    TypeVar,
+    assert_never,
+    cast,
+    final,
+    overload,
+)
 from weakref import WeakMethod, WeakSet, WeakValueDictionary, ref as weakref
-
-from typing_extensions import assert_never, final
 
 from ...audio.sound import Sound
 from ...graphics.drawable import Drawable

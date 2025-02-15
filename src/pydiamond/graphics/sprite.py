@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -9,13 +8,13 @@ from __future__ import annotations
 __all__ = ["LayeredSpriteGroup", "Mask", "Sprite", "SpriteGroup"]
 
 from collections import deque
+from collections.abc import Iterable, Iterator, Mapping
 from functools import cached_property
 from itertools import combinations
-from typing import TYPE_CHECKING, Any, Final, Iterable, Iterator, Mapping, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Final, TypeVar, final, overload
 
 from pygame.mask import Mask, from_surface as _pg_mask_from_surface
 from pygame.transform import rotozoom as _surface_rotozoom
-from typing_extensions import final
 
 from ..math.rect import Rect
 from ..system.clock import Clock
@@ -70,7 +69,7 @@ class Sprite(Drawable, Transformable):
         "__blend_mode",
     )
 
-    transform_animation: Final[_SpriteTransformAnimation] = final(_SpriteTransformAnimation())  # type: ignore[type-var]
+    transform_animation: Final[_SpriteTransformAnimation] = final(_SpriteTransformAnimation())
 
     def __init__(
         self,

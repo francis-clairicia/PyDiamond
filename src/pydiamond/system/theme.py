@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -23,28 +22,21 @@ __all__ = [
 
 from abc import abstractmethod
 from collections import OrderedDict, defaultdict, deque
+from collections.abc import Callable, Iterable, Iterator, Mapping, MutableMapping, Sequence
 from contextlib import suppress
 from functools import cached_property
 from inspect import Parameter, Signature
 from itertools import chain
-from re import compile as re_compile
+from re import Match, Pattern, compile as re_compile
 from threading import RLock
 from types import FunctionType, LambdaType, MappingProxyType
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
     ContextManager,
     Final,
-    Iterable,
-    Iterator,
-    Mapping,
-    Match,
-    MutableMapping,
     NamedTuple,
-    Pattern,
-    Sequence,
     TypeAlias,
     TypeVar,
     final,
@@ -796,7 +788,7 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
                     raise TypeError("'__theme_init__' must be a classmethod")
                 if no_theme_decorator in ("once", "permanent") or hasattr(attr_obj, "__force_apply_theme_decorator__"):
                     raise TypeError("'__theme_init__' must not be decorated")
-                namespace[attr_name] = type(attr_obj)(mcs.__theme_initializer_decorator(attr_obj.__func__))
+                namespace[attr_name] = type(attr_obj)(mcs.__theme_initializer_decorator(attr_obj.__func__))  # type: ignore[arg-type]
                 continue
             if no_theme_decorator in ("once", "permanent"):
                 if no_theme_decorator == "once":

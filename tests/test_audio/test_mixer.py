@@ -1,8 +1,7 @@
-# -*- coding: Utf-8 -*-
-
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from pydiamond.audio.mixer import Mixer, MixerParams
 

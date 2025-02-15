@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -9,7 +8,8 @@ from __future__ import annotations
 __all__ = ["WeakKeyDefaultDictionary", "WeakValueDefaultDictionary"]
 
 import weakref
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 
 class WeakKeyDefaultDictionary(weakref.WeakKeyDictionary):  # type: ignore[type-arg]

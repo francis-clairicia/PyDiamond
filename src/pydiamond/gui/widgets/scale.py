@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -9,7 +8,8 @@ from __future__ import annotations
 __all__ = ["ScaleBar", "ScaleBarOrient", "ScaleBarTextSide"]
 
 import sys
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Sequence
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from ...graphics.color import BLACK, BLUE, GRAY, WHITE, Color
 from ...graphics.progress import ProgressBar, ProgressBarOrient as ScaleBarOrient, ProgressBarTextSide as ScaleBarTextSide

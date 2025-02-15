@@ -1,5 +1,3 @@
-# -*- coding: Utf-8 -*-
-
 from __future__ import annotations
 
 import os
@@ -57,7 +55,7 @@ def pydiamond_packages_paths(pydiamond_rootdirs_list: list[pathlib.Path]) -> lis
     import pkgutil
 
     if TYPE_CHECKING:
-        from typing import Iterator
+        from collections.abc import Iterator
 
     def get_packages_paths() -> Iterator[str]:
         for package_info in filter(

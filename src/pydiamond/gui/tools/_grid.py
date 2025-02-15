@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -10,9 +9,10 @@ __all__ = ["AbstractGUIGrid", "AbstractGUIScrollableGrid", "GridElement", "GridJ
 
 
 from abc import abstractmethod
+from collections.abc import Callable, Sequence
 from functools import reduce
 from itertools import starmap
-from typing import TYPE_CHECKING, Any, Callable, Literal, Sequence, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 from ...graphics.grid import Grid as _Grid, GridElement, GridJustify
 from ...math.rect import Rect

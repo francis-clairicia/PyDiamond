@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -8,8 +7,9 @@ from __future__ import annotations
 
 __all__ = ["Cursor", "SystemCursor"]
 
+from collections.abc import Sequence
 from enum import Enum, auto, unique
-from typing import TYPE_CHECKING, Any, Final, Literal, Sequence, no_type_check, overload
+from typing import TYPE_CHECKING, Any, Final, Literal, Self, no_type_check, overload
 
 import pygame.constants as _pg_constants
 import pygame.cursors as _pg_cursors
@@ -34,7 +34,7 @@ class Cursor(_pg_cursors.Cursor, Object, no_slots=True):
         return super().__new__(cls)
 
     type: Literal["system", "color", "bitmap"]
-    data: tuple[Any, ...]  # type: ignore[assignment]
+    data: tuple[Any, ...]
 
     @overload
     def __init__(
@@ -127,6 +127,12 @@ class SystemCursor(Cursor, Enum, metaclass=EnumObjectMeta):
 
         @property
         def value(self) -> int: ...
+
+    def __deepcopy__(self, memo: Any) -> Self:
+        return self
+
+    def __copy__(self) -> Self:
+        return self
 
 
 del _pg_constants

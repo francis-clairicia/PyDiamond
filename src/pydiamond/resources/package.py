@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -17,7 +16,7 @@ from importlib import import_module
 from importlib.resources import Package as PackageType
 from pathlib import Path
 from types import ModuleType
-from typing import BinaryIO, ContextManager
+from typing import IO, ContextManager
 
 from ..system.object import Object
 from .abc import Resource, ResourcesLocation
@@ -57,7 +56,7 @@ class PackageResource(Object):
     def as_file(self) -> ContextManager[Path]:
         return _importlib_resources.as_file(self.__f)
 
-    def open(self) -> BinaryIO:
+    def open(self) -> IO[bytes]:
         return self.__f.open("rb")
 
     @property

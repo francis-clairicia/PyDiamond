@@ -1,9 +1,8 @@
-# -*- coding: Utf-8 -*-
 """Experimental (https://github.com/pytest-dev/pytest/issues/363)."""
 
 from __future__ import annotations
 
-from typing import Iterator
+from collections.abc import Iterator
 
 import pytest
 from pytest import MonkeyPatch

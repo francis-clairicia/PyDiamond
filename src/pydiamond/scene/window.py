@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -12,12 +11,11 @@ __all__ = [
 
 import gc
 from collections import deque
+from collections.abc import Callable, Generator, Iterator, Sequence
 from contextlib import ExitStack, contextmanager, suppress
 from itertools import chain
-from typing import Any, Callable, Final, Generator, Iterator, NoReturn, Sequence, TypeGuard, TypeVar
+from typing import Any, Final, NoReturn, TypeGuard, TypeVar, final
 from weakref import WeakSet
-
-from typing_extensions import final
 
 from ..graphics.renderer import AbstractRenderer
 from ..graphics.surface import Surface, SurfaceRenderer
@@ -240,7 +238,7 @@ class SceneWindow(Window):
     def handle_events(self) -> None:
         consume(self.process_events())
 
-    def process_events(self) -> Generator[Event, None, None]:
+    def process_events(self) -> Generator[Event]:
         actual_scene: Scene | None = self.__scenes.top()
         process_scene_window_event = self.__event._process_event
         scene_handle_event = actual_scene.handle_event if actual_scene is not None else lambda _: False

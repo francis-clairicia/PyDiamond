@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -9,12 +8,11 @@ from __future__ import annotations
 __all__ = ["ResourceManager", "ResourceManagerMeta"]
 
 from collections import ChainMap
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
 from os import PathLike, fspath
 from types import MappingProxyType
-from typing import AbstractSet, Any, Callable, Mapping, NoReturn, Sequence, TypeAlias
-
-from typing_extensions import final
+from typing import AbstractSet, Any, NoReturn, TypeAlias, final
 
 from ..system.namespace import ClassNamespace, ClassNamespaceMeta
 from ..system.object import mro
@@ -120,7 +118,7 @@ class ResourceManagerMeta(ClassNamespaceMeta):
         autoload: bool = False,
         **kwargs: Any,
     ) -> ResourceManagerMeta:
-        namespace_including_bases: ChainMap[str, Any] = ChainMap(namespace, *map(vars, mro(*bases)))
+        namespace_including_bases: ChainMap[str, Any] = ChainMap(namespace, *map(vars, mro(*bases)))  # type: ignore[arg-type]
 
         resources: dict[str, Any] = namespace_including_bases.setdefault("__resources_files__", dict())
 

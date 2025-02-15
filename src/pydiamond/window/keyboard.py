@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -8,12 +7,12 @@ from __future__ import annotations
 
 __all__ = ["Key", "KeyModifiers", "Keyboard"]
 
+from collections.abc import Sequence
 from enum import IntEnum, IntFlag, auto, unique
-from typing import ClassVar, Sequence, overload
+from typing import ClassVar, final, overload
 
 import pygame.constants as _pg_constants
 import pygame.key as _pg_key
-from typing_extensions import final
 
 from ..system.namespace import ClassNamespace
 

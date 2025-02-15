@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -29,7 +28,7 @@ SDL_MIXER_VERSION = pygame.mixer.get_sdl_mixer_version(linked=True)
 
 if SDL_MIXER_VERSION < (2, 0, 0):
     raise ImportError(
-        "Your SDL_mixer version is too old: '{0}.{1}.{2}' < '2.0.0'".format(*SDL_MIXER_VERSION),
+        "Your SDL_mixer version is too old: '{}.{}.{}' < '2.0.0'".format(*SDL_MIXER_VERSION),
         name=__name__,
         path=__file__,
     )

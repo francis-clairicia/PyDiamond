@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -21,7 +20,7 @@ if SDL_IMAGE_VERSION[0] < 0:
 
 if SDL_IMAGE_VERSION < (2, 0, 0):
     raise ImportError(
-        "Your SDL_image version is too old: '{0}.{1}.{2}' < '2.0.0'".format(*SDL_IMAGE_VERSION),
+        "Your SDL_image version is too old: '{}.{}.{}' < '2.0.0'".format(*SDL_IMAGE_VERSION),
         name=__name__,
         path=__file__,
     )

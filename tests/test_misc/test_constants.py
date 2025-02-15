@@ -1,10 +1,9 @@
-# -*- coding: Utf-8 -*-
-
 from __future__ import annotations
 
 import importlib
 import itertools
-from typing import TYPE_CHECKING, Any, Callable, NamedTuple
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from pydiamond.audio.mixer import AllowedAudioChanges, AudioFormat
 from pydiamond.graphics.font import FontStyle

@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -8,9 +7,8 @@ from __future__ import annotations
 
 __all__ = ["Grid", "GridElement", "GridJustify"]
 
-from typing import TYPE_CHECKING, Any, Callable, Container, TypeVar
-
-from typing_extensions import final
+from collections.abc import Callable, Container
+from typing import TYPE_CHECKING, Any, TypeVar, final
 
 from ...graphics.color import BLACK, TRANSPARENT, Color
 from ..scene import GUIScene

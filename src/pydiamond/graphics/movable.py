@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -9,10 +8,9 @@ from __future__ import annotations
 __all__ = ["Movable"]
 
 from abc import abstractmethod
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from typing import Any, Callable, Iterator, Literal, overload
-
-from typing_extensions import final
+from typing import Any, Literal, final, overload
 
 from ..math import Rect, Vector2
 from ..math.rect import modify_rect_in_place

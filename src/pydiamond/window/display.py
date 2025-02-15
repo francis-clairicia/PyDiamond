@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -13,6 +12,7 @@ import os
 import os.path
 from abc import abstractmethod
 from collections import deque
+from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
 from contextlib import ExitStack, contextmanager, suppress
 from dataclasses import dataclass
 from datetime import datetime
@@ -21,18 +21,15 @@ from itertools import count as itertools_count, filterfalse
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
     ContextManager,
     Final,
-    Generator,
-    Iterable,
-    Iterator,
     Literal,
     NoReturn,
     ParamSpec,
-    Sequence,
     TypeVar,
+    assert_never,
+    final,
     overload,
 )
 from weakref import ref as weakref
@@ -50,7 +47,6 @@ from pygame.constants import (
     RESIZABLE as _PG_RESIZABLE,
     WINDOWCLOSE as _PG_WINDOWCLOSE,
 )
-from typing_extensions import assert_never, final
 
 from ..audio.music import MusicStream
 from ..environ.executable import get_executable_path
@@ -68,7 +64,7 @@ from ..system.utils.contextlib import ExitStackView
 from ..system.utils.functools import wraps
 from .controller import Controller
 from .cursor import Cursor
-from .event import Event, EventFactory, EventFactoryError, ScreenshotEvent, UnknownEventTypeError
+from .event import Event, EventFactory, EventFactoryError, UnknownEventTypeError
 from .keyboard import Keyboard
 from .mouse import Mouse
 
@@ -98,7 +94,7 @@ class Window(Object, no_slots=True):
     DEFAULT_FRAMERATE: Final[int] = 60
     DEFAULT_SIZE: Final[tuple[int, int]] = (800, 600)
 
-    __instance: ClassVar[Callable[[], "Window" | None]] = lambda: None
+    __instance: ClassVar[Callable[[], Window | None]] = lambda: None
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Any:
         instance = Window.__instance()
@@ -425,11 +421,11 @@ class Window(Object, no_slots=True):
         for target in targets:
             target.draw_onto(renderer)
 
-    def take_screenshot(self) -> None:
-        self.__screenshot_threads.append(self.__screenshot_thread())
+    def take_screenshot(self, screenshot_done_event: Callable[[str], Event] | None = None) -> None:
+        self.__screenshot_threads.append(self.__screenshot_thread(screenshot_done_event))
 
     @thread_factory_method(global_lock=True, shared_lock=True)
-    def __screenshot_thread(self) -> None:
+    def __screenshot_thread(self, screenshot_done_event: Callable[[str], Event] | None) -> None:
         renderer = self.__display_renderer
         if renderer is None:
             raise WindowError("No active renderer")
@@ -456,7 +452,8 @@ class Window(Object, no_slots=True):
         except ConstantFileNotFoundError as exc:
             file = str(exc.filename)
         save_image(screen, file)
-        self.post_event(ScreenshotEvent(file=file))
+        if callable(screenshot_done_event):
+            self.post_event(screenshot_done_event(file))
 
     def get_screenshot_filename_format(self) -> str:
         return "Screenshot_%Y-%m-%d_%H-%M-%S"
@@ -562,7 +559,7 @@ class Window(Object, no_slots=True):
         ):
             yield
 
-    def process_events(self) -> Generator[Event, None, None]:
+    def process_events(self) -> Generator[Event]:
         poll_event = self.__event_queue.popleft
         make_event = EventFactory.from_pygame_event
         while True:

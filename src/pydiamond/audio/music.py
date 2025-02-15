@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -23,13 +22,12 @@ from collections import deque
 from contextlib import ExitStack
 from dataclasses import dataclass, field
 from os import PathLike
-from typing import BinaryIO, ContextManager, Final
+from typing import BinaryIO, ContextManager, Final, final
 from weakref import WeakValueDictionary
 
 import pygame.mixer as _pg_mixer
 from pygame.event import Event as _PygameEvent
 from pygame.mixer import music as _pg_music
-from typing_extensions import final
 
 from ..resources.abc import Resource
 from ..resources.file import FileResource

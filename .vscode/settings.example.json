@@ -2,36 +2,49 @@
     "python.analysis.extraPaths": [
         "./src"
     ],
-    "python.linting.mypyEnabled": true,
-    "python.linting.mypyArgs": [
+    "mypy-type-checker.importStrategy": "fromEnvironment",
+    "mypy-type-checker.args": [
         "--config-file=pyproject.toml",
-        "--cache-dir=.vscode/.mypy_cache",
-        "--no-color-output"
+        "--cache-dir=.vscode/.mypy_cache"
     ],
     "[python]": {
         "editor.defaultFormatter": "ms-python.black-formatter",
         "editor.formatOnSave": true,
         "editor.formatOnSaveMode": "file",
         "editor.codeActionsOnSave": {
-            "source.organizeImports": true
+            "source.organizeImports": "explicit"
         },
         "editor.rulers": [
             130
         ]
     },
+    "[restructuredtext]": {
+        "editor.tabSize": 3,
+        "editor.rulers": [
+            150
+        ]
+    },
+    "[toml]": {
+        "editor.formatOnSave": false
+    },
+    "files.readonlyInclude": {
+        ".venv/**": true
+    },
+    "black-formatter.importStrategy": "fromEnvironment",
     "black-formatter.args": [
         "--config",
         "pyproject.toml",
         "--force-exclude",
         "site-packages"
     ],
+    "isort.importStrategy": "fromEnvironment",
     "isort.args": [
         "--settings-file",
         "pyproject.toml",
         "--extend-skip-glob",
         "*/site-packages/*"
     ],
-    "python.linting.flake8Enabled": true,
+    "flake8.importStrategy": "fromEnvironment",
     "python.analysis.diagnosticSeverityOverrides": {
         "reportMissingImports": "error",
         "reportAssertAlwaysTrue": "information",

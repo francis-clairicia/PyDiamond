@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -13,9 +12,10 @@ __all__ = [
     "isabstractmethod",
 ]
 
+from collections.abc import Callable
 from functools import wraps
 from inspect import isabstract as isabstractclass
-from typing import Any, Callable, Concatenate, ParamSpec, TypeVar
+from typing import Any, Concatenate, ParamSpec, TypeVar
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")

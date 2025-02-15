@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -27,6 +26,7 @@ import inspect
 import re
 import reprlib
 from collections import ChainMap
+from collections.abc import Callable, Hashable, Iterator, Mapping, MutableMapping, Sequence
 from contextlib import ExitStack, contextmanager, suppress
 from dataclasses import KW_ONLY, dataclass, field
 from enum import Enum
@@ -38,28 +38,21 @@ from typing import (
     TYPE_CHECKING,
     AbstractSet as Set,
     Any,
-    Callable,
     ClassVar,
     Generic,
-    Hashable,
-    Iterator,
     Literal,
-    Mapping,
-    MutableMapping,
     NamedTuple,
     NoReturn,
     Protocol,
-    Sequence,
     TypeAlias,
     TypeGuard,
     TypeVar,
     cast,
+    final,
     overload,
     runtime_checkable,
 )
 from weakref import WeakKeyDictionary, ref as weakref
-
-from typing_extensions import final
 
 from .non_copyable import NonCopyable
 from .object import Object
@@ -272,7 +265,7 @@ class ConfigurationTemplate(Object):
 
         _classmethod: Callable[[Any], Any]
         try:
-            default_init_subclass: classmethod[None] = vars(owner)["__init_subclass__"]
+            default_init_subclass: classmethod[Any, ..., None] = vars(owner)["__init_subclass__"]
         except KeyError:
 
             def __init_subclass__(cls: type, **kwargs: Any) -> None:
@@ -3478,7 +3471,7 @@ def _make_predicate_validator(
 
 
 def _all_members(cls: type) -> MutableMapping[str, Any]:
-    return ChainMap(*map(vars, inspect.getmro(cls)))
+    return ChainMap(*map(vars, inspect.getmro(cls)))  # type: ignore[arg-type]
 
 
 def _retrieve_configuration(cls: type) -> ConfigurationTemplate:
@@ -3674,10 +3667,10 @@ class _ConfigInfoTemplate:
             setattr(
                 self,
                 attr_name,
-                {option: set(build_wrapper_if_needed(func) for func in func_set) for option, func_set in hooks_dict.items()},
+                {option: {build_wrapper_if_needed(func) for func in func_set} for option, func_set in hooks_dict.items()},
             )
 
-        self.main_update_hooks = set(build_wrapper_if_needed(func) for func in self.main_update_hooks)
+        self.main_update_hooks = {build_wrapper_if_needed(func) for func in self.main_update_hooks}
         build_update_hooks_wrappers("option_update_hooks")
         build_update_hooks_wrappers("option_delete_hooks")
         build_update_hooks_wrappers("option_value_update_hooks")
@@ -3732,7 +3725,7 @@ class _ConfigInfoTemplate:
             {
                 option: frozenset(filtered_hooks)
                 for option, hooks in hooks.items()
-                if len((filtered_hooks := hooks.difference(self.main_update_hooks))) > 0
+                if len(filtered_hooks := hooks.difference(self.main_update_hooks)) > 0
             }
         )
 

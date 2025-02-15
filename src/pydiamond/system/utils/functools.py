@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -16,8 +15,9 @@ __all__ = [
     "wraps",
 ]
 
+from collections.abc import Callable
 from functools import lru_cache as _lru_cache, wraps
-from typing import TYPE_CHECKING, Any, Callable, Concatenate, ParamSpec, TypeGuard, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Concatenate, ParamSpec, TypeGuard, TypeVar, overload
 from weakref import WeakMethod, ref as weakref
 
 _P = ParamSpec("_P")
@@ -146,7 +146,7 @@ def forbidden_call(func: Callable[_P, _R]) -> Callable[_P, _R]:
 
 
 @overload
-def make_callback(  # type: ignore[misc]
+def make_callback(
     __func: Callable[_P, _R] | WeakMethod[Callable[_P, _R]],
     __obj: None = ...,
     /,

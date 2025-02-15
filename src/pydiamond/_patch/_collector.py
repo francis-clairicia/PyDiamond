@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -16,8 +15,9 @@ import inspect
 import os.path
 import pkgutil
 from collections import defaultdict, deque
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Final, Iterable, Iterator, Mapping, Sequence, no_type_check
+from typing import TYPE_CHECKING, Any, Final, no_type_check
 
 from ._base import BasePatch, PatchContext
 
@@ -50,7 +50,7 @@ class _PatchCollectorType:
 
     def __new__(cls: type[Self]) -> Self:
         try:
-            return getattr(cls, "_PatchCollectorType__instance")
+            return inspect.getattr_static(cls, "_PatchCollectorType__instance")
         except AttributeError:
             instance = object.__new__(cls)
             setattr(cls, "_PatchCollectorType__instance", instance)
@@ -154,7 +154,7 @@ class _PatchCollectorType:
         if isinstance(forbidden_imports, str):
             forbidden_imports = (forbidden_imports,)
 
-        forbidden_modules = {module: re.compile(r"{}(?:\.\w+)*".format(module)) for module in set(forbidden_imports) if module}
+        forbidden_modules = {module: re.compile(rf"{module}(?:\.\w+)*") for module in set(forbidden_imports) if module}
 
         if not forbidden_modules:  # Do not need to mock then
             yield

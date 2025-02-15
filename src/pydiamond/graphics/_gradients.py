@@ -25,7 +25,7 @@ import math
 BLEND_MODES_AVAILABLE = (pygame.version.vernum >= (1, 8))
 
 
-class ColorInterpolator(object):
+class ColorInterpolator:
     '''
     ColorInterpolator(distance, color1, color2, rfunc, gfunc, bfunc, afunc)
 
@@ -56,7 +56,7 @@ class ColorInterpolator(object):
                 self.aInterpolator.eval(x))
 
 
-class FunctionInterpolator(object):
+class FunctionInterpolator:
     '''
     FunctionInterpolator(startvalue, endvalue, trange, func)
 

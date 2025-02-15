@@ -1,4 +1,0 @@
-[submodule "devtools"]
-	path = devtools
-	url = https://github.com/francis-clairicia/python-devtools.git
-	branch = main

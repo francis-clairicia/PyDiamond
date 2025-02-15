@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -14,11 +13,11 @@ from __future__ import annotations
 
 __all__ = ["OrderedSet", "OrderedSetIndexError"]
 
-from collections.abc import MutableSet, Sequence, Set
+from collections.abc import Callable, Iterable, Iterator, MutableSet, Sequence, Set
 from copy import deepcopy
 from threading import RLock
 from types import GenericAlias
-from typing import Any, Callable, Iterable, Iterator, SupportsIndex
+from typing import Any, SupportsIndex
 
 
 class OrderedSetIndexError(KeyError, IndexError):
@@ -464,7 +463,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
         with self._lock:
             items: Iterable[object] = self
             if others:
-                common = set.intersection(*map(set, others))  # type: ignore[arg-type]
+                common = set.intersection(*map(set, others))
                 items = (item for item in self if item in common)
             return self._from_iterable(items)
 
@@ -483,7 +482,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
         if not others:
             return
         with self._lock:
-            common = set.intersection(*map(set, others))  # type: ignore[arg-type]
+            common = set.intersection(*map(set, others))
             self._items = items = [item for item in self._items if item in common]
             self._map = {item: index for index, item in enumerate(items)}
 
@@ -522,7 +521,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
         with self._lock:
             items: Iterable[object] = self
             if others:
-                common = set.union(*map(set, others))  # type: ignore[arg-type]
+                common = set.union(*map(set, others))
                 items = (item for item in self if item not in common)
             return self._from_iterable(items)
 
@@ -543,7 +542,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
         if not others:
             return
         with self._lock:
-            common = set.union(*map(set, others))  # type: ignore[arg-type]
+            common = set.union(*map(set, others))
             self._items = items = [item for item in self._items if item not in common]
             self._map = {item: index for index, item in enumerate(items)}
 
@@ -601,7 +600,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
             self._items = items = [item for item in self._items if item not in items_to_remove] + items_to_add
             self._map = {item: index for index, item in enumerate(items)}
 
-    __class_getitem__ = classmethod(GenericAlias)
+    __class_getitem__ = classmethod(GenericAlias)  # type: ignore[var-annotated]
 
 
 if __name__ == "__main__":

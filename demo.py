@@ -1,5 +1,4 @@
 #!/usr/bin/env -S python3 -W default
-# -*- coding: Utf-8 -*-
 # flake8: noqa
 
 from __future__ import annotations
@@ -7,8 +6,9 @@ from __future__ import annotations
 import gc
 import weakref
 from argparse import ArgumentParser
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from pathlib import Path
-from typing import Any, Callable, ClassVar, Final, Iterator, Literal, Mapping, Sequence
+from typing import Any, ClassVar, Final, Literal
 
 from pydiamond.audio.mixer import Mixer
 from pydiamond.audio.music import Music, MusicStream
@@ -57,6 +57,7 @@ from pydiamond.gui.widgets.image import Image as ImageWidget
 from pydiamond.gui.widgets.label import Label
 from pydiamond.gui.widgets.scale import ScaleBar
 from pydiamond.gui.widgets.scroll import ScrollBar, ScrollingContainer
+from pydiamond.resources.abc import ResourcesLocation
 from pydiamond.resources.loader import FontLoader, ImageLoader, MusicLoader, SoundLoader
 from pydiamond.resources.manager import ResourceManager
 from pydiamond.resources.package import ResourcesPackage
@@ -74,9 +75,7 @@ from pydiamond.window.event import (
     MouseButtonEvent,
     MouseButtonUpEvent,
     MouseMotionEvent,
-    MusicEndEvent,
     NamespaceEventModel,
-    ScreenshotEvent,
 )
 from pydiamond.window.keyboard import Key, Keyboard
 from pydiamond.window.mouse import Mouse, MouseButton
@@ -84,7 +83,6 @@ from pydiamond.window.mouse import Mouse, MouseButton
 
 class ShapeScene(MainScene, busy_loop=True):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.__r: RectangleShape = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
         self.__p: PolygonShape = PolygonShape(WHITE, outline=3, outline_color=RED)
@@ -190,7 +188,6 @@ class ShapeScene(MainScene, busy_loop=True):
 
 class AnimationScene(MainScene, busy_loop=True):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.rectangle = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
         self.animation = TransformAnimation(self.rectangle)
         self.event.bind_key_release(Key.K_RETURN, lambda _: self.__handle_return_event())
@@ -232,7 +229,6 @@ class AnimationScene(MainScene, busy_loop=True):
 
 class AnimationStateFullScene(MainScene, busy_loop=True):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.rectangle = RectangleShape(50, 50, WHITE, outline=3, outline_color=RED)
         self.text = Text(font=FontResources.cooperblack(25), italic=True, color=WHITE, justify="center")
@@ -299,7 +295,6 @@ class AnimationStateFullScene(MainScene, busy_loop=True):
 
 class ShapeTransformTestScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.shape = DiagonalCrossShape(50, 50, color=RED, outline_color=WHITE, outline=2)
         # self.shape = RectangleShape(50, 50, color=RED, outline_color=WHITE, outline=2, border_radius=5)
@@ -336,7 +331,6 @@ class ShapeTransformTestScene(MainScene):
 
 class GradientScene(Scene):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.horizontal: HorizontalGradientShape = HorizontalGradientShape(100, 100, RED, YELLOW)
         self.vertical: VerticalGradientShape = VerticalGradientShape(100, 100, RED, YELLOW)
@@ -372,7 +366,6 @@ class RainbowScene(MainScene):
     window: MainWindow
 
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.all_rainbows: list[MultiColorShape] = [HorizontalRainbow(*self.window.size), VerticalRainbow(*self.window.size)]
         self.rainbow: int = 0
 
@@ -395,7 +388,6 @@ class RainbowScene(MainScene):
 
 class TextScene(Scene):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.text = Text(
             "I'm a text", font=(None, 300), italic=True, color=WHITE, shadow_x=-25, shadow_y=-25, wrap=5, justify="center"
@@ -429,7 +421,7 @@ class ImagesResources(ResourceManager, autoload=True):
     __resource_loader__ = ImageLoader
     # __resources_location__ = "./demo_resources/img"
     # __resources_location__ = Path(".") / "demo_resources" / "img"
-    __resources_location__ = ResourcesPackage("demo_resources.img")
+    __resources_location__: ResourcesLocation = ResourcesPackage("demo_resources.img")  # type: ignore[assignment]
     __resources_files__ = {
         "cactus": Path("cactus.png"),
         "car": [f"gameplay/voiture_7/{i + 1}.png" for i in range(10)],
@@ -450,7 +442,6 @@ class FontResources(ResourceManager, autoload=True):
 
 class ResourceScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.cactus = Sprite(image=ImagesResources.cactus)
         self.cactus.center = self.window.center
         self.text = Text("I'm a text", font=FontResources.cooperblack(300), italic=True, color=WHITE, wrap=5, justify="center")
@@ -470,7 +461,6 @@ class ResourceScene(MainScene):
 
 class SpriteMaskScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.sprite = Sprite(ImagesResources.autumn_tree)
         self.mask = Image()
@@ -509,7 +499,6 @@ class SpriteMaskScene(MainScene):
 
 class AnimatedSpriteScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.sprite: Sprite = Sprite(*ImagesResources.car)
 
@@ -560,7 +549,6 @@ class DraggableSprite(Sprite, Widget):
 
 class SpriteCollisionScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.widgets = WidgetsManager(self)
 
@@ -582,7 +570,6 @@ class SpriteCollisionScene(MainScene):
 
 class SpriteGroupCollisionScene(MainScene, framerate=60, fixed_framerate=50):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.widgets = WidgetsManager(self)
 
@@ -633,7 +620,6 @@ class MyCustomEvent(NamespaceEventModel):
 
 class EventScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.cross: PlusCrossShape = PlusCrossShape(50, 50, color=RED, outline_color=WHITE, outline=3)
         self.circle: CircleShape = CircleShape(3, color=YELLOW)
@@ -667,7 +653,6 @@ class EventScene(MainScene):
 
 class TextImageScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.text: TextImage = TextImage(
             "I'm a text", img=ImagesResources.cactus, font=(None, 50), color=WHITE, shadow_x=-5, shadow_y=-5, wrap=5
@@ -698,7 +683,6 @@ class TextImageScene(MainScene):
 
 class ButtonScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
 
         self.widgets = WidgetsManager(self)
@@ -756,7 +740,6 @@ class ButtonScene(MainScene):
 
 class CheckBoxScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
 
         self.widgets = WidgetsManager(self)
@@ -781,7 +764,6 @@ class CheckBoxScene(MainScene):
 
 class ImageWidgetScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.widgets = WidgetsManager(self)
         self.image = ImageWidget(self.widgets, ImagesResources.autumn_tree)
@@ -795,7 +777,6 @@ class ImageWidgetScene(MainScene):
 
 class ProgressScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.widgets = WidgetsManager(self)
         self.hprogress = hprogress = ProgressBar(500, 75, from_=10, to=90, orient="horizontal", outline=10)
@@ -839,7 +820,6 @@ class ProgressScene(MainScene):
 
 class ScaleBarScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.widgets = WidgetsManager(self)
 
@@ -871,7 +851,6 @@ class ScaleBarScene(MainScene):
 
 class EntryScene(MainScene):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.widgets = WidgetsManager(self)
         self.entry = entry = Entry(self.widgets, font=(None, 70), fg=BLUE, outline=5)
@@ -891,7 +870,6 @@ class ScrollBarScene(MainScene):
     window: MainWindow
 
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.destroy_exit_stack.callback(self.window.set_title, self.window.get_title())
         self.background_color = BLUE_DARK
         self.widgets = WidgetsManager(self)
@@ -947,7 +925,6 @@ class TestGUIScene(GUIScene):
         )
 
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.widgets = WidgetsManager(self)
 
@@ -978,7 +955,6 @@ class TestGUIScene(GUIScene):
 
 class GridScene(GUIScene):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         Button.set_default_focus_on_hover(True)
 
@@ -1030,7 +1006,6 @@ class GridScene(GUIScene):
 
 class ScrollableGridScene(GUIScene):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         Button.set_default_focus_on_hover(True)
 
@@ -1111,7 +1086,6 @@ class FormScene(GUIScene):
         Entry.set_theme("default", {"font": (None, 40), "highlight_color": YELLOW})
 
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
 
         self.widgets = WidgetsManager(self)
@@ -1157,8 +1131,6 @@ class WidgetsScene(GUIScene):
         CheckBox.set_theme("default", {"highlight_color": YELLOW})
 
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
-
         Widget.set_default_focus_on_hover(True)
 
         self.background_color = BLUE_DARK
@@ -1188,7 +1160,7 @@ class MusicManager(ResourceManager, autoload=True):
     gameplay: Music
     __resource_loader__ = MusicLoader
     # __resources_location__ = "./demo_resources/sounds"
-    __resources_location__ = ResourcesPackage("demo_resources.sounds")
+    __resources_location__ = ResourcesPackage("demo_resources.sounds")  # type: ignore[assignment]
     __resources_files__ = {"menu": "menu.wav", "garage": "garage.wav", "gameplay": "gameplay.wav"}
 
 
@@ -1220,7 +1192,6 @@ class VolumeScaleBar(ScaleBar):
 class AudioScene(MainScene):
     def __init__(self) -> None:
         super().__init__()
-        self.event.bind(MusicEndEvent, lambda event: print(event) or True)
         self.event.bind_key_press(Key.K_F2, lambda _: MusicStream.fadeout(1000))
 
     @classmethod
@@ -1246,7 +1217,6 @@ class AudioScene(MainScene):
         self.scale = VolumeScaleBar(self.widgets, 500, 75)
         self.scale.show_label("Music volume", side="top")
         self.scale.show_percent("inside", shadow_x=0, shadow_y=0, color=BLACK)
-        return super().awake(**kwargs)
 
     def on_start_loop_before_transition(self) -> None:
         self.update()
@@ -1294,7 +1264,6 @@ class GUIAudioScene(GUIScene, MainScene):
         )
 
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.widgets = WidgetsManager(self)
 
@@ -1388,7 +1357,6 @@ class MyDialog(PopupDialog, GUIScene):
 
 class TestDialogScene(GUIScene):
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = BLUE_DARK
         self.widgets = WidgetsManager(self)
         self.button = Button(self.widgets, "Open dialog", callback=self.__open_dialog)
@@ -1412,7 +1380,7 @@ class ControllerSceneResources(ResourceManager, autoload=True):
     xbox_triggers_button_layers: Mapping[ControllerButton, Surface]
     xbox_triggers_axis_layers: Mapping[ControllerAxis, Surface]
 
-    __resources_location__ = ResourcesPackage("demo_resources.img.joystick")
+    __resources_location__ = ResourcesPackage("demo_resources.img.joystick")  # type: ignore[assignment]
     __resource_loader__ = ImageLoader
     __resources_files__ = {
         "xbox_front": "xbox-1.png",
@@ -1454,7 +1422,6 @@ class ControllerScene(MainScene, framerate=60, fixed_framerate=50):
     window: MainWindow
 
     def awake(self, **kwargs: Any) -> None:
-        super().awake(**kwargs)
         self.background_color = WHITE
 
         self.controller: Controller | None = None
@@ -1686,6 +1653,17 @@ class TextFramerate(Text, no_theme=True):
         self.__refresh_rate = max(int(value), 0)
 
 
+class ScreenshotEvent(NamespaceEventModel):
+    def __init__(self, file: str) -> None:
+        super().__init__()
+        self.file: str = file
+
+    def get_image(self) -> Surface:
+        from pydiamond.graphics.surface import load_image
+
+        return load_image(self.file)
+
+
 class MainWindow(SceneWindow):
     all_scenes: ClassVar[list[type[Scene]]] = [
         ShapeScene,
@@ -1746,7 +1724,7 @@ class MainWindow(SceneWindow):
         self.next_button.topright = self.right - 10, self.top + 10
 
         self.event.bind_key_press(Key.K_F5, lambda _: gc.collect())
-        self.event.bind_key_release(Key.K_F11, lambda _: self.take_screenshot())
+        self.event.bind_key_release(Key.K_F11, lambda _: self.take_screenshot(ScreenshotEvent))
         self.event.bind(ScreenshotEvent, self.__show_screenshot)
         self.screenshot_image: Image | None = None
         self.screenshot_callback: WindowCallback | None = None

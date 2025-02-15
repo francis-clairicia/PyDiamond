@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -9,8 +8,8 @@ from __future__ import annotations
 __all__ = ["ChainMapProxy"]
 
 import reprlib
-from collections.abc import Mapping
-from typing import Any, Iterable, Iterator
+from collections.abc import Iterable, Iterator, Mapping
+from typing import Any
 
 
 class ChainMapProxy(Mapping):  # type: ignore[type-arg]

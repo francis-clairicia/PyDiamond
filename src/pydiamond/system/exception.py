@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -11,7 +10,8 @@ __all__ = ["noexcept"]
 import inspect
 import os
 import sys
-from typing import Any, AsyncGenerator, Callable, NoReturn, ParamSpec, TypeVar
+from collections.abc import AsyncGenerator, Callable
+from typing import Any, NoReturn, ParamSpec, TypeVar
 
 from .utils.functools import wraps
 
@@ -33,24 +33,24 @@ def noexcept(func: Callable[_P, _R], /) -> Callable[_P, _R]:
     exit_exceptions: tuple[type[BaseException], ...] = (SystemExit, KeyboardInterrupt)
 
     if inspect.isgeneratorfunction(func):
-        exit_exceptions += (StopIteration, GeneratorExit)
+        exit_exceptions += (GeneratorExit,)
 
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
-                return (yield from func(*args, **kwargs))  # type: ignore[misc]
+                return (yield from func(*args, **kwargs))
             except exit_exceptions:
                 raise
             except BaseException:
                 abort()
 
     elif inspect.isasyncgenfunction(func):
-        exit_exceptions += (StopIteration, GeneratorExit)
+        exit_exceptions += (GeneratorExit,)
 
         @wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
-                async_gen: AsyncGenerator[Any, Any] = func(*args, **kwargs)  # type: ignore[assignment]
+                async_gen: AsyncGenerator[Any, Any] = func(*args, **kwargs)
                 # Reproduced the pure python implementation of the 'yield from' statement
                 # See https://peps.python.org/pep-0380/#formal-semantics
                 _y = await anext(async_gen)
@@ -76,7 +76,7 @@ def noexcept(func: Callable[_P, _R], /) -> Callable[_P, _R]:
         @wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
-                return await func(*args, **kwargs)  # type: ignore[misc]
+                return await func(*args, **kwargs)
             except exit_exceptions:
                 raise
             except BaseException:

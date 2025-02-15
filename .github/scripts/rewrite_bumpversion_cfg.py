@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: Utf-8 -*-
 
 from __future__ import annotations
 
@@ -26,13 +25,13 @@ def rewrite_bumpversion_cfg(filepath: str, *, dry_run: bool = False) -> None:
 
     major, minor = map(str, version_match.group("major", "minor"))
 
-    config.set("bumpversion", "parse", r"{major}\.{minor}\.(?P<patch>\d+)".format(major=major, minor=minor))
+    config.set("bumpversion", "parse", fr"{major}\.{minor}\.(?P<patch>\d+)")
     config.set("bumpversion", "serialize", f"{major}.{minor}.{{patch}}")
 
     for section in filter(BUMPVERSION_PART_SECTION_PATTERN.match, config.sections()):
         config.remove_section(section)
 
-    with (open(filepath, "wt") if not dry_run else nullcontext(sys.stdout)) as output:  # type: ignore[attr-defined]
+    with (open(filepath, "w") if not dry_run else nullcontext(sys.stdout)) as output:
         config.write(output)
 
 

@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -10,8 +9,9 @@ __all__ = ["NoStopIteration", "consume", "consumer_start", "flatten", "next_retu
 
 import inspect
 from collections import deque
+from collections.abc import Generator, Iterable, Iterator
 from itertools import chain
-from typing import Any, Generator, Iterable, Iterator, Literal, TypeVar, overload
+from typing import Any, Literal, TypeVar, overload
 
 _T = TypeVar("_T")
 _T_co = TypeVar("_T_co", covariant=True)

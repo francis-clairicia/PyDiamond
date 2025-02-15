@@ -1,5 +1,3 @@
-# -*- coding: Utf-8 -*-
-
 from __future__ import annotations
 
 import importlib
@@ -14,13 +12,11 @@ if TYPE_CHECKING:
 @pytest.mark.functional
 class TestPatchCommon:
     ALL_PATCHES = [
-        "fix_typing.OverrideFinalFunctionPatch",
         "environment.ArrangePygameEnvironmentBeforeImport",
         "environment.VerifyBooleanEnvironmentVariables",
         "pygame_patch.PygamePatch",
     ]
     EXPECTED_CONTEXT = {
-        "fix_typing.OverrideFinalFunctionPatch": "BEFORE_ALL",
         "environment.ArrangePygameEnvironmentBeforeImport": "BEFORE_IMPORTING_PYGAME",
         "environment.VerifyBooleanEnvironmentVariables": "BEFORE_IMPORTING_SUBMODULES",
         "pygame_patch.PygamePatch": "AFTER_IMPORTING_PYGAME",

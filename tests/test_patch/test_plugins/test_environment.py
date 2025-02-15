@@ -1,9 +1,8 @@
-# -*- coding: Utf-8 -*-
-
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING, Any, Iterator, MutableMapping, Sequence
+from collections.abc import Iterator, MutableMapping, Sequence
+from typing import TYPE_CHECKING, Any
 
 from pydiamond._patch.plugins.environment import (
     ArrangePygameEnvironmentBeforeImport,
@@ -52,7 +51,7 @@ class TestArrangePygameEnvironment:
             ("SDL_VIDEO_CENTERED", "1"),
             ("SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1"),
         ],
-        ids=lambda t: "{0}={1}".format(*t),
+        ids=lambda t: "{}={}".format(*t),
     )
     @pytest.mark.usefixtures("mock_check_booleans")
     def test____run____set_default_values_in_environ(
@@ -80,7 +79,7 @@ class TestArrangePygameEnvironment:
             ("SDL_VIDEO_CENTERED", False),
             ("SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS", False),
         ],
-        ids=lambda t: "{0}={1}".format(*t),
+        ids=lambda t: "{}={}".format(*t),
     )
     @pytest.mark.usefixtures("mock_check_booleans")
     def test____run____overrides_user_value(

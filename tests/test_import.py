@@ -1,5 +1,3 @@
-# -*- coding: Utf-8 -*-
-
 from __future__ import annotations
 
 from functools import cache
@@ -9,7 +7,7 @@ from typing import TYPE_CHECKING, no_type_check
 
 import pytest
 
-from .mock.sys import MockVersionInfo, unload_module
+from .mock.sys import unload_module
 
 if TYPE_CHECKING:
     from pkgutil import ModuleInfo
@@ -43,7 +41,7 @@ def _catch_star_imports_within_packages() -> dict[str, list[str]]:
     all_packages: dict[str, list[str]] = {}
     for package_name in ALL_PYDIAMOND_PACKAGES:
         package_file = inspect.getfile(import_module(package_name))
-        with open(package_file, "r") as package_fp:
+        with open(package_file) as package_fp:
             package_source = package_fp.read()
         tree = ast.parse(package_source, package_file)
         start_import_modules: list[str] = []
@@ -72,16 +70,12 @@ class TestGlobalImport:
 
         import typing
 
-        class_monkeypatch.delattr(typing, "final")
-
-        import typing_extensions
-
         def strict_final(f: typing.Any) -> typing.Any:
             f.__final__ = True
             assert f.__final__ is True
             return f
 
-        class_monkeypatch.setattr(typing_extensions, "final", strict_final)
+        class_monkeypatch.setattr(typing, "final", strict_final)
 
     @pytest.fixture
     @staticmethod
@@ -119,14 +113,6 @@ class TestGlobalImport:
 
         # Begin test
         with pytest.raises(ModuleNotFoundError, match=r"'pygame' package must be installed in order to use the PyDiamond engine"):
-            import pydiamond
-
-            del pydiamond
-
-    def test____import____raise_error_for_incompatible_python_version(self, mocker: MockerFixture) -> None:
-        mocker.patch("sys.version_info", MockVersionInfo(3, 9, 5, "final", 0))
-
-        with pytest.raises(ImportError, match=r"This framework must be run with python >= 3\.10 \(actual=3\.9\.5\)"):
             import pydiamond
 
             del pydiamond

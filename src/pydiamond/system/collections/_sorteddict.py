@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -10,9 +9,9 @@ __all__ = ["SortedDict", "SortedDictItemsView", "SortedDictKeysView", "SortedDic
 
 import reprlib
 from bisect import insort_right as insort
-from collections.abc import ItemsView, KeysView, Reversible, ValuesView
+from collections.abc import ItemsView, Iterator, KeysView, Reversible, ValuesView
 from copy import deepcopy
-from typing import Any, Iterator
+from typing import Any
 
 
 class SortedDictKeysView(KeysView, Reversible):  # type: ignore[type-arg]

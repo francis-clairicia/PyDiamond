@@ -1,15 +1,13 @@
-# -*- coding: Utf-8 -*-
-
 from __future__ import annotations
 
+from collections.abc import Callable
 from types import MethodType
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Literal, assert_never
 from weakref import WeakMethod
 
 from pydiamond.system.utils.functools import make_callback
 
 import pytest
-from typing_extensions import assert_never
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -187,7 +185,7 @@ class TestMakeCallback:
     def test____make_callback____weak_method____weakref_object(self, callback_stub: MagicMock) -> None:
         # Arrange
         dummy = Dummy()
-        weak_method = WeakMethod(MethodType(callback_stub, dummy))
+        weak_method: Any = WeakMethod(MethodType(callback_stub, dummy))
         other_dummy = Dummy()
 
         # Act
@@ -203,7 +201,7 @@ class TestMakeCallback:
         # Arrange
         dummy = Dummy()
         other_dummy = Dummy()
-        weak_method = WeakMethod(MethodType(callback_stub, dummy))
+        weak_method: Any = WeakMethod(MethodType(callback_stub, dummy))
         _ = make_callback(weak_method, other_dummy, weakref_callback=weakref_callback_stub)
 
         # Act
@@ -219,7 +217,7 @@ class TestMakeCallback:
         # Arrange
         dummy = Dummy()
         other_dummy = Dummy()
-        weak_method = WeakMethod(MethodType(callback_stub, dummy))
+        weak_method: Any = WeakMethod(MethodType(callback_stub, dummy))
         callback: Callable[..., Any] = make_callback(weak_method, other_dummy)
 
         # Act & Assert
@@ -244,7 +242,7 @@ class TestMakeCallback:
         # Arrange
         dummy = Dummy()
         other_dummy = Dummy()
-        weak_method = WeakMethod(MethodType(callback_stub, dummy))
+        weak_method: Any = WeakMethod(MethodType(callback_stub, dummy))
 
         class MyCustomException(Exception):
             pass
@@ -275,7 +273,7 @@ class TestMakeCallback:
         # Arrange
         dummy = Dummy()
         other_dummy = Dummy()
-        weak_method = WeakMethod(MethodType(callback_stub, dummy))
+        weak_method: Any = WeakMethod(MethodType(callback_stub, dummy))
         deadred_return_value = mocker.sentinel.deadref_return_value
 
         callback: Callable[..., Any] = make_callback(weak_method, other_dummy, deadref_value_return=deadred_return_value)

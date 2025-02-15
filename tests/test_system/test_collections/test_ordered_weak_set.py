@@ -1,5 +1,3 @@
-# -*- coding: Utf-8 -*-
-
 from __future__ import annotations
 
 from pydiamond.system.collections import OrderedWeakSet

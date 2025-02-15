@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -17,8 +16,6 @@ import typing
 import warnings
 from abc import ABCMeta, abstractmethod
 from enum import IntEnum, auto, unique
-
-import typing_extensions
 
 
 class PyDiamondPatchWarning(UserWarning):
@@ -64,7 +61,7 @@ class BasePatch(metaclass=PatchMeta):
         return PatchContext.BEFORE_ALL
 
     @classmethod
-    @typing_extensions.final
+    @typing.final
     def enabled(cls) -> bool:
         if RequiredPatch in cls.__bases__:
             return True
@@ -102,7 +99,7 @@ def __read_environment() -> None:
     for patch_path in set(filter(None, (name.strip() for name in patch_disable_value.split(":")))):
         if match := re.match(r"context\[\s*(?P<contexts>\w+(?:\s*,\s*\w+)*)\s*\]", patch_path):
             contexts: set[str] = set(filter(None, (name.strip().upper() for name in match.group("contexts").split(","))))
-            valid_contexts = set(name for name in contexts if name in PatchContext._member_map_)
+            valid_contexts = {name for name in contexts if name in PatchContext._member_map_}
             if unknown_contexts := contexts - valid_contexts:
                 for context in unknown_contexts:
                     invalid_patches[f"context[{context!r}]"] = "Unknown patch context"

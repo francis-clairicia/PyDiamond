@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -9,9 +8,8 @@ from __future__ import annotations
 __all__ = ["Transformable"]
 
 from abc import abstractmethod
-from typing import Any, Literal, Mapping, overload
-
-from typing_extensions import assert_never, final
+from collections.abc import Mapping
+from typing import Any, Literal, assert_never, final, overload
 
 from ..math import Rect, Vector2, compute_rect_from_vertices, compute_size_from_vertices, normalize_points, rotate_points
 from ..math.rect import modify_rect_in_place, move_rect_in_place

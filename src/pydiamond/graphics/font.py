@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -15,13 +14,13 @@ __all__ = [
 
 
 import os
+from collections.abc import Iterable
 from enum import IntFlag, auto, unique
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Iterable, NamedTuple, TypeAlias, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Final, NamedTuple, TypeAlias, final, overload
 
 import pygame.freetype as _pg_freetype
 import pygame.sysfont as _pg_sysfont
 from pygame import encode_file_path
-from typing_extensions import final
 
 from ..math.rect import Rect, move_rect_in_place
 from ..resources.abc import Resource

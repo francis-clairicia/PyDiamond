@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -8,7 +7,8 @@ from __future__ import annotations
 
 __all__ = ["weakref_unwrap"]
 
-from typing import Any, Callable, TypeVar, overload
+from collections.abc import Callable
+from typing import Any, TypeVar, overload
 from weakref import ReferenceType, WeakMethod
 
 _T = TypeVar("_T")
