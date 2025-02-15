@@ -75,9 +75,7 @@ from pydiamond.window.event import (
     MouseButtonEvent,
     MouseButtonUpEvent,
     MouseMotionEvent,
-    MusicEndEvent,
     NamespaceEventModel,
-    ScreenshotEvent,
 )
 from pydiamond.window.keyboard import Key, Keyboard
 from pydiamond.window.mouse import Mouse, MouseButton
@@ -1194,7 +1192,6 @@ class VolumeScaleBar(ScaleBar):
 class AudioScene(MainScene):
     def __init__(self) -> None:
         super().__init__()
-        self.event.bind(MusicEndEvent, lambda event: print(event) or True)
         self.event.bind_key_press(Key.K_F2, lambda _: MusicStream.fadeout(1000))
 
     @classmethod
@@ -1656,6 +1653,17 @@ class TextFramerate(Text, no_theme=True):
         self.__refresh_rate = max(int(value), 0)
 
 
+class ScreenshotEvent(NamespaceEventModel):
+    def __init__(self, file: str) -> None:
+        super().__init__()
+        self.file: str = file
+
+    def get_image(self) -> Surface:
+        from pydiamond.graphics.surface import load_image
+
+        return load_image(self.file)
+
+
 class MainWindow(SceneWindow):
     all_scenes: ClassVar[list[type[Scene]]] = [
         ShapeScene,
@@ -1716,7 +1724,7 @@ class MainWindow(SceneWindow):
         self.next_button.topright = self.right - 10, self.top + 10
 
         self.event.bind_key_press(Key.K_F5, lambda _: gc.collect())
-        self.event.bind_key_release(Key.K_F11, lambda _: self.take_screenshot())
+        self.event.bind_key_release(Key.K_F11, lambda _: self.take_screenshot(ScreenshotEvent))
         self.event.bind(ScreenshotEvent, self.__show_screenshot)
         self.screenshot_image: Image | None = None
         self.screenshot_callback: WindowCallback | None = None

@@ -30,33 +30,27 @@ class PygamePatch(RequiredPatch):
         import pygame._sdl2.controller as controller
         import pygame.display as display
         import pygame.event as event
-        from pygame.mixer import music
 
         self.display = display
         self.event = event
-        self.music = music
         self.controller = controller
 
     def teardown(self) -> None:
-        del self.event, self.music, self.display, self.controller
+        del self.event, self.display, self.controller
 
         return super().teardown()
 
     def run(self) -> None:
         from pygame.constants import WINDOWCLOSE
 
-        if not self._music_set_endevent_patched():
-            self.music.set_endevent(self.event.custom_type())
-            setattr(self.music, "set_endevent", self._make_music_set_endevent_wrapper())
-
         if not self._event_name_patched():
             setattr(self.event, "event_name", self._make_event_name_wrapper())
 
         if not self._event_set_blocked_patched():
-            setattr(self.event, "set_blocked", self._make_event_set_blocked_wrapper(WINDOWCLOSE, self.music.get_endevent()))
+            setattr(self.event, "set_blocked", self._make_event_set_blocked_wrapper(WINDOWCLOSE))
 
         if not self._event_post_patched():
-            setattr(self.event, "post", self._make_event_post_wrapper(WINDOWCLOSE, self.music.get_endevent()))
+            setattr(self.event, "post", self._make_event_post_wrapper(WINDOWCLOSE))
 
         if not self._controller_patched():
             setattr(self.controller, "Controller", self._make_controller_subclass())
@@ -65,12 +59,6 @@ class PygamePatch(RequiredPatch):
         return bool(
             not isinstance(self.event.set_blocked, BuiltinFunctionType)
             and getattr(self.event.set_blocked, "__set_blocked_wrapper__", False)
-        )
-
-    def _music_set_endevent_patched(self) -> bool:
-        return bool(
-            not isinstance(self.music.set_endevent, BuiltinFunctionType)
-            and getattr(self.music.set_endevent, "__set_endevent_wrapper__", False)
         )
 
     def _event_name_patched(self) -> bool:
@@ -85,17 +73,6 @@ class PygamePatch(RequiredPatch):
 
     def _controller_patched(self) -> bool:
         return bool(getattr(self.controller.Controller, "__pydiamond_patch__", False))
-
-    def _make_music_set_endevent_wrapper(self) -> Callable[[int], None]:
-        _orig_pg_music_set_endevent = self.music.set_endevent
-
-        @wraps(_orig_pg_music_set_endevent)
-        def patch_set_endevent(event_type: int) -> None:
-            func_qualname = _orig_pg_music_set_endevent.__qualname__
-            raise TypeError(f"Call to function {func_qualname} is forbidden")
-
-        setattr(patch_set_endevent, "__set_endevent_wrapper__", True)
-        return patch_set_endevent
 
     def _make_event_name_wrapper(self) -> Callable[[int], str]:
         _orig_pg_event_name = self.event.event_name

@@ -559,14 +559,3 @@ class TestMusicStreamFunctional:
         assert MusicStream.get_music() is None
         assert MusicStream.get_queue() == []
         assert MusicStream.get_playlist() == []
-
-
-@pytest.mark.functional
-class TestPygameMixerMusicModuleAlteration:
-    def test____get_endevent____returns_custom_userevent(self) -> None:
-        assert pygame.mixer.music.get_endevent() != pygame.NOEVENT
-        assert pygame.USEREVENT < pygame.mixer.music.get_endevent() < pygame.NUMEVENTS
-
-    def test____set_endevent____cannot_be_called_anymore(self) -> None:
-        with pytest.raises(TypeError, match=r"Call to function [\w\.]+ is forbidden"):
-            pygame.mixer.music.set_endevent(pygame.NOEVENT)

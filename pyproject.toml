@@ -61,10 +61,10 @@ flake8 = [
   "git+https://github.com/francis-clairicia/flake8-dunder-all.git@v0.1.0",
 ]
 test = [
-  "pytest~=7.2",
-  "pytest-mock~=3.10.0",
-  "pytest-xdist~=3.0.1",
-  "pytest-cov>=4.0,<5",
+  "pytest~=8.3",
+  "pytest-mock~=3.10",
+  "pytest-xdist~=3.3",
+  "pytest-cov~=6.0",
 ]
 coverage = [
   "coverage~=7.0",
@@ -133,6 +133,7 @@ strict_equality = true
 enable_error_code = ["truthy-bool", "ignore-without-code"]
 
 [tool.pytest.ini_options]
+addopts = "--dist=worksteal"
 minversion = "7.1.2"
 testpaths = ["tests"]
 markers = [

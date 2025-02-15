@@ -8,9 +8,8 @@ from __future__ import annotations
 __all__ = ["AutoLowerNameEnum", "AutoUpperNameEnum", "StrEnum"]
 
 import enum
-import sys
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from ..object import ObjectMeta
 

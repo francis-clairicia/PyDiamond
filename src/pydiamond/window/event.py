@@ -34,12 +34,10 @@ __all__ = [
     "MouseEvent",
     "MouseMotionEvent",
     "MouseWheelEvent",
-    "MusicEndEvent",
     "NamespaceEventModel",
     "NoDataEventModel",
     "PygameConvertedEventBlocked",
     "PygameEventConversionError",
-    "ScreenshotEvent",
     "TextEditingEvent",
     "TextInputEvent",
     "UnknownEventTypeError",
@@ -87,7 +85,6 @@ from typing import (
 
 import pygame.constants as _pg_constants
 import pygame.event as _pg_event
-from pygame.mixer import music as _pg_music
 
 from ..system.collections import OrderedSet, WeakKeyDefaultDictionary
 from ..system.namespace import ClassNamespaceMeta
@@ -95,10 +92,6 @@ from ..system.object import Object, ObjectMeta
 from ..system.utils.abc import isabstractclass
 from ..system.utils.weakref import weakref_unwrap
 from .controller import ControllerAxis, ControllerButton
-
-if TYPE_CHECKING:
-    from ..audio.music import Music
-    from ..graphics.surface import Surface
 
 _P = ParamSpec("_P")
 _T = TypeVar("_T")
@@ -351,10 +344,6 @@ class BuiltinEventType(IntEnum):
     CONTROLLERDEVICEADDED = auto()
     CONTROLLERDEVICEREMOVED = auto()
     CONTROLLERDEVICEREMAPPED = auto()
-
-    # PyDiamond's events
-    MUSICEND = _pg_music.get_endevent()
-    SCREENSHOT = _pg_event.custom_type()
 
     def __repr__(self) -> str:
         return f"<{self.name} ({self.pygame_name}): {self.value}>"
@@ -809,24 +798,6 @@ class ControllerDeviceRemappedEvent(
     event_type=BuiltinEventType.CONTROLLERDEVICEREMAPPED,
 ):
     instance_id: int
-
-
-@final
-@dataclass(kw_only=True)
-class MusicEndEvent(BuiltinEvent, event_type=BuiltinEventType.MUSICEND, event_name="MusicEnd", non_blockable=True):
-    finished: Music
-    next: Music | None = None
-
-
-@final
-@dataclass(kw_only=True)
-class ScreenshotEvent(BuiltinEvent, event_type=BuiltinEventType.SCREENSHOT, event_name="Screenshot"):
-    file: str
-
-    def get_image(self) -> Surface:
-        from ..graphics.surface import load_image
-
-        return load_image(self.file)
 
 
 def __check_event_types_association() -> None:

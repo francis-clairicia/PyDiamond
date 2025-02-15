@@ -64,7 +64,7 @@ from ..system.utils.contextlib import ExitStackView
 from ..system.utils.functools import wraps
 from .controller import Controller
 from .cursor import Cursor
-from .event import Event, EventFactory, EventFactoryError, ScreenshotEvent, UnknownEventTypeError
+from .event import Event, EventFactory, EventFactoryError, UnknownEventTypeError
 from .keyboard import Keyboard
 from .mouse import Mouse
 
@@ -421,11 +421,11 @@ class Window(Object, no_slots=True):
         for target in targets:
             target.draw_onto(renderer)
 
-    def take_screenshot(self) -> None:
-        self.__screenshot_threads.append(self.__screenshot_thread())
+    def take_screenshot(self, screenshot_done_event: Callable[[str], Event] | None = None) -> None:
+        self.__screenshot_threads.append(self.__screenshot_thread(screenshot_done_event))
 
     @thread_factory_method(global_lock=True, shared_lock=True)
-    def __screenshot_thread(self) -> None:
+    def __screenshot_thread(self, screenshot_done_event: Callable[[str], Event] | None) -> None:
         renderer = self.__display_renderer
         if renderer is None:
             raise WindowError("No active renderer")
@@ -452,7 +452,8 @@ class Window(Object, no_slots=True):
         except ConstantFileNotFoundError as exc:
             file = str(exc.filename)
         save_image(screen, file)
-        self.post_event(ScreenshotEvent(file=file))
+        if callable(screenshot_done_event):
+            self.post_event(screenshot_done_event(file))
 
     def get_screenshot_filename_format(self) -> str:
         return "Screenshot_%Y-%m-%d_%H-%M-%S"

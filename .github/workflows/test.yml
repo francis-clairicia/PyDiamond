@@ -54,9 +54,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Python ${{ matrix.python_version }}
-        id: setup-python
-        uses: actions/setup-python@v5
       - name: Setup tox
         uses: ./.github/actions/setup-tox
         with:
