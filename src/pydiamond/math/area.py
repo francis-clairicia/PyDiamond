@@ -1,6 +1,3 @@
-# -*- coding: Utf-8 -*-
-
-
 from __future__ import annotations
 
 __all__ = [
@@ -12,7 +9,8 @@ __all__ = [
     "rotate_points",
 ]
 
-from typing import Sequence, TypeAlias
+from collections.abc import Sequence
+from typing import TypeAlias
 
 from .rect import Rect
 from .vector2 import Vector2

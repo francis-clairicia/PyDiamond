@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -8,8 +7,9 @@ from __future__ import annotations
 
 __all__ = ["Entry"]
 
+from collections.abc import Callable, Sequence
 from string import printable as ASCII_PRINTABLE
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Literal, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 from weakref import WeakMethod
 
 from ...graphics.color import BLACK, BLUE, TRANSPARENT, WHITE, Color

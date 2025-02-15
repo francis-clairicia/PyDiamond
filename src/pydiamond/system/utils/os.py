@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -9,7 +8,8 @@ from __future__ import annotations
 __all__ = ["fork", "has_fork", "register_at_fork_if_supported"]
 
 import os
-from typing import Any, Callable, overload
+from collections.abc import Callable
+from typing import Any, overload
 
 _NO_DEFAULT: Any = object()
 

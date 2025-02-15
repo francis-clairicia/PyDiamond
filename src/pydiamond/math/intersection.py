@@ -1,5 +1,3 @@
-# -*- coding: Utf-8 -*-
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -15,7 +13,8 @@ from __future__ import annotations
 __all__ = ["do_intersect", "is_inside_polygon", "on_segment", "orientation"]
 
 import sys
-from typing import Literal, Sequence, TypeAlias
+from collections.abc import Sequence
+from typing import Literal, TypeAlias
 
 from .vector2 import Vector2
 

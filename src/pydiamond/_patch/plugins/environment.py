@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -8,8 +7,9 @@ from __future__ import annotations
 
 __all__ = []  # type: list[str]
 
+from collections.abc import MutableMapping, Sequence
 from types import MappingProxyType
-from typing import Final, MutableMapping, Sequence, overload
+from typing import Final, overload
 
 from .._base import BasePatch, PatchContext
 

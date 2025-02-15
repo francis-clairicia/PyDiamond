@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -8,10 +7,11 @@ from __future__ import annotations
 
 __all__ = ["AbstractScrollableWidget", "ScrollBar", "ScrollingContainer"]
 
+from collections.abc import Callable, Sequence
 from enum import auto, unique
 from functools import reduce
 from itertools import takewhile
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Literal, Protocol, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol
 from weakref import WeakMethod
 
 from ...graphics.color import BLACK, GRAY, TRANSPARENT, WHITE, Color

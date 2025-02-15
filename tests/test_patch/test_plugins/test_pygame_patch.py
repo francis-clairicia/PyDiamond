@@ -1,8 +1,7 @@
-# -*- coding: Utf-8 -*-
-
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterator
+from collections.abc import Iterator
+from typing import TYPE_CHECKING, Any
 
 from pydiamond._patch.plugins.pygame_patch import PygamePatch
 

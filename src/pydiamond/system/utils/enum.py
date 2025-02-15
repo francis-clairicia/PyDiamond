@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -10,24 +9,10 @@ __all__ = ["AutoLowerNameEnum", "AutoUpperNameEnum", "StrEnum"]
 
 import enum
 import sys
+from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
 from ..object import ObjectMeta
-
-if sys.version_info < (3, 11):
-    if TYPE_CHECKING:
-        from _typeshed import Self
-
-    class StrEnum(str, enum.Enum):
-        if TYPE_CHECKING:
-
-            def __new__(cls: type[Self], value: str | Self) -> Self: ...
-
-            @property
-            def value(self) -> str: ...
-
-else:
-    from enum import StrEnum
 
 
 class AutoLowerNameEnum(StrEnum):

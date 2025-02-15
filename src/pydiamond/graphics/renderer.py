@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -9,9 +8,10 @@ from __future__ import annotations
 __all__ = ["AbstractRenderer", "RendererView"]
 
 from abc import abstractmethod
+from collections.abc import Iterable, Sequence
 from enum import IntEnum, auto, unique
 from itertools import starmap
-from typing import TYPE_CHECKING, Any, ContextManager, Iterable, Literal, Sequence, TypeAlias, overload
+from typing import TYPE_CHECKING, Any, ContextManager, Literal, TypeAlias, overload
 
 import pygame.constants as _pg_constants
 

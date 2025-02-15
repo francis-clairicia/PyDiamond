@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -8,8 +7,9 @@ from __future__ import annotations
 
 __all__ = ["Button", "ImageButton"]
 
+from collections.abc import Callable, Sequence
 from enum import auto, unique
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, Sequence, TypeAlias, TypedDict, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Literal, TypeAlias, TypedDict, overload
 
 from ...graphics.color import BLACK, BLUE, GRAY, GRAY_DARK, GRAY_LIGHT, TRANSPARENT, WHITE, Color
 from ...graphics.image import Image

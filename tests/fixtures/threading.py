@@ -1,10 +1,8 @@
-# -*- coding: Utf-8 -*-
-
-
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Iterator
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from threading import ExceptHookArgs

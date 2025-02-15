@@ -1,5 +1,3 @@
-# -*- coding: Utf-8 -*-
-
 from __future__ import annotations
 
 import re
@@ -34,7 +32,7 @@ def unload_module(module_name: str, include_submodules: bool, monkeypatch: Monke
 
     monkeypatch.delitem(sys.modules, module_name, raising=False)
     if include_submodules:
-        pattern = r"{}(?:\.\w+)+".format(module_name)
+        pattern = rf"{module_name}(?:\.\w+)+"
         for module in filter(partial(re.fullmatch, pattern), tuple(sys.modules)):
             monkeypatch.delitem(sys.modules, module, raising=False)
 
@@ -45,7 +43,7 @@ def mock_module(module_name: str, mocker: MockerFixture) -> MagicMock:
 
     import sys
 
-    pattern = r"{}(?:\.\w+)*".format(module_name)
+    pattern = rf"{module_name}(?:\.\w+)*"
     new_modules_dict: dict[str, MagicMock] = {
         module: mocker.MagicMock(spec=import_module(module))
         for module in filter(partial(re.fullmatch, pattern), tuple(sys.modules))

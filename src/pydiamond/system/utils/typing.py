@@ -1,10 +1,9 @@
-# -*- coding: Utf-8 -*-
-
 from __future__ import annotations
 
 __all__ = ["reflect_signature"]
 
-from typing import Any, Callable, Concatenate, ParamSpec, TypeVar
+from collections.abc import Callable
+from typing import Any, Concatenate, ParamSpec, TypeVar
 
 _P = ParamSpec("_P")
 _AnyP = ParamSpec("_AnyP")

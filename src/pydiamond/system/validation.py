@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -14,7 +13,8 @@ __all__ = [
     "valid_sequence",
 ]
 
-from typing import Any, Callable, Sequence, TypeAlias, TypeVar, overload
+from collections.abc import Callable, Sequence
+from typing import Any, TypeAlias, TypeVar, overload
 
 from .utils.functools import cache
 

@@ -1,10 +1,9 @@
-# -*- coding: Utf-8 -*-
-
 from __future__ import annotations
 
+from collections.abc import Callable, Iterator
 from copy import copy, deepcopy
 from io import IOBase
-from typing import TYPE_CHECKING, Any, Callable, Iterator
+from typing import TYPE_CHECKING, Any
 
 from pydiamond.audio.music import Music, MusicStream
 from pydiamond.resources.abc import Resource

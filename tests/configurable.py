@@ -1,10 +1,9 @@
-# -*- coding: Utf-8 -*-
-
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
 from time import monotonic as time
-from typing import Any, ClassVar, Iterator
+from typing import Any, ClassVar
 
 from pydiamond.system.configuration import ConfigurationTemplate, OptionAttribute, initializer
 

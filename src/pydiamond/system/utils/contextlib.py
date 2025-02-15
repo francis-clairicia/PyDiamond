@@ -1,12 +1,11 @@
-# -*- coding: Utf-8 -*-
-
 from __future__ import annotations
 
 __all__ = ["ExitStackView", "dsuppress"]
 
 import contextlib
+from collections.abc import Callable
 from types import TracebackType
-from typing import Any, Callable, ParamSpec, TypeAlias, TypeVar
+from typing import Any, ParamSpec, TypeAlias, TypeVar
 
 _P = ParamSpec("_P")
 _T = TypeVar("_T")

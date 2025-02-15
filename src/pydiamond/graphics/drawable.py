@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -17,8 +16,9 @@ __all__ = [
 from abc import abstractmethod
 from bisect import insort_left, insort_right
 from collections import deque
+from collections.abc import Iterator, Sequence
 from itertools import dropwhile, filterfalse, islice, takewhile
-from typing import TYPE_CHECKING, Any, Generic, Iterator, Protocol, Sequence, SupportsIndex, TypeVar, overload, runtime_checkable
+from typing import TYPE_CHECKING, Any, Generic, Protocol, SupportsIndex, TypeVar, overload, runtime_checkable
 from weakref import WeakKeyDictionary, WeakSet
 
 from ..system.object import Object

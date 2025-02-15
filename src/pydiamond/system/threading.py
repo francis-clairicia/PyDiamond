@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -10,7 +9,8 @@ __all__ = ["Thread", "thread_factory", "thread_factory_method"]
 
 import ctypes
 import threading
-from typing import TYPE_CHECKING, Any, Callable, Concatenate, Final, Generic, ParamSpec, Sequence, TypeVar, overload
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any, Concatenate, Final, Generic, ParamSpec, TypeVar, overload
 from weakref import WeakKeyDictionary
 
 from .object import Object

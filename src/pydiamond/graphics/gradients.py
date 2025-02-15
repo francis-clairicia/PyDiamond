@@ -1,4 +1,3 @@
-# -*- coding: Utf-8 -*-
 # Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
 #
 #
@@ -17,8 +16,9 @@ __all__ = [
     "VerticalMultiColorShape",
 ]
 
+from collections.abc import Callable, Sequence
 from itertools import pairwise
-from typing import Any, Callable, ClassVar, Sequence
+from typing import Any, ClassVar
 
 from pygame.transform import rotate as _surface_rotate, smoothscale as _surface_scale
 
