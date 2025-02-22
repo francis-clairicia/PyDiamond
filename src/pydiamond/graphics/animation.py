@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
+# Copyright (c) 2021-2025, Francis Clairicia-Rose-Claire-Josephine
 #
 #
 """Animation module"""
@@ -11,18 +11,7 @@ from abc import ABCMeta, abstractmethod
 from collections.abc import Callable, Iterator
 from contextlib import ExitStack, contextmanager
 from types import MappingProxyType
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Final,
-    Literal,
-    NamedTuple,
-    Protocol,
-    TypeAlias,
-    TypeVar,
-    final,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, Final, Literal, NamedTuple, Protocol, TypeAlias, TypeVar, final, overload
 from weakref import WeakKeyDictionary, ref as weakref
 
 from ..math import Vector2, angle_interpolation, linear_interpolation

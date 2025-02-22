@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
+# Copyright (c) 2021-2025, Francis Clairicia-Rose-Claire-Josephine
 #
 #
 """Widgets module"""
@@ -16,19 +16,7 @@ from collections.abc import Callable, Iterator
 from enum import auto, unique
 from itertools import takewhile
 from types import MappingProxyType
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    ClassVar,
-    Final,
-    Literal,
-    TypeGuard,
-    TypeVar,
-    assert_never,
-    cast,
-    final,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Literal, TypeGuard, TypeVar, assert_never, cast, final, overload
 from weakref import WeakMethod, WeakSet, WeakValueDictionary, ref as weakref
 
 from ...audio.sound import Sound

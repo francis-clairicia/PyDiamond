@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
+# Copyright (c) 2021-2025, Francis Clairicia-Rose-Claire-Josephine
 #
 #
 """Themed objects module"""
@@ -30,18 +30,7 @@ from itertools import chain
 from re import Match, Pattern, compile as re_compile
 from threading import RLock
 from types import FunctionType, LambdaType, MappingProxyType
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    ClassVar,
-    ContextManager,
-    Final,
-    NamedTuple,
-    TypeAlias,
-    TypeVar,
-    final,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, ClassVar, ContextManager, Final, NamedTuple, TypeAlias, TypeVar, final, overload
 
 from .object import Object, ObjectMeta, mro
 from .utils._mangling import getattr_pv

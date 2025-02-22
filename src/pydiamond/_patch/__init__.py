@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
+# Copyright (c) 2021-2025, Francis Clairicia-Rose-Claire-Josephine
 #
 #
 """PyDiamond's patch system module

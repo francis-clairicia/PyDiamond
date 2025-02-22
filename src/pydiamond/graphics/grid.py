@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
+# Copyright (c) 2021-2025, Francis Clairicia-Rose-Claire-Josephine
 #
 #
 """Grid module"""
@@ -12,17 +12,7 @@ from collections.abc import Container, Iterator, Sequence
 from dataclasses import dataclass
 from enum import auto, unique
 from itertools import takewhile
-from typing import (
-    Any,
-    ClassVar,
-    Protocol,
-    SupportsIndex,
-    TypeVar,
-    assert_never,
-    final,
-    overload,
-    runtime_checkable,
-)
+from typing import Any, ClassVar, Protocol, SupportsIndex, TypeVar, assert_never, final, overload, runtime_checkable
 from weakref import ref as weakref
 
 from ..math.rect import Rect, modify_rect_in_place

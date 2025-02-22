@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine
+# Copyright (c) 2021-2025, Francis Clairicia-Rose-Claire-Josephine
 #
 #
 """pygame-based game engine
@@ -23,7 +23,7 @@ __all__ = []  # type: list[str]
 
 __author__ = "FrankySnow9"
 __contact__ = "clairicia.rcj.francis@gmail.com"
-__copyright__ = "Copyright (c) 2021-2023, Francis Clairicia-Rose-Claire-Josephine"
+__copyright__ = "Copyright (c) 2021-2025, Francis Clairicia-Rose-Claire-Josephine"
 __credits__ = ["FrankySnow9"]
 __deprecated__ = False
 __email__ = "clairicia.rcj.francis@gmail.com"
