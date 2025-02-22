@@ -141,10 +141,11 @@ class TestDrawable:
         mock_drawable_group.add.side_effect = UnboundLocalError  # Why not ?
 
         # Act
-        with pytest.raises(UnboundLocalError):
+        with pytest.raises(ExceptionGroup) as exc_info:
             drawable.add_to_group(mock_drawable_group)
 
         # Assert
+        assert exc_info.group_contains(UnboundLocalError)
         mock_drawable_group.add.assert_called_once_with(drawable)
         assert drawable.has_group(mock_drawable_group) is added_in_group
 
@@ -177,9 +178,8 @@ class TestDrawable:
         # Arrange
 
         # Act & Assert
-        with pytest.raises(ValueError, match=r"Failed to remove from several groups") as exc_info:
+        with pytest.raises(ExceptionGroup, match=r"Failed to remove from several groups"):
             drawable.remove_from_group(mock_drawable_group)
-        assert exc_info.value.args[1] == [mock_drawable_group]
 
     @pytest.mark.usefixtures("add_mock_list_to_group")
     @pytest.mark.parametrize("removed_from_group", [True, False], ids=lambda b: f"removed_from_group=={b}")
@@ -194,9 +194,9 @@ class TestDrawable:
             mock_drawable_group.remove.side_effect = UnboundLocalError
 
         # Act & Assert
-        with pytest.raises(ValueError, match=r"Failed to remove from several groups") as exc_info:
+        with pytest.raises(ExceptionGroup, match=r"Failed to remove from several groups") as exc_info:
             drawable.remove_from_group(*mock_drawable_group_list)
-        assert exc_info.value.args[1] == invalid_groups
+        assert exc_info.group_contains(UnboundLocalError)
         if not removed_from_group:
             assert all(drawable.has_group(g) for g in invalid_groups)
         else:
@@ -225,12 +225,12 @@ class TestDrawable:
         invalid_groups = [g for i, g in enumerate(mock_drawable_group_list) if i % 2 == 1]
         for mock_drawable_group in invalid_groups:
             mock_drawable_group.__contains__.side_effect = [True, not removed_from_group]
-            mock_drawable_group.remove.side_effect = UnboundLocalError
+            mock_drawable_group.remove.side_effect = UnboundLocalError()
 
         # Act & Assert
-        with pytest.raises(ValueError, match=r"Failed to remove from several groups") as exc_info:
+        with pytest.raises(ExceptionGroup, match=r"Failed to remove from several groups") as exc_info:
             drawable.kill()
-        assert sorted(exc_info.value.args[1], key=id) == sorted(invalid_groups, key=id)
+        assert exc_info.group_contains(UnboundLocalError)
         if not removed_from_group:
             assert all(drawable.has_group(g) for g in invalid_groups)
         else:
@@ -543,10 +543,11 @@ class TestCommonDrawableGroup:
         mock_drawable.add_to_group.side_effect = UnboundLocalError
 
         # Act
-        with pytest.raises(UnboundLocalError):
+        with pytest.raises(ExceptionGroup) as exc_info:
             drawable_group.add(mock_drawable)
 
         # Assert
+        assert exc_info.group_contains(UnboundLocalError)
         mock_drawable.add_to_group.assert_called_once_with(drawable_group)
         assert drawable_group.data.count(mock_drawable) == (1 if added_in_group else 0)
 
@@ -579,9 +580,9 @@ class TestCommonDrawableGroup:
         # Arrange
 
         # Act & Assert
-        with pytest.raises(ValueError, match=r"Failed to remove self from several objects") as exc_info:
+        with pytest.raises(ExceptionGroup, match=r"Failed to remove self from several objects") as exc_info:
             drawable_group.remove(mock_drawable)
-        assert exc_info.value.args[1] == [mock_drawable]
+        assert exc_info.group_contains(ValueError)
 
     @pytest.mark.usefixtures("add_mock_list_to_group")
     @pytest.mark.parametrize("removed_from_group", [True, False], ids=lambda b: f"removed_from_group=={b}")
@@ -596,9 +597,9 @@ class TestCommonDrawableGroup:
             mock_drawable.remove_from_group.side_effect = UnboundLocalError
 
         # Act & Assert
-        with pytest.raises(ValueError, match=r"Failed to remove self from several objects") as exc_info:
+        with pytest.raises(ExceptionGroup, match=r"Failed to remove self from several objects") as exc_info:
             drawable_group.remove(*mock_drawable_list)
-        assert exc_info.value.args[1] == invalid_objects
+        assert exc_info.group_contains(UnboundLocalError)
         if not removed_from_group:
             assert all(d in drawable_group.data for d in invalid_objects)
         else:
@@ -696,9 +697,9 @@ class TestCommonDrawableGroup:
             mock_drawable.remove_from_group.side_effect = UnboundLocalError
 
         # Act & Assert
-        with pytest.raises(ValueError, match=r"Failed to remove self from several objects") as exc_info:
+        with pytest.raises(ExceptionGroup, match=r"Failed to remove self from several objects") as exc_info:
             drawable_group.clear()
-        assert exc_info.value.args[1] == invalid_objects
+        assert exc_info.group_contains(UnboundLocalError)
         if not removed_from_group:
             assert all(d in drawable_group.data for d in invalid_objects)
         else:

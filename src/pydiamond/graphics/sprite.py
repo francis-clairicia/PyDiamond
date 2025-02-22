@@ -11,7 +11,7 @@ from collections import deque
 from collections.abc import Iterable, Iterator, Mapping
 from functools import cached_property
 from itertools import combinations
-from typing import TYPE_CHECKING, Any, Final, TypeVar, final, overload
+from typing import TYPE_CHECKING, Any, Final, Self, final, overload
 
 from pygame.mask import Mask, from_surface as _pg_mask_from_surface
 from pygame.transform import rotozoom as _surface_rotozoom
@@ -50,8 +50,6 @@ class _SpriteTransformAnimation(cached_property[TransformAnimation], Object):
 
 
 class Sprite(Drawable, Transformable):
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="Sprite")
 
     DEFAULT_MASK_THRESHOLD: Final[int] = 127
 
@@ -104,19 +102,19 @@ class Sprite(Drawable, Transformable):
 
     @classmethod
     def from_iterable(
-        cls: type[__Self],
+        cls: type[Self],
         iterable: Iterable[Surface],
         *,
         mask_threshold: int = DEFAULT_MASK_THRESHOLD,
         width: float | None = None,
         height: float | None = None,
         **kwargs: Any,
-    ) -> __Self:
+    ) -> Self:
         return cls(*iterable, mask_threshold=mask_threshold, width=width, height=height, **kwargs)
 
     @classmethod
     def from_spritesheet(
-        cls: type[__Self],
+        cls: type[Self],
         img: Surface,
         rect_list: Iterable[Rect],
         *,
@@ -124,7 +122,7 @@ class Sprite(Drawable, Transformable):
         width: float | None = None,
         height: float | None = None,
         **kwargs: Any,
-    ) -> __Self:
+    ) -> Self:
         return cls.from_iterable(
             (img.subsurface(rect) for rect in rect_list),
             mask_threshold=mask_threshold,
@@ -264,10 +262,7 @@ class Sprite(Drawable, Transformable):
         self.__wait_time = max(float(value), 0)
 
 
-_S = TypeVar("_S", bound=Sprite)
-
-
-class SpriteGroup(DrawableGroup[_S]):
+class SpriteGroup[_S: Sprite](DrawableGroup[_S]):
     __slots__ = ()
 
     def draw_onto(self, target: AbstractRenderer) -> None:
@@ -335,7 +330,7 @@ class SpriteGroup(DrawableGroup[_S]):
         return list(crashed)
 
 
-class LayeredSpriteGroup(LayeredDrawableGroup[_S], SpriteGroup[_S]):
+class LayeredSpriteGroup[_S: Sprite](LayeredDrawableGroup[_S], SpriteGroup[_S]):
     __slots__ = ()
 
     def __init__(self, *objects: _S, default_layer: int = 0, **kwargs: Any) -> None:

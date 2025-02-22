@@ -16,7 +16,7 @@ from collections.abc import Callable, Iterator
 from enum import auto, unique
 from itertools import takewhile
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Literal, TypeGuard, TypeVar, assert_never, cast, final, overload
+from typing import Any, ClassVar, Final, Literal, Self, TypeGuard, assert_never, cast, final, overload
 from weakref import WeakMethod, WeakSet, WeakValueDictionary, ref as weakref
 
 from ...audio.sound import Sound
@@ -71,9 +71,6 @@ def __prepare_abstract_widget(mcs: Any, name: str, bases: tuple[type, ...], name
 class AbstractWidget(Drawable, Movable, prepare_namespace=__prepare_abstract_widget):
     __take_children: ClassVar[bool] = True
 
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="AbstractWidget")
-
     def __init_subclass__(cls, *, children: bool | None = None, **kwargs: Any) -> None:
         if children is not None:
             cls.__take_children = bool(children)
@@ -92,13 +89,13 @@ class AbstractWidget(Drawable, Movable, prepare_namespace=__prepare_abstract_wid
     @classmethod
     @final
     def _draw_decorator(
-        cls: type[__Self],
-        func: Callable[[__Self, AbstractRenderer], None],
-    ) -> Callable[[__Self, AbstractRenderer], None]:
+        cls: type[Self],
+        func: Callable[[Self, AbstractRenderer], None],
+    ) -> Callable[[Self, AbstractRenderer], None]:
         from ._renderer import WidgetRendererView
 
         @wraps(func)
-        def wrapper(self: AbstractWidget.__Self, /, target: AbstractRenderer) -> None:
+        def wrapper(self: Self, /, target: AbstractRenderer) -> None:
             if self.__drawing:  # super().draw_onto() used
                 return func(self, target)
 
@@ -387,7 +384,7 @@ class AbstractWidget(Drawable, Movable, prepare_namespace=__prepare_abstract_wid
 
     @property
     @final
-    def event(self: __Self) -> BoundEventManager[__Self]:
+    def event(self) -> BoundEventManager[Self]:
         return self.__event
 
     @property

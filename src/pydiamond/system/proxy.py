@@ -7,14 +7,12 @@ __all__ = [
 ]
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, ClassVar, SupportsIndex, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, SupportsIndex
 from weakref import WeakSet, WeakValueDictionary
 
 from ..system.collections import WeakKeyDefaultDictionary
 
 # Inspired from https://code.activestate.com/recipes/496741-object-proxying/
-
-_T = TypeVar("_T")
 
 
 class ProxyType:
@@ -272,7 +270,7 @@ class CallableProxyType(ProxyType):
         return value if value is not obj else __self
 
 
-def proxy(obj: _T, proxy_cls: type[ProxyType] | None = None) -> _T:
+def proxy[_T](obj: _T, proxy_cls: type[ProxyType] | None = None) -> _T:
     if proxy_cls is not None:
         if not issubclass(proxy_cls, ProxyType):
             raise TypeError("proxy_cls must be a ProxyType subclass")

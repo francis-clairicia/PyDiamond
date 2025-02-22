@@ -30,20 +30,20 @@ from itertools import chain
 from re import Match, Pattern, compile as re_compile
 from threading import RLock
 from types import FunctionType, LambdaType, MappingProxyType
-from typing import TYPE_CHECKING, Any, ClassVar, ContextManager, Final, NamedTuple, TypeAlias, TypeVar, final, overload
+from typing import Any, ClassVar, Final, NamedTuple, Self, final, overload
 
 from .object import Object, ObjectMeta, mro
 from .utils._mangling import getattr_pv
 from .utils.abc import concreteclassmethod, isabstractclass, isabstractmethod
 from .utils.functools import cache, wraps
 
-_ClassTheme: TypeAlias = MutableMapping[str, MappingProxyType[str, Any]]
-_ClassThemeProxy: TypeAlias = MappingProxyType[str, MappingProxyType[str, Any]]
-_ClassThemeDict: TypeAlias = MutableMapping[type, _ClassTheme]
-_ClassThemeDictProxy: TypeAlias = MappingProxyType[type, _ClassThemeProxy]
-_ClassDefaultTheme: TypeAlias = Sequence[str]
-_ClassDefaultThemeDict: TypeAlias = MutableMapping[type, _ClassDefaultTheme]
-_ClassDefaultThemeDictProxy: TypeAlias = MappingProxyType[type, _ClassDefaultTheme]
+type _ClassTheme = MutableMapping[str, MappingProxyType[str, Any]]
+type _ClassThemeProxy = MappingProxyType[str, MappingProxyType[str, Any]]
+type _ClassThemeDict = MutableMapping[type, _ClassTheme]
+type _ClassThemeDictProxy = MappingProxyType[type, _ClassThemeProxy]
+type _ClassDefaultTheme = Sequence[str]
+type _ClassDefaultThemeDict = MutableMapping[type, _ClassDefaultTheme]
+type _ClassDefaultThemeDictProxy = MappingProxyType[type, _ClassDefaultTheme]
 
 
 class _ThemeNamespaceBackupItem(NamedTuple):
@@ -53,7 +53,7 @@ class _ThemeNamespaceBackupItem(NamedTuple):
 
 
 @final
-class ThemeNamespace(ContextManager["ThemeNamespace"], Object):
+class ThemeNamespace(Object):
     __THEMES: _ClassThemeDict = dict()
     __DEFAULT_THEME: _ClassDefaultThemeDict = dict()
     __THEMES_DEFAULT_DICT: Final[_ClassThemeDict] = __THEMES
@@ -70,7 +70,7 @@ class ThemeNamespace(ContextManager["ThemeNamespace"], Object):
         self.__extend: bool = bool(extend)
         self.__include_none_namespace: bool = bool(include_none_namespace)
 
-    def __enter__(self) -> ThemeNamespace:
+    def __enter__(self) -> Self:
         with ThemeNamespace.get_lock():
             save_namespace = _ThemeNamespaceBackupItem(
                 name=ThemeNamespace.__actual_namespace,
@@ -148,7 +148,7 @@ class ThemeNamespace(ContextManager["ThemeNamespace"], Object):
     ) -> __ExtendedDefaultThemeDict:
         return ThemeNamespace.__ExtendedDefaultThemeDict(actual, extension)
 
-    class __ExtendedThemeDict(_ClassThemeDict):
+    class __ExtendedThemeDict(MutableMapping[type, _ClassTheme]):
         def __init__(self, actual: _ClassThemeDict, extension: _ClassThemeDict) -> None:
             super().__init__()
             self.__actual: _ClassThemeDict = actual
@@ -192,7 +192,7 @@ class ThemeNamespace(ContextManager["ThemeNamespace"], Object):
                 return self.__actual.pop(__key)
             return self.__actual.pop(__key, __default)
 
-        class __ExtendedTheme(_ClassTheme):
+        class __ExtendedTheme(MutableMapping[str, MappingProxyType[str, Any]]):
             def __init__(
                 self,
                 cls: type,
@@ -262,7 +262,7 @@ class ThemeNamespace(ContextManager["ThemeNamespace"], Object):
                     return (self.__actual or {}).pop(__key)
                 return (self.__actual or {}).pop(__key, __default)
 
-    class __ExtendedDefaultThemeDict(_ClassDefaultThemeDict):
+    class __ExtendedDefaultThemeDict(MutableMapping[type, _ClassDefaultTheme]):
         def __init__(self, actual: _ClassDefaultThemeDict, extension: _ClassDefaultThemeDict) -> None:
             super().__init__()
             self.__actual: _ClassDefaultThemeDict = actual
@@ -307,10 +307,6 @@ class ThemeNamespace(ContextManager["ThemeNamespace"], Object):
             return self.__actual.pop(__key, __default)
 
 
-_T = TypeVar("_T")
-_ThemedObjectClass = TypeVar("_ThemedObjectClass", bound="ThemedObjectMeta")
-
-
 class _NoThemeType(str):
     def __init_subclass__(cls) -> None:
         raise TypeError("No subclass are allowed")
@@ -326,13 +322,10 @@ class _NoThemeType(str):
 
 NoTheme: Final[_NoThemeType] = _NoThemeType()
 
-ThemeType: TypeAlias = str | Iterable[str] | _NoThemeType
+type ThemeType = str | Iterable[str] | _NoThemeType
 
 
 class _AbstractThemedObjectResolver(Object):
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="_AbstractThemedObjectResolver")
-
     def __init__(self, max_size: int = 128) -> None:
         self.__lru_cache: defaultdict[ThemedObjectMeta, OrderedDict[tuple[type, ...], tuple[ThemedObjectMeta, ...]]]
         self.__lru_cache = defaultdict(OrderedDict)
@@ -340,12 +333,12 @@ class _AbstractThemedObjectResolver(Object):
         self.__lock: defaultdict[ThemedObjectMeta, RLock] = defaultdict(RLock)
 
     @overload
-    def __get__(self: __Self, obj: None, objtype: type, /) -> __Self: ...
+    def __get__(self, obj: None, objtype: type, /) -> Self: ...
 
     @overload
     def __get__(self, obj: ThemedObjectMeta, objtype: type | None = None, /) -> tuple[ThemedObjectMeta, ...]: ...
 
-    def __get__(self: __Self, obj: ThemedObjectMeta | None, objtype: type | None = None) -> __Self | tuple[ThemedObjectMeta, ...]:
+    def __get__(self, obj: ThemedObjectMeta | None, objtype: type | None = None) -> Self | tuple[ThemedObjectMeta, ...]:
         if obj is None:
             if objtype is None:
                 raise TypeError("__get__(None, None) is forbidden")
@@ -400,8 +393,8 @@ class ThemedObjectMeta(ObjectMeta):
     __CLASSES_NOT_USING_PARENT_THEMES: Final[set[type]] = set()
     __CLASSES_NOT_USING_PARENT_DEFAULT_THEMES: Final[set[type]] = set()
 
-    def __new__(
-        mcs,
+    def __new__[Self: ThemedObjectMeta](
+        mcs: type[Self],
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, Any],
@@ -410,7 +403,7 @@ class ThemedObjectMeta(ObjectMeta):
         use_parent_theme: bool = True,
         use_parent_default_theme: bool = True,
         **kwargs: Any,
-    ) -> ThemedObjectMeta:
+    ) -> Self:
         if any(isinstance(cls, ThemedObjectMeta) and getattr(cls, "_no_use_of_themes_", False) for cls in bases):
             no_theme = True
 
@@ -689,17 +682,17 @@ class ThemedObjectMeta(ObjectMeta):
     def is_abstract_theme_class(cls) -> bool:
         return bool(vars(cls).get("_is_abstract_theme_class_", False) or isabstractclass(cls))
 
-    def register(cls, subclass: type[_T]) -> type[_T]:
+    def register[_T: type](cls, subclass: _T) -> _T:
         def register_themed_subclass(subclass: ThemedObjectMeta) -> None:
             if not subclass.is_abstract_theme_class():
                 cls.register_themed_subclass(subclass)
 
         super().register(subclass)
         if isinstance(subclass, ThemedObjectMeta):
-            register_themed_subclass(subclass)  # type: ignore[unreachable]
+            register_themed_subclass(subclass)
         return subclass
 
-    def register_themed_subclass(cls, subclass: _ThemedObjectClass) -> _ThemedObjectClass:
+    def register_themed_subclass[_T: ThemedObjectMeta](cls, subclass: _T) -> _T:
         if not isinstance(subclass, ThemedObjectMeta):
             raise TypeError("Not a themed object")
         if subclass.is_abstract_theme_class():
@@ -731,7 +724,7 @@ class ThemedObjectMeta(ObjectMeta):
                 yield from ThemedObjectMeta.__travel_parent_classes(base, do_not_search_for=do_not_search_for)
 
 
-def abstract_theme_class(cls: _ThemedObjectClass) -> _ThemedObjectClass:
+def abstract_theme_class[_T: ThemedObjectMeta](cls: _T) -> _T:
     setattr(cls, "_is_abstract_theme_class_", True)
     return cls
 
@@ -742,8 +735,6 @@ class ThemedObject(Object, metaclass=ThemedObjectMeta):
 
 
 class ClassWithThemeNamespaceMeta(ObjectMeta):
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="ClassWithThemeNamespaceMeta")
 
     __namespaces: Final[dict[type, ThemeNamespace]] = dict()
 
@@ -751,13 +742,13 @@ class ClassWithThemeNamespaceMeta(ObjectMeta):
 
     _theme_decorator_exempt_: frozenset[str]
 
-    def __new__(
-        mcs: type[__Self],
+    def __new__[Self: ClassWithThemeNamespaceMeta](
+        mcs: type[Self],
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, Any],
         **kwargs: Any,
-    ) -> __Self:
+    ) -> Self:
         theme_decorator_exempt_regex: frozenset[Pattern[str]] = mcs.get_default_theme_decorator_exempt_regex()
 
         if "_theme_decorator_exempt_" in namespace:
@@ -949,10 +940,7 @@ class ClassWithThemeNamespace(Object, metaclass=ClassWithThemeNamespaceMeta):
         pass
 
 
-_S = TypeVar("_S", bound=ClassWithThemeNamespaceMeta)
-
-
-def set_default_theme_namespace(
+def set_default_theme_namespace[_S: ClassWithThemeNamespaceMeta](
     namespace: str, *, allow_extension: bool = False, include_none_namespace: bool = False
 ) -> Callable[[_S], _S]:
     def decorator(cls: _S, /) -> _S:
@@ -962,17 +950,17 @@ def set_default_theme_namespace(
     return decorator
 
 
-def closed_namespace(cls: _S) -> _S:
+def closed_namespace[_S: ClassWithThemeNamespaceMeta](cls: _S) -> _S:
     cls.set_closed_theme_namespace()
     return cls
 
 
 @overload
-def no_theme_decorator(func: _T) -> _T: ...
+def no_theme_decorator[_T](func: _T) -> _T: ...
 
 
 @overload
-def no_theme_decorator(*, permanent: bool = True) -> Callable[[_T], _T]: ...
+def no_theme_decorator[_T](*, permanent: bool = True) -> Callable[[_T], _T]: ...
 
 
 def no_theme_decorator(func: Any = None, *, permanent: bool = True) -> Any:
@@ -987,7 +975,7 @@ def no_theme_decorator(func: Any = None, *, permanent: bool = True) -> Any:
     return decorator(func) if func is not None else decorator
 
 
-def force_apply_theme_decorator(func: _T) -> _T:
+def force_apply_theme_decorator[_T](func: _T) -> _T:
     with suppress(AttributeError):
         delattr(func, "__no_theme_decorator__")
     setattr(func, "__force_apply_theme_decorator__", True)

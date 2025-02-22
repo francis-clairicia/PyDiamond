@@ -21,19 +21,7 @@ from collections.abc import Callable, Generator, Iterator, Sequence
 from contextlib import ExitStack, suppress
 from enum import auto, unique
 from inspect import isgeneratorfunction
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Final,
-    NoReturn,
-    ParamSpec,
-    Protocol,
-    TypeAlias,
-    TypeVar,
-    final,
-    overload,
-    runtime_checkable,
-)
+from typing import TYPE_CHECKING, Any, Final, NoReturn, Protocol, Self, final, overload, runtime_checkable
 
 from ..graphics.color import Color
 from ..graphics.renderer import AbstractRenderer
@@ -51,15 +39,10 @@ if TYPE_CHECKING:
     from .dialog import Dialog
     from .window import SceneWindow, _SceneManager
 
-_P = ParamSpec("_P")
-
 
 class SceneMeta(ClassWithThemeNamespaceMeta):
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="SceneMeta")
-
-    def __new__(
-        mcs: type[__Self],
+    def __new__[Self: SceneMeta](
+        mcs: type[Self],
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, Any],
@@ -68,7 +51,7 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
         fixed_framerate: int = 0,
         busy_loop: bool = False,
         **kwargs: Any,
-    ) -> __Self:
+    ) -> Self:
         try:
             Scene
         except NameError:
@@ -108,7 +91,7 @@ class SceneMeta(ClassWithThemeNamespaceMeta):
         return cls.__busy_loop  # type: ignore[attr-defined]
 
 
-SceneTransitionCoroutine: TypeAlias = Generator[None, float | None, None]
+type SceneTransitionCoroutine = Generator[None, float | None, None]
 
 
 @runtime_checkable
@@ -236,10 +219,8 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
     if TYPE_CHECKING:
         __slots__: Final[Sequence[str]] = ("__dict__", "__weakref__")
 
-        __Self = TypeVar("__Self", bound="Scene")
-
     @final
-    def __new__(cls: type[__Self], *args: Any, **kwargs: Any) -> __Self:
+    def __new__(cls: type[Self], *args: Any, **kwargs: Any) -> Self:
         return super().__new__(cls)
 
     def __init__(self) -> None:
@@ -366,7 +347,7 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
         self.__manager.go_back()
 
     @overload
-    def after(
+    def after[**_P](
         self, __milliseconds: float, __callback: Callable[_P, None], /, *args: _P.args, **kwargs: _P.kwargs
     ) -> WindowCallback: ...
 
@@ -389,12 +370,12 @@ class Scene(Object, metaclass=SceneMeta, no_slots=True):
         return decorator
 
     @overload
-    def every(
+    def every[**_P](
         self, __milliseconds: float, __callback: Callable[_P, None], /, *args: _P.args, **kwargs: _P.kwargs
     ) -> WindowCallback: ...
 
     @overload
-    def every(
+    def every[**_P](
         self, __milliseconds: float, __callback: Callable[_P, Iterator[None]], /, *args: _P.args, **kwargs: _P.kwargs
     ) -> WindowCallback: ...
 

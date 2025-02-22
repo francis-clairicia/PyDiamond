@@ -22,8 +22,6 @@ __date__   = "$Date: 2007-08-09 20:33:32 +0200 (Do, 09 Aug 2007) $"
 import pygame
 import math
 
-BLEND_MODES_AVAILABLE = (pygame.version.vernum >= (1, 8))
-
 
 class ColorInterpolator:
     '''
@@ -446,10 +444,7 @@ def draw_gradient(surface, startpoint, endpoint, startcolor, endcolor, Rfunc = (
     dy = d/2. * math.sin(math.radians(angle))
     rect.center = startpoint
     rect.move_ip(dx, dy)
-    if BLEND_MODES_AVAILABLE:
-        return surface.blit(bigSurf, rect, None, mode)
-    else:
-        return surface.blit(bigSurf, rect)
+    return surface.blit(bigSurf, rect, None, mode)
 
 
 def draw_circle(surface, startpoint, endpoint, startcolor, endcolor, Rfunc = (lambda x:x), Gfunc = (lambda x:x), Bfunc = (lambda x:x), Afunc = (lambda x:1), mode=0):
@@ -461,10 +456,7 @@ def draw_circle(surface, startpoint, endpoint, startcolor, endcolor, Rfunc = (la
     dy = endpoint[1]-startpoint[1]
     radius = int(round(math.hypot(dx, dy)))
     pos = (startpoint[0]-radius, startpoint[1]-radius)
-    if BLEND_MODES_AVAILABLE:
-        return surface.blit(radial_func(radius, startcolor, endcolor, Rfunc, Gfunc, Bfunc, Afunc), pos, None, mode)
-    else:
-        return surface.blit(radial_func(radius, startcolor, endcolor, Rfunc, Gfunc, Bfunc, Afunc), pos)
+    return surface.blit(radial_func(radius, startcolor, endcolor, Rfunc, Gfunc, Bfunc, Afunc), pos, None, mode)
 
 def draw_squared(surface, startpoint, endpoint, startcolor, endcolor, Rfunc = (lambda x:x), Gfunc = (lambda x:x), Bfunc = (lambda x:x), Afunc = (lambda x:1), mode=0):
     """
@@ -482,10 +474,7 @@ def draw_squared(surface, startpoint, endpoint, startcolor, endcolor, Rfunc = (l
 ##    bigSurf.set_colorkey((0,0,0, 0))
     rect = bigSurf.get_rect()
     rect.center = startpoint
-    if BLEND_MODES_AVAILABLE:
-        return surface.blit(bigSurf, rect, None, mode)
-    else:
-        return surface.blit(bigSurf, rect)
+    return surface.blit(bigSurf, rect, None, mode)
 
 
 def chart(startpoint, endpoint, startcolor, endcolor, Rfunc = (lambda x:x), Gfunc = (lambda x:x), Bfunc = (lambda x:x), Afunc = (lambda x:1), scale=None):

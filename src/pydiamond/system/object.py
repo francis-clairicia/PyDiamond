@@ -5,27 +5,22 @@
 
 from __future__ import annotations
 
-__all__ = ["Object", "ObjectMeta", "mro", "override"]
+__all__ = ["Object", "ObjectMeta", "mro"]
 
 from abc import ABCMeta
 from collections.abc import Callable
 from functools import cached_property, partialmethod
 from itertools import chain, takewhile
-from typing import TYPE_CHECKING, Any, TypeVar, overload
+from typing import Any, overload
 
 from .utils.abc import isabstractmethod
 
-_T = TypeVar("_T")
-
 
 class ObjectMeta(ABCMeta):
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="ObjectMeta")
-
     __finalmethods__: frozenset[str]
 
-    def __new__(
-        mcs: type[__Self],
+    def __new__[Self: ObjectMeta](
+        mcs: type[Self],
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, Any],
@@ -33,7 +28,7 @@ class ObjectMeta(ABCMeta):
         no_slots: bool = False,
         prepare_namespace: Callable[..., None] | None = None,
         **kwargs: Any,
-    ) -> __Self:
+    ) -> Self:
         if callable(prepare_namespace):
             prepare_namespace(mcs, name, bases, namespace, **kwargs)
 
@@ -140,7 +135,7 @@ class ObjectMeta(ABCMeta):
 
     @staticmethod
     def __must_override(obj: Any) -> bool:
-        return bool(ObjectMeta.__check_attr(obj, "__mustoverride__"))
+        return bool(ObjectMeta.__check_attr(obj, "__override__"))
 
     @staticmethod
     def __is_final_override(obj: Any) -> bool:
@@ -172,39 +167,12 @@ class Object(metaclass=ObjectMeta):
     __slots__ = ()
 
 
-def override(f: _T, /) -> _T:
-
-    def apply_markers(f: Any) -> None:
-        setattr(f, "__mustoverride__", True)
-
-    def decorator(f: Any) -> Any:
-        match f:
-            case property(fget=fget, fset=fset, fdel=fdel):
-                for func in filter(callable, (fget, fset, fdel)):
-                    apply_markers(func)
-            case classmethod(__func__=func) | staticmethod(__func__=func) | cached_property(func=func):
-                apply_markers(f)
-                apply_markers(func)
-            case type():
-                raise TypeError("override() must not decorate classes")
-            case _ if not callable(f) and not hasattr(f, "__get__"):
-                raise TypeError("override() must only decorate functions and descriptors")
-            case _:
-                apply_markers(f)
-        return f
-
-    return decorator(f)
-
-
-_MetaClassT = TypeVar("_MetaClassT", bound=type)
+@overload
+def mro[_T](*bases: type[_T], attr: str = "__mro__") -> tuple[type[_T], ...]: ...
 
 
 @overload
-def mro(*bases: type[_T], attr: str = "__mro__") -> tuple[type[_T], ...]: ...
-
-
-@overload
-def mro(*bases: _MetaClassT, attr: str = "__mro__") -> tuple[_MetaClassT, ...]: ...
+def mro[_MetaClassT: type](*bases: _MetaClassT, attr: str = "__mro__") -> tuple[_MetaClassT, ...]: ...
 
 
 # Ref: https://code.activestate.com/recipes/577748-calculate-the-mro-of-a-class/

@@ -81,7 +81,6 @@ class _PatchCollectorType:
             module for module, context_ceiling in self.__forbidden_imports_until_context.items() if context < context_ceiling
         ]
         with self.mock_import(f"run ({context.name.replace('_', ' ').lower()})", forbidden_imports=forbidden_imports):
-            # TODO (3.11): Exception groups
             for patch in self.__all_patches.get(context, ()):
                 if not patch.__class__.enabled():
                     continue

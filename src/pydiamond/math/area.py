@@ -10,12 +10,11 @@ __all__ = [
 ]
 
 from collections.abc import Sequence
-from typing import TypeAlias
 
 from .rect import Rect
 from .vector2 import Vector2
 
-_FPoint: TypeAlias = tuple[float, float]
+type _FPoint = tuple[float, float]
 
 
 def get_vertices_center(vertices: Sequence[_FPoint] | Sequence[Vector2]) -> Vector2:

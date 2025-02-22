@@ -12,7 +12,7 @@ from collections.abc import Callable
 from typing import Any
 
 
-class WeakKeyDefaultDictionary(weakref.WeakKeyDictionary):  # type: ignore[type-arg]
+class WeakKeyDefaultDictionary[_KT, _VT](weakref.WeakKeyDictionary[_KT, _VT]):
     __slots__ = ("__default_factory",)
 
     def __init__(self, __default_factory: Callable[[], Any] | None = None, /, dict: Any | None = None):
@@ -39,7 +39,7 @@ class WeakKeyDefaultDictionary(weakref.WeakKeyDictionary):  # type: ignore[type-
         return self.__default_factory
 
 
-class WeakValueDefaultDictionary(weakref.WeakValueDictionary):  # type: ignore[type-arg]
+class WeakValueDefaultDictionary[_KT, _VT](weakref.WeakValueDictionary[_KT, _VT]):
     __slots__ = ("__default_factory",)
 
     def __init__(self, __default_factory: Callable[[], Any] | None = None, __other: Any = (), /, **kw: Any):

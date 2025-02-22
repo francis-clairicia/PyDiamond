@@ -11,16 +11,12 @@ import inspect
 from collections import deque
 from collections.abc import Generator, Iterable, Iterator
 from itertools import chain
-from typing import Any, Literal, TypeVar, overload
+from typing import Any, Literal, overload
 
-_T = TypeVar("_T")
-_T_co = TypeVar("_T_co", covariant=True)
-_T_contra = TypeVar("_T_contra", contravariant=True)
-_V_co = TypeVar("_V_co", covariant=True)
 _NO_DEFAULT: Any = object()
 
 
-def consumer_start(gen: Generator[_T_co, Any, Any], /) -> _T_co:
+def consumer_start[_T](gen: Generator[_T, Any, Any], /) -> _T:
     if inspect.getgeneratorstate(gen) != "GEN_CREATED":
         raise RuntimeError("generator already started")
     try:
@@ -40,11 +36,11 @@ class NoStopIteration(Exception):
 
 
 @overload
-def next_return(__gen: Generator[Any, None, _V_co], /) -> _V_co: ...
+def next_return[_V](__gen: Generator[Any, None, _V], /) -> _V: ...
 
 
 @overload
-def next_return(__gen: Generator[Any, None, _V_co], __default: _T, /) -> _V_co | _T: ...
+def next_return[_V, _T](__gen: Generator[Any, None, _V], __default: _T, /) -> _V | _T: ...
 
 
 def next_return(gen: Generator[Any, None, Any], default: Any = _NO_DEFAULT, /) -> Any:
@@ -61,7 +57,7 @@ def next_return(gen: Generator[Any, None, Any], default: Any = _NO_DEFAULT, /) -
     raise NoStopIteration(value)
 
 
-def send_return(gen: Generator[Any, _T_contra, _V_co], value: _T_contra, /) -> _V_co:
+def send_return[_T, _V](gen: Generator[Any, _T, _V], value: _T, /) -> _V:
     if inspect.getgeneratorstate(gen) == "GEN_CLOSED":
         raise RuntimeError("generator closed")
     try:
@@ -74,19 +70,19 @@ def send_return(gen: Generator[Any, _T_contra, _V_co], value: _T_contra, /) -> _
 
 
 @overload
-def flatten(iterable: Iterable[Iterable[_T]], *, level: Literal[1] = ...) -> Iterator[_T]: ...
+def flatten[_T](iterable: Iterable[Iterable[_T]], *, level: Literal[1] = ...) -> Iterator[_T]: ...
 
 
 @overload
-def flatten(iterable: Iterable[Iterable[Iterable[_T]]], *, level: Literal[2]) -> Iterator[_T]: ...
+def flatten[_T](iterable: Iterable[Iterable[Iterable[_T]]], *, level: Literal[2]) -> Iterator[_T]: ...
 
 
 @overload
-def flatten(iterable: Iterable[Iterable[Iterable[Iterable[_T]]]], *, level: Literal[3]) -> Iterator[_T]: ...
+def flatten[_T](iterable: Iterable[Iterable[Iterable[Iterable[_T]]]], *, level: Literal[3]) -> Iterator[_T]: ...
 
 
 @overload
-def flatten(iterable: Iterable[Iterable[Iterable[Iterable[Iterable[_T]]]]], *, level: Literal[4]) -> Iterator[_T]: ...
+def flatten[_T](iterable: Iterable[Iterable[Iterable[Iterable[Iterable[_T]]]]], *, level: Literal[4]) -> Iterator[_T]: ...
 
 
 @overload
@@ -101,5 +97,5 @@ def flatten(iterable: Any, *, level: int = 1) -> Iterator[Any]:
     return (elem for it in iterable for elem in flatten(it, level=level - 1))
 
 
-def prepend(obj: _T, iterable: Iterable[_T]) -> Iterator[_T]:
+def prepend[_T](obj: _T, iterable: Iterable[_T]) -> Iterator[_T]:
     return chain((obj,), iterable)

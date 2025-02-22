@@ -9,7 +9,7 @@ __all__ = ["Button", "ImageButton"]
 
 from collections.abc import Callable, Sequence
 from enum import auto, unique
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Literal, TypeAlias, TypedDict, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Literal, TypedDict, overload
 
 from ...graphics.color import BLACK, BLUE, GRAY, GRAY_DARK, GRAY_LIGHT, TRANSPARENT, WHITE, Color
 from ...graphics.image import Image
@@ -34,8 +34,8 @@ if TYPE_CHECKING:
 
 @TextImage.register_themed_subclass
 class Button(Widget, Transformable, metaclass=ThemedObjectMeta):
-    Justify: TypeAlias = TextImage.Justify
-    Compound: TypeAlias = TextImage.Compound
+    type Justify = TextImage.Justify
+    type Compound = TextImage.Compound
 
     __theme_ignore__: ClassVar[Sequence[str]] = ("callback",)
     __theme_associations__: ClassVar[dict[type, dict[str, str]]] = {
@@ -582,7 +582,7 @@ class Button(Widget, Transformable, metaclass=ThemedObjectMeta):
     config.on_update("x_add_size", __update_shape_size)
     config.on_update("y_add_size", __update_shape_size)
 
-    __TupleState: TypeAlias = tuple[WidgetState, Literal["normal", "hover", "active"]]
+    type __TupleState = tuple[WidgetState, Literal["normal", "hover", "active"]]
     __STATE: Final[dict[str, __TupleState]] = {
         "background": (WidgetState.NORMAL, "normal"),
         "hover_background": (WidgetState.NORMAL, "hover"),
@@ -1037,7 +1037,7 @@ class ImageButton(Widget, Transformable, metaclass=ThemedObjectMeta):
     config.on_update("x_add_size", __update_shape_size)
     config.on_update("y_add_size", __update_shape_size)
 
-    __TupleState: TypeAlias = tuple[WidgetState, Literal["normal", "hover", "active"]]
+    type __TupleState = tuple[WidgetState, Literal["normal", "hover", "active"]]
     __STATE: Final[dict[str, __TupleState]] = {
         "background": (WidgetState.NORMAL, "normal"),
         "hover_background": (WidgetState.NORMAL, "hover"),

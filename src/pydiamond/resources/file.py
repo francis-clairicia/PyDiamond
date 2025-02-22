@@ -10,9 +10,10 @@ __all__ = [
     "ResourcesDirectory",
 ]
 
+from contextlib import AbstractContextManager as ContextManager, nullcontext
 from os import PathLike, fsdecode
 from pathlib import Path
-from typing import BinaryIO, ContextManager
+from typing import IO
 
 from ..system.object import Object
 from ..system.path import set_constant_directory, set_constant_file
@@ -47,11 +48,9 @@ class FileResource(Object):
             return h
 
     def as_file(self) -> ContextManager[Path]:
-        from contextlib import nullcontext
-
         return nullcontext(self.__f)
 
-    def open(self) -> BinaryIO:
+    def open(self) -> IO[bytes]:
         return self.__f.open("rb")
 
     @property

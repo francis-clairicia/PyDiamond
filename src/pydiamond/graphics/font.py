@@ -16,7 +16,7 @@ __all__ = [
 import os
 from collections.abc import Iterable
 from enum import IntFlag, auto, unique
-from typing import TYPE_CHECKING, Any, ClassVar, Final, NamedTuple, TypeAlias, final, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Final, NamedTuple, final, overload
 
 import pygame.freetype as _pg_freetype
 import pygame.sysfont as _pg_sysfont
@@ -409,9 +409,9 @@ class Font(Object):
     del __get_property, __set_property
 
 
-_Path: TypeAlias = str | bytes | os.PathLike[str] | os.PathLike[bytes]
-_TupleFont: TypeAlias = tuple[str | _Path | None, float]
-_TextFont: TypeAlias = Font | _TupleFont
+type _Path = str | bytes | os.PathLike[str] | os.PathLike[bytes]
+type _TupleFont = tuple[str | _Path | None, float]
+type _TextFont = Font | _TupleFont
 
 
 @final

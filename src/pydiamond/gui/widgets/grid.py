@@ -8,7 +8,7 @@ from __future__ import annotations
 __all__ = ["Grid", "GridElement", "GridJustify"]
 
 from collections.abc import Callable, Container
-from typing import TYPE_CHECKING, Any, TypeVar, final
+from typing import TYPE_CHECKING, Any, final
 
 from ...graphics.color import BLACK, TRANSPARENT, Color
 from ..scene import GUIScene
@@ -18,8 +18,6 @@ from .scroll import AbstractScrollableWidget
 
 if TYPE_CHECKING:
     from weakref import WeakMethod
-
-_E = TypeVar("_E", bound=GridElement)
 
 
 class Grid(_BaseGrid, AbstractWidget, Container[AbstractWidget | GridElement]):
@@ -56,7 +54,7 @@ class Grid(_BaseGrid, AbstractWidget, Container[AbstractWidget | GridElement]):
         if child in self:
             self.remove(child)
 
-    def place(
+    def place[_E: GridElement](
         self,
         obj: _E,
         row: int,

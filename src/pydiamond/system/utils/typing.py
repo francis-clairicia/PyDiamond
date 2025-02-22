@@ -3,15 +3,10 @@ from __future__ import annotations
 __all__ = ["reflect_signature"]
 
 from collections.abc import Callable
-from typing import Any, Concatenate, ParamSpec, TypeVar
-
-_P = ParamSpec("_P")
-_AnyP = ParamSpec("_AnyP")
-_T = TypeVar("_T")
-_S = TypeVar("_S")
+from typing import Any, Concatenate
 
 
-def reflect_signature(src: Callable[_P, _T], /) -> Callable[[Callable[..., _T]], Callable[_P, _T]]:
+def reflect_signature[**_P, _R](src: Callable[_P, _R], /) -> Callable[[Callable[..., _R]], Callable[_P, _R]]:
     def decorator(f: Any) -> Any:
         setattr(f, "__wrapped__", src)
         return f
@@ -19,9 +14,9 @@ def reflect_signature(src: Callable[_P, _T], /) -> Callable[[Callable[..., _T]],
     return decorator
 
 
-def reflect_method_signature(
-    src: Callable[Concatenate[Any, _P], _T], /
-) -> Callable[[Callable[Concatenate[_S, _AnyP], _T]], Callable[Concatenate[_S, _P], _T]]:
+def reflect_method_signature[**_P, _R, _S](
+    src: Callable[Concatenate[Any, _P], _R], /
+) -> Callable[[Callable[Concatenate[_S, ...], _R]], Callable[Concatenate[_S, _P], _R]]:
     def decorator(f: Any) -> Any:
         setattr(f, "__wrapped__", src)
         return f

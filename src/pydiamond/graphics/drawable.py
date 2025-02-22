@@ -18,7 +18,7 @@ from bisect import insort_left, insort_right
 from collections import deque
 from collections.abc import Iterator, Sequence
 from itertools import dropwhile, filterfalse, islice, takewhile
-from typing import TYPE_CHECKING, Any, Generic, Protocol, SupportsIndex, TypeVar, overload, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, SupportsIndex, overload, runtime_checkable
 from weakref import WeakKeyDictionary, WeakSet
 
 from ..system.object import Object
@@ -45,61 +45,79 @@ class Drawable(Object):
         raise NotImplementedError
 
     def add_to_group(self, *groups: DrawableGroup[Any]) -> None:
-        # TODO (3.11): Exception groups
+        failed_to_add: list[tuple[DrawableGroup[Any], Exception]] = []
         actual_groups: WeakSet[DrawableGroup[Any]] = self.__groups
         for g in groups:
             actual_groups.add(g)
             if self not in g:
                 try:
                     g.add(self)
-                except Exception:
+                except Exception as exc:
                     if self not in g:
                         actual_groups.remove(g)
-                    raise
+                    failed_to_add.append((g, exc))
+        if failed_to_add:
+            try:
+                raise ExceptionGroup(
+                    f"Failed to add in several groups: {[g for g, _ in failed_to_add]!r}",
+                    [exc for _, exc in failed_to_add],
+                )
+            finally:
+                failed_to_add = []
 
     def remove_from_group(self, *groups: DrawableGroup[Any]) -> None:
-        # TODO (3.11): Exception groups
         if not groups:
             return
 
-        failed_to_remove: list[DrawableGroup[Any]] = []
+        failed_to_remove: list[tuple[DrawableGroup[Any], Exception]] = []
         actual_groups: WeakSet[DrawableGroup[Any]] = self.__groups
 
         for g in dict.fromkeys(groups):
             try:
                 actual_groups.remove(g)
-            except KeyError:
-                failed_to_remove.append(g)
+            except KeyError as exc:
+                failed_to_remove.append((g, exc))
                 continue
             if self in g:
                 try:
                     g.remove(self)
-                except Exception:
+                except Exception as exc:
                     if self in g:
                         actual_groups.add(g)
-                    failed_to_remove.append(g)
+                    failed_to_remove.append((g, exc))
         if failed_to_remove:
-            raise ValueError("Failed to remove from several groups", failed_to_remove)
+            try:
+                raise ExceptionGroup(
+                    f"Failed to remove from several groups: {[g for g, _ in failed_to_remove]!r}",
+                    [exc for _, exc in failed_to_remove],
+                )
+            finally:
+                failed_to_remove = []
 
     def has_group(self, group: DrawableGroup[Any]) -> bool:
         return group in self.__groups
 
     def kill(self) -> None:
-        # TODO (3.11): Exception groups
         actual_groups: WeakSet[DrawableGroup[Any]] = self.__groups
         self.__groups = WeakSet()
-        failed_to_remove: list[DrawableGroup[Any]] = []
+        failed_to_remove: list[tuple[DrawableGroup[Any], Exception]] = []
         for g in actual_groups:
             if self in g:
                 try:
                     g.remove(self)
-                except Exception:
+                except Exception as exc:
                     if self in g:
                         self.__groups.add(g)
-                    failed_to_remove.append(g)
+                    failed_to_remove.append((g, exc))
         del actual_groups
         if failed_to_remove:
-            raise ValueError("Failed to remove from several groups", failed_to_remove)
+            try:
+                raise ExceptionGroup(
+                    f"Failed to remove from several groups: {[g for g, _ in failed_to_remove]!r}",
+                    [exc for _, exc in failed_to_remove],
+                )
+            finally:
+                failed_to_remove = []
 
     def is_alive(self) -> bool:
         return len(self.__groups) > 0
@@ -127,11 +145,8 @@ class SupportsDrawableGroups(SupportsDrawing, Protocol):
         raise NotImplementedError
 
 
-_D = TypeVar("_D", bound=SupportsDrawableGroups)
-
-
 @Sequence.register
-class DrawableGroup(Generic[_D]):
+class DrawableGroup[_D: SupportsDrawableGroups]:
     __slots__ = ("data", "__weakref__")
 
     def __init__(self, *objects: _D, **kwargs: Any) -> None:
@@ -183,41 +198,54 @@ class DrawableGroup(Generic[_D]):
             drawable.draw_onto(target)
 
     def add(self, *objects: _D) -> None:
-        # TODO (3.11): Exception groups
         drawable_list: list[_D] = self.data
+        failed_to_add: list[tuple[_D, Exception]] = []
         for d in filterfalse(drawable_list.__contains__, objects):
             drawable_list.append(d)
             if not d.has_group(self):
                 try:
                     d.add_to_group(self)
-                except BaseException:
+                except Exception as exc:
                     if not d.has_group(self):
                         drawable_list.remove(d)
-                    raise
+                    failed_to_add.append((d, exc))
+        if failed_to_add:
+            try:
+                raise ExceptionGroup(
+                    f"Failed to add self in several objects: {[g for g, _ in failed_to_add]!r}",
+                    [exc for _, exc in failed_to_add],
+                )
+            finally:
+                failed_to_add = []
 
     def remove(self, *objects: _D) -> None:
-        # TODO (3.11): Exception groups
         if not objects:
             return
         drawable_list: list[_D] = self.data
-        failed_to_remove: list[_D] = []
+        failed_to_remove: list[tuple[_D, Exception]] = []
         for d in objects:
             try:
                 d_idx = drawable_list.index(d)
-            except ValueError:
-                failed_to_remove.append(d)
+            except ValueError as exc:
+                failed_to_remove.append((d, exc))
                 continue
             else:
                 del drawable_list[d_idx]
             if d.has_group(self):
                 try:
                     d.remove_from_group(self)
-                except Exception:
+                except Exception as exc:
                     if d.has_group(self):
                         drawable_list.insert(d_idx, d)
-                    failed_to_remove.append(d)
+                    failed_to_remove.append((d, exc))
         if failed_to_remove:
-            raise ValueError("Failed to remove self from several objects", failed_to_remove)
+            try:
+                raise ExceptionGroup(
+                    f"Failed to remove self from several objects: {[g for g, _ in failed_to_remove]!r}",
+                    [exc for _, exc in failed_to_remove],
+                )
+            finally:
+                failed_to_remove = []
 
     def pop(self, index: SupportsIndex = -1) -> _D:
         index = int(index)
@@ -238,23 +266,28 @@ class DrawableGroup(Generic[_D]):
         return d
 
     def clear(self) -> None:
-        # TODO (3.11): Exception groups
         drawable_list: list[_D] = self.data
-        failed_to_remove: list[_D] = []
+        failed_to_remove: list[tuple[_D, Exception]] = []
         self.data = []
         for d in drawable_list:
             if d.has_group(self):
                 try:
                     d.remove_from_group(self)
-                except Exception:
+                except Exception as exc:
                     if d.has_group(self):
                         self.data.append(d)
-                    failed_to_remove.append(d)
+                    failed_to_remove.append((d, exc))
         if failed_to_remove:
-            raise ValueError("Failed to remove self from several objects", failed_to_remove)
+            try:
+                raise ExceptionGroup(
+                    f"Failed to remove self from several objects: {[g for g, _ in failed_to_remove]!r}",
+                    [exc for _, exc in failed_to_remove],
+                )
+            finally:
+                failed_to_remove = []
 
 
-class LayeredDrawableGroup(DrawableGroup[_D]):
+class LayeredDrawableGroup[_D: SupportsDrawableGroups](DrawableGroup[_D]):
     __slots__ = ("__default_layer", "__layer_dict")
 
     def __init__(self, *objects: _D, default_layer: int = 0, **kwargs: Any) -> None:
@@ -267,6 +300,7 @@ class LayeredDrawableGroup(DrawableGroup[_D]):
             return
         insort = insort_right if top_of_layer else insort_left
         layer_dict: WeakKeyDictionary[_D, int] = self.__layer_dict
+        failed_to_add: list[tuple[_D, Exception]] = []
         drawable_list: list[_D] = self.data
         if layer is None:
             layer = self.__default_layer
@@ -278,11 +312,19 @@ class LayeredDrawableGroup(DrawableGroup[_D]):
             if not d.has_group(self):
                 try:
                     d.add_to_group(self)
-                except BaseException:
+                except Exception as exc:
                     if not d.has_group(self):
                         drawable_list.remove(d)
                         layer_dict.pop(d, None)
-                    raise
+                    failed_to_add.append((d, exc))
+        if failed_to_add:
+            try:
+                raise ExceptionGroup(
+                    f"Failed to add self in several objects: {[g for g, _ in failed_to_add]!r}",
+                    [exc for _, exc in failed_to_add],
+                )
+            finally:
+                failed_to_add = []
         super().add(*objects)
 
     def remove(self, *objects: _D) -> None:

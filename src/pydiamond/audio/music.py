@@ -19,13 +19,14 @@ from __future__ import annotations
 __all__ = ["Music", "MusicStream"]
 
 from collections import deque
-from contextlib import ExitStack
+from contextlib import AbstractContextManager as ContextManager, ExitStack
 from dataclasses import dataclass, field
 from os import PathLike
-from typing import BinaryIO, ContextManager, Final, final
+from typing import IO, Final, final
 from weakref import WeakValueDictionary
 
 import pygame.mixer as _pg_mixer
+from pygame.constants import NOEVENT
 from pygame.event import Event as _PygameEvent
 from pygame.mixer import music as _pg_music
 
@@ -73,7 +74,7 @@ class Music(NonCopyable):
         """
         MusicStream.queue(self, repeat=repeat)
 
-    def open(self) -> ContextManager[BinaryIO]:
+    def open(self) -> ContextManager[IO[bytes]]:
         return self.__resource.open()
 
     @property
@@ -285,7 +286,10 @@ class MusicStream(ClassNamespace, frozen=True):
 
     @staticmethod
     def _handle_event(event: _PygameEvent) -> bool:
-        if event.type == _pg_music.get_endevent():
+        end_event = _pg_music.get_endevent()
+        if end_event == NOEVENT:
+            return False
+        if event.type == end_event:
             return MusicStream.__update(event)
         return True
 

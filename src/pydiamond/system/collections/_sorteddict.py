@@ -11,10 +11,13 @@ import reprlib
 from bisect import insort_right as insort
 from collections.abc import ItemsView, Iterator, KeysView, Reversible, ValuesView
 from copy import deepcopy
-from typing import Any
+from typing import TYPE_CHECKING, Any, Self
+
+if TYPE_CHECKING:
+    from _typeshed import SupportsRichComparison
 
 
-class SortedDictKeysView(KeysView, Reversible):  # type: ignore[type-arg]
+class SortedDictKeysView[_KT](KeysView[_KT], Reversible[_KT]):
     __slots__ = ()
     _mapping: dict[Any, Any]
 
@@ -25,31 +28,31 @@ class SortedDictKeysView(KeysView, Reversible):  # type: ignore[type-arg]
         return reversed(self._mapping)
 
 
-class SortedDictValuesView(ValuesView, Reversible):  # type: ignore[type-arg]
+class SortedDictValuesView[_VT](ValuesView[_VT], Reversible[_VT]):
     __slots__ = ()
     _mapping: dict[Any, Any]
 
     def __init_subclass__(cls) -> None:
         raise TypeError("Cannot be subclassed")
 
-    def __reversed__(self) -> Iterator[Any]:
+    def __reversed__(self) -> Iterator[_VT]:
         mapping = self._mapping
         return (mapping[key] for key in reversed(mapping))
 
 
-class SortedDictItemsView(ItemsView, Reversible):  # type: ignore[type-arg]
+class SortedDictItemsView[_KT, _VT](ItemsView[_KT, _VT], Reversible[tuple[_KT, _VT]]):
     __slots__ = ()
     _mapping: dict[Any, Any]
 
     def __init_subclass__(cls) -> None:
         raise TypeError("Cannot be subclassed")
 
-    def __reversed__(self) -> Iterator[tuple[Any, Any]]:
+    def __reversed__(self) -> Iterator[tuple[_KT, _VT]]:
         mapping = self._mapping
         return ((key, mapping[key]) for key in reversed(mapping))
 
 
-class SortedDict(dict):  # type: ignore[type-arg]
+class SortedDict[_KT: SupportsRichComparison, _VT](dict[_KT, _VT]):
     __slots__ = ("__list",)  # No weakref support like the built-in base class
 
     __list: list[Any]
@@ -90,7 +93,7 @@ class SortedDict(dict):  # type: ignore[type-arg]
         super().clear()
         self.__list.clear()
 
-    def copy(self) -> SortedDict:
+    def copy(self) -> Self:
         return self.__class__(self)
 
     def pop(self, __key: Any, /, *__default: Any) -> Any:
@@ -125,26 +128,24 @@ class SortedDict(dict):  # type: ignore[type-arg]
         super().update(payload)
         self.__list = keys
 
-    def __ior__(self, __value: Any) -> SortedDict:  # type: ignore[misc]
+    def __ior__(self, __value: Any) -> Self:  # type: ignore[override,misc]
         self.update(__value)
         return self
 
     __copy__ = copy  # Force use copy() method for 'copy' module, in order not to reduce the object
 
-    def __deepcopy__(self, memo: dict[int, Any] | None = None) -> SortedDict:  # deep copy optimization
-        if memo is None:
-            memo = {}
+    def __deepcopy__(self, memo: dict[int, Any]) -> Self:  # deep copy optimization
         copy_self = self.__class__()
         memo[id(self)] = copy_self
         for key in self:
             copy_self[deepcopy(key, memo)] = deepcopy(self[key], memo)
         return copy_self
 
-    def keys(self) -> SortedDictKeysView:  # type: ignore[override]
+    def keys(self) -> SortedDictKeysView[_KT]:  # type: ignore[override]
         return SortedDictKeysView(self)
 
-    def values(self) -> SortedDictValuesView:  # type: ignore[override]
+    def values(self) -> SortedDictValuesView[_VT]:  # type: ignore[override]
         return SortedDictValuesView(self)
 
-    def items(self) -> SortedDictItemsView:  # type: ignore[override]
+    def items(self) -> SortedDictItemsView[_KT, _VT]:  # type: ignore[override]
         return SortedDictItemsView(self)

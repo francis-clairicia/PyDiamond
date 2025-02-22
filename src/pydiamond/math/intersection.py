@@ -14,11 +14,11 @@ __all__ = ["do_intersect", "is_inside_polygon", "on_segment", "orientation"]
 
 import sys
 from collections.abc import Sequence
-from typing import Literal, TypeAlias
+from typing import Literal
 
 from .vector2 import Vector2
 
-_FPoint: TypeAlias = tuple[float, float]
+type _FPoint = tuple[float, float]
 
 
 def on_segment(p: _FPoint | Vector2, q: _FPoint | Vector2, r: _FPoint | Vector2) -> bool:

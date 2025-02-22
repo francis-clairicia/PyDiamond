@@ -11,8 +11,9 @@ __all__ = [
 ]
 
 from abc import ABCMeta, abstractmethod
+from contextlib import AbstractContextManager as ContextManager
 from pathlib import Path
-from typing import BinaryIO, ContextManager, Protocol, runtime_checkable
+from typing import IO, Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -27,7 +28,7 @@ class Resource(Protocol, metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def open(self) -> BinaryIO:
+    def open(self) -> IO[bytes]:
         raise NotImplementedError
 
 

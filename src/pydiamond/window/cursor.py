@@ -9,7 +9,7 @@ __all__ = ["Cursor", "SystemCursor"]
 
 from collections.abc import Sequence
 from enum import Enum, auto, unique
-from typing import TYPE_CHECKING, Any, Final, Literal, Self, no_type_check, overload
+from typing import TYPE_CHECKING, Any, Final, Literal, Self, overload
 
 import pygame.constants as _pg_constants
 import pygame.cursors as _pg_cursors
@@ -25,11 +25,10 @@ class Cursor(_pg_cursors.Cursor, Object, no_slots=True):
     if TYPE_CHECKING:
         __slots__: Final[tuple[str, ...]] = ("__dict__",)
 
-    @no_type_check  # mypy crash when parsing match/case statement
     def __new__(cls, *args: Any) -> Cursor:
         if len(args) == 1:
             match args[0]:
-                case int(constant) | _pg_cursors.Cursor(type="system", data=(constant,)):
+                case int(constant) | _pg_cursors.Cursor(type="system", data=(int(constant),)):
                     return SystemCursor(constant)
         return super().__new__(cls)
 
@@ -94,12 +93,12 @@ class SystemCursor(Cursor, Enum, metaclass=EnumObjectMeta):
     type: Literal["system"]
     data: tuple[int]
 
-    __hash__ = Cursor.__hash__
+    __hash__ = Cursor.__hash__  # type: ignore[assignment,unused-ignore]
 
     @staticmethod
     def _generate_next_value_(name: str, start: int, count: int, last_values: list[int]) -> int:
         constant_name = f"SYSTEM_CURSOR_{name}"
-        return getattr(_pg_constants, constant_name)  # noqa: F821
+        return getattr(_pg_constants, constant_name)
 
     def __new__(cls, value: int | SystemCursor) -> SystemCursor:
         self = _pg_cursors.Cursor.__new__(cls)
@@ -133,6 +132,3 @@ class SystemCursor(Cursor, Enum, metaclass=EnumObjectMeta):
 
     def __copy__(self) -> Self:
         return self
-
-
-del _pg_constants

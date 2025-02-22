@@ -12,7 +12,7 @@ from abc import abstractmethod
 from collections.abc import Callable, Sequence
 from functools import reduce
 from itertools import starmap
-from typing import TYPE_CHECKING, Any, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Literal
 
 from ...graphics.grid import Grid as _Grid, GridElement, GridJustify
 from ...math.rect import Rect
@@ -29,11 +29,8 @@ if TYPE_CHECKING:
     from ..focus import SupportsFocus
 
 
-_E = TypeVar("_E", bound=GridElement)
-
-
 class _Grid(_Grid):  # type: ignore[no-redef]
-    def place(
+    def place[_E: GridElement](
         self,
         obj: _E,
         row: int,

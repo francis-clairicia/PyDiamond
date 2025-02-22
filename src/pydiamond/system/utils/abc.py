@@ -15,24 +15,19 @@ __all__ = [
 from collections.abc import Callable
 from functools import wraps
 from inspect import isabstract as isabstractclass
-from typing import Any, Concatenate, ParamSpec, TypeVar
-
-_P = ParamSpec("_P")
-_R = TypeVar("_R")
-
-_TT = TypeVar("_TT", bound=type)
+from typing import Any, Concatenate
 
 
-def concreteclassmethod(func: Callable[Concatenate[_TT, _P], _R]) -> Callable[Concatenate[_TT, _P], _R]:
+def concreteclassmethod[_T: type, **_P, _R](func: Callable[Concatenate[_T, _P], _R]) -> Callable[Concatenate[_T, _P], _R]:
     @wraps(func)
-    def wrapper(cls: _TT, /, *args: _P.args, **kwargs: _P.kwargs) -> _R:
+    def wrapper(cls: _T, /, *args: _P.args, **kwargs: _P.kwargs) -> _R:
         concreteclass(cls)
         return func(cls, *args, **kwargs)
 
     return wrapper
 
 
-def concreteclass(cls: _TT) -> _TT:
+def concreteclass[_T: type](cls: _T) -> _T:
     if not isinstance(cls, type):
         raise TypeError("'cls' must be a type")
     if isabstractclass(cls):

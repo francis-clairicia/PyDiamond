@@ -13,11 +13,10 @@ from __future__ import annotations
 
 __all__ = ["OrderedSet", "OrderedSetIndexError"]
 
-from collections.abc import Callable, Iterable, Iterator, MutableSet, Sequence, Set
+from collections.abc import Callable, Hashable, Iterable, Iterator, MutableSet, Sequence, Set
 from copy import deepcopy
 from threading import RLock
-from types import GenericAlias
-from typing import Any, SupportsIndex
+from typing import Any, Self, SupportsIndex
 
 
 class OrderedSetIndexError(KeyError, IndexError):
@@ -27,7 +26,7 @@ class OrderedSetIndexError(KeyError, IndexError):
     """
 
 
-class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
+class OrderedSet[_T: Hashable](MutableSet[_T], Sequence[_T]):
     """
     An OrderedSet is a custom MutableSet that remembers its order, so that
     every entry has an index that can be looked up.
@@ -36,15 +35,15 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
         OrderedSet([1, 2, 3])
     """
 
-    def __init__(self, data: Iterable[object] | None = None, /) -> None:
-        self._items: list[object] = []
-        self._map: dict[object, int] = {}
+    def __init__(self, data: Iterable[_T] | None = None, /) -> None:
+        self._items: list[_T] = []
+        self._map: dict[_T, int] = {}
         self._lock = RLock()
         if data is not None:
             self.update(data)
 
     @classmethod
-    def _from_iterable(cls, it: Iterable[object]) -> OrderedSet:
+    def _from_iterable(cls, it: Iterable[_T]) -> Self:
         """
         Construct an instance of the class from any iterable input.
         Must override this method if the class constructor signature
@@ -52,13 +51,13 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
         """
         return cls(it)
 
-    def __getitem__(self, index: int | slice, /) -> object | OrderedSet:  # type: ignore[override]
+    def __getitem__(self, index: int | slice, /) -> Any:
         with self._lock:
             if isinstance(index, slice):
                 return self._from_iterable(self._items[index])
             return self._items[index]
 
-    def copy(self) -> OrderedSet:
+    def copy(self) -> Self:
         """
         Return a shallow copy of this object.
 
@@ -74,15 +73,13 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
 
     __copy__ = copy  # Built-in module 'copy' compatibility
 
-    def __deepcopy__(self, memo: dict[int, Any] | None = None) -> OrderedSet:  # Built-in module 'copy' compatibility
-        if memo is None:
-            memo = {}
+    def __deepcopy__(self, memo: dict[int, Any]) -> Self:  # Built-in module 'copy' compatibility
         copy_self = self._from_iterable([])
         memo[id(self)] = copy_self
         copy_self.update(deepcopy(item, memo) for item in self)
         return copy_self
 
-    def add(self, value: object) -> None:
+    def add(self, value: _T) -> None:
         """
         Add `value` as an item to this OrderedSet.
 
@@ -102,7 +99,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
                 self._map[value] = len(self._items)
                 self._items.append(value)
 
-    def update(self, sequence: Iterable[object]) -> None:
+    def update(self, sequence: Iterable[_T]) -> None:
         """
         Update the set with the given iterable sequence.
 
@@ -117,7 +114,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
             for item in sequence:
                 add(item)
 
-    def index(self, value: object, start: int = 0, stop: int | None = None) -> int:
+    def index(self, value: _T, start: int = 0, stop: int | None = None) -> int:
         """
         Get the index of a given entry, raising a ValueError if it's not
         present.
@@ -164,7 +161,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
                 raise IndexError("index out of range")
             self.pop(index)
 
-    def pop(self, index: int = -1) -> object:
+    def pop(self, index: int = -1) -> _T:
         """
         Remove and return item at index (default last).
 
@@ -179,7 +176,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
         with self._lock:
             if not self._items:
                 raise OrderedSetIndexError("pop from an empty set")
-            item: object = self._items.pop(index)
+            item: _T = self._items.pop(index)
             if index == -1:
                 self._map.pop(item)
             else:
@@ -188,7 +185,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
                     self._map[k] = v - 1
             return item
 
-    def discard(self, value: object) -> None:
+    def discard(self, value: _T) -> None:
         """
         Remove an element. Do not raise an exception if absent.
 
@@ -207,7 +204,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
             except LookupError:
                 pass
 
-    def remove(self, value: object) -> None:
+    def remove(self, value: _T) -> None:
         """
         Remove an element. If not a member, raise a KeyError.
         """
@@ -239,7 +236,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
             self._items.reverse()
             self._map = {item: index for index, item in enumerate(self._items)}
 
-    def sort(self, *, key: Callable[[object], Any] | None = None, reverse: bool = False) -> None:
+    def sort(self, *, key: Callable[[_T], Any] | None = None, reverse: bool = False) -> None:
         """
         Sort *IN PLACE* this OrderedSet
 
@@ -250,7 +247,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
             OrderedSet([-4, 1, 3, 5, 12])
         """
         with self._lock:
-            self._items.sort(key=key, reverse=reverse)
+            self._items.sort(key=key, reverse=reverse)  # type: ignore[arg-type]
             self._map = {item: index for index, item in enumerate(self._items)}
 
     def isdisjoint(self, other: Iterable[Any]) -> bool:
@@ -280,7 +277,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
         with self._lock:
             return __x in self._map
 
-    def __iter__(self) -> Iterator[object]:
+    def __iter__(self) -> Iterator[_T]:
         """
         Example:
             >>> list(iter(OrderedSet([1, 2, 3])))
@@ -289,7 +286,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
         with self._lock:
             yield from self._items
 
-    def __reversed__(self) -> Iterator[object]:
+    def __reversed__(self) -> Iterator[_T]:
         """
         Example:
             >>> list(reversed(OrderedSet([1, 2, 3])))
@@ -361,7 +358,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
         with self._lock:
             return len(self) < len(other) and self.issubset(other)
 
-    def issubset(self, other: Set[object] | Sequence[object]) -> bool:
+    def issubset(self, other: Set[_T] | Sequence[_T]) -> bool:
         """
         Report whether another set contains this set.
         Example:
@@ -388,7 +385,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
         with self._lock:
             return len(self) > len(other) and self.issuperset(other)
 
-    def issuperset(self, other: Set[object] | Sequence[object]) -> bool:
+    def issuperset(self, other: Set[_T] | Sequence[_T]) -> bool:
         """
         Report whether this set contains another set.
         Example:
@@ -404,20 +401,20 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
                 return False
             return all(item in self for item in other)
 
-    def __or__(self, other: Any) -> OrderedSet:
+    def __or__(self, other: Any) -> Self:
         if not isinstance(other, (Sequence, Set)):
             return NotImplemented
         return self.union(other)
 
     __ror__ = __or__
 
-    def __ior__(self, other: Any) -> OrderedSet:
+    def __ior__(self, other: Any) -> Self:
         if not isinstance(other, (Sequence, Set)):
             return NotImplemented
         self.update(other)
         return self
 
-    def union(self, *others: Iterable[object]) -> OrderedSet:
+    def union(self, *others: Iterable[_T]) -> Self:
         """
         Combines all unique items.
         Each items order is defined by its first appearance.
@@ -431,22 +428,24 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
             >>> oset | {10}
             OrderedSet([3, 1, 4, 5, 2, 0, 10])
         """
-        return self._from_iterable(e for s in (self, *others) for e in s)
+        self_copy = self.copy()
+        self_copy.update(e for s in others for e in s)
+        return self_copy
 
-    def __and__(self, other: Any) -> OrderedSet:
+    def __and__(self, other: Any) -> Self:
         if not isinstance(other, (Sequence, Set)):
             return NotImplemented
         return self.intersection(other)
 
     __rand__ = __and__
 
-    def __iand__(self, other: Any) -> OrderedSet:
+    def __iand__(self, other: Any) -> Self:
         if not isinstance(other, (Sequence, Set)):
             return NotImplemented
         self.intersection_update(other)
         return self
 
-    def intersection(self, *others: Iterable[object]) -> OrderedSet:
+    def intersection(self, *others: Iterable[_T]) -> Self:
         """
         Returns elements in common between all others. Order is defined only
         by the first set.
@@ -461,7 +460,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
             OrderedSet([1, 2, 3])
         """
         with self._lock:
-            items: Iterable[object] = self
+            items: Iterable[_T] = self
             if others:
                 common = set.intersection(*map(set, others))
                 items = (item for item in self if item in common)
@@ -486,25 +485,25 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
             self._items = items = [item for item in self._items if item in common]
             self._map = {item: index for index, item in enumerate(items)}
 
-    def __sub__(self, other: Any) -> OrderedSet:
+    def __sub__(self, other: Any) -> Self:
         if not isinstance(other, (Sequence, Set)):
             return NotImplemented
         return self.difference(other)
 
-    def __rsub__(self, other: Any) -> OrderedSet:
+    def __rsub__(self, other: Any) -> Self:
         if not isinstance(other, (Sequence, Set)):
             return NotImplemented
         diff = self._from_iterable(other)
         diff.difference_update(self)
         return diff
 
-    def __isub__(self, other: Any) -> OrderedSet:
+    def __isub__(self, other: Any) -> Self:
         if not isinstance(other, (Sequence, Set)):
             return NotImplemented
         self.difference_update(other)
         return self
 
-    def difference(self, *others: Iterable[object]) -> OrderedSet:
+    def difference(self, *others: Iterable[_T]) -> Self:
         """
         Returns all elements that are in this set but not the others.
 
@@ -519,13 +518,13 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
             OrderedSet([1, 2, 3])
         """
         with self._lock:
-            items: Iterable[object] = self
+            items: Iterable[_T] = self
             if others:
                 common = set.union(*map(set, others))
                 items = (item for item in self if item not in common)
             return self._from_iterable(items)
 
-    def difference_update(self, *others: Iterable[object]) -> None:
+    def difference_update(self, *others: Iterable[_T]) -> None:
         """
         Update this OrderedSet to remove items from one or more other others.
 
@@ -546,25 +545,25 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
             self._items = items = [item for item in self._items if item not in common]
             self._map = {item: index for index, item in enumerate(items)}
 
-    def __xor__(self, other: Any) -> OrderedSet:
+    def __xor__(self, other: Any) -> Self:
         if not isinstance(other, (Sequence, Set)):
             return NotImplemented
         return self.symmetric_difference(other)
 
-    def __rxor__(self, other: Any) -> OrderedSet:
+    def __rxor__(self, other: Any) -> Self:
         if not isinstance(other, (Sequence, Set)):
             return NotImplemented
         diff = self._from_iterable(other)
         diff.symmetric_difference_update(self)
         return diff
 
-    def __ixor__(self, other: Any) -> OrderedSet:
+    def __ixor__(self, other: Any) -> Self:
         if not isinstance(other, (Sequence, Set)):
             return NotImplemented
         self.symmetric_difference_update(other)
         return self
 
-    def symmetric_difference(self, other: Set[object] | Sequence[object]) -> OrderedSet:
+    def symmetric_difference(self, other: Set[_T] | Sequence[_T]) -> Self:
         """
         Return the symmetric difference of two OrderedSets as a new set.
         That is, the new set will contain all elements that are in exactly
@@ -582,7 +581,7 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
             diff2 = self._from_iterable(other).difference(self)
             return diff1.union(diff2)
 
-    def symmetric_difference_update(self, other: Set[object] | Sequence[object]) -> None:
+    def symmetric_difference_update(self, other: Set[_T] | Sequence[_T]) -> None:
         """
         Update this OrderedSet to remove items from another set, then
         add items from the other set that were not present in this set.
@@ -599,8 +598,6 @@ class OrderedSet(MutableSet, Sequence):  # type: ignore[type-arg]
             items_to_remove = set(other)
             self._items = items = [item for item in self._items if item not in items_to_remove] + items_to_add
             self._map = {item: index for index, item in enumerate(items)}
-
-    __class_getitem__ = classmethod(GenericAlias)  # type: ignore[var-annotated]
 
 
 if __name__ == "__main__":

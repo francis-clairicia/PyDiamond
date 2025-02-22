@@ -9,16 +9,20 @@ __all__ = ["Singleton", "SingletonMeta"]
 
 from collections.abc import Callable
 from types import MethodType
-from typing import Any, TypeVar, final
+from typing import Any, final
 
 from .object import Object, ObjectMeta
 from .utils.abc import isabstractclass
 
-_T = TypeVar("_T")
-
 
 class SingletonMeta(ObjectMeta):
-    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any) -> SingletonMeta:
+    def __new__[Self: SingletonMeta](
+        mcs: type[Self],
+        name: str,
+        bases: tuple[type, ...],
+        namespace: dict[str, Any],
+        **kwargs: Any,
+    ) -> Self:
         kwargs.pop("abstract", None)
         kwargs.pop("lazy", None)
 
@@ -74,7 +78,7 @@ class SingletonMeta(ObjectMeta):
 
     @property
     @final
-    def instance(cls: type[_T]) -> _T:
+    def instance[_T](cls: type[_T]) -> _T:
         try:
             instance: _T | None = vars(cls)["_singleton_instance_"]
         except KeyError:

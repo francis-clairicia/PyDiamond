@@ -676,16 +676,17 @@ class TestFontFactory:
         self, mock_Font: MagicMock, mock_Font_instance: MagicMock, mocker: MockerFixture
     ) -> None:
         # Arrange
+        from contextlib import AbstractContextManager
         from io import BytesIO
-        from typing import BinaryIO, ContextManager
+        from typing import IO
 
         class MockResource:
             name: str = "MockResource"
 
-            def as_file(self) -> ContextManager[Path]:
+            def as_file(self) -> AbstractContextManager[Path]:
                 raise NotImplementedError
 
-            def open(self) -> BinaryIO:
+            def open(self) -> IO[bytes]:
                 return BytesIO(b"data")
 
         mock_create_font = mocker.patch.object(FontFactory, "create_font", return_value=mock_Font_instance)

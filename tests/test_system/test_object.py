@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Any, final
+from typing import Any, final, override
 
-from pydiamond.system.object import Object, mro, override
+from pydiamond.system.object import Object, mro
 
 import pytest
 
@@ -56,7 +56,7 @@ def test_object_override_method() -> None:
         def method(self) -> None:
             return super().method()
 
-        assert getattr(method, "__mustoverride__")
+        assert getattr(method, "__override__")
 
     class C(B):
         @final
@@ -64,7 +64,7 @@ def test_object_override_method() -> None:
         def method(self) -> None:
             return super().method()
 
-        assert getattr(method, "__mustoverride__")
+        assert getattr(method, "__override__")
         assert getattr(method, "__final__")
 
     assert C.__finalmethods__ == frozenset({"method"})
@@ -75,7 +75,7 @@ def test_object_override_missing_in_bases() -> None:
 
         class A(Object):
             @override
-            def non_override_method(self) -> None:
+            def non_override_method(self) -> None:  # type: ignore[misc]
                 pass
 
 
@@ -86,12 +86,12 @@ def test_object_override_property() -> None:
             return 2
 
     class B(A):
-        @override  # type: ignore[prop-decorator]
         @property
+        @override
         def a(self) -> int:
             return 3
 
-        assert getattr(getattr(a, "fget"), "__mustoverride__")
+        assert getattr(getattr(a, "fget"), "__override__")
 
 
 def test_object_final_method_base_conflicts() -> None:

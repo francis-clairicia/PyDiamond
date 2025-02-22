@@ -61,13 +61,10 @@ class MouseButton(IntEnum):
     @staticmethod
     def _generate_next_value_(name: str, start: int, count: int, last_values: list[int]) -> int:
         constant_name = f"BUTTON_{name}"
-        return getattr(_pg_constants, constant_name)  # noqa: F821
+        return getattr(_pg_constants, constant_name)
 
     LEFT = auto()
     RIGHT = auto()
     MIDDLE = auto()
     WHEELUP = auto()
     WHEELDOWN = auto()
-
-
-del _pg_constants

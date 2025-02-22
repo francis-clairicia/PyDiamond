@@ -7,7 +7,8 @@ from __future__ import annotations
 
 __all__ = ["WidgetRendererView"]
 
-from typing import TYPE_CHECKING, ContextManager, final
+from contextlib import AbstractContextManager as ContextManager
+from typing import TYPE_CHECKING, final
 
 from ...graphics.renderer import AbstractRenderer, RendererView
 from ...math.rect import Rect

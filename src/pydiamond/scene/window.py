@@ -14,7 +14,7 @@ from collections import deque
 from collections.abc import Callable, Generator, Iterator, Sequence
 from contextlib import ExitStack, contextmanager, suppress
 from itertools import chain
-from typing import Any, Final, NoReturn, TypeGuard, TypeVar, final
+from typing import Any, Final, NoReturn, TypeGuard, final
 from weakref import WeakSet
 
 from ..graphics.renderer import AbstractRenderer
@@ -323,8 +323,6 @@ class SceneWindow(Window):
 
 # from .dialog import Dialog  # Import here because of circular import
 
-_S = TypeVar("_S", bound=Scene)
-
 
 class _SceneManager:
     class SceneException(BaseException):
@@ -367,7 +365,7 @@ class _SceneManager:
         self.__awaken: set[Scene] = set()
         self.__dialogs: deque[Dialog] = deque()
 
-    def __new_scene(self, cls: type[_S]) -> _S:
+    def __new_scene[_S: Scene](self, cls: type[_S]) -> _S:
         if not issubclass(cls, Scene):
             raise TypeError("Bad argument type")
         scene: _S = cls.__new__(cls)

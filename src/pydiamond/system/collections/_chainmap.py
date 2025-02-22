@@ -9,13 +9,13 @@ __all__ = ["ChainMapProxy"]
 
 import reprlib
 from collections.abc import Iterable, Iterator, Mapping
-from typing import Any
+from typing import Any, Self
 
 
-class ChainMapProxy(Mapping):  # type: ignore[type-arg]
+class ChainMapProxy[_KT, _VT](Mapping[_KT, _VT]):
     """A variant of collections.ChainMap which is a read-only mapping, supporting either mutable or proxy mappings"""
 
-    def __init__(self, *maps: Mapping[Any, Any]) -> None:
+    def __init__(self, *maps: Mapping[_KT, _VT]) -> None:
         self.maps: list[Mapping[Any, Any]] = list(maps) or [{}]  # always at least one map
 
     def __missing__(self, key: Any) -> Any:
@@ -52,17 +52,17 @@ class ChainMapProxy(Mapping):  # type: ignore[type-arg]
         return f'{self.__class__.__name__}({", ".join(map(repr, self.maps))})'
 
     @classmethod
-    def fromkeys(cls, iterable: Iterable[Any], *args: Any) -> ChainMapProxy:
+    def fromkeys(cls, iterable: Iterable[Any], *args: Any) -> Self:
         """Create a ChainMapProxy with a single dict created from the iterable."""
         return cls(dict.fromkeys(iterable, *args))
 
-    def copy(self) -> ChainMapProxy:
+    def copy(self) -> Self:
         """New ChainMapProxy or subclass with refs to maps"""
         return self.__class__(*self.maps)
 
     __copy__ = copy  # Force use copy() method for 'copy' module, in order not to reduce the object
 
-    def new_child(self, __m: Any = None, /, **kwargs: Any) -> ChainMapProxy:
+    def new_child(self, __m: Any = None, /, **kwargs: Any) -> Self:
         """New ChainMapProxy with a new map followed by all previous maps.
         If no map is provided, an empty dict is used.
         Keyword arguments update the map or new empty dict.
@@ -74,7 +74,7 @@ class ChainMapProxy(Mapping):  # type: ignore[type-arg]
         return self.__class__(__m, *self.maps)
 
     @property
-    def parents(self) -> ChainMapProxy:
+    def parents(self) -> Self:
         """New ChainMapProxy from maps[1:]."""
         return self.__class__(*self.maps[1:])
 

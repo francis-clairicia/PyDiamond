@@ -14,11 +14,9 @@ __all__ = [
     "setdefaultattr_pv",
 ]
 
-from typing import Any, TypeVar, overload
+from typing import Any, overload
 
 from .functools import cache
-
-_T = TypeVar("_T")
 
 _NO_DEFAULT: Any = object()
 
@@ -48,7 +46,7 @@ def getattr_pv(obj: object, name: str, *, owner: type | None = None) -> Any: ...
 
 
 @overload
-def getattr_pv(obj: object, name: str, default: _T, *, owner: type | None = None) -> Any | _T: ...
+def getattr_pv[_T](obj: object, name: str, default: _T, *, owner: type | None = None) -> Any | _T: ...
 
 
 def getattr_pv(obj: object, name: str, default: Any = _NO_DEFAULT, *, owner: type | None = None) -> Any:
@@ -92,7 +90,7 @@ def delattr_pv(obj: object, name: str, *, owner: type | None = None) -> None:
         raise AttributeError(f"Missing private attribute {name!r}") from None
 
 
-def setdefaultattr_pv(obj: object, name: str, value: _T, *, owner: type | None = None) -> Any | _T:
+def setdefaultattr_pv[_T](obj: object, name: str, value: _T, *, owner: type | None = None) -> Any | _T:
     if owner is None:
         if isinstance(obj, type):
             owner = obj

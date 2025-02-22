@@ -13,7 +13,7 @@ import os.path
 from abc import abstractmethod
 from collections import deque
 from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
-from contextlib import ExitStack, contextmanager, suppress
+from contextlib import AbstractContextManager as ContextManager, ExitStack, contextmanager, suppress
 from dataclasses import dataclass
 from datetime import datetime
 from inspect import isgeneratorfunction
@@ -22,12 +22,10 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
-    ContextManager,
     Final,
     Literal,
     NoReturn,
-    ParamSpec,
-    TypeVar,
+    Self,
     assert_never,
     final,
     overload,
@@ -73,8 +71,6 @@ if TYPE_CHECKING:
 
     from ..graphics.drawable import SupportsDrawing
 
-_P = ParamSpec("_P")
-
 
 class WindowError(_pg_error):
     pass
@@ -87,8 +83,6 @@ class WindowExit(BaseException):
 class Window(Object, no_slots=True):
     if TYPE_CHECKING:
         __slots__: Final[tuple[str, ...]] = ("__dict__", "__weakref__")
-
-        __Self = TypeVar("__Self", bound="Window")
 
     DEFAULT_TITLE: Final[str] = "PyDiamond window"
     DEFAULT_FRAMERATE: Final[int] = 60
@@ -368,7 +362,7 @@ class Window(Object, no_slots=True):
             raise ValueError(f"Invalid value: {value!r}")
         self.__close_event = value
 
-    def register_loop_callback(self: __Self, callback: Callable[[__Self], Any]) -> None:
+    def register_loop_callback(self, callback: Callable[[Self], Any]) -> None:
         if not callable(callback):
             raise TypeError("must be a callable object")
         self.__loop_callbacks.add(callback)
@@ -581,7 +575,7 @@ class Window(Object, no_slots=True):
     def post_event(self, event: Event) -> bool:
         return _pg_event.post(EventFactory.make_pygame_event(event))
 
-    def register_mouse_position_callback(self: __Self, callback: Callable[[__Self, tuple[int, int]], Any]) -> None:
+    def register_mouse_position_callback(self, callback: Callable[[Self, tuple[int, int]], Any]) -> None:
         if not callable(callback):
             raise TypeError("must be a callable object")
         self.__mouse_position_callbacks.add(callback)
@@ -759,7 +753,7 @@ class Window(Object, no_slots=True):
                 stack.pop_all()
 
     @overload
-    def after(
+    def after[**_P](
         self, __milliseconds: float, __callback: Callable[_P, None], /, *args: _P.args, **kwargs: _P.kwargs
     ) -> WindowCallback: ...
 
@@ -779,12 +773,12 @@ class Window(Object, no_slots=True):
         return decorator
 
     @overload
-    def every(
+    def every[**_P](
         self, __milliseconds: float, __callback: Callable[_P, None], /, *args: _P.args, **kwargs: _P.kwargs
     ) -> WindowCallback: ...
 
     @overload
-    def every(
+    def every[**_P](
         self, __milliseconds: float, __callback: Callable[_P, Iterator[None]], /, *args: _P.args, **kwargs: _P.kwargs
     ) -> WindowCallback: ...
 

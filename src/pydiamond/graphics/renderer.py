@@ -9,9 +9,10 @@ __all__ = ["AbstractRenderer", "RendererView"]
 
 from abc import abstractmethod
 from collections.abc import Iterable, Sequence
+from contextlib import AbstractContextManager as ContextManager
 from enum import IntEnum, auto, unique
 from itertools import starmap
-from typing import TYPE_CHECKING, Any, ContextManager, Literal, TypeAlias, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 import pygame.constants as _pg_constants
 
@@ -28,7 +29,7 @@ if TYPE_CHECKING:
     from .surface import Surface
 
 
-RendererAnchor: TypeAlias = Literal[
+type RendererAnchor = Literal[
     "topleft",
     "topright",
     "bottomleft",
@@ -46,7 +47,7 @@ class BlendMode(IntEnum):
     @staticmethod
     def _generate_next_value_(name: str, start: int, count: int, last_values: list[int]) -> int:
         constant_name = f"BLEND_{name}"
-        return getattr(_pg_constants, constant_name)  # noqa: F821
+        return getattr(_pg_constants, constant_name)
 
     NONE = 0
     RGB_ADD = auto()
@@ -383,6 +384,3 @@ class RendererView(AbstractRenderer):
     @reflect_method_signature(AbstractRenderer.draw_aalines)
     def draw_aalines(self, *args: Any, **kwargs: Any) -> Rect:
         return self.__target.draw_aalines(*args, **kwargs)
-
-
-del _pg_constants

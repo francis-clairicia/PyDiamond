@@ -11,15 +11,12 @@ import inspect
 import os
 import sys
 from collections.abc import AsyncGenerator, Callable
-from typing import Any, NoReturn, ParamSpec, TypeVar
+from typing import Any, NoReturn
 
 from .utils.functools import wraps
 
-_P = ParamSpec("_P")
-_R = TypeVar("_R")
 
-
-def noexcept(func: Callable[_P, _R], /) -> Callable[_P, _R]:
+def noexcept[**_P, _R](func: Callable[_P, _R], /) -> Callable[_P, _R]:
     def abort() -> NoReturn:
         try:
             import traceback

@@ -12,7 +12,7 @@ from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
 from os import PathLike, fspath
 from types import MappingProxyType
-from typing import AbstractSet, Any, NoReturn, TypeAlias, final
+from typing import AbstractSet, Any, NoReturn, final
 
 from ..system.namespace import ClassNamespace, ClassNamespaceMeta
 from ..system.object import mro
@@ -20,8 +20,8 @@ from .abc import Resource, ResourcesLocation
 from .file import ResourcesDirectory
 from .loader import AbstractResourceLoader
 
-_ResourcePath: TypeAlias = str | PathLike[str] | Sequence["_ResourcePath"] | Mapping[Any, "_ResourcePath"]
-_ResourceLoader: TypeAlias = AbstractResourceLoader[Any] | tuple["_ResourceLoader", ...] | dict[Any, "_ResourceLoader"]
+type _ResourcePath = str | PathLike[str] | Sequence["_ResourcePath"] | Mapping[Any, "_ResourcePath"]
+type _ResourceLoader = AbstractResourceLoader[Any] | tuple["_ResourceLoader", ...] | dict[Any, "_ResourceLoader"]
 
 
 class _ResourceDescriptor:
@@ -109,15 +109,15 @@ class _LazyAutoLoadResourceDescriptor(_ResourceDescriptor):
 
 
 class ResourceManagerMeta(ClassNamespaceMeta):
-    def __new__(
-        mcs,
+    def __new__[Self: ResourceManagerMeta](
+        mcs: type[Self],
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, Any],
         *,
         autoload: bool = False,
         **kwargs: Any,
-    ) -> ResourceManagerMeta:
+    ) -> Self:
         namespace_including_bases: ChainMap[str, Any] = ChainMap(namespace, *map(vars, mro(*bases)))  # type: ignore[arg-type]
 
         resources: dict[str, Any] = namespace_including_bases.setdefault("__resources_files__", dict())

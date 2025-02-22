@@ -8,7 +8,6 @@ from __future__ import annotations
 __all__ = ["AbstractResourceLoader", "FontLoader", "ImageLoader", "MusicLoader", "SoundLoader"]
 
 from abc import abstractmethod
-from typing import Generic, TypeVar
 
 from ..audio.music import Music
 from ..audio.sound import Sound
@@ -17,10 +16,8 @@ from ..graphics.surface import Surface, load_image_resource
 from ..system.object import Object
 from .abc import Resource
 
-_T = TypeVar("_T")
 
-
-class AbstractResourceLoader(Generic[_T], Object):
+class AbstractResourceLoader[_T](Object):
     __slots__ = ("__resource",)
 
     def __init__(self, resource: Resource) -> None:

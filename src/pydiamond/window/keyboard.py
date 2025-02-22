@@ -90,7 +90,7 @@ class Keyboard(ClassNamespace, frozen=True):
 class Key(IntEnum):
     @staticmethod
     def _generate_next_value_(name: str, start: int, count: int, last_values: list[int]) -> int:
-        return getattr(_pg_constants, name)  # noqa: F821
+        return getattr(_pg_constants, name)
 
     K_BACKSPACE = auto()
     K_TAB = auto()
@@ -239,7 +239,7 @@ class Key(IntEnum):
 class KeyModifiers(IntFlag):
     @staticmethod
     def _generate_next_value_(name: str, start: int, count: int, last_values: list[int]) -> int:
-        return getattr(_pg_constants, name)  # noqa: F821
+        return getattr(_pg_constants, name)
 
     KMOD_NONE = auto()
     KMOD_LSHIFT = auto()
@@ -257,6 +257,3 @@ class KeyModifiers(IntFlag):
     KMOD_CAPS = auto()
     KMOD_NUM = auto()
     KMOD_MODE = auto()
-
-
-del _pg_constants

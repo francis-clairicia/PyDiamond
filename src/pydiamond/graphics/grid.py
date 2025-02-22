@@ -12,7 +12,7 @@ from collections.abc import Container, Iterator, Sequence
 from dataclasses import dataclass
 from enum import auto, unique
 from itertools import takewhile
-from typing import Any, ClassVar, Protocol, SupportsIndex, TypeVar, assert_never, final, overload, runtime_checkable
+from typing import Any, ClassVar, Protocol, SupportsIndex, assert_never, final, overload, runtime_checkable
 from weakref import ref as weakref
 
 from ..math.rect import Rect, modify_rect_in_place
@@ -28,7 +28,6 @@ from .movable import Movable
 from .renderer import AbstractRenderer
 from .shape import RectangleShape
 
-_T = TypeVar("_T")
 _MISSING: Any = object()
 
 
@@ -49,9 +48,6 @@ class GridElement(SupportsDrawableGroups, Protocol):
         midbottom: tuple[float, float] = ...,
     ) -> None:
         raise NotImplementedError
-
-
-_E = TypeVar("_E", bound=GridElement)
 
 
 @unique
@@ -239,7 +235,7 @@ class Grid(Drawable, Movable, Container[GridElement]):
         self.__remove_useless_cells()
         return [(cell.row, cell.column) for grid_row in self.__rows.values() for cell in grid_row.iter_cells()]
 
-    def place(
+    def place[_E: GridElement](
         self,
         obj: _E,
         row: int,
@@ -271,7 +267,7 @@ class Grid(Drawable, Movable, Container[GridElement]):
     def get(self, row: int, column: int) -> GridElement | None: ...
 
     @overload
-    def get(self, row: int, column: int, default: _T) -> GridElement | _T: ...
+    def get[_T](self, row: int, column: int, default: _T) -> GridElement | _T: ...
 
     def get(self, row: int, column: int, default: Any = None) -> Any:
         try:
@@ -283,7 +279,7 @@ class Grid(Drawable, Movable, Container[GridElement]):
     def pop(self, row: int, column: int) -> GridElement: ...
 
     @overload
-    def pop(self, row: int, column: int, default: _T) -> GridElement | _T: ...
+    def pop[_T](self, row: int, column: int, default: _T) -> GridElement | _T: ...
 
     def pop(self, row: int, column: int, default: Any = _MISSING) -> Any:
         try:

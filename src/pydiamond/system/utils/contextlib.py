@@ -5,13 +5,9 @@ __all__ = ["ExitStackView", "dsuppress"]
 import contextlib
 from collections.abc import Callable
 from types import TracebackType
-from typing import Any, ParamSpec, TypeAlias, TypeVar
+from typing import Any
 
-_P = ParamSpec("_P")
-_T = TypeVar("_T")
-
-_ExitFunc: TypeAlias = Callable[[type[BaseException] | None, BaseException | None, TracebackType | None], bool | None]
-_CM_EF = TypeVar("_CM_EF", bound=contextlib.AbstractAsyncContextManager[Any] | _ExitFunc)
+type _ExitFunc = Callable[[type[BaseException] | None, BaseException | None, TracebackType | None], bool | None]
 
 
 class ExitStackView:
@@ -20,13 +16,13 @@ class ExitStackView:
     def __init__(self, stack: contextlib.ExitStack) -> None:
         self.__s = stack
 
-    def enter_context(self, cm: contextlib.AbstractContextManager[_T]) -> _T:
+    def enter_context[_T](self, cm: contextlib.AbstractContextManager[_T]) -> _T:
         return self.__s.enter_context(cm)
 
-    def push(self, exit: _CM_EF) -> _CM_EF:
+    def push[_CM_EF: contextlib.AbstractAsyncContextManager[Any] | _ExitFunc](self, exit: _CM_EF) -> _CM_EF:
         return self.__s.push(exit)  # type: ignore[type-var]
 
-    def callback(self, __callback: Callable[_P, _T], /, *args: _P.args, **kwds: _P.kwargs) -> Callable[_P, _T]:
+    def callback[**_P, _T](self, __callback: Callable[_P, _T], /, *args: _P.args, **kwds: _P.kwargs) -> Callable[_P, _T]:
         return self.__s.callback(__callback, *args, **kwds)
 
 

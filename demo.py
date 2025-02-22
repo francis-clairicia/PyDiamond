@@ -1,5 +1,4 @@
 #!/usr/bin/env -S python3 -W default
-# flake8: noqa
 
 from __future__ import annotations
 
@@ -57,7 +56,6 @@ from pydiamond.gui.widgets.image import Image as ImageWidget
 from pydiamond.gui.widgets.label import Label
 from pydiamond.gui.widgets.scale import ScaleBar
 from pydiamond.gui.widgets.scroll import ScrollBar, ScrollingContainer
-from pydiamond.resources.abc import ResourcesLocation
 from pydiamond.resources.loader import FontLoader, ImageLoader, MusicLoader, SoundLoader
 from pydiamond.resources.manager import ResourceManager
 from pydiamond.resources.package import ResourcesPackage
@@ -421,7 +419,7 @@ class ImagesResources(ResourceManager, autoload=True):
     __resource_loader__ = ImageLoader
     # __resources_location__ = "./demo_resources/img"
     # __resources_location__ = Path(".") / "demo_resources" / "img"
-    __resources_location__: ResourcesLocation = ResourcesPackage("demo_resources.img")  # type: ignore[assignment]
+    __resources_location__ = ResourcesPackage("demo_resources.img")
     __resources_files__ = {
         "cactus": Path("cactus.png"),
         "car": [f"gameplay/voiture_7/{i + 1}.png" for i in range(10)],
@@ -1160,7 +1158,7 @@ class MusicManager(ResourceManager, autoload=True):
     gameplay: Music
     __resource_loader__ = MusicLoader
     # __resources_location__ = "./demo_resources/sounds"
-    __resources_location__ = ResourcesPackage("demo_resources.sounds")  # type: ignore[assignment]
+    __resources_location__ = ResourcesPackage("demo_resources.sounds")
     __resources_files__ = {"menu": "menu.wav", "garage": "garage.wav", "gameplay": "gameplay.wav"}
 
 
@@ -1380,7 +1378,7 @@ class ControllerSceneResources(ResourceManager, autoload=True):
     xbox_triggers_button_layers: Mapping[ControllerButton, Surface]
     xbox_triggers_axis_layers: Mapping[ControllerAxis, Surface]
 
-    __resources_location__ = ResourcesPackage("demo_resources.img.joystick")  # type: ignore[assignment]
+    __resources_location__ = ResourcesPackage("demo_resources.img.joystick")
     __resource_loader__ = ImageLoader
     __resources_files__ = {
         "xbox_front": "xbox-1.png",

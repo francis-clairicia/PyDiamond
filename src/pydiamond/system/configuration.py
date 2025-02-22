@@ -39,12 +39,11 @@ from typing import (
     AbstractSet as Set,
     Any,
     ClassVar,
-    Generic,
     Literal,
     NamedTuple,
     NoReturn,
     Protocol,
-    TypeAlias,
+    Self,
     TypeGuard,
     TypeVar,
     cast,
@@ -61,23 +60,23 @@ from .utils.itertools import prepend
 
 # from .proxy import ProxyType
 
-_Func: TypeAlias = Callable[..., Any]
-_Updater: TypeAlias = Callable[[Any], None]
-_KeyUpdater: TypeAlias = Callable[[Any, Any], None]
-_ValueUpdater: TypeAlias = Callable[[Any, Any], None]
-_KeyValueUpdater: TypeAlias = Callable[[Any, Any, Any], None]
-_Getter: TypeAlias = Callable[[Any], Any]
-_Setter: TypeAlias = Callable[[Any, Any], None]
-_Deleter: TypeAlias = Callable[[Any], None]
-_KeyGetter: TypeAlias = Callable[[Any, Any], Any]
-_KeySetter: TypeAlias = Callable[[Any, Any, Any], None]
-_KeyDeleter: TypeAlias = Callable[[Any, Any], None]
-_ValueValidator: TypeAlias = Callable[[Any, Any], None]
-_StaticValueValidator: TypeAlias = Callable[[Any], None]
-_ValueConverter: TypeAlias = Callable[[Any, Any], Any]
-_StaticValueConverter: TypeAlias = Callable[[Any], Any]
-_ValueComparator: TypeAlias = Callable[[Any, Any, Any], bool]
-_StaticValueComparator: TypeAlias = Callable[[Any, Any], bool]
+type _Func = Callable[..., Any]
+type _Updater = Callable[[Any], None]
+type _KeyUpdater = Callable[[Any, Any], None]
+type _ValueUpdater = Callable[[Any, Any], None]
+type _KeyValueUpdater = Callable[[Any, Any, Any], None]
+type _Getter = Callable[[Any], Any]
+type _Setter = Callable[[Any, Any], None]
+type _Deleter = Callable[[Any], None]
+type _KeyGetter = Callable[[Any, Any], Any]
+type _KeySetter = Callable[[Any, Any, Any], None]
+type _KeyDeleter = Callable[[Any, Any], None]
+type _ValueValidator = Callable[[Any, Any], None]
+type _StaticValueValidator = Callable[[Any], None]
+type _ValueConverter = Callable[[Any, Any], Any]
+type _StaticValueConverter = Callable[[Any], Any]
+type _ValueComparator = Callable[[Any, Any, Any], bool]
+type _StaticValueComparator = Callable[[Any, Any], bool]
 
 _FuncVar = TypeVar("_FuncVar", bound=_Func)
 _UpdaterVar = TypeVar("_UpdaterVar", bound=_Updater)
@@ -96,10 +95,6 @@ _ValueConverterVar = TypeVar("_ValueConverterVar", bound=_ValueConverter)
 _StaticValueConverterVar = TypeVar("_StaticValueConverterVar", bound=_StaticValueConverter)
 _ValueComparatorVar = TypeVar("_ValueComparatorVar", bound=_ValueComparator)
 _StaticValueComparatorVar = TypeVar("_StaticValueComparatorVar", bound=_StaticValueComparator)
-
-_S = TypeVar("_S")
-_T = TypeVar("_T")
-_DT = TypeVar("_DT")
 
 
 class ConfigurationError(Exception):
@@ -290,12 +285,12 @@ class ConfigurationTemplate(Object):
         type.__setattr__(owner, "__init_subclass__", _classmethod(__init_subclass__))
 
     @overload
-    def __get__(self, obj: None, objtype: type, /) -> ConfigurationTemplate: ...
+    def __get__(self, obj: None, objtype: type, /) -> Self: ...
 
     @overload
-    def __get__(self, obj: _T, objtype: type | None = None, /) -> Configuration[_T]: ...
+    def __get__[_T](self, obj: _T, objtype: type | None = None, /) -> Configuration[_T]: ...
 
-    def __get__(self, obj: Any, objtype: type | None = None, /) -> ConfigurationTemplate | Configuration[Any]:
+    def __get__(self, obj: Any, objtype: type | None = None, /) -> Self | Configuration[Any]:
         if obj is None:
             if objtype is None:
                 raise TypeError("__get__(None, None) is invalid")
@@ -318,7 +313,7 @@ class ConfigurationTemplate(Object):
             self.__cache.setdefault(obj, WeakKeyDictionary())[objtype] = bound_config
             return bound_config
 
-    def __set__(self, obj: _T, value: Configuration[_T]) -> NoReturn:
+    def __set__[_T](self, obj: _T, value: Configuration[_T]) -> NoReturn:
         raise AttributeError("Read-only attribute")
 
     def __delete__(self, obj: Any) -> None:
@@ -412,10 +407,10 @@ class ConfigurationTemplate(Object):
         )
 
     @overload
-    def section_property(self, func: Callable[[Any], Configuration[_T]], /) -> SectionProperty[_T]: ...
+    def section_property[_T](self, func: Callable[[Any], Configuration[_T]], /) -> SectionProperty[_T]: ...
 
     @overload
-    def section_property(
+    def section_property[_T](
         self,
         /,
         *,
@@ -423,7 +418,7 @@ class ConfigurationTemplate(Object):
         exclude_options: Set[str] | None = ...,
     ) -> Callable[[Callable[[Any], Configuration[_T]]], SectionProperty[_T]]: ...
 
-    def section_property(
+    def section_property[_T](
         self,
         func: Callable[[Any], Configuration[_T]] | None = None,
         /,
@@ -1990,7 +1985,7 @@ class ConfigurationTemplate(Object):
 
 
 @final
-class OptionAttribute(Generic[_T], Object):
+class OptionAttribute[_T](Object):
     __slots__ = ("__name", "__owner", "__config_name", "__doc__")
 
     def __init__(self) -> None:
@@ -2012,12 +2007,12 @@ class OptionAttribute(Generic[_T], Object):
         self.__config_name: str = config.name
 
     @overload
-    def __get__(self, obj: None, objtype: type, /) -> OptionAttribute[_T]: ...
+    def __get__(self, obj: None, objtype: type, /) -> Self: ...
 
     @overload
     def __get__(self, obj: object, objtype: type | None = None, /) -> _T: ...
 
-    def __get__(self, obj: object, objtype: type | None = None, /) -> _T | OptionAttribute[_T]:
+    def __get__(self, obj: object, objtype: type | None = None, /) -> _T | Self:
         if obj is None:
             return self
         name: str = self.__name
@@ -2061,7 +2056,7 @@ class OptionAttribute(Generic[_T], Object):
 
 
 @final
-class SectionProperty(Generic[_T], Object):
+class SectionProperty[_T](Object):
     __slots__ = (
         "__name",
         "__owner",
@@ -2092,12 +2087,12 @@ class SectionProperty(Generic[_T], Object):
         self.__config_name: str = config.name
 
     @overload
-    def __get__(self, obj: None, objtype: type | None = ..., /) -> SectionProperty[_T]: ...
+    def __get__(self, obj: None, objtype: type | None = ..., /) -> Self: ...
 
     @overload
     def __get__(self, obj: object, objtype: type | None = ..., /) -> Configuration[_T]: ...
 
-    def __get__(self, obj: object, objtype: type | None = None, /) -> SectionProperty[_T] | Configuration[_T]:
+    def __get__(self, obj: object, objtype: type | None = None, /) -> Self | Configuration[_T]:
         if obj is None:
             return self
 
@@ -2131,8 +2126,8 @@ def _default_mapping() -> MappingProxyType[Any, Any]:
 
 
 @final
-@dataclass(frozen=True, eq=False)  # TODO (3.11): slots=True, weakref_slot=True
-class Section(Generic[_T, _S], Object):
+@dataclass(frozen=True, eq=False, slots=True, weakref_slot=True)
+class Section[_T, _S](Object):
     name: str
     original_config: Callable[[_T], Configuration[_S]]
     include_options: Set[str] = field(default_factory=frozenset)
@@ -2182,7 +2177,7 @@ class Section(Generic[_T, _S], Object):
 
 @final
 @dataclass(frozen=True, eq=False, slots=True)
-class ConfigurationInfo(Object, Generic[_T]):
+class ConfigurationInfo[_T](Object):
     options: Set[str]
     _: KW_ONLY
     owner_cls: type[Any] | None = field(default=None)
@@ -2377,7 +2372,7 @@ del _default_mapping
 
 @final
 @dataclass(frozen=True, eq=True, slots=True, kw_only=True)
-class _BoundSection(Generic[_T], Object):
+class _BoundSection[_T](Object):
     name: str
     parent: Configuration[_T]
 
@@ -2400,7 +2395,7 @@ class _UpdateRegister(Object):
         return bool(self.modified) or bool(self.deleted)
 
 
-class Configuration(NonCopyable, Generic[_T]):
+class Configuration[_T](NonCopyable):
     __update_stack: ClassVar[dict[object, set[str]]] = dict()
     __init_context: ClassVar[set[object]] = set()
     __update_context: ClassVar[dict[object, _UpdateRegister]] = dict()
@@ -2432,7 +2427,7 @@ class Configuration(NonCopyable, Generic[_T]):
         self.__sections: Sequence[_BoundSection[Any]] = ()
 
     @staticmethod
-    def _from_section(
+    def _from_section[_S](
         section: Section[_T, _S],
         parent: Configuration[_T],
         weakref_callback: Callable[[weakref[_S]], Any] | None = None,
@@ -2473,7 +2468,7 @@ class Configuration(NonCopyable, Generic[_T]):
     def get(self, option: str) -> Any: ...
 
     @overload
-    def get(self, option: str, default: _DT) -> Any | _DT: ...
+    def get[_DT](self, option: str, default: _DT) -> Any | _DT: ...
 
     def get(self, option: str, default: Any = _NO_DEFAULT) -> Any:
         obj: _T = self.__self__
@@ -2640,7 +2635,6 @@ class Configuration(NonCopyable, Generic[_T]):
             option, value = next(iter(kwargs.items()))
             return self.set(option, value)
 
-        # TODO (3.11): Exception groups
         options = list(map(self._parse_option_without_split, kwargs))
         if sorted(options) != sorted(set(options)):
             raise TypeError("Multiple aliases to the same option given")
@@ -2675,7 +2669,6 @@ class Configuration(NonCopyable, Generic[_T]):
             option, value = next(iter(kwargs.items()))
             return self.only_set(option, value)
 
-        # TODO (3.11): Exception groups
         options = list(map(self._parse_option_without_split, kwargs))
         if sorted(options) != sorted(set(options)):
             raise TypeError("Multiple aliases to the same option given")
@@ -2709,7 +2702,6 @@ class Configuration(NonCopyable, Generic[_T]):
             option = options[0]
             return self.delete(option)
 
-        # TODO (3.11): Exception groups
         options = tuple(map(self._parse_option_without_split, set(options)))
         if sorted(options) != sorted(set(options)):
             raise TypeError("Multiple aliases to the same option given")
@@ -2743,7 +2735,6 @@ class Configuration(NonCopyable, Generic[_T]):
             option = options[0]
             return self.only_delete(option)
 
-        # TODO (3.11): Exception groups
         options = tuple(map(self._parse_option_without_split, set(options)))
         if sorted(options) != sorted(set(options)):
             raise TypeError("Multiple aliases to the same option given")
@@ -2885,7 +2876,6 @@ class Configuration(NonCopyable, Generic[_T]):
             yield MappingProxyType({})
             return
 
-        # TODO (3.11): Exception groups
         options = list(map(self._parse_option_without_split, kwargs))
         if sorted(options) != sorted(set(options)):
             raise TypeError("Multiple aliases to the same option given")
@@ -3501,10 +3491,6 @@ class _RemovableDescriptor(_Descriptor, Protocol):
         pass
 
 
-_KT = TypeVar("_KT")
-_VT = TypeVar("_VT")
-
-
 @final
 class _ConfigInfoTemplate:
     def __init__(
@@ -3570,7 +3556,7 @@ class _ConfigInfoTemplate:
         self.parent_descriptors: frozenset[_Descriptor] = frozenset(self.value_descriptor.values())
 
     @staticmethod
-    def __merge_dict(
+    def __merge_dict[_KT, _VT](
         d1: dict[_KT, _VT],
         d2: dict[_KT, _VT],
         /,

@@ -11,7 +11,7 @@ from abc import ABCMeta, abstractmethod
 from collections.abc import Callable, Iterator
 from contextlib import ExitStack, contextmanager
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Final, Literal, NamedTuple, Protocol, TypeAlias, TypeVar, final, overload
+from typing import TYPE_CHECKING, Any, Final, Literal, NamedTuple, Protocol, Self, final, overload
 from weakref import WeakKeyDictionary, ref as weakref
 
 from ..math import Vector2, angle_interpolation, linear_interpolation
@@ -207,7 +207,7 @@ class BaseAnimation(Object):
                 window.refresh()
 
 
-_MovableAnimationType: TypeAlias = Literal["move", "rotate_point"]
+type _MovableAnimationType = Literal["move", "rotate_point"]
 
 
 @final
@@ -222,14 +222,13 @@ class MoveAnimation(BaseAnimation):
         self.__animations: dict[_TransformableAnimationType, _AbstractAnimationClass] = {}
 
     if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="MoveAnimation")
 
         @property
         def object(self) -> Movable: ...
 
     @overload
     def smooth_set_position(
-        self: __Self,
+        self,
         speed: float = 100,
         *,
         x: float = ...,
@@ -240,11 +239,11 @@ class MoveAnimation(BaseAnimation):
         bottom: float = ...,
         centerx: float = ...,
         centery: float = ...,
-    ) -> __Self: ...
+    ) -> Self: ...
 
     @overload
     def smooth_set_position(
-        self: __Self,
+        self,
         speed: float = 100,
         *,
         center: tuple[float, float] = ...,
@@ -256,22 +255,22 @@ class MoveAnimation(BaseAnimation):
         midright: tuple[float, float] = ...,
         midtop: tuple[float, float] = ...,
         midbottom: tuple[float, float] = ...,
-    ) -> __Self: ...
+    ) -> Self: ...
 
-    def smooth_set_position(self: __Self, speed: float = 100, **position: float | tuple[float, float]) -> __Self:
+    def smooth_set_position(self, speed: float = 100, **position: float | tuple[float, float]) -> Self:
         self.__animations["move"] = _AnimationSetPosition(self.object, speed, position)
         return self
 
-    def smooth_translation(self: __Self, translation: Vector2 | tuple[float, float], speed: float = 100) -> __Self:
+    def smooth_translation(self, translation: Vector2 | tuple[float, float], speed: float = 100) -> Self:
         self.__animations["move"] = _AnimationMove(self.object, speed, translation)
         return self
 
     def smooth_rotation_around_point(
-        self: __Self,
+        self,
         angle: float,
         pivot: str | tuple[float, float] | Vector2,
         speed: float = 100,
-    ) -> __Self:
+    ) -> Self:
         self.__animations["rotate_point"] = _AnimationMovableRotationAroundPoint(
             self.object,
             angle,
@@ -280,17 +279,17 @@ class MoveAnimation(BaseAnimation):
         )
         return self
 
-    def infinite_translation(self: __Self, direction: Vector2 | tuple[float, float], speed: float = 100) -> __Self:
+    def infinite_translation(self, direction: Vector2 | tuple[float, float], speed: float = 100) -> Self:
         self.__animations["move"] = _AnimationInfiniteMove(self.object, speed, direction)
         return self
 
     def infinite_rotation_around_point(
-        self: __Self,
+        self,
         pivot: str | tuple[float, float] | Vector2,
         speed: float = 100,
         *,
         counter_clockwise: bool = True,
-    ) -> __Self:
+    ) -> Self:
         self.__animations["rotate_point"] = _AnimationMovableInfiniteRotateAroundPoint(
             self.object,
             speed,
@@ -314,7 +313,7 @@ class MoveAnimation(BaseAnimation):
                 animation.default()
 
 
-_TransformableAnimationType: TypeAlias = Literal["move", "rotate", "rotate_point", "scale_x", "scale_y"]
+type _TransformableAnimationType = Literal["move", "rotate", "rotate_point", "scale_x", "scale_y"]
 
 
 @final
@@ -329,14 +328,13 @@ class TransformAnimation(BaseAnimation):
         self.__animations: dict[_TransformableAnimationType, _AbstractAnimationClass] = {}
 
     if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="TransformAnimation")
 
         @property
         def object(self) -> Transformable: ...
 
     @overload
     def smooth_set_position(
-        self: __Self,
+        self,
         speed: float = 100,
         *,
         x: float = ...,
@@ -347,11 +345,11 @@ class TransformAnimation(BaseAnimation):
         bottom: float = ...,
         centerx: float = ...,
         centery: float = ...,
-    ) -> __Self: ...
+    ) -> Self: ...
 
     @overload
     def smooth_set_position(
-        self: __Self,
+        self,
         speed: float = 100,
         *,
         center: tuple[float, float] = ...,
@@ -363,31 +361,31 @@ class TransformAnimation(BaseAnimation):
         midright: tuple[float, float] = ...,
         midtop: tuple[float, float] = ...,
         midbottom: tuple[float, float] = ...,
-    ) -> __Self: ...
+    ) -> Self: ...
 
-    def smooth_set_position(self: __Self, speed: float = 100, **position: float | tuple[float, float]) -> __Self:
+    def smooth_set_position(self, speed: float = 100, **position: float | tuple[float, float]) -> Self:
         transformable: Transformable = self.object
         self.__animations["move"] = _AnimationSetPosition(transformable, speed, position)
         return self
 
-    def smooth_translation(self: __Self, translation: Vector2 | tuple[float, float], speed: float = 100) -> __Self:
+    def smooth_translation(self, translation: Vector2 | tuple[float, float], speed: float = 100) -> Self:
         transformable: Transformable = self.object
         self.__animations["move"] = _AnimationMove(transformable, speed, translation)
         return self
 
-    def infinite_translation(self: __Self, direction: Vector2 | tuple[float, float], speed: float = 100) -> __Self:
+    def infinite_translation(self, direction: Vector2 | tuple[float, float], speed: float = 100) -> Self:
         transformable: Transformable = self.object
         self.__animations["move"] = _AnimationInfiniteMove(transformable, speed, direction)
         return self
 
     def smooth_set_angle(
-        self: __Self,
+        self,
         angle: float,
         speed: float = 100,
         *,
         pivot: str | tuple[float, float] | Vector2 | None = None,
         counter_clockwise: bool = True,
-    ) -> __Self:
+    ) -> Self:
         transformable: Transformable = self.object
         if pivot is not None:
             self.__animations.pop("rotate_point", None)
@@ -395,22 +393,22 @@ class TransformAnimation(BaseAnimation):
         return self
 
     def smooth_rotation(
-        self: __Self,
+        self,
         angle: float,
         speed: float = 100,
-    ) -> __Self:
+    ) -> Self:
         transformable: Transformable = self.object
         self.__animations["rotate"] = _AnimationRotation(transformable, angle, speed)
         return self
 
     def smooth_rotation_around_point(
-        self: __Self,
+        self,
         angle: float,
         pivot: str | tuple[float, float] | Vector2,
         speed: float = 100,
         *,
         rotate_object: bool = False,
-    ) -> __Self:
+    ) -> Self:
         transformable: Transformable = self.object
         if rotate_object:
             self.__animations.pop("rotate", None)
@@ -423,19 +421,19 @@ class TransformAnimation(BaseAnimation):
         )
         return self
 
-    def infinite_rotation(self: __Self, speed: float = 100, *, counter_clockwise: bool = True) -> __Self:
+    def infinite_rotation(self, speed: float = 100, *, counter_clockwise: bool = True) -> Self:
         transformable: Transformable = self.object
         self.__animations["rotate"] = _AnimationInfiniteRotate(transformable, speed, counter_clockwise)
         return self
 
     def infinite_rotation_around_point(
-        self: __Self,
+        self,
         pivot: str | tuple[float, float] | Vector2,
         speed: float = 100,
         *,
         counter_clockwise: bool = True,
         rotate_object: bool = False,
-    ) -> __Self:
+    ) -> Self:
         transformable: Transformable = self.object
         if rotate_object:
             self.__animations.pop("rotate", None)
@@ -448,28 +446,28 @@ class TransformAnimation(BaseAnimation):
         )
         return self
 
-    def smooth_scale_to_width(self: __Self, width: float, speed: float = 100, *, uniform: bool = True) -> __Self:
+    def smooth_scale_to_width(self, width: float, speed: float = 100, *, uniform: bool = True) -> Self:
         transformable: Transformable = self.object
         if uniform:
             self.__animations.pop("scale_y", None)
         self.__animations["scale_x"] = _AnimationSetSize(transformable, width, speed, "width", uniform)
         return self
 
-    def smooth_scale_to_height(self: __Self, height: float, speed: float = 100, *, uniform: bool = True) -> __Self:
+    def smooth_scale_to_height(self, height: float, speed: float = 100, *, uniform: bool = True) -> Self:
         transformable: Transformable = self.object
         if uniform:
             self.__animations.pop("scale_x", None)
         self.__animations["scale_y"] = _AnimationSetSize(transformable, height, speed, "height", uniform)
         return self
 
-    def smooth_width_growth(self: __Self, width_offset: float, speed: float = 100, *, uniform: bool = True) -> __Self:
+    def smooth_width_growth(self, width_offset: float, speed: float = 100, *, uniform: bool = True) -> Self:
         transformable: Transformable = self.object
         if uniform:
             self.__animations.pop("scale_y", None)
         self.__animations["scale_x"] = _AnimationSizeGrowth(transformable, width_offset, speed, "width", uniform)
         return self
 
-    def smooth_height_growth(self: __Self, height_offset: float, speed: float = 100, *, uniform: bool = True) -> __Self:
+    def smooth_height_growth(self, height_offset: float, speed: float = 100, *, uniform: bool = True) -> Self:
         transformable: Transformable = self.object
         if uniform:
             self.__animations.pop("scale_x", None)

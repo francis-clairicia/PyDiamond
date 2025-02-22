@@ -366,6 +366,17 @@ class TestMusicStream:
 class TestMusicStreamFunctional:
     @pytest.fixture(scope="class", autouse=True)
     @staticmethod
+    def initialize_mixer_music_endevent(class_monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+        former_event_type = pygame.mixer.music.get_endevent()
+
+        pygame.mixer.music.set_endevent(pygame.USEREVENT + 1)
+
+        yield
+
+        pygame.mixer.music.set_endevent(former_event_type)
+
+    @pytest.fixture(scope="class", autouse=True)
+    @staticmethod
     def mock_music_open(class_monkeypatch: pytest.MonkeyPatch) -> None:
         from contextlib import nullcontext
 

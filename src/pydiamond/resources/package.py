@@ -12,11 +12,12 @@ __all__ = [
 ]
 
 import importlib.resources as _importlib_resources
+from contextlib import AbstractContextManager as ContextManager
 from importlib import import_module
 from importlib.resources import Package as PackageType
 from pathlib import Path
 from types import ModuleType
-from typing import IO, ContextManager
+from typing import IO
 
 from ..system.object import Object
 from .abc import Resource, ResourcesLocation

@@ -33,6 +33,7 @@ per-file-ignores =
     src/pydiamond/*/__init__.py:F401,F403,F405
     .github/*.py:DALL001
     tests/*.py:DALL001
+    demo.py:DALL001
     #### Stub errors ignore ####
     # E301,E302: expected 1/2 blank line(s)
     # E701: multiple statements on one line

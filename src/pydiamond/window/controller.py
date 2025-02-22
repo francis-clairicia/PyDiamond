@@ -33,7 +33,7 @@ class ControllerButton(IntEnum):
     @staticmethod
     def _generate_next_value_(name: str, start: int, count: int, last_values: list[int]) -> int:
         constant_name = f"CONTROLLER_BUTTON_{name.removeprefix('BUTTON_')}"
-        return getattr(_pg_constants, constant_name)  # noqa: F821
+        return getattr(_pg_constants, constant_name)
 
     BUTTON_A = auto()
     BUTTON_B = auto()
@@ -57,7 +57,7 @@ class ControllerAxis(IntEnum):
     @staticmethod
     def _generate_next_value_(name: str, start: int, count: int, last_values: list[int]) -> int:
         constant_name = f"CONTROLLER_AXIS_{name.replace('_', '')}"
-        return getattr(_pg_constants, constant_name)  # noqa: F821
+        return getattr(_pg_constants, constant_name)
 
     LEFT_X = auto()
     LEFT_Y = auto()
@@ -341,6 +341,3 @@ class Controller(Object):
     def mapping(self) -> ControllerMapping:
         controller: _pg_controller.Controller = self.__check_valid_controller()
         return ControllerMapping(controller)
-
-
-del _pg_constants

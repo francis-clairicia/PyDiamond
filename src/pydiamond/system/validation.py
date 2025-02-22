@@ -14,11 +14,9 @@ __all__ = [
 ]
 
 from collections.abc import Callable, Sequence
-from typing import Any, TypeAlias, TypeVar, overload
+from typing import Any, overload
 
 from .utils.functools import cache
-
-_T = TypeVar("_T")
 
 _MISSING: Any = object()
 
@@ -151,7 +149,7 @@ def valid_optional_float(**kwargs: Any) -> float | None | Callable[[Any], float 
     return decorator
 
 
-_Number: TypeAlias = int | float
+type _Number = int | float
 
 
 @cache
@@ -224,7 +222,7 @@ def valid_sequence(*, length: int = ...) -> Callable[[Any], Sequence[Any]]: ...
 
 
 @overload
-def valid_sequence(*, validator: Callable[[Any], _T], length: int = ...) -> Callable[[Any], Sequence[_T]]: ...
+def valid_sequence[_T](*, validator: Callable[[Any], _T], length: int = ...) -> Callable[[Any], Sequence[_T]]: ...
 
 
 @overload
@@ -232,7 +230,7 @@ def valid_sequence(*, value: Any, length: int = ...) -> Sequence[Any]: ...
 
 
 @overload
-def valid_sequence(*, value: Any, validator: Callable[[Any], _T], length: int = ...) -> Sequence[_T]: ...
+def valid_sequence[_T](*, value: Any, validator: Callable[[Any], _T], length: int = ...) -> Sequence[_T]: ...
 
 
 def valid_sequence(*, value: Any = _MISSING, validator: Callable[[Any], Any] | None = None, length: int = -1) -> Any:

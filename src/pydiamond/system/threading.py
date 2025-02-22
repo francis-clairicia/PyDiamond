@@ -10,7 +10,7 @@ __all__ = ["Thread", "thread_factory", "thread_factory_method"]
 import ctypes
 import threading
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Any, Concatenate, Final, Generic, ParamSpec, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Concatenate, Final, Self, overload
 from weakref import WeakKeyDictionary
 
 from .object import Object
@@ -18,11 +18,6 @@ from .utils.functools import wraps
 
 if TYPE_CHECKING:
     from typing import type_check_only
-
-_P = ParamSpec("_P")
-_ThreadT = TypeVar("_ThreadT", bound="Thread")
-_T = TypeVar("_T")
-_R = TypeVar("_R")
 
 
 class Thread(threading.Thread, Object, no_slots=True):
@@ -63,11 +58,11 @@ class Thread(threading.Thread, Object, no_slots=True):
 
 
 @overload
-def thread_factory(func: Callable[_P, Any], /) -> Callable[_P, Thread]: ...
+def thread_factory[**_P](func: Callable[_P, Any], /) -> Callable[_P, Thread]: ...
 
 
 @overload
-def thread_factory(
+def thread_factory[**_P](
     *,
     daemon: bool | None = ...,
     auto_start: bool = ...,
@@ -76,7 +71,7 @@ def thread_factory(
 
 
 @overload
-def thread_factory(
+def thread_factory[**_P, _ThreadT: Thread](
     *,
     thread_cls: type[_ThreadT],
     daemon: bool | None = ...,
@@ -119,11 +114,14 @@ def thread_factory(
 
 
 @overload
-def thread_factory_method(func: Callable[Concatenate[_T, _P], _R], /) -> _ThreadFactoryMethod[_T, _P, _R, Thread]: ...
+def thread_factory_method[_T, **_P, _R](
+    func: Callable[Concatenate[_T, _P], _R],
+    /,
+) -> _ThreadFactoryMethod[_T, _P, _R, Thread]: ...
 
 
 @overload
-def thread_factory_method(
+def thread_factory_method[_T, **_P, _R](
     *,
     daemon: bool | None = ...,
     auto_start: bool = ...,
@@ -134,7 +132,7 @@ def thread_factory_method(
 
 
 @overload
-def thread_factory_method(
+def thread_factory_method[_T, **_P, _R](
     *,
     daemon: bool | None = ...,
     auto_start: bool = ...,
@@ -145,7 +143,7 @@ def thread_factory_method(
 
 
 @overload
-def thread_factory_method(
+def thread_factory_method[_T, **_P, _R, _ThreadT: Thread](
     *,
     thread_cls: type[_ThreadT],
     daemon: bool | None = ...,
@@ -158,7 +156,7 @@ def thread_factory_method(
 
 
 @overload
-def thread_factory_method(
+def thread_factory_method[_T, **_P, _R, _ThreadT: Thread](
     *,
     thread_cls: type[_ThreadT],
     daemon: bool | None = ...,
@@ -188,17 +186,14 @@ def thread_factory_method(
 if TYPE_CHECKING:
 
     @type_check_only
-    class _ThreadMethodType(Generic[_P, _ThreadT]):
+    class _ThreadMethodType[**_P, _ThreadT]:
         @staticmethod
         def __call__(*args: _P.args, **kwds: _P.kwargs) -> _ThreadT: ...
 
         def get_lock(self) -> threading.RLock: ...
 
 
-class _ThreadFactoryMethod(Generic[_T, _P, _R, _ThreadT]):
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="_ThreadFactoryMethod[Any, Any, Any, Any]")
-
+class _ThreadFactoryMethod[_T, **_P, _R, _ThreadT: Thread]:
     def __init__(
         self,
         __func: Callable[Concatenate[_T, _P], _R],
@@ -232,12 +227,12 @@ class _ThreadFactoryMethod(Generic[_T, _P, _R, _ThreadT]):
         return func(*args, **kwargs)
 
     @overload
-    def __get__(self: __Self, obj: None, objtype: type, /) -> __Self: ...
+    def __get__(self, obj: None, objtype: type, /) -> Self: ...
 
     @overload
     def __get__(self, obj: _T, objtype: type | None = None, /) -> _ThreadMethodType[_P, _ThreadT]: ...
 
-    def __get__(self: __Self, obj: _T | None, objtype: type | None = None, /) -> __Self | _ThreadMethodType[_P, _ThreadT]:
+    def __get__(self, obj: _T | None, objtype: type | None = None, /) -> Self | _ThreadMethodType[_P, _ThreadT]:
         if obj is None:
             if objtype is None:
                 raise TypeError("__get__(None, None) is forbidden")

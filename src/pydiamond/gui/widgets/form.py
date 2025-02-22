@@ -9,7 +9,7 @@ __all__ = ["Form", "FormJustify"]
 
 from collections.abc import Callable, Mapping, Sequence
 from types import MappingProxyType
-from typing import Any, ClassVar, TypeVar, final, overload
+from typing import Any, ClassVar, final, overload
 from weakref import WeakValueDictionary
 
 from ...graphics.color import BLACK, TRANSPARENT, Color
@@ -21,8 +21,6 @@ from ..scene import GUIScene
 from ..tools._grid import AbstractGUIGrid as _BaseGrid, GridElement, GridJustify as FormJustify
 from .abc import AbstractWidget, WidgetsManager
 from .entry import Entry
-
-_Entry = TypeVar("_Entry", bound=Entry)
 
 
 class Form(AbstractWidget, metaclass=ThemedObjectMeta):
@@ -87,7 +85,7 @@ class Form(AbstractWidget, metaclass=ThemedObjectMeta):
         self.__grid.center = self.center
         self.__grid.draw_onto(target)
 
-    def add_entry(
+    def add_entry[_Entry: Entry](
         self,
         name: str,
         entry: _Entry,

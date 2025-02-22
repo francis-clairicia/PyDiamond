@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any, Literal, NamedTuple, final, overload
 import pygame.constants as _pg_constants
 import pygame.mixer as _pg_mixer
 from pygame import error as _pg_error
+from pygame.mixer import music as _pg_music
 
 from ..system.namespace import ClassNamespace
 from .sound import Channel
@@ -36,7 +37,7 @@ class AllowedAudioChanges(IntFlag):
     @staticmethod
     def _generate_next_value_(name: str, start: int, count: int, last_values: list[int]) -> int:
         constant_name = f"AUDIO_ALLOW_{name}_CHANGE"
-        return getattr(_pg_constants, constant_name)  # noqa: F821
+        return getattr(_pg_constants, constant_name)
 
     FREQUENCY = auto()
     FORMAT = auto()
@@ -51,7 +52,7 @@ class AudioFormat(IntEnum):
 
     @staticmethod
     def _generate_next_value_(name: str, start: int, count: int, last_values: list[int]) -> int:
-        return getattr(_pg_constants, name)  # noqa: F821
+        return getattr(_pg_constants, name)
 
     AUDIO_U8 = auto()
     AUDIO_S8 = auto()
@@ -159,6 +160,12 @@ class Mixer(ClassNamespace, frozen=True):
         with ExitStack() as stack:
             _pg_mixer.init(**kwargs)
             stack.callback(_pg_mixer.quit)
+
+            if _pg_music.get_endevent() == _pg_constants.NOEVENT:
+                from pygame.event import custom_type
+
+                _pg_music.set_endevent(custom_type())
+                stack.callback(_pg_music.set_endevent, _pg_constants.NOEVENT)
 
             from .music import MusicStream
 
@@ -288,6 +295,3 @@ class Mixer(ClassNamespace, frozen=True):
         running Sound and return it.
         """
         return _pg_mixer.find_channel(force)
-
-
-del _pg_constants

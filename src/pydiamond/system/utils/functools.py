@@ -17,17 +17,12 @@ __all__ = [
 
 from collections.abc import Callable
 from functools import lru_cache as _lru_cache, wraps
-from typing import TYPE_CHECKING, Any, Concatenate, ParamSpec, TypeGuard, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Concatenate, TypeGuard, overload
 from weakref import WeakMethod, ref as weakref
-
-_P = ParamSpec("_P")
-_T = TypeVar("_T")
-_R = TypeVar("_R")
-
 
 if TYPE_CHECKING:
     from functools import _CacheInfo
-    from typing import Generic, TypedDict, final, type_check_only
+    from typing import TypedDict, final, type_check_only
 
     @type_check_only
     class _CacheParameters(TypedDict):
@@ -36,7 +31,7 @@ if TYPE_CHECKING:
 
     @final
     @type_check_only
-    class _lru_cache_wrapper(Generic[_P, _R]):
+    class _lru_cache_wrapper[**_P, _R]:
         __wrapped__: Callable[_P, _R]
 
         @staticmethod
@@ -54,11 +49,11 @@ if TYPE_CHECKING:
 
 
 @overload
-def lru_cache(func: Callable[_P, _R], /) -> Callable[_P, _R]: ...
+def lru_cache[**_P, _R](func: Callable[_P, _R], /) -> Callable[_P, _R]: ...
 
 
 @overload
-def lru_cache(*, maxsize: int | None = 128, typed: bool = False) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]: ...
+def lru_cache[**_P, _R](*, maxsize: int | None = 128, typed: bool = False) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]: ...
 
 
 def lru_cache(func: Callable[..., Any] | None = None, /, *, maxsize: int | None = 128, typed: bool = False) -> Callable[..., Any]:
@@ -68,16 +63,16 @@ def lru_cache(func: Callable[..., Any] | None = None, /, *, maxsize: int | None 
     return decorator
 
 
-def cache(func: Callable[_P, _R], /) -> Callable[_P, _R]:
+def cache[**_P, _R](func: Callable[_P, _R], /) -> Callable[_P, _R]:
     return lru_cache(maxsize=None)(func)
 
 
 @overload
-def tp_cache(func: Callable[_P, _R], /) -> Callable[_P, _R]: ...
+def tp_cache[**_P, _R](func: Callable[_P, _R], /) -> Callable[_P, _R]: ...
 
 
 @overload
-def tp_cache(*, maxsize: int | None = 128, typed: bool = False) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]: ...
+def tp_cache[**_P, _R](*, maxsize: int | None = 128, typed: bool = False) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]: ...
 
 
 def tp_cache(func: Callable[..., Any] | None = None, /, *, maxsize: int | None = 128, typed: bool = False) -> Callable[..., Any]:
@@ -107,7 +102,7 @@ def tp_cache(func: Callable[..., Any] | None = None, /, *, maxsize: int | None =
     return decorator
 
 
-def is_lru_cache(f: Callable[_P, _R]) -> TypeGuard[_lru_cache_wrapper[_P, _R]]:
+def is_lru_cache[**_P, _R](f: Callable[_P, _R]) -> TypeGuard[_lru_cache_wrapper[_P, _R]]:
     return (
         callable(f)
         and all(callable(getattr(f, method, None)) for method in ("cache_info", "cache_clear", "cache_parameters"))
@@ -115,7 +110,7 @@ def is_lru_cache(f: Callable[_P, _R]) -> TypeGuard[_lru_cache_wrapper[_P, _R]]:
     )
 
 
-def setdefaultattr(obj: object, name: str, value: _T) -> Any | _T:
+def setdefaultattr[_T](obj: object, name: str, value: _T) -> Any | _T:
     try:
         return getattr(obj, name)
     except AttributeError:
@@ -127,16 +122,15 @@ if TYPE_CHECKING:
     classmethodonly = classmethod
 
 else:
-    _R_co = TypeVar("_R_co", covariant=True)
 
     class classmethodonly(classmethod):
-        def __get__(self, __obj: _T, __type: type[_T] | None = ...) -> Callable[..., _R_co]:
+        def __get__[_T, _R](self, __obj: _T, __type: type[_T] | None = ...) -> Callable[..., _R]:
             if __obj is not None:
                 raise TypeError("This method should not be called from instance")
             return super().__get__(__obj, __type)
 
 
-def forbidden_call(func: Callable[_P, _R]) -> Callable[_P, _R]:
+def forbidden_call[**_P, _R](func: Callable[_P, _R]) -> Callable[_P, _R]:
     @wraps(func)
     def not_callable(*args: Any, **kwargs: Any) -> Any:
         raise TypeError(f"Call to function {func.__qualname__} is forbidden")
@@ -146,7 +140,7 @@ def forbidden_call(func: Callable[_P, _R]) -> Callable[_P, _R]:
 
 
 @overload
-def make_callback(
+def make_callback[**_P, _R](
     __func: Callable[_P, _R] | WeakMethod[Callable[_P, _R]],
     __obj: None = ...,
     /,
@@ -156,7 +150,7 @@ def make_callback(
 
 
 @overload
-def make_callback(
+def make_callback[_T, **_P, _R](
     __func: Callable[Concatenate[_T, _P], _R] | WeakMethod[Callable[Concatenate[_T, _P], _R]],
     __obj: _T,
     /,
@@ -166,7 +160,7 @@ def make_callback(
 
 
 @overload
-def make_callback(
+def make_callback[_T, **_P, _R](
     __func: Callable[Concatenate[_T, _P], _R] | WeakMethod[Callable[Concatenate[_T, _P], _R]],
     __obj: _T,
     /,
@@ -197,22 +191,7 @@ def make_callback(
         def deadref_fallback() -> Any:
             return deadref_value_return
 
-    if not isinstance(func_or_weakmethod, WeakMethod):
-        func = func_or_weakmethod
-
-        if obj is None:
-            callback = func
-
-        else:
-            objref = weakref(obj, weakref_callback)
-
-            def callback(*args: Any, **kwargs: Any) -> Any:
-                obj = objref()
-                if obj is None:
-                    return deadref_fallback()
-                return func(obj, *args, **kwargs)
-
-    else:
+    if isinstance(func_or_weakmethod, WeakMethod):
         weak_method = func_or_weakmethod
 
         if obj is None:
@@ -232,5 +211,20 @@ def make_callback(
                 if method is None or obj is None:
                     return deadref_fallback()
                 return method(obj, *args, **kwargs)
+
+    else:
+        func = func_or_weakmethod
+
+        if obj is None:
+            callback = func
+
+        else:
+            objref = weakref(obj, weakref_callback)
+
+            def callback(*args: Any, **kwargs: Any) -> Any:
+                obj = objref()
+                if obj is None:
+                    return deadref_fallback()
+                return func(obj, *args, **kwargs)
 
     return callback

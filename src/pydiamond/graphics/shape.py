@@ -23,7 +23,7 @@ from abc import abstractmethod
 from collections.abc import Mapping, Sequence
 from math import radians, sin, tan
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, final
+from typing import TYPE_CHECKING, Any, ClassVar, final
 
 from pygame.transform import rotozoom as _surface_rotozoom, smoothscale as _surface_scale
 
@@ -38,7 +38,7 @@ from .renderer import AbstractRenderer
 from .surface import Surface, SurfaceRenderer, create_surface
 from .transformable import Transformable
 
-_FPoint: TypeAlias = tuple[float, float]
+type _FPoint = tuple[float, float]
 
 
 class AbstractShape(Drawable, Transformable):
@@ -180,7 +180,7 @@ class OutlinedShape(AbstractShape):
 
 @concreteclass
 class PolygonShape(OutlinedShape, SingleColorShape):
-    PointList: TypeAlias = Sequence[Vector2] | Sequence[tuple[int | float, int | float]]
+    type PointList = Sequence[Vector2] | Sequence[tuple[int | float, int | float]]
 
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "local_vertices",

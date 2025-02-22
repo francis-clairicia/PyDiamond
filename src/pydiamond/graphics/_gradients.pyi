@@ -3,21 +3,21 @@
 __all__: list[str] = []
 
 from collections.abc import Callable, Sequence
-from typing import Final, TypeAlias, Union  # noqa: Y037
+from typing import Final
 
 from pygame import Rect, Surface, Vector2
 
 BLEND_MODES_AVAILABLE: Final[bool]
 
-_Number: TypeAlias = Union[int, float]
-_Size: TypeAlias = tuple[_Number, _Number]
-_Coordinate: TypeAlias = Union[tuple[_Number, _Number], Vector2]
+type _Number = int | float
+type _Size = tuple[_Number, _Number]
+type _Coordinate = tuple[_Number, _Number] | Vector2
 
-_OpaqueColor: TypeAlias = tuple[int, int, int]
-_ColorWithTransparency: TypeAlias = tuple[int, int, int, int]
-_Color: TypeAlias = Union[_OpaqueColor, _ColorWithTransparency]
+type _OpaqueColor = tuple[int, int, int]
+type _ColorWithTransparency = tuple[int, int, int, int]
+type _Color = _OpaqueColor | _ColorWithTransparency
 
-_Function: TypeAlias = Callable[[_Number], _Number]
+type _Function = Callable[[_Number], _Number]
 
 class ColorInterpolator:
     def __init__(
@@ -134,7 +134,7 @@ def chart(
     Gfunc: _Function = ...,
     Bfunc: _Function = ...,
     Afunc: _Function = ...,
-    scale: Union[_Number, None] = ...,
+    scale: _Number | None = ...,
 ) -> Surface: ...
 def genericFxyGradient(
     surf: Surface,
@@ -144,5 +144,5 @@ def genericFxyGradient(
     func: Callable[[_Number, _Number], _Number],
     intx: Sequence[_Number],
     yint: Sequence[_Number],
-    zint: Union[Sequence[_Number], None] = ...,
+    zint: Sequence[_Number] | None = ...,
 ) -> None: ...

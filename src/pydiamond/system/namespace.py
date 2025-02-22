@@ -7,17 +7,15 @@ from __future__ import annotations
 
 __all__ = ["ClassNamespace", "ClassNamespaceMeta"]
 
-from typing import TYPE_CHECKING, Any, Final, TypeVar
+from typing import TYPE_CHECKING, Any, Final
 
 from .object import Object, ObjectMeta
 
 
 class ClassNamespaceMeta(ObjectMeta):
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="ClassNamespaceMeta")
 
-    def __new__(
-        mcs: type[__Self],
+    def __new__[Self: ClassNamespaceMeta](
+        mcs: type[Self],
         /,
         name: str,
         bases: tuple[type, ...],
@@ -25,7 +23,7 @@ class ClassNamespaceMeta(ObjectMeta):
         *,
         frozen: bool = False,
         **kwargs: Any,
-    ) -> __Self:
+    ) -> Self:
         if "__slots__" in namespace:
             raise ValueError("'__slots__' must not be defined")
         for attr in ("__new__", "__init__"):

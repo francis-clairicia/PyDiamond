@@ -7,23 +7,20 @@ from __future__ import annotations
 
 __all__ = ["NonCopyable", "NonCopyableMeta"]
 
-from typing import TYPE_CHECKING, Any, NoReturn, TypeVar, final
+from typing import TYPE_CHECKING, Any, NoReturn, final
 
 from .object import Object, ObjectMeta
 
 
 class NonCopyableMeta(ObjectMeta):
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="NonCopyableMeta")
-
-    def __new__(
-        mcs: type[__Self],
+    def __new__[Self: NonCopyableMeta](
+        mcs: type[Self],
         /,
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, Any],
         **kwargs: Any,
-    ) -> __Self:
+    ) -> Self:
         if any(attr in namespace for attr in ("__copy__", "__deepcopy__")):
             raise TypeError("'__copy__' and '__deepcopy__' cannot be overriden from a non-copyable object")
         if any(attr in namespace for attr in ("__reduce__", "__reduce_ex__")):

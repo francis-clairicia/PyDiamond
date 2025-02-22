@@ -8,7 +8,7 @@ from __future__ import annotations
 __all__ = ["BooleanCheckBox", "CheckBox"]
 
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from ...graphics.color import BLACK, BLUE, Color
 from ...graphics.image import Image
@@ -25,13 +25,10 @@ if TYPE_CHECKING:
     from ...graphics.renderer import AbstractRenderer
     from ...window.cursor import Cursor
 
-_OnValue = TypeVar("_OnValue")
-_OffValue = TypeVar("_OffValue")
-
 NoDefaultValue: Any = object()
 
 
-class CheckBox(Generic[_OnValue, _OffValue], Widget, Transformable, metaclass=ThemedObjectMeta):
+class CheckBox[_OnValue, _OffValue](Widget, Transformable, metaclass=ThemedObjectMeta):
     config: ClassVar[ConfigurationTemplate] = ConfigurationTemplate(
         "value",
         "local_width",

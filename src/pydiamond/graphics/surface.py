@@ -17,7 +17,7 @@ __all__ = [
 from abc import abstractmethod
 from collections.abc import Iterable, Iterator, Sequence
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
 import pygame.image as _pg_image
 from pygame import encode_file_path
@@ -323,15 +323,12 @@ class AbstractSurfaceRenderer(AbstractRenderer):
 class SurfaceRenderer(AbstractSurfaceRenderer):
     __slots__ = ("__target",)
 
-    if TYPE_CHECKING:
-        __Self = TypeVar("__Self", bound="SurfaceRenderer")
-
     def __init__(self, target: Surface) -> None:
         assert isinstance(target, Surface), "target must be a regular surface"
         self.__target: Surface = target
 
     @classmethod
-    def from_size(cls: type[__Self], size: tuple[float, float], *, convert_alpha: bool = True) -> __Self:
+    def from_size(cls: type[Self], size: tuple[float, float], *, convert_alpha: bool = True) -> Self:
         target = create_surface(size, convert_alpha=convert_alpha)
         return cls(target)
 
