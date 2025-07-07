@@ -7,12 +7,12 @@ ci:
 
 repos:
   - repo: https://github.com/asottile/pyupgrade
-    rev: 'v3.19.1'
+    rev: 'v3.20.0'
     hooks:
       - id: pyupgrade
         args: ['--py313-plus']
   - repo: https://github.com/PyCQA/isort
-    rev: '6.0.0'
+    rev: '6.0.1'
     hooks:
       - id: isort
         exclude: ^(devtools|demo_resources|\.github)/
@@ -24,7 +24,7 @@ repos:
         exclude: ^(devtools|demo_resources|\.github)/
         args: ['--config', 'pyproject.toml']
   - repo: https://github.com/PyCQA/flake8
-    rev: '7.1.1'
+    rev: '7.3.0'
     hooks:
       - id: flake8
         exclude: ^(devtools|demo_resources|\.github)/
@@ -43,7 +43,7 @@ repos:
         types: []  # Overwrite with empty in order to fallback to types_or
         types_or: [python, pyi]
   - repo: https://github.com/pdm-project/pdm
-    rev: '2.22.3'
+    rev: '2.25.4'
     hooks:
       - id: pdm-lock-check
   - repo: https://github.com/pre-commit/pre-commit-hooks
