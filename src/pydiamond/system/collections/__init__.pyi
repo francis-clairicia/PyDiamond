@@ -13,11 +13,11 @@ __all__ = [
     "WeakValueDefaultDictionary",
 ]
 
+from _collections_abc import dict_items, dict_keys, dict_values
 from collections.abc import Callable, Iterable, Iterator, Mapping, MutableSet, Reversible, Sequence, Set as AbstractSet
 from typing import Any, Self, SupportsIndex, final, overload
 from weakref import WeakKeyDictionary, WeakSet, WeakValueDictionary
 
-from _collections_abc import dict_items, dict_keys, dict_values
 from _typeshed import SupportsRichComparison
 
 @final
